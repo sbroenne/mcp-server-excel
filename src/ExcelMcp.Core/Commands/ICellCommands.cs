@@ -1,3 +1,5 @@
+using Sbroenne.ExcelMcp.Core.Models;
+
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
@@ -8,28 +10,20 @@ public interface ICellCommands
     /// <summary>
     /// Gets the value of a specific cell
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, sheet, cellAddress]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int GetValue(string[] args);
+    CellValueResult GetValue(string filePath, string sheetName, string cellAddress);
     
     /// <summary>
     /// Sets the value of a specific cell
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, sheet, cellAddress, value]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int SetValue(string[] args);
+    OperationResult SetValue(string filePath, string sheetName, string cellAddress, string value);
     
     /// <summary>
     /// Gets the formula of a specific cell
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, sheet, cellAddress]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int GetFormula(string[] args);
+    CellValueResult GetFormula(string filePath, string sheetName, string cellAddress);
     
     /// <summary>
     /// Sets the formula of a specific cell
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, sheet, cellAddress, formula]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int SetFormula(string[] args);
+    OperationResult SetFormula(string filePath, string sheetName, string cellAddress, string formula);
 }
