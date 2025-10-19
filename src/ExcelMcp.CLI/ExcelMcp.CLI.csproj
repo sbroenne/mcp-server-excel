@@ -13,10 +13,10 @@
     <FileVersion>1.0.0.0</FileVersion>
     
     <!-- Package-specific properties -->
-    <PackageId>ExcelMcp</PackageId>
+    <PackageId>ExcelMcp.CLI</PackageId>
     <Description>A command-line interface tool for automating Microsoft Excel operations using COM interop. Designed for coding agents like GitHub Copilot to programmatically manage Excel workbooks, Power Query queries, worksheets, and named ranges.</Description>
     <PackageTags>excel;cli;powerquery;automation;com;coding-agent;github-copilot;mcp</PackageTags>
-    <PackageReleaseNotes>Initial open source release of ExcelMcp with complete CRUD operations</PackageReleaseNotes>
+    <PackageReleaseNotes>Initial open source release of ExcelMcp.CLI with complete CRUD operations</PackageReleaseNotes>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IsPublishable>true</IsPublishable>
   </PropertyGroup>

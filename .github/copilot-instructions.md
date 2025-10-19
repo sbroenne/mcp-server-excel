@@ -1,10 +1,10 @@
-# ExcelMcp - Excel Command Line Interface for Coding Agents
+# ExcelMcp.CLI - Excel Command Line Interface for Coding Agents
 
-> **📎 Related Instructions:** For projects using ExcelMcp in other repositories, copy `docs/excel-powerquery-vba-copilot-instructions.md` to your project's `.github/copilot-instructions.md` for specialized Excel automation support.
+> **📎 Related Instructions:** For projects using ExcelMcp.CLI in other repositories, copy `docs/excel-powerquery-vba-copilot-instructions.md` to your project's `.github/copilot-instructions.md` for specialized Excel automation support.
 
 ## What is ExcelMcp?
 
-ExcelMcp is a Windows-only command-line tool that provides programmatic access to Microsoft Excel through COM interop. It's specifically designed for coding agents and automation scripts to manipulate Excel workbooks without requiring the Excel UI.
+ExcelMcp.CLI is a Windows-only command-line tool that provides programmatic access to Microsoft Excel through COM interop. It's specifically designed for coding agents and automation scripts to manipulate Excel workbooks without requiring the Excel UI.
 
 ## Core Capabilities
 
@@ -60,7 +60,7 @@ ExcelMcp is a Windows-only command-line tool that provides programmatic access t
 
 ## MCP Server for AI Development Workflows ✨ **NEW CAPABILITY**
 
-ExcelMcp now includes a **Model Context Protocol (MCP) server** that transforms CLI commands into conversational development workflows for AI assistants like GitHub Copilot.
+ExcelMcp.CLI now includes a **Model Context Protocol (MCP) server** that transforms CLI commands into conversational development workflows for AI assistants like GitHub Copilot.
 
 ### Starting the MCP Server
 ```powershell
@@ -80,7 +80,7 @@ The MCP server consolidates 40+ CLI commands into 6 resource-based tools with ac
 
 ### Development-Focused Use Cases ⚠️ **NOT for ETL!**
 
-ExcelMcp (both MCP server and CLI) is designed for **Excel development workflows**, not data processing:
+ExcelMcp.CLI (both MCP server and CLI) is designed for **Excel development workflows**, not data processing:
 
 - **Power Query Refactoring** - AI helps optimize M code for better performance
 - **VBA Development & Debugging** - Add error handling, logging, and code improvements  
@@ -146,31 +146,31 @@ Copilot: [Uses excel_powerquery view -> analyzes for query folding issues -> pro
 ### PowerShell Integration
 ```powershell
 # Create and populate a report with VBA automation
-ExcelMcp setup-vba-trust  # One-time setup
-ExcelMcp create-empty "monthly-report.xlsm"
-ExcelMcp param-set "monthly-report.xlsm" "ReportDate" "2024-01-01"
-ExcelMcp pq-import "monthly-report.xlsm" "SalesData" "sales-query.pq"
-ExcelMcp pq-refresh "monthly-report.xlsm" "SalesData"
-ExcelMcp script-run "monthly-report.xlsm" "ReportModule.FormatReport"
+ExcelMcp.CLI setup-vba-trust  # One-time setup
+ExcelMcp.CLI create-empty "monthly-report.xlsm"
+ExcelMcp.CLI param-set "monthly-report.xlsm" "ReportDate" "2024-01-01"
+ExcelMcp.CLI pq-import "monthly-report.xlsm" "SalesData" "sales-query.pq"
+ExcelMcp.CLI pq-refresh "monthly-report.xlsm" "SalesData"
+ExcelMcp.CLI script-run "monthly-report.xlsm" "ReportModule.FormatReport"
 ```
 
 ### VBA Automation Workflow
 ```powershell
 # Complete VBA workflow
-ExcelMcp setup-vba-trust
-ExcelMcp create-empty "automation.xlsm"
-ExcelMcp script-import "automation.xlsm" "DataProcessor" "processor.vba"
-ExcelMcp script-run "automation.xlsm" "DataProcessor.ProcessData" "Sheet1" "A1:D100"
-ExcelMcp sheet-read "automation.xlsm" "Sheet1" "A1:D10"
-ExcelMcp script-export "automation.xlsm" "DataProcessor" "updated-processor.vba"
+ExcelMcp.CLI setup-vba-trust
+ExcelMcp.CLI create-empty "automation.xlsm"
+ExcelMcp.CLI script-import "automation.xlsm" "DataProcessor" "processor.vba"
+ExcelMcp.CLI script-run "automation.xlsm" "DataProcessor.ProcessData" "Sheet1" "A1:D100"
+ExcelMcp.CLI sheet-read "automation.xlsm" "Sheet1" "A1:D10"
+ExcelMcp.CLI script-export "automation.xlsm" "DataProcessor" "updated-processor.vba"
 ```
 
 ### Batch Processing
 ```batch
 REM Process multiple files
 for %%f in (*.xlsx) do (
-    ExcelMcp pq-refresh "%%f" "DataQuery"
-    ExcelMcp sheet-read "%%f" "Results" > "%%~nf-results.csv"
+    ExcelMcp.CLI pq-refresh "%%f" "DataQuery"
+    ExcelMcp.CLI sheet-read "%%f" "Results" > "%%~nf-results.csv"
 )
 ```
 
@@ -196,7 +196,7 @@ for %%f in (*.xlsx) do (
 4. **VBA Automation Pipeline**: script-list → script-export → modify → script-run
 5. **Bulk Processing**: sheet-list → sheet-read → processing → sheet-write
 
-Use ExcelMcp when you need reliable, programmatic Excel automation without UI dependencies.
+Use ExcelMcp.CLI when you need reliable, programmatic Excel automation without UI dependencies.
 
 ## Architecture Patterns
 
@@ -709,7 +709,7 @@ return args[0] switch
 private static void ShowHelp()
 {
     var help = @"
-ExcelMcp - Excel Command Line Interface
+ExcelMcp.CLI - Excel Command Line Interface
 
 New Commands:
   new-operation <file> <param>     Description of operation
@@ -891,7 +891,7 @@ Critical security rules are treated as errors:
 
 - **File paths**: Use `Path.GetFullPath()` to resolve paths safely ✅ **Enhanced**
 - **User input**: Always use `.EscapeMarkup()` before displaying in Spectre.Console ✅ **Enforced**
-- **Macros**: ExcelMcp does not execute macros (DisplayAlerts = false)
+- **Macros**: ExcelMcp.CLI does not execute macros (DisplayAlerts = false)
 - **Credentials**: Never log connection strings or credentials ✅ **Enhanced**
 - **Resource Management**: Strict COM cleanup prevents resource leaks ✅ **Verified**
 
@@ -1012,8 +1012,8 @@ dotnet_diagnostic.CA5394.severity = error        # Insecure randomness
 
 ```bash
 # Create empty workbook (essential for automation)
-ExcelMcp create-empty "analysis.xlsx"
-ExcelMcp create-empty "reports/monthly-report.xlsx"  # Auto-creates directory
+ExcelMcp.CLI create-empty "analysis.xlsx"
+ExcelMcp.CLI create-empty "reports/monthly-report.xlsx"  # Auto-creates directory
 ```
 
 **Copilot Prompts:**
@@ -1026,28 +1026,28 @@ ExcelMcp create-empty "reports/monthly-report.xlsx"  # Auto-creates directory
 
 ```bash
 # List all Power Queries
-ExcelMcp pq-list "data.xlsx"
+ExcelMcp.CLI pq-list "data.xlsx"
 
 # View Power Query M code
-ExcelMcp pq-view "data.xlsx" "WebData"
+ExcelMcp.CLI pq-view "data.xlsx" "WebData"
 
 # Import M code from file
-ExcelMcp pq-import "data.xlsx" "APIData" "fetch-data.pq"
+ExcelMcp.CLI pq-import "data.xlsx" "APIData" "fetch-data.pq"
 
 # Export M code to file (for version control)
-ExcelMcp pq-export "data.xlsx" "APIData" "backup.pq"
+ExcelMcp.CLI pq-export "data.xlsx" "APIData" "backup.pq"
 
 # Update existing query
-ExcelMcp pq-update "data.xlsx" "APIData" "new-logic.pq"
+ExcelMcp.CLI pq-update "data.xlsx" "APIData" "new-logic.pq"
 
 # Load Connection-Only query to worksheet
-ExcelMcp pq-loadto "data.xlsx" "APIData" "DataSheet"
+ExcelMcp.CLI pq-loadto "data.xlsx" "APIData" "DataSheet"
 
 # Refresh query data
-ExcelMcp pq-refresh "data.xlsx" "APIData"
+ExcelMcp.CLI pq-refresh "data.xlsx" "APIData"
 
 # Delete query
-ExcelMcp pq-delete "data.xlsx" "OldQuery"
+ExcelMcp.CLI pq-delete "data.xlsx" "OldQuery"
 ```
 
 **Copilot Prompts:**
@@ -1060,31 +1060,31 @@ ExcelMcp pq-delete "data.xlsx" "OldQuery"
 
 ```bash
 # List all worksheets
-ExcelMcp sheet-list "workbook.xlsx"
+ExcelMcp.CLI sheet-list "workbook.xlsx"
 
 # Read data from range
-ExcelMcp sheet-read "workbook.xlsx" "Sheet1" "A1:D10"
+ExcelMcp.CLI sheet-read "workbook.xlsx" "Sheet1" "A1:D10"
 
 # Write CSV data to sheet
-ExcelMcp sheet-write "workbook.xlsx" "Sheet1" "data.csv"
+ExcelMcp.CLI sheet-write "workbook.xlsx" "Sheet1" "data.csv"
 
 # Create new worksheet
-ExcelMcp sheet-create "workbook.xlsx" "Analysis"
+ExcelMcp.CLI sheet-create "workbook.xlsx" "Analysis"
 
 # Copy worksheet
-ExcelMcp sheet-copy "workbook.xlsx" "Template" "NewSheet"
+ExcelMcp.CLI sheet-copy "workbook.xlsx" "Template" "NewSheet"
 
 # Rename worksheet
-ExcelMcp sheet-rename "workbook.xlsx" "Sheet1" "RawData"
+ExcelMcp.CLI sheet-rename "workbook.xlsx" "Sheet1" "RawData"
 
 # Clear worksheet data
-ExcelMcp sheet-clear "workbook.xlsx" "Sheet1" "A1:Z100"
+ExcelMcp.CLI sheet-clear "workbook.xlsx" "Sheet1" "A1:Z100"
 
 # Append data to existing content
-ExcelMcp sheet-append "workbook.xlsx" "Sheet1" "additional-data.csv"
+ExcelMcp.CLI sheet-append "workbook.xlsx" "Sheet1" "additional-data.csv"
 
 # Delete worksheet
-ExcelMcp sheet-delete "workbook.xlsx" "TempSheet"
+ExcelMcp.CLI sheet-delete "workbook.xlsx" "TempSheet"
 ```
 
 **Copilot Prompts:**
@@ -1097,19 +1097,19 @@ ExcelMcp sheet-delete "workbook.xlsx" "TempSheet"
 
 ```bash
 # List all named ranges
-ExcelMcp param-list "config.xlsx"
+ExcelMcp.CLI param-list "config.xlsx"
 
 # Get parameter value
-ExcelMcp param-get "config.xlsx" "StartDate"
+ExcelMcp.CLI param-get "config.xlsx" "StartDate"
 
 # Set parameter value
-ExcelMcp param-set "config.xlsx" "StartDate" "2024-01-01"
+ExcelMcp.CLI param-set "config.xlsx" "StartDate" "2024-01-01"
 
 # Create named range
-ExcelMcp param-create "config.xlsx" "FilePath" "Settings!A1"
+ExcelMcp.CLI param-create "config.xlsx" "FilePath" "Settings!A1"
 
 # Delete named range
-ExcelMcp param-delete "config.xlsx" "OldParam"
+ExcelMcp.CLI param-delete "config.xlsx" "OldParam"
 ```
 
 **Copilot Prompts:**
@@ -1122,16 +1122,16 @@ ExcelMcp param-delete "config.xlsx" "OldParam"
 
 ```bash
 # Get cell value
-ExcelMcp cell-get-value "data.xlsx" "Sheet1" "A1"
+ExcelMcp.CLI cell-get-value "data.xlsx" "Sheet1" "A1"
 
 # Set cell value
-ExcelMcp cell-set-value "data.xlsx" "Sheet1" "A1" "Hello World"
+ExcelMcp.CLI cell-set-value "data.xlsx" "Sheet1" "A1" "Hello World"
 
 # Get cell formula
-ExcelMcp cell-get-formula "data.xlsx" "Sheet1" "B1"
+ExcelMcp.CLI cell-get-formula "data.xlsx" "Sheet1" "B1"
 
 # Set cell formula
-ExcelMcp cell-set-formula "data.xlsx" "Sheet1" "B1" "=SUM(A1:A10)"
+ExcelMcp.CLI cell-set-formula "data.xlsx" "Sheet1" "B1" "=SUM(A1:A10)"
 ```
 
 **Copilot Prompts:**
@@ -1199,7 +1199,7 @@ When Copilot suggests code, verify:
 
 ### Testing Strategy (Updated)
 
-ExcelMcp uses a three-tier testing approach:
+ExcelMcp.CLI uses a three-tier testing approach:
 
 ```csharp
 // Unit Tests - Fast, no Excel required
@@ -1239,7 +1239,7 @@ dotnet test --filter "Category=RoundTrip"
 
 ## Contributing Guidelines
 
-When extending ExcelMcp with Copilot:
+When extending ExcelMcp.CLI with Copilot:
 
 1. **Follow Existing Patterns:** Use `@workspace` to understand current architecture
 2. **Test Thoroughly:** Create both unit and integration tests
@@ -1312,7 +1312,7 @@ When extending ExcelMcp with Copilot:
 
 ### **Required Development Process**
 
-When helping with ExcelMcp development, always guide users through this workflow:
+When helping with ExcelMcp.CLI development, always guide users through this workflow:
 
 #### 1. **Create Feature Branch First**
 ```powershell

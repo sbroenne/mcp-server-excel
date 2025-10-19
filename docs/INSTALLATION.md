@@ -57,10 +57,10 @@ You can download the latest pre-built version:
 
    ```powershell
    # Check CLI version
-   ExcelMcp --version
+   ExcelMcp.CLI --version
    
    # Test CLI functionality
-   ExcelMcp create-empty "test.xlsx"
+   ExcelMcp.CLI create-empty "test.xlsx"
    
    # Check MCP Server (if downloaded binary)
    dotnet C:\Tools\ExcelMcp\MCP-Server\ExcelMcp.McpServer.dll
@@ -100,7 +100,7 @@ You can download the latest pre-built version:
 4. **Locate the executable**:
 
    ```text
-   src\ExcelMcp\bin\Release\net8.0\ExcelMcp.exe
+   src\\ExcelMcp.CLI\\bin\Release\net8.0\ExcelMcp.CLI.exe
    ```
 
 ### Installation Options
@@ -109,7 +109,7 @@ You can download the latest pre-built version:
 
 ```powershell
 # Add the build directory to your system PATH
-$buildPath = "$(Get-Location)\src\ExcelMcp\bin\Release\net8.0"
+$buildPath = "$(Get-Location)\src\\ExcelMcp.CLI\\bin\Release\net8.0"
 $env:PATH += ";$buildPath"
 
 # Make permanent (requires admin privileges)
@@ -121,7 +121,7 @@ $env:PATH += ";$buildPath"
 ```powershell
 # Create a tools directory
 mkdir C:\Tools\ExcelMcp
-copy "src\ExcelMcp\bin\Release\net8.0\*" "C:\Tools\ExcelMcp\"
+copy "src\\ExcelMcp.CLI\\bin\Release\net8.0\*" "C:\Tools\ExcelMcp\"
 
 # Add to PATH
 $env:PATH += ";C:\Tools\ExcelCLI"
@@ -131,7 +131,7 @@ $env:PATH += ";C:\Tools\ExcelCLI"
 
 ```powershell
 # Use the full path in scripts
-.\src\ExcelMcp\bin\Release\net8.0\ExcelMcp.exe pq-list "myfile.xlsx"
+.\src\\ExcelMcp.CLI\\bin\Release\net8.0\ExcelMcp.CLI.exe pq-list "myfile.xlsx"
 ```
 
 ### Verify Installation
@@ -140,10 +140,10 @@ Test that ExcelMcp is working correctly:
 
 ```powershell
 # Check version
-ExcelMcp --version
+ExcelMcp.CLI --version
 
 # Test functionality
-ExcelMcp create-empty "test.xlsx"
+ExcelMcp.CLI create-empty "test.xlsx"
 ```
 
 If successful, you should see confirmation that the Excel file was created.
@@ -154,7 +154,7 @@ If you plan to use VBA script commands, you'll need to configure VBA trust:
 
 ```powershell
 # One-time setup for VBA automation
-ExcelMcp setup-vba-trust
+ExcelMcp.CLI setup-vba-trust
 ```
 
 This configures the necessary registry settings to allow programmatic access to VBA projects.

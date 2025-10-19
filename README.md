@@ -1,4 +1,4 @@
-# ExcelMcp - Excel MCP Server and CLI for AI-Powered Development
+# ExcelMcp - Excel MCP Server for AI-Powered Development
 
 [![Build](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build.yml/badge.svg)](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/sbroenne/mcp-server-excel)](https://github.com/sbroenne/mcp-server-excel/releases/latest)
@@ -9,42 +9,23 @@
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/sbroenne/mcp-server-excel)
 [![Built with Copilot](https://img.shields.io/badge/Built%20with-GitHub%20Copilot-0366d6.svg)](https://copilot.github.com/)
 
-`Excel Development` • `Power Query CLI` • `VBA Command Line` • `Excel COM Interop` • `MCP Server`
+`MCP Server` • `Excel Development` • `AI Assistant Integration` • `Model Context Protocol` • `GitHub Copilot`
 
-A comprehensive command-line interface tool designed specifically for **Excel development workflows** with **AI assistants** and **coding agents**. ExcelMcp enables GitHub Copilot, Claude, ChatGPT, and other AI tools to refactor Power Query M code, enhance VBA macros, review Excel automation code, and manage development workflows—all without requiring the Excel UI.
+A **Model Context Protocol (MCP) server** that enables **AI assistants** like GitHub Copilot, Claude, and ChatGPT to perform Excel development tasks through conversational interfaces. Transform Excel development workflows with AI-assisted Power Query refactoring, VBA enhancement, code review, and automation—all through natural language interactions.
 
-**🎯 How does it work?** ExcelMcp controls the actual Excel application itself (not just Excel files), providing access to Power Query transformations, VBA execution environment, and all native Excel development features through COM interop.
+**🎯 How does it work?** The MCP server provides AI assistants with structured access to Excel operations through 6 resource-based tools, enabling conversational Excel development workflows while maintaining the power of direct Excel COM interop integration.
 
-## 🔍 **Perfect for Excel Development with AI Assistants**
+## 🤖 **AI-Powered Excel Development**
 
-- **GitHub Copilot** - Built specifically for AI-powered Excel development workflows
-- **Claude, ChatGPT, Cursor** - Command-line interface ideal for Excel code development
-- **Power Query Development** - Refactor and optimize M code with AI assistance
-- **VBA Development** - Enhance macros with error handling and best practices
-- **Code Review & Testing** - Automated Excel development workflows and CI/CD
+- **GitHub Copilot** - Native MCP integration for conversational Excel development
+- **Claude & ChatGPT** - Natural language Excel operations through MCP protocol
+- **Power Query AI Enhancement** - AI-assisted M code refactoring and optimization
+- **VBA AI Development** - Intelligent macro enhancement with error handling
+- **Conversational Workflows** - Ask AI to perform complex Excel tasks naturally
 
 ## 🚀 Quick Start
 
-### Option 1: Download Pre-built Binary (Recommended)
-
-```powershell
-# Download from https://github.com/sbroenne/mcp-server-excel/releases
-# Extract ExcelCLI-1.0.3-windows.zip to C:\Tools\ExcelMcp
-
-# Add to PATH (optional)
-$env:PATH += ";C:\Tools\ExcelCLI"
-
-# Basic usage
-ExcelMcp --version
-ExcelMcp create-empty "test.xlsx"
-ExcelMcp sheet-read "test.xlsx" "Sheet1"
-
-# For VBA operations (one-time setup)
-ExcelMcp setup-vba-trust
-ExcelMcp create-empty "macros.xlsm"
-```
-
-### Option 2: Install MCP Server as .NET Tool (NuGet)
+### Install MCP Server as .NET Tool (Recommended)
 
 ```powershell
 # Install globally as .NET tool
@@ -60,57 +41,73 @@ dotnet tool update --global ExcelMcp.McpServer
 dotnet tool uninstall --global ExcelMcp.McpServer
 ```
 
-### Option 3: Build from Source
+### Configure with AI Assistants
+
+**GitHub Copilot Integration:**
+
+```json
+// Add to your VS Code settings.json or MCP client configuration
+{
+  "mcp": {
+    "servers": {
+      "excel": {
+        "command": "mcp-excel",
+        "description": "Excel development operations through MCP"
+      }
+    }
+  }
+}
+```
+
+**Claude Desktop Integration:**
+
+```json
+// Add to Claude Desktop MCP configuration
+{
+  "mcpServers": {
+    "excel": {
+      "command": "mcp-excel",
+      "args": []
+    }
+  }
+}
+```
+
+### Build from Source
 
 ```powershell
 # Clone and build
 git clone https://github.com/sbroenne/mcp-server-excel.git
-cd ExcelMcp
+cd mcp-server-excel
 dotnet build -c Release
 
-# Run tests (requires Excel installed locally)
-dotnet test
+# Run MCP server
+dotnet run --project src/ExcelMcp.McpServer
 
-# Basic usage
-.\src\ExcelMcp\bin\Release\net8.0\ExcelMcp.exe --version
-.\src\ExcelMcp\bin\Release\net8.0\ExcelMcp.exe create-empty "test.xlsx"
+# Run tests (requires Excel installed locally)
+dotnet test --filter "Category=Unit"
 ```
 
 ## ✨ Key Features
 
-- 🤖 **AI Development Assistant** - Built for GitHub Copilot and AI-assisted Excel development
-- 🔧 **Power Query Development** - Extract, refactor, and version control M code with AI assistance
-- 📋 **VBA Development Tools** - Enhance macros, add error handling, and manage VBA modules
-- 📊 **Excel Development API** - 40+ commands for Excel development workflows and testing
-- 🛡️ **Production Ready** - Enterprise-grade with security validation and robust error handling
-- 💾 **COM Interop Excellence** - Controls the actual Excel application for full development access
-- 🔄 **Development Integration** - Perfect for CI/CD pipelines and Excel development workflows
-- 📈 **Code Quality Focus** - Excel development with proper testing and code review practices
-
-## 🧠 **MCP Server for AI Development** *(New!)*
-
-ExcelMcp includes a **Model Context Protocol (MCP) server** for AI assistants like GitHub Copilot to provide conversational Excel development workflows - Power Query refactoring, VBA enhancement, and code review.
+- 🤖 **MCP Protocol Integration** - Native support for AI assistants through Model Context Protocol
+- �️ **Conversational Interface** - Natural language Excel operations with AI assistants
+- � **Resource-Based Architecture** - 6 structured tools instead of 40+ individual commands
+- � **AI-Assisted Development** - Power Query refactoring, VBA enhancement, code review
+- 🧠 **Smart Context Management** - AI assistants understand Excel development workflows
+- 💾 **Full Excel Integration** - Controls actual Excel application for complete feature access
+- �️ **Production Ready** - Enterprise-grade with security validation and robust error handling
+- 📈 **Development Focus** - Optimized for Excel development, not data processing workflows
 
 > 📚 **[Complete MCP Server Guide →](src/ExcelMcp.McpServer/README.md)** - Setup, configuration, and AI integration examples
-
-## 🏷️ **Keywords & Technologies**
-
-**Primary:** `Excel CLI`, `Excel Development`, `Power Query CLI`, `VBA Command Line`, `Excel COM Interop`
-
-**AI/Development:** `GitHub Copilot`, `MCP Server`, `Model Context Protocol`, `AI Assistant`, `Code Refactoring`, `VBA Development`
-
-**Technologies:** `.NET 8`, `C#`, `COM Interop`, `Windows`, `PowerShell`, `Command Line Interface`, `MCP Protocol`
-
-**Excel Features:** `Power Query M Code`, `VBA Macros`, `Excel Worksheets`, `Named Ranges`, `Excel Formulas`
-
-**Use Cases:** `Excel Development`, `Power Query Refactoring`, `VBA Coding`, `Code Review`, `Development Testing`
 
 ## 📖 Documentation
 
 | Document | Description |
 |----------|-------------|
-| **[📋 Command Reference](docs/COMMANDS.md)** | Complete reference for all 40+ ExcelMcp commands |
-| **[🧠 MCP Server](src/ExcelMcp.McpServer/README.md)** | Model Context Protocol server for AI assistant integration |
+| **[🧠 MCP Server Guide](src/ExcelMcp.McpServer/README.md)** | Complete MCP server setup and AI integration examples |
+| **[🔧 ExcelMcp.CLI](docs/CLI.md)** | Command-line interface for direct Excel automation |
+| **[📋 Command Reference](docs/COMMANDS.md)** | Complete reference for all 40+ CLI commands |
 | **[⚙️ Installation Guide](docs/INSTALLATION.md)** | Building from source and installation options |
 | **[🤖 GitHub Copilot Integration](docs/COPILOT.md)** | Using ExcelMcp with GitHub Copilot |
 | **[🔧 Development Workflow](docs/DEVELOPMENT.md)** | Contributing guidelines and PR requirements |
@@ -139,18 +136,6 @@ ExcelMcp includes a **Model Context Protocol (MCP) server** for AI assistants li
 - **Development Environment** - Create and configure Excel files for coding workflows
 - **Documentation** - Generate code documentation and comments for Excel automation
 
-## 🔄 **Compared to Excel Development Alternatives**
-
-| Feature | ExcelMcp | Python openpyxl | Excel VBA | PowerShell Excel |
-|---------|----------|-----------------|-----------|------------------|
-| **Power Query Development** | ✅ Full M code access | ❌ No support | ❌ Limited | ❌ No support |
-| **VBA Development** | ✅ Full module control | ❌ No support | ✅ Native | ✅ Limited |
-| **AI Development Assistant** | ✅ Built for Copilot | ⚠️ Requires custom setup | ❌ Manual only | ⚠️ Complex integration |
-| **Development Approach** | ✅ **Excel App Control** | ❌ File parsing only | ✅ **Excel App Control** | ✅ **Excel App Control** |
-| **CLI Development Tools** | ✅ Purpose-built CLI | ⚠️ Script required | ❌ No CLI | ⚠️ Complex commands |
-| **Excel Installation** | ⚠️ **Required** | ✅ Not needed | ⚠️ **Required** | ⚠️ **Required** |
-| **Cross-Platform** | ❌ Windows only | ✅ Cross-platform | ❌ Windows only | ❌ Windows only |
-
 ## ⚙️ System Requirements
 
 | Requirement | Details | Why Required |
@@ -161,18 +146,23 @@ ExcelMcp includes a **Model Context Protocol (MCP) server** for AI assistants li
 
 > **🚨 Critical:** ExcelMcp controls the actual running Excel application through COM interop, not just Excel file formats. This provides access to Excel's full feature set (Power Query engine, VBA runtime, formula calculations, charts, pivot tables) but requires Excel to be installed and available for automation.
 
-## 📋 Commands Overview
+## 6️⃣ MCP Tools Overview
 
-ExcelMcp provides 40+ commands across 6 categories:
+The MCP server provides 6 resource-based tools for AI assistants:
 
-- **File Operations** (2) - Create Excel workbooks (.xlsx, .xlsm)
-- **Power Query** (8) - M code management and data transformation  
-- **VBA Scripts** (6) - Macro development and execution
-- **Worksheets** (9) - Data manipulation and sheet management
-- **Parameters** (5) - Named range configuration
-- **Cells** (4) - Individual cell operations
+- **excel_file** - File management (create, validate, check-exists)
+- **excel_powerquery** - Power Query operations (list, view, import, export, update, refresh, delete)
+- **excel_worksheet** - Worksheet operations (list, read, write, create, rename, copy, delete, clear, append)
+- **excel_parameter** - Named range management (list, get, set, create, delete)
+- **excel_cell** - Cell operations (get-value, set-value, get-formula, set-formula)
+- **excel_vba** - VBA script management (list, export, import, update, run, delete)
 
-> 📖 **[Complete Command Reference →](docs/COMMANDS.md)** - Detailed syntax and examples for all commands
+> 🧠 **[Complete MCP Server Guide →](src/ExcelMcp.McpServer/README.md)** - Detailed MCP integration and AI examples
+
+## 🔗 Additional Tools
+
+- **[ExcelMcp.CLI](docs/CLI.md)** - Command-line interface for direct Excel automation
+- **[Command Reference](docs/COMMANDS.md)** - All 40+ CLI commands for script-based workflows
 
 ## 🤝 Contributing
 
@@ -184,7 +174,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🏷️ **SEO & Discovery Tags**
 
-**Excel CLI** | **Power Query CLI** | **VBA Command Line** | **Excel Development** | **MCP Server** | **Model Context Protocol** | **AI Excel Development** | **GitHub Copilot Excel** | **Power Query Refactoring** | **VBA Development** | **Excel Code Review** | **Excel COM Interop** | **Excel DevOps**
+**MCP Server** | **Model Context Protocol** | **AI Excel Development** | **GitHub Copilot Excel** | **Excel MCP** | **Conversational Excel** | **AI Assistant Integration** | **Power Query AI** | **VBA AI Development** | **Excel Code Review** | **Excel COM Interop** | **Excel Development AI**
 
 ## �🙏 Acknowledgments
 
