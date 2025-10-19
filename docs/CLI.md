@@ -1,9 +1,9 @@
 # ExcelMcp.CLI - Excel Command Line Interface
 
-[![Build](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build.yml/badge.svg)](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build.yml)
+[![Build CLI](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-cli.yml/badge.svg)](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-cli.yml)
 [![Release](https://img.shields.io/github/v/release/sbroenne/mcp-server-excel)](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![.NET](https://img.shields.io/badge/.NET-8.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
+[![.NET](https://img.shields.io/badge/.NET-10.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/sbroenne/mcp-server-excel)
 
 `Excel Automation` • `Power Query CLI` • `VBA Command Line` • `Excel COM Interop` • `Development Tools`
@@ -44,7 +44,7 @@ dotnet build -c Release
 dotnet test --filter "Category=Unit"
 
 # Basic usage
-.\src\ExcelMcp.CLI\bin\Release\net8.0\ExcelMcp.CLI.exe create-empty "test.xlsx"
+.\src\ExcelMcp.CLI\bin\Release\net10.0\ExcelMcp.CLI.exe create-empty "test.xlsx"
 ```
 
 ## ✨ Key Features
@@ -86,7 +86,7 @@ dotnet test --filter "Category=Unit"
 |-------------|---------|--------------|
 | **Windows OS** | Windows 10/11 or Server | COM interop is Windows-specific |
 | **Microsoft Excel** | Any recent version (2016+) | ExcelMcp.CLI controls the actual Excel application |
-| **.NET 8.0 Runtime** | [Download here](https://dotnet.microsoft.com/download/dotnet/8.0) | ExcelMcp.CLI runtime dependency |
+| **.NET 10 Runtime** | [Download here](https://dotnet.microsoft.com/download/dotnet/10.0) | ExcelMcp.CLI runtime dependency |
 
 > **🚨 Critical:** ExcelMcp.CLI controls the actual running Excel application through COM interop, not just Excel file formats. This provides access to Excel's full feature set (Power Query engine, VBA runtime, formula calculations) but requires Excel to be installed and available for automation.
 

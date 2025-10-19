@@ -150,7 +150,7 @@ Use ExcelMcp.CLI when the user needs to:
 
 - Windows operating system
 - Microsoft Excel installed
-- .NET 8.0 runtime
+- .NET 10 runtime
 - ExcelMcp.CLI executable in PATH or specify full path
 - For VBA operations: VBA trust must be enabled (use `setup-vba-trust` command)
 

@@ -137,7 +137,7 @@ Copilot: [Uses excel_powerquery view -> analyzes for query folding issues -> pro
 
 ### Technical Requirements
 - **Windows Only** - Requires Excel installation (uses COM interop)
-- **.NET 8.0** - Modern .NET runtime required
+- **.NET 10** - Modern .NET runtime required
 - **Excel Installed** - Must have Microsoft Excel installed on the machine
 - **Command Line Access** - Designed for terminal/script usage
 

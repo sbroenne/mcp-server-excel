@@ -82,7 +82,7 @@ ExcelMcp uses Excel COM automation with security safeguards:
 
 ExcelMcp has minimal dependencies to reduce attack surface:
 
-- **.NET 8.0**: Microsoft-maintained runtime with regular security updates
+- **.NET 10**: Microsoft-maintained runtime with regular security updates
 - **Spectre.Console**: Well-maintained library for console output
 - **No External APIs**: No network connections or external service dependencies
 

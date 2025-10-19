@@ -18,29 +18,27 @@ Choose your installation method based on your use case:
 
 **For AI assistant integration and conversational Excel workflows**
 
-### Option 1: .NET Tool (Recommended)
+### Option 1: Microsoft's NuGet MCP Approach (Recommended)
 
-Install the MCP Server as a global .NET tool:
+Use the official `dnx` command to download and execute the MCP Server:
 
 ```powershell
-# Install globally
-dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+# Download and execute MCP server using dnx
+dnx Sbroenne.ExcelMcp.McpServer@latest --yes
 
-# Run the MCP server
-mcp-excel
+# Execute specific version
+dnx Sbroenne.ExcelMcp.McpServer@1.0.0 --yes
 
-# Update to latest version
-dotnet tool update --global Sbroenne.ExcelMcp.McpServer
-
-# Uninstall
-dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
+# Use with private feed
+dnx Sbroenne.ExcelMcp.McpServer@latest --source https://your-feed.com --yes
 ```
 
 **Benefits:**
-- ✅ Easy installation with a single command
-- ✅ Automatic updates via `dotnet tool update`
-- ✅ Global availability from any directory
+- ✅ Official Microsoft approach for NuGet MCP servers
+- ✅ Automatic download and execution in one command
+- ✅ No separate installation step required
 - ✅ Perfect for AI assistant integration
+- ✅ Follows [Microsoft's NuGet MCP guidance](https://learn.microsoft.com/en-us/nuget/concepts/nuget-mcp)
 
 ### Option 2: Download Binary
 
@@ -69,7 +67,8 @@ Add to your VS Code settings.json or MCP client configuration:
   "mcp": {
     "servers": {
       "excel": {
-        "command": "mcp-excel",
+        "command": "dnx",
+        "args": ["Sbroenne.ExcelMcp.McpServer@latest", "--yes"],
         "description": "Excel development operations through MCP"
       }
     }
@@ -85,8 +84,8 @@ Add to Claude Desktop MCP configuration:
 {
   "mcpServers": {
     "excel": {
-      "command": "mcp-excel",
-      "args": []
+      "command": "dnx",
+      "args": ["Sbroenne.ExcelMcp.McpServer@latest", "--yes"]
     }
   }
 }
@@ -186,7 +185,7 @@ ExcelMcp.CLI.exe script-list "macros.xlsm"
 ### Prerequisites
 
 - Windows OS with Excel installed
-- .NET 8.0 SDK ([Download](https://dotnet.microsoft.com/download/dotnet/8.0))
+- .NET 10 SDK ([Download](https://dotnet.microsoft.com/download/dotnet/10.0))
 - Git (for cloning the repository)
 
 ### Build Steps
@@ -231,10 +230,10 @@ dotnet tool install --global --add-source src/ExcelMcp.McpServer/bin/Release Exc
 
 ```powershell
 # CLI executable location
-.\src\ExcelMcp.CLI\bin\Release\net8.0\ExcelMcp.CLI.exe
+.\src\ExcelMcp.CLI\bin\Release\net10.0\ExcelMcp.CLI.exe
 
 # Add to PATH for easier access
-$buildPath = "$(Get-Location)\src\ExcelMcp.CLI\bin\Release\net8.0"
+$buildPath = "$(Get-Location)\src\ExcelMcp.CLI\bin\Release\net10.0"
 $env:PATH += ";$buildPath"
 [Environment]::SetEnvironmentVariable("PATH", $env:PATH, "User")
 
@@ -248,7 +247,7 @@ ExcelMcp.CLI.exe create-empty "test.xlsx"
 
 ```powershell
 # Add the build directory to your system PATH
-$buildPath = "$(Get-Location)\src\\ExcelMcp.CLI\\bin\Release\net8.0"
+$buildPath = "$(Get-Location)\src\\ExcelMcp.CLI\\bin\Release\net10.0"
 $env:PATH += ";$buildPath"
 
 # Make permanent (requires admin privileges)

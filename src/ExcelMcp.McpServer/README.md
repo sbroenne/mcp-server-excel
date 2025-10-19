@@ -1,28 +1,24 @@
 # ExcelMcp Model Context Protocol (MCP) Server
 
-[![NuGet](https://img.shields.io/nuget/v/ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/ExcelMcp.McpServer)
-[![NuGet Downloads](https://img.shields.io/nuget/dt/ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/ExcelMcp.McpServer)
-[![.NET Tool](https://img.shields.io/badge/.NET%20Tool-Global-blue.svg)](https://www.nuget.org/packages/ExcelMcp.McpServer)
+[![NuGet](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
+[![MCP Server](https://img.shields.io/badge/MCP%20Server-NuGet-blue.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
 
 The ExcelMcp MCP Server provides AI assistants with powerful Excel automation capabilities through the official Model Context Protocol (MCP) SDK. This enables natural language interactions with Excel through AI coding assistants like **GitHub Copilot**, **Claude**, and **ChatGPT** using a modern resource-based architecture.
 
 ## 🚀 Quick Start
 
-### Option 1: Install via NuGet (Recommended)
+### Option 1: Microsoft's NuGet MCP Approach (Recommended)
 
 ```bash
-# Install as a global .NET tool
-dotnet tool install --global ExcelMcp.McpServer
+# Download and execute using dnx command
+dnx Sbroenne.ExcelMcp.McpServer@latest --yes
 
-# Run the MCP server
-mcp-excel
-
-# Update to latest version
-dotnet tool update --global ExcelMcp.McpServer
-
-# Uninstall
-dotnet tool uninstall --global ExcelMcp.McpServer
+# Execute specific version
+dnx Sbroenne.ExcelMcp.McpServer@1.0.0 --yes
 ```
+
+This follows Microsoft's official [NuGet MCP approach](https://learn.microsoft.com/en-us/nuget/concepts/nuget-mcp) where the `dnx` command automatically downloads and executes the MCP server from NuGet.org.
 
 ### Option 2: Build and Run from Source
 
@@ -36,12 +32,13 @@ dotnet run --project src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
 
 ### Configuration with AI Assistants
 
-**For .NET Tool Installation:**
+**For NuGet MCP Installation (dnx):**
 ```json
 {
   "servers": {
     "excel": {
-      "command": "mcp-excel"
+      "command": "dnx",
+      "args": ["Sbroenne.ExcelMcp.McpServer@latest", "--yes"]
     }
   }
 }
@@ -209,7 +206,7 @@ ExcelMcp.McpServer
 |-------------|---------|
 | **Windows OS** | COM interop for Excel automation |
 | **Microsoft Excel** | Direct Excel application control |
-| **.NET 8.0** | MCP server runtime |
+| **.NET 10 SDK** | Required for dnx command |
 | **ExcelMcp.Core** | Shared Excel automation logic |
 
 ## 🎯 Benefits of Resource-Based Architecture  

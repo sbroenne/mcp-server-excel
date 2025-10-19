@@ -18,7 +18,7 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 1. **Prerequisites**:
    - Windows OS (required for Excel COM)
    - Visual Studio 2022 or VS Code
-   - .NET 8.0 SDK
+   - .NET 10 SDK
    - Microsoft Excel installed
 
 2. **Setup**:

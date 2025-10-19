@@ -1,6 +1,7 @@
 # ExcelMcp - Excel MCP Server for AI-Powered Development
 
-[![Build](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build.yml/badge.svg)](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build.yml)
+[![Build MCP Server](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-mcp-server.yml/badge.svg)](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-mcp-server.yml)
+[![Build CLI](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-cli.yml/badge.svg)](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-cli.yml)
 [![Release](https://img.shields.io/github/v/release/sbroenne/mcp-server-excel)](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 [![NuGet](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
 [![Downloads](https://img.shields.io/github/downloads/sbroenne/mcp-server-excel/total)](https://github.com/sbroenne/mcp-server-excel/releases)
@@ -25,24 +26,19 @@ A **Model Context Protocol (MCP) server** that enables **AI assistants** like Gi
 
 ## 🚀 Quick Start
 
-### Install MCP Server as .NET Tool (Recommended)
+### Install MCP Server using Microsoft's NuGet MCP Approach (Recommended)
 
 ```powershell
-# Install .NET 10 SDK first
+# Install .NET 10 SDK first (required for dnx command)
 winget install Microsoft.DotNet.SDK.10
 
-# Install globally as .NET tool
-dotnet tool install --global Sbroenne.ExcelMcp.McpServer
-
-# Run MCP server
-mcp-excel
-
-# Update to latest version
-dotnet tool update --global Sbroenne.ExcelMcp.McpServer
-
-# Uninstall
-dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
+# Download and execute MCP server using dnx
+dnx Sbroenne.ExcelMcp.McpServer@latest --yes
 ```
+
+The `dnx` command automatically downloads the latest version from NuGet.org and executes the MCP server. This follows Microsoft's official [NuGet MCP approach](https://learn.microsoft.com/en-us/nuget/concepts/nuget-mcp) for packaging and distributing MCP servers.
+
+> **Note:** The MCP server will appear to "hang" after startup - this is expected behavior as it waits for MCP protocol messages from your AI assistant.
 
 ### Configure with AI Assistants
 
@@ -54,7 +50,8 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
   "mcp": {
     "servers": {
       "excel": {
-        "command": "mcp-excel",
+        "command": "dnx",
+        "args": ["Sbroenne.ExcelMcp.McpServer@latest", "--yes"],
         "description": "Excel development operations through MCP"
       }
     }
@@ -69,8 +66,8 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
 {
   "mcpServers": {
     "excel": {
-      "command": "mcp-excel",
-      "args": []
+      "command": "dnx",
+      "args": ["Sbroenne.ExcelMcp.McpServer@latest", "--yes"]
     }
   }
 }
@@ -145,7 +142,7 @@ dotnet test --filter "Category=Unit"
 |-------------|---------|--------------|
 | **Windows OS** | Windows 10/11 or Server | COM interop is Windows-specific |
 | **Microsoft Excel** | Any recent version (2016+) | ExcelMcp controls the actual Excel application |
-| **.NET 8.0 Runtime** | [Download here](https://dotnet.microsoft.com/download/dotnet/8.0) | ExcelMcp runtime dependency |
+| **.NET 10 SDK** | `winget install Microsoft.DotNet.SDK.10` | Required for `dnx` command execution |
 
 > **🚨 Critical:** ExcelMcp controls the actual running Excel application through COM interop, not just Excel file formats. This provides access to Excel's full feature set (Power Query engine, VBA runtime, formula calculations, charts, pivot tables) but requires Excel to be installed and available for automation.
 

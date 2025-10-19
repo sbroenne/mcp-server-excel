@@ -60,11 +60,13 @@ Trusted publishing requires the package to exist on NuGet.org before configurati
 **Option A: Publish Manually**
 
 1. Build the package locally:
+
    ```bash
    dotnet pack src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release -o ./nupkg
    ```
 
 2. Publish using your existing NuGet API key:
+
    ```bash
    dotnet nuget push ./nupkg/ExcelMcp.McpServer.*.nupkg \
      --api-key YOUR_API_KEY \
@@ -75,6 +77,7 @@ Trusted publishing requires the package to exist on NuGet.org before configurati
 
 1. Add `NUGET_API_KEY` as a repository secret temporarily
 2. Modify the workflow to use the API key for the first release:
+
    ```yaml
    - name: Publish to NuGet.org
      run: |
@@ -82,6 +85,7 @@ Trusted publishing requires the package to exist on NuGet.org before configurati
          --api-key ${{ secrets.NUGET_API_KEY }} \
          --source https://api.nuget.org/v3/index.json
    ```
+
 3. Create and publish a release
 4. After successful publish, remove the `--api-key` parameter and delete the secret
 
@@ -90,11 +94,11 @@ Trusted publishing requires the package to exist on NuGet.org before configurati
 Once the package exists on NuGet.org:
 
 1. **Sign in to NuGet.org**
-   - Go to https://www.nuget.org
+   - Go to <https://www.nuget.org>
    - Sign in with your Microsoft account
 
 2. **Navigate to Package Management**
-   - Go to https://www.nuget.org/packages/ExcelMcp.McpServer/manage
+   - Go to <https://www.nuget.org/packages/ExcelMcp.McpServer/manage>
    - Or: Find your package → Click "Manage Package"
 
 3. **Add Trusted Publisher**
@@ -102,9 +106,9 @@ Once the package exists on NuGet.org:
    - Click "Add Trusted Publisher" button
 
 4. **Configure GitHub Actions Publisher**
-   
+
    Enter the following values:
-   
+
    | Field | Value |
    |-------|-------|
    | **Publisher Type** | GitHub Actions |
@@ -162,6 +166,7 @@ jobs:
 **Cause**: Trusted publisher not configured or misconfigured on NuGet.org
 
 **Solution**:
+
 1. Verify the package exists on NuGet.org
 2. Check trusted publisher configuration matches exactly:
    - Owner: `sbroenne`
@@ -179,7 +184,8 @@ jobs:
 
 **Cause**: Workflow filename in trusted publisher config doesn't match
 
-**Solution**: 
+**Solution**:
+
 1. Check the exact workflow filename in `.github/workflows/`
 2. Update trusted publisher configuration if needed
 3. Configuration is case-sensitive
@@ -215,12 +221,14 @@ If you need to change the workflow filename or repository structure:
 ### Why Trusted Publishing is More Secure
 
 **Traditional API Key Approach**:
+
 - Long-lived secrets (6-12 months or never expire)
 - Stored in GitHub secrets (potential for exposure)
 - Requires manual rotation
 - If leaked, valid until revoked
 
 **Trusted Publishing Approach**:
+
 - Short-lived OIDC tokens (minutes)
 - Generated on-demand per workflow run
 - Automatically validated against configuration
@@ -252,10 +260,10 @@ If you encounter issues:
 1. Check the [Troubleshooting](#troubleshooting) section above
 2. Review GitHub Actions workflow logs for detailed error messages
 3. Verify trusted publisher configuration on NuGet.org
-4. Open an issue at https://github.com/sbroenne/mcp-server-excel/issues
+4. Open an issue at <https://github.com/sbroenne/mcp-server-excel/issues>
 
 ---
 
 **Status**: ✅ Configured for trusted publishing  
-**Package**: https://www.nuget.org/packages/ExcelMcp.McpServer  
+**Package**: <https://www.nuget.org/packages/ExcelMcp.McpServer>  
 **Workflow**: `.github/workflows/publish-nuget.yml`

@@ -188,11 +188,11 @@ With branch protection enabled, the CI/CD pipeline works as follows:
 
 ### On Pull Request
 
-1. **Build Workflow** (`build.yml`)
+1. **Build Workflows** (`build-mcp-server.yml`, `build-cli.yml`)
    - Triggers on: PR to main with code changes
-   - Runs: Build and verification
-   - Output: Build artifacts
-   - Duration: ~2-3 minutes
+   - Runs: Separate build and verification for MCP Server and CLI
+   - Output: Build artifacts for both components
+   - Duration: ~2-3 minutes each
 
 2. **CodeQL Analysis** (`codeql.yml`)
    - Triggers on: PR to main with code changes
@@ -243,7 +243,7 @@ paths:
   - '**.sln'              # Solution files
   - 'Directory.Build.props'    # Build configuration
   - 'Directory.Packages.props' # Package versions
-  - '.github/workflows/build.yml'  # Build workflow itself
+  - '.github/workflows/build-*.yml'  # Build workflows
 ```
 
 ### Non-Build Changes (workflows skip)
