@@ -19,7 +19,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 10.0.x
         
     - name: Update CLI Version
       run: |
@@ -100,7 +100,7 @@ jobs:
         $quickStartContent += "- **GitHub**: https://github.com/sbroenne/mcp-server-excel`n`n"
         $quickStartContent += "## Requirements`n`n"
         $quickStartContent += "- Windows OS with Microsoft Excel installed`n"
-        $quickStartContent += "- .NET 8.0 runtime`n"
+        $quickStartContent += "- .NET 10.0 runtime`n"
         $quickStartContent += "- Excel 2016+ (for COM interop)`n`n"
         $quickStartContent += "## Features`n`n"
         $quickStartContent += "- 40+ Excel automation commands`n"
@@ -162,7 +162,7 @@ jobs:
         $releaseNotes += "``````n`n"
         $releaseNotes += "### Requirements`n"
         $releaseNotes += "- Windows OS with Microsoft Excel installed`n"
-        $releaseNotes += "- .NET 8.0 runtime`n"
+        $releaseNotes += "- .NET 10.0 runtime`n"
         $releaseNotes += "- Excel 2016+ (for COM interop)`n`n"
         $releaseNotes += "### Documentation`n"
         $releaseNotes += "- Complete Command Reference: COMMANDS.md in package`n"
