@@ -1,25 +1,27 @@
 using Xunit;
-using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.CLI.Commands;
 using System.IO;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Commands;
 
 /// <summary>
-/// Integration tests for file operations including Excel workbook creation and management.
-/// These tests require Excel installation and validate file manipulation commands.
+/// Tests for CLI FileCommands - verifying CLI-specific behavior (formatting, user interaction)
+/// These tests focus on the presentation layer, not the data layer
+/// Core data logic is tested in ExcelMcp.Core.Tests
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
 [Trait("Feature", "Files")]
+[Trait("Layer", "CLI")]
 public class FileCommandsTests : IDisposable
 {
-    private readonly FileCommands _fileCommands;
+    private readonly FileCommands _cliCommands;
     private readonly string _tempDir;
     private readonly List<string> _createdFiles;
 
     public FileCommandsTests()
     {
-        _fileCommands = new FileCommands();
+        _cliCommands = new FileCommands();
         
         // Create temp directory for test files
         _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCLI_FileTests_{Guid.NewGuid():N}");
@@ -29,146 +31,65 @@ public class FileCommandsTests : IDisposable
     }
 
     [Fact]
-    public void CreateEmpty_WithValidPath_CreatesExcelFile()
+    public void CreateEmpty_WithValidPath_ReturnsZeroAndCreatesFile()
     {
         // Arrange
         string testFile = Path.Combine(_tempDir, "TestFile.xlsx");
+        string[] args = { "create-empty", testFile };
         _createdFiles.Add(testFile);
 
-        // Act
-        var result = _fileCommands.CreateEmpty(testFile);
+        // Act - CLI wraps Core and returns int exit code
+        int exitCode = _cliCommands.CreateEmpty(args);
 
-        // Assert
-        Assert.True(result.Success);
-        Assert.True(File.Exists(testFile));
-        
-        // Verify it's a valid Excel file by checking size > 0
-        var fileInfo = new FileInfo(testFile);
-        Assert.True(fileInfo.Length > 0);
-    }
-
-    [Fact]
-    public void CreateEmpty_WithNestedDirectory_CreatesDirectoryAndFile()
-    {
-        // Arrange
-        string nestedDir = Path.Combine(_tempDir, "nested", "deep", "path");
-        string testFile = Path.Combine(nestedDir, "TestFile.xlsx");
-        _createdFiles.Add(testFile);
-
-        // Act
-        var result = _fileCommands.CreateEmpty(testFile);
-
-        // Assert
-        Assert.True(result.Success);
-        Assert.True(Directory.Exists(nestedDir));
+        // Assert - CLI returns 0 for success
+        Assert.Equal(0, exitCode);
         Assert.True(File.Exists(testFile));
     }
 
     [Fact]
-    public void CreateEmpty_WithInvalidArgs_ReturnsError()
+    public void CreateEmpty_WithMissingArguments_ReturnsOneAndDoesNotCreateFile()
     {
         // Arrange
-        string invalidPath = ""; // Empty file path
+        string[] args = { "create-empty" }; // Missing file path
 
         // Act
-        var result = _fileCommands.CreateEmpty(invalidPath);
+        int exitCode = _cliCommands.CreateEmpty(args);
 
-        // Assert
-        Assert.False(result.Success);
-        Assert.NotNull(result.ErrorMessage);
+        // Assert - CLI returns 1 for error
+        Assert.Equal(1, exitCode);
     }
 
     [Fact]
-    public void CreateEmpty_WithRelativePath_CreatesFileWithAbsolutePath()
+    public void CreateEmpty_WithInvalidExtension_ReturnsOneAndDoesNotCreateFile()
     {
         // Arrange
-        string relativePath = "RelativeTestFile.xlsx";
-        
-        // The file will be created in the current directory
-        string expectedPath = Path.GetFullPath(relativePath);
-        _createdFiles.Add(expectedPath);
+        string testFile = Path.Combine(_tempDir, "InvalidFile.txt");
+        string[] args = { "create-empty", testFile };
 
         // Act
-        var result = _fileCommands.CreateEmpty(relativePath);
+        int exitCode = _cliCommands.CreateEmpty(args);
 
         // Assert
-        Assert.True(result.Success);
-        Assert.True(File.Exists(expectedPath));
+        Assert.Equal(1, exitCode);
+        Assert.False(File.Exists(testFile));
     }
 
     [Theory]
     [InlineData("TestFile.xlsx")]
     [InlineData("TestFile.xlsm")]
-    public void CreateEmpty_WithValidExtensions_CreatesFile(string fileName)
+    public void CreateEmpty_WithValidExtensions_ReturnsZero(string fileName)
     {
         // Arrange
         string testFile = Path.Combine(_tempDir, fileName);
+        string[] args = { "create-empty", testFile };
         _createdFiles.Add(testFile);
 
         // Act
-        var result = _fileCommands.CreateEmpty(testFile);
+        int exitCode = _cliCommands.CreateEmpty(args);
 
         // Assert
-        Assert.True(result.Success);
+        Assert.Equal(0, exitCode);
         Assert.True(File.Exists(testFile));
-    }
-
-    [Theory]
-    [InlineData("TestFile.xls")]
-    [InlineData("TestFile.csv")]
-    [InlineData("TestFile.txt")]
-    public void CreateEmpty_WithInvalidExtensions_ReturnsError(string fileName)
-    {
-        // Arrange
-        string testFile = Path.Combine(_tempDir, fileName);
-
-        // Act
-        var result = _fileCommands.CreateEmpty(testFile);
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.False(File.Exists(testFile));
-    }
-
-    [Fact]
-    public void CreateEmpty_WithInvalidPath_ReturnsError()
-    {
-        // Arrange - Use invalid characters in path
-        string invalidPath = Path.Combine(_tempDir, "invalid<>file.xlsx");
-
-        // Act
-        var result = _fileCommands.CreateEmpty(invalidPath);
-
-        // Assert
-        Assert.False(result.Success);
-    }
-
-    [Fact]
-    public void CreateEmpty_MultipleTimes_CreatesMultipleFiles()
-    {
-        // Arrange
-        string[] testFiles = {
-            Path.Combine(_tempDir, "File1.xlsx"),
-            Path.Combine(_tempDir, "File2.xlsx"),
-            Path.Combine(_tempDir, "File3.xlsx")
-        };
-        
-        _createdFiles.AddRange(testFiles);
-
-        // Act & Assert
-        foreach (string testFile in testFiles)
-        {
-            var result = _fileCommands.CreateEmpty(testFile);
-            
-            Assert.True(result.Success);
-            Assert.True(File.Exists(testFile));
-        }
-
-        // Verify all files exist
-        foreach (string testFile in testFiles)
-        {
-            Assert.True(File.Exists(testFile));
-        }
     }
 
     public void Dispose()
@@ -176,10 +97,8 @@ public class FileCommandsTests : IDisposable
         // Clean up test files
         try
         {
-            // Wait a bit for Excel to fully release files
             System.Threading.Thread.Sleep(500);
             
-            // Delete individual files first
             foreach (string file in _createdFiles)
             {
                 try
@@ -189,16 +108,11 @@ public class FileCommandsTests : IDisposable
                         File.Delete(file);
                     }
                 }
-                catch
-                {
-                    // Best effort cleanup
-                }
+                catch { }
             }
             
-            // Then delete the temp directory
             if (Directory.Exists(_tempDir))
             {
-                // Try to delete directory multiple times if needed
                 for (int i = 0; i < 3; i++)
                 {
                     try
@@ -208,7 +122,7 @@ public class FileCommandsTests : IDisposable
                     }
                     catch (IOException)
                     {
-                        if (i == 2) throw; // Last attempt failed
+                        if (i == 2) throw;
                         System.Threading.Thread.Sleep(1000);
                         GC.Collect();
                         GC.WaitForPendingFinalizers();
@@ -216,10 +130,7 @@ public class FileCommandsTests : IDisposable
                 }
             }
         }
-        catch
-        {
-            // Best effort cleanup - don't fail tests if cleanup fails
-        }
+        catch { }
         
         GC.SuppressFinalize(this);
     }
