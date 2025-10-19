@@ -191,7 +191,7 @@ dotnet test
 dotnet build -c Release
 
 # Test the built executable
-.\src\ExcelMcp.CLI\bin\Release\net10.0\ExcelMcp.CLI.exe --version
+.\src\ExcelMcp.CLI\bin\Release\net10.0\excelcli.exe --version
 ```
 
 ## 📞 **Need Help?**

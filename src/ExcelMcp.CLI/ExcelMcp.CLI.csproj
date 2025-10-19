@@ -8,7 +8,7 @@
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     
     <!-- Assembly and Namespace Configuration -->
-    <AssemblyName>Sbroenne.ExcelMcp.CLI</AssemblyName>
+    <AssemblyName>excelcli</AssemblyName>
     <RootNamespace>Sbroenne.ExcelMcp.CLI</RootNamespace>
     
     <!-- Version Information -->

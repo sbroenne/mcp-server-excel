@@ -203,7 +203,7 @@ class Program
         AnsiConsole.Write(new Rule("[bold cyan]ExcelMcp.CLI - Excel Command Line Interface for Coding Agents[/]").RuleStyle("grey"));
         AnsiConsole.WriteLine();
         
-        AnsiConsole.MarkupLine("[bold]Usage:[/] ExcelMcp.CLI command args");
+        AnsiConsole.MarkupLine("[bold]Usage:[/] excelcli command args");
         AnsiConsole.WriteLine();
         
         AnsiConsole.MarkupLine("[bold yellow]File Commands:[/]");
@@ -263,15 +263,15 @@ class Program
         AnsiConsole.WriteLine();
         
         AnsiConsole.MarkupLine("[bold green]Examples:[/]");
-        AnsiConsole.MarkupLine("  [dim]ExcelMcp.CLI setup-vba-trust[/]                    [dim]# Enable VBA for testing[/]");
-        AnsiConsole.MarkupLine("  [dim]ExcelMcp.CLI check-vba-trust \"test.xlsm\"[/]         [dim]# Check VBA access[/]");
-        AnsiConsole.MarkupLine("  [dim]ExcelMcp.CLI create-empty \"Plan.xlsm\"[/]            [dim]# Create macro-enabled workbook[/]");
-        AnsiConsole.MarkupLine("  [dim]ExcelMcp.CLI script-import \"Plan.xlsm\" \"Helper\" \"code.vba\"[/]");
-        AnsiConsole.MarkupLine("  [dim]ExcelMcp.CLI pq-list \"Plan.xlsx\"[/]");
-        AnsiConsole.MarkupLine("  [dim]ExcelMcp.CLI pq-view \"Plan.xlsx\" \"Milestones\"[/]");
-        AnsiConsole.MarkupLine("  [dim]ExcelMcp.CLI pq-import \"Plan.xlsx\" \"fnHelper\" \"function.pq\"[/]");
-        AnsiConsole.MarkupLine("  [dim]ExcelMcp.CLI sheet-read \"Plan.xlsx\" \"Data\" \"A1:D10\"[/]");
-        AnsiConsole.MarkupLine("  [dim]ExcelMcp.CLI param-set \"Plan.xlsx\" \"Start_Date\" \"2025-01-01\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli setup-vba-trust[/]                    [dim]# Enable VBA for testing[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli check-vba-trust \"test.xlsm\"[/]         [dim]# Check VBA access[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli create-empty \"Plan.xlsm\"[/]            [dim]# Create macro-enabled workbook[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli script-import \"Plan.xlsm\" \"Helper\" \"code.vba\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli pq-list \"Plan.xlsx\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli pq-view \"Plan.xlsx\" \"Milestones\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli pq-import \"Plan.xlsx\" \"fnHelper\" \"function.pq\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli sheet-read \"Plan.xlsx\" \"Data\" \"A1:D10\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli param-set \"Plan.xlsx\" \"Start_Date\" \"2025-01-01\"[/]");
         AnsiConsole.WriteLine();
         
         AnsiConsole.MarkupLine("[bold]Requirements:[/] Windows + Excel + .NET 10.0");

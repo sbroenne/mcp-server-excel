@@ -45,21 +45,21 @@ jobs:
       
     - name: Verify CLI build
       run: |
-        # Check Sbroenne.ExcelMcp.CLI main executable
-        if (Test-Path "src/ExcelMcp.CLI/bin/Release/net10.0/Sbroenne.ExcelMcp.CLI.exe") {
-          Write-Output "✅ Sbroenne.ExcelMcp.CLI.exe built successfully"
-          $version = (Get-Item "src/ExcelMcp.CLI/bin/Release/net10.0/Sbroenne.ExcelMcp.CLI.exe").VersionInfo.FileVersion
+        # Check excelcli main executable
+        if (Test-Path "src/ExcelMcp.CLI/bin/Release/net10.0/excelcli.exe") {
+          Write-Output "✅ excelcli.exe built successfully"
+          $version = (Get-Item "src/ExcelMcp.CLI/bin/Release/net10.0/excelcli.exe").VersionInfo.FileVersion
           Write-Output "Version: $version"
           
           # Test CLI help command
-          $helpOutput = & "src/ExcelMcp.CLI/bin/Release/net10.0/Sbroenne.ExcelMcp.CLI.exe" --help
+          $helpOutput = & "src/ExcelMcp.CLI/bin/Release/net10.0/excelcli.exe" --help
           if ($helpOutput -match "ExcelMcp.CLI - Excel Command Line Interface") {
             Write-Output "✅ CLI help command working"
           } else {
             Write-Warning "⚠️ CLI help command may have issues"
           }
         } else {
-          Write-Error "❌ Sbroenne.ExcelMcp.CLI.exe not found"
+          Write-Error "❌ excelcli.exe not found"
           exit 1
         }
         

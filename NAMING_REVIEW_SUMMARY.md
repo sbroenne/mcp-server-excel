@@ -84,12 +84,12 @@ All project files now have explicit `AssemblyName` and `RootNamespace` propertie
 ### 5. Workflow File Updates
 
 #### build-cli.yml
-- **Executable path:** `ExcelMcp.CLI.exe` → `Sbroenne.ExcelMcp.CLI.exe`
+- **Executable path:** `ExcelMcp.CLI.exe` → `excelcli.exe`
 - **Help text validation:** `ExcelCLI - Excel` → `ExcelMcp.CLI - Excel`
 
 #### release-cli.yml
 - **Build path:** `net8.0` → `net10.0`
-- **Executable:** `ExcelMcp.CLI.exe` → `Sbroenne.ExcelMcp.CLI.exe`
+- **Executable:** `ExcelMcp.CLI.exe` → `excelcli.exe`
 - **DLL files:** `ExcelMcp.CLI.dll` → `Sbroenne.ExcelMcp.CLI.dll`
 - **DLL files:** `ExcelMcp.Core.dll` → `Sbroenne.ExcelMcp.Core.dll`
 - **Runtime config:** `ExcelMcp.CLI.runtimeconfig.json` → `Sbroenne.ExcelMcp.CLI.runtimeconfig.json`
@@ -123,7 +123,7 @@ After these changes, the build outputs are:
 
 ```
 src/ExcelMcp.CLI/bin/Release/net10.0/
-├── Sbroenne.ExcelMcp.CLI.exe
+├── excelcli.exe
 ├── Sbroenne.ExcelMcp.CLI.dll
 └── Sbroenne.ExcelMcp.Core.dll
 
@@ -185,7 +185,7 @@ Update any scripts that reference the old executable names:
 .\ExcelMcp.CLI.exe --help
 
 # New
-.\Sbroenne.ExcelMcp.CLI.exe --help
+.\excelcli.exe --help
 ```
 
 ### For Workflows
@@ -197,7 +197,7 @@ Update workflow files to use net10.0 paths:
 src/ExcelMcp.CLI/bin/Release/net8.0/ExcelMcp.CLI.exe
 
 # New
-src/ExcelMcp.CLI/bin/Release/net10.0/Sbroenne.ExcelMcp.CLI.exe
+src/ExcelMcp.CLI/bin/Release/net10.0/excelcli.exe
 ```
 
 ## Summary Statistics

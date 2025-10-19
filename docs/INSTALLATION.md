@@ -120,24 +120,24 @@ Add to Claude Desktop MCP configuration:
 
    ```powershell
    # Check CLI version and help
-   ExcelMcp.CLI.exe
+   excelcli.exe
    
    # Test CLI functionality
-   ExcelMcp.CLI.exe create-empty "test.xlsx"
+   excelcli.exe create-empty "test.xlsx"
    ```
 
 ### CLI Quick Start
 
 ```powershell
 # Basic operations
-ExcelMcp.CLI.exe create-empty "workbook.xlsx"
-ExcelMcp.CLI.exe pq-list "workbook.xlsx"
-ExcelMcp.CLI.exe sheet-read "workbook.xlsx" "Sheet1" "A1:D10"
+excelcli.exe create-empty "workbook.xlsx"
+excelcli.exe pq-list "workbook.xlsx"
+excelcli.exe sheet-read "workbook.xlsx" "Sheet1" "A1:D10"
 
 # VBA operations (requires one-time setup)
-ExcelMcp.CLI.exe setup-vba-trust
-ExcelMcp.CLI.exe create-empty "macros.xlsm"
-ExcelMcp.CLI.exe script-list "macros.xlsm"
+excelcli.exe setup-vba-trust
+excelcli.exe create-empty "macros.xlsm"
+excelcli.exe script-list "macros.xlsm"
 ```
 
 ---
@@ -170,7 +170,7 @@ ExcelMcp.CLI.exe script-list "macros.xlsm"
 
    ```powershell
    # Test CLI
-   ExcelMcp.CLI.exe create-empty "test.xlsx"
+   excelcli.exe create-empty "test.xlsx"
    
    # Test MCP Server
    mcp-excel --help
@@ -230,7 +230,7 @@ dotnet tool install --global --add-source src/ExcelMcp.McpServer/bin/Release Exc
 
 ```powershell
 # CLI executable location
-.\src\ExcelMcp.CLI\bin\Release\net10.0\ExcelMcp.CLI.exe
+.\src\ExcelMcp.CLI\bin\Release\net10.0\excelcli.exe
 
 # Add to PATH for easier access
 $buildPath = "$(Get-Location)\src\ExcelMcp.CLI\bin\Release\net10.0"
@@ -238,7 +238,7 @@ $env:PATH += ";$buildPath"
 [Environment]::SetEnvironmentVariable("PATH", $env:PATH, "User")
 
 # Test CLI
-ExcelMcp.CLI.exe create-empty "test.xlsx"
+excelcli.exe create-empty "test.xlsx"
 ```
 
 ### Installation Options
@@ -268,7 +268,7 @@ If you plan to use VBA script commands, configure VBA trust:
 ```powershell
 # One-time setup for VBA automation (works with both tools)
 # For CLI:
-ExcelMcp.CLI.exe setup-vba-trust
+excelcli.exe setup-vba-trust
 
 # For MCP Server (through AI assistant):
 # Ask your AI assistant: "Setup VBA trust for Excel automation"
