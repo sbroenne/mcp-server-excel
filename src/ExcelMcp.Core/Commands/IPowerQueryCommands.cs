@@ -1,3 +1,5 @@
+using Sbroenne.ExcelMcp.Core.Models;
+
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
@@ -8,63 +10,45 @@ public interface IPowerQueryCommands
     /// <summary>
     /// Lists all Power Query queries in the workbook
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int List(string[] args);
+    PowerQueryListResult List(string filePath);
     
     /// <summary>
     /// Views the M code of a Power Query
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, queryName]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int View(string[] args);
+    PowerQueryViewResult View(string filePath, string queryName);
     
     /// <summary>
     /// Updates an existing Power Query with new M code
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, queryName, mCodeFile]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    Task<int> Update(string[] args);
+    Task<OperationResult> Update(string filePath, string queryName, string mCodeFile);
     
     /// <summary>
     /// Exports a Power Query's M code to a file
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, queryName, outputFile]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    Task<int> Export(string[] args);
+    Task<OperationResult> Export(string filePath, string queryName, string outputFile);
     
     /// <summary>
     /// Imports M code from a file to create a new Power Query
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, queryName, mCodeFile]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    Task<int> Import(string[] args);
+    Task<OperationResult> Import(string filePath, string queryName, string mCodeFile);
     
     /// <summary>
     /// Refreshes a Power Query to update its data
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, queryName]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int Refresh(string[] args);
+    OperationResult Refresh(string filePath, string queryName);
     
     /// <summary>
     /// Shows errors from Power Query operations
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, queryName]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int Errors(string[] args);
+    PowerQueryViewResult Errors(string filePath, string queryName);
     
     /// <summary>
     /// Loads a connection-only Power Query to a worksheet
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, queryName, sheetName]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int LoadTo(string[] args);
+    OperationResult LoadTo(string filePath, string queryName, string sheetName);
     
     /// <summary>
     /// Deletes a Power Query from the workbook
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, queryName]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int Delete(string[] args);
+    OperationResult Delete(string filePath, string queryName);
 }

@@ -1,179 +1,221 @@
-using Spectre.Console;
 using System.Runtime.InteropServices;
+using Sbroenne.ExcelMcp.Core.Models;
 using static Sbroenne.ExcelMcp.Core.ExcelHelper;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// VBA script management commands
+/// VBA script management commands - Core data layer (no console output)
 /// </summary>
 public class ScriptCommands : IScriptCommands
 {
     /// <summary>
     /// Check if VBA project access is trusted and available
     /// </summary>
-    private static bool IsVbaAccessTrusted(string filePath)
+    private static (bool IsTrusted, string? ErrorMessage) CheckVbaAccessTrust(string filePath)
     {
         try
         {
-            int result = WithExcel(filePath, false, (excel, workbook) =>
+            bool isTrusted = false;
+            string? errorMessage = null;
+            
+            WithExcel(filePath, false, (excel, workbook) =>
             {
                 try
                 {
                     dynamic vbProject = workbook.VBProject;
-                    int componentCount = vbProject.VBComponents.Count; // Try to access VBComponents
-                    return 1; // Return 1 for success
+                    int componentCount = vbProject.VBComponents.Count;
+                    isTrusted = true;
+                    return 0;
                 }
                 catch (COMException comEx)
                 {
-                    // Common VBA trust errors
-                    if (comEx.ErrorCode == unchecked((int)0x800A03EC)) // Programmatic access not trusted
+                    if (comEx.ErrorCode == unchecked((int)0x800A03EC))
                     {
-                        AnsiConsole.MarkupLine("[red]VBA Error:[/] Programmatic access to VBA project is not trusted");
-                        AnsiConsole.MarkupLine("[yellow]Solution:[/] Run: [cyan]ExcelCLI setup-vba-trust[/]");
+                        errorMessage = "Programmatic access to VBA project is not trusted. Run setup-vba-trust command.";
                     }
                     else
                     {
-                        AnsiConsole.MarkupLine($"[red]VBA COM Error:[/] 0x{comEx.ErrorCode:X8} - {comEx.Message.EscapeMarkup()}");
+                        errorMessage = $"VBA COM Error: 0x{comEx.ErrorCode:X8} - {comEx.Message}";
                     }
-                    return 0;
+                    return 1;
                 }
                 catch (Exception ex)
                 {
-                    AnsiConsole.MarkupLine($"[red]VBA Access Error:[/] {ex.Message.EscapeMarkup()}");
-                    return 0;
+                    errorMessage = $"VBA Access Error: {ex.Message}";
+                    return 1;
                 }
             });
-            return result == 1;
+            
+            return (isTrusted, errorMessage);
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]Error checking VBA access:[/] {ex.Message.EscapeMarkup()}");
-            return false;
+            return (false, $"Error checking VBA access: {ex.Message}");
         }
     }
 
     /// <summary>
     /// Validate that file is macro-enabled (.xlsm) for VBA operations
     /// </summary>
-    private static bool ValidateVbaFile(string filePath)
+    private static (bool IsValid, string? ErrorMessage) ValidateVbaFile(string filePath)
     {
         string extension = Path.GetExtension(filePath).ToLowerInvariant();
         if (extension != ".xlsm")
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] VBA operations require macro-enabled workbooks (.xlsm)");
-            AnsiConsole.MarkupLine($"[yellow]Current file:[/] {Path.GetFileName(filePath)} ({extension})");
-            AnsiConsole.MarkupLine($"[yellow]Solutions:[/]");
-            AnsiConsole.MarkupLine($"  • Create new .xlsm file: [cyan]ExcelCLI create-empty \"file.xlsm\"[/]");
-            AnsiConsole.MarkupLine($"  • Save existing file as .xlsm in Excel");
-            AnsiConsole.MarkupLine($"  • Convert with: [cyan]ExcelCLI sheet-copy \"{filePath}\" \"Sheet1\" \"newfile.xlsm\"[/]");
-            return false;
+            return (false, $"VBA operations require macro-enabled workbooks (.xlsm). Current file has extension: {extension}");
         }
-        return true;
+        return (true, null);
     }
 
     /// <inheritdoc />
-    public int List(string[] args)
+    public ScriptListResult List(string filePath)
     {
-        if (args.Length < 2)
+        var result = new ScriptListResult { FilePath = filePath };
+
+        if (!File.Exists(filePath))
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] script-list <file.xlsx>");
-            return 1;
+            result.Success = false;
+            result.ErrorMessage = $"File not found: {filePath}";
+            return result;
         }
 
-        if (!File.Exists(args[1]))
+        var (isValid, validationError) = ValidateVbaFile(filePath);
+        if (!isValid)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
-            return 1;
+            result.Success = false;
+            result.ErrorMessage = validationError;
+            return result;
         }
 
-        AnsiConsole.MarkupLine($"[bold]Office Scripts in:[/] {Path.GetFileName(args[1])}\n");
+        var (isTrusted, trustError) = CheckVbaAccessTrust(filePath);
+        if (!isTrusted)
+        {
+            result.Success = false;
+            result.ErrorMessage = trustError;
+            return result;
+        }
 
-        return WithExcel(args[1], false, (excel, workbook) =>
+        WithExcel(filePath, false, (excel, workbook) =>
         {
             try
             {
-                var scripts = new List<(string Name, string Type)>();
+                dynamic vbaProject = workbook.VBProject;
+                dynamic vbComponents = vbaProject.VBComponents;
 
-                // Try to access VBA project
-                try
+                for (int i = 1; i <= vbComponents.Count; i++)
                 {
-                    dynamic vbaProject = workbook.VBProject;
-                    dynamic vbComponents = vbaProject.VBComponents;
+                    dynamic component = vbComponents.Item(i);
+                    string name = component.Name;
+                    int type = component.Type;
 
-                    for (int i = 1; i <= vbComponents.Count; i++)
+                    string typeStr = type switch
                     {
-                        dynamic component = vbComponents.Item(i);
-                        string name = component.Name;
-                        int type = component.Type;
+                        1 => "Module",
+                        2 => "Class",
+                        3 => "Form",
+                        100 => "Document",
+                        _ => $"Type{type}"
+                    };
 
-                        string typeStr = type switch
+                    var procedures = new List<string>();
+                    try
+                    {
+                        dynamic codeModule = component.CodeModule;
+                        int lineCount = codeModule.CountOfLines;
+                        
+                        // Parse procedures from code
+                        for (int line = 1; line <= lineCount; line++)
                         {
-                            1 => "Module",
-                            2 => "Class",
-                            3 => "Form",
-                            100 => "Document",
-                            _ => $"Type{type}"
-                        };
-
-                        scripts.Add((name, typeStr));
+                            string codeLine = codeModule.Lines[line, 1];
+                            if (codeLine.TrimStart().StartsWith("Sub ") || 
+                                codeLine.TrimStart().StartsWith("Function ") ||
+                                codeLine.TrimStart().StartsWith("Public Sub ") ||
+                                codeLine.TrimStart().StartsWith("Public Function ") ||
+                                codeLine.TrimStart().StartsWith("Private Sub ") ||
+                                codeLine.TrimStart().StartsWith("Private Function "))
+                            {
+                                string procName = ExtractProcedureName(codeLine);
+                                if (!string.IsNullOrEmpty(procName))
+                                {
+                                    procedures.Add(procName);
+                                }
+                            }
+                        }
                     }
-                }
-                catch
-                {
-                    AnsiConsole.MarkupLine("[yellow]Note:[/] VBA macros not accessible or not present");
-                }
+                    catch { }
 
-                // Display scripts
-                if (scripts.Count > 0)
-                {
-                    var table = new Table();
-                    table.AddColumn("[bold]Script Name[/]");
-                    table.AddColumn("[bold]Type[/]");
-
-                    foreach (var (name, type) in scripts.OrderBy(s => s.Name))
+                    result.Scripts.Add(new ScriptInfo
                     {
-                        table.AddRow(name.EscapeMarkup(), type.EscapeMarkup());
-                    }
-
-                    AnsiConsole.Write(table);
-                    AnsiConsole.MarkupLine($"\n[dim]Total: {scripts.Count} script(s)[/]");
-                }
-                else
-                {
-                    AnsiConsole.MarkupLine("[yellow]No VBA scripts found[/]");
-                    AnsiConsole.MarkupLine("[dim]Note: Office Scripts (.ts) are not stored in Excel files[/]");
+                        Name = name,
+                        Type = typeStr,
+                        Procedures = procedures
+                    });
                 }
 
+                result.Success = true;
                 return 0;
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+                result.Success = false;
+                result.ErrorMessage = $"Error listing scripts: {ex.Message}";
                 return 1;
             }
         });
+
+        return result;
+    }
+
+    private static string ExtractProcedureName(string codeLine)
+    {
+        var parts = codeLine.Trim().Split(new[] { ' ', '(' }, StringSplitOptions.RemoveEmptyEntries);
+        for (int i = 0; i < parts.Length; i++)
+        {
+            if (parts[i] == "Sub" || parts[i] == "Function")
+            {
+                if (i + 1 < parts.Length)
+                {
+                    return parts[i + 1];
+                }
+            }
+        }
+        return string.Empty;
     }
 
     /// <inheritdoc />
-    public int Export(string[] args)
+    public async Task<OperationResult> Export(string filePath, string moduleName, string outputFile)
     {
-        if (args.Length < 3)
+        var result = new OperationResult 
+        { 
+            FilePath = filePath, 
+            Action = "script-export"
+        };
+
+        if (!File.Exists(filePath))
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] script-export <file.xlsx> <script-name> <output-file>");
-            return 1;
+            result.Success = false;
+            result.ErrorMessage = $"File not found: {filePath}";
+            return result;
         }
 
-        if (!File.Exists(args[1]))
+        var (isValid, validationError) = ValidateVbaFile(filePath);
+        if (!isValid)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
-            return 1;
+            result.Success = false;
+            result.ErrorMessage = validationError;
+            return result;
         }
 
-        string scriptName = args[2];
-        string outputFile = args.Length > 3 ? args[3] : $"{scriptName}.vba";
+        var (isTrusted, trustError) = CheckVbaAccessTrust(filePath);
+        if (!isTrusted)
+        {
+            result.Success = false;
+            result.ErrorMessage = trustError;
+            return result;
+        }
 
-        return WithExcel(args[1], false, (excel, workbook) =>
+        WithExcel(filePath, false, (excel, workbook) =>
         {
             try
             {
@@ -184,7 +226,7 @@ public class ScriptCommands : IScriptCommands
                 for (int i = 1; i <= vbComponents.Count; i++)
                 {
                     dynamic component = vbComponents.Item(i);
-                    if (component.Name == scriptName)
+                    if (component.Name == moduleName)
                     {
                         targetComponent = component;
                         break;
@@ -193,337 +235,339 @@ public class ScriptCommands : IScriptCommands
 
                 if (targetComponent == null)
                 {
-                    AnsiConsole.MarkupLine($"[red]Error:[/] Script '{scriptName}' not found");
+                    result.Success = false;
+                    result.ErrorMessage = $"Script module '{moduleName}' not found";
                     return 1;
                 }
 
-                // Get the code module
                 dynamic codeModule = targetComponent.CodeModule;
                 int lineCount = codeModule.CountOfLines;
 
-                if (lineCount > 0)
+                if (lineCount == 0)
                 {
-                    string code = codeModule.Lines(1, lineCount);
-                    File.WriteAllText(outputFile, code);
-
-                    AnsiConsole.MarkupLine($"[green]√[/] Exported script '{scriptName}' to '{outputFile}'");
-                    AnsiConsole.MarkupLine($"[dim]{lineCount} lines[/]");
-                    return 0;
-                }
-                else
-                {
-                    AnsiConsole.MarkupLine($"[yellow]Warning:[/] Script '{scriptName}' is empty");
+                    result.Success = false;
+                    result.ErrorMessage = $"Module '{moduleName}' is empty";
                     return 1;
                 }
-            }
-            catch (Exception ex)
-            {
-                AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
-                AnsiConsole.MarkupLine("[yellow]Tip:[/] Make sure 'Trust access to the VBA project object model' is enabled");
-                return 1;
-            }
-        });
-    }
 
-    /// <inheritdoc />
-    public int Run(string[] args)
-    {
-        if (args.Length < 3)
-        {
-            AnsiConsole.MarkupLine("[red]Usage:[/] script-run <file.xlsm> <macro-name> [[param1]] [[param2]] ...");
-            AnsiConsole.MarkupLine("[yellow]Example:[/] script-run \"Plan.xlsm\" \"ProcessData\"");
-            AnsiConsole.MarkupLine("[yellow]Example:[/] script-run \"Plan.xlsm\" \"CalculateTotal\" \"Sheet1\" \"A1:C10\"");
-            return 1;
-        }
+                string code = codeModule.Lines[1, lineCount];
+                File.WriteAllText(outputFile, code);
 
-        if (!File.Exists(args[1]))
-        {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
-            return 1;
-        }
-
-        string filePath = Path.GetFullPath(args[1]);
-        
-        // Validate file format
-        if (!ValidateVbaFile(filePath))
-        {
-            return 1;
-        }
-
-        string macroName = args[2];
-        var parameters = args.Skip(3).ToArray();
-
-        return WithExcel(filePath, true, (excel, workbook) =>
-        {
-            try
-            {
-                AnsiConsole.MarkupLine($"[cyan]Running macro:[/] {macroName}");
-                if (parameters.Length > 0)
-                {
-                    AnsiConsole.MarkupLine($"[dim]Parameters: {string.Join(", ", parameters)}[/]");
-                }
-
-                // Prepare parameters for Application.Run
-                object[] runParams = new object[31]; // Application.Run supports up to 30 parameters + macro name
-                runParams[0] = macroName;
-                
-                for (int i = 0; i < Math.Min(parameters.Length, 30); i++)
-                {
-                    runParams[i + 1] = parameters[i];
-                }
-                
-                // Fill remaining parameters with missing values
-                for (int i = parameters.Length + 1; i < 31; i++)
-                {
-                    runParams[i] = Type.Missing;
-                }
-
-                // Execute the macro
-                dynamic result = excel.Run(
-                    runParams[0], runParams[1], runParams[2], runParams[3], runParams[4],
-                    runParams[5], runParams[6], runParams[7], runParams[8], runParams[9],
-                    runParams[10], runParams[11], runParams[12], runParams[13], runParams[14],
-                    runParams[15], runParams[16], runParams[17], runParams[18], runParams[19],
-                    runParams[20], runParams[21], runParams[22], runParams[23], runParams[24],
-                    runParams[25], runParams[26], runParams[27], runParams[28], runParams[29],
-                    runParams[30]
-                );
-
-                AnsiConsole.MarkupLine($"[green]√[/] Macro '{macroName}' completed successfully");
-                
-                // Display result if macro returned something
-                if (result != null && result != Type.Missing)
-                {
-                    AnsiConsole.MarkupLine($"[cyan]Result:[/] {result.ToString().EscapeMarkup()}");
-                }
-
+                result.Success = true;
                 return 0;
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
-                
-                if (ex.Message.Contains("macro") || ex.Message.Contains("procedure"))
-                {
-                    AnsiConsole.MarkupLine("[yellow]Tip:[/] Make sure the macro name is correct and the VBA code is present");
-                    AnsiConsole.MarkupLine("[yellow]Tip:[/] Use 'script-list' to see available VBA modules and procedures");
-                }
-                
+                result.Success = false;
+                result.ErrorMessage = $"Error exporting script: {ex.Message}";
                 return 1;
             }
         });
+
+        return await Task.FromResult(result);
     }
 
-    /// <summary>
-    /// Import VBA code from file into Excel workbook
-    /// </summary>
-    public async Task<int> Import(string[] args)
+    /// <inheritdoc />
+    public async Task<OperationResult> Import(string filePath, string moduleName, string vbaFile)
     {
-        if (args.Length < 4)
+        var result = new OperationResult 
+        { 
+            FilePath = filePath, 
+            Action = "script-import"
+        };
+
+        if (!File.Exists(filePath))
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] script-import <file.xlsm> <module-name> <vba-file>");
-            AnsiConsole.MarkupLine("[yellow]Note:[/] VBA operations require macro-enabled workbooks (.xlsm)");
-            return 1;
+            result.Success = false;
+            result.ErrorMessage = $"File not found: {filePath}";
+            return result;
         }
 
-        if (!File.Exists(args[1]))
+        if (!File.Exists(vbaFile))
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
-            return 1;
+            result.Success = false;
+            result.ErrorMessage = $"VBA file not found: {vbaFile}";
+            return result;
         }
 
-        if (!File.Exists(args[3]))
+        var (isValid, validationError) = ValidateVbaFile(filePath);
+        if (!isValid)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] VBA file not found: {args[3]}");
-            return 1;
+            result.Success = false;
+            result.ErrorMessage = validationError;
+            return result;
         }
 
-        string filePath = Path.GetFullPath(args[1]);
-        
-        // Validate file format
-        if (!ValidateVbaFile(filePath))
+        var (isTrusted, trustError) = CheckVbaAccessTrust(filePath);
+        if (!isTrusted)
         {
-            return 1;
-        }
-        
-        // Check VBA access first
-        if (!IsVbaAccessTrusted(filePath))
-        {
-            AnsiConsole.MarkupLine("[red]Error:[/] Programmatic access to Visual Basic Project is not trusted");
-            AnsiConsole.MarkupLine("[yellow]Tip:[/] Make sure 'Trust access to the VBA project object model' is enabled in Excel");
-            AnsiConsole.MarkupLine("[yellow]Tip:[/] File → Options → Trust Center → Trust Center Settings → Macro Settings");
-            return 1;
+            result.Success = false;
+            result.ErrorMessage = trustError;
+            return result;
         }
 
-        string moduleName = args[2];
-        string vbaFilePath = args[3];
+        string vbaCode = await File.ReadAllTextAsync(vbaFile);
 
-        try
+        WithExcel(filePath, true, (excel, workbook) =>
         {
-            string vbaCode = await File.ReadAllTextAsync(vbaFilePath);
-            
-            return WithExcel(filePath, true, (excel, workbook) =>
+            try
             {
-                try
+                dynamic vbaProject = workbook.VBProject;
+                dynamic vbComponents = vbaProject.VBComponents;
+
+                // Check if module already exists
+                for (int i = 1; i <= vbComponents.Count; i++)
                 {
-                    // Access the VBA project
-                    dynamic vbProject = workbook.VBProject;
-                    dynamic vbComponents = vbProject.VBComponents;
-
-                    // Check if module already exists
-                    dynamic? existingModule = null;
-                    try
+                    dynamic component = vbComponents.Item(i);
+                    if (component.Name == moduleName)
                     {
-                        existingModule = vbComponents.Item(moduleName);
-                    }
-                    catch
-                    {
-                        // Module doesn't exist, which is fine for import
-                    }
-
-                    if (existingModule != null)
-                    {
-                        AnsiConsole.MarkupLine($"[yellow]Warning:[/] Module '{moduleName}' already exists. Use 'script-update' to modify existing modules.");
+                        result.Success = false;
+                        result.ErrorMessage = $"Module '{moduleName}' already exists. Use script-update to modify it.";
                         return 1;
                     }
-
-                    // Add new module
-                    const int vbext_ct_StdModule = 1;
-                    dynamic newModule = vbComponents.Add(vbext_ct_StdModule);
-                    newModule.Name = moduleName;
-
-                    // Add the VBA code
-                    dynamic codeModule = newModule.CodeModule;
-                    codeModule.AddFromString(vbaCode);
-
-                    // Force save to ensure the module is persisted
-                    workbook.Save();
-
-                    AnsiConsole.MarkupLine($"[green]✓[/] Imported VBA module '{moduleName}'");
-                    return 0;
                 }
-                catch (Exception ex)
-                {
-                    AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
-                    
-                    if (ex.Message.Contains("access") || ex.Message.Contains("trust"))
-                    {
-                        AnsiConsole.MarkupLine("[yellow]Tip:[/] Make sure 'Trust access to the VBA project object model' is enabled in Excel");
-                        AnsiConsole.MarkupLine("[yellow]Tip:[/] File → Options → Trust Center → Trust Center Settings → Macro Settings");
-                    }
-                    
-                    return 1;
-                }
-            });
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLine($"[red]Error reading VBA file:[/] {ex.Message.EscapeMarkup()}");
-            return 1;
-        }
+
+                // Add new module
+                dynamic newModule = vbComponents.Add(1); // 1 = vbext_ct_StdModule
+                newModule.Name = moduleName;
+                
+                dynamic codeModule = newModule.CodeModule;
+                codeModule.AddFromString(vbaCode);
+
+                result.Success = true;
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Error importing script: {ex.Message}";
+                return 1;
+            }
+        });
+
+        return result;
     }
 
-    /// <summary>
-    /// Update existing VBA module with new code from file
-    /// </summary>
-    public async Task<int> Update(string[] args)
+    /// <inheritdoc />
+    public async Task<OperationResult> Update(string filePath, string moduleName, string vbaFile)
     {
-        if (args.Length < 4)
+        var result = new OperationResult 
+        { 
+            FilePath = filePath, 
+            Action = "script-update"
+        };
+
+        if (!File.Exists(filePath))
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] script-update <file.xlsm> <module-name> <vba-file>");
-            AnsiConsole.MarkupLine("[yellow]Note:[/] VBA operations require macro-enabled workbooks (.xlsm)");
-            return 1;
+            result.Success = false;
+            result.ErrorMessage = $"File not found: {filePath}";
+            return result;
         }
 
-        if (!File.Exists(args[1]))
+        if (!File.Exists(vbaFile))
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
-            return 1;
+            result.Success = false;
+            result.ErrorMessage = $"VBA file not found: {vbaFile}";
+            return result;
         }
 
-        if (!File.Exists(args[3]))
+        var (isValid, validationError) = ValidateVbaFile(filePath);
+        if (!isValid)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] VBA file not found: {args[3]}");
-            return 1;
+            result.Success = false;
+            result.ErrorMessage = validationError;
+            return result;
         }
 
-        string filePath = Path.GetFullPath(args[1]);
-        
-        // Validate file format
-        if (!ValidateVbaFile(filePath))
+        var (isTrusted, trustError) = CheckVbaAccessTrust(filePath);
+        if (!isTrusted)
         {
-            return 1;
+            result.Success = false;
+            result.ErrorMessage = trustError;
+            return result;
         }
-        
-        // Check VBA access first
-        if (!IsVbaAccessTrusted(filePath))
-        {
-            AnsiConsole.MarkupLine("[red]Error:[/] Programmatic access to Visual Basic Project is not trusted");
-            AnsiConsole.MarkupLine("[yellow]Tip:[/] Make sure 'Trust access to the VBA project object model' is enabled in Excel");
-            AnsiConsole.MarkupLine("[yellow]Tip:[/] File → Options → Trust Center → Trust Center Settings → Macro Settings");
-            return 1;
-        }
-        
-        string moduleName = args[2];
-        string vbaFilePath = args[3];
 
-        try
+        string vbaCode = await File.ReadAllTextAsync(vbaFile);
+
+        WithExcel(filePath, true, (excel, workbook) =>
         {
-            string vbaCode = await File.ReadAllTextAsync(vbaFilePath);
-            
-            return WithExcel(filePath, true, (excel, workbook) =>
+            try
             {
-                try
+                dynamic vbaProject = workbook.VBProject;
+                dynamic vbComponents = vbaProject.VBComponents;
+                dynamic? targetComponent = null;
+
+                for (int i = 1; i <= vbComponents.Count; i++)
                 {
-                    // Access the VBA project
-                    dynamic vbProject = workbook.VBProject;
-                    dynamic vbComponents = vbProject.VBComponents;
-
-                    // Find the existing module
-                    dynamic? targetModule = null;
-                    try
+                    dynamic component = vbComponents.Item(i);
+                    if (component.Name == moduleName)
                     {
-                        targetModule = vbComponents.Item(moduleName);
+                        targetComponent = component;
+                        break;
                     }
-                    catch
-                    {
-                        AnsiConsole.MarkupLine($"[red]Error:[/] Module '{moduleName}' not found. Use 'script-import' to create new modules.");
-                        return 1;
-                    }
-
-                    // Clear existing code and add new code
-                    dynamic codeModule = targetModule.CodeModule;
-                    int lineCount = codeModule.CountOfLines;
-                    if (lineCount > 0)
-                    {
-                        codeModule.DeleteLines(1, lineCount);
-                    }
-                    codeModule.AddFromString(vbaCode);
-
-                    // Force save to ensure the changes are persisted
-                    workbook.Save();
-
-                    AnsiConsole.MarkupLine($"[green]✓[/] Updated VBA module '{moduleName}'");
-                    return 0;
                 }
-                catch (Exception ex)
+
+                if (targetComponent == null)
                 {
-                    AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
-                    
-                    if (ex.Message.Contains("access") || ex.Message.Contains("trust"))
-                    {
-                        AnsiConsole.MarkupLine("[yellow]Tip:[/] Make sure 'Trust access to the VBA project object model' is enabled in Excel");
-                        AnsiConsole.MarkupLine("[yellow]Tip:[/] File → Options → Trust Center → Trust Center Settings → Macro Settings");
-                    }
-                    
+                    result.Success = false;
+                    result.ErrorMessage = $"Module '{moduleName}' not found. Use script-import to create it.";
                     return 1;
                 }
-            });
-        }
-        catch (Exception ex)
+
+                dynamic codeModule = targetComponent.CodeModule;
+                int lineCount = codeModule.CountOfLines;
+                
+                if (lineCount > 0)
+                {
+                    codeModule.DeleteLines(1, lineCount);
+                }
+                
+                codeModule.AddFromString(vbaCode);
+
+                result.Success = true;
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Error updating script: {ex.Message}";
+                return 1;
+            }
+        });
+
+        return result;
+    }
+
+    /// <inheritdoc />
+    public OperationResult Run(string filePath, string procedureName, params string[] parameters)
+    {
+        var result = new OperationResult 
+        { 
+            FilePath = filePath, 
+            Action = "script-run"
+        };
+
+        if (!File.Exists(filePath))
         {
-            AnsiConsole.MarkupLine($"[red]Error reading VBA file:[/] {ex.Message.EscapeMarkup()}");
-            return 1;
+            result.Success = false;
+            result.ErrorMessage = $"File not found: {filePath}";
+            return result;
         }
+
+        var (isValid, validationError) = ValidateVbaFile(filePath);
+        if (!isValid)
+        {
+            result.Success = false;
+            result.ErrorMessage = validationError;
+            return result;
+        }
+
+        var (isTrusted, trustError) = CheckVbaAccessTrust(filePath);
+        if (!isTrusted)
+        {
+            result.Success = false;
+            result.ErrorMessage = trustError;
+            return result;
+        }
+
+        WithExcel(filePath, true, (excel, workbook) =>
+        {
+            try
+            {
+                if (parameters.Length == 0)
+                {
+                    excel.Run(procedureName);
+                }
+                else
+                {
+                    object[] paramObjects = parameters.Cast<object>().ToArray();
+                    excel.Run(procedureName, paramObjects);
+                }
+
+                result.Success = true;
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Error running procedure '{procedureName}': {ex.Message}";
+                return 1;
+            }
+        });
+
+        return result;
+    }
+
+    /// <inheritdoc />
+    public OperationResult Delete(string filePath, string moduleName)
+    {
+        var result = new OperationResult 
+        { 
+            FilePath = filePath, 
+            Action = "script-delete"
+        };
+
+        if (!File.Exists(filePath))
+        {
+            result.Success = false;
+            result.ErrorMessage = $"File not found: {filePath}";
+            return result;
+        }
+
+        var (isValid, validationError) = ValidateVbaFile(filePath);
+        if (!isValid)
+        {
+            result.Success = false;
+            result.ErrorMessage = validationError;
+            return result;
+        }
+
+        var (isTrusted, trustError) = CheckVbaAccessTrust(filePath);
+        if (!isTrusted)
+        {
+            result.Success = false;
+            result.ErrorMessage = trustError;
+            return result;
+        }
+
+        WithExcel(filePath, true, (excel, workbook) =>
+        {
+            try
+            {
+                dynamic vbaProject = workbook.VBProject;
+                dynamic vbComponents = vbaProject.VBComponents;
+                dynamic? targetComponent = null;
+
+                for (int i = 1; i <= vbComponents.Count; i++)
+                {
+                    dynamic component = vbComponents.Item(i);
+                    if (component.Name == moduleName)
+                    {
+                        targetComponent = component;
+                        break;
+                    }
+                }
+
+                if (targetComponent == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Module '{moduleName}' not found";
+                    return 1;
+                }
+
+                vbComponents.Remove(targetComponent);
+
+                result.Success = true;
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Error deleting module: {ex.Message}";
+                return 1;
+            }
+        });
+
+        return result;
     }
 }
