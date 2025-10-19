@@ -1,4 +1,4 @@
-using Spectre.Console;
+using Sbroenne.ExcelMcp.Core.Models;
 using static Sbroenne.ExcelMcp.Core.ExcelHelper;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -9,58 +9,68 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public class FileCommands : IFileCommands
 {
     /// <inheritdoc />
-    public int CreateEmpty(string[] args)
+    public OperationResult CreateEmpty(string filePath, bool overwriteIfExists = false)
     {
-        if (!ValidateArgs(args, 2, "create-empty <file.xlsx|file.xlsm>")) return 1;
-
-        string filePath = Path.GetFullPath(args[1]);
-        
-        // Validate file extension
-        string extension = Path.GetExtension(filePath).ToLowerInvariant();
-        if (extension != ".xlsx" && extension != ".xlsm")
-        {
-            AnsiConsole.MarkupLine("[red]Error:[/] File must have .xlsx or .xlsm extension");
-            AnsiConsole.MarkupLine("[yellow]Tip:[/] Use .xlsm for macro-enabled workbooks");
-            return 1;
-        }
-        
-        // Check if file already exists
-        if (File.Exists(filePath))
-        {
-            AnsiConsole.MarkupLine($"[yellow]Warning:[/] File already exists: {filePath}");
-            
-            // Ask for confirmation to overwrite
-            if (!AnsiConsole.Confirm("Do you want to overwrite the existing file?"))
-            {
-                AnsiConsole.MarkupLine("[dim]Operation cancelled.[/]");
-                return 1;
-            }
-        }
-
-        // Ensure directory exists
-        string? directory = Path.GetDirectoryName(filePath);
-        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-        {
-            try
-            {
-                Directory.CreateDirectory(directory);
-                AnsiConsole.MarkupLine($"[dim]Created directory: {directory}[/]");
-            }
-            catch (Exception ex)
-            {
-                AnsiConsole.MarkupLine($"[red]Error:[/] Failed to create directory: {ex.Message.EscapeMarkup()}");
-                return 1;
-            }
-        }
-
         try
         {
+            filePath = Path.GetFullPath(filePath);
+            
+            // Validate file extension
+            string extension = Path.GetExtension(filePath).ToLowerInvariant();
+            if (extension != ".xlsx" && extension != ".xlsm")
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    ErrorMessage = "File must have .xlsx or .xlsm extension",
+                    FilePath = filePath,
+                    Action = "create-empty"
+                };
+            }
+            
+            // Check if file already exists
+            if (File.Exists(filePath) && !overwriteIfExists)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"File already exists: {filePath}",
+                    FilePath = filePath,
+                    Action = "create-empty"
+                };
+            }
+
+            // Ensure directory exists
+            string? directory = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                try
+                {
+                    Directory.CreateDirectory(directory);
+                }
+                catch (Exception ex)
+                {
+                    return new OperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Failed to create directory: {ex.Message}",
+                        FilePath = filePath,
+                        Action = "create-empty"
+                    };
+                }
+            }
+
             // Create Excel workbook with COM automation
             var excelType = Type.GetTypeFromProgID("Excel.Application");
             if (excelType == null)
             {
-                AnsiConsole.MarkupLine("[red]Error:[/] Excel is not installed. Cannot create Excel files.");
-                return 1;
+                return new OperationResult
+                {
+                    Success = false,
+                    ErrorMessage = "Excel is not installed. Cannot create Excel files.",
+                    FilePath = filePath,
+                    Action = "create-empty"
+                };
             }
 
 #pragma warning disable IL2072 // COM interop is not AOT compatible
@@ -87,19 +97,21 @@ public class FileCommands : IFileCommands
                 {
                     // Save as macro-enabled workbook (format 52)
                     workbook.SaveAs(filePath, 52);
-                    AnsiConsole.MarkupLine($"[green]✓[/] Created macro-enabled Excel workbook: [cyan]{Path.GetFileName(filePath)}[/]");
                 }
                 else
                 {
                     // Save as regular workbook (format 51)
                     workbook.SaveAs(filePath, 51);
-                    AnsiConsole.MarkupLine($"[green]✓[/] Created Excel workbook: [cyan]{Path.GetFileName(filePath)}[/]");
                 }
                 
                 workbook.Close(false);
-                AnsiConsole.MarkupLine($"[dim]Full path: {filePath}[/]");
                 
-                return 0;
+                return new OperationResult
+                {
+                    Success = true,
+                    FilePath = filePath,
+                    Action = "create-empty"
+                };
             }
             finally
             {
@@ -117,8 +129,57 @@ public class FileCommands : IFileCommands
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] Failed to create Excel file: {ex.Message.EscapeMarkup()}");
-            return 1;
+            return new OperationResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to create Excel file: {ex.Message}",
+                FilePath = filePath,
+                Action = "create-empty"
+            };
+        }
+    }
+    
+    /// <inheritdoc />
+    public FileValidationResult Validate(string filePath)
+    {
+        try
+        {
+            filePath = Path.GetFullPath(filePath);
+            
+            var result = new FileValidationResult
+            {
+                Success = true,
+                FilePath = filePath,
+                Exists = File.Exists(filePath)
+            };
+            
+            if (result.Exists)
+            {
+                var fileInfo = new FileInfo(filePath);
+                result.Size = fileInfo.Length;
+                result.Extension = fileInfo.Extension;
+                result.LastModified = fileInfo.LastWriteTime;
+                result.IsValid = result.Extension.ToLowerInvariant() == ".xlsx" || 
+                                 result.Extension.ToLowerInvariant() == ".xlsm";
+            }
+            else
+            {
+                result.Extension = Path.GetExtension(filePath);
+                result.IsValid = false;
+            }
+            
+            return result;
+        }
+        catch (Exception ex)
+        {
+            return new FileValidationResult
+            {
+                Success = false,
+                ErrorMessage = ex.Message,
+                FilePath = filePath,
+                Exists = false,
+                IsValid = false
+            };
         }
     }
 }

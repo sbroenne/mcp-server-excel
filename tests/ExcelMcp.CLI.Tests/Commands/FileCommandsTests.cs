@@ -33,14 +33,13 @@ public class FileCommandsTests : IDisposable
     {
         // Arrange
         string testFile = Path.Combine(_tempDir, "TestFile.xlsx");
-        string[] args = { "create-empty", testFile };
         _createdFiles.Add(testFile);
 
         // Act
-        int result = _fileCommands.CreateEmpty(args);
+        var result = _fileCommands.CreateEmpty(testFile);
 
         // Assert
-        Assert.Equal(0, result);
+        Assert.True(result.Success);
         Assert.True(File.Exists(testFile));
         
         // Verify it's a valid Excel file by checking size > 0
@@ -54,14 +53,13 @@ public class FileCommandsTests : IDisposable
         // Arrange
         string nestedDir = Path.Combine(_tempDir, "nested", "deep", "path");
         string testFile = Path.Combine(nestedDir, "TestFile.xlsx");
-        string[] args = { "create-empty", testFile };
         _createdFiles.Add(testFile);
 
         // Act
-        int result = _fileCommands.CreateEmpty(args);
+        var result = _fileCommands.CreateEmpty(testFile);
 
         // Assert
-        Assert.Equal(0, result);
+        Assert.True(result.Success);
         Assert.True(Directory.Exists(nestedDir));
         Assert.True(File.Exists(testFile));
     }
@@ -70,13 +68,14 @@ public class FileCommandsTests : IDisposable
     public void CreateEmpty_WithInvalidArgs_ReturnsError()
     {
         // Arrange
-        string[] args = { "create-empty" }; // Missing file argument
+        string invalidPath = ""; // Empty file path
 
         // Act
-        int result = _fileCommands.CreateEmpty(args);
+        var result = _fileCommands.CreateEmpty(invalidPath);
 
         // Assert
-        Assert.Equal(1, result);
+        Assert.False(result.Success);
+        Assert.NotNull(result.ErrorMessage);
     }
 
     [Fact]
@@ -84,17 +83,16 @@ public class FileCommandsTests : IDisposable
     {
         // Arrange
         string relativePath = "RelativeTestFile.xlsx";
-        string[] args = { "create-empty", relativePath };
         
         // The file will be created in the current directory
         string expectedPath = Path.GetFullPath(relativePath);
         _createdFiles.Add(expectedPath);
 
         // Act
-        int result = _fileCommands.CreateEmpty(args);
+        var result = _fileCommands.CreateEmpty(relativePath);
 
         // Assert
-        Assert.Equal(0, result);
+        Assert.True(result.Success);
         Assert.True(File.Exists(expectedPath));
     }
 
@@ -105,14 +103,13 @@ public class FileCommandsTests : IDisposable
     {
         // Arrange
         string testFile = Path.Combine(_tempDir, fileName);
-        string[] args = { "create-empty", testFile };
         _createdFiles.Add(testFile);
 
         // Act
-        int result = _fileCommands.CreateEmpty(args);
+        var result = _fileCommands.CreateEmpty(testFile);
 
         // Assert
-        Assert.Equal(0, result);
+        Assert.True(result.Success);
         Assert.True(File.Exists(testFile));
     }
 
@@ -124,13 +121,12 @@ public class FileCommandsTests : IDisposable
     {
         // Arrange
         string testFile = Path.Combine(_tempDir, fileName);
-        string[] args = { "create-empty", testFile };
 
         // Act
-        int result = _fileCommands.CreateEmpty(args);
+        var result = _fileCommands.CreateEmpty(testFile);
 
         // Assert
-        Assert.Equal(1, result);
+        Assert.False(result.Success);
         Assert.False(File.Exists(testFile));
     }
 
@@ -139,13 +135,12 @@ public class FileCommandsTests : IDisposable
     {
         // Arrange - Use invalid characters in path
         string invalidPath = Path.Combine(_tempDir, "invalid<>file.xlsx");
-        string[] args = { "create-empty", invalidPath };
 
         // Act
-        int result = _fileCommands.CreateEmpty(args);
+        var result = _fileCommands.CreateEmpty(invalidPath);
 
         // Assert
-        Assert.Equal(1, result);
+        Assert.False(result.Success);
     }
 
     [Fact]
@@ -163,10 +158,9 @@ public class FileCommandsTests : IDisposable
         // Act & Assert
         foreach (string testFile in testFiles)
         {
-            string[] args = { "create-empty", testFile };
-            int result = _fileCommands.CreateEmpty(args);
+            var result = _fileCommands.CreateEmpty(testFile);
             
-            Assert.Equal(0, result);
+            Assert.True(result.Success);
             Assert.True(File.Exists(testFile));
         }
 

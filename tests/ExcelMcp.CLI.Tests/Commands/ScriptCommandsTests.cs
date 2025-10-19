@@ -90,10 +90,8 @@ public class ScriptCommandsTests : IDisposable
     private void CreateTestExcelFile()
     {
         // Create an empty Excel file for testing
-        string[] args = { "create-empty", _testExcelFile };
-        
-        int result = _fileCommands.CreateEmpty(args);
-        if (result != 0)
+        var result = _fileCommands.CreateEmpty(_testExcelFile);
+        if (!result.Success)
         {
             throw new InvalidOperationException("Failed to create test Excel file. Excel may not be installed.");
         }

@@ -1,3 +1,5 @@
+using Sbroenne.ExcelMcp.Core.Models;
+
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
@@ -8,7 +10,15 @@ public interface IFileCommands
     /// <summary>
     /// Creates an empty Excel workbook file
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int CreateEmpty(string[] args);
+    /// <param name="filePath">Path to the Excel file to create</param>
+    /// <param name="overwriteIfExists">Whether to overwrite if file already exists</param>
+    /// <returns>Operation result</returns>
+    OperationResult CreateEmpty(string filePath, bool overwriteIfExists = false);
+    
+    /// <summary>
+    /// Validates an Excel file
+    /// </summary>
+    /// <param name="filePath">Path to the Excel file to validate</param>
+    /// <returns>File validation result</returns>
+    FileValidationResult Validate(string filePath);
 }

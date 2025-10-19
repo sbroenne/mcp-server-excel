@@ -60,13 +60,13 @@ public static class ExcelTools
             filePath = Path.ChangeExtension(filePath, extension);
         }
 
-        var result = fileCommands.CreateEmpty(new[] { "create-empty", filePath });
-        if (result == 0)
+        var result = fileCommands.CreateEmpty(filePath, overwriteIfExists: false);
+        if (result.Success)
         {
             return JsonSerializer.Serialize(new
             {
                 success = true,
-                filePath,
+                filePath = result.FilePath,
                 macroEnabled,
                 message = "Excel file created successfully"
             });
@@ -75,40 +75,27 @@ public static class ExcelTools
         {
             return JsonSerializer.Serialize(new
             {
-                error = "Failed to create Excel file",
-                filePath
+                success = false,
+                error = result.ErrorMessage,
+                filePath = result.FilePath
             });
         }
     }
 
     private static string ValidateFile(string filePath)
     {
-        if (!File.Exists(filePath))
-        {
-            return JsonSerializer.Serialize(new
-            {
-                valid = false,
-                error = "File does not exist",
-                filePath
-            });
-        }
-
-        var extension = Path.GetExtension(filePath).ToLowerInvariant();
-        if (extension != ".xlsx" && extension != ".xlsm")
-        {
-            return JsonSerializer.Serialize(new
-            {
-                valid = false,
-                error = "Invalid file extension. Expected .xlsx or .xlsm",
-                filePath
-            });
-        }
-
+        var fileCommands = new FileCommands();
+        var result = fileCommands.Validate(filePath);
+        
         return JsonSerializer.Serialize(new
         {
-            valid = true,
-            filePath,
-            extension
+            valid = result.IsValid,
+            exists = result.Exists,
+            filePath = result.FilePath,
+            extension = result.Extension,
+            size = result.Size,
+            lastModified = result.LastModified,
+            error = result.ErrorMessage
         });
     }
 
