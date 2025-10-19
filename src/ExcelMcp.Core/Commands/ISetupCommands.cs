@@ -1,3 +1,5 @@
+using Sbroenne.ExcelMcp.Core.Models;
+
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
@@ -8,10 +10,11 @@ public interface ISetupCommands
     /// <summary>
     /// Enable VBA project access trust in Excel
     /// </summary>
-    int EnableVbaTrust(string[] args);
+    VbaTrustResult EnableVbaTrust();
     
     /// <summary>
     /// Check current VBA trust status
     /// </summary>
-    int CheckVbaTrust(string[] args);
+    /// <param name="testFilePath">Path to Excel file to test VBA access</param>
+    VbaTrustResult CheckVbaTrust(string testFilePath);
 }

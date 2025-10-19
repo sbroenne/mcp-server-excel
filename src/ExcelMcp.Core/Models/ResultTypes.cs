@@ -316,3 +316,29 @@ public class CellValueResult : ResultBase
     /// </summary>
     public string? Formula { get; set; }
 }
+
+/// <summary>
+/// Result for VBA trust operations
+/// </summary>
+public class VbaTrustResult : ResultBase
+{
+    /// <summary>
+    /// Whether VBA project access is trusted
+    /// </summary>
+    public bool IsTrusted { get; set; }
+    
+    /// <summary>
+    /// Number of VBA components found (when checking trust)
+    /// </summary>
+    public int ComponentCount { get; set; }
+    
+    /// <summary>
+    /// Registry paths where trust was set
+    /// </summary>
+    public List<string> RegistryPathsSet { get; set; } = new();
+    
+    /// <summary>
+    /// Manual setup instructions if automated setup failed
+    /// </summary>
+    public string? ManualInstructions { get; set; }
+}

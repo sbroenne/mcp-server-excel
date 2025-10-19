@@ -57,9 +57,9 @@ public class ScriptCommandsTests : IDisposable
     {
         try
         {
-            var setupCommands = new SetupCommands();
-            int result = setupCommands.EnableVbaTrust(new string[] { "setup-vba-trust" });
-            return result == 0;
+            var coreCommands = new Core.Commands.SetupCommands();
+            var result = coreCommands.EnableVbaTrust();
+            return result.Success;
         }
         catch
         {
