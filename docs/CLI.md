@@ -18,18 +18,18 @@ A comprehensive command-line interface tool for **Excel development workflows** 
 
 ```powershell
 # Download from https://github.com/sbroenne/mcp-server-excel/releases
-# Extract Sbroenne.ExcelMcp.CLI-{version}-windows.zip to C:\Tools\ExcelMcp.CLI
+# Extract excelcli-{version}-windows.zip to C:\Tools\excelcli
 
 # Add to PATH (optional)
-$env:PATH += ";C:\Tools\ExcelMcp.CLI"
+$env:PATH += ";C:\Tools\excelcli"
 
 # Basic usage
-ExcelMcp.CLI create-empty "test.xlsx"
-ExcelMcp.CLI sheet-read "test.xlsx" "Sheet1"
+excelcli create-empty "test.xlsx"
+excelcli sheet-read "test.xlsx" "Sheet1"
 
 # For VBA operations (one-time setup)
-ExcelMcp.CLI setup-vba-trust
-ExcelMcp.CLI create-empty "macros.xlsm"
+excelcli setup-vba-trust
+excelcli create-empty "macros.xlsm"
 ```
 
 ### Build from Source
