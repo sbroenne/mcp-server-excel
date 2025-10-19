@@ -1,7 +1,7 @@
 using Spectre.Console;
-using static ExcelMcp.Core.ExcelHelper;
+using static Sbroenne.ExcelMcp.Core.ExcelHelper;
 
-namespace ExcelMcp.Core.Commands;
+namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
 /// Power Query management commands implementation
@@ -54,6 +54,8 @@ public class PowerQueryCommands : IPowerQueryCommands
         
         return d[s1.Length, s2.Length];
     }
+    
+    /// <inheritdoc />
     public int List(string[] args)
     {
         if (!ValidateArgs(args, 2, "pq-list <file.xlsx>")) return 1;
@@ -152,6 +154,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         });
     }
 
+    /// <inheritdoc />
     public int View(string[] args)
     {
         if (!ValidateArgs(args, 3, "pq-view <file.xlsx> <query-name>")) return 1;
@@ -257,6 +260,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         });
     }
 
+    /// <inheritdoc />
     public async Task<int> Update(string[] args)
     {
         if (!ValidateArgs(args, 4, "pq-update <file.xlsx> <query-name> <code.pq>")) return 1;
@@ -290,6 +294,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         });
     }
 
+    /// <inheritdoc />
     public async Task<int> Export(string[] args)
     {
         if (!ValidateArgs(args, 4, "pq-export <file.xlsx> <query-name> <output.pq>")) return 1;
@@ -318,6 +323,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         }));
     }
 
+    /// <inheritdoc />
     public async Task<int> Import(string[] args)
     {
         if (!ValidateArgs(args, 4, "pq-import <file.xlsx> <query-name> <source.pq>")) return 1;
@@ -356,6 +362,11 @@ public class PowerQueryCommands : IPowerQueryCommands
         });
     }
 
+    /// <summary>
+    /// Analyzes and displays data sources used by Power Queries
+    /// </summary>
+    /// <param name="args">Command arguments: [file.xlsx]</param>
+    /// <returns>0 on success, 1 on error</returns>
     public int Sources(string[] args)
     {
         if (!ValidateArgs(args, 2, "pq-sources <file.xlsx>")) return 1;
@@ -451,6 +462,11 @@ in
         });
     }
 
+    /// <summary>
+    /// Tests connectivity to a Power Query data source
+    /// </summary>
+    /// <param name="args">Command arguments: [file.xlsx, sourceName]</param>
+    /// <returns>0 on success, 1 on error</returns>
     public int Test(string[] args)
     {
         if (!ValidateArgs(args, 3, "pq-test <file.xlsx> <source-name>")) return 1;
@@ -514,6 +530,11 @@ in
         });
     }
 
+    /// <summary>
+    /// Previews sample data from a Power Query data source
+    /// </summary>
+    /// <param name="args">Command arguments: [file.xlsx, sourceName]</param>
+    /// <returns>0 on success, 1 on error</returns>
     public int Peek(string[] args)
     {
         if (!ValidateArgs(args, 3, "pq-peek <file.xlsx> <source-name>")) return 1;
@@ -600,6 +621,11 @@ in
         });
     }
 
+    /// <summary>
+    /// Evaluates M code expressions interactively
+    /// </summary>
+    /// <param name="args">Command arguments: [file.xlsx, expression]</param>
+    /// <returns>0 on success, 1 on error</returns>
     public int Eval(string[] args)
     {
         if (args.Length < 3)
@@ -711,6 +737,7 @@ in
         });
     }
 
+    /// <inheritdoc />
     public int Refresh(string[] args)
     {
         if (!ValidateArgs(args, 2, "pq-refresh <file.xlsx> <query-name>"))
@@ -829,6 +856,7 @@ in
         });
     }
 
+    /// <inheritdoc />
     public int Errors(string[] args)
     {
         if (!ValidateArgs(args, 2, "pq-errors (file.xlsx) (query-name)"))
@@ -932,6 +960,7 @@ in
         });
     }
 
+    /// <inheritdoc />
     public int LoadTo(string[] args)
     {
         if (!ValidateArgs(args, 3, "pq-loadto <file.xlsx> <query-name> <sheet-name>"))
@@ -1073,6 +1102,7 @@ in
         });
     }
 
+    /// <inheritdoc />
     public int Delete(string[] args)
     {
         if (!ValidateArgs(args, 3, "pq-delete <file.xlsx> <query-name>")) return 1;

@@ -48,14 +48,14 @@ To make GitHub Copilot aware of ExcelMcp in your own projects:
 
 ## Effective Copilot Prompting
 
-With the ExcelMcp instructions installed, Copilot will automatically suggest ExcelMcp commands. Here's how to get the best results:
+With the ExcelMcp instructions installed, Copilot will automatically suggest ExcelMcp.CLI commands. Here's how to get the best results:
 
 ### General Prompting Tips
 
 ```text
-"Use ExcelMcp to..." - Start prompts this way for targeted suggestions
+"Use ExcelMcp.CLI to..." - Start prompts this way for targeted suggestions
 "Create a complete workflow using ExcelMcp that..." - For end-to-end automation
-"Help me troubleshoot this ExcelMcp command..." - For debugging assistance
+"Help me troubleshoot this ExcelMcp.CLI command..." - For debugging assistance
 ```
 
 ### Reference the Instructions
@@ -92,7 +92,7 @@ Use pq-test to verify my query connections work properly
 ### Advanced Excel Automation
 
 ```text
-Use ExcelMcp to refresh pq-refresh then sheet-read to extract updated data
+Use ExcelMcp.CLI to refresh pq-refresh then sheet-read to extract updated data
 Load connection-only queries to worksheets with pq-loadto command
 Manage cell formulas with cell-get-formula and cell-set-formula commands
 Run VBA macros with script-run and check results with sheet-read commands
@@ -105,17 +105,17 @@ Create macro-enabled workbooks with create-empty "file.xlsm" for VBA support
 
 ### Context-Aware Code Generation
 
-When working with ExcelCLI, provide context to Copilot:
+When working with Sbroenne.ExcelMcp, provide context to Copilot:
 
 ```text
-I'm working with ExcelMcp to process Excel files. 
+I'm working with ExcelMcp.CLI to process Excel files. 
 I need to:
 - Read data from multiple worksheets
 - Combine data using Power Query
 - Apply business logic with VBA
 - Export results to CSV
 
-Generate a complete PowerShell script using ExcelMcp commands.
+Generate a complete PowerShell script using ExcelMcp.CLI commands.
 ```
 
 ### Error Handling Patterns
@@ -123,7 +123,7 @@ Generate a complete PowerShell script using ExcelMcp commands.
 Ask Copilot to generate robust error handling:
 
 ```text
-Create error handling for ExcelMcp commands that:
+Create error handling for ExcelMcp.CLI commands that:
 - Checks if Excel files exist
 - Validates VBA trust configuration
 - Handles Excel COM errors gracefully
@@ -158,7 +158,7 @@ Help me troubleshoot VBA trust configuration issues
 ```
 
 ```text
-Excel processes are not cleaning up after ExcelMcp commands
+Excel processes are not cleaning up after ExcelMcp.CLI commands
 Help me identify and fix process cleanup issues
 ```
 
@@ -168,8 +168,8 @@ Copilot can suggest best practices:
 
 ```text
 What are the best practices for using ExcelMcp in CI/CD pipelines?
-How should I structure ExcelMcp commands for maintainable automation scripts?
-What error handling patterns should I use with ExcelCLI?
+How should I structure ExcelMcp.CLI commands for maintainable automation scripts?
+What error handling patterns should I use with Sbroenne.ExcelMcp?
 ```
 
 ## Integration with Other Tools
@@ -179,7 +179,7 @@ What error handling patterns should I use with ExcelCLI?
 Ask Copilot to create PowerShell wrappers:
 
 ```text
-Create a PowerShell module that wraps ExcelMcp commands with:
+Create a PowerShell module that wraps ExcelMcp.CLI commands with:
 - Parameter validation
 - Error handling
 - Logging
@@ -189,7 +189,7 @@ Create a PowerShell module that wraps ExcelMcp commands with:
 ### Azure DevOps Integration
 
 ```text
-Create Azure DevOps pipeline tasks that use ExcelMcp to:
+Create Azure DevOps pipeline tasks that use ExcelMcp.CLI to:
 - Process Excel reports in build pipelines
 - Generate data exports for deployment
 - Validate Excel file formats and content

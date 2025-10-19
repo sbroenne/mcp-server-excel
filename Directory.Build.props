@@ -6,13 +6,13 @@
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
     <Authors>Stefan Broenner</Authors>
-    <Company>Stefan Broenner</Company>
-    <Product>ExcelCLI</Product>
+    <Company>Sbroenne</Company>
+    <Product>Sbroenne.ExcelMcp</Product>
     <Copyright>Copyright © 2025 Stefan Broenner</Copyright>
     
     <!-- Repository information -->
-    <PackageProjectUrl>https://github.com/sbroenne/ExcelCLI</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/sbroenne/ExcelCLI</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/sbroenne/mcp-server-excel</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/sbroenne/mcp-server-excel</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     
@@ -23,6 +23,10 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsAsErrors />
     <WarningsNotAsErrors>CA1416;CS8602;SYSLIB1045;IL2026;IL3050</WarningsNotAsErrors>
+    
+    <!-- Deterministic builds for reproducibility -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
     
     <!-- Code Analysis -->
     <EnableNETAnalyzers>true</EnableNETAnalyzers>

@@ -1,4 +1,4 @@
-namespace ExcelMcp.Core.Commands;
+namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
 /// Setup and configuration commands for ExcelCLI

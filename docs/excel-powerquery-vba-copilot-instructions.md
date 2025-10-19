@@ -1,164 +1,158 @@
-# ExcelMcp - Excel PowerQuery VBA Copilot Instructions
+# ExcelMcp MCP Server - Excel PowerQuery VBA Copilot Instructions
 
-Copy this file to your project's `.github/`-directory to enable GitHub Copilot support for ExcelMcp Excel automation with PowerQuery and VBA capabilities.
+Copy this file to your project's `.github/`-directory to enable GitHub Copilot support for ExcelMcp MCP Server - AI-powered Excel development with PowerQuery and VBA capabilities.
 
 ---
 
-## ExcelMcp Integration
+## ExcelMcp MCP Server Integration
 
-This project uses ExcelMcp for Excel automation. ExcelMcp is a command-line tool that provides programmatic access to Microsoft Excel through COM interop, supporting both standard Excel workbooks (.xlsx) and macro-enabled workbooks (.xlsm) with complete VBA support.
+This project uses the ExcelMcp MCP Server for AI-assisted Excel development. The MCP server provides conversational access to Excel operations through 6 resource-based tools, enabling AI assistants like GitHub Copilot, Claude, and ChatGPT to perform Excel development tasks through natural language.
 
-### Available ExcelMcp Commands
+### Available MCP Server Tools
 
-**File Operations:**
+The MCP server provides 6 resource-based tools for Excel automation:
 
-- `ExcelMcp create-empty "file.xlsx"` - Create empty Excel workbook (standard format)
-- `ExcelMcp create-empty "file.xlsm"` - Create macro-enabled Excel workbook for VBA support
+**1. excel_file** - File management
+- Actions: `create-empty`, `validate`, `check-exists`
+- Create Excel workbooks (.xlsx) or macro-enabled workbooks (.xlsm)
+- Validate file format and accessibility
 
-**Power Query Management:**
-
-- `ExcelMcp pq-list "file.xlsx"` - List all Power Query connections
-- `ExcelMcp pq-view "file.xlsx" "QueryName"` - Display Power Query M code
-- `ExcelMcp pq-import "file.xlsx" "QueryName" "code.pq"` - Import M code from file
-- `ExcelMcp pq-export "file.xlsx" "QueryName" "output.pq"` - Export M code to file
-- `ExcelMcp pq-update "file.xlsx" "QueryName" "code.pq"` - Update existing query
-- `ExcelMcp pq-refresh "file.xlsx" "QueryName"` - Refresh query data
-- `ExcelMcp pq-loadto "file.xlsx" "QueryName" "Sheet"` - Load query to worksheet
-- `ExcelMcp pq-delete "file.xlsx" "QueryName"` - Delete Power Query
-
-**Worksheet Operations:**
-
-- `ExcelMcp sheet-list "file.xlsx"` - List all worksheets
-- `ExcelMcp sheet-read "file.xlsx" "Sheet" "A1:D10"` - Read data from ranges
-- `ExcelMcp sheet-write "file.xlsx" "Sheet" "data.csv"` - Write CSV data to worksheet
-- `ExcelMcp sheet-create "file.xlsx" "NewSheet"` - Add new worksheet
-- `ExcelMcp sheet-copy "file.xlsx" "Source" "Target"` - Copy worksheet
-- `ExcelMcp sheet-rename "file.xlsx" "OldName" "NewName"` - Rename worksheet
-- `ExcelMcp sheet-delete "file.xlsx" "Sheet"` - Remove worksheet
-- `ExcelMcp sheet-clear "file.xlsx" "Sheet" "A1:Z100"` - Clear data ranges
-- `ExcelMcp sheet-append "file.xlsx" "Sheet" "data.csv"` - Append data to existing content
-
-**Parameter Management:**
-
-- `ExcelMcp param-list "file.xlsx"` - List all named ranges
-- `ExcelMcp param-get "file.xlsx" "ParamName"` - Get named range value
-- `ExcelMcp param-set "file.xlsx" "ParamName" "Value"` - Set named range value
-- `ExcelMcp param-create "file.xlsx" "ParamName" "Sheet!A1"` - Create named range
-- `ExcelMcp param-delete "file.xlsx" "ParamName"` - Remove named range
-
-**Cell Operations:**
-
-- `ExcelMcp cell-get-value "file.xlsx" "Sheet" "A1"` - Get individual cell value
-- `ExcelMcp cell-set-value "file.xlsx" "Sheet" "A1" "Value"` - Set individual cell value
-- `ExcelMcp cell-get-formula "file.xlsx" "Sheet" "A1"` - Get cell formula
-- `ExcelMcp cell-set-formula "file.xlsx" "Sheet" "A1" "=SUM(B1:B10)"` - Set cell formula
-
-**VBA Script Management:** ⚠️ **Requires .xlsm files!**
-
-- `ExcelMcp script-list "file.xlsm"` - List all VBA modules and procedures
-- `ExcelMcp script-export "file.xlsm" "Module" "output.vba"` - Export VBA code to file
-- `ExcelMcp script-import "file.xlsm" "ModuleName" "source.vba"` - Import VBA module from file
-- `ExcelMcp script-update "file.xlsm" "ModuleName" "source.vba"` - Update existing VBA module
-- `ExcelMcp script-run "file.xlsm" "Module.Procedure" [param1] [param2]` - Execute VBA macros with parameters
-- `ExcelMcp script-delete "file.xlsm" "ModuleName"` - Remove VBA module
-
-**Setup Commands:**
-
-- `ExcelMcp setup-vba-trust` - Enable VBA project access (one-time setup for VBA automation)
-- `ExcelMcp check-vba-trust` - Check VBA trust configuration status
-
-### Common Workflows
-
-**Data Pipeline:**
-
-```bash
-ExcelMcp create-empty "analysis.xlsx"
-ExcelMcp pq-import "analysis.xlsx" "WebData" "api-query.pq"
-ExcelMcp pq-refresh "analysis.xlsx" "WebData"
-ExcelMcp pq-loadto "analysis.xlsx" "WebData" "DataSheet"
-```
-
-**VBA Automation Workflow:**
-
-```bash
-# One-time VBA trust setup
-ExcelMcp setup-vba-trust
-
-# Create macro-enabled workbook
-ExcelMcp create-empty "automation.xlsm"
-
-# Import VBA module
-ExcelMcp script-import "automation.xlsm" "DataProcessor" "processor.vba"
-
-# Execute VBA macro with parameters
-ExcelMcp script-run "automation.xlsm" "DataProcessor.ProcessData" "Sheet1" "A1:D100"
-
-# Verify results
-ExcelMcp sheet-read "automation.xlsm" "Sheet1" "A1:D10"
-
-# Export updated VBA for version control
-ExcelMcp script-export "automation.xlsm" "DataProcessor" "updated-processor.vba"
-```
-
-**Combined PowerQuery + VBA Workflow:**
-
-```bash
-# Data transformation with PowerQuery
-ExcelMcp pq-import "report.xlsm" "DataLoader" "load-data.pq"
-ExcelMcp pq-refresh "report.xlsm" "DataLoader"
-
-# Business logic with VBA
-ExcelMcp script-run "report.xlsm" "ReportGenerator.CreateCharts"
-ExcelMcp script-run "report.xlsm" "ReportGenerator.FormatReport"
-
-# Extract final results
-ExcelMcp sheet-read "report.xlsm" "FinalReport"
-```
-
-**Report Generation:**
-
-```bash
-ExcelMcp create-empty "report.xlsx"
-ExcelMcp param-set "report.xlsx" "ReportDate" "2024-01-01"
-ExcelMcp sheet-write "report.xlsx" "Data" "input.csv"
-ExcelMcp script-run "report.xlsx" "ReportModule.FormatReport"
-```
-
-### When to Suggest ExcelMcp
-
-Use ExcelMcp when the user needs to:
-
-- Automate Excel data processing
-- Create reports programmatically
+**2. excel_powerquery** - Power Query operations
+- Actions: `list`, `view`, `import`, `export`, `update`, `refresh`, `delete`
 - Manage Power Query M code for data transformations
-- Execute VBA macros programmatically
-- Process CSV/Excel data pipelines
-- Set up configuration in Excel files
-- Extract data from existing Excel workbooks
-- Combine PowerQuery data transformation with VBA business logic
-- Create macro-enabled workbooks for automation
-- Version control VBA and PowerQuery code externally
-- Automate complex Excel workflows without UI interaction
+- List, view, and edit Power Query connections
+- Refresh queries and load results to worksheets
+
+**3. excel_worksheet** - Worksheet operations
+- Actions: `list`, `read`, `write`, `create`, `rename`, `copy`, `delete`, `clear`, `append`
+- Manage worksheets and data ranges
+- Read/write data from/to Excel worksheets
+- Create, rename, copy, and delete worksheets
+
+**4. excel_parameter** - Named range management
+- Actions: `list`, `get`, `set`, `create`, `delete`
+- Manage Excel named ranges as configuration parameters
+- Get and set parameter values
+
+**5. excel_cell** - Cell operations
+- Actions: `get-value`, `set-value`, `get-formula`, `set-formula`
+- Read and write individual cell values
+- Manage cell formulas
+
+**6. excel_vba** - VBA script management ⚠️ **Requires .xlsm files!**
+- Actions: `list`, `export`, `import`, `update`, `run`, `delete`
+- Manage VBA modules and procedures
+- Execute VBA macros with parameters
+- Export/import VBA code for version control
+
+### Conversational Workflow Examples
+
+**Power Query Refactoring:**
+
+Ask Copilot: "Review the Power Query 'WebData' in analysis.xlsx and optimize it for performance"
+
+The AI will:
+1. View the current M code
+2. Analyze for performance issues
+3. Suggest and apply optimizations
+4. Update the query with improved code
+
+**VBA Enhancement:**
+
+Ask Copilot: "Add comprehensive error handling to the DataProcessor module in automation.xlsm"
+
+The AI will:
+1. Export the current VBA module
+2. Analyze the code structure
+3. Add try-catch patterns and logging
+4. Update the module with enhanced code
+
+**Combined Power Query + VBA Workflow:**
+
+Ask Copilot: "Set up a data pipeline in report.xlsm that loads data via Power Query, then generates charts with VBA"
+
+The AI will:
+1. Import or create Power Query for data loading
+2. Refresh the query to get latest data
+3. Import or create VBA module for chart generation
+4. Execute the VBA macro to create visualizations
+
+**Excel Development Automation:**
+
+Ask Copilot: "Create a macro-enabled workbook with a data loader query and a formatting macro"
+
+The AI will:
+1. Create a new .xlsm file
+2. Import Power Query M code for data loading
+3. Import VBA module for formatting
+4. Set up named ranges for parameters
+
+### When to Use ExcelMcp MCP Server
+
+The MCP server is ideal for AI-assisted Excel development workflows:
+
+- **Power Query Refactoring** - AI analyzes and optimizes M code for performance
+- **VBA Code Enhancement** - Add error handling, logging, and best practices to VBA modules
+- **Code Review** - AI reviews existing Power Query/VBA code for issues and improvements
+- **Development Automation** - AI creates and configures Excel workbooks with queries and macros
+- **Documentation Generation** - Auto-generate comments and documentation for Excel code
+- **Debugging Assistance** - AI helps troubleshoot Power Query and VBA issues
+- **Best Practices Implementation** - AI applies Excel development patterns and standards
+
+### AI Development vs. Scripted Automation
+
+**Use MCP Server (AI-Assisted Development):**
+- Conversational workflows with AI guidance
+- Code refactoring and optimization
+- Adding features to existing Excel solutions
+- Learning and discovering Excel capabilities
+- Complex multi-step development tasks
+
+**Use CLI (Scripted Automation):**
+- Available separately for scripted workflows
+- See CLI.md documentation for command-line automation
+- Ideal for CI/CD pipelines and batch processing
 
 ### File Format Requirements
 
-- **Standard Excel files (.xlsx)**: Use for PowerQuery, worksheets, parameters, and cell operations
+- **Standard Excel files (.xlsx)**: For Power Query, worksheets, parameters, and cell operations
 - **Macro-enabled files (.xlsm)**: Required for all VBA script operations
-- **VBA Trust Setup**: Run `ExcelMcp setup-vba-trust` once before using VBA commands
+- **VBA Trust**: Must be enabled for VBA operations (MCP server can guide setup)
 
 ### Requirements
 
 - Windows operating system
 - Microsoft Excel installed
-- .NET 8.0 runtime
-- ExcelMcp executable in PATH or specify full path
-- For VBA operations: VBA trust must be enabled (use `setup-vba-trust` command)
+- .NET 10 runtime
+- MCP server running (via `dnx Sbroenne.ExcelMcp.McpServer@latest`)
+- For VBA operations: VBA trust must be enabled
 
-### Error Handling
+### Getting Started
 
-- ExcelMcp returns 0 for success, 1 for errors
-- Always check return codes in scripts
-- Handle file locking gracefully (Excel may be open)
-- Use absolute file paths when possible
-- VBA commands will fail on .xlsx files - use .xlsm for macro-enabled workbooks
-- Run VBA trust setup before first VBA operation
+1. **Install the MCP Server:**
+   ```powershell
+   # Install .NET 10 SDK
+   winget install Microsoft.DotNet.SDK.10
+   
+   # Run MCP server
+   dnx Sbroenne.ExcelMcp.McpServer@latest --yes
+   ```
+
+2. **Configure AI Assistant:**
+   - Add MCP server to your AI assistant configuration
+   - See README.md for GitHub Copilot, Claude, and ChatGPT setup
+
+3. **Start Conversational Development:**
+   - Ask AI to perform Excel operations naturally
+   - AI uses MCP tools to interact with Excel files
+   - Get real-time feedback and suggestions
+
+### Example Prompts for Copilot
+
+- "Review this Power Query and suggest performance improvements"
+- "Add comprehensive error handling to the VBA module"
+- "Create a macro-enabled workbook with a data loader query"
+- "Optimize this M code for better query folding"
+- "Export all VBA modules from this workbook for version control"
+- "Set up named ranges for report parameters"
+- "Debug why this Power Query isn't refreshing properly"

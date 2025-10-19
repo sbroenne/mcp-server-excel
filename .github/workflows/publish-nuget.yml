@@ -17,7 +17,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 10.0.x
         
     - name: Extract version from tag
       id: version
@@ -58,13 +58,13 @@ jobs:
           --output ./nupkg `
           /p:PackageVersion=$version
         
-        Write-Output "📦 Created NuGet package: ExcelMcp.McpServer.$version.nupkg"
+        Write-Output "📦 Created NuGet package: Sbroenne.ExcelMcp.McpServer.$version.nupkg"
       shell: pwsh
       
     - name: Verify package contents
       run: |
         $version = "${{ steps.version.outputs.version }}"
-        $packagePath = "nupkg/ExcelMcp.McpServer.$version.nupkg"
+        $packagePath = "nupkg/Sbroenne.ExcelMcp.McpServer.$version.nupkg"
         
         if (Test-Path $packagePath) {
           Write-Output "✅ Package created successfully"
@@ -78,14 +78,14 @@ jobs:
     - name: Publish to NuGet.org
       run: |
         $version = "${{ steps.version.outputs.version }}"
-        $packagePath = "nupkg/ExcelMcp.McpServer.$version.nupkg"
+        $packagePath = "nupkg/Sbroenne.ExcelMcp.McpServer.$version.nupkg"
         
         dotnet nuget push $packagePath `
           --source https://api.nuget.org/v3/index.json `
           --skip-duplicate
         
-        Write-Output "🚀 Published ExcelMcp.McpServer.$version to NuGet.org"
-        Write-Output "🔗 Package will be available at: https://www.nuget.org/packages/ExcelMcp.McpServer/$version"
+        Write-Output "🚀 Published Sbroenne.ExcelMcp.McpServer.$version to NuGet.org"
+        Write-Output "🔗 Package will be available at: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer/$version"
       shell: pwsh
       
     - name: Upload package artifact

@@ -1,10 +1,10 @@
-# ExcelMcp - Excel Command Line Interface for Coding Agents
+# excelcli - Excel Command Line Interface for Coding Agents
 
-> **📎 Related Instructions:** For projects using ExcelMcp in other repositories, copy `docs/excel-powerquery-vba-copilot-instructions.md` to your project's `.github/copilot-instructions.md` for specialized Excel automation support.
+> **📎 Related Instructions:** For projects using excelcli in other repositories, copy `docs/excel-powerquery-vba-copilot-instructions.md` to your project's `.github/copilot-instructions.md` for specialized Excel automation support.
 
 ## What is ExcelMcp?
 
-ExcelMcp is a Windows-only command-line tool that provides programmatic access to Microsoft Excel through COM interop. It's specifically designed for coding agents and automation scripts to manipulate Excel workbooks without requiring the Excel UI.
+excelcli is a Windows-only command-line tool that provides programmatic access to Microsoft Excel through COM interop. It's specifically designed for coding agents and automation scripts to manipulate Excel workbooks without requiring the Excel UI.
 
 ## Core Capabilities
 
@@ -60,7 +60,7 @@ ExcelMcp is a Windows-only command-line tool that provides programmatic access t
 
 ## MCP Server for AI Development Workflows ✨ **NEW CAPABILITY**
 
-ExcelMcp now includes a **Model Context Protocol (MCP) server** that transforms CLI commands into conversational development workflows for AI assistants like GitHub Copilot.
+excelcli now includes a **Model Context Protocol (MCP) server** that transforms CLI commands into conversational development workflows for AI assistants like GitHub Copilot.
 
 ### Starting the MCP Server
 ```powershell
@@ -80,7 +80,7 @@ The MCP server consolidates 40+ CLI commands into 6 resource-based tools with ac
 
 ### Development-Focused Use Cases ⚠️ **NOT for ETL!**
 
-ExcelMcp (both MCP server and CLI) is designed for **Excel development workflows**, not data processing:
+excelcli (both MCP server and CLI) is designed for **Excel development workflows**, not data processing:
 
 - **Power Query Refactoring** - AI helps optimize M code for better performance
 - **VBA Development & Debugging** - Add error handling, logging, and code improvements  
@@ -137,7 +137,7 @@ Copilot: [Uses excel_powerquery view -> analyzes for query folding issues -> pro
 
 ### Technical Requirements
 - **Windows Only** - Requires Excel installation (uses COM interop)
-- **.NET 8.0** - Modern .NET runtime required
+- **.NET 10** - Modern .NET runtime required
 - **Excel Installed** - Must have Microsoft Excel installed on the machine
 - **Command Line Access** - Designed for terminal/script usage
 
@@ -146,31 +146,31 @@ Copilot: [Uses excel_powerquery view -> analyzes for query folding issues -> pro
 ### PowerShell Integration
 ```powershell
 # Create and populate a report with VBA automation
-ExcelMcp setup-vba-trust  # One-time setup
-ExcelMcp create-empty "monthly-report.xlsm"
-ExcelMcp param-set "monthly-report.xlsm" "ReportDate" "2024-01-01"
-ExcelMcp pq-import "monthly-report.xlsm" "SalesData" "sales-query.pq"
-ExcelMcp pq-refresh "monthly-report.xlsm" "SalesData"
-ExcelMcp script-run "monthly-report.xlsm" "ReportModule.FormatReport"
+excelcli setup-vba-trust  # One-time setup
+excelcli create-empty "monthly-report.xlsm"
+excelcli param-set "monthly-report.xlsm" "ReportDate" "2024-01-01"
+excelcli pq-import "monthly-report.xlsm" "SalesData" "sales-query.pq"
+excelcli pq-refresh "monthly-report.xlsm" "SalesData"
+excelcli script-run "monthly-report.xlsm" "ReportModule.FormatReport"
 ```
 
 ### VBA Automation Workflow
 ```powershell
 # Complete VBA workflow
-ExcelMcp setup-vba-trust
-ExcelMcp create-empty "automation.xlsm"
-ExcelMcp script-import "automation.xlsm" "DataProcessor" "processor.vba"
-ExcelMcp script-run "automation.xlsm" "DataProcessor.ProcessData" "Sheet1" "A1:D100"
-ExcelMcp sheet-read "automation.xlsm" "Sheet1" "A1:D10"
-ExcelMcp script-export "automation.xlsm" "DataProcessor" "updated-processor.vba"
+excelcli setup-vba-trust
+excelcli create-empty "automation.xlsm"
+excelcli script-import "automation.xlsm" "DataProcessor" "processor.vba"
+excelcli script-run "automation.xlsm" "DataProcessor.ProcessData" "Sheet1" "A1:D100"
+excelcli sheet-read "automation.xlsm" "Sheet1" "A1:D10"
+excelcli script-export "automation.xlsm" "DataProcessor" "updated-processor.vba"
 ```
 
 ### Batch Processing
 ```batch
 REM Process multiple files
 for %%f in (*.xlsx) do (
-    ExcelMcp pq-refresh "%%f" "DataQuery"
-    ExcelMcp sheet-read "%%f" "Results" > "%%~nf-results.csv"
+    excelcli pq-refresh "%%f" "DataQuery"
+    excelcli sheet-read "%%f" "Results" > "%%~nf-results.csv"
 )
 ```
 
@@ -196,7 +196,7 @@ for %%f in (*.xlsx) do (
 4. **VBA Automation Pipeline**: script-list → script-export → modify → script-run
 5. **Bulk Processing**: sheet-list → sheet-read → processing → sheet-write
 
-Use ExcelMcp when you need reliable, programmatic Excel automation without UI dependencies.
+Use excelcli when you need reliable, programmatic Excel automation without UI dependencies.
 
 ## Architecture Patterns
 
@@ -709,7 +709,7 @@ return args[0] switch
 private static void ShowHelp()
 {
     var help = @"
-ExcelMcp - Excel Command Line Interface
+excelcli - Excel Command Line Interface
 
 New Commands:
   new-operation <file> <param>     Description of operation
@@ -891,7 +891,7 @@ Critical security rules are treated as errors:
 
 - **File paths**: Use `Path.GetFullPath()` to resolve paths safely ✅ **Enhanced**
 - **User input**: Always use `.EscapeMarkup()` before displaying in Spectre.Console ✅ **Enforced**
-- **Macros**: ExcelMcp does not execute macros (DisplayAlerts = false)
+- **Macros**: excelcli does not execute macros (DisplayAlerts = false)
 - **Credentials**: Never log connection strings or credentials ✅ **Enhanced**
 - **Resource Management**: Strict COM cleanup prevents resource leaks ✅ **Verified**
 
@@ -1012,8 +1012,8 @@ dotnet_diagnostic.CA5394.severity = error        # Insecure randomness
 
 ```bash
 # Create empty workbook (essential for automation)
-ExcelMcp create-empty "analysis.xlsx"
-ExcelMcp create-empty "reports/monthly-report.xlsx"  # Auto-creates directory
+excelcli create-empty "analysis.xlsx"
+excelcli create-empty "reports/monthly-report.xlsx"  # Auto-creates directory
 ```
 
 **Copilot Prompts:**
@@ -1026,28 +1026,28 @@ ExcelMcp create-empty "reports/monthly-report.xlsx"  # Auto-creates directory
 
 ```bash
 # List all Power Queries
-ExcelMcp pq-list "data.xlsx"
+excelcli pq-list "data.xlsx"
 
 # View Power Query M code
-ExcelMcp pq-view "data.xlsx" "WebData"
+excelcli pq-view "data.xlsx" "WebData"
 
 # Import M code from file
-ExcelMcp pq-import "data.xlsx" "APIData" "fetch-data.pq"
+excelcli pq-import "data.xlsx" "APIData" "fetch-data.pq"
 
 # Export M code to file (for version control)
-ExcelMcp pq-export "data.xlsx" "APIData" "backup.pq"
+excelcli pq-export "data.xlsx" "APIData" "backup.pq"
 
 # Update existing query
-ExcelMcp pq-update "data.xlsx" "APIData" "new-logic.pq"
+excelcli pq-update "data.xlsx" "APIData" "new-logic.pq"
 
 # Load Connection-Only query to worksheet
-ExcelMcp pq-loadto "data.xlsx" "APIData" "DataSheet"
+excelcli pq-loadto "data.xlsx" "APIData" "DataSheet"
 
 # Refresh query data
-ExcelMcp pq-refresh "data.xlsx" "APIData"
+excelcli pq-refresh "data.xlsx" "APIData"
 
 # Delete query
-ExcelMcp pq-delete "data.xlsx" "OldQuery"
+excelcli pq-delete "data.xlsx" "OldQuery"
 ```
 
 **Copilot Prompts:**
@@ -1060,31 +1060,31 @@ ExcelMcp pq-delete "data.xlsx" "OldQuery"
 
 ```bash
 # List all worksheets
-ExcelMcp sheet-list "workbook.xlsx"
+excelcli sheet-list "workbook.xlsx"
 
 # Read data from range
-ExcelMcp sheet-read "workbook.xlsx" "Sheet1" "A1:D10"
+excelcli sheet-read "workbook.xlsx" "Sheet1" "A1:D10"
 
 # Write CSV data to sheet
-ExcelMcp sheet-write "workbook.xlsx" "Sheet1" "data.csv"
+excelcli sheet-write "workbook.xlsx" "Sheet1" "data.csv"
 
 # Create new worksheet
-ExcelMcp sheet-create "workbook.xlsx" "Analysis"
+excelcli sheet-create "workbook.xlsx" "Analysis"
 
 # Copy worksheet
-ExcelMcp sheet-copy "workbook.xlsx" "Template" "NewSheet"
+excelcli sheet-copy "workbook.xlsx" "Template" "NewSheet"
 
 # Rename worksheet
-ExcelMcp sheet-rename "workbook.xlsx" "Sheet1" "RawData"
+excelcli sheet-rename "workbook.xlsx" "Sheet1" "RawData"
 
 # Clear worksheet data
-ExcelMcp sheet-clear "workbook.xlsx" "Sheet1" "A1:Z100"
+excelcli sheet-clear "workbook.xlsx" "Sheet1" "A1:Z100"
 
 # Append data to existing content
-ExcelMcp sheet-append "workbook.xlsx" "Sheet1" "additional-data.csv"
+excelcli sheet-append "workbook.xlsx" "Sheet1" "additional-data.csv"
 
 # Delete worksheet
-ExcelMcp sheet-delete "workbook.xlsx" "TempSheet"
+excelcli sheet-delete "workbook.xlsx" "TempSheet"
 ```
 
 **Copilot Prompts:**
@@ -1097,19 +1097,19 @@ ExcelMcp sheet-delete "workbook.xlsx" "TempSheet"
 
 ```bash
 # List all named ranges
-ExcelMcp param-list "config.xlsx"
+excelcli param-list "config.xlsx"
 
 # Get parameter value
-ExcelMcp param-get "config.xlsx" "StartDate"
+excelcli param-get "config.xlsx" "StartDate"
 
 # Set parameter value
-ExcelMcp param-set "config.xlsx" "StartDate" "2024-01-01"
+excelcli param-set "config.xlsx" "StartDate" "2024-01-01"
 
 # Create named range
-ExcelMcp param-create "config.xlsx" "FilePath" "Settings!A1"
+excelcli param-create "config.xlsx" "FilePath" "Settings!A1"
 
 # Delete named range
-ExcelMcp param-delete "config.xlsx" "OldParam"
+excelcli param-delete "config.xlsx" "OldParam"
 ```
 
 **Copilot Prompts:**
@@ -1122,16 +1122,16 @@ ExcelMcp param-delete "config.xlsx" "OldParam"
 
 ```bash
 # Get cell value
-ExcelMcp cell-get-value "data.xlsx" "Sheet1" "A1"
+excelcli cell-get-value "data.xlsx" "Sheet1" "A1"
 
 # Set cell value
-ExcelMcp cell-set-value "data.xlsx" "Sheet1" "A1" "Hello World"
+excelcli cell-set-value "data.xlsx" "Sheet1" "A1" "Hello World"
 
 # Get cell formula
-ExcelMcp cell-get-formula "data.xlsx" "Sheet1" "B1"
+excelcli cell-get-formula "data.xlsx" "Sheet1" "B1"
 
 # Set cell formula
-ExcelMcp cell-set-formula "data.xlsx" "Sheet1" "B1" "=SUM(A1:A10)"
+excelcli cell-set-formula "data.xlsx" "Sheet1" "B1" "=SUM(A1:A10)"
 ```
 
 **Copilot Prompts:**
@@ -1199,7 +1199,7 @@ When Copilot suggests code, verify:
 
 ### Testing Strategy (Updated)
 
-ExcelMcp uses a three-tier testing approach:
+excelcli uses a three-tier testing approach:
 
 ```csharp
 // Unit Tests - Fast, no Excel required
@@ -1239,7 +1239,7 @@ dotnet test --filter "Category=RoundTrip"
 
 ## Contributing Guidelines
 
-When extending ExcelMcp with Copilot:
+When extending excelcli with Copilot:
 
 1. **Follow Existing Patterns:** Use `@workspace` to understand current architecture
 2. **Test Thoroughly:** Create both unit and integration tests
@@ -1299,6 +1299,242 @@ When extending ExcelMcp with Copilot:
 - Practical GitHub Copilot integration examples essential for adoption
 - Resource-based architecture must be explained vs granular approach
 
+## 🔧 **CRITICAL: GitHub Workflows Configuration Management**
+
+### **Keep Workflows in Sync with Project Configuration**
+
+**ALWAYS update GitHub workflows when making configuration changes.** This prevents build and deployment failures.
+
+#### **Configuration Points That Require Workflow Updates**
+
+When making ANY of these changes, you MUST update all relevant workflows:
+
+1. **.NET SDK Version Changes**
+   ```yaml
+   # If you change global.json or .csproj target frameworks:
+   # UPDATE ALL workflows that use actions/setup-dotnet@v4
+   
+   - name: Setup .NET
+     uses: actions/setup-dotnet@v4
+     with:
+       dotnet-version: 10.0.x  # ⚠️ MUST match global.json and project files
+   ```
+   
+   **Files to check:**
+   - `.github/workflows/build-cli.yml`
+   - `.github/workflows/build-mcp-server.yml`
+   - `.github/workflows/release-cli.yml`
+   - `.github/workflows/release-mcp-server.yml`
+   - `.github/workflows/codeql.yml`
+   - `.github/workflows/publish-nuget.yml`
+
+2. **Assembly/Package Name Changes**
+   ```yaml
+   # If you change AssemblyName or PackageId in .csproj:
+   # UPDATE ALL workflow references to executables and packages
+   
+   # Example: Build verification
+   if (Test-Path "src/ExcelMcp.McpServer/bin/Release/net10.0/Sbroenne.ExcelMcp.McpServer.exe")
+   
+   # Example: NuGet package operations
+   $packagePath = "nupkg/Sbroenne.ExcelMcp.McpServer.$version.nupkg"
+   dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+   ```
+   
+   **Files to check:**
+   - `.github/workflows/build-mcp-server.yml` - Executable name checks
+   - `.github/workflows/publish-nuget.yml` - Package names
+   - `.github/workflows/release-mcp-server.yml` - Installation instructions
+   - `.github/workflows/release-cli.yml` - DLL references
+
+3. **Runtime Requirements Documentation**
+   ```powershell
+   # If you change target framework (net8.0 → net10.0):
+   # UPDATE ALL release notes that mention runtime requirements
+   
+   $releaseNotes += "- .NET 10.0 runtime`n"  # ⚠️ MUST match project target
+   ```
+   
+   **Files to check:**
+   - `.github/workflows/release-cli.yml` - Quick start and release notes
+   - `.github/workflows/release-mcp-server.yml` - Installation requirements
+
+4. **Project Structure Changes**
+   ```yaml
+   # If you rename projects or move directories:
+   # UPDATE path filters and build commands
+   
+   paths:
+     - 'src/ExcelMcp.CLI/**'  # ⚠️ MUST match actual directory structure
+   
+   run: dotnet build src/ExcelMcp.CLI/ExcelMcp.CLI.csproj  # ⚠️ MUST be valid path
+   ```
+
+### **Workflow Validation Checklist**
+
+Before committing configuration changes, run this validation:
+
+```powershell
+# 1. Check .NET version consistency
+$globalJsonVersion = (Get-Content global.json | ConvertFrom-Json).sdk.version
+$workflowVersions = Select-String -Path .github/workflows/*.yml -Pattern "dotnet-version:" -Context 0,0
+Write-Output "global.json: $globalJsonVersion"
+Write-Output "Workflows:"
+$workflowVersions
+
+# 2. Check assembly names match
+$assemblyNames = Select-String -Path src/**/*.csproj -Pattern "<AssemblyName>(.*)</AssemblyName>"
+$workflowExeRefs = Select-String -Path .github/workflows/*.yml -Pattern "\.exe" -Context 1,0
+Write-Output "Assembly Names in .csproj:"
+$assemblyNames
+Write-Output "Executable references in workflows:"
+$workflowExeRefs
+
+# 3. Check package IDs match
+$packageIds = Select-String -Path src/**/*.csproj -Pattern "<PackageId>(.*)</PackageId>"
+$workflowPkgRefs = Select-String -Path .github/workflows/*.yml -Pattern "\.nupkg|tool install" -Context 1,0
+Write-Output "Package IDs in .csproj:"
+$packageIds
+Write-Output "Package references in workflows:"
+$workflowPkgRefs
+```
+
+### **Automated Workflow Validation (Future Enhancement)**
+
+Create `.github/scripts/validate-workflows.ps1`:
+
+```powershell
+#!/usr/bin/env pwsh
+# Validates workflow configurations match project files
+
+param(
+    [switch]$Fix  # Auto-fix issues if possible
+)
+
+$errors = @()
+
+# Check .NET versions
+$globalJson = Get-Content global.json | ConvertFrom-Json
+$expectedVersion = $globalJson.sdk.version -replace '^\d+\.(\d+)\..*', '$1.0.x'
+
+$workflows = Get-ChildItem .github/workflows/*.yml
+foreach ($workflow in $workflows) {
+    $content = Get-Content $workflow.FullName -Raw
+    if ($content -match 'dotnet-version:\s*(\d+\.\d+\.x)') {
+        $workflowVersion = $Matches[1]
+        if ($workflowVersion -ne $expectedVersion) {
+            $errors += "❌ $($workflow.Name): Uses .NET $workflowVersion but should be $expectedVersion"
+        }
+    }
+}
+
+# Check assembly names
+$projects = Get-ChildItem src/**/*.csproj
+foreach ($project in $projects) {
+    [xml]$csproj = Get-Content $project.FullName
+    $assemblyName = $csproj.Project.PropertyGroup.AssemblyName
+    
+    if ($assemblyName) {
+        # Check if workflows reference this assembly
+        $exeName = "$assemblyName.exe"
+        $workflowRefs = Select-String -Path .github/workflows/*.yml -Pattern $exeName -Quiet
+        
+        if (-not $workflowRefs -and $project.Name -match "McpServer") {
+            $errors += "⚠️ Assembly $assemblyName not found in workflows"
+        }
+    }
+}
+
+# Report results
+if ($errors.Count -eq 0) {
+    Write-Output "✅ All workflow configurations are valid!"
+    exit 0
+} else {
+    Write-Output "❌ Found $($errors.Count) workflow configuration issues:"
+    $errors | ForEach-Object { Write-Output "  $_" }
+    exit 1
+}
+```
+
+### **When to Run Validation**
+
+Run workflow validation:
+- ✅ Before creating PR with configuration changes
+- ✅ After upgrading .NET SDK version
+- ✅ After renaming projects or assemblies
+- ✅ After changing package IDs or branding
+- ✅ As part of pre-commit hooks (recommended)
+
+### **Common Workflow Configuration Mistakes to Prevent**
+
+❌ **Don't:**
+- Change .NET version in code without updating workflows
+- Rename assemblies without updating executable checks
+- Change package IDs without updating install commands
+- Update target frameworks without updating runtime requirements
+- Assume workflows will "just work" after configuration changes
+
+✅ **Always:**
+- Update ALL affected workflows when changing configuration
+- Validate executable names match AssemblyName properties
+- Verify package IDs match PackageId properties
+- Keep runtime requirement docs in sync with target frameworks
+- Test workflows locally with `act` or similar tools before pushing
+
+### **Workflow Update Template**
+
+When making configuration changes, use this checklist:
+
+```markdown
+## Configuration Change: [Brief Description]
+
+### Changes Made:
+- [ ] Updated global.json/.csproj files
+- [ ] Updated all workflow .NET versions
+- [ ] Updated executable name references
+- [ ] Updated package ID references
+- [ ] Updated runtime requirement documentation
+- [ ] Tested workflow locally (if possible)
+- [ ] Verified all path filters still match
+- [ ] Updated this checklist in PR description
+
+### Workflows Reviewed:
+- [ ] build-cli.yml
+- [ ] build-mcp-server.yml
+- [ ] release-cli.yml
+- [ ] release-mcp-server.yml
+- [ ] codeql.yml
+- [ ] publish-nuget.yml
+- [ ] dependency-review.yml (if applicable)
+```
+
+### **Integration with CI/CD**
+
+Add workflow validation to CI pipeline:
+
+```yaml
+# .github/workflows/validate-config.yml
+name: Validate Configuration
+
+on:
+  pull_request:
+    paths:
+      - 'src/**/*.csproj'
+      - 'global.json'
+      - 'Directory.*.props'
+      - '.github/workflows/**'
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Validate Workflows
+      run: .github/scripts/validate-workflows.ps1
+      shell: pwsh
+```
+
 ## �🚨 **CRITICAL: Development Workflow Requirements**
 
 ### **All Changes Must Use Pull Requests**
@@ -1312,7 +1548,7 @@ When extending ExcelMcp with Copilot:
 
 ### **Required Development Process**
 
-When helping with ExcelMcp development, always guide users through this workflow:
+When helping with excelcli development, always guide users through this workflow:
 
 #### 1. **Create Feature Branch First**
 ```powershell

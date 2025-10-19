@@ -1,9 +1,9 @@
-using ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Commands;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
 using System.Text.Json;
 
-namespace ExcelMcp.McpServer.Tools;
+namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
 /// Excel automation tools for Model Context Protocol (MCP) server.

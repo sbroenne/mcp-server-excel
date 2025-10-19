@@ -1,13 +1,14 @@
 using Spectre.Console;
-using static ExcelMcp.Core.ExcelHelper;
+using static Sbroenne.ExcelMcp.Core.ExcelHelper;
 
-namespace ExcelMcp.Core.Commands;
+namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
 /// File management commands implementation
 /// </summary>
 public class FileCommands : IFileCommands
 {
+    /// <inheritdoc />
     public int CreateEmpty(string[] args)
     {
         if (!ValidateArgs(args, 2, "create-empty <file.xlsx|file.xlsm>")) return 1;

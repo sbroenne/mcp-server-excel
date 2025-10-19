@@ -1,13 +1,14 @@
 using Spectre.Console;
-using static ExcelMcp.Core.ExcelHelper;
+using static Sbroenne.ExcelMcp.Core.ExcelHelper;
 
-namespace ExcelMcp.Core.Commands;
+namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
 /// Individual cell operation commands implementation
 /// </summary>
 public class CellCommands : ICellCommands
 {
+    /// <inheritdoc />
     public int GetValue(string[] args)
     {
         if (!ValidateArgs(args, 4, "cell-get-value <file.xlsx> <sheet-name> <cell-address>")) return 1;
@@ -46,6 +47,7 @@ public class CellCommands : ICellCommands
         });
     }
 
+    /// <inheritdoc />
     public int SetValue(string[] args)
     {
         if (!ValidateArgs(args, 5, "cell-set-value <file.xlsx> <sheet-name> <cell-address> <value>")) return 1;
@@ -98,6 +100,7 @@ public class CellCommands : ICellCommands
         });
     }
 
+    /// <inheritdoc />
     public int GetFormula(string[] args)
     {
         if (!ValidateArgs(args, 4, "cell-get-formula <file.xlsx> <sheet-name> <cell-address>")) return 1;
@@ -146,6 +149,7 @@ public class CellCommands : ICellCommands
         });
     }
 
+    /// <inheritdoc />
     public int SetFormula(string[] args)
     {
         if (!ValidateArgs(args, 5, "cell-set-formula <file.xlsx> <sheet-name> <cell-address> <formula>")) return 1;

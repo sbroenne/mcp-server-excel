@@ -15,7 +15,7 @@ ExcelMcp was born from the need for a simple, reliable way for coding agents lik
 
 ### Contact
 
-For questions, contributions, or collaboration opportunities related to ExcelCLI:
+For questions, contributions, or collaboration opportunities related to Sbroenne.ExcelMcp:
 
 - **Email**: [stefan_broenner@yahoo.com](mailto:stefan_broenner@yahoo.com)
 - **GitHub Issues**: [ExcelMcp Issues](https://github.com/sbroenne/mcp-server-excel/issues)

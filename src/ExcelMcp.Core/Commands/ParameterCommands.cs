@@ -1,13 +1,14 @@
 using Spectre.Console;
-using static ExcelMcp.Core.ExcelHelper;
+using static Sbroenne.ExcelMcp.Core.ExcelHelper;
 
-namespace ExcelMcp.Core.Commands;
+namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
 /// Named range/parameter management commands implementation
 /// </summary>
 public class ParameterCommands : IParameterCommands
 {
+    /// <inheritdoc />
     public int List(string[] args)
     {
         if (!ValidateArgs(args, 2, "param-list <file.xlsx>")) return 1;
@@ -66,6 +67,7 @@ public class ParameterCommands : IParameterCommands
         });
     }
 
+    /// <inheritdoc />
     public int Set(string[] args)
     {
         if (!ValidateArgs(args, 4, "param-set <file.xlsx> <param-name> <value>")) return 1;
@@ -94,6 +96,7 @@ public class ParameterCommands : IParameterCommands
         });
     }
 
+    /// <inheritdoc />
     public int Get(string[] args)
     {
         if (!ValidateArgs(args, 3, "param-get <file.xlsx> <param-name>")) return 1;
@@ -149,6 +152,7 @@ public class ParameterCommands : IParameterCommands
         });
     }
 
+    /// <inheritdoc />
     public int Create(string[] args)
     {
         if (!ValidateArgs(args, 4, "param-create <file.xlsx> <param-name> <value-or-reference>")) return 1;
@@ -189,6 +193,7 @@ public class ParameterCommands : IParameterCommands
         });
     }
 
+    /// <inheritdoc />
     public int Delete(string[] args)
     {
         if (!ValidateArgs(args, 3, "param-delete <file.xlsx> <param-name>")) return 1;

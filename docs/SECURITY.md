@@ -10,7 +10,7 @@ We currently support the following versions of ExcelMcp with security updates:
 
 ## Reporting a Vulnerability
 
-We take security seriously. If you discover a security vulnerability in ExcelCLI, please report it responsibly.
+We take security seriously. If you discover a security vulnerability in Sbroenne.ExcelMcp, please report it responsibly.
 
 ### How to Report
 
@@ -82,7 +82,7 @@ ExcelMcp uses Excel COM automation with security safeguards:
 
 ExcelMcp has minimal dependencies to reduce attack surface:
 
-- **.NET 8.0**: Microsoft-maintained runtime with regular security updates
+- **.NET 10**: Microsoft-maintained runtime with regular security updates
 - **Spectre.Console**: Well-maintained library for console output
 - **No External APIs**: No network connections or external service dependencies
 
