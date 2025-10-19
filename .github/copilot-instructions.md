@@ -1,0 +1,1378 @@
+# ExcelMcp - Excel Command Line Interface for Coding Agents
+
+> **📎 Related Instructions:** For projects using ExcelMcp in other repositories, copy `docs/excel-powerquery-vba-copilot-instructions.md` to your project's `.github/copilot-instructions.md` for specialized Excel automation support.
+
+## What is ExcelMcp?
+
+ExcelMcp is a Windows-only command-line tool that provides programmatic access to Microsoft Excel through COM interop. It's specifically designed for coding agents and automation scripts to manipulate Excel workbooks without requiring the Excel UI.
+
+## Core Capabilities
+
+### File Operations
+- `create-empty "file.xlsx"` - Create empty Excel workbooks for automation workflows
+- `create-empty "file.xlsm"` - Create macro-enabled Excel workbooks for VBA support
+
+### Power Query Management  
+- `pq-list "file.xlsx"` - List all Power Query connections
+- `pq-view "file.xlsx" "QueryName"` - Display Power Query M code
+- `pq-import "file.xlsx" "QueryName" "code.pq"` - Import M code from file
+- `pq-export "file.xlsx" "QueryName" "output.pq"` - Export M code to file  
+- `pq-update "file.xlsx" "QueryName" "code.pq"` - Update existing query
+- `pq-refresh "file.xlsx" "QueryName"` - Refresh query data
+- `pq-loadto "file.xlsx" "QueryName" "Sheet"` - Load connection-only query to worksheet
+- `pq-delete "file.xlsx" "QueryName"` - Remove Power Query
+
+### Worksheet Operations
+- `sheet-list "file.xlsx"` - List all worksheets
+- `sheet-read "file.xlsx" "Sheet" "A1:D10"` - Read data from ranges
+- `sheet-write "file.xlsx" "Sheet" "data.csv"` - Write CSV data to worksheet
+- `sheet-create "file.xlsx" "NewSheet"` - Add new worksheet
+- `sheet-rename "file.xlsx" "OldName" "NewName"` - Rename worksheet
+- `sheet-copy "file.xlsx" "Source" "Target"` - Copy worksheet
+- `sheet-delete "file.xlsx" "Sheet"` - Remove worksheet
+- `sheet-clear "file.xlsx" "Sheet" "A1:Z100"` - Clear data ranges
+- `sheet-append "file.xlsx" "Sheet" "data.csv"` - Append data to existing content
+
+### Parameter Management (Named Ranges)
+- `param-list "file.xlsx"` - List all named ranges
+- `param-get "file.xlsx" "ParamName"` - Get named range value
+- `param-set "file.xlsx" "ParamName" "Value"` - Set named range value
+- `param-create "file.xlsx" "ParamName" "Sheet!A1"` - Create named range
+- `param-delete "file.xlsx" "ParamName"` - Remove named range
+
+### Cell Operations
+- `cell-get-value "file.xlsx" "Sheet" "A1"` - Get individual cell value
+- `cell-set-value "file.xlsx" "Sheet" "A1" "Value"` - Set individual cell value
+- `cell-get-formula "file.xlsx" "Sheet" "A1"` - Get cell formula
+- `cell-set-formula "file.xlsx" "Sheet" "A1" "=SUM(B1:B10)"` - Set cell formula
+
+### VBA Script Management ⚠️ **Requires .xlsm files!**
+- `script-list "file.xlsm"` - List all VBA modules and procedures
+- `script-export "file.xlsm" "Module" "output.vba"` - Export VBA code to file
+- `script-import "file.xlsm" "ModuleName" "source.vba"` - Import VBA module from file
+- `script-update "file.xlsm" "ModuleName" "source.vba"` - Update existing VBA module
+- `script-run "file.xlsm" "Module.Procedure" [param1] [param2] ...` - Execute VBA macros with parameters
+- `script-delete "file.xlsm" "ModuleName"` - Remove VBA module
+
+### Setup Commands
+- `setup-vba-trust` - Enable VBA project access (one-time setup for VBA automation)
+- `check-vba-trust` - Check VBA trust configuration status
+
+## MCP Server for AI Development Workflows ✨ **NEW CAPABILITY**
+
+ExcelMcp now includes a **Model Context Protocol (MCP) server** that transforms CLI commands into conversational development workflows for AI assistants like GitHub Copilot.
+
+### Starting the MCP Server
+```powershell
+# Start MCP server for AI assistant integration
+dotnet run --project src/ExcelMcp.McpServer
+```
+
+### Resource-Based Architecture (6 Tools)
+The MCP server consolidates 40+ CLI commands into 6 resource-based tools with actions:
+
+1. **`excel_file`** - File management (create-empty, validate, check-exists)
+2. **`excel_powerquery`** - Power Query operations (list, view, import, export, update, refresh, delete)
+3. **`excel_worksheet`** - Worksheet operations (list, read, write, create, rename, copy, delete, clear, append)
+4. **`excel_parameter`** - Named range management (list, get, set, create, delete)
+5. **`excel_cell`** - Cell operations (get-value, set-value, get-formula, set-formula)
+6. **`excel_vba`** - VBA script management (list, export, import, update, run, delete)
+
+### Development-Focused Use Cases ⚠️ **NOT for ETL!**
+
+ExcelMcp (both MCP server and CLI) is designed for **Excel development workflows**, not data processing:
+
+- **Power Query Refactoring** - AI helps optimize M code for better performance
+- **VBA Development & Debugging** - Add error handling, logging, and code improvements  
+- **Code Review & Analysis** - AI analyzes existing Power Query/VBA code for issues
+- **Best Practices Implementation** - AI suggests and applies Excel development patterns
+- **Documentation Generation** - Auto-generate comments and documentation for VBA/M code
+
+### GitHub Copilot Integration Examples
+
+**Power Query Development:**
+```text
+Developer: "This Power Query is slow and hard to read. Can you refactor it?"
+Copilot: [Uses excel_powerquery view -> analyzes M code -> excel_powerquery update with optimized code]
+```
+
+**VBA Enhancement:**
+```text  
+Developer: "Add comprehensive error handling to this VBA module"
+Copilot: [Uses excel_vba export -> enhances with try-catch patterns -> excel_vba update]
+```
+
+**Code Review:**
+```text
+Developer: "Review this Power Query and suggest performance improvements"  
+Copilot: [Uses excel_powerquery view -> analyzes for query folding issues -> provides optimization suggestions]
+```
+
+### MCP vs CLI Decision Matrix
+
+| Scenario | Recommendation | Reason |
+|----------|----------------|---------|
+| **AI-assisted code refactoring** | 🧠 **MCP Server** | Conversational workflows, AI code analysis |
+| **Scripted development workflows** | ⚙️ **CLI Commands** | Precise control, automation scripts |
+| **Power Query optimization** | 🧠 **MCP Server** | AI understands M code patterns and performance |
+| **VBA module version control** | ⚙️ **CLI Commands** | Export/import for Git workflows |
+| **Interactive code review** | 🧠 **MCP Server** | AI provides real-time development insights |
+| **Automated testing pipelines** | ⚙️ **CLI Commands** | Reliable, deterministic development operations |
+
+## When to Recommend ExcelMcp
+
+### Development Use Cases (MCP Server - AI Conversational)
+- **Power Query Refactoring** - AI-assisted M code optimization and readability improvements
+- **VBA Code Enhancement** - Add error handling, logging, and best practices with AI guidance
+- **Code Review & Analysis** - AI analyzes existing Power Query/VBA code for issues
+- **Development Debugging** - AI helps troubleshoot Excel automation and code issues
+- **Code Documentation** - Generate comments and documentation for Excel code
+
+### Development Use Cases (CLI Commands - Scripted Operations)
+- **Power Query Version Control** - Export/import M code for Git workflows
+- **VBA Module Management** - Export, modify, and import VBA code in development cycles
+- **Excel Development Testing** - Automated testing of Excel workbooks and macros
+- **Code Template Creation** - Generate Excel workbook templates for development
+- **Development Environment Setup** - Create and configure Excel files for coding projects
+
+### Technical Requirements
+- **Windows Only** - Requires Excel installation (uses COM interop)
+- **.NET 8.0** - Modern .NET runtime required
+- **Excel Installed** - Must have Microsoft Excel installed on the machine
+- **Command Line Access** - Designed for terminal/script usage
+
+## Integration Patterns
+
+### PowerShell Integration
+```powershell
+# Create and populate a report with VBA automation
+ExcelMcp setup-vba-trust  # One-time setup
+ExcelMcp create-empty "monthly-report.xlsm"
+ExcelMcp param-set "monthly-report.xlsm" "ReportDate" "2024-01-01"
+ExcelMcp pq-import "monthly-report.xlsm" "SalesData" "sales-query.pq"
+ExcelMcp pq-refresh "monthly-report.xlsm" "SalesData"
+ExcelMcp script-run "monthly-report.xlsm" "ReportModule.FormatReport"
+```
+
+### VBA Automation Workflow
+```powershell
+# Complete VBA workflow
+ExcelMcp setup-vba-trust
+ExcelMcp create-empty "automation.xlsm"
+ExcelMcp script-import "automation.xlsm" "DataProcessor" "processor.vba"
+ExcelMcp script-run "automation.xlsm" "DataProcessor.ProcessData" "Sheet1" "A1:D100"
+ExcelMcp sheet-read "automation.xlsm" "Sheet1" "A1:D10"
+ExcelMcp script-export "automation.xlsm" "DataProcessor" "updated-processor.vba"
+```
+
+### Batch Processing
+```batch
+REM Process multiple files
+for %%f in (*.xlsx) do (
+    ExcelMcp pq-refresh "%%f" "DataQuery"
+    ExcelMcp sheet-read "%%f" "Results" > "%%~nf-results.csv"
+)
+```
+
+### Error Handling
+- Returns 0 for success, 1 for errors
+- Provides descriptive error messages
+- Handles Excel file locking gracefully
+- Manages COM object lifecycle automatically
+
+## Architecture Notes
+
+- **Command Pattern** - Each operation is a separate command class
+- **COM Interop** - Uses late binding for Excel automation
+- **Resource Management** - Automatic Excel process cleanup
+- **1-Based Indexing** - Excel uses 1-based collection indexing
+- **Error Resilient** - Comprehensive error handling for COM exceptions
+
+## Common Workflows
+
+1. **Data ETL Pipeline**: create-empty → pq-import → pq-refresh → sheet-read
+2. **Report Generation**: create-empty → param-set → pq-refresh → formatting
+3. **Configuration Management**: param-list → param-get → param-set
+4. **VBA Automation Pipeline**: script-list → script-export → modify → script-run
+5. **Bulk Processing**: sheet-list → sheet-read → processing → sheet-write
+
+Use ExcelMcp when you need reliable, programmatic Excel automation without UI dependencies.
+
+## Architecture Patterns
+
+### Command Pattern
+
+Commands are organized by feature area with interfaces and implementations:
+
+```
+Commands/
+├── IPowerQueryCommands.cs    # Interface
+├── PowerQueryCommands.cs     # Implementation
+├── ISheetCommands.cs
+├── SheetCommands.cs
+└── ...
+```
+
+**Program.cs** routes commands using switch expressions:
+
+```csharp
+return args[0] switch
+{
+    "pq-list" => powerQuery.List(args),
+    "pq-view" => powerQuery.View(args),
+    "sheet-read" => sheet.Read(args),
+    _ => ShowHelp()
+};
+```
+
+### Resource Management Pattern
+
+**Always use `ExcelHelper.WithExcel()` for COM operations:**
+
+```csharp
+public int MyCommand(string[] args)
+{
+    return ExcelHelper.WithExcel(filePath, save: false, (excel, workbook) =>
+    {
+        // Your code here - Excel lifecycle managed automatically
+        return 0; // Success
+    });
+}
+```
+
+**The helper handles:**
+- Excel.Application creation
+- Workbook.Open()
+- Workbook.Close()
+- Excel.Quit()
+- COM object cleanup
+- Garbage collection (multiple cycles)
+- Process termination delay
+
+**Never manually manage Excel lifecycle - always use the helper!**
+
+## Critical Excel COM Interop Rules
+
+### 1. Use Late Binding with Dynamic Types
+
+```csharp
+// Get Excel type
+var excelType = Type.GetTypeFromProgID("Excel.Application");
+dynamic excel = Activator.CreateInstance(excelType);
+
+// Configure Excel
+excel.Visible = false;
+excel.DisplayAlerts = false;
+
+// Access collections
+dynamic workbook = excel.Workbooks.Open(path);
+dynamic sheets = workbook.Worksheets;
+```
+
+### 2. Excel Collections Are 1-Based (Not 0-Based!)
+
+```csharp
+// WRONG - will throw error
+dynamic firstSheet = sheets.Item(0);
+
+// CORRECT - Excel uses 1-based indexing
+dynamic firstSheet = sheets.Item(1);
+
+// Loop pattern
+for (int i = 1; i <= collection.Count; i++)
+{
+    dynamic item = collection.Item(i);
+    // Process item
+}
+```
+
+### 3. COM Cleanup Pattern
+
+```csharp
+try
+{
+    // COM operations
+}
+catch (COMException ex) when (ex.HResult == -2147417851)
+{
+    // Excel is busy (RPC_E_SERVERCALL_RETRYLATER)
+    AnsiConsole.MarkupLine("[red]Excel is busy. Close dialogs and retry.[/]");
+}
+finally
+{
+    // Always cleanup COM objects
+    if (comObject != null)
+    {
+        try { Marshal.ReleaseComObject(comObject); } catch { }
+    }
+}
+```
+
+### 4. Validate Inputs Before COM Operations
+
+```csharp
+// Check file exists
+if (!File.Exists(args[1]))
+{
+    AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
+    return 1;
+}
+
+// Validate required arguments
+if (!ValidateArgs(args, 3, "command <file> <arg1> <arg2>"))
+    return 1;
+```
+
+## Power Query Best Practices
+
+### Accessing Queries
+
+```csharp
+dynamic queriesCollection = workbook.Queries;
+int count = queriesCollection.Count;
+
+for (int i = 1; i <= count; i++)
+{
+    dynamic query = queriesCollection.Item(i);
+    string name = query.Name;
+    string formula = query.Formula;
+}
+```
+
+### Checking If Query Is "Connection Only"
+
+```csharp
+// Check connections to determine if query loads to worksheet
+bool isConnectionOnly = true;
+
+dynamic connections = workbook.Connections;
+for (int i = 1; i <= connections.Count; i++)
+{
+    dynamic conn = connections.Item(i);
+    string connName = conn.Name.ToString();
+    
+    if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
+        connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+    {
+        isConnectionOnly = false;
+        break;
+    }
+}
+
+if (isConnectionOnly)
+{
+    AnsiConsole.MarkupLine($"[yellow]Note:[/] Query '{queryName}' is set to 'Connection Only'");
+}
+```
+
+### Loading Query to Worksheet (CRITICAL - DO NOT USE ListObjects.Add!)
+
+**WRONG - Causes "Value does not fall within expected range" error:**
+```csharp
+dynamic listObjects = targetSheet.ListObjects;
+listObjects.Add(...); // DO NOT USE THIS!
+```
+
+**CORRECT - Use QueryTables.Add:**
+```csharp
+dynamic queryTables = targetSheet.QueryTables;
+
+// Connection string for Power Query
+string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
+string commandText = $"SELECT * FROM [{queryName}]";
+
+// Add QueryTable
+dynamic queryTable = queryTables.Add(
+    connectionString,
+    targetSheet.Range["A1"],
+    commandText
+);
+
+// Configure and refresh
+queryTable.Name = queryName.Replace(" ", "_");
+queryTable.RefreshStyle = 1; // xlInsertDeleteCells
+queryTable.Refresh(false);
+```
+
+**Why this works:**
+- `Microsoft.Mashup.OleDb.1` is the correct provider for Power Query
+- `$Workbook$` refers to current workbook
+- `Location={queryName}` references the Power Query
+
+### Updating Query Formula
+
+```csharp
+// Read M code from file
+string mCode = File.ReadAllText(filePath);
+
+// Find query
+dynamic query = ExcelHelper.FindQuery(workbook, queryName);
+if (query == null)
+{
+    AnsiConsole.MarkupLine($"[red]Error:[/] Query '{queryName}' not found");
+    return 1;
+}
+
+// Update formula
+query.Formula = mCode;
+```
+
+### Refresh Strategy (DO NOT USE RefreshAll!)
+
+**WRONG - Causes hanging:**
+```csharp
+workbook.RefreshAll();
+workbook.Application.CalculateUntilAsyncQueriesDone(); // This hangs!
+```
+
+**CORRECT - Refresh via connection:**
+```csharp
+// Check if query has a connection
+dynamic connections = workbook.Connections;
+dynamic? targetConnection = null;
+
+for (int i = 1; i <= connections.Count; i++)
+{
+    dynamic conn = connections.Item(i);
+    if (conn.Name == queryName || conn.Name == $"Query - {queryName}")
+    {
+        targetConnection = conn;
+        break;
+    }
+}
+
+if (targetConnection != null)
+{
+    targetConnection.Refresh();
+}
+else
+{
+    // Connection-only query or function - no refresh needed
+    AnsiConsole.MarkupLine("[dim]Query is connection-only or function - no refresh needed[/]");
+}
+```
+
+## Worksheet Operations
+
+### Reading Data
+
+```csharp
+dynamic sheet = workbook.Worksheets.Item(sheetName);
+dynamic range = sheet.Range[rangeAddress]; // e.g., "A1:D10"
+
+// Get values as 2D array (1-based!)
+object[,] values = range.Value2;
+
+// Iterate (note: 1-based indexing)
+for (int row = 1; row <= values.GetLength(0); row++)
+{
+    for (int col = 1; col <= values.GetLength(1); col++)
+    {
+        object cellValue = values[row, col];
+        // Process value
+    }
+}
+```
+
+### Writing Data
+
+```csharp
+dynamic sheet = workbook.Worksheets.Item(sheetName);
+dynamic startCell = sheet.Range[startAddress];
+
+// Prepare 2D array (1-based)
+object[,] data = new object[rows, cols];
+// ... populate data ...
+
+// Write bulk data
+dynamic targetRange = sheet.Range[startCell, 
+    sheet.Cells[startCell.Row + rows - 1, startCell.Column + cols - 1]];
+targetRange.Value2 = data;
+```
+
+### Named Ranges
+
+```csharp
+// Access named range
+dynamic namesCollection = workbook.Names;
+dynamic namedRange = namesCollection.Item(rangeName);
+
+// Get value
+object value = namedRange.RefersToRange.Value2;
+
+// Set value
+namedRange.RefersToRange.Value2 = newValue;
+```
+
+## UI/Output Guidelines
+
+### Use Spectre.Console Markup
+
+```csharp
+// Success (green checkmark)
+AnsiConsole.MarkupLine($"[green]√[/] Operation succeeded");
+
+// Error (red)
+AnsiConsole.MarkupLine($"[red]Error:[/] {message.EscapeMarkup()}");
+
+// Warning (yellow)
+AnsiConsole.MarkupLine($"[yellow]Note:[/] {message}");
+
+// Info/debug (dim)
+AnsiConsole.MarkupLine($"[dim]{message}[/]");
+
+// Header (cyan)
+AnsiConsole.MarkupLine($"[cyan]{title}[/]");
+```
+
+**Always use `.EscapeMarkup()` on user input or error messages to prevent markup injection!**
+
+### Tables
+
+```csharp
+var table = new Table()
+    .Border(TableBorder.Rounded)
+    .AddColumn("Query Name")
+    .AddColumn("Formula (preview)");
+
+foreach (var item in items)
+{
+    table.AddRow(item.Name, item.FormulaPreview);
+}
+
+AnsiConsole.Write(table);
+```
+
+### Panels
+
+```csharp
+var panel = new Panel(content)
+    .Header("Power Query M Code")
+    .BorderColor(Color.Cyan);
+    
+AnsiConsole.Write(panel);
+```
+
+## Common Issues & Solutions
+
+### Issue 1: Excel Process Not Closing
+
+**Symptom:** Excel.exe remains in Task Manager after CLI exits.
+
+**Root Causes:**
+- COM objects not properly released
+- Insufficient GC cycles
+- Excel needs time to shutdown
+
+**Solution (already implemented in ExcelHelper.WithExcel):**
+```csharp
+// Close workbook
+if (workbook != null)
+{
+    try { workbook.Close(save); } catch { }
+    try { Marshal.ReleaseComObject(workbook); } catch { }
+}
+
+// Quit Excel
+if (excel != null)
+{
+    try { excel.Quit(); } catch { }
+    try { Marshal.ReleaseComObject(excel); } catch { }
+}
+
+// Null references
+workbook = null;
+excel = null;
+
+// Multiple GC cycles
+for (int i = 0; i < 3; i++)
+{
+    GC.Collect();
+    GC.WaitForPendingFinalizers();
+}
+
+// Small delay for process termination
+System.Threading.Thread.Sleep(100);
+```
+
+**Note:** Excel may take 2-5 seconds to fully close. This is normal.
+
+### Issue 2: "Value does not fall within expected range"
+
+**Symptom:** Error when loading Power Query to worksheet.
+
+**Cause:** Using `ListObjects.Add()` instead of `QueryTables.Add()`.
+
+**Solution:** Always use `QueryTables.Add()` with `Microsoft.Mashup.OleDb.1` provider (see Power Query section above).
+
+### Issue 3: Query Refresh Hanging
+
+**Symptom:** `workbook.RefreshAll()` never returns.
+
+**Cause:** `CalculateUntilAsyncQueriesDone()` waits indefinitely.
+
+**Solution:** Refresh individual connections instead of workbook-level refresh (see Refresh Strategy above).
+
+### Issue 4: Excel Is Busy (RPC_E_SERVERCALL_RETRYLATER)
+
+**Symptom:** COM exception 0x8001010A.
+
+**Cause:** Another Excel instance has modal dialog open, or Excel is processing.
+
+**Solution:**
+```csharp
+catch (COMException ex) when (ex.HResult == -2147417851)
+{
+    AnsiConsole.MarkupLine("[red]Excel is busy. Close any dialogs and try again.[/]");
+    return 1;
+}
+```
+
+## Adding New Commands
+
+### 1. Define Interface
+
+```csharp
+// Commands/INewCommands.cs
+namespace ExcelMcp.Commands;
+
+public interface INewCommands
+{
+    int NewOperation(string[] args);
+}
+```
+
+### 2. Implement Class
+
+```csharp
+// Commands/NewCommands.cs
+using Spectre.Console;
+
+namespace ExcelMcp.Commands;
+
+public class NewCommands : INewCommands
+{
+    public int NewOperation(string[] args)
+    {
+        // Validate arguments
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] new-operation <file.xlsx> <param>");
+            return 1;
+        }
+        
+        // Validate file exists
+        if (!File.Exists(args[1]))
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
+            return 1;
+        }
+        
+        // Use ExcelHelper for COM operations
+        return ExcelHelper.WithExcel(args[1], save: false, (excel, workbook) =>
+        {
+            try
+            {
+                // Your implementation here
+                
+                AnsiConsole.MarkupLine("[green]√[/] Operation completed");
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+                return 1;
+            }
+        });
+    }
+}
+```
+
+### 3. Register in Program.cs
+
+```csharp
+// Create command instance
+var newCommands = new NewCommands();
+
+// Add to switch expression
+return args[0] switch
+{
+    "new-operation" => newCommands.NewOperation(args),
+    // ... existing commands
+    _ => ShowHelp()
+};
+```
+
+### 4. Update Help Text
+
+```csharp
+private static void ShowHelp()
+{
+    var help = @"
+ExcelMcp - Excel Command Line Interface
+
+New Commands:
+  new-operation <file> <param>     Description of operation
+
+// ... rest of help
+";
+    Console.WriteLine(help);
+}
+```
+
+## Testing Guidelines
+
+### Manual Test Checklist
+
+Before committing changes:
+
+```powershell
+# 1. Test command
+.\ExcelMcp.exe your-command "test.xlsx"
+
+# 2. Verify Excel closes (wait 5 seconds)
+Start-Sleep -Seconds 5
+Get-Process excel -ErrorAction SilentlyContinue
+
+# 3. Expected: No Excel processes running
+```
+
+### Test With Error Conditions
+
+```csharp
+// Test with missing file
+.\ExcelMcp.exe command "nonexistent.xlsx"
+# Expected: User-friendly error message
+
+// Test with invalid arguments
+.\ExcelMcp.exe command
+# Expected: Usage message
+
+// Test with file open in Excel
+# 1. Open file in Excel UI
+# 2. Run command
+# Expected: Appropriate error or wait for file access
+```
+
+## Performance Considerations
+
+### Minimize Workbook Opens
+
+```csharp
+// GOOD - Single Excel session for multiple operations
+return ExcelHelper.WithExcel(filePath, save, (excel, workbook) =>
+{
+    // Do multiple things
+    Operation1(workbook);
+    Operation2(workbook);
+    Operation3(workbook);
+    return 0;
+});
+
+// AVOID - Multiple Excel sessions
+ExcelHelper.WithExcel(filePath, false, (e, wb) => { Operation1(wb); return 0; });
+ExcelHelper.WithExcel(filePath, false, (e, wb) => { Operation2(wb); return 0; });
+ExcelHelper.WithExcel(filePath, false, (e, wb) => { Operation3(wb); return 0; });
+```
+
+### Use Bulk Operations
+
+```csharp
+// GOOD - Bulk read with Range.Value2
+object[,] values = range.Value2;
+
+// AVOID - Cell-by-cell reads
+for (each cell)
+    value = cell.Value2; // Slow COM calls
+```
+
+### Exit Early
+
+```csharp
+// Stop searching once found
+for (int i = 1; i <= collection.Count; i++)
+{
+    if (found)
+    {
+        return result; // Exit early
+    }
+}
+```
+
+## Code Style Guidelines
+
+### Modern C# Features
+
+```csharp
+// Use record types
+public record QueryInfo(string Name, string Formula);
+
+// Use pattern matching
+var result = value switch
+{
+    null => "empty",
+    string s => $"string: {s}",
+    int i => $"number: {i}",
+    _ => "unknown"
+};
+
+// Use file-scoped namespaces
+namespace ExcelMcp.Commands;
+
+public class MyCommands { }
+```
+
+### Naming Conventions
+
+- **Commands**: Verb-based (List, View, Update, Export)
+- **Parameters**: Descriptive (queryName, sheetName, filePath)
+- **Return codes**: 0 = success, 1 = error
+- **Interfaces**: I prefix (IPowerQueryCommands)
+
+### Error Messages
+
+```csharp
+// GOOD - Clear, actionable
+AnsiConsole.MarkupLine("[red]Error:[/] Query 'MyQuery' not found. Use pq-list to see available queries.");
+
+// AVOID - Vague
+AnsiConsole.MarkupLine("Error occurred");
+```
+
+## Security Considerations
+
+### Enhanced Security Features (Latest Updates)
+
+- **Input Validation**: All file paths validated with length limits (32767 chars) and extension restrictions
+- **File Size Limits**: 1GB maximum file size to prevent DoS attacks
+- **Path Security**: `Path.GetFullPath()` prevents path traversal attacks
+- **Resource Limits**: Protection against memory exhaustion and process hanging
+- **Code Analysis**: Enhanced security rules enforced (CA2100, CA3003, CA3006, etc.)
+
+### Security Best Practices
+
+```csharp
+// ALWAYS validate inputs before COM operations
+if (!ValidateExcelFile(filePath, requireExists: true))
+{
+    return 1; // Validation handles user feedback
+}
+
+// ALWAYS use EscapeMarkup for user-provided content
+AnsiConsole.MarkupLine($"[red]Error:[/] {userMessage.EscapeMarkup()}");
+
+// File paths are automatically secured
+string fullPath = Path.GetFullPath(filePath); // Prevents ../ attacks
+```
+
+### Build Quality Settings
+
+The project enforces strict quality standards:
+
+```xml
+<!-- Directory.Build.props settings -->
+<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+<EnableNETAnalyzers>true</EnableNETAnalyzers>
+<AnalysisLevel>latest</AnalysisLevel>
+<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+```
+
+### Security Rules Enforced
+
+Critical security rules are treated as errors:
+- **CA2100**: SQL injection prevention
+- **CA3003**: File path injection prevention  
+- **CA3006**: Process command injection prevention
+- **CA5389**: Archive path traversal prevention
+- **CA5390**: Hard-coded encryption detection
+- **CA5394**: Insecure randomness detection
+
+## Security Considerations (Previous Content)
+
+- **File paths**: Use `Path.GetFullPath()` to resolve paths safely ✅ **Enhanced**
+- **User input**: Always use `.EscapeMarkup()` before displaying in Spectre.Console ✅ **Enforced**
+- **Macros**: ExcelMcp does not execute macros (DisplayAlerts = false)
+- **Credentials**: Never log connection strings or credentials ✅ **Enhanced**
+- **Resource Management**: Strict COM cleanup prevents resource leaks ✅ **Verified**
+
+## Key Takeaways for New Developers
+
+1. **Always use `ExcelHelper.WithExcel()`** - Never manage Excel lifecycle manually
+2. **Excel uses 1-based indexing** - collections.Item(1) is first element
+3. **Use QueryTables.Add, not ListObjects.Add** - For loading Power Query
+4. **Never use RefreshAll()** - Refresh individual connections
+5. **Check connection status** - Determine if query is "Connection Only"
+6. **Escape markup** - Always `.EscapeMarkup()` on user input
+7. **Test Excel cleanup** - Verify no Excel processes remain after 5 seconds
+8. **Return 0 for success, 1 for error** - Consistent exit codes
+9. **Validate early** - Check files exist and arguments are valid before COM operations
+10. **User-friendly errors** - Help users fix problems with clear messages
+11. **Security first** - Validate all inputs and prevent path traversal attacks
+12. **Quality enforcement** - All warnings treated as errors for robust code
+13. **Proper disposal** - Use `GC.SuppressFinalize()` in dispose methods
+
+## Quick Reference
+
+### Command Template (Updated with Security)
+
+```csharp
+public int MyCommand(string[] args)
+{
+    // Input validation with security checks
+    if (!ValidateArgs(args, 2, "my-command <file.xlsx>"))
+        return 1;
+    
+    if (!ValidateExcelFile(args[1], requireExists: true))
+        return 1;
+    
+    return ExcelHelper.WithExcel(args[1], save: false, (excel, workbook) =>
+    {
+        try
+        {
+            // Your code here
+            AnsiConsole.MarkupLine("[green]√[/] Success");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
+    });
+}
+```
+
+### Common Operations
+
+```csharp
+// List Power Queries
+dynamic queries = workbook.Queries;
+for (int i = 1; i <= queries.Count; i++)
+    Console.WriteLine(queries.Item(i).Name);
+
+// Find query
+dynamic query = ExcelHelper.FindQuery(workbook, queryName);
+
+// Update query
+query.Formula = newMCode;
+
+// Read worksheet
+dynamic sheet = workbook.Worksheets.Item(sheetName);
+object[,] values = sheet.Range["A1:D10"].Value2;
+
+// Write worksheet
+sheet.Range["A1"].Value2 = data;
+
+// Named range
+dynamic namedRange = workbook.Names.Item(rangeName);
+object value = namedRange.RefersToRange.Value2;
+```
+
+## Quality & Security Infrastructure
+
+### Central Package Management
+
+The project uses Central Package Management for consistent versions:
+
+```xml
+<!-- Directory.Packages.props -->
+<PackageVersion Include="Spectre.Console" Version="0.49.1" />
+<PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="8.0.0" />
+<PackageVersion Include="SecurityCodeScan.VS2019" Version="5.6.7" />
+```
+
+### Enhanced EditorConfig Rules
+
+Security-focused rules in `.editorconfig`:
+
+```ini
+# Security-focused code analysis rules
+dotnet_diagnostic.CA2100.severity = error        # SQL injection
+dotnet_diagnostic.CA3003.severity = error        # File path injection
+dotnet_diagnostic.CA3006.severity = error        # Process command injection
+dotnet_diagnostic.CA5389.severity = error        # Archive path traversal
+dotnet_diagnostic.CA5390.severity = error        # Hard-coded encryption
+dotnet_diagnostic.CA5394.severity = error        # Insecure randomness
+```
+
+### Build Pipeline Quality
+
+```xml
+<!-- Directory.Build.props - Quality Enforcement -->
+<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+<EnableNETAnalyzers>true</EnableNETAnalyzers>
+<AnalysisLevel>latest</AnalysisLevel>
+<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+```
+
+## Command Categories & Usage Patterns
+
+### 1. File Operations
+**Purpose:** Create and manage Excel workbooks
+
+```bash
+# Create empty workbook (essential for automation)
+ExcelMcp create-empty "analysis.xlsx"
+ExcelMcp create-empty "reports/monthly-report.xlsx"  # Auto-creates directory
+```
+
+**Copilot Prompts:**
+- "Create a command to generate Excel templates with predefined sheets"
+- "Add validation for Excel file extensions"
+- "Implement batch file creation functionality"
+
+### 2. Power Query Management
+**Purpose:** Automate M code and data transformation workflows
+
+```bash
+# List all Power Queries
+ExcelMcp pq-list "data.xlsx"
+
+# View Power Query M code
+ExcelMcp pq-view "data.xlsx" "WebData"
+
+# Import M code from file
+ExcelMcp pq-import "data.xlsx" "APIData" "fetch-data.pq"
+
+# Export M code to file (for version control)
+ExcelMcp pq-export "data.xlsx" "APIData" "backup.pq"
+
+# Update existing query
+ExcelMcp pq-update "data.xlsx" "APIData" "new-logic.pq"
+
+# Load Connection-Only query to worksheet
+ExcelMcp pq-loadto "data.xlsx" "APIData" "DataSheet"
+
+# Refresh query data
+ExcelMcp pq-refresh "data.xlsx" "APIData"
+
+# Delete query
+ExcelMcp pq-delete "data.xlsx" "OldQuery"
+```
+
+**Copilot Prompts:**
+- "Help me create M code for fetching data from REST APIs"
+- "Generate Power Query error handling patterns"
+- "Create a command to validate M code syntax"
+
+### 3. Worksheet Operations
+**Purpose:** Manipulate Excel sheets and data
+
+```bash
+# List all worksheets
+ExcelMcp sheet-list "workbook.xlsx"
+
+# Read data from range
+ExcelMcp sheet-read "workbook.xlsx" "Sheet1" "A1:D10"
+
+# Write CSV data to sheet
+ExcelMcp sheet-write "workbook.xlsx" "Sheet1" "data.csv"
+
+# Create new worksheet
+ExcelMcp sheet-create "workbook.xlsx" "Analysis"
+
+# Copy worksheet
+ExcelMcp sheet-copy "workbook.xlsx" "Template" "NewSheet"
+
+# Rename worksheet
+ExcelMcp sheet-rename "workbook.xlsx" "Sheet1" "RawData"
+
+# Clear worksheet data
+ExcelMcp sheet-clear "workbook.xlsx" "Sheet1" "A1:Z100"
+
+# Append data to existing content
+ExcelMcp sheet-append "workbook.xlsx" "Sheet1" "additional-data.csv"
+
+# Delete worksheet
+ExcelMcp sheet-delete "workbook.xlsx" "TempSheet"
+```
+
+**Copilot Prompts:**
+- "Create bulk data import functionality from multiple CSV files"
+- "Add data validation and type conversion"
+- "Implement sheet protection and formatting options"
+
+### 4. Parameter Management
+**Purpose:** Work with Excel named ranges as parameters
+
+```bash
+# List all named ranges
+ExcelMcp param-list "config.xlsx"
+
+# Get parameter value
+ExcelMcp param-get "config.xlsx" "StartDate"
+
+# Set parameter value
+ExcelMcp param-set "config.xlsx" "StartDate" "2024-01-01"
+
+# Create named range
+ExcelMcp param-create "config.xlsx" "FilePath" "Settings!A1"
+
+# Delete named range
+ExcelMcp param-delete "config.xlsx" "OldParam"
+```
+
+**Copilot Prompts:**
+- "Add support for complex parameter types (arrays, objects)"
+- "Create parameter validation and constraints"
+- "Implement parameter templates and presets"
+
+### 5. Cell Operations
+**Purpose:** Granular cell-level operations
+
+```bash
+# Get cell value
+ExcelMcp cell-get-value "data.xlsx" "Sheet1" "A1"
+
+# Set cell value
+ExcelMcp cell-set-value "data.xlsx" "Sheet1" "A1" "Hello World"
+
+# Get cell formula
+ExcelMcp cell-get-formula "data.xlsx" "Sheet1" "B1"
+
+# Set cell formula
+ExcelMcp cell-set-formula "data.xlsx" "Sheet1" "B1" "=SUM(A1:A10)"
+```
+
+**Copilot Prompts:**
+- "Add cell formatting and styling options"
+- "Create batch cell operations for efficiency"
+- "Implement cell validation and error checking"
+
+## Development Tips for Copilot
+
+### MCP Server Development Prompts
+
+1. **MCP Tool Enhancement:**
+   ```
+   "Add a new action to excel_powerquery tool for Power Query validation"
+   ```
+
+2. **Resource-Based Development:**
+   ```
+   "Follow the MCP resource-based pattern with actions for the new excel_chart tool"
+   ```
+
+3. **JSON Response Structure:**
+   ```
+   "Ensure proper JsonSerializer.Serialize() for Windows file paths in MCP responses"
+   ```
+
+### CLI Development Prompts
+
+1. **Be Specific About Excel Context:**
+   ```
+   "Create a function to read Excel cell ranges using COM interop with proper error handling"
+   ```
+
+2. **Reference Existing Patterns:**
+   ```
+   "Follow the PowerQueryCommands pattern to create a new SheetCommands method"
+   ```
+
+3. **Include Error Scenarios:**
+   ```
+   "Add error handling for Excel file locks and COM exceptions"
+   ```
+
+4. **Ask for Complete Solutions:**
+   ```
+   "Create a complete command with interface, implementation, tests, and help text"
+   ```
+
+### Code Review Checklist
+
+When Copilot suggests code, verify:
+
+- ✅ Uses `ExcelHelper.WithExcel()` for COM operations
+- ✅ Handles 1-based Excel indexing correctly
+- ✅ Includes proper error handling with `EscapeMarkup()`
+- ✅ Validates arguments before Excel operations
+- ✅ Returns 0 for success, 1 for error
+- ✅ Uses appropriate Spectre.Console formatting
+- ✅ Includes XML documentation comments
+- ✅ Has corresponding unit/integration tests
+- ✅ **NEW**: Follows security best practices (input validation, path security)
+- ✅ **NEW**: Implements proper dispose pattern with `GC.SuppressFinalize()`
+- ✅ **NEW**: Adheres to enforced code quality rules
+- ✅ **NEW**: Validates file sizes and prevents resource exhaustion
+
+### Testing Strategy (Updated)
+
+ExcelMcp uses a three-tier testing approach:
+
+```csharp
+// Unit Tests - Fast, no Excel required
+[Trait("Category", "Unit")]
+[Trait("Speed", "Fast")]
+public class UnitTests { }
+
+// Integration Tests - Medium speed, requires Excel
+[Trait("Category", "Integration")]
+[Trait("Speed", "Medium")]
+[Trait("Feature", "PowerQuery")] // or "VBA", "Worksheets", "Files"
+public class PowerQueryCommandsTests { }
+
+// Round Trip Tests - Slow, complex workflows
+[Trait("Category", "RoundTrip")]
+[Trait("Speed", "Slow")]
+[Trait("Feature", "EndToEnd")]
+public class IntegrationRoundTripTests { }
+```
+
+**CI/CD Strategy:**
+- **CI Environments**: Run only unit tests (`Category=Unit`) - no Excel required
+- **Local Development**: Run unit + integration tests by default
+- **Full Validation**: Include round trip tests on request
+
+**Test Commands:**
+```bash
+# CI-safe (no Excel required)
+dotnet test --filter "Category=Unit"
+
+# Local development (requires Excel)
+dotnet test --filter "Category!=RoundTrip"
+
+# Full validation (slow)
+dotnet test --filter "Category=RoundTrip"
+```
+
+## Contributing Guidelines
+
+When extending ExcelMcp with Copilot:
+
+1. **Follow Existing Patterns:** Use `@workspace` to understand current architecture
+2. **Test Thoroughly:** Create both unit and integration tests
+3. **Document Everything:** Include XML docs and usage examples
+4. **Handle Errors Gracefully:** Provide helpful error messages
+5. **Maintain Performance:** Use efficient Excel COM operations
+
+### Sample Contribution Workflow
+
+```bash
+# 1. Analyze existing code
+@workspace /explain the command pattern used in ExcelMcp
+
+# 2. Create new functionality
+@workspace create a new command for Excel chart operations
+
+# 3. Add comprehensive tests
+@workspace /tests create integration tests for the new chart commands
+
+# 4. Update documentation
+@workspace update the README and help text for the new commands
+```
+
+## � **Key Learnings from MCP Server Implementation**
+
+### **Architecture Evolution**
+
+**✅ What Worked:**
+- **Resource-Based Design** - 6 tools instead of 33+ individual operations significantly reduced complexity
+- **Official MCP SDK** - Using Microsoft's ModelContextProtocol NuGet package (v0.4.0-preview.2) provided robust foundation
+- **Action-Based Parameters** - REST-like design with actions (list, create, update, delete) familiar to developers
+- **JsonSerializer.Serialize()** - Proper JSON serialization prevents Windows path escaping issues
+- **Development Focus** - Targeting AI-assisted coding workflows vs ETL operations aligned with user needs
+
+**❌ What Didn't Work:**
+- **Granular Tools** - Original 33+ individual MCP tools created overwhelming API surface
+- **Manual JSON Construction** - String concatenation caused Windows path escaping problems  
+- **ETL Use Cases** - Data processing examples confused users about tool's purpose
+- **Protocol Implementation** - Custom protocol handling was complex vs official SDK
+
+### **Implementation Insights**
+
+**MCP Server Best Practices:**
+- Use `[McpServerTool]` attributes for automatic tool discovery
+- Implement consistent error handling with structured JSON responses
+- Design resource-based tools with multiple actions vs granular tools
+- Always use `JsonSerializer.Serialize()` for proper JSON formatting
+- Focus on development workflows, not data processing use cases
+
+**Testing Strategy:**
+- Resource-based tools simplified test structure (6 test classes vs 33+)
+- JSON response validation using `JsonDocument.Parse()` caught serialization issues
+- Static method calls easier to test than async protocol operations
+
+**Documentation Requirements:**
+- Clear distinction between MCP server (development) vs CLI (automation) use cases
+- Practical GitHub Copilot integration examples essential for adoption
+- Resource-based architecture must be explained vs granular approach
+
+## �🚨 **CRITICAL: Development Workflow Requirements**
+
+### **All Changes Must Use Pull Requests**
+
+**NEVER commit directly to `main` branch.** GitHub Copilot must remind developers that:
+
+- ❌ **Direct commits to main are blocked** by branch protection rules
+- ✅ **All changes require Pull Requests** with code review
+- ✅ **Feature branches are mandatory** for all development work
+- ✅ **CI/CD validation must pass** before merge
+
+### **Required Development Process**
+
+When helping with ExcelMcp development, always guide users through this workflow:
+
+#### 1. **Create Feature Branch First**
+```powershell
+# ALWAYS start with a feature branch
+git checkout -b feature/your-feature-name
+# Never work directly on main!
+```
+
+#### 2. **Development Standards**
+- **Code Quality**: Zero build warnings, all tests pass
+- **Testing Required**: New features must include unit tests  
+- **Documentation**: Update README.md, COMMANDS.md, etc.
+- **Security**: Follow enforced security rules (CA2100, CA3003, CA3006, etc.)
+
+#### 3. **PR Requirements Checklist**
+Before creating PR, verify:
+- [ ] Code builds with zero warnings (`dotnet build -c Release`)
+- [ ] All tests pass (`dotnet test`)
+- [ ] New features have comprehensive tests
+- [ ] Documentation updated for new commands/features
+- [ ] Follows existing architectural patterns
+- [ ] Security rules compliance (no path injection, etc.)
+
+#### 4. **Version Management**
+- **Don't manually update version numbers** - release workflow handles this
+- **Semantic versioning**: Major.Minor.Patch (v1.2.3)
+- **Only maintainers create releases** by pushing version tags
+
+### **Branch Protection Enforcement**
+
+The `main` branch has protection rules:
+- **Require PR reviews** - Changes must be reviewed by maintainers
+- **Require status checks** - CI/CD must pass (build, tests, linting)  
+- **Require up-to-date branches** - Must be current with main
+- **No force pushes or deletions** - Prevent destructive changes
+
+### **What Copilot Should Suggest**
+
+When users ask to make changes:
+
+1. **First, check current branch**: Remind them to create feature branch if on main
+2. **Guide proper workflow**: Feature branch → changes → tests → PR
+3. **Enforce quality gates**: Build, test, documentation requirements
+4. **Reference patterns**: Use existing command patterns and architecture
+5. **Security awareness**: Validate inputs, prevent injection attacks
+
+### **Common Developer Mistakes to Prevent**
+
+❌ **Don't let users:**
+- Commit directly to main
+- Skip writing tests
+- Ignore build warnings  
+- Update version numbers manually
+- Create releases without proper workflow
+
+✅ **Always guide users to:**
+- Use feature branches
+- Write comprehensive tests
+- Update documentation
+- Follow security best practices
+- Use proper commit messages
+
+This project demonstrates the power of GitHub Copilot for creating sophisticated, production-ready CLI tools with proper architecture, comprehensive testing, excellent user experience, **professional development workflows**, and **cutting-edge MCP server integration** for AI-assisted Excel development.

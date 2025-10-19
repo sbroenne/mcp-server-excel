@@ -1,0 +1,103 @@
+# GitHub CodeQL Analysis Workflow
+# Performs advanced security scanning for code vulnerabilities
+
+name: "CodeQL Advanced Security"
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - '**.csproj'
+      - '**.sln'
+      - 'Directory.Build.props'
+      - 'Directory.Packages.props'
+      - '.github/workflows/codeql.yml'
+      - '.github/codeql/**'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - '**.csproj'
+      - '**.sln'
+      - 'Directory.Build.props'
+      - 'Directory.Packages.props'
+      - '.github/workflows/codeql.yml'
+      - '.github/codeql/**'
+  schedule:
+    # Run CodeQL analysis every Monday at 10:00 AM UTC
+    - cron: '0 10 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  analyze:
+    name: Analyze Code with CodeQL
+    runs-on: windows-latest
+    timeout-minutes: 360
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'csharp' ]
+        # CodeQL supports: 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'swift'
+        # Learn more about CodeQL language support at https://aka.ms/codeql-docs/language-support
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+        
+    # Initializes the CodeQL tools for scanning
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
+        # Use custom configuration file
+        config-file: ./.github/codeql/codeql-config.yml
+        # Additional query packs
+        queries: +security-and-quality
+
+    # Restore dependencies before build
+    - name: Restore dependencies
+      run: dotnet restore
+
+    # Build the solution for CodeQL analysis
+    - name: Build solution
+      run: dotnet build --no-restore --configuration Release
+      
+    # Perform CodeQL Analysis
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:${{matrix.language}}"
+        # Upload results even if there are errors
+        upload: true
+        # Output SARIF results
+        output: sarif-results
+        
+    # Upload SARIF results as artifact for review
+    - name: Upload CodeQL Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: codeql-sarif-results-${{ matrix.language }}
+        path: sarif-results
+        retention-days: 30
+        
+    # Create issue if critical vulnerabilities found
+    - name: Check for Critical Issues
+      if: failure()
+      run: |
+        Write-Output "⚠️ CodeQL found security issues. Review the Security tab."
+      shell: pwsh

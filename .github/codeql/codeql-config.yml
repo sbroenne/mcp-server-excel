@@ -1,0 +1,80 @@
+# CodeQL Configuration for ExcelMcp
+# Defines security scanning rules and exclusions
+
+name: "ExcelMcp CodeQL Configuration"
+
+# Disable default query suite and use custom ones
+disable-default-queries: false
+
+# Query packs to run
+queries:
+  # Built-in security queries
+  - uses: security-and-quality
+  - uses: security-extended
+  
+# Paths to exclude from analysis
+paths-ignore:
+  - '**/bin/**'
+  - '**/obj/**'
+  - '**/packages/**'
+  - '**/.nuget/**'
+  - '**/node_modules/**'
+  - '**/*.Designer.cs'
+  - '**/*.g.cs'
+  - '**/*.g.i.cs'
+  - '**/AssemblyInfo.cs'
+  - '**/TemporaryGeneratedFile_*.cs'
+
+# Paths to explicitly include
+paths:
+  - 'src/**'
+  - 'tests/**'
+
+# Query filters
+query-filters:
+  # Exclude specific queries that may be false positives
+  # Uncomment and adjust as needed
+  
+  # COM interop may trigger weak crypto warnings for Excel automation
+  - exclude:
+      id: cs/weak-crypto
+      reason: "Excel COM interop uses Windows crypto APIs"
+  
+  # Dynamic typing is required for COM interop
+  - exclude:
+      id: cs/call-to-unmanaged-code
+      reason: "Required for Excel COM interop automation"
+      
+  # External libraries may use reflection
+  - exclude:
+      id: cs/reflection
+      reason: "Required for COM late binding"
+
+# External data sources (for taint tracking)
+# external-repository-token: ${{ secrets.GITHUB_TOKEN }}
+
+# ML-powered alerts (experimental)
+ml-powered-queries: true
+
+# Trap caching for faster subsequent runs
+trap-caching: true
+
+# Build mode for compiled languages
+# build-mode: 'manual' for custom build commands
+
+# Additional configuration
+packs:
+  csharp:
+    - codeql/csharp-queries
+    - codeql/csharp-all
+
+# Security policy
+security-policy:
+  # Severity levels to report
+  minimum-severity: medium
+  
+  # Report on security findings
+  fail-on-severity: high
+  
+  # License compliance
+  check-licenses: true

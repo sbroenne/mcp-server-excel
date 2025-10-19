@@ -1,0 +1,59 @@
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+end_of_line = crlf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.{json,jsonc}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+indent_size = 2
+
+[*.cs]
+# C# coding conventions
+dotnet_style_qualification_for_field = false:suggestion
+dotnet_style_qualification_for_property = false:suggestion
+dotnet_style_qualification_for_method = false:suggestion
+dotnet_style_qualification_for_event = false:suggestion
+
+# Modern C# language features
+csharp_prefer_simple_using_statement = true:suggestion
+csharp_prefer_braces = true:silent
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_style_prefer_method_group_conversion = true:silent
+csharp_style_prefer_top_level_statements = false:silent
+
+# Code style rules
+dotnet_sort_system_directives_first = true
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+
+# Security-focused code analysis rules
+dotnet_diagnostic.CA2100.severity = error        # SQL injection
+dotnet_diagnostic.CA3001.severity = error        # Potential SQL injection
+dotnet_diagnostic.CA3003.severity = error        # File path injection
+dotnet_diagnostic.CA3006.severity = error        # Process command injection
+dotnet_diagnostic.CA3012.severity = error        # Regex injection
+dotnet_diagnostic.CA5350.severity = error        # Weak cryptographic algorithm
+dotnet_diagnostic.CA5351.severity = error        # Broken cryptographic algorithm
+dotnet_diagnostic.CA5389.severity = error        # Do Not Add Archive Item's Path To The Target File System Path
+dotnet_diagnostic.CA5390.severity = error        # Do not hard-code encryption key
+dotnet_diagnostic.CA5394.severity = error        # Do not use insecure randomness
+
+# Performance and reliability
+dotnet_diagnostic.CA1806.severity = warning      # Do not ignore method results
+dotnet_diagnostic.CA1816.severity = warning      # Dispose methods should call SuppressFinalize
+dotnet_diagnostic.CA1821.severity = warning      # Remove empty Finalizers
+dotnet_diagnostic.CA1822.severity = suggestion   # Mark members as static
+dotnet_diagnostic.CA1825.severity = warning      # Avoid zero-length array allocations

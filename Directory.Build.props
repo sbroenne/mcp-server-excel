@@ -1,0 +1,42 @@
+<Project>
+  
+  <PropertyGroup>
+    <!-- Common properties for all projects -->
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Authors>Stefan Broenner</Authors>
+    <Company>Stefan Broenner</Company>
+    <Product>ExcelCLI</Product>
+    <Copyright>Copyright © 2025 Stefan Broenner</Copyright>
+    
+    <!-- Repository information -->
+    <PackageProjectUrl>https://github.com/sbroenne/ExcelCLI</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/sbroenne/ExcelCLI</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    
+    <!-- Build settings -->
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+    <WarningsNotAsErrors>CA1416;CS8602;SYSLIB1045;IL2026;IL3050</WarningsNotAsErrors>
+    
+    <!-- Code Analysis -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    
+    <!-- Security -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <_SkipUpgradeNetAnalyzersNuGetWarning>true</_SkipUpgradeNetAnalyzersNuGetWarning>
+    
+    <!-- Suppress COM interop warnings -->
+    <NoWarn>CA1416;CS8602;SYSLIB1045;IL2026;IL3050</NoWarn>
+  </PropertyGroup>
+  
+</Project>

@@ -1,0 +1,95 @@
+name: Publish to NuGet
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for trusted publishing via OIDC
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+        
+    - name: Extract version from tag
+      id: version
+      run: |
+        $tagName = "${{ github.event.release.tag_name }}"
+        $version = $tagName -replace '^v', ''
+        Write-Output "version=$version" >> $env:GITHUB_OUTPUT
+        Write-Output "📦 Publishing version: $version"
+      shell: pwsh
+        
+    - name: Update MCP Server version
+      run: |
+        $version = "${{ steps.version.outputs.version }}"
+        
+        # Update MCP Server project version
+        $mcpCsprojPath = "src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj"
+        $mcpContent = Get-Content $mcpCsprojPath -Raw
+        $mcpContent = $mcpContent -replace '<Version>[\d\.]+</Version>', "<Version>$version</Version>"
+        $mcpContent = $mcpContent -replace '<AssemblyVersion>[\d\.]+\.0</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
+        $mcpContent = $mcpContent -replace '<FileVersion>[\d\.]+\.0</FileVersion>', "<FileVersion>$version.0</FileVersion>"
+        Set-Content $mcpCsprojPath $mcpContent
+        
+        Write-Output "✅ Updated MCP Server version to $version"
+      shell: pwsh
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build MCP Server
+      run: dotnet build src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-restore
+      
+    - name: Pack NuGet package
+      run: |
+        $version = "${{ steps.version.outputs.version }}"
+        dotnet pack src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj `
+          --configuration Release `
+          --no-build `
+          --output ./nupkg `
+          /p:PackageVersion=$version
+        
+        Write-Output "📦 Created NuGet package: ExcelMcp.McpServer.$version.nupkg"
+      shell: pwsh
+      
+    - name: Verify package contents
+      run: |
+        $version = "${{ steps.version.outputs.version }}"
+        $packagePath = "nupkg/ExcelMcp.McpServer.$version.nupkg"
+        
+        if (Test-Path $packagePath) {
+          Write-Output "✅ Package created successfully"
+          Write-Output "📊 Package size: $((Get-Item $packagePath).Length / 1MB) MB"
+        } else {
+          Write-Error "❌ Package not found at $packagePath"
+          exit 1
+        }
+      shell: pwsh
+      
+    - name: Publish to NuGet.org
+      run: |
+        $version = "${{ steps.version.outputs.version }}"
+        $packagePath = "nupkg/ExcelMcp.McpServer.$version.nupkg"
+        
+        dotnet nuget push $packagePath `
+          --source https://api.nuget.org/v3/index.json `
+          --skip-duplicate
+        
+        Write-Output "🚀 Published ExcelMcp.McpServer.$version to NuGet.org"
+        Write-Output "🔗 Package will be available at: https://www.nuget.org/packages/ExcelMcp.McpServer/$version"
+      shell: pwsh
+      
+    - name: Upload package artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuget-package
+        path: nupkg/*.nupkg

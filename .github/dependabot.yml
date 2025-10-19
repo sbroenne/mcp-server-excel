@@ -1,0 +1,83 @@
+# GitHub Dependabot configuration for ExcelMcp
+# Automatically keeps dependencies up-to-date and secure
+
+version: 2
+updates:
+  # NuGet dependencies - check weekly
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "nuget"
+      - "automated"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    reviewers:
+      - "sbroenne"
+    # Group minor and patch updates together
+    groups:
+      production-dependencies:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    # Only create PRs for security updates and major version updates immediately
+    # Minor/patch updates are grouped
+    ignore:
+      # Ignore specific packages if needed
+      # - dependency-name: "PackageName"
+      #   versions: ["1.x", "2.x"]
+
+  # GitHub Actions - check weekly
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "automated"
+    commit-message:
+      prefix: "chore(actions)"
+      include: "scope"
+    reviewers:
+      - "sbroenne"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # .NET SDK (via global.json if present)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "docker"
+      - "automated"
+    commit-message:
+      prefix: "chore(docker)"
+    reviewers:
+      - "sbroenne"

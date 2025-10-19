@@ -1,0 +1,47 @@
+# Dependency Review Workflow
+# Scans pull requests for vulnerable dependencies before merging
+
+name: 'Dependency Review'
+
+on: 
+  pull_request:
+    branches: [ "main", "develop" ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          # Fail the build if vulnerabilities are found
+          fail-on-severity: moderate
+          
+          # Fail if GPL/AGPL/LGPL licenses detected (stricter than MIT)
+          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0, LGPL-2.1, LGPL-3.0
+          
+          # Comment on PR with summary
+          comment-summary-in-pr: always
+          
+          # Show vulnerabilities by severity
+          warn-only: false
+          
+          # Block critical and high severity vulnerabilities
+          fail-on-scopes: runtime, development
+          
+          # Additional configuration
+          base-ref: ${{ github.event.pull_request.base.sha }}
+          head-ref: ${{ github.event.pull_request.head.sha }}
+          
+      - name: Dependency Review Summary
+        if: always()
+        run: |
+          echo "✅ Dependency review completed"
+          echo "Review results are available in the Security tab"
