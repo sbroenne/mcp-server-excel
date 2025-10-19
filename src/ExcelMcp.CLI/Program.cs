@@ -11,7 +11,7 @@ class Program
         // Set console encoding for better international character support
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         
-        AnsiConsole.Write(new FigletText("ExcelMcp").Color(Color.Blue));
+        AnsiConsole.Write(new FigletText("Excel CLI").Color(Color.Blue));
         AnsiConsole.MarkupLine("[dim]Excel Command Line Interface for Coding Agents[/]\n");
 
         if (args.Length == 0)

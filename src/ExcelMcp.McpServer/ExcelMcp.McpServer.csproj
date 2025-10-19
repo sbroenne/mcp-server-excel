@@ -19,8 +19,8 @@
     <PackageId>Sbroenne.ExcelMcp.McpServer</PackageId>
     <PackageType>McpServer</PackageType>
     <Title>Sbroenne ExcelMcp Model Context Protocol Server</Title>
-    <Description>Model Context Protocol (MCP) server for ExcelMcp by Sbroenne. Enables AI assistants like GitHub Copilot, Claude, and ChatGPT to automate Excel development workflows - Power Query refactoring, VBA enhancement, and Excel automation through structured JSON API. Uses dnx execution model for .NET 10.</Description>
-    <PackageTags>excel;mcp;model-context-protocol;ai;automation;github-copilot;claude;chatgpt;power-query;vba;excel-automation;dotnet-tool;dnx;sbroenne</PackageTags>
+    <Description>Model Context Protocol (MCP) server for ExcelMcp by Sbroenne. Enables AI assistants like GitHub Copilot, Claude, and ChatGPT to automate Excel development workflows - Power Query refactoring, VBA enhancement, and Excel automation through structured JSON API. Uses portable .NET 10 deployment supporting Windows x64 and ARM64.</Description>
+    <PackageTags>excel;mcp;model-context-protocol;ai;automation;github-copilot;claude;chatgpt;power-query;vba;excel-automation;dotnet-tool;arm64;windows;sbroenne</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>See https://github.com/sbroenne/mcp-server-excel/releases for release notes</PackageReleaseNotes>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
@@ -29,10 +29,10 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>mcp-excel</ToolCommandName>
     
-    <!-- Self-Contained Publishing for Better User Experience -->
-    <PublishSelfContained>true</PublishSelfContained>
-    <PublishTrimmed>true</PublishTrimmed>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- Multi-Architecture Support for Windows x64 and ARM64 -->
+    <PublishSelfContained>false</PublishSelfContained>
+    <PublishTrimmed>false</PublishTrimmed>
+    <!-- RuntimeIdentifier removed for portable deployment -->
     
     <!-- Package Validation -->
     <EnablePackageValidation>true</EnablePackageValidation>
