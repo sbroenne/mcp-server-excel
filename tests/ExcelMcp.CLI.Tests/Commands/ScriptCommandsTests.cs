@@ -1,5 +1,5 @@
 using Xunit;
-using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.CLI.Commands;
 using Sbroenne.ExcelMcp.Core;
 using System.IO;
 
@@ -90,8 +90,8 @@ public class ScriptCommandsTests : IDisposable
     private void CreateTestExcelFile()
     {
         // Create an empty Excel file for testing
-        var result = _fileCommands.CreateEmpty(_testExcelFile);
-        if (!result.Success)
+        var result = _fileCommands.CreateEmpty(new[] { "create-empty", _testExcelFile });
+        if (result != 0)
         {
             throw new InvalidOperationException("Failed to create test Excel file. Excel may not be installed.");
         }

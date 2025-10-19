@@ -1,5 +1,5 @@
 using Xunit;
-using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.CLI.Commands;
 using System.IO;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Commands;
@@ -55,10 +55,10 @@ public class IntegrationRoundTripTests : IDisposable
 
     private void CreateTestExcelFile()
     {
-        var result = _fileCommands.CreateEmpty(_testExcelFile);
-        if (!result.Success)
+        var result = _fileCommands.CreateEmpty(new[] { "create-empty", _testExcelFile });
+        if (result != 0)
         {
-            throw new InvalidOperationException($"Failed to create test Excel file: {result.ErrorMessage}. Excel may not be installed.");
+            throw new InvalidOperationException("Failed to create test Excel file. Excel may not be installed.");
         }
     }
 

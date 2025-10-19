@@ -1,5 +1,5 @@
 using Xunit;
-using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.CLI.Commands;
 using System.IO;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Commands;
@@ -38,8 +38,8 @@ public class PowerQueryCommandsTests : IDisposable
     {
         // Use the FileCommands to create an empty Excel file for testing
         var fileCommands = new FileCommands();
-        var result = fileCommands.CreateEmpty(_testExcelFile);
-        if (!result.Success)
+        var result = fileCommands.CreateEmpty(new[] { "create-empty", _testExcelFile });
+        if (result != 0)
         {
             throw new InvalidOperationException("Failed to create test Excel file. Excel may not be installed.");
         }

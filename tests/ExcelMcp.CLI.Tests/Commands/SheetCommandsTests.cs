@@ -1,5 +1,5 @@
 using Xunit;
-using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.CLI.Commands;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Commands;
 
