@@ -119,13 +119,14 @@ public class ScriptCommands : IScriptCommands
                     };
 
                     var procedures = new List<string>();
+                    int moduleLineCount = 0;
                     try
                     {
                         dynamic codeModule = component.CodeModule;
-                        int lineCount = codeModule.CountOfLines;
+                        moduleLineCount = codeModule.CountOfLines;
                         
                         // Parse procedures from code
-                        for (int line = 1; line <= lineCount; line++)
+                        for (int line = 1; line <= moduleLineCount; line++)
                         {
                             string codeLine = codeModule.Lines[line, 1];
                             if (codeLine.TrimStart().StartsWith("Sub ") || 
@@ -149,6 +150,7 @@ public class ScriptCommands : IScriptCommands
                     {
                         Name = name,
                         Type = typeStr,
+                        LineCount = moduleLineCount,
                         Procedures = procedures
                     });
                 }

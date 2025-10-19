@@ -255,6 +255,11 @@ public class ScriptInfo
     public string Type { get; set; } = string.Empty;
     
     /// <summary>
+    /// Number of lines in the module
+    /// </summary>
+    public int LineCount { get; set; }
+    
+    /// <summary>
     /// List of procedures in the module
     /// </summary>
     public List<string> Procedures { get; set; } = new();

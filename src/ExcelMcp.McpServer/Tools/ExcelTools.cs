@@ -500,27 +500,31 @@ public static class ExcelTools
 
     private static string ExecuteSetupCommand(SetupCommands commands, string method)
     {
-        var args = new[] { method.ToKebabCase() };
-        var methodInfo = typeof(SetupCommands).GetMethod(method, BindingFlags.Public | BindingFlags.Instance);
-        if (methodInfo == null)
+        var result = method switch
         {
-            return JsonSerializer.Serialize(new { error = $"Method {method} not found" });
-        }
+            "SetupVbaTrust" => commands.EnableVbaTrust(),
+            "CheckVbaTrust" => commands.CheckVbaTrust(string.Empty),
+            _ => new Core.Models.VbaTrustResult { Success = false, ErrorMessage = $"Unknown method {method}" }
+        };
 
-        var result = (int)methodInfo.Invoke(commands, new object[] { args })!;
-        if (result == 0)
+        if (result.Success)
         {
             return JsonSerializer.Serialize(new
             {
                 success = true,
-                action = method.ToKebabCase()
+                action = method.ToKebabCase(),
+                isTrusted = result.IsTrusted,
+                componentCount = result.ComponentCount,
+                registryPathsSet = result.RegistryPathsSet,
+                manualInstructions = result.ManualInstructions
             });
         }
         else
         {
             return JsonSerializer.Serialize(new
             {
-                error = "Operation failed",
+                success = false,
+                error = result.ErrorMessage,
                 action = method.ToKebabCase()
             });
         }
@@ -528,55 +532,90 @@ public static class ExcelTools
 
     private static string ExecuteScriptCommand(ScriptCommands commands, string method, string filePath, string? arg1 = null, string? arg2 = null)
     {
-        var args = new List<string> { $"script-{method.ToLowerInvariant()}", filePath };
-        if (!string.IsNullOrEmpty(arg1)) args.Add(arg1);
-        if (!string.IsNullOrEmpty(arg2)) args.Add(arg2);
+        var result = method switch
+        {
+            "List" => (object)commands.List(filePath),
+            "Export" => commands.Export(filePath, arg1!, arg2!),
+            "Import" => commands.Import(filePath, arg1!, arg2!),
+            "Update" => commands.Update(filePath, arg1!, arg2!),
+            "Delete" => commands.Delete(filePath, arg1!),
+            _ => new Core.Models.OperationResult { Success = false, ErrorMessage = $"Unknown method {method}" }
+        };
 
-        var methodInfo = typeof(ScriptCommands).GetMethod(method, BindingFlags.Public | BindingFlags.Instance);
-        if (methodInfo == null)
+        // Handle ScriptListResult separately
+        if (result is Core.Models.ScriptListResult listResult)
         {
-            return JsonSerializer.Serialize(new { error = $"Method {method} not found" });
+            if (listResult.Success)
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    action = method.ToLowerInvariant(),
+                    filePath = listResult.FilePath,
+                    modules = listResult.Scripts.Select(m => new
+                    {
+                        name = m.Name,
+                        type = m.Type,
+                        lineCount = m.LineCount,
+                        procedures = m.Procedures
+                    })
+                });
+            }
+            else
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    error = listResult.ErrorMessage,
+                    action = method.ToLowerInvariant(),
+                    filePath
+                });
+            }
         }
 
-        var result = (int)methodInfo.Invoke(commands, new object[] { args.ToArray() })!;
-        if (result == 0)
+        // Handle OperationResult
+        if (result is Core.Models.OperationResult opResult)
         {
-            return JsonSerializer.Serialize(new
+            if (opResult.Success)
             {
-                success = true,
-                action = method.ToLowerInvariant(),
-                filePath
-            });
-        }
-        else
-        {
-            return JsonSerializer.Serialize(new
+                return JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    action = method.ToLowerInvariant(),
+                    filePath = opResult.FilePath
+                });
+            }
+            else
             {
-                error = "Operation failed",
-                action = method.ToLowerInvariant(),
-                filePath
-            });
+                return JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    error = opResult.ErrorMessage,
+                    action = method.ToLowerInvariant(),
+                    filePath
+                });
+            }
         }
+
+        return JsonSerializer.Serialize(new { error = "Unknown result type" });
     }
 
     private static string ExecuteScriptRunCommand(ScriptCommands commands, string filePath, string? procedureName, string? parameters)
     {
-        var args = new List<string> { "script-run", filePath };
-        if (!string.IsNullOrEmpty(procedureName)) args.Add(procedureName);
-        if (!string.IsNullOrEmpty(parameters))
-        {
-            // Split parameters by space and add each as separate argument
-            args.AddRange(parameters.Split(' ', StringSplitOptions.RemoveEmptyEntries));
-        }
+        // Parse parameters
+        var paramArray = string.IsNullOrEmpty(parameters)
+            ? Array.Empty<string>()
+            : parameters.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-        var result = commands.Run(args.ToArray());
-        if (result == 0)
+        var result = commands.Run(filePath, procedureName ?? string.Empty, paramArray);
+
+        if (result.Success)
         {
             return JsonSerializer.Serialize(new
             {
                 success = true,
                 action = "run",
-                filePath,
+                filePath = result.FilePath,
                 procedure = procedureName
             });
         }
@@ -584,7 +623,8 @@ public static class ExcelTools
         {
             return JsonSerializer.Serialize(new
             {
-                error = "Operation failed",
+                success = false,
+                error = result.ErrorMessage,
                 action = "run",
                 filePath
             });
