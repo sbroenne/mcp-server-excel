@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Spectre.Console;
 
-namespace ExcelMcp;
+namespace Sbroenne.ExcelMcp.CLI;
 
 /// <summary>
 /// Enhanced Excel diagnostics and error reporting for coding agents

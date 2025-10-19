@@ -1,4 +1,4 @@
-namespace ExcelMcp.Commands;
+namespace Sbroenne.ExcelMcp.CLI.Commands;
 
 /// <summary>
 /// File management commands for Excel workbooks

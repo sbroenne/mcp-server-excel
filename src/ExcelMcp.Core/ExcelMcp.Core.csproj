@@ -5,6 +5,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     
+    <!-- Assembly and Namespace Configuration -->
+    <AssemblyName>Sbroenne.ExcelMcp.Core</AssemblyName>
+    <RootNamespace>Sbroenne.ExcelMcp.Core</RootNamespace>
+    
     <!-- Package Information -->
     <PackageId>Sbroenne.ExcelMcp.Core</PackageId>
     <Description>Core library for Excel automation operations via COM interop by Sbroenne. Shared by ExcelMcp and ExcelMcp.McpServer.</Description>

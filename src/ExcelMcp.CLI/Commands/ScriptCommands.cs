@@ -1,8 +1,8 @@
 using Spectre.Console;
 using System.Runtime.InteropServices;
-using static ExcelMcp.ExcelHelper;
+using static Sbroenne.ExcelMcp.CLI.ExcelHelper;
 
-namespace ExcelMcp.Commands;
+namespace Sbroenne.ExcelMcp.CLI.Commands;
 
 /// <summary>
 /// VBA script management commands
