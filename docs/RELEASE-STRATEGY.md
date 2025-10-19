@@ -10,17 +10,20 @@ This document outlines the separate build and release processes for the ExcelMcp
 **Trigger**: Tags starting with `mcp-v` (e.g., `mcp-v1.0.0`)
 
 **Features**:
+
 - Builds and packages only the MCP Server
 - Publishes to NuGet as a .NET tool
 - Creates GitHub release with MCP-focused documentation
 - Optimized for AI assistant integration
 
 **Release Artifacts**:
+
 - `ExcelMcp-MCP-Server-{version}-windows.zip` - Binary package
 - NuGet package: `ExcelMcp.McpServer` on NuGet.org
 - Installation guide focused on MCP usage
 
 **Use Cases**:
+
 - AI assistant integration (GitHub Copilot, Claude, ChatGPT)
 - Conversational Excel development workflows
 - Model Context Protocol implementations
@@ -31,17 +34,20 @@ This document outlines the separate build and release processes for the ExcelMcp
 **Trigger**: Tags starting with `cli-v` (e.g., `cli-v2.0.0`)
 
 **Features**:
+
 - Builds and packages only the CLI tool
 - Creates standalone CLI distribution
 - Focused on direct automation workflows
 - No NuGet publishing (binary-only distribution)
 
 **Release Artifacts**:
+
 - `ExcelMcp-CLI-{version}-windows.zip` - Complete CLI package
 - Includes all 40+ commands documentation
 - Quick start guide for CLI usage
 
 **Use Cases**:
+
 - Direct Excel automation scripts
 - CI/CD pipeline integration
 - Development workflows and testing
@@ -53,17 +59,20 @@ This document outlines the separate build and release processes for the ExcelMcp
 **Trigger**: Tags starting with `v` (e.g., `v3.0.0`)
 
 **Features**:
+
 - Builds both MCP Server and CLI
 - Creates combined distribution package
 - Comprehensive release with both tools
 - Maintains backward compatibility
 
 **Release Artifacts**:
+
 - `ExcelMcp-{version}-windows.zip` - Combined package
 - Contains both CLI and MCP Server
 - Unified documentation and installation guide
 
 **Use Cases**:
+
 - Users who need both tools
 - Complete ExcelMcp installation
 - Comprehensive Excel development environment
@@ -71,11 +80,13 @@ This document outlines the separate build and release processes for the ExcelMcp
 ## Version Management
 
 ### Independent Versioning
+
 - **MCP Server**: Can have independent version numbers (e.g., mcp-v1.2.0)
 - **CLI**: Can have independent version numbers (e.g., cli-v2.1.0)
 - **Combined**: Major releases combining both (e.g., v3.0.0)
 
 ### Development Strategy
+
 - **MCP Server**: Focus on AI integration features, conversational interfaces
 - **CLI**: Focus on automation efficiency, command completeness, CI/CD integration
 - **Combined**: Major milestones, breaking changes, coordinated releases
@@ -83,6 +94,7 @@ This document outlines the separate build and release processes for the ExcelMcp
 ## Release Process Examples
 
 ### Releasing MCP Server Only
+
 ```bash
 # Create and push MCP server release tag
 git tag mcp-v1.3.0
@@ -95,6 +107,7 @@ git push origin mcp-v1.3.0
 ```
 
 ### Releasing CLI Only
+
 ```bash
 # Create and push CLI release tag
 git tag cli-v2.2.0
@@ -107,6 +120,7 @@ git push origin cli-v2.2.0
 ```
 
 ### Combined Release
+
 ```bash
 # Create and push combined release tag
 git tag v3.1.0
@@ -121,11 +135,13 @@ git push origin v3.1.0
 ## Documentation Strategy
 
 ### Separate Focus Areas
+
 - **Main README.md**: MCP Server focused (AI assistant integration)
 - **docs/CLI.md**: CLI focused (direct automation)
 - **Release Notes**: Tailored to the specific component being released
 
 ### Cross-References
+
 - Each tool's documentation references the other
 - Clear navigation between MCP and CLI docs
 - Unified project branding while maintaining component clarity
@@ -142,10 +158,12 @@ git push origin v3.1.0
 ## Migration from Single Release
 
 ### Existing Tags
+
 - Previous `v*` tags remain as combined releases
 - No breaking changes to existing release structure
 
 ### New Tag Patterns
+
 - `mcp-v*`: MCP Server only
 - `cli-v*`: CLI only  
 - `v*`: Combined (maintains compatibility)
