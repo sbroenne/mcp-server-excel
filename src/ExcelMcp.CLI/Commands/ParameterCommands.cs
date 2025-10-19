@@ -1,226 +1,161 @@
 using Spectre.Console;
-using static Sbroenne.ExcelMcp.CLI.ExcelHelper;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
 /// <summary>
-/// Named range/parameter management commands implementation
+/// Named range/parameter management commands - wraps Core with CLI formatting
 /// </summary>
 public class ParameterCommands : IParameterCommands
 {
+    private readonly Core.Commands.ParameterCommands _coreCommands = new();
+    
     public int List(string[] args)
     {
-        if (!ValidateArgs(args, 2, "param-list <file.xlsx>")) return 1;
-        if (!File.Exists(args[1]))
+        if (args.Length < 2)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
+            AnsiConsole.MarkupLine("[red]Usage:[/] param-list <file.xlsx>");
             return 1;
         }
 
-        AnsiConsole.MarkupLine($"[bold]Named Ranges/Parameters in:[/] {Path.GetFileName(args[1])}\n");
+        var filePath = args[1];
+        AnsiConsole.MarkupLine($"[bold]Named Ranges/Parameters in:[/] {Path.GetFileName(filePath)}\n");
 
-        return WithExcel(args[1], false, (excel, workbook) =>
+        var result = _coreCommands.List(filePath);
+        
+        if (result.Success)
         {
-            var names = new List<(string Name, string RefersTo)>();
-
-            // Get Named Ranges
-            try
-            {
-                dynamic namesCollection = workbook.Names;
-                int count = namesCollection.Count;
-                for (int i = 1; i <= count; i++)
-                {
-                    dynamic nameObj = namesCollection.Item(i);
-                    string name = nameObj.Name;
-                    string refersTo = nameObj.RefersTo ?? "";
-                    names.Add((name, refersTo.Length > 80 ? refersTo[..77] + "..." : refersTo));
-                }
-            }
-            catch { }
-
-            // Display named ranges
-            if (names.Count > 0)
+            if (result.Parameters.Count > 0)
             {
                 var table = new Table();
                 table.AddColumn("[bold]Parameter Name[/]");
-                table.AddColumn("[bold]Value/Formula[/]");
+                table.AddColumn("[bold]Refers To[/]");
+                table.AddColumn("[bold]Value[/]");
 
-                foreach (var (name, refersTo) in names.OrderBy(n => n.Name))
+                foreach (var param in result.Parameters.OrderBy(p => p.Name))
                 {
-                    table.AddRow(
-                        $"[yellow]{name.EscapeMarkup()}[/]",
-                        $"[dim]{refersTo.EscapeMarkup()}[/]"
-                    );
+                    string refersTo = param.RefersTo.Length > 40 ? param.RefersTo[..37] + "..." : param.RefersTo;
+                    string value = param.Value?.ToString() ?? "[null]";
+                    table.AddRow(param.Name.EscapeMarkup(), refersTo.EscapeMarkup(), value.EscapeMarkup());
                 }
 
                 AnsiConsole.Write(table);
-                AnsiConsole.WriteLine();
-                AnsiConsole.MarkupLine($"[bold]Total:[/] {names.Count} named ranges");
+                AnsiConsole.MarkupLine($"\n[dim]Found {result.Parameters.Count} parameter(s)[/]");
             }
             else
             {
-                AnsiConsole.MarkupLine("[yellow]No named ranges found[/]");
+                AnsiConsole.MarkupLine("[yellow]No named ranges found in this workbook[/]");
             }
-
             return 0;
-        });
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
     }
 
     public int Set(string[] args)
     {
-        if (!ValidateArgs(args, 4, "param-set <file.xlsx> <param-name> <value>")) return 1;
-        if (!File.Exists(args[1]))
+        if (args.Length < 4)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
+            AnsiConsole.MarkupLine("[red]Usage:[/] param-set <file.xlsx> <param-name> <value>");
             return 1;
         }
 
+        var filePath = args[1];
         var paramName = args[2];
         var value = args[3];
 
-        return WithExcel(args[1], true, (excel, workbook) =>
+        var result = _coreCommands.Set(filePath, paramName, value);
+        
+        if (result.Success)
         {
-            dynamic? nameObj = FindName(workbook, paramName);
-            if (nameObj == null)
-            {
-                AnsiConsole.MarkupLine($"[red]Error:[/] Parameter '{paramName}' not found");
-                return 1;
-            }
-
-            nameObj.RefersTo = value;
-            workbook.Save();
-            AnsiConsole.MarkupLine($"[green]✓[/] Set parameter '{paramName}' = '{value}'");
+            AnsiConsole.MarkupLine($"[green]✓[/] Set parameter '{paramName.EscapeMarkup()}' = '{value.EscapeMarkup()}'");
             return 0;
-        });
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
     }
 
     public int Get(string[] args)
     {
-        if (!ValidateArgs(args, 3, "param-get <file.xlsx> <param-name>")) return 1;
-        if (!File.Exists(args[1]))
+        if (args.Length < 3)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
+            AnsiConsole.MarkupLine("[red]Usage:[/] param-get <file.xlsx> <param-name>");
             return 1;
         }
 
+        var filePath = args[1];
         var paramName = args[2];
 
-        return WithExcel(args[1], false, (excel, workbook) =>
+        var result = _coreCommands.Get(filePath, paramName);
+        
+        if (result.Success)
         {
-            try
-            {
-                dynamic? nameObj = FindName(workbook, paramName);
-                if (nameObj == null)
-                {
-                    AnsiConsole.MarkupLine($"[red]Error:[/] Parameter '{paramName}' not found");
-                    return 1;
-                }
-
-                string refersTo = nameObj.RefersTo ?? "";
-                
-                // Try to get the actual value if it's a cell reference
-                try
-                {
-                    dynamic refersToRange = nameObj.RefersToRange;
-                    if (refersToRange != null)
-                    {
-                        object cellValue = refersToRange.Value2;
-                        AnsiConsole.MarkupLine($"[cyan]{paramName}:[/] {cellValue?.ToString()?.EscapeMarkup() ?? "[null]"}");
-                        AnsiConsole.MarkupLine($"[dim]Refers to: {refersTo.EscapeMarkup()}[/]");
-                    }
-                    else
-                    {
-                        AnsiConsole.MarkupLine($"[cyan]{paramName}:[/] {refersTo.EscapeMarkup()}");
-                    }
-                }
-                catch
-                {
-                    // If we can't get the range value, just show the formula
-                    AnsiConsole.MarkupLine($"[cyan]{paramName}:[/] {refersTo.EscapeMarkup()}");
-                }
-
-                return 0;
-            }
-            catch (Exception ex)
-            {
-                AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
-                return 1;
-            }
-        });
+            string value = result.Value?.ToString() ?? "[null]";
+            AnsiConsole.MarkupLine($"[cyan]{paramName}:[/] {value.EscapeMarkup()}");
+            AnsiConsole.MarkupLine($"[dim]Refers to: {result.RefersTo.EscapeMarkup()}[/]");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
     }
 
     public int Create(string[] args)
     {
-        if (!ValidateArgs(args, 4, "param-create <file.xlsx> <param-name> <value-or-reference>")) return 1;
-        if (!File.Exists(args[1]))
+        if (args.Length < 4)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
+            AnsiConsole.MarkupLine("[red]Usage:[/] param-create <file.xlsx> <param-name> <reference>");
+            AnsiConsole.MarkupLine("[yellow]Example:[/] param-create data.xlsx MyParam Sheet1!A1");
             return 1;
         }
 
+        var filePath = args[1];
         var paramName = args[2];
-        var valueOrRef = args[3];
+        var reference = args[3];
 
-        return WithExcel(args[1], true, (excel, workbook) =>
+        var result = _coreCommands.Create(filePath, paramName, reference);
+        
+        if (result.Success)
         {
-            try
-            {
-                // Check if parameter already exists
-                dynamic? existingName = FindName(workbook, paramName);
-                if (existingName != null)
-                {
-                    AnsiConsole.MarkupLine($"[red]Error:[/] Parameter '{paramName}' already exists");
-                    return 1;
-                }
-
-                // Create new named range
-                dynamic names = workbook.Names;
-                names.Add(paramName, valueOrRef);
-
-                workbook.Save();
-                AnsiConsole.MarkupLine($"[green]✓[/] Created parameter '{paramName}' = '{valueOrRef.EscapeMarkup()}'");
-                return 0;
-            }
-            catch (Exception ex)
-            {
-                AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
-                return 1;
-            }
-        });
+            AnsiConsole.MarkupLine($"[green]✓[/] Created parameter '{paramName.EscapeMarkup()}' -> {reference.EscapeMarkup()}");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
     }
 
     public int Delete(string[] args)
     {
-        if (!ValidateArgs(args, 3, "param-delete <file.xlsx> <param-name>")) return 1;
-        if (!File.Exists(args[1]))
+        if (args.Length < 3)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
+            AnsiConsole.MarkupLine("[red]Usage:[/] param-delete <file.xlsx> <param-name>");
             return 1;
         }
 
+        var filePath = args[1];
         var paramName = args[2];
 
-        return WithExcel(args[1], true, (excel, workbook) =>
+        var result = _coreCommands.Delete(filePath, paramName);
+        
+        if (result.Success)
         {
-            try
-            {
-                dynamic? nameObj = FindName(workbook, paramName);
-                if (nameObj == null)
-                {
-                    AnsiConsole.MarkupLine($"[red]Error:[/] Parameter '{paramName}' not found");
-                    return 1;
-                }
-
-                nameObj.Delete();
-                workbook.Save();
-                AnsiConsole.MarkupLine($"[green]✓[/] Deleted parameter '{paramName}'");
-                return 0;
-            }
-            catch (Exception ex)
-            {
-                AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
-                return 1;
-            }
-        });
+            AnsiConsole.MarkupLine($"[green]✓[/] Deleted parameter '{paramName.EscapeMarkup()}'");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
     }
 }
