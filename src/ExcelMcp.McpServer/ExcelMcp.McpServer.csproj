@@ -33,6 +33,9 @@
     <PublishSelfContained>true</PublishSelfContained>
     <PublishTrimmed>true</PublishTrimmed>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    
+    <!-- Package Validation -->
+    <EnablePackageValidation>true</EnablePackageValidation>
   </PropertyGroup>
 
   <ItemGroup>

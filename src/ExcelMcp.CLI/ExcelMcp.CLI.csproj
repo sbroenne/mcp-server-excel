@@ -24,6 +24,9 @@
     <PackageReleaseNotes>Initial open source release of ExcelMcp.CLI with complete CRUD operations</PackageReleaseNotes>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IsPublishable>true</IsPublishable>
+    
+    <!-- Package Validation -->
+    <EnablePackageValidation>true</EnablePackageValidation>
   </PropertyGroup>
 
   <ItemGroup>

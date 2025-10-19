@@ -24,6 +24,10 @@
     <WarningsAsErrors />
     <WarningsNotAsErrors>CA1416;CS8602;SYSLIB1045;IL2026;IL3050</WarningsNotAsErrors>
     
+    <!-- Deterministic builds for reproducibility -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    
     <!-- Code Analysis -->
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest</AnalysisLevel>
