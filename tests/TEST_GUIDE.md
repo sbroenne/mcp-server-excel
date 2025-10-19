@@ -129,7 +129,7 @@ dotnet test --filter "Speed!=Slow"
 
 ```text
 tests/
-├── ExcelMcp.Tests/
+├── ExcelMcp.CLI.Tests/
 │   ├── UnitTests.cs                     # [Unit, Fast] - No Excel required
 │   └── Commands/
 │       ├── FileCommandsTests.cs        # [Integration, Medium, Files] - Excel file operations
@@ -137,6 +137,8 @@ tests/
 │       ├── ScriptCommandsTests.cs      # [Integration, Medium, VBA] - VBA script operations
 │       ├── SheetCommandsTests.cs       # [Integration, Medium, Worksheets] - Sheet operations
 │       └── IntegrationRoundTripTests.cs # [RoundTrip, Slow, EndToEnd] - Complex workflows
+├── ExcelMcp.McpServer.Tests/
+│   └── [MCP Server specific tests]
 ```
 
 ## Test Organization in Test Explorer

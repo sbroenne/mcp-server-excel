@@ -105,7 +105,7 @@ Create macro-enabled workbooks with create-empty "file.xlsm" for VBA support
 
 ### Context-Aware Code Generation
 
-When working with ExcelCLI, provide context to Copilot:
+When working with Sbroenne.ExcelMcp, provide context to Copilot:
 
 ```text
 I'm working with ExcelMcp.CLI to process Excel files. 
@@ -169,7 +169,7 @@ Copilot can suggest best practices:
 ```text
 What are the best practices for using ExcelMcp in CI/CD pipelines?
 How should I structure ExcelMcp.CLI commands for maintainable automation scripts?
-What error handling patterns should I use with ExcelCLI?
+What error handling patterns should I use with Sbroenne.ExcelMcp?
 ```
 
 ## Integration with Other Tools

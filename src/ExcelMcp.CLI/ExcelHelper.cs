@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using Spectre.Console;
 
-namespace ExcelMcp;
+namespace Sbroenne.ExcelMcp.CLI;
 
 /// <summary>
 /// Helper class for Excel COM automation with proper resource management

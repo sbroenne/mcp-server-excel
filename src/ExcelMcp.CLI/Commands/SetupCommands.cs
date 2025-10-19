@@ -1,9 +1,9 @@
 using Spectre.Console;
 using Microsoft.Win32;
 using System;
-using static ExcelMcp.ExcelHelper;
+using static Sbroenne.ExcelMcp.CLI.ExcelHelper;
 
-namespace ExcelMcp.Commands;
+namespace Sbroenne.ExcelMcp.CLI.Commands;
 
 /// <summary>
 /// Setup and configuration commands for ExcelCLI

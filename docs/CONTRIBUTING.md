@@ -1,6 +1,6 @@
 # Contributing to ExcelMcp
 
-Thank you for your interest in contributing to ExcelCLI! This project is designed to be extended by the community, especially to support coding agents like GitHub Copilot.
+Thank you for your interest in contributing to Sbroenne.ExcelMcp! This project is designed to be extended by the community, especially to support coding agents like GitHub Copilot.
 
 ## 🎯 Project Vision
 
@@ -270,4 +270,4 @@ Great feature requests include:
 
 ---
 
-Thank you for contributing to ExcelCLI! Together we're making Excel automation more accessible to coding agents and developers worldwide. 🚀
+Thank you for contributing to Sbroenne.ExcelMcp! Together we're making Excel automation more accessible to coding agents and developers worldwide. 🚀

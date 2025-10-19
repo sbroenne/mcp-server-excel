@@ -1,7 +1,7 @@
 using Spectre.Console;
-using static ExcelMcp.ExcelHelper;
+using static Sbroenne.ExcelMcp.CLI.ExcelHelper;
 
-namespace ExcelMcp.Commands;
+namespace Sbroenne.ExcelMcp.CLI.Commands;
 
 /// <summary>
 /// Power Query management commands implementation

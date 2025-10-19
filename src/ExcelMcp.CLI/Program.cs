@@ -1,5 +1,5 @@
 using Spectre.Console;
-using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.CLI.Commands;
 using System.Reflection;
 
 namespace Sbroenne.ExcelMcp.CLI;
@@ -11,7 +11,7 @@ class Program
         // Set console encoding for better international character support
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         
-        AnsiConsole.Write(new FigletText("ExcelCLI").Color(Color.Blue));
+        AnsiConsole.Write(new FigletText("ExcelMcp").Color(Color.Blue));
         AnsiConsole.MarkupLine("[dim]Excel Command Line Interface for Coding Agents[/]\n");
 
         if (args.Length == 0)
@@ -187,12 +187,12 @@ class Program
         var informationalVersion = System.Reflection.Assembly.GetExecutingAssembly()
             .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? version?.ToString() ?? "Unknown";
             
-        AnsiConsole.MarkupLine($"[bold cyan]ExcelCLI[/] [green]v{informationalVersion}[/]");
+        AnsiConsole.MarkupLine($"[bold cyan]ExcelMcp.CLI[/] [green]v{informationalVersion}[/]");
         AnsiConsole.MarkupLine("[dim]Excel Command Line Interface for Coding Agents[/]");
         AnsiConsole.MarkupLine($"[dim]Runtime: {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}[/]");
         AnsiConsole.MarkupLine($"[dim]Platform: {System.Runtime.InteropServices.RuntimeInformation.OSDescription}[/]");
         AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("[bold]Repository:[/] https://github.com/sbroenne/ExcelCLI");
+        AnsiConsole.MarkupLine("[bold]Repository:[/] https://github.com/sbroenne/mcp-server-excel");
         AnsiConsole.MarkupLine("[bold]License:[/] MIT");
         
         return 0;
@@ -200,10 +200,10 @@ class Program
 
     static int ShowHelp()
     {
-        AnsiConsole.Write(new Rule("[bold cyan]ExcelCLI - Excel Command Line Interface for Coding Agents[/]").RuleStyle("grey"));
+        AnsiConsole.Write(new Rule("[bold cyan]ExcelMcp.CLI - Excel Command Line Interface for Coding Agents[/]").RuleStyle("grey"));
         AnsiConsole.WriteLine();
         
-        AnsiConsole.MarkupLine("[bold]Usage:[/] ExcelCLI command args");
+        AnsiConsole.MarkupLine("[bold]Usage:[/] excelcli command args");
         AnsiConsole.WriteLine();
         
         AnsiConsole.MarkupLine("[bold yellow]File Commands:[/]");
@@ -263,19 +263,19 @@ class Program
         AnsiConsole.WriteLine();
         
         AnsiConsole.MarkupLine("[bold green]Examples:[/]");
-        AnsiConsole.MarkupLine("  [dim]ExcelCLI setup-vba-trust[/]                    [dim]# Enable VBA for testing[/]");
-        AnsiConsole.MarkupLine("  [dim]ExcelCLI check-vba-trust \"test.xlsm\"[/]         [dim]# Check VBA access[/]");
-        AnsiConsole.MarkupLine("  [dim]ExcelCLI create-empty \"Plan.xlsm\"[/]            [dim]# Create macro-enabled workbook[/]");
-        AnsiConsole.MarkupLine("  [dim]ExcelCLI script-import \"Plan.xlsm\" \"Helper\" \"code.vba\"[/]");
-        AnsiConsole.MarkupLine("  [dim]ExcelCLI pq-list \"Plan.xlsx\"[/]");
-        AnsiConsole.MarkupLine("  [dim]ExcelCLI pq-view \"Plan.xlsx\" \"Milestones\"[/]");
-        AnsiConsole.MarkupLine("  [dim]ExcelCLI pq-import \"Plan.xlsx\" \"fnHelper\" \"function.pq\"[/]");
-        AnsiConsole.MarkupLine("  [dim]ExcelCLI sheet-read \"Plan.xlsx\" \"Data\" \"A1:D10\"[/]");
-        AnsiConsole.MarkupLine("  [dim]ExcelCLI param-set \"Plan.xlsx\" \"Start_Date\" \"2025-01-01\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli setup-vba-trust[/]                    [dim]# Enable VBA for testing[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli check-vba-trust \"test.xlsm\"[/]         [dim]# Check VBA access[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli create-empty \"Plan.xlsm\"[/]            [dim]# Create macro-enabled workbook[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli script-import \"Plan.xlsm\" \"Helper\" \"code.vba\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli pq-list \"Plan.xlsx\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli pq-view \"Plan.xlsx\" \"Milestones\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli pq-import \"Plan.xlsx\" \"fnHelper\" \"function.pq\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli sheet-read \"Plan.xlsx\" \"Data\" \"A1:D10\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli param-set \"Plan.xlsx\" \"Start_Date\" \"2025-01-01\"[/]");
         AnsiConsole.WriteLine();
         
-        AnsiConsole.MarkupLine("[bold]Requirements:[/] Windows + Excel + .NET 8.0");
-        AnsiConsole.MarkupLine("[bold]License:[/] MIT | [bold]Repository:[/] https://github.com/sbroenne/ExcelCLI");
+        AnsiConsole.MarkupLine("[bold]Requirements:[/] Windows + Excel + .NET 10.0");
+        AnsiConsole.MarkupLine("[bold]License:[/] MIT | [bold]Repository:[/] https://github.com/sbroenne/mcp-server-excel");
         
         return 0;
     }

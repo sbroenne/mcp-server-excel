@@ -10,7 +10,7 @@ We currently support the following versions of ExcelMcp with security updates:
 
 ## Reporting a Vulnerability
 
-We take security seriously. If you discover a security vulnerability in ExcelCLI, please report it responsibly.
+We take security seriously. If you discover a security vulnerability in Sbroenne.ExcelMcp, please report it responsibly.
 
 ### How to Report
 

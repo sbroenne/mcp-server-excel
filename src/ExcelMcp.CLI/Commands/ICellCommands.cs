@@ -1,4 +1,4 @@
-namespace ExcelMcp.Commands;
+namespace Sbroenne.ExcelMcp.CLI.Commands;
 
 /// <summary>
 /// Individual cell operation commands
