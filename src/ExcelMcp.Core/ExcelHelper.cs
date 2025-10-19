@@ -9,6 +9,14 @@ namespace Sbroenne.ExcelMcp.Core;
 /// </summary>
 public static class ExcelHelper
 {
+    /// <summary>
+    /// Executes an action with Excel COM automation using proper resource management
+    /// </summary>
+    /// <typeparam name="T">Return type of the action</typeparam>
+    /// <param name="filePath">Path to the Excel file</param>
+    /// <param name="save">Whether to save changes to the file</param>
+    /// <param name="action">Action to execute with Excel application and workbook</param>
+    /// <returns>Result of the action</returns>
     [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
     public static T WithExcel<T>(string filePath, bool save, Func<dynamic, dynamic, T> action)
     {
@@ -159,6 +167,12 @@ public static class ExcelHelper
         }
     }
 
+    /// <summary>
+    /// Finds a Power Query by name in the workbook
+    /// </summary>
+    /// <param name="workbook">Excel workbook COM object</param>
+    /// <param name="queryName">Name of the query to find</param>
+    /// <returns>The query COM object if found, null otherwise</returns>
     public static dynamic? FindQuery(dynamic workbook, string queryName)
     {
         try
@@ -175,6 +189,12 @@ public static class ExcelHelper
         return null;
     }
 
+    /// <summary>
+    /// Finds a named range by name in the workbook
+    /// </summary>
+    /// <param name="workbook">Excel workbook COM object</param>
+    /// <param name="name">Name of the named range to find</param>
+    /// <returns>The named range COM object if found, null otherwise</returns>
     public static dynamic? FindName(dynamic workbook, string name)
     {
         try
@@ -191,6 +211,12 @@ public static class ExcelHelper
         return null;
     }
 
+    /// <summary>
+    /// Finds a worksheet by name in the workbook
+    /// </summary>
+    /// <param name="workbook">Excel workbook COM object</param>
+    /// <param name="sheetName">Name of the worksheet to find</param>
+    /// <returns>The worksheet COM object if found, null otherwise</returns>
     public static dynamic? FindSheet(dynamic workbook, string sheetName)
     {
         try
@@ -207,6 +233,13 @@ public static class ExcelHelper
         return null;
     }
 
+    /// <summary>
+    /// Validates command line arguments and displays usage if invalid
+    /// </summary>
+    /// <param name="args">Command line arguments array</param>
+    /// <param name="required">Required number of arguments</param>
+    /// <param name="usage">Usage string to display if validation fails</param>
+    /// <returns>True if arguments are valid, false otherwise</returns>
     public static bool ValidateArgs(string[] args, int required, string usage)
     {
         if (args.Length >= required) return true;

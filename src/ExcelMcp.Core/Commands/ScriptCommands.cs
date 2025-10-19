@@ -72,6 +72,7 @@ public class ScriptCommands : IScriptCommands
         return true;
     }
 
+    /// <inheritdoc />
     public int List(string[] args)
     {
         if (args.Length < 2)
@@ -154,6 +155,7 @@ public class ScriptCommands : IScriptCommands
         });
     }
 
+    /// <inheritdoc />
     public int Export(string[] args)
     {
         if (args.Length < 3)
@@ -223,6 +225,7 @@ public class ScriptCommands : IScriptCommands
         });
     }
 
+    /// <inheritdoc />
     public int Run(string[] args)
     {
         if (args.Length < 3)

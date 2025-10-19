@@ -9,6 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 public class SheetCommands : ISheetCommands
 {
+    /// <inheritdoc />
     public int List(string[] args)
     {
         if (!ValidateArgs(args, 2, "sheet-list <file.xlsx>")) return 1;
@@ -67,6 +68,7 @@ public class SheetCommands : ISheetCommands
         });
     }
 
+    /// <inheritdoc />
     public int Read(string[] args)
     {
         if (!ValidateArgs(args, 3, "sheet-read <file.xlsx> <sheet-name> [range]")) return 1;
@@ -349,6 +351,7 @@ public class SheetCommands : ISheetCommands
         return d[s1.Length, s2.Length];
     }
 
+    /// <inheritdoc />
     public async Task<int> Write(string[] args)
     {
         if (!ValidateArgs(args, 4, "sheet-write <file.xlsx> <sheet-name> <data.csv>")) return 1;
@@ -419,6 +422,7 @@ public class SheetCommands : ISheetCommands
         });
     }
 
+    /// <inheritdoc />
     public int Copy(string[] args)
     {
         if (!ValidateArgs(args, 4, "sheet-copy <file.xlsx> <source-sheet> <new-sheet>")) return 1;
@@ -458,6 +462,7 @@ public class SheetCommands : ISheetCommands
         });
     }
 
+    /// <inheritdoc />
     public int Delete(string[] args)
     {
         if (!ValidateArgs(args, 3, "sheet-delete <file.xlsx> <sheet-name>")) return 1;
@@ -492,6 +497,7 @@ public class SheetCommands : ISheetCommands
         });
     }
 
+    /// <inheritdoc />
     public int Create(string[] args)
     {
         if (!ValidateArgs(args, 3, "sheet-create <file.xlsx> <sheet-name>")) return 1;
@@ -532,6 +538,7 @@ public class SheetCommands : ISheetCommands
         });
     }
 
+    /// <inheritdoc />
     public int Rename(string[] args)
     {
         if (!ValidateArgs(args, 4, "sheet-rename <file.xlsx> <old-name> <new-name>")) return 1;
@@ -576,6 +583,7 @@ public class SheetCommands : ISheetCommands
         });
     }
 
+    /// <inheritdoc />
     public int Clear(string[] args)
     {
         if (!ValidateArgs(args, 3, "sheet-clear <file.xlsx> <sheet-name> (range)")) return 1;
@@ -614,6 +622,7 @@ public class SheetCommands : ISheetCommands
         });
     }
 
+    /// <inheritdoc />
     public int Append(string[] args)
     {
         if (!ValidateArgs(args, 4, "sheet-append <file.xlsx> <sheet-name> <data-file.csv>")) return 1;

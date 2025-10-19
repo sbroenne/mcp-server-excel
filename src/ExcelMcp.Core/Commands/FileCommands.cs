@@ -8,6 +8,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 public class FileCommands : IFileCommands
 {
+    /// <inheritdoc />
     public int CreateEmpty(string[] args)
     {
         if (!ValidateArgs(args, 2, "create-empty <file.xlsx|file.xlsm>")) return 1;
