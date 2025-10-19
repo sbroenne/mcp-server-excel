@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
   "name": "io.github.sbroenne/mcp-server-excel",
   "description": "MCP server for Excel automation - Power Query refactoring, VBA enhancement, Excel development",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "title": "Excel MCP Server",
   "websiteUrl": "https://github.com/sbroenne/mcp-server-excel",
   "repository": {
@@ -15,7 +15,7 @@
       "registryType": "nuget",
       "registryBaseUrl": "https://api.nuget.org",
       "identifier": "Sbroenne.ExcelMcp.McpServer",
-      "version": "2.0.0",
+      "version": "1.0.0",
       "runtimeHint": "dnx",
       "transport": {
         "type": "stdio"
@@ -25,8 +25,14 @@
           "type": "positional",
           "value": "--yes"
         }
+      ],
+      "environmentVariables": [
+        {
+          "name": "EXCEL_PATH", 
+          "description": "Path to Excel installation (optional - auto-detected)",
+          "isRequired": false
+        }
       ]
-      
     }
   ],
   "_meta": {

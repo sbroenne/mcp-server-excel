@@ -2,6 +2,10 @@ using Sbroenne.ExcelMcp.Core.Commands;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
 using System.Text.Json;
+using System.Reflection;
+using System.Diagnostics.CodeAnalysis;
+
+#pragma warning disable IL2070 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' requirements
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -10,6 +14,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// Provides 6 resource-based tools for comprehensive Excel operations.
 /// </summary>
 [McpServerToolType]
+[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
 public static class ExcelTools
 {
     #region File Operations
@@ -171,27 +176,60 @@ public static class ExcelTools
         if (!string.IsNullOrEmpty(arg1)) args.Add(arg1);
         if (!string.IsNullOrEmpty(arg2)) args.Add(arg2);
 
-        var methodInfo = typeof(PowerQueryCommands).GetMethod(method);
+        var methodInfo = typeof(PowerQueryCommands).GetMethod(method, BindingFlags.Public | BindingFlags.Instance);
         if (methodInfo == null)
         {
             return JsonSerializer.Serialize(new { error = $"Method {method} not found" });
         }
 
-        var result = (int)methodInfo.Invoke(commands, new object[] { args.ToArray() })!;
-        if (result == 0)
+        try
         {
-            return JsonSerializer.Serialize(new
+            var invokeResult = methodInfo.Invoke(commands, new object[] { args.ToArray() });
+            
+            int result;
+            
+            // Handle async methods that return Task<int>
+            if (invokeResult is Task<int> taskResult)
             {
-                success = true,
-                action = method.ToLowerInvariant(),
-                filePath
-            });
+                result = taskResult.GetAwaiter().GetResult();
+            }
+            // Handle sync methods that return int
+            else if (invokeResult is int intResult)
+            {
+                result = intResult;
+            }
+            else
+            {
+                return JsonSerializer.Serialize(new 
+                { 
+                    error = $"Unexpected return type from method {method}: {invokeResult?.GetType().Name ?? "null"}" 
+                });
+            }
+
+            if (result == 0)
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    action = method.ToLowerInvariant(),
+                    filePath
+                });
+            }
+            else
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    error = "Operation failed",
+                    action = method.ToLowerInvariant(),
+                    filePath
+                });
+            }
         }
-        else
+        catch (Exception ex)
         {
             return JsonSerializer.Serialize(new
             {
-                error = "Operation failed",
+                error = ex.InnerException?.Message ?? ex.Message,
                 action = method.ToLowerInvariant(),
                 filePath
             });
@@ -250,7 +288,7 @@ public static class ExcelTools
         if (!string.IsNullOrEmpty(arg1)) args.Add(arg1);
         if (!string.IsNullOrEmpty(arg2)) args.Add(arg2);
 
-        var methodInfo = typeof(SheetCommands).GetMethod(method);
+        var methodInfo = typeof(SheetCommands).GetMethod(method, BindingFlags.Public | BindingFlags.Instance);
         if (methodInfo == null)
         {
             return JsonSerializer.Serialize(new { error = $"Method {method} not found" });
@@ -324,7 +362,7 @@ public static class ExcelTools
         if (!string.IsNullOrEmpty(arg1)) args.Add(arg1);
         if (!string.IsNullOrEmpty(arg2)) args.Add(arg2);
 
-        var methodInfo = typeof(ParameterCommands).GetMethod(method);
+        var methodInfo = typeof(ParameterCommands).GetMethod(method, BindingFlags.Public | BindingFlags.Instance);
         if (methodInfo == null)
         {
             return JsonSerializer.Serialize(new { error = $"Method {method} not found" });
@@ -398,7 +436,7 @@ public static class ExcelTools
         var args = new List<string> { $"cell-{method.ToKebabCase()}", filePath, sheetName, cellAddress };
         if (!string.IsNullOrEmpty(valueOrFormula)) args.Add(valueOrFormula);
 
-        var methodInfo = typeof(CellCommands).GetMethod(method);
+        var methodInfo = typeof(CellCommands).GetMethod(method, BindingFlags.Public | BindingFlags.Instance);
         if (methodInfo == null)
         {
             return JsonSerializer.Serialize(new { error = $"Method {method} not found" });
@@ -476,7 +514,7 @@ public static class ExcelTools
     private static string ExecuteSetupCommand(SetupCommands commands, string method)
     {
         var args = new[] { method.ToKebabCase() };
-        var methodInfo = typeof(SetupCommands).GetMethod(method);
+        var methodInfo = typeof(SetupCommands).GetMethod(method, BindingFlags.Public | BindingFlags.Instance);
         if (methodInfo == null)
         {
             return JsonSerializer.Serialize(new { error = $"Method {method} not found" });
@@ -507,7 +545,7 @@ public static class ExcelTools
         if (!string.IsNullOrEmpty(arg1)) args.Add(arg1);
         if (!string.IsNullOrEmpty(arg2)) args.Add(arg2);
 
-        var methodInfo = typeof(ScriptCommands).GetMethod(method);
+        var methodInfo = typeof(ScriptCommands).GetMethod(method, BindingFlags.Public | BindingFlags.Instance);
         if (methodInfo == null)
         {
             return JsonSerializer.Serialize(new { error = $"Method {method} not found" });
