@@ -1,3 +1,5 @@
+using Sbroenne.ExcelMcp.Core.Models;
+
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
@@ -8,63 +10,45 @@ public interface ISheetCommands
     /// <summary>
     /// Lists all worksheets in the workbook
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int List(string[] args);
+    WorksheetListResult List(string filePath);
     
     /// <summary>
     /// Reads data from a worksheet range
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, sheetName, range]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int Read(string[] args);
+    WorksheetDataResult Read(string filePath, string sheetName, string range);
     
     /// <summary>
     /// Writes CSV data to a worksheet
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, sheetName, csvFile]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    Task<int> Write(string[] args);
+    OperationResult Write(string filePath, string sheetName, string csvData);
     
     /// <summary>
-    /// Copies a worksheet within the workbook
+    /// Creates a new worksheet
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, sourceSheet, targetSheet]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int Copy(string[] args);
+    OperationResult Create(string filePath, string sheetName);
     
     /// <summary>
-    /// Deletes a worksheet from the workbook
+    /// Renames a worksheet
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, sheetName]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int Delete(string[] args);
+    OperationResult Rename(string filePath, string oldName, string newName);
     
     /// <summary>
-    /// Creates a new worksheet in the workbook
+    /// Copies a worksheet
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, sheetName]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int Create(string[] args);
+    OperationResult Copy(string filePath, string sourceName, string targetName);
     
     /// <summary>
-    /// Renames an existing worksheet
+    /// Deletes a worksheet
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, oldName, newName]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int Rename(string[] args);
+    OperationResult Delete(string filePath, string sheetName);
     
     /// <summary>
     /// Clears data from a worksheet range
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, sheetName, range]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int Clear(string[] args);
+    OperationResult Clear(string filePath, string sheetName, string range);
     
     /// <summary>
-    /// Appends CSV data to existing worksheet content
+    /// Appends CSV data to a worksheet
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, sheetName, csvFile]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int Append(string[] args);
+    OperationResult Append(string filePath, string sheetName, string csvData);
 }

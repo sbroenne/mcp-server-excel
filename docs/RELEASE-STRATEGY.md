@@ -31,7 +31,7 @@ This document outlines the separate build and release processes for the ExcelMcp
 ### 2. CLI Releases (`cli-v*` tags)
 
 **Workflow**: `.github/workflows/release-cli.yml`
-**Trigger**: Tags starting with `cli-v` (e.g., `cli-v2.0.0`)
+**Trigger**: Tags starting with `cli-v` (e.g., `cli-v1.0.0`)
 
 **Features**:
 

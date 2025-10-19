@@ -9,8 +9,8 @@
     <IsTestProject>true</IsTestProject>
     
     <!-- Assembly and Namespace Configuration -->
-    <AssemblyName>Sbroenne.ExcelMcp.CLI.Tests</AssemblyName>
-    <RootNamespace>Sbroenne.ExcelMcp.CLI.Tests</RootNamespace>
+    <AssemblyName>Sbroenne.ExcelMcp.Core.Tests</AssemblyName>
+    <RootNamespace>Sbroenne.ExcelMcp.Core.Tests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,7 +27,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj" />
     <ProjectReference Include="..\..\src\ExcelMcp.Core\ExcelMcp.Core.csproj" />
   </ItemGroup>
 

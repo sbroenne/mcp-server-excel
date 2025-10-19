@@ -1,3 +1,5 @@
+using Sbroenne.ExcelMcp.Core.Models;
+
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
@@ -8,35 +10,25 @@ public interface IParameterCommands
     /// <summary>
     /// Lists all named ranges in the workbook
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int List(string[] args);
+    ParameterListResult List(string filePath);
     
     /// <summary>
     /// Sets the value of a named range
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, paramName, value]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int Set(string[] args);
+    OperationResult Set(string filePath, string paramName, string value);
     
     /// <summary>
     /// Gets the value of a named range
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, paramName]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int Get(string[] args);
+    ParameterValueResult Get(string filePath, string paramName);
     
     /// <summary>
     /// Creates a new named range
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, paramName, reference]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int Create(string[] args);
+    OperationResult Create(string filePath, string paramName, string reference);
     
     /// <summary>
     /// Deletes a named range
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsx, paramName]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int Delete(string[] args);
+    OperationResult Delete(string filePath, string paramName);
 }

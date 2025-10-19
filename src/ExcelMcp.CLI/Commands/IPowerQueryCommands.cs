@@ -14,4 +14,8 @@ public interface IPowerQueryCommands
     int Errors(string[] args);
     int LoadTo(string[] args);
     int Delete(string[] args);
+    int Sources(string[] args);
+    int Test(string[] args);
+    int Peek(string[] args);
+    int Eval(string[] args);
 }

@@ -24,7 +24,7 @@ Complete installation guide for the ExcelMcp CLI tool for direct Excel automatio
 
    ```powershell
    # Extract to your preferred location
-   Expand-Archive -Path "ExcelMcp-CLI-2.0.0-windows.zip" -DestinationPath "C:\Tools\ExcelMcp-CLI"
+   Expand-Archive -Path "ExcelMcp-CLI-1.0.0-windows.zip" -DestinationPath "C:\Tools\ExcelMcp-CLI"
    
    # Add to PATH (optional but recommended)
    $env:PATH += ";C:\Tools\ExcelMcp-CLI"
