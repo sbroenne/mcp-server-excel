@@ -1,8 +1,8 @@
 using Spectre.Console;
-using ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Commands;
 using System.Reflection;
 
-namespace ExcelMcp;
+namespace Sbroenne.ExcelMcp.CLI;
 
 class Program
 {

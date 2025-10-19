@@ -1,0 +1,78 @@
+name: Build MCP Server
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'src/ExcelMcp.McpServer/**'
+      - 'src/ExcelMcp.Core/**'
+      - 'tests/ExcelMcp.McpServer.Tests/**'
+      - 'global.json'
+      - 'Directory.Build.props'
+      - 'Directory.Packages.props'
+      - '.github/workflows/build-mcp-server.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/ExcelMcp.McpServer/**'
+      - 'src/ExcelMcp.Core/**'
+      - 'tests/ExcelMcp.McpServer.Tests/**'
+      - 'global.json'
+      - 'Directory.Build.props'
+      - 'Directory.Packages.props'
+      - '.github/workflows/build-mcp-server.yml'
+
+jobs:
+  build-mcp-server:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+        
+    - name: Restore dependencies
+      run: dotnet restore src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
+      
+    - name: Build MCP Server
+      run: dotnet build src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --no-restore --configuration Release
+      
+    - name: Verify MCP Server build
+      run: |
+        # Check MCP Server executable
+        if (Test-Path "src/ExcelMcp.McpServer/bin/Release/net10.0/ExcelMcp.McpServer.exe") {
+          Write-Output "✅ ExcelMcp.McpServer.exe built successfully"
+          $mcpVersion = (Get-Item "src/ExcelMcp.McpServer/bin/Release/net10.0/ExcelMcp.McpServer.exe").VersionInfo.FileVersion
+          Write-Output "📦 MCP Server Version: $mcpVersion"
+          
+          # Check for MCP server.json configuration
+          if (Test-Path "src/ExcelMcp.McpServer/bin/Release/net10.0/.mcp/server.json") {
+            Write-Output "✅ MCP server.json configuration found"
+          } else {
+            Write-Warning "⚠️ MCP server.json configuration not found"
+          }
+        } else {
+          Write-Error "❌ ExcelMcp.McpServer.exe not found"
+          exit 1
+        }
+        
+        Write-Output "🧠 MCP Server ready for AI assistant integration"
+      shell: pwsh
+      
+    - name: Test MCP Server (requires Excel)
+      run: |
+        Write-Output "ℹ️ Note: MCP Server tests skipped in CI - they require Microsoft Excel"
+        Write-Output "   Run 'dotnet test tests/ExcelMcp.McpServer.Tests/' locally with Excel installed"
+      shell: pwsh
+        
+    - name: Upload MCP Server build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ExcelMcp-MCP-Server-${{ github.sha }}
+        path: src/ExcelMcp.McpServer/bin/Release/net10.0/

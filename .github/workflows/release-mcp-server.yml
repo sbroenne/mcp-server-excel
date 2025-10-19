@@ -1,0 +1,164 @@
+name: Release MCP Server
+
+on:
+  push:
+    tags:
+      - 'mcp-v*'
+
+jobs:
+  release-mcp-server:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      packages: write
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+        
+    - name: Update MCP Server Version
+      run: |
+        $tagName = "${{ github.ref_name }}"
+        $version = $tagName -replace '^mcp-v', ''
+        
+        Write-Output "Updating MCP Server to version $version"
+        
+        # Update MCP Server project version
+        $mcpCsprojPath = "src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj"
+        $mcpContent = Get-Content $mcpCsprojPath -Raw
+        $mcpContent = $mcpContent -replace '<Version>[\d\.]+</Version>', "<Version>$version</Version>"
+        $mcpContent = $mcpContent -replace '<AssemblyVersion>[\d\.]+\.[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
+        $mcpContent = $mcpContent -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
+        Set-Content $mcpCsprojPath $mcpContent
+        
+        Write-Output "Updated MCP Server version to $version"
+        
+        # Set environment variable for later steps
+        echo "PACKAGE_VERSION=$version" >> $env:GITHUB_ENV
+      shell: pwsh
+        
+    - name: Restore dependencies
+      run: dotnet restore src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
+      
+    - name: Build MCP Server
+      run: dotnet build src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-restore
+      
+    - name: Run MCP Server Tests
+      run: dotnet test --filter "Category=Unit&Feature=McpServer" --configuration Release --no-build
+      
+    - name: Pack NuGet Package
+      run: dotnet pack src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-build --output ./nupkg
+      
+    - name: Create MCP Server Release Package
+      run: |
+        $version = $env:PACKAGE_VERSION
+        
+        # Create release directory structure
+        New-Item -ItemType Directory -Path "release" -Force
+        New-Item -ItemType Directory -Path "release/ExcelMcp-MCP-Server-$version" -Force
+        
+        # Copy MCP Server files
+        Copy-Item "src/ExcelMcp.McpServer/bin/Release/net10.0/*" "release/ExcelMcp-MCP-Server-$version/" -Recurse
+        
+        # Copy documentation
+        Copy-Item "README.md" "release/ExcelMcp-MCP-Server-$version/"
+        Copy-Item "LICENSE" "release/ExcelMcp-MCP-Server-$version/"
+        Copy-Item "src/ExcelMcp.McpServer/README.md" "release/ExcelMcp-MCP-Server-$version/MCP-SERVER-README.md"
+        
+        # Create installation README with proper content
+        $readmeContent = "# ExcelMcp MCP Server v$version`n`n"
+        $readmeContent += "## Quick Start`n`n"
+        $readmeContent += "### Option 1: Install as .NET Tool (Recommended)`n"
+        $readmeContent += "``````powershell`n"
+        $readmeContent += "# Install globally`n"
+        $readmeContent += "dotnet tool install --global Sbroenne.ExcelMcp.McpServer --version $version`n`n"
+        $readmeContent += "# Run MCP server`n"
+        $readmeContent += "mcp-excel`n`n"
+        $readmeContent += "# Update`n"
+        $readmeContent += "dotnet tool update --global Sbroenne.ExcelMcp.McpServer`n"
+        $readmeContent += "``````n`n"
+        $readmeContent += "### Option 2: Run from Binary`n"
+        $readmeContent += "``````powershell`n"
+        $readmeContent += "dotnet ExcelMcp.McpServer.dll`n"
+        $readmeContent += "``````n`n"
+        $readmeContent += "## Features`n`n"
+        $readmeContent += "- AI Assistant Integration - Native MCP protocol support`n"
+        $readmeContent += "- Conversational Interface - Natural language Excel operations`n"
+        $readmeContent += "- 6 Resource-Based Tools - Structured API for AI assistants`n"
+        $readmeContent += "- Excel Development Focus - Power Query, VBA, worksheets`n`n"
+        $readmeContent += "## Requirements`n`n"
+        $readmeContent += "- Windows OS with Microsoft Excel installed`n"
+        $readmeContent += "- .NET 8.0 runtime`n"
+        $readmeContent += "- Excel 2016+ (for COM interop)`n`n"
+        $readmeContent += "## License`n`n"
+        $readmeContent += "MIT License - see LICENSE file for details.`n"
+        
+        Set-Content "release/ExcelMcp-MCP-Server-$version/README.md" $readmeContent
+        
+        # Create ZIP
+        Compress-Archive -Path "release/ExcelMcp-MCP-Server-$version/*" -DestinationPath "ExcelMcp-MCP-Server-$version-windows.zip"
+        
+        Write-Output "Created ExcelMcp-MCP-Server-$version-windows.zip"
+      shell: pwsh
+      
+    - name: Publish to NuGet
+      run: |
+        $nupkgFiles = Get-ChildItem -Path "./nupkg" -Filter "*.nupkg"
+        foreach ($nupkg in $nupkgFiles) {
+          Write-Output "Publishing $($nupkg.Name) to NuGet..."
+          dotnet nuget push $nupkg.FullName --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        }
+      shell: pwsh
+      
+    - name: Create GitHub Release
+      run: |
+        $tagName = "${{ github.ref_name }}"
+        $version = $env:PACKAGE_VERSION
+        
+        # Create release notes
+        $releaseNotes = "## ExcelMcp MCP Server $tagName`n`n"
+        $releaseNotes += "### MCP Server for AI-Powered Excel Development`n`n"
+        $releaseNotes += "The Model Context Protocol (MCP) Server enables AI assistants like GitHub Copilot, Claude, and ChatGPT to perform Excel development tasks through conversational interfaces.`n`n"
+        $releaseNotes += "### Key Features`n"
+        $releaseNotes += "- Native AI Integration - Built for GitHub Copilot and AI assistants`n"
+        $releaseNotes += "- Conversational Excel - Natural language Excel operations`n"
+        $releaseNotes += "- Resource-Based API - 6 structured tools instead of 40+ commands`n"
+        $releaseNotes += "- Development Focus - Power Query refactoring, VBA enhancement, code review`n"
+        $releaseNotes += "- Smart Context - AI understands Excel development workflows`n`n"
+        $releaseNotes += "### Installation`n`n"
+        $releaseNotes += "**Option 1: .NET Tool (Recommended)**`n"
+        $releaseNotes += "``````powershell`n"
+        $releaseNotes += "dotnet tool install --global ExcelMcp.McpServer --version $version`n"
+        $releaseNotes += "mcp-excel`n"
+        $releaseNotes += "``````n`n"
+        $releaseNotes += "**Option 2: Download Binary**`n"
+        $releaseNotes += "1. Download ExcelMcp-MCP-Server-$version-windows.zip`n"
+        $releaseNotes += "2. Extract and run: dotnet ExcelMcp.McpServer.dll`n`n"
+        $releaseNotes += "### MCP Tools Available`n"
+        $releaseNotes += "- excel_file - File management (create, validate, check-exists)`n"
+        $releaseNotes += "- excel_powerquery - Power Query operations (list, view, import, export, update, refresh, delete)`n"
+        $releaseNotes += "- excel_worksheet - Worksheet operations (list, read, write, create, rename, copy, delete, clear, append)`n"
+        $releaseNotes += "- excel_parameter - Named range management (list, get, set, create, delete)`n"
+        $releaseNotes += "- excel_cell - Cell operations (get-value, set-value, get-formula, set-formula)`n"
+        $releaseNotes += "- excel_vba - VBA script management (list, export, import, update, run, delete)`n`n"
+        $releaseNotes += "### Requirements`n"
+        $releaseNotes += "- Windows OS with Microsoft Excel installed`n"
+        $releaseNotes += "- .NET 8.0 runtime`n"
+        $releaseNotes += "- Excel 2016+ (for COM interop)`n`n"
+        $releaseNotes += "### Documentation`n"
+        $releaseNotes += "- Configuration Guide: See README.md in package`n"
+        $releaseNotes += "- GitHub Repository: https://github.com/sbroenne/mcp-server-excel`n"
+        $releaseNotes += "- MCP Server Details: src/ExcelMcp.McpServer/README.md`n"
+        
+        # Create the release
+        gh release create "$tagName" "ExcelMcp-MCP-Server-$version-windows.zip" --title "ExcelMcp MCP Server $tagName" --notes $releaseNotes
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
+      shell: pwsh

@@ -2,10 +2,10 @@
 
 [![Build](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build.yml/badge.svg)](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/sbroenne/mcp-server-excel)](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-[![NuGet](https://img.shields.io/nuget/v/ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/ExcelMcp.McpServer)
+[![NuGet](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
 [![Downloads](https://img.shields.io/github/downloads/sbroenne/mcp-server-excel/total)](https://github.com/sbroenne/mcp-server-excel/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![.NET](https://img.shields.io/badge/.NET-8.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
+[![.NET](https://img.shields.io/badge/.NET-10.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/sbroenne/mcp-server-excel)
 [![Built with Copilot](https://img.shields.io/badge/Built%20with-GitHub%20Copilot-0366d6.svg)](https://copilot.github.com/)
 
@@ -28,17 +28,20 @@ A **Model Context Protocol (MCP) server** that enables **AI assistants** like Gi
 ### Install MCP Server as .NET Tool (Recommended)
 
 ```powershell
+# Install .NET 10 SDK first
+winget install Microsoft.DotNet.SDK.10
+
 # Install globally as .NET tool
-dotnet tool install --global ExcelMcp.McpServer
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 # Run MCP server
 mcp-excel
 
 # Update to latest version
-dotnet tool update --global ExcelMcp.McpServer
+dotnet tool update --global Sbroenne.ExcelMcp.McpServer
 
 # Uninstall
-dotnet tool uninstall --global ExcelMcp.McpServer
+dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
 ```
 
 ### Configure with AI Assistants

@@ -3,7 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
-namespace ExcelMcp.McpServer;
+namespace Sbroenne.ExcelMcp.McpServer;
 
 /// <summary>
 /// ExcelCLI Model Context Protocol (MCP) Server

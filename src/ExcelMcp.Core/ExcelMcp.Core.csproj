@@ -1,14 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     
     <!-- Package Information -->
-    <PackageId>ExcelMcp.Core</PackageId>
-    <Description>Core library for Excel automation operations via COM interop. Shared by ExcelMcp and ExcelMcp.McpServer.</Description>
-    <PackageTags>excel;automation;com;powerquery;vba;core;mcp</PackageTags>
+    <PackageId>Sbroenne.ExcelMcp.Core</PackageId>
+    <Description>Core library for Excel automation operations via COM interop by Sbroenne. Shared by ExcelMcp and ExcelMcp.McpServer.</Description>
+    <PackageTags>excel;automation;com;powerquery;vba;core;mcp;sbroenne</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

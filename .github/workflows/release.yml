@@ -1,4 +1,4 @@
-name: Release
+name: Release Combined
 
 on:
   push:
@@ -27,7 +27,7 @@ jobs:
         $version = $tagName -replace '^v', ''
         
         # Update main CLI project version
-        $csprojPath = "src/ExcelMcp/ExcelMcp.csproj"
+        $csprojPath = "src/ExcelMcp.CLI/ExcelMcp.CLI.csproj"
         $content = Get-Content $csprojPath -Raw
         $content = $content -replace '<Version>[\d\.]+</Version>', "<Version>$version</Version>"
         $content = $content -replace '<AssemblyVersion>[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
@@ -71,11 +71,11 @@ jobs:
         New-Item -ItemType Directory -Path "release/ExcelMcp-$version/MCP-Server" -Force
         
         # Copy CLI files
-        Copy-Item "src/ExcelMcp/bin/Release/net8.0/ExcelMcp.exe" "release/ExcelMcp-$version/CLI/"
-        Copy-Item "src/ExcelMcp/bin/Release/net8.0/ExcelMcp.dll" "release/ExcelMcp-$version/CLI/"
-        Copy-Item "src/ExcelMcp/bin/Release/net8.0/ExcelMcp.Core.dll" "release/ExcelMcp-$version/CLI/"
-        Copy-Item "src/ExcelMcp/bin/Release/net8.0/ExcelMcp.runtimeconfig.json" "release/ExcelMcp-$version/CLI/"
-        Copy-Item "src/ExcelMcp/bin/Release/net8.0/Spectre.Console.dll" "release/ExcelMcp-$version/CLI/"
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/ExcelMcp.CLI.exe" "release/ExcelMcp-$version/CLI/"
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/ExcelMcp.CLI.dll" "release/ExcelMcp-$version/CLI/"
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/ExcelMcp.Core.dll" "release/ExcelMcp-$version/CLI/"
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/ExcelMcp.CLI.runtimeconfig.json" "release/ExcelMcp-$version/CLI/"
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/Spectre.Console.dll" "release/ExcelMcp-$version/CLI/"
         
         # Copy MCP Server files
         Copy-Item "src/ExcelMcp.McpServer/bin/Release/net8.0/*" "release/ExcelMcp-$version/MCP-Server/" -Recurse
@@ -87,7 +87,7 @@ jobs:
         Copy-Item "src/ExcelMcp.McpServer/README.md" "release/ExcelMcp-$version/MCP-Server-README.md"
         
         # Create installation README
-        $installReadme = "# ExcelMcp v$version`n`n## CLI Tools`nLocation: CLI/`nUsage: ExcelMcp.exe --help`n`n## MCP Server`nLocation: MCP-Server/`nUsage: dotnet MCP-Server/ExcelMcp.McpServer.dll`n`nSee README.md and MCP-Server-README.md for complete documentation."
+        $installReadme = "# ExcelMcp v$version`n`n## CLI Tools`nLocation: CLI/`nUsage: ExcelMcp.CLI.exe --help`n`n## MCP Server`nLocation: MCP-Server/`nUsage: dotnet MCP-Server/ExcelMcp.McpServer.dll`n`nSee README.md and MCP-Server-README.md for complete documentation."
         Set-Content "release/ExcelMcp-$version/INSTALL.md" $installReadme
         
         # Create ZIP
@@ -131,10 +131,10 @@ jobs:
         
         ### 💻 CLI Usage
         ``````
-        CLI/ExcelMcp.exe --version
-        CLI/ExcelMcp.exe pq-list "workbook.xlsx"
-        CLI/ExcelMcp.exe pq-view "workbook.xlsx" "QueryName"
-        CLI/ExcelMcp.exe sheet-read "workbook.xlsx" "Sheet1" "A1:D10"
+        CLI/ExcelMcp.CLI.exe --version
+        CLI/ExcelMcp.CLI.exe pq-list "workbook.xlsx"
+        CLI/ExcelMcp.CLI.exe pq-view "workbook.xlsx" "QueryName"
+        CLI/ExcelMcp.CLI.exe sheet-read "workbook.xlsx" "Sheet1" "A1:D10"
         ``````
         
         ### 🧠 MCP Server Usage  
