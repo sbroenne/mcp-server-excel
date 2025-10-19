@@ -1299,6 +1299,242 @@ When extending excelcli with Copilot:
 - Practical GitHub Copilot integration examples essential for adoption
 - Resource-based architecture must be explained vs granular approach
 
+## 🔧 **CRITICAL: GitHub Workflows Configuration Management**
+
+### **Keep Workflows in Sync with Project Configuration**
+
+**ALWAYS update GitHub workflows when making configuration changes.** This prevents build and deployment failures.
+
+#### **Configuration Points That Require Workflow Updates**
+
+When making ANY of these changes, you MUST update all relevant workflows:
+
+1. **.NET SDK Version Changes**
+   ```yaml
+   # If you change global.json or .csproj target frameworks:
+   # UPDATE ALL workflows that use actions/setup-dotnet@v4
+   
+   - name: Setup .NET
+     uses: actions/setup-dotnet@v4
+     with:
+       dotnet-version: 10.0.x  # ⚠️ MUST match global.json and project files
+   ```
+   
+   **Files to check:**
+   - `.github/workflows/build-cli.yml`
+   - `.github/workflows/build-mcp-server.yml`
+   - `.github/workflows/release-cli.yml`
+   - `.github/workflows/release-mcp-server.yml`
+   - `.github/workflows/codeql.yml`
+   - `.github/workflows/publish-nuget.yml`
+
+2. **Assembly/Package Name Changes**
+   ```yaml
+   # If you change AssemblyName or PackageId in .csproj:
+   # UPDATE ALL workflow references to executables and packages
+   
+   # Example: Build verification
+   if (Test-Path "src/ExcelMcp.McpServer/bin/Release/net10.0/Sbroenne.ExcelMcp.McpServer.exe")
+   
+   # Example: NuGet package operations
+   $packagePath = "nupkg/Sbroenne.ExcelMcp.McpServer.$version.nupkg"
+   dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+   ```
+   
+   **Files to check:**
+   - `.github/workflows/build-mcp-server.yml` - Executable name checks
+   - `.github/workflows/publish-nuget.yml` - Package names
+   - `.github/workflows/release-mcp-server.yml` - Installation instructions
+   - `.github/workflows/release-cli.yml` - DLL references
+
+3. **Runtime Requirements Documentation**
+   ```powershell
+   # If you change target framework (net8.0 → net10.0):
+   # UPDATE ALL release notes that mention runtime requirements
+   
+   $releaseNotes += "- .NET 10.0 runtime`n"  # ⚠️ MUST match project target
+   ```
+   
+   **Files to check:**
+   - `.github/workflows/release-cli.yml` - Quick start and release notes
+   - `.github/workflows/release-mcp-server.yml` - Installation requirements
+
+4. **Project Structure Changes**
+   ```yaml
+   # If you rename projects or move directories:
+   # UPDATE path filters and build commands
+   
+   paths:
+     - 'src/ExcelMcp.CLI/**'  # ⚠️ MUST match actual directory structure
+   
+   run: dotnet build src/ExcelMcp.CLI/ExcelMcp.CLI.csproj  # ⚠️ MUST be valid path
+   ```
+
+### **Workflow Validation Checklist**
+
+Before committing configuration changes, run this validation:
+
+```powershell
+# 1. Check .NET version consistency
+$globalJsonVersion = (Get-Content global.json | ConvertFrom-Json).sdk.version
+$workflowVersions = Select-String -Path .github/workflows/*.yml -Pattern "dotnet-version:" -Context 0,0
+Write-Output "global.json: $globalJsonVersion"
+Write-Output "Workflows:"
+$workflowVersions
+
+# 2. Check assembly names match
+$assemblyNames = Select-String -Path src/**/*.csproj -Pattern "<AssemblyName>(.*)</AssemblyName>"
+$workflowExeRefs = Select-String -Path .github/workflows/*.yml -Pattern "\.exe" -Context 1,0
+Write-Output "Assembly Names in .csproj:"
+$assemblyNames
+Write-Output "Executable references in workflows:"
+$workflowExeRefs
+
+# 3. Check package IDs match
+$packageIds = Select-String -Path src/**/*.csproj -Pattern "<PackageId>(.*)</PackageId>"
+$workflowPkgRefs = Select-String -Path .github/workflows/*.yml -Pattern "\.nupkg|tool install" -Context 1,0
+Write-Output "Package IDs in .csproj:"
+$packageIds
+Write-Output "Package references in workflows:"
+$workflowPkgRefs
+```
+
+### **Automated Workflow Validation (Future Enhancement)**
+
+Create `.github/scripts/validate-workflows.ps1`:
+
+```powershell
+#!/usr/bin/env pwsh
+# Validates workflow configurations match project files
+
+param(
+    [switch]$Fix  # Auto-fix issues if possible
+)
+
+$errors = @()
+
+# Check .NET versions
+$globalJson = Get-Content global.json | ConvertFrom-Json
+$expectedVersion = $globalJson.sdk.version -replace '^\d+\.(\d+)\..*', '$1.0.x'
+
+$workflows = Get-ChildItem .github/workflows/*.yml
+foreach ($workflow in $workflows) {
+    $content = Get-Content $workflow.FullName -Raw
+    if ($content -match 'dotnet-version:\s*(\d+\.\d+\.x)') {
+        $workflowVersion = $Matches[1]
+        if ($workflowVersion -ne $expectedVersion) {
+            $errors += "❌ $($workflow.Name): Uses .NET $workflowVersion but should be $expectedVersion"
+        }
+    }
+}
+
+# Check assembly names
+$projects = Get-ChildItem src/**/*.csproj
+foreach ($project in $projects) {
+    [xml]$csproj = Get-Content $project.FullName
+    $assemblyName = $csproj.Project.PropertyGroup.AssemblyName
+    
+    if ($assemblyName) {
+        # Check if workflows reference this assembly
+        $exeName = "$assemblyName.exe"
+        $workflowRefs = Select-String -Path .github/workflows/*.yml -Pattern $exeName -Quiet
+        
+        if (-not $workflowRefs -and $project.Name -match "McpServer") {
+            $errors += "⚠️ Assembly $assemblyName not found in workflows"
+        }
+    }
+}
+
+# Report results
+if ($errors.Count -eq 0) {
+    Write-Output "✅ All workflow configurations are valid!"
+    exit 0
+} else {
+    Write-Output "❌ Found $($errors.Count) workflow configuration issues:"
+    $errors | ForEach-Object { Write-Output "  $_" }
+    exit 1
+}
+```
+
+### **When to Run Validation**
+
+Run workflow validation:
+- ✅ Before creating PR with configuration changes
+- ✅ After upgrading .NET SDK version
+- ✅ After renaming projects or assemblies
+- ✅ After changing package IDs or branding
+- ✅ As part of pre-commit hooks (recommended)
+
+### **Common Workflow Configuration Mistakes to Prevent**
+
+❌ **Don't:**
+- Change .NET version in code without updating workflows
+- Rename assemblies without updating executable checks
+- Change package IDs without updating install commands
+- Update target frameworks without updating runtime requirements
+- Assume workflows will "just work" after configuration changes
+
+✅ **Always:**
+- Update ALL affected workflows when changing configuration
+- Validate executable names match AssemblyName properties
+- Verify package IDs match PackageId properties
+- Keep runtime requirement docs in sync with target frameworks
+- Test workflows locally with `act` or similar tools before pushing
+
+### **Workflow Update Template**
+
+When making configuration changes, use this checklist:
+
+```markdown
+## Configuration Change: [Brief Description]
+
+### Changes Made:
+- [ ] Updated global.json/.csproj files
+- [ ] Updated all workflow .NET versions
+- [ ] Updated executable name references
+- [ ] Updated package ID references
+- [ ] Updated runtime requirement documentation
+- [ ] Tested workflow locally (if possible)
+- [ ] Verified all path filters still match
+- [ ] Updated this checklist in PR description
+
+### Workflows Reviewed:
+- [ ] build-cli.yml
+- [ ] build-mcp-server.yml
+- [ ] release-cli.yml
+- [ ] release-mcp-server.yml
+- [ ] codeql.yml
+- [ ] publish-nuget.yml
+- [ ] dependency-review.yml (if applicable)
+```
+
+### **Integration with CI/CD**
+
+Add workflow validation to CI pipeline:
+
+```yaml
+# .github/workflows/validate-config.yml
+name: Validate Configuration
+
+on:
+  pull_request:
+    paths:
+      - 'src/**/*.csproj'
+      - 'global.json'
+      - 'Directory.*.props'
+      - '.github/workflows/**'
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Validate Workflows
+      run: .github/scripts/validate-workflows.ps1
+      shell: pwsh
+```
+
 ## �🚨 **CRITICAL: Development Workflow Requirements**
 
 ### **All Changes Must Use Pull Requests**
