@@ -51,4 +51,24 @@ public interface IPowerQueryCommands
     /// Deletes a Power Query from the workbook
     /// </summary>
     OperationResult Delete(string filePath, string queryName);
+    
+    /// <summary>
+    /// Lists available data sources (Excel.CurrentWorkbook() sources)
+    /// </summary>
+    WorksheetListResult Sources(string filePath);
+    
+    /// <summary>
+    /// Tests connectivity to a Power Query data source
+    /// </summary>
+    OperationResult Test(string filePath, string sourceName);
+    
+    /// <summary>
+    /// Previews sample data from a Power Query data source
+    /// </summary>
+    WorksheetDataResult Peek(string filePath, string sourceName);
+    
+    /// <summary>
+    /// Evaluates M code expressions interactively
+    /// </summary>
+    PowerQueryViewResult Eval(string filePath, string mExpression);
 }
