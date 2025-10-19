@@ -20,6 +20,7 @@
     <PackageId>Sbroenne.ExcelMcp.CLI</PackageId>
     <Description>A command-line interface tool for automating Microsoft Excel operations using COM interop by Sbroenne. Designed for coding agents like GitHub Copilot to programmatically manage Excel workbooks, Power Query queries, worksheets, and named ranges.</Description>
     <PackageTags>excel;cli;powerquery;automation;com;coding-agent;github-copilot;mcp;sbroenne</PackageTags>
+    <PackageReadmeFile>CLI.md</PackageReadmeFile>
     <PackageReleaseNotes>Initial open source release of ExcelMcp.CLI with complete CRUD operations</PackageReleaseNotes>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IsPublishable>true</IsPublishable>
@@ -35,6 +36,7 @@
 
   <ItemGroup>
     <None Include="..\..\LICENSE" Pack="true" PackagePath="" />
+    <None Include="..\..\docs\CLI.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>

@@ -60,11 +60,11 @@ jobs:
         New-Item -ItemType Directory -Path "release/ExcelMcp-CLI-$version" -Force
         
         # Copy CLI files
-        Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/Sbroenne.ExcelMcp.CLI.exe" "release/ExcelMcp-CLI-$version/"
-        Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/ExcelMcp.CLI.dll" "release/ExcelMcp-CLI-$version/"
-        Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/ExcelMcp.Core.dll" "release/ExcelMcp-CLI-$version/"
-        Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/ExcelMcp.CLI.runtimeconfig.json" "release/ExcelMcp-CLI-$version/"
-        Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/*.dll" "release/ExcelMcp-CLI-$version/" -Exclude "ExcelMcp.CLI.dll", "ExcelMcp.Core.dll"
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net10.0/Sbroenne.ExcelMcp.CLI.exe" "release/ExcelMcp-CLI-$version/"
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net10.0/Sbroenne.ExcelMcp.CLI.dll" "release/ExcelMcp-CLI-$version/"
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net10.0/Sbroenne.ExcelMcp.Core.dll" "release/ExcelMcp-CLI-$version/"
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net10.0/Sbroenne.ExcelMcp.CLI.runtimeconfig.json" "release/ExcelMcp-CLI-$version/"
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net10.0/*.dll" "release/ExcelMcp-CLI-$version/" -Exclude "Sbroenne.ExcelMcp.CLI.dll", "Sbroenne.ExcelMcp.Core.dll"
         
         # Copy documentation
         Copy-Item "docs/CLI.md" "release/ExcelMcp-CLI-$version/README.md"

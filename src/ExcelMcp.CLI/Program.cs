@@ -274,7 +274,7 @@ class Program
         AnsiConsole.MarkupLine("  [dim]ExcelMcp.CLI param-set \"Plan.xlsx\" \"Start_Date\" \"2025-01-01\"[/]");
         AnsiConsole.WriteLine();
         
-        AnsiConsole.MarkupLine("[bold]Requirements:[/] Windows + Excel + .NET 8.0");
+        AnsiConsole.MarkupLine("[bold]Requirements:[/] Windows + Excel + .NET 10.0");
         AnsiConsole.MarkupLine("[bold]License:[/] MIT | [bold]Repository:[/] https://github.com/sbroenne/mcp-server-excel");
         
         return 0;
