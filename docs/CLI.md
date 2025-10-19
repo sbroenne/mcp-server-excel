@@ -18,7 +18,7 @@ A comprehensive command-line interface tool for **Excel development workflows** 
 
 ```powershell
 # Download from https://github.com/sbroenne/mcp-server-excel/releases
-# Extract ExcelCLI-1.0.3-windows.zip to C:\Tools\ExcelMcp.CLI
+# Extract Sbroenne.ExcelMcp.CLI-{version}-windows.zip to C:\Tools\ExcelMcp.CLI
 
 # Add to PATH (optional)
 $env:PATH += ";C:\Tools\ExcelMcp.CLI"
