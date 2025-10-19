@@ -49,8 +49,12 @@ jobs:
     - name: Build MCP Server
       run: dotnet build src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-restore
       
-    - name: Run MCP Server Tests
-      run: dotnet test --filter "Category=Unit&Feature=McpServer" --configuration Release --no-build
+    - name: Skip MCP Server Tests (requires Excel)
+      run: |
+        Write-Output "ℹ️ Note: MCP Server tests skipped in CI - they require Microsoft Excel"
+        Write-Output "   All MCP Server tests are Integration tests that need Excel COM interop"
+        Write-Output "   Run 'dotnet test tests/ExcelMcp.McpServer.Tests/' locally with Excel installed"
+      shell: pwsh
       
     - name: Pack NuGet Package
       run: dotnet pack src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-build --output ./nupkg

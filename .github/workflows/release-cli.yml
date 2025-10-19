@@ -48,8 +48,8 @@ jobs:
     - name: Build CLI
       run: dotnet build src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-restore
       
-    - name: Run CLI Tests
-      run: dotnet test --filter "Category=Unit&Feature=CLI" --configuration Release --no-build
+    - name: Run CLI Tests (Unit only - no Excel required)
+      run: dotnet test tests/ExcelMcp.CLI.Tests --filter "Category=Unit" --configuration Release --no-build
       
     - name: Create CLI Release Package
       run: |

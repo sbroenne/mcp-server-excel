@@ -25,7 +25,8 @@ jobs:
           fail-on-severity: moderate
           
           # Fail if GPL/AGPL/LGPL licenses detected (stricter than MIT)
-          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0, LGPL-2.1, LGPL-3.0
+          license-check: true
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD
           
           # Comment on PR with summary
           comment-summary-in-pr: always

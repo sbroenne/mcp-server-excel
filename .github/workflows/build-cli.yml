@@ -51,12 +51,14 @@ jobs:
           $version = (Get-Item "src/ExcelMcp.CLI/bin/Release/net10.0/excelcli.exe").VersionInfo.FileVersion
           Write-Output "Version: $version"
           
-          # Test CLI help command
+          # Test CLI help command (safe - no Excel COM required)
           $helpOutput = & "src/ExcelMcp.CLI/bin/Release/net10.0/excelcli.exe" --help
-          if ($helpOutput -match "ExcelMcp.CLI - Excel Command Line Interface") {
+          if ($helpOutput -match "Excel Command Line Interface") {
             Write-Output "✅ CLI help command working"
+            Write-Output "📋 Help output preview: $($helpOutput | Select-Object -First 3 | Out-String)"
           } else {
             Write-Warning "⚠️ CLI help command may have issues"
+            Write-Output "Help output: $($helpOutput | Select-Object -First 5 | Out-String)"
           }
         } else {
           Write-Error "❌ excelcli.exe not found"
