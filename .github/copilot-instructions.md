@@ -1196,6 +1196,37 @@ When Copilot suggests code, verify:
 - ✅ **NEW**: Implements proper dispose pattern with `GC.SuppressFinalize()`
 - ✅ **NEW**: Adheres to enforced code quality rules
 - ✅ **NEW**: Validates file sizes and prevents resource exhaustion
+- ✅ **CRITICAL**: Updates `server.json` when modifying MCP Server tools/actions
+
+### MCP Server Configuration Synchronization
+
+**ALWAYS update `src/ExcelMcp.McpServer/.mcp/server.json` when:**
+
+- Adding new MCP tools (new `[McpServerTool]` methods)
+- Adding actions to existing tools (new case statements)
+- Changing tool parameters or schemas
+- Modifying tool descriptions or capabilities
+
+**Example synchronization:**
+```csharp
+// When adding this to Tools/ExcelTools.cs
+case "validate":
+    return ValidateWorkbook(filePath);
+```
+
+```json
+// Must add to server.json tools array
+{
+  "name": "excel_file",
+  "inputSchema": {
+    "properties": {
+      "action": {
+        "enum": ["create-empty", "validate", "check-exists"]  // ← Add "validate"
+      }
+    }
+  }
+}
+```
 
 ### Testing Strategy (Updated)
 

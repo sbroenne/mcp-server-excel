@@ -37,7 +37,20 @@ jobs:
         $mcpContent = $mcpContent -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
         Set-Content $mcpCsprojPath $mcpContent
         
-        Write-Output "Updated MCP Server version to $version"
+        # Update MCP Server configuration
+        $serverJsonPath = "src/ExcelMcp.McpServer/.mcp/server.json"
+        $serverContent = Get-Content $serverJsonPath -Raw
+        
+        # Update main version field (near top of file, not in _meta section)
+        $serverContent = $serverContent -replace '(\s*"version":\s*)"[\d\.]+"(\s*,\s*\n\s*"title")' , "`$1`"$version`"`$2"
+        
+        # Update package version in packages array (specifically after identifier field)
+        $serverContent = $serverContent -replace '("identifier":\s*"Sbroenne\.ExcelMcp\.McpServer",\s*\n\s*"version":\s*)"[\d\.]+"', "`$1`"$version`""
+        
+        Set-Content $serverJsonPath $serverContent
+        
+        Write-Output "Updated MCP Server project version to $version"
+        Write-Output "Updated MCP Server configuration version to $version"
         
         # Set environment variable for later steps
         echo "PACKAGE_VERSION=$version" >> $env:GITHUB_ENV

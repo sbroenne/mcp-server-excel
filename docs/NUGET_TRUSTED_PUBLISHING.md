@@ -98,7 +98,7 @@ Once the package exists on NuGet.org:
    - Sign in with your Microsoft account
 
 2. **Navigate to Package Management**
-   - Go to <https://www.nuget.org/packages/ExcelMcp.McpServer/manage>
+   - Go to <https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer/manage>
    - Or: Find your package → Click "Manage Package"
 
 3. **Add Trusted Publisher**
@@ -113,7 +113,7 @@ Once the package exists on NuGet.org:
    |-------|-------|
    | **Publisher Type** | GitHub Actions |
    | **Owner** | `sbroenne` |
-   | **Repository** | `ExcelMcp` |
+   | **Repository** | `mcp-server-excel` |
    | **Workflow** | `publish-nuget.yml` |
    | **Environment** | *(leave empty)* |
 
@@ -170,7 +170,7 @@ jobs:
 1. Verify the package exists on NuGet.org
 2. Check trusted publisher configuration matches exactly:
    - Owner: `sbroenne`
-   - Repository: `ExcelMcp`
+   - Repository: `mcp-server-excel`
    - Workflow: `publish-nuget.yml`
 3. Ensure `id-token: write` permission is set in workflow
 
@@ -247,6 +247,98 @@ The OIDC token includes these claims that NuGet.org validates:
 
 If any claim doesn't match the trusted publisher configuration, authentication fails.
 
+## Alternative: Using API Key (Not Recommended)
+
+If you prefer using traditional API keys instead of trusted publishing, here are the instructions:
+
+### Step 1: Generate NuGet API Key
+
+1. **Sign in to NuGet.org**
+   - Go to <https://www.nuget.org>
+   - Sign in with your Microsoft account
+
+2. **Create API Key**
+   - Go to <https://www.nuget.org/account/apikeys>
+   - Click "Create" button
+   - Configure the API key:
+     - **Key Name**: `ExcelMcp GitHub Actions` (or similar descriptive name)
+     - **Expiration**: 365 days (maximum, but requires rotation)
+     - **Scopes**: Select "Push new packages and package versions"
+     - **Glob Pattern**: `Sbroenne.ExcelMcp.*` (to limit to your packages)
+
+3. **Copy API Key**
+   - Copy the generated API key immediately (you won't see it again)
+   - Store it securely for the next step
+
+### Step 2: Configure GitHub Repository Secret
+
+1. **Go to Repository Settings**
+   - Navigate to <https://github.com/sbroenne/mcp-server-excel/settings/secrets/actions>
+   - Or: Go to your repository → Settings → Secrets and variables → Actions
+
+2. **Add Repository Secret**
+   - Click "New repository secret"
+   - **Name**: `NUGET_API_KEY`
+   - **Secret**: Paste your API key from Step 1
+   - Click "Add secret"
+
+### Step 3: Update Workflow
+
+Modify `.github/workflows/publish-nuget.yml` to use the API key:
+
+```yaml
+jobs:
+  publish:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      # Remove: id-token: write  # Not needed for API key method
+    
+    steps:
+    # ... other steps remain the same ...
+    
+    - name: Publish to NuGet.org
+      run: |
+        $version = "${{ steps.version.outputs.version }}"
+        $packagePath = "nupkg/Sbroenne.ExcelMcp.McpServer.$version.nupkg"
+        
+        dotnet nuget push $packagePath `
+          --api-key ${{ secrets.NUGET_API_KEY }} `
+          --source https://api.nuget.org/v3/index.json `
+          --skip-duplicate
+      shell: pwsh
+```
+
+### Step 4: Test the Configuration
+
+1. Create a new release to trigger the workflow
+2. Verify the package publishes successfully
+3. Check that the secret is not exposed in workflow logs
+
+### Maintenance Requirements for API Key Method
+
+❌ **Regular Maintenance Required**:
+- API keys expire (maximum 365 days)
+- Need to regenerate and update secret annually
+- Monitor for key exposure or compromise
+- Rotate keys if repository access changes
+
+⚠️ **Security Considerations**:
+- API keys are long-lived secrets
+- If leaked, they remain valid until revoked
+- Stored in GitHub secrets (potential attack vector)
+- Manual rotation required
+
+### Why Trusted Publishing is Preferred
+
+| Aspect | Trusted Publishing | API Key |
+|--------|-------------------|---------|
+| **Security** | ✅ Short-lived OIDC tokens | ❌ Long-lived secrets |
+| **Maintenance** | ✅ Zero maintenance | ❌ Annual rotation required |
+| **Setup Complexity** | ⚠️ Requires initial package | ✅ Works immediately |
+| **Audit Trail** | ✅ Full workflow traceability | ⚠️ Limited to API key usage |
+| **Best Practice** | ✅ Microsoft/NuGet recommended | ❌ Legacy approach |
+
 ## References
 
 - [NuGet Trusted Publishing Documentation](https://learn.microsoft.com/en-us/nuget/nuget-org/publish-a-package#trust-based-publishing)
@@ -265,5 +357,5 @@ If you encounter issues:
 ---
 
 **Status**: ✅ Configured for trusted publishing  
-**Package**: <https://www.nuget.org/packages/ExcelMcp.McpServer>  
+**Package**: <https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer>  
 **Workflow**: `.github/workflows/publish-nuget.yml`

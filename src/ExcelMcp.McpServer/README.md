@@ -12,10 +12,7 @@ The ExcelMcp MCP Server provides AI assistants with powerful Excel automation ca
 
 ```bash
 # Download and execute using dnx command
-dnx Sbroenne.ExcelMcp.McpServer@latest --yes
-
-# Execute specific version
-dnx Sbroenne.ExcelMcp.McpServer@1.0.0 --yes
+dnx Sbroenne.ExcelMcp.McpServer --yes
 ```
 
 This follows Microsoft's official [NuGet MCP approach](https://learn.microsoft.com/en-us/nuget/concepts/nuget-mcp) where the `dnx` command automatically downloads and executes the MCP server from NuGet.org.
@@ -33,18 +30,20 @@ dotnet run --project src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
 ### Configuration with AI Assistants
 
 **For NuGet MCP Installation (dnx):**
+
 ```json
 {
   "servers": {
     "excel": {
       "command": "dnx",
-      "args": ["Sbroenne.ExcelMcp.McpServer@latest", "--yes"]
+      "args": ["Sbroenne.ExcelMcp.McpServer", "--yes"]
     }
   }
 }
 ```
 
 **For Source Build:**
+
 ```json
 {
   "servers": {
@@ -209,31 +208,6 @@ ExcelMcp.McpServer
 | **.NET 10 SDK** | Required for dnx command |
 | **ExcelMcp.Core** | Shared Excel automation logic |
 
-## 🎯 Benefits of Resource-Based Architecture  
-
-### For AI Assistants
-
-- **Reduced Tool Complexity** - 6 tools instead of 33+ individual operations
-- **REST-like Design** - Familiar action-based pattern (list, create, update, delete)
-- **Consistent Interface** - Same parameter structure across all tools
-- **Rich JSON Responses** - Structured success/error information with context
-- **Official SDK Integration** - Built on Microsoft's MCP SDK for reliability
-
-### For Excel Developers
-
-- **Code Refactoring** - "Refactor this Power Query" instead of manual M code editing
-- **VBA Development** - AI-assisted VBA coding, debugging, and optimization
-- **Power Query Optimization** - GitHub Copilot helps improve M code performance
-- **Error Handling Enhancement** - AI adds proper error handling patterns to VBA
-- **Code Review Assistance** - Analyze and improve existing Excel automation code
-
-### For MCP Developers
-
-- **Maintainable Codebase** - Resource-based design reduces code duplication
-- **Standard MCP Implementation** - Uses official SDK patterns and best practices  
-- **JSON Serialization** - Proper handling of Windows file paths and special characters
-- **Extensible Architecture** - Easy to add new actions to existing resources
-
 ## 🔍 Protocol Details
 
 ### MCP Protocol Implementation
@@ -302,26 +276,7 @@ Each tool follows a consistent action-based pattern:
 - **COM Object Management** - Proper resource cleanup
 - **Error Sanitization** - No sensitive information in error messages
 
-## 🔗 Integration Examples
-
-### Claude Desktop Configuration
-
-```json
-{
-  "mcpServers": {
-    "excel": {
-      "command": "dotnet",
-      "args": ["run", "--project", "C:\\Tools\\ExcelMcp\\src\\ExcelMcp.McpServer\\ExcelMcp.McpServer.csproj"]
-    }
-  }
-}
-```
-
-### GitHub Copilot Integration
-
-Add ExcelMcp MCP server to your GitHub Copilot Extensions configuration. The exact setup depends on your environment, but typically involves registering the MCP server endpoint.
-
-#### Development Workflow Examples with GitHub Copilot
+### Development Workflow Examples with GitHub Copilot
 
 **Refactoring Power Query M Code:**
 
@@ -386,9 +341,6 @@ Code review findings:
 - Add proper data type conversions early in the pipeline
 - Use Table.Buffer strategically for repeated operations
 ```
-
-
-The MCP server transforms ExcelMcp from a command-line tool into a **conversational Excel development platform** for AI-assisted coding!
 
 ## 📚 Documentation
 

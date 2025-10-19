@@ -132,7 +132,86 @@ dotnet build -c Release
 # Code follows style guidelines (automatic via EditorConfig)
 ```
 
-## 📝 **PR Template Checklist**
+## � **MCP Server Configuration Management**
+
+### **CRITICAL: Keep server.json in Sync**
+
+When modifying MCP Server functionality, **you must update** `src/ExcelMcp.McpServer/.mcp/server.json`:
+
+#### **When to Update server.json:**
+
+- ✅ **Adding new MCP tools** - Add tool definition to `"tools"` array
+- ✅ **Modifying tool parameters** - Update `inputSchema` and `properties`
+- ✅ **Changing tool descriptions** - Update `description` fields
+- ✅ **Adding new capabilities** - Update `"capabilities"` section
+- ✅ **Changing requirements** - Update `"environment"."requirements"`
+
+#### **server.json Synchronization Checklist:**
+
+```powershell
+# After making MCP Server code changes, verify:
+
+# 1. Tool definitions match actual implementations
+Compare-Object (Get-Content "src/ExcelMcp.McpServer/.mcp/server.json" | ConvertFrom-Json).tools (Get-ChildItem "src/ExcelMcp.McpServer/Tools/*.cs")
+
+# 2. Build succeeds with updated configuration
+dotnet build src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
+
+# 3. Test MCP server starts without errors
+dnx Sbroenne.ExcelMcp.McpServer --yes
+```
+
+#### **server.json Structure:**
+
+```json
+{
+  "version": "2.0.0",          // ← Updated by release workflow
+  "tools": [                   // ← Must match Tools/*.cs implementations
+    {
+      "name": "excel_file",    // ← Must match [McpServerTool] attribute
+      "description": "...",    // ← Keep description accurate
+      "inputSchema": {         // ← Must match method parameters
+        "properties": {
+          "action": { ... },   // ← Must match actual actions supported
+          "filePath": { ... }   // ← Must match parameter types
+        }
+      }
+    }
+  ]
+}
+```
+
+#### **Common server.json Update Scenarios:**
+
+1. **Adding New Tool:**
+   ```csharp
+   // In Tools/NewTool.cs
+   [McpServerTool]
+   public async Task<string> NewTool(string action, string parameter)
+   ```
+   ```json
+   // Add to server.json tools array
+   {
+     "name": "excel_newtool",
+     "description": "New functionality description",
+     "inputSchema": { ... }
+   }
+   ```
+
+2. **Adding Action to Existing Tool:**
+   ```csharp
+   // In existing tool method
+   case "new-action":
+     return HandleNewAction(parameter);
+   ```
+   ```json
+   // Update inputSchema properties.action enum
+   "action": {
+     "enum": ["list", "create", "new-action"]  // ← Add new action
+   }
+   ```
+
+## �📝 **PR Template Checklist**
 
 When creating a PR, verify:
 
@@ -140,6 +219,7 @@ When creating a PR, verify:
 - [ ] **All tests pass** (unit tests minimum)
 - [ ] **New features have tests**
 - [ ] **Documentation updated** (README, COMMANDS.md, etc.)
+- [ ] **MCP server.json updated** (if MCP Server changes) ← **NEW**
 - [ ] **Breaking changes documented**
 - [ ] **Follows existing code patterns**
 - [ ] **Commit messages are clear**

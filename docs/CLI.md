@@ -106,7 +106,6 @@ ExcelMcp.CLI provides 40+ commands across 6 categories:
 ## 🔗 Related Tools
 
 - **[ExcelMcp MCP Server](../README.md)** - Model Context Protocol server for AI assistant integration
-- **[GitHub Copilot Integration](COPILOT.md)** - AI-assisted Excel development workflows
 
 ## 📖 Documentation
 
@@ -114,7 +113,6 @@ ExcelMcp.CLI provides 40+ commands across 6 categories:
 |----------|-------------|
 | **[📋 Command Reference](COMMANDS.md)** | Complete reference for all 40+ ExcelMcp.CLI commands |
 | **[⚙️ Installation Guide](INSTALLATION.md)** | Building from source and installation options |
-| **[🤖 GitHub Copilot Integration](COPILOT.md)** | Using ExcelMcp.CLI with GitHub Copilot |
 | **[🔧 Development Workflow](DEVELOPMENT.md)** | Contributing guidelines and PR requirements |
 
 ## 🤝 Contributing

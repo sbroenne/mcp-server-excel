@@ -124,7 +124,7 @@ The MCP server is ideal for AI-assisted Excel development workflows:
 - Windows operating system
 - Microsoft Excel installed
 - .NET 10 runtime
-- MCP server running (via `dnx Sbroenne.ExcelMcp.McpServer@latest`)
+- MCP server running (via `dnx Sbroenne.ExcelMcp.McpServer`)
 - For VBA operations: VBA trust must be enabled
 
 ### Getting Started
@@ -135,7 +135,7 @@ The MCP server is ideal for AI-assisted Excel development workflows:
    winget install Microsoft.DotNet.SDK.10
    
    # Run MCP server
-   dnx Sbroenne.ExcelMcp.McpServer@latest --yes
+   dnx Sbroenne.ExcelMcp.McpServer --yes
    ```
 
 2. **Configure AI Assistant:**
