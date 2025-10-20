@@ -53,7 +53,21 @@ Trusted Publishing is a secure method for publishing packages to NuGet.org that 
 
 ## Initial Setup (Required)
 
-### Step 1: First Package Publish
+### Step 1: Configure GitHub Secret
+
+Add your NuGet.org username as a repository secret:
+
+1. **Go to Repository Settings**
+   - Navigate to <https://github.com/sbroenne/mcp-server-excel/settings/secrets/actions>
+   - Or: Go to your repository → Settings → Secrets and variables → Actions
+
+2. **Add Repository Secret**
+   - Click "New repository secret"
+   - **Name**: `NUGET_USER`
+   - **Secret**: Your NuGet.org username (profile name, **NOT your email address**)
+   - Click "Add secret"
+
+### Step 2: First Package Publish
 
 Trusted publishing requires the package to exist on NuGet.org before configuration. You need to publish version 1.0.0 (or any initial version) using an API key.
 
@@ -89,7 +103,7 @@ Trusted publishing requires the package to exist on NuGet.org before configurati
 3. Create and publish a release
 4. After successful publish, remove the `--api-key` parameter and delete the secret
 
-### Step 2: Configure Trusted Publisher on NuGet.org
+### Step 3: Configure Trusted Publisher on NuGet.org
 
 Once the package exists on NuGet.org:
 
@@ -114,7 +128,7 @@ Once the package exists on NuGet.org:
    | **Publisher Type** | GitHub Actions |
    | **Owner** | `sbroenne` |
    | **Repository** | `mcp-server-excel` |
-   | **Workflow** | `publish-nuget.yml` |
+   | **Workflow** | `release-mcp-server.yml` |
    | **Environment** | *(leave empty)* |
 
 5. **Save Configuration**
@@ -132,32 +146,39 @@ After configuration:
 
 ## Workflow Configuration
 
-The `.github/workflows/publish-nuget.yml` file is already configured for trusted publishing:
+The `.github/workflows/release-mcp-server.yml` file is already configured for trusted publishing:
 
 ```yaml
 jobs:
-  publish:
+  release-mcp-server:
     runs-on: windows-latest
     permissions:
-      contents: read
+      contents: write
       id-token: write  # Required for OIDC token generation
     
     steps:
     # ... build steps ...
     
-    - name: Publish to NuGet.org
+    - name: NuGet login (OIDC → temp API key)
+      uses: NuGet/login@v1
+      id: nuget-login
+      with:
+        user: ${{ secrets.NUGET_USER }}  # Your nuget.org username
+    
+    - name: Publish to NuGet.org (Trusted Publishing)
       run: |
-        dotnet nuget push $packagePath \
-          --source https://api.nuget.org/v3/index.json \
+        dotnet nuget push $packagePath `
+          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} `
+          --source https://api.nuget.org/v3/index.json `
           --skip-duplicate
-        # No --api-key parameter needed!
 ```
 
 ### Key Configuration Elements
 
 1. **Permission**: `id-token: write` - Required for GitHub to generate OIDC tokens
-2. **No API Key**: The `dotnet nuget push` command doesn't need `--api-key` parameter
-3. **Automatic**: The .NET CLI automatically uses OIDC authentication when available
+2. **NuGet Login Action**: `NuGet/login@v1` - Exchanges OIDC token for short-lived API key
+3. **Short-Lived API Key**: Automatically generated and expires after the workflow run
+4. **NUGET_USER Secret**: Your NuGet.org username (profile name, not email)
 
 ## Troubleshooting
 
@@ -180,7 +201,7 @@ jobs:
 
 **Solution**: Complete Step 1 (First Package Publish) using an API key
 
-### Error: "The workflow 'publish-nuget.yml' is not trusted"
+### Error: "The workflow 'release-mcp-server.yml' is not trusted"
 
 **Cause**: Workflow filename in trusted publisher config doesn't match
 
@@ -188,7 +209,7 @@ jobs:
 
 1. Check the exact workflow filename in `.github/workflows/`
 2. Update trusted publisher configuration if needed
-3. Configuration is case-sensitive
+3. Configuration is case-sensitive (use `release-mcp-server.yml`)
 
 ### Workflow Succeeds but Package Not Updated
 
@@ -356,6 +377,7 @@ If you encounter issues:
 
 ---
 
-**Status**: ✅ Configured for trusted publishing  
+**Status**: ✅ Workflow configured for trusted publishing  
+**Next Step**: Configure trusted publisher on NuGet.org (see Step 2 above)  
 **Package**: <https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer>  
-**Workflow**: `.github/workflows/publish-nuget.yml`
+**Workflow**: `.github/workflows/release-mcp-server.yml`

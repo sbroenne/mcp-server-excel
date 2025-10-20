@@ -40,9 +40,22 @@ public class ParameterCommands : IParameterCommands
                         
                         // Try to get value
                         object? value = null;
+                        string valueType = "null";
                         try
                         {
-                            value = nameObj.RefersToRange?.Value2;
+                            var rawValue = nameObj.RefersToRange?.Value2;
+                            
+                            // Convert 2D array to List<List<object?>> for JSON serialization
+                            if (rawValue is object[,] array2D)
+                            {
+                                value = ConvertArrayToList(array2D);
+                                valueType = "Array";
+                            }
+                            else
+                            {
+                                value = rawValue;
+                                valueType = rawValue?.GetType().Name ?? "null";
+                            }
                         }
                         catch { }
                         
@@ -51,7 +64,7 @@ public class ParameterCommands : IParameterCommands
                             Name = name,
                             RefersTo = refersTo,
                             Value = value,
-                            ValueType = value?.GetType().Name ?? "null"
+                            ValueType = valueType
                         });
                     }
                     catch { }
@@ -288,5 +301,31 @@ public class ParameterCommands : IParameterCommands
         catch { }
         
         return null;
+    }
+
+    /// <summary>
+    /// Converts a 2D array from Excel to a serializable List of Lists
+    /// </summary>
+    /// <param name="array2D">The 2D array from Excel (1-based indexing)</param>
+    /// <returns>List of Lists representation</returns>
+    private static List<List<object?>> ConvertArrayToList(object[,] array2D)
+    {
+        var result = new List<List<object?>>();
+        
+        // Excel arrays are 1-based, get the bounds
+        int rows = array2D.GetLength(0);
+        int cols = array2D.GetLength(1);
+        
+        for (int row = 1; row <= rows; row++)
+        {
+            var rowList = new List<object?>();
+            for (int col = 1; col <= cols; col++)
+            {
+                rowList.Add(array2D[row, col]);
+            }
+            result.Add(rowList);
+        }
+        
+        return result;
     }
 }

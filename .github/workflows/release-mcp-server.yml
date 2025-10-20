@@ -1,5 +1,19 @@
 name: Release MCP Server
 
+# This workflow uses NuGet Trusted Publishing via OIDC (OpenID Connect)
+# The NuGet/login action exchanges GitHub OIDC tokens for short-lived NuGet API keys
+# See: docs/NUGET_TRUSTED_PUBLISHING.md for setup instructions
+#
+# Required GitHub Secret:
+# - NUGET_USER: Your NuGet.org username (profile name, NOT email)
+#
+# Required NuGet.org Configuration:
+# - Package: Sbroenne.ExcelMcp.McpServer
+# - Trusted Publisher: GitHub Actions
+# - Owner: sbroenne
+# - Repository: mcp-server-excel
+# - Workflow: release-mcp-server.yml
+
 on:
   push:
     tags:
@@ -13,6 +27,7 @@ jobs:
       issues: write
       pull-requests: write
       packages: write
+      id-token: write  # Required for NuGet Trusted Publishing via OIDC
     
     steps:
     - uses: actions/checkout@v4
@@ -72,15 +87,21 @@ jobs:
     - name: Pack NuGet Package
       run: dotnet pack src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-build --output ./nupkg
       
-    - name: Publish to NuGet.org
+    - name: NuGet login (OIDC → temp API key)
+      uses: NuGet/login@v1
+      id: nuget-login
+      with:
+        user: ${{ secrets.NUGET_USER }}  # Your nuget.org username (profile name), NOT email
+    
+    - name: Publish to NuGet.org (Trusted Publishing)
       run: |
         $version = $env:PACKAGE_VERSION
         $packagePath = "nupkg/Sbroenne.ExcelMcp.McpServer.$version.nupkg"
         
-        Write-Output "Publishing $packagePath to NuGet.org..."
+        Write-Output "Publishing $packagePath to NuGet.org using Trusted Publishing (OIDC)..."
         
         dotnet nuget push $packagePath `
-          --api-key ${{ secrets.NUGET_API_KEY }} `
+          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} `
           --source https://api.nuget.org/v3/index.json `
           --skip-duplicate
         
