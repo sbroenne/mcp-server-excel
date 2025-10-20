@@ -20,7 +20,11 @@ public interface IPowerQueryCommands
     /// <summary>
     /// Updates an existing Power Query with new M code
     /// </summary>
-    Task<OperationResult> Update(string filePath, string queryName, string mCodeFile);
+    /// <param name="filePath">Excel file path</param>
+    /// <param name="queryName">Name of the query to update</param>
+    /// <param name="mCodeFile">Path to M code file</param>
+    /// <param name="privacyLevel">Optional privacy level for data combining. If not specified and privacy error occurs, operation returns PowerQueryPrivacyErrorResult for user to choose.</param>
+    Task<OperationResult> Update(string filePath, string queryName, string mCodeFile, PowerQueryPrivacyLevel? privacyLevel = null);
     
     /// <summary>
     /// Exports a Power Query's M code to a file
@@ -30,7 +34,11 @@ public interface IPowerQueryCommands
     /// <summary>
     /// Imports M code from a file to create a new Power Query
     /// </summary>
-    Task<OperationResult> Import(string filePath, string queryName, string mCodeFile);
+    /// <param name="filePath">Excel file path</param>
+    /// <param name="queryName">Name for the new query</param>
+    /// <param name="mCodeFile">Path to M code file</param>
+    /// <param name="privacyLevel">Optional privacy level for data combining. If not specified and privacy error occurs, operation returns PowerQueryPrivacyErrorResult for user to choose.</param>
+    Task<OperationResult> Import(string filePath, string queryName, string mCodeFile, PowerQueryPrivacyLevel? privacyLevel = null);
     
     /// <summary>
     /// Refreshes a Power Query to update its data
@@ -55,17 +63,28 @@ public interface IPowerQueryCommands
     /// <summary>
     /// Sets a Power Query to Load to Table mode (data loaded to worksheet)  
     /// </summary>
-    OperationResult SetLoadToTable(string filePath, string queryName, string sheetName);
+    /// <param name="filePath">Excel file path</param>
+    /// <param name="queryName">Name of the query</param>
+    /// <param name="sheetName">Target worksheet name</param>
+    /// <param name="privacyLevel">Optional privacy level for data combining. If not specified and privacy error occurs, operation returns PowerQueryPrivacyErrorResult for user to choose.</param>
+    OperationResult SetLoadToTable(string filePath, string queryName, string sheetName, PowerQueryPrivacyLevel? privacyLevel = null);
     
     /// <summary>
     /// Sets a Power Query to Load to Data Model mode (data loaded to PowerPivot)
     /// </summary>
-    OperationResult SetLoadToDataModel(string filePath, string queryName);
+    /// <param name="filePath">Excel file path</param>
+    /// <param name="queryName">Name of the query</param>
+    /// <param name="privacyLevel">Optional privacy level for data combining. If not specified and privacy error occurs, operation returns PowerQueryPrivacyErrorResult for user to choose.</param>
+    OperationResult SetLoadToDataModel(string filePath, string queryName, PowerQueryPrivacyLevel? privacyLevel = null);
     
     /// <summary>
     /// Sets a Power Query to Load to Both modes (table + data model)
     /// </summary>
-    OperationResult SetLoadToBoth(string filePath, string queryName, string sheetName);
+    /// <param name="filePath">Excel file path</param>
+    /// <param name="queryName">Name of the query</param>
+    /// <param name="sheetName">Target worksheet name</param>
+    /// <param name="privacyLevel">Optional privacy level for data combining. If not specified and privacy error occurs, operation returns PowerQueryPrivacyErrorResult for user to choose.</param>
+    OperationResult SetLoadToBoth(string filePath, string queryName, string sheetName, PowerQueryPrivacyLevel? privacyLevel = null);
     
     /// <summary>
     /// Gets the current load configuration of a Power Query
