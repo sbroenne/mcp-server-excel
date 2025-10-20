@@ -13,7 +13,6 @@ jobs:
       issues: write
       pull-requests: write
       packages: write
-      id-token: write  # Required for NuGet OIDC trusted publishing
     
     steps:
     - uses: actions/checkout@v4
@@ -78,10 +77,10 @@ jobs:
         $version = $env:PACKAGE_VERSION
         $packagePath = "nupkg/Sbroenne.ExcelMcp.McpServer.$version.nupkg"
         
-        Write-Output "Publishing $packagePath to NuGet.org using OIDC trusted publishing..."
+        Write-Output "Publishing $packagePath to NuGet.org..."
         
         dotnet nuget push $packagePath `
-          --api-key az `
+          --api-key ${{ secrets.NUGET_API_KEY }} `
           --source https://api.nuget.org/v3/index.json `
           --skip-duplicate
         
