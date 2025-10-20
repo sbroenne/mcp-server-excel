@@ -114,7 +114,7 @@ excelcli is a Windows-only command-line tool that provides programmatic access t
 - `cell-get-formula "file.xlsx" "Sheet" "A1"` - Get cell formula
 - `cell-set-formula "file.xlsx" "Sheet" "A1" "=SUM(B1:B10)"` - Set cell formula
 
-### VBA Script Management ⚠️ **Requires .xlsm files!**
+### VBA Script Management ⚠️ **Requires .xlsm files and manual VBA trust setup!**
 - `script-list "file.xlsm"` - List all VBA modules and procedures
 - `script-export "file.xlsm" "Module" "output.vba"` - Export VBA code to file
 - `script-import "file.xlsm" "ModuleName" "source.vba"` - Import VBA module from file
@@ -122,9 +122,48 @@ excelcli is a Windows-only command-line tool that provides programmatic access t
 - `script-run "file.xlsm" "Module.Procedure" [param1] [param2] ...` - Execute VBA macros with parameters
 - `script-delete "file.xlsm" "ModuleName"` - Remove VBA module
 
-### Setup Commands
-- `setup-vba-trust` - Enable VBA project access (one-time setup for VBA automation)
-- `check-vba-trust` - Check VBA trust configuration status
+**VBA Trust Setup (Manual, One-Time):**
+VBA operations require "Trust access to the VBA project object model" to be enabled in Excel settings. Users must configure this manually:
+1. Open Excel → File → Options → Trust Center → Trust Center Settings
+2. Select "Macro Settings"
+3. Check "✓ Trust access to the VBA project object model"
+4. Click OK twice to save
+
+If VBA trust is not enabled, commands will display step-by-step setup instructions. ExcelMcp never modifies security settings automatically - users remain in control.
+
+### Power Query Privacy Levels 🔒 **Security-First Design**
+
+Power Query operations that combine data from multiple sources support an optional `--privacy-level` parameter for explicit user consent:
+
+```powershell
+# Operations supporting privacy levels:
+excelcli pq-import "file.xlsx" "QueryName" "code.pq" --privacy-level Private
+excelcli pq-update "file.xlsx" "QueryName" "code.pq" --privacy-level Organizational
+excelcli pq-set-load-to-table "file.xlsx" "QueryName" "Sheet1" --privacy-level Public
+```
+
+**Privacy Level Options:**
+- `None` - Ignores privacy levels (least secure)
+- `Private` - Prevents sharing data between sources (most secure, recommended for sensitive data)
+- `Organizational` - Data can be shared within organization (recommended for internal data)
+- `Public` - For publicly available data sources
+
+**Environment Variable** (for automation):
+```powershell
+$env:EXCEL_DEFAULT_PRIVACY_LEVEL = "Private"  # Applies to all operations
+```
+
+If privacy level is needed but not specified, operations return `PowerQueryPrivacyErrorResult` with:
+- Detected privacy levels from existing queries
+- Recommended privacy level based on workbook analysis
+- Clear explanation of privacy implications
+- Guidance on how to proceed
+
+**Security Principles:**
+- ✅ Never auto-apply privacy levels without explicit user consent
+- ✅ Always fail safely on first attempt without privacy parameter
+- ✅ Educate users about privacy level meanings and security implications
+- ✅ LLM acts as intermediary for conversational consent workflow
 
 ## MCP Server for AI Development Workflows ✨ **NEW CAPABILITY**
 
@@ -144,6 +183,8 @@ The MCP server provides 6 domain-focused tools with 36 total actions, perfectly 
    
 2. **`excel_powerquery`** - Power Query M code management (11 actions: list, view, import, export, update, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config)
    - 🎯 **LLM-Optimized**: Complete Power Query lifecycle for AI-assisted M code development and data loading configuration
+   - 🔒 **Security-First**: Supports optional `privacyLevel` parameter (None, Private, Organizational, Public) for data combining operations
+   - ✅ **Privacy Consent**: Returns `PowerQueryPrivacyErrorResult` with recommendations when privacy level needed but not specified
    
 3. **`excel_worksheet`** - Worksheet operations and bulk data handling (9 actions: list, read, write, create, rename, copy, delete, clear, append)
    - 🎯 **LLM-Optimized**: Full worksheet lifecycle with bulk data operations for efficient AI-driven Excel automation
@@ -156,6 +197,8 @@ The MCP server provides 6 domain-focused tools with 36 total actions, perfectly 
    
 6. **`excel_vba`** - VBA macro management and execution (6 actions: list, export, import, update, run, delete)
    - 🎯 **LLM-Optimized**: Complete VBA lifecycle for AI-assisted macro development and automation
+   - 🔒 **Security-First**: Returns `VbaTrustRequiredResult` with manual setup instructions when VBA trust is not enabled
+   - ✅ **User Control**: Never modifies VBA trust settings automatically - users configure Excel settings manually
 
 ### Development-Focused Use Cases ⚠️ **NOT for ETL!**
 
@@ -175,10 +218,34 @@ Developer: "This Power Query is slow and hard to read. Can you refactor it?"
 Copilot: [Uses excel_powerquery view -> analyzes M code -> excel_powerquery update with optimized code]
 ```
 
+**Power Query with Privacy Level (Security-First):**
+```text
+Developer: "Import this Power Query that combines data from multiple sources"
+Copilot: [Attempts excel_powerquery import without privacyLevel]
+         [Receives PowerQueryPrivacyErrorResult with recommendation: "Private"]
+         "This query combines data sources. Excel requires a privacy level. Based on your existing queries, I recommend 'Private' for maximum data protection. Shall I proceed with that?"
+Developer: "Yes, use Private"
+Copilot: [Uses excel_powerquery import with privacyLevel="Private"]
+```
+
 **VBA Enhancement:**
 ```text  
 Developer: "Add comprehensive error handling to this VBA module"
 Copilot: [Uses excel_vba export -> enhances with try-catch patterns -> excel_vba update]
+```
+
+**VBA with Trust Guidance (Security-First):**
+```text
+Developer: "List the VBA modules in this file"
+Copilot: [Attempts excel_vba list]
+         [Receives VbaTrustRequiredResult with setup instructions]
+         "VBA trust access is not enabled. You need to configure this manually in Excel:
+         1. Open Excel → File → Options → Trust Center → Trust Center Settings
+         2. Select 'Macro Settings'
+         3. Check '✓ Trust access to the VBA project object model'
+         4. Click OK twice
+         
+         This is a one-time setup. After enabling, VBA operations will work. Would you like me to try again once you've configured it?"
 ```
 
 **Code Review:**

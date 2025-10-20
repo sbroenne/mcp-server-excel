@@ -404,3 +404,95 @@ public class VbaTrustResult : ResultBase
     /// </summary>
     public string? ManualInstructions { get; set; }
 }
+
+/// <summary>
+/// Power Query privacy level options for data combining
+/// </summary>
+public enum PowerQueryPrivacyLevel
+{
+    /// <summary>
+    /// Ignores privacy levels, allows combining any data sources (least secure)
+    /// </summary>
+    None,
+    
+    /// <summary>
+    /// Prevents sharing data with other sources (most secure, recommended for sensitive data)
+    /// </summary>
+    Private,
+    
+    /// <summary>
+    /// Data can be shared within organization (recommended for internal data)
+    /// </summary>
+    Organizational,
+    
+    /// <summary>
+    /// Publicly available data sources (appropriate for public APIs)
+    /// </summary>
+    Public
+}
+
+/// <summary>
+/// Information about a query's detected privacy level
+/// </summary>
+public record QueryPrivacyInfo(string QueryName, PowerQueryPrivacyLevel PrivacyLevel);
+
+/// <summary>
+/// Result indicating Power Query operation requires privacy level specification
+/// </summary>
+public class PowerQueryPrivacyErrorResult : OperationResult
+{
+    /// <summary>
+    /// Privacy levels detected in existing queries
+    /// </summary>
+    public List<QueryPrivacyInfo> ExistingPrivacyLevels { get; init; } = new();
+    
+    /// <summary>
+    /// Recommended privacy level based on existing queries
+    /// </summary>
+    public PowerQueryPrivacyLevel RecommendedPrivacyLevel { get; init; }
+    
+    /// <summary>
+    /// User-friendly explanation of the recommendation
+    /// </summary>
+    public string Explanation { get; init; } = "";
+    
+    /// <summary>
+    /// Original error message from Excel
+    /// </summary>
+    public string OriginalError { get; init; } = "";
+}
+
+/// <summary>
+/// Result indicating VBA operation requires trust access to VBA project object model.
+/// Provides instructions for user to manually enable trust in Excel settings.
+/// </summary>
+public class VbaTrustRequiredResult : OperationResult
+{
+    /// <summary>
+    /// Whether VBA trust is currently enabled
+    /// </summary>
+    public bool IsTrustEnabled { get; init; }
+    
+    /// <summary>
+    /// Step-by-step instructions for enabling VBA trust
+    /// </summary>
+    public string[] SetupInstructions { get; init; } = new[]
+    {
+        "Open Excel",
+        "Go to File → Options → Trust Center",
+        "Click 'Trust Center Settings'",
+        "Select 'Macro Settings'",
+        "Check '✓ Trust access to the VBA project object model'",
+        "Click OK twice to save settings"
+    };
+    
+    /// <summary>
+    /// Official Microsoft documentation URL
+    /// </summary>
+    public string DocumentationUrl { get; init; } = "https://support.microsoft.com/office/enable-or-disable-macros-in-office-files-12b036fd-d140-4e74-b45e-16fed1a7e5c6";
+    
+    /// <summary>
+    /// User-friendly explanation of why trust is required
+    /// </summary>
+    public string Explanation { get; init; } = "VBA operations require 'Trust access to the VBA project object model' to be enabled in Excel settings. This is a one-time setup that allows programmatic access to VBA code.";
+}

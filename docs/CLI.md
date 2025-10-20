@@ -27,8 +27,9 @@ $env:PATH += ";C:\Tools\excelcli"
 excelcli create-empty "test.xlsx"
 excelcli sheet-read "test.xlsx" "Sheet1"
 
-# For VBA operations (one-time setup)
-excelcli setup-vba-trust
+# For VBA operations (one-time manual setup in Excel)
+# Enable VBA trust: Excel → File → Options → Trust Center → Trust Center Settings
+# → Macro Settings → Check "Trust access to the VBA project object model"
 excelcli create-empty "macros.xlsm"
 ```
 

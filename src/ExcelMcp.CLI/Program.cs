@@ -43,7 +43,6 @@ class Program
             var cell = new CellCommands();
             var script = new ScriptCommands();
             var file = new FileCommands();
-            var setup = new SetupCommands();
 
             return args[0].ToLower() switch
             {
@@ -104,10 +103,6 @@ class Program
                 "script-import" => await script.Import(args),
                 "script-update" => await script.Update(args),
                 "script-run" => script.Run(args),
-
-                // Setup commands
-                "setup-vba-trust" => setup.EnableVbaTrust(args),
-                "check-vba-trust" => setup.CheckVbaTrust(args),
 
                 "--help" or "-h" => ShowHelp(),
                 _ => ShowHelp()
@@ -272,14 +267,7 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]script-run[/] file.xlsm macro-name (params)    Run VBA macro");
         AnsiConsole.WriteLine();
         
-        AnsiConsole.MarkupLine("[bold yellow]Setup Commands:[/]");
-        AnsiConsole.MarkupLine("  [cyan]setup-vba-trust[/]                             Enable VBA project access");
-        AnsiConsole.MarkupLine("  [cyan]check-vba-trust[/] file.xlsx                   Check VBA access status");
-        AnsiConsole.WriteLine();
-        
         AnsiConsole.MarkupLine("[bold green]Examples:[/]");
-        AnsiConsole.MarkupLine("  [dim]excelcli setup-vba-trust[/]                    [dim]# Enable VBA for testing[/]");
-        AnsiConsole.MarkupLine("  [dim]excelcli check-vba-trust \"test.xlsm\"[/]         [dim]# Check VBA access[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli create-empty \"Plan.xlsm\"[/]            [dim]# Create macro-enabled workbook[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli script-import \"Plan.xlsm\" \"Helper\" \"code.vba\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli pq-list \"Plan.xlsx\"[/]");

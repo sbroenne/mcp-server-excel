@@ -33,8 +33,10 @@ excelcli pq-view <file.xlsx> <query-name>
 **pq-import** - Create or import query from file
 
 ```powershell
-excelcli pq-import <file.xlsx> <query-name> <source.pq>
+excelcli pq-import <file.xlsx> <query-name> <source.pq> [--privacy-level <None|Private|Organizational|Public>]
 ```
+
+Import a Power Query from an M code file. If the query combines data from multiple sources and privacy level is not specified, you'll receive guidance on which privacy level to choose.
 
 **pq-export** - Export query to file
 
@@ -45,8 +47,10 @@ excelcli pq-export <file.xlsx> <query-name> <output.pq>
 **pq-update** - Update existing query from file
 
 ```powershell
-excelcli pq-update <file.xlsx> <query-name> <code.pq>
+excelcli pq-update <file.xlsx> <query-name> <code.pq> [--privacy-level <None|Private|Organizational|Public>]
 ```
+
+Update an existing Power Query with new M code. If the query combines data from multiple sources and privacy level is not specified, you'll receive guidance on which privacy level to choose.
 
 **pq-refresh** - Refresh query data
 
@@ -236,21 +240,53 @@ excelcli script-run "Analysis.xlsm" "CalculateTotal" "Sheet1" "A1:C10"
 excelcli script-delete <file.xlsm> <module-name>
 ```
 
-## Setup Commands
+## VBA Trust Configuration
 
-Configure VBA trust settings for automation.
+VBA operations require **"Trust access to the VBA project object model"** to be enabled in Excel settings. This is a one-time manual setup for security reasons.
 
-**setup-vba-trust** - Enable VBA project access
+### How to Enable VBA Trust
+
+1. Open Excel
+2. Go to **File → Options → Trust Center**
+3. Click **"Trust Center Settings"**
+4. Select **"Macro Settings"**
+5. Check **"✓ Trust access to the VBA project object model"**
+6. Click **OK** twice to save settings
+
+After enabling this setting, VBA operations will work automatically. If VBA trust is not enabled, commands will display detailed instructions.
+
+**Security Note:** ExcelMcp never modifies security settings automatically. Users must explicitly enable VBA trust through Excel's settings to maintain security control.
+
+For more information, see [Microsoft's documentation on macro security](https://support.microsoft.com/office/enable-or-disable-macros-in-office-files-12b036fd-d140-4e74-b45e-16fed1a7e5c6).
+
+## Power Query Privacy Levels
+
+When Power Query combines data from multiple sources, Excel requires a privacy level to be specified for security. ExcelMcp provides explicit control through the `--privacy-level` parameter.
+
+### Privacy Level Options
+
+- **None** - Ignores privacy levels, allows combining any data sources (least secure)
+- **Private** - Prevents sharing data with other sources (most secure, recommended for sensitive data)
+- **Organizational** - Data can be shared within organization (recommended for internal data)
+- **Public** - Publicly available data sources (appropriate for public APIs)
+
+### Using Privacy Levels
 
 ```powershell
-excelcli setup-vba-trust
+# Specify privacy level explicitly
+excelcli pq-import data.xlsx "WebData" query.pq --privacy-level Private
+
+# Set default via environment variable (useful for automation)
+$env:EXCEL_DEFAULT_PRIVACY_LEVEL = "Private"
+excelcli pq-import data.xlsx "WebData" query.pq
 ```
 
-**check-vba-trust** - Check VBA trust configuration
+If a privacy level is needed but not specified, the command will display:
+- Existing privacy levels in the workbook
+- Recommended privacy level based on your queries
+- Clear instructions on how to proceed
 
-```powershell
-excelcli check-vba-trust
-```
+**Security Note:** ExcelMcp never applies privacy levels automatically. Users must explicitly choose the appropriate level for their data security requirements.
 
 ## File Format Support
 

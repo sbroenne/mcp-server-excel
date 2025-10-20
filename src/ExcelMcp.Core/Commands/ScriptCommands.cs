@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Microsoft.Win32;
 using Sbroenne.ExcelMcp.Core.Models;
 using static Sbroenne.ExcelMcp.Core.ExcelHelper;
 
@@ -9,6 +10,56 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 public class ScriptCommands : IScriptCommands
 {
+    /// <summary>
+    /// Check if VBA trust is enabled by reading registry
+    /// </summary>
+    private static bool IsVbaTrustEnabled()
+    {
+        try
+        {
+            // Try different Office versions
+            string[] registryPaths = {
+                @"Software\Microsoft\Office\16.0\Excel\Security",  // Office 2019/2021/365
+                @"Software\Microsoft\Office\15.0\Excel\Security",  // Office 2013
+                @"Software\Microsoft\Office\14.0\Excel\Security"   // Office 2010
+            };
+            
+            foreach (string path in registryPaths)
+            {
+                try
+                {
+                    using var key = Registry.CurrentUser.OpenSubKey(path);
+                    var value = key?.GetValue("AccessVBOM");
+                    if (value != null && (int)value == 1)
+                    {
+                        return true;
+                    }
+                }
+                catch { /* Try next path */ }
+            }
+            
+            return false; // Assume not enabled if cannot read registry
+        }
+        catch
+        {
+            return false;
+        }
+    }
+    
+    /// <summary>
+    /// Creates VBA trust guidance result
+    /// </summary>
+    private static VbaTrustRequiredResult CreateVbaTrustGuidance()
+    {
+        return new VbaTrustRequiredResult
+        {
+            Success = false,
+            ErrorMessage = "VBA trust access is not enabled",
+            IsTrustEnabled = false,
+            Explanation = "VBA operations require 'Trust access to the VBA project object model' to be enabled in Excel settings. This is a one-time setup that allows programmatic access to VBA code."
+        };
+    }
+    
     /// <summary>
     /// Check if VBA project access is trusted and available
     /// </summary>
@@ -55,54 +106,7 @@ public class ScriptCommands : IScriptCommands
         }
     }
 
-    /// <summary>
-    /// Manages VBA trust automatically: checks if enabled, enables if needed, executes action, restores original state
-    /// </summary>
-    private static void WithVbaTrustManagement(string filePath, Action vbaOperation)
-    {
-        bool trustWasEnabled = false;
-        bool trustWasModified = false;
-        
-        try
-        {
-            // Step 1: Check if VBA trust is already enabled
-            var (isTrusted, _) = CheckVbaAccessTrust(filePath);
-            trustWasEnabled = isTrusted;
-            
-            // Step 2: If not enabled, enable it automatically
-            if (!isTrusted)
-            {
-                var setupCommands = new SetupCommands();
-                var enableResult = setupCommands.EnableVbaTrust();
-                
-                if (enableResult.Success)
-                {
-                    trustWasModified = true;
-                    // Note: We don't throw an exception here, we let the operation proceed
-                    // The operation itself will fail if trust still isn't working
-                }
-            }
-            
-            // Step 3: Execute the VBA operation
-            vbaOperation();
-        }
-        finally
-        {
-            // Step 4: Restore original VBA trust state if we modified it
-            if (trustWasModified && !trustWasEnabled)
-            {
-                try
-                {
-                    var setupCommands = new SetupCommands();
-                    setupCommands.DisableVbaTrust();
-                }
-                catch
-                {
-                    // Best effort cleanup - don't fail the operation if we can't restore
-                }
-            }
-        }
-    }
+
 
     /// <summary>
     /// Validate that file is macro-enabled (.xlsm) for VBA operations
@@ -137,19 +141,17 @@ public class ScriptCommands : IScriptCommands
             return result;
         }
 
-        // Use automatic VBA trust management
-        WithVbaTrustManagement(filePath, () =>
+        // Check VBA trust BEFORE attempting operation
+        if (!IsVbaTrustEnabled())
         {
-            var (isTrusted, trustError) = CheckVbaAccessTrust(filePath);
-            if (!isTrusted)
-            {
-                result.Success = false;
-                result.ErrorMessage = trustError;
-                return;
-            }
+            var trustGuidance = CreateVbaTrustGuidance();
+            result.Success = false;
+            result.ErrorMessage = trustGuidance.ErrorMessage;
+            return result;
+        }
 
-            WithExcel(filePath, false, (excel, workbook) =>
-            {
+        WithExcel(filePath, false, (excel, workbook) =>
+        {
             try
             {
                 dynamic vbaProject = workbook.VBProject;
@@ -210,6 +212,14 @@ public class ScriptCommands : IScriptCommands
                 result.Success = true;
                 return 0;
             }
+            catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
+                                             comEx.ErrorCode == unchecked((int)0x800A03EC))
+            {
+                // Trust was disabled during operation
+                result.Success = false;
+                result.ErrorMessage = "VBA trust access is not enabled";
+                return 1;
+            }
             catch (Exception ex)
             {
                 result.Success = false;
@@ -217,7 +227,6 @@ public class ScriptCommands : IScriptCommands
                 return 1;
             }
         });
-        }); // Close WithVbaTrustManagement
 
         return result;
     }
@@ -262,12 +271,10 @@ public class ScriptCommands : IScriptCommands
             return result;
         }
 
-        var (isTrusted, trustError) = CheckVbaAccessTrust(filePath);
-        if (!isTrusted)
+        // Check VBA trust BEFORE attempting operation
+        if (!IsVbaTrustEnabled())
         {
-            result.Success = false;
-            result.ErrorMessage = trustError;
-            return result;
+            return CreateVbaTrustGuidance();
         }
 
         WithExcel(filePath, false, (excel, workbook) =>
@@ -311,6 +318,14 @@ public class ScriptCommands : IScriptCommands
                 result.Success = true;
                 return 0;
             }
+            catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
+                                             comEx.ErrorCode == unchecked((int)0x800A03EC))
+            {
+                // Trust was disabled during operation
+                result = CreateVbaTrustGuidance();
+                result.FilePath = filePath;
+                return 1;
+            }
             catch (Exception ex)
             {
                 result.Success = false;
@@ -353,12 +368,10 @@ public class ScriptCommands : IScriptCommands
             return result;
         }
 
-        var (isTrusted, trustError) = CheckVbaAccessTrust(filePath);
-        if (!isTrusted)
+        // Check VBA trust BEFORE attempting operation
+        if (!IsVbaTrustEnabled())
         {
-            result.Success = false;
-            result.ErrorMessage = trustError;
-            return result;
+            return CreateVbaTrustGuidance();
         }
 
         string vbaCode = await File.ReadAllTextAsync(vbaFile);
@@ -391,6 +404,14 @@ public class ScriptCommands : IScriptCommands
 
                 result.Success = true;
                 return 0;
+            }
+            catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
+                                             comEx.ErrorCode == unchecked((int)0x800A03EC))
+            {
+                // Trust was disabled during operation
+                result = CreateVbaTrustGuidance();
+                result.FilePath = filePath;
+                return 1;
             }
             catch (Exception ex)
             {
@@ -434,12 +455,10 @@ public class ScriptCommands : IScriptCommands
             return result;
         }
 
-        var (isTrusted, trustError) = CheckVbaAccessTrust(filePath);
-        if (!isTrusted)
+        // Check VBA trust BEFORE attempting operation
+        if (!IsVbaTrustEnabled())
         {
-            result.Success = false;
-            result.ErrorMessage = trustError;
-            return result;
+            return CreateVbaTrustGuidance();
         }
 
         string vbaCode = await File.ReadAllTextAsync(vbaFile);
@@ -482,6 +501,14 @@ public class ScriptCommands : IScriptCommands
                 result.Success = true;
                 return 0;
             }
+            catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
+                                             comEx.ErrorCode == unchecked((int)0x800A03EC))
+            {
+                // Trust was disabled during operation
+                result = CreateVbaTrustGuidance();
+                result.FilePath = filePath;
+                return 1;
+            }
             catch (Exception ex)
             {
                 result.Success = false;
@@ -517,41 +544,43 @@ public class ScriptCommands : IScriptCommands
             return result;
         }
 
-        // Use automatic VBA trust management
-        WithVbaTrustManagement(filePath, () =>
+        // Check VBA trust BEFORE attempting operation
+        if (!IsVbaTrustEnabled())
         {
-            var (isTrusted, trustError) = CheckVbaAccessTrust(filePath);
-            if (!isTrusted)
+            return CreateVbaTrustGuidance();
+        }
+
+        WithExcel(filePath, true, (excel, workbook) =>
+        {
+            try
+            {
+                if (parameters.Length == 0)
+                {
+                    excel.Run(procedureName);
+                }
+                else
+                {
+                    object[] paramObjects = parameters.Cast<object>().ToArray();
+                    excel.Run(procedureName, paramObjects);
+                }
+
+                result.Success = true;
+                return 0;
+            }
+            catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
+                                             comEx.ErrorCode == unchecked((int)0x800A03EC))
+            {
+                // Trust was disabled during operation
+                result = CreateVbaTrustGuidance();
+                result.FilePath = filePath;
+                return 1;
+            }
+            catch (Exception ex)
             {
                 result.Success = false;
-                result.ErrorMessage = trustError;
-                return;
+                result.ErrorMessage = $"Error running procedure '{procedureName}': {ex.Message}";
+                return 1;
             }
-
-            WithExcel(filePath, true, (excel, workbook) =>
-            {
-                try
-                {
-                    if (parameters.Length == 0)
-                    {
-                        excel.Run(procedureName);
-                    }
-                    else
-                    {
-                        object[] paramObjects = parameters.Cast<object>().ToArray();
-                        excel.Run(procedureName, paramObjects);
-                    }
-
-                    result.Success = true;
-                    return 0;
-                }
-                catch (Exception ex)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Error running procedure '{procedureName}': {ex.Message}";
-                    return 1;
-                }
-            });
         });
 
         return result;
@@ -581,12 +610,10 @@ public class ScriptCommands : IScriptCommands
             return result;
         }
 
-        var (isTrusted, trustError) = CheckVbaAccessTrust(filePath);
-        if (!isTrusted)
+        // Check VBA trust BEFORE attempting operation
+        if (!IsVbaTrustEnabled())
         {
-            result.Success = false;
-            result.ErrorMessage = trustError;
-            return result;
+            return CreateVbaTrustGuidance();
         }
 
         WithExcel(filePath, true, (excel, workbook) =>
@@ -618,6 +645,14 @@ public class ScriptCommands : IScriptCommands
 
                 result.Success = true;
                 return 0;
+            }
+            catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
+                                             comEx.ErrorCode == unchecked((int)0x800A03EC))
+            {
+                // Trust was disabled during operation
+                result = CreateVbaTrustGuidance();
+                result.FilePath = filePath;
+                return 1;
             }
             catch (Exception ex)
             {

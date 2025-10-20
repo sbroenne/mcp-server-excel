@@ -152,18 +152,4 @@ public class UnitTests
         }
     }
 
-    [Fact]
-    public void SetupCommands_CheckVbaTrust_WithValidArgs_DoesNotThrow()
-    {
-        // Arrange
-        var commands = new SetupCommands();
-        string[] args = { "check-vba-trust" };
-        
-        // Act & Assert - Should not throw exception
-        // Note: May return 0 or 1 depending on system VBA trust settings
-        int exitCode = commands.CheckVbaTrust(args);
-        
-        // Assert - Exit code should be 0 or 1 (valid range)
-        Assert.True(exitCode == 0 || exitCode == 1);
-    }
 }

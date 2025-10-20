@@ -47,20 +47,30 @@ ExcelMcp implements comprehensive security measures:
 ExcelMcp uses Excel COM automation with security safeguards:
 
 - **Macro Execution**: ExcelMcp can execute VBA macros when using script-run command
-- **VBA Trust**: VBA operations require trust settings to be configured (use setup-vba-trust)
+- **VBA Trust**: VBA operations require "Trust access to the VBA project object model" to be manually enabled in Excel settings (one-time setup)
 - **File Validation**: Strict file extension validation (.xlsx, .xlsm, .xls only)
 - **File Access**: ExcelMcp requires read/write access to Excel files with size validation
 - **Process Isolation**: Each command runs in a separate process that terminates after completion
 - **Excel Instance**: Creates temporary Excel instances that are properly cleaned up
 - **Input Sanitization**: All arguments validated for length and content
 
+### Power Query Privacy Levels
+
+ExcelMcp implements security-first privacy level handling:
+
+- **Explicit Consent**: Privacy levels must be specified explicitly via `--privacy-level` parameter or `EXCEL_DEFAULT_PRIVACY_LEVEL` environment variable
+- **No Auto-Application**: Privacy levels are never applied automatically without user consent
+- **Privacy Detection**: Analyzes existing queries to recommend appropriate privacy levels
+- **Clear Guidance**: Provides detailed explanations of privacy level implications
+- **Security Options**: Supports None, Private (most secure), Organizational, and Public levels
+
 ### VBA Security Considerations
 
 - **Macro Content**: VBA scripts imported via script-import will be executed when called
-- **Trust Settings**: setup-vba-trust modifies registry settings to allow VBA automation
+- **Manual Trust Setup**: VBA trust must be enabled manually through Excel's Trust Center settings (never modified automatically by ExcelMcp)
 - **File Format**: Only .xlsm files can contain and execute VBA code
 - **Code Injection**: Always validate VBA source files before importing
-- **Registry Changes**: VBA trust setup requires administrative privileges
+- **User Control**: ExcelMcp never modifies registry settings or security configurations automatically
 
 ### Best Practices for Users
 
@@ -69,8 +79,10 @@ ExcelMcp uses Excel COM automation with security safeguards:
 3. **Network Files**: Be cautious when processing files from network locations
 4. **Permissions**: Run ExcelMcp with minimal necessary permissions
 5. **Backup**: Always backup important Excel files before processing
-6. **VBA Trust**: Only enable VBA trust on systems where it's needed
+6. **VBA Trust**: Only enable VBA trust in Excel settings on systems where it's needed (manual one-time setup)
 7. **Code Review**: Review VBA scripts before execution, especially from external sources
+8. **Privacy Levels**: Choose appropriate Power Query privacy levels based on data sensitivity (Private for sensitive data, Organizational for internal data, Public for public APIs)
+9. **Environment Variables**: Use `EXCEL_DEFAULT_PRIVACY_LEVEL` environment variable for consistent automation security
 
 ### Known Limitations
 
