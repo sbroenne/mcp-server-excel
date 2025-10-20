@@ -35,7 +35,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 10.0.x
+        dotnet-version: 9.0.x
         
     - name: Restore dependencies
       run: dotnet restore src/ExcelMcp.CLI/ExcelMcp.CLI.csproj
@@ -46,13 +46,13 @@ jobs:
     - name: Verify CLI build
       run: |
         # Check excelcli main executable
-        if (Test-Path "src/ExcelMcp.CLI/bin/Release/net10.0/excelcli.exe") {
+        if (Test-Path "src/ExcelMcp.CLI/bin/Release/net9.0/excelcli.exe") {
           Write-Output "✅ excelcli.exe built successfully"
-          $version = (Get-Item "src/ExcelMcp.CLI/bin/Release/net10.0/excelcli.exe").VersionInfo.FileVersion
+          $version = (Get-Item "src/ExcelMcp.CLI/bin/Release/net9.0/excelcli.exe").VersionInfo.FileVersion
           Write-Output "Version: $version"
           
           # Test CLI help command (safe - no Excel COM required)
-          $helpOutput = & "src/ExcelMcp.CLI/bin/Release/net10.0/excelcli.exe" --help
+          $helpOutput = & "src/ExcelMcp.CLI/bin/Release/net9.0/excelcli.exe" --help
           if ($helpOutput -match "Excel Command Line Interface") {
             Write-Output "✅ CLI help command working"
             Write-Output "📋 Help output preview: $($helpOutput | Select-Object -First 3 | Out-String)"
@@ -78,4 +78,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: ExcelMcp-CLI-${{ github.sha }}
-        path: src/ExcelMcp.CLI/bin/Release/net10.0/
+        path: src/ExcelMcp.CLI/bin/Release/net9.0/

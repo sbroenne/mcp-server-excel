@@ -20,7 +20,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 10.0.x
+        dotnet-version: 9.0.x
         
     - name: Update MCP Server Version
       run: |
@@ -81,7 +81,7 @@ jobs:
         New-Item -ItemType Directory -Path "release/ExcelMcp-MCP-Server-$version" -Force
         
         # Copy MCP Server files
-        Copy-Item "src/ExcelMcp.McpServer/bin/Release/net10.0/*" "release/ExcelMcp-MCP-Server-$version/" -Recurse
+        Copy-Item "src/ExcelMcp.McpServer/bin/Release/net9.0/*" "release/ExcelMcp-MCP-Server-$version/" -Recurse
         
         # Copy documentation
         Copy-Item "README.md" "release/ExcelMcp-MCP-Server-$version/"
@@ -111,7 +111,7 @@ jobs:
         $readmeContent += "- Excel Development Focus - Power Query, VBA, worksheets`n`n"
         $readmeContent += "## Requirements`n`n"
         $readmeContent += "- Windows OS with Microsoft Excel installed`n"
-        $readmeContent += "- .NET 10.0 runtime`n"
+        $readmeContent += "- .NET 9.0 runtime`n"
         $readmeContent += "- Excel 2016+ (for COM interop)`n`n"
         $readmeContent += "## License`n`n"
         $readmeContent += "MIT License - see LICENSE file for details.`n"
@@ -166,7 +166,7 @@ jobs:
         $releaseNotes += "- excel_vba - VBA script management (list, export, import, update, run, delete)`n`n"
         $releaseNotes += "### Requirements`n"
         $releaseNotes += "- Windows OS with Microsoft Excel installed`n"
-        $releaseNotes += "- .NET 10.0 runtime`n"
+        $releaseNotes += "- .NET 9.0 runtime`n"
         $releaseNotes += "- Excel 2016+ (for COM interop)`n`n"
         $releaseNotes += "### Documentation`n"
         $releaseNotes += "- Configuration Guide: See README.md in package`n"
