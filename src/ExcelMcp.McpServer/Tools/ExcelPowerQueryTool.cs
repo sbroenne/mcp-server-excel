@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Models;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
@@ -58,24 +59,38 @@ public static class ExcelPowerQueryTool
         [StringLength(31, MinimumLength = 1)]
         [RegularExpression(@"^[^[\]/*?\\:]+$")]
         [Description("Target worksheet name (for set-load-to-table action)")] 
-        string? targetSheet = null)
+        string? targetSheet = null,
+        
+        [RegularExpression("^(None|Private|Organizational|Public)$")]
+        [Description("Privacy level for Power Query data combining (optional). If not specified and privacy error occurs, LLM must ask user to choose: None (least secure), Private (most secure), Organizational (internal data), or Public (public data)")]
+        string? privacyLevel = null)
     {
         try
         {
             var powerQueryCommands = new PowerQueryCommands();
 
+            // Parse privacy level if provided
+            PowerQueryPrivacyLevel? parsedPrivacyLevel = null;
+            if (!string.IsNullOrEmpty(privacyLevel))
+            {
+                if (Enum.TryParse<PowerQueryPrivacyLevel>(privacyLevel, ignoreCase: true, out var level))
+                {
+                    parsedPrivacyLevel = level;
+                }
+            }
+
             return action.ToLowerInvariant() switch
             {
                 "list" => ListPowerQueries(powerQueryCommands, excelPath),
                 "view" => ViewPowerQuery(powerQueryCommands, excelPath, queryName),
-                "import" => ImportPowerQuery(powerQueryCommands, excelPath, queryName, sourcePath),
+                "import" => ImportPowerQuery(powerQueryCommands, excelPath, queryName, sourcePath, parsedPrivacyLevel),
                 "export" => ExportPowerQuery(powerQueryCommands, excelPath, queryName, targetPath),
-                "update" => UpdatePowerQuery(powerQueryCommands, excelPath, queryName, sourcePath),
+                "update" => UpdatePowerQuery(powerQueryCommands, excelPath, queryName, sourcePath, parsedPrivacyLevel),
                 "refresh" => RefreshPowerQuery(powerQueryCommands, excelPath, queryName),
                 "delete" => DeletePowerQuery(powerQueryCommands, excelPath, queryName),
-                "set-load-to-table" => SetLoadToTable(powerQueryCommands, excelPath, queryName, targetSheet),
-                "set-load-to-data-model" => SetLoadToDataModel(powerQueryCommands, excelPath, queryName),
-                "set-load-to-both" => SetLoadToBoth(powerQueryCommands, excelPath, queryName, targetSheet),
+                "set-load-to-table" => SetLoadToTable(powerQueryCommands, excelPath, queryName, targetSheet, parsedPrivacyLevel),
+                "set-load-to-data-model" => SetLoadToDataModel(powerQueryCommands, excelPath, queryName, parsedPrivacyLevel),
+                "set-load-to-both" => SetLoadToBoth(powerQueryCommands, excelPath, queryName, targetSheet, parsedPrivacyLevel),
                 "set-connection-only" => SetConnectionOnly(powerQueryCommands, excelPath, queryName),
                 "get-load-config" => GetLoadConfig(powerQueryCommands, excelPath, queryName),
                 _ => throw new ModelContextProtocol.McpException(
@@ -122,19 +137,14 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ImportPowerQuery(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath)
+    private static string ImportPowerQuery(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, PowerQueryPrivacyLevel? privacyLevel)
     {
         if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(sourcePath))
             throw new ModelContextProtocol.McpException("queryName and sourcePath are required for import action");
 
-        var result = commands.Import(excelPath, queryName, sourcePath).GetAwaiter().GetResult();
+        var result = commands.Import(excelPath, queryName, sourcePath, privacyLevel).GetAwaiter().GetResult();
         
-        // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"import failed for '{excelPath}': {result.ErrorMessage}");
-        }
-        
+        // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -147,12 +157,14 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string UpdatePowerQuery(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath)
+    private static string UpdatePowerQuery(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, PowerQueryPrivacyLevel? privacyLevel)
     {
         if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(sourcePath))
             throw new ModelContextProtocol.McpException("queryName and sourcePath are required for update action");
 
-        var result = commands.Update(excelPath, queryName, sourcePath).GetAwaiter().GetResult();
+        var result = commands.Update(excelPath, queryName, sourcePath, privacyLevel).GetAwaiter().GetResult();
+        
+        // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -174,30 +186,36 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string SetLoadToTable(PowerQueryCommands commands, string excelPath, string? queryName, string? targetSheet)
+    private static string SetLoadToTable(PowerQueryCommands commands, string excelPath, string? queryName, string? targetSheet, PowerQueryPrivacyLevel? privacyLevel)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for set-load-to-table action");
 
-        var result = commands.SetLoadToTable(excelPath, queryName, targetSheet ?? "");
+        var result = commands.SetLoadToTable(excelPath, queryName, targetSheet ?? "", privacyLevel);
+        
+        // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string SetLoadToDataModel(PowerQueryCommands commands, string excelPath, string? queryName)
+    private static string SetLoadToDataModel(PowerQueryCommands commands, string excelPath, string? queryName, PowerQueryPrivacyLevel? privacyLevel)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for set-load-to-data-model action");
 
-        var result = commands.SetLoadToDataModel(excelPath, queryName);
+        var result = commands.SetLoadToDataModel(excelPath, queryName, privacyLevel);
+        
+        // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string SetLoadToBoth(PowerQueryCommands commands, string excelPath, string? queryName, string? targetSheet)
+    private static string SetLoadToBoth(PowerQueryCommands commands, string excelPath, string? queryName, string? targetSheet, PowerQueryPrivacyLevel? privacyLevel)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for set-load-to-both action");
 
-        var result = commands.SetLoadToBoth(excelPath, queryName, targetSheet ?? "");
+        var result = commands.SetLoadToBoth(excelPath, queryName, targetSheet ?? "", privacyLevel);
+        
+        // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
