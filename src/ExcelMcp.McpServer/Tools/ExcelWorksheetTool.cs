@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.Core.Commands;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
@@ -28,11 +29,28 @@ public static class ExcelWorksheetTool
     [McpServerTool(Name = "excel_worksheet")]  
     [Description("Manage Excel worksheets and data. Supports: list, read, write, create, rename, copy, delete, clear, append.")]
     public static string ExcelWorksheet(
-        [Description("Action: list, read, write, create, rename, copy, delete, clear, append")] string action,
-        [Description("Excel file path (.xlsx or .xlsm)")] string filePath,
-        [Description("Worksheet name (required for most actions)")] string? sheetName = null,
-        [Description("Excel range (e.g., 'A1:D10' for read/clear) or CSV file path (for write/append)")] string? range = null,
-        [Description("New sheet name (for rename) or source sheet name (for copy)")] string? targetName = null)
+        [Required]
+        [RegularExpression("^(list|read|write|create|rename|copy|delete|clear|append)$")]
+        [Description("Action: list, read, write, create, rename, copy, delete, clear, append")] 
+        string action,
+        
+        [Required]
+        [FileExtensions(Extensions = "xlsx,xlsm")]
+        [Description("Excel file path (.xlsx or .xlsm)")] 
+        string excelPath,
+        
+        [StringLength(31, MinimumLength = 1)]
+        [RegularExpression(@"^[^[\]/*?\\:]+$")]
+        [Description("Worksheet name (required for most actions)")] 
+        string? sheetName = null,
+        
+        [Description("Excel range (e.g., 'A1:D10' for read/clear) or CSV file path (for write/append)")] 
+        string? range = null,
+        
+        [StringLength(31, MinimumLength = 1)]
+        [RegularExpression(@"^[^[\]/*?\\:]+$")]
+        [Description("New sheet name (for rename) or source sheet name (for copy)")] 
+        string? targetName = null)
     {
         try
         {
@@ -40,22 +58,22 @@ public static class ExcelWorksheetTool
 
             return action.ToLowerInvariant() switch
             {
-                "list" => ListWorksheets(sheetCommands, filePath),
-                "read" => ReadWorksheet(sheetCommands, filePath, sheetName, range),
-                "write" => WriteWorksheet(sheetCommands, filePath, sheetName, range),
-                "create" => CreateWorksheet(sheetCommands, filePath, sheetName),
-                "rename" => RenameWorksheet(sheetCommands, filePath, sheetName, targetName),
-                "copy" => CopyWorksheet(sheetCommands, filePath, sheetName, targetName),
-                "delete" => DeleteWorksheet(sheetCommands, filePath, sheetName),
-                "clear" => ClearWorksheet(sheetCommands, filePath, sheetName, range),
-                "append" => AppendWorksheet(sheetCommands, filePath, sheetName, range),
+                "list" => ListWorksheets(sheetCommands, excelPath),
+                "read" => ReadWorksheet(sheetCommands, excelPath, sheetName, range),
+                "write" => WriteWorksheet(sheetCommands, excelPath, sheetName, range),
+                "create" => CreateWorksheet(sheetCommands, excelPath, sheetName),
+                "rename" => RenameWorksheet(sheetCommands, excelPath, sheetName, targetName),
+                "copy" => CopyWorksheet(sheetCommands, excelPath, sheetName, targetName),
+                "delete" => DeleteWorksheet(sheetCommands, excelPath, sheetName),
+                "clear" => ClearWorksheet(sheetCommands, excelPath, sheetName, range),
+                "append" => AppendWorksheet(sheetCommands, excelPath, sheetName, range),
                 _ => ExcelToolsBase.CreateUnknownActionError(action, 
                     "list", "read", "write", "create", "rename", "copy", "delete", "clear", "append")
             };
         }
         catch (Exception ex)
         {
-            return ExcelToolsBase.CreateExceptionError(ex, action, filePath);
+            return ExcelToolsBase.CreateExceptionError(ex, action, excelPath);
         }
     }
 

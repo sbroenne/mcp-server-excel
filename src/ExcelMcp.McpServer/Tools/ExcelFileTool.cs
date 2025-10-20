@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.Core.Commands;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
@@ -19,11 +20,20 @@ public static class ExcelFileTool
     /// Create new Excel files for automation workflows
     /// </summary>
     [McpServerTool(Name = "excel_file")]
-        [Description("Manage Excel files. Supports: create-empty.")]
+    [Description("Manage Excel files. Supports: create-empty.")]
     public static string ExcelFile(
-        [Description("Action to perform: create-empty")] string action,
-        [Description("Excel file path (.xlsx or .xlsm extension)")] string filePath,
-        [Description("Optional: macro-enabled flag for create-empty (default: false)")] bool macroEnabled = false)
+        [Required]
+        [RegularExpression("^(create-empty)$")]
+        [Description("Action to perform: create-empty")] 
+        string action,
+        
+        [Required]
+        [FileExtensions(Extensions = "xlsx,xlsm")]
+        [Description("Excel file path (.xlsx or .xlsm extension)")] 
+        string excelPath,
+        
+        [Description("Optional: macro-enabled flag for create-empty (default: false)")] 
+        bool macroEnabled = false)
     {
         try
         {
@@ -31,13 +41,13 @@ public static class ExcelFileTool
 
             return action.ToLowerInvariant() switch
             {
-                "create-empty" => CreateEmptyFile(fileCommands, filePath, macroEnabled),
+                "create-empty" => CreateEmptyFile(fileCommands, excelPath, macroEnabled),
                 _ => ExcelToolsBase.CreateUnknownActionError(action, "create-empty")
             };
         }
         catch (Exception ex)
         {
-            return ExcelToolsBase.CreateExceptionError(ex, action, filePath);
+            return ExcelToolsBase.CreateExceptionError(ex, action, excelPath);
         }
     }
 
@@ -45,15 +55,15 @@ public static class ExcelFileTool
     /// Creates a new empty Excel file (.xlsx or .xlsm based on macroEnabled flag).
     /// LLM Pattern: Use this when you need a fresh Excel workbook for automation.
     /// </summary>
-    private static string CreateEmptyFile(FileCommands fileCommands, string filePath, bool macroEnabled)
+    private static string CreateEmptyFile(FileCommands fileCommands, string excelPath, bool macroEnabled)
     {
         var extension = macroEnabled ? ".xlsm" : ".xlsx";
-        if (!filePath.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
+        if (!excelPath.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
         {
-            filePath = Path.ChangeExtension(filePath, extension);
+            excelPath = Path.ChangeExtension(excelPath, extension);
         }
 
-        var result = fileCommands.CreateEmpty(filePath, overwriteIfExists: false);
+        var result = fileCommands.CreateEmpty(excelPath, overwriteIfExists: false);
         if (result.Success)
         {
             return JsonSerializer.Serialize(new

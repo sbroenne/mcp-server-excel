@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.Core.Commands;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
@@ -29,11 +30,30 @@ public static class ExcelVbaTool
     [McpServerTool(Name = "excel_vba")]
     [Description("Manage Excel VBA scripts and macros (requires .xlsm files). Supports: list, export, import, update, run, delete.")]
     public static string ExcelVba(
-        [Description("Action: list, export, import, update, run, delete")] string action,
-        [Description("Excel file path (must be .xlsm for VBA operations)")] string filePath,
-        [Description("VBA module name or procedure name (format: 'Module.Procedure' for run)")] string? moduleName = null,
-        [Description("VBA file path (.vba extension for import/export/update)")] string? vbaFilePath = null,
-        [Description("Parameters for VBA procedure execution (comma-separated)")] string? parameters = null)
+        [Required]
+        [RegularExpression("^(list|export|import|update|run|delete)$")]
+        [Description("Action: list, export, import, update, run, delete")] 
+        string action,
+        
+        [Required]
+        [FileExtensions(Extensions = "xlsm")]
+        [Description("Excel file path (must be .xlsm for VBA operations)")] 
+        string excelPath,
+        
+        [StringLength(255, MinimumLength = 1)]
+        [Description("VBA module name or procedure name (format: 'Module.Procedure' for run)")] 
+        string? moduleName = null,
+        
+        [FileExtensions(Extensions = "vba,bas,txt")]
+        [Description("Source VBA file path (for import/update) or target file path (for export)")] 
+        string? sourcePath = null,
+        
+        [FileExtensions(Extensions = "vba,bas,txt")]
+        [Description("Target VBA file path (for export action)")] 
+        string? targetPath = null,
+        
+        [Description("Parameters for VBA procedure execution (comma-separated)")] 
+        string? parameters = null)
     {
         try
         {
@@ -41,18 +61,18 @@ public static class ExcelVbaTool
 
             return action.ToLowerInvariant() switch
             {
-                "list" => ListVbaScripts(scriptCommands, filePath),
-                "export" => ExportVbaScript(scriptCommands, filePath, moduleName, vbaFilePath),
-                "import" => ImportVbaScript(scriptCommands, filePath, moduleName, vbaFilePath),
-                "update" => UpdateVbaScript(scriptCommands, filePath, moduleName, vbaFilePath),
-                "run" => RunVbaScript(scriptCommands, filePath, moduleName, parameters),
-                "delete" => DeleteVbaScript(scriptCommands, filePath, moduleName),
+                "list" => ListVbaScripts(scriptCommands, excelPath),
+                "export" => ExportVbaScript(scriptCommands, excelPath, moduleName, targetPath),
+                "import" => ImportVbaScript(scriptCommands, excelPath, moduleName, sourcePath),
+                "update" => UpdateVbaScript(scriptCommands, excelPath, moduleName, sourcePath),
+                "run" => RunVbaScript(scriptCommands, excelPath, moduleName, parameters),
+                "delete" => DeleteVbaScript(scriptCommands, excelPath, moduleName),
                 _ => ExcelToolsBase.CreateUnknownActionError(action, "list", "export", "import", "update", "run", "delete")
             };
         }
         catch (Exception ex)
         {
-            return ExcelToolsBase.CreateExceptionError(ex, action, filePath);
+            return ExcelToolsBase.CreateExceptionError(ex, action, excelPath);
         }
     }
 

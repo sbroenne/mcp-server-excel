@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.Core.Commands;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
@@ -27,10 +28,22 @@ public static class ExcelParameterTool
     [McpServerTool(Name = "excel_parameter")]
     [Description("Manage Excel named ranges as parameters. Supports: list, get, set, create, delete.")]
     public static string ExcelParameter(
-        [Description("Action: list, get, set, create, delete")] string action,
-        [Description("Excel file path (.xlsx or .xlsm)")] string filePath,
-        [Description("Parameter (named range) name")] string? parameterName = null,
-        [Description("Parameter value (for set) or cell reference (for create, e.g., 'Sheet1!A1')")] string? value = null)
+        [Required]
+        [RegularExpression("^(list|get|set|create|delete)$")]
+        [Description("Action: list, get, set, create, delete")] 
+        string action,
+        
+        [Required]
+        [FileExtensions(Extensions = "xlsx,xlsm")]
+        [Description("Excel file path (.xlsx or .xlsm)")] 
+        string excelPath,
+        
+        [StringLength(255, MinimumLength = 1)]
+        [Description("Parameter (named range) name")] 
+        string? parameterName = null,
+        
+        [Description("Parameter value (for set) or cell reference (for create, e.g., 'Sheet1!A1')")] 
+        string? value = null)
     {
         try
         {
@@ -38,17 +51,17 @@ public static class ExcelParameterTool
 
             return action.ToLowerInvariant() switch
             {
-                "list" => ListParameters(parameterCommands, filePath),
-                "get" => GetParameter(parameterCommands, filePath, parameterName),
-                "set" => SetParameter(parameterCommands, filePath, parameterName, value),
-                "create" => CreateParameter(parameterCommands, filePath, parameterName, value),
-                "delete" => DeleteParameter(parameterCommands, filePath, parameterName),
+                "list" => ListParameters(parameterCommands, excelPath),
+                "get" => GetParameter(parameterCommands, excelPath, parameterName),
+                "set" => SetParameter(parameterCommands, excelPath, parameterName, value),
+                "create" => CreateParameter(parameterCommands, excelPath, parameterName, value),
+                "delete" => DeleteParameter(parameterCommands, excelPath, parameterName),
                 _ => ExcelToolsBase.CreateUnknownActionError(action, "list", "get", "set", "create", "delete")
             };
         }
         catch (Exception ex)
         {
-            return ExcelToolsBase.CreateExceptionError(ex, action, filePath);
+            return ExcelToolsBase.CreateExceptionError(ex, action, excelPath);
         }
     }
 
