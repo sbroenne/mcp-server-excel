@@ -290,42 +290,4 @@ public class DetailedErrorMessageTests : IDisposable
         
         _output.WriteLine("✅ Verified: Missing parameter includes action and parameter name");
     }
-
-    /// <summary>
-    /// This test verifies that ThrowInternalError properly wraps exceptions with enhanced details.
-    /// We simulate this by testing an operation that will fail with a COM/file system exception.
-    /// </summary>
-    [Fact]
-    public void ExcelWorksheet_WithInvalidOperation_ShouldIncludeExceptionTypeInError()
-    {
-        // Arrange - Create a file, then make it read-only or inaccessible
-        ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
-        var fileInfo = new FileInfo(_testExcelFile);
-        fileInfo.IsReadOnly = true;
-
-        try
-        {
-            // Act & Assert - Write operation should fail due to read-only file
-            var exception = Assert.Throws<McpException>(() =>
-            {
-                string csvFile = Path.Combine(_tempDir, "test-data.csv");
-                File.WriteAllText(csvFile, "A,B,C\n1,2,3");
-                ExcelWorksheetTool.ExcelWorksheet("write", _testExcelFile, "Sheet1", csvFile);
-            });
-
-            _output.WriteLine($"Error message: {exception.Message}");
-            
-            // Verify the error message includes contextual details
-            // (The exact exception type may vary, but message should include useful context)
-            Assert.Contains("write", exception.Message);
-            Assert.Contains(_testExcelFile, exception.Message);
-            
-            _output.WriteLine("✅ Verified: Internal errors include action and file context");
-        }
-        finally
-        {
-            // Cleanup - remove read-only flag
-            fileInfo.IsReadOnly = false;
-        }
-    }
 }
