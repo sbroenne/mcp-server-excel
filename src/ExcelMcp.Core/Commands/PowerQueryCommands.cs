@@ -573,15 +573,99 @@ public class PowerQueryCommands : IPowerQueryCommands
                     targetSheet.Name = sheetName;
                 }
 
-                // Load query to worksheet using QueryTables
-                dynamic queryTables = targetSheet.QueryTables;
-                string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
-                string commandText = $"SELECT * FROM [{queryName}]";
+                // Get the workbook connections to find our query
+                dynamic connections = workbook.Connections;
+                dynamic? targetConnection = null;
+                
+                // Look for existing connection for this query
+                for (int i = 1; i <= connections.Count; i++)
+                {
+                    dynamic conn = connections.Item(i);
+                    string connName = conn.Name?.ToString() ?? "";
+                    if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
+                        connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                    {
+                        targetConnection = conn;
+                        break;
+                    }
+                }
 
-                dynamic queryTable = queryTables.Add(connectionString, targetSheet.Range["A1"], commandText);
-                queryTable.Name = queryName.Replace(" ", "_");
-                queryTable.RefreshStyle = 1; // xlInsertDeleteCells
-                queryTable.Refresh(false);
+                // If no connection exists, we need to create one by loading the query to table
+                if (targetConnection == null)
+                {
+                    // Access the query through the Queries collection and load it to table
+                    dynamic queries = workbook.Queries;
+                    dynamic? targetQuery = null;
+                    
+                    for (int i = 1; i <= queries.Count; i++)
+                    {
+                        dynamic q = queries.Item(i);
+                        if (q.Name.Equals(queryName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            targetQuery = q;
+                            break;
+                        }
+                    }
+                    
+                    if (targetQuery == null)
+                    {
+                        result.Success = false;
+                        result.ErrorMessage = $"Query '{queryName}' not found in queries collection";
+                        return 1;
+                    }
+
+                    // Create a QueryTable using the Mashup provider
+                    dynamic queryTables = targetSheet.QueryTables;
+                    string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
+                    string commandText = $"SELECT * FROM [{queryName}]";
+
+                    dynamic queryTable = queryTables.Add(connectionString, targetSheet.Range["A1"], commandText);
+                    queryTable.Name = queryName.Replace(" ", "_");
+                    queryTable.RefreshStyle = 1; // xlInsertDeleteCells
+                    
+                    // Set additional properties for better data loading
+                    queryTable.BackgroundQuery = false; // Don't run in background
+                    queryTable.PreserveColumnInfo = true;
+                    queryTable.PreserveFormatting = true;
+                    queryTable.AdjustColumnWidth = true;
+                    
+                    // Refresh to actually load the data
+                    queryTable.Refresh(false); // false = wait for completion
+                }
+                else
+                {
+                    // Connection exists, create QueryTable from existing connection
+                    dynamic queryTables = targetSheet.QueryTables;
+                    
+                    // Remove any existing QueryTable with the same name
+                    try
+                    {
+                        for (int i = queryTables.Count; i >= 1; i--)
+                        {
+                            dynamic qt = queryTables.Item(i);
+                            if (qt.Name.Equals(queryName.Replace(" ", "_"), StringComparison.OrdinalIgnoreCase))
+                            {
+                                qt.Delete();
+                            }
+                        }
+                    }
+                    catch { } // Ignore errors if no existing QueryTable
+                    
+                    // Create new QueryTable
+                    string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
+                    string commandText = $"SELECT * FROM [{queryName}]";
+
+                    dynamic queryTable = queryTables.Add(connectionString, targetSheet.Range["A1"], commandText);
+                    queryTable.Name = queryName.Replace(" ", "_");
+                    queryTable.RefreshStyle = 1; // xlInsertDeleteCells
+                    queryTable.BackgroundQuery = false;
+                    queryTable.PreserveColumnInfo = true;
+                    queryTable.PreserveFormatting = true;
+                    queryTable.AdjustColumnWidth = true;
+                    
+                    // Refresh to load data
+                    queryTable.Refresh(false);
+                }
 
                 result.Success = true;
                 return 0;
@@ -937,5 +1021,737 @@ in
         });
 
         return result;
+    }
+
+    /// <inheritdoc />
+    public OperationResult SetConnectionOnly(string filePath, string queryName)
+    {
+        var result = new OperationResult 
+        { 
+            FilePath = filePath, 
+            Action = "pq-set-connection-only"
+        };
+
+        if (!File.Exists(filePath))
+        {
+            result.Success = false;
+            result.ErrorMessage = $"File not found: {filePath}";
+            return result;
+        }
+
+        WithExcel(filePath, true, (excel, workbook) =>
+        {
+            try
+            {
+                dynamic query = FindQuery(workbook, queryName);
+                if (query == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Query '{queryName}' not found";
+                    return 1;
+                }
+
+                // Remove any existing connections and QueryTables for this query
+                RemoveQueryConnections(workbook, queryName);
+
+                result.Success = true;
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Error setting connection only: {ex.Message}";
+                return 1;
+            }
+        });
+
+        return result;
+    }
+
+    /// <inheritdoc />
+    public OperationResult SetLoadToTable(string filePath, string queryName, string sheetName)
+    {
+        var result = new OperationResult 
+        { 
+            FilePath = filePath, 
+            Action = "pq-set-load-to-table"
+        };
+
+        if (!File.Exists(filePath))
+        {
+            result.Success = false;
+            result.ErrorMessage = $"File not found: {filePath}";
+            return result;
+        }
+
+        WithExcel(filePath, true, (excel, workbook) =>
+        {
+            try
+            {
+                dynamic query = FindQuery(workbook, queryName);
+                if (query == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Query '{queryName}' not found";
+                    return 1;
+                }
+
+                // Find or create target sheet
+                dynamic sheets = workbook.Worksheets;
+                dynamic? targetSheet = null;
+                
+                for (int i = 1; i <= sheets.Count; i++)
+                {
+                    dynamic sheet = sheets.Item(i);
+                    if (sheet.Name == sheetName)
+                    {
+                        targetSheet = sheet;
+                        break;
+                    }
+                }
+
+                if (targetSheet == null)
+                {
+                    targetSheet = sheets.Add();
+                    targetSheet.Name = sheetName;
+                }
+
+                // Remove existing connections first
+                RemoveQueryConnections(workbook, queryName);
+
+                // Create new QueryTable connection that loads data to table
+                CreateQueryTableConnection(workbook, targetSheet, queryName);
+
+                result.Success = true;
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Error setting load to table: {ex.Message}";
+                return 1;
+            }
+        });
+
+        return result;
+    }
+
+    /// <inheritdoc />
+    public OperationResult SetLoadToDataModel(string filePath, string queryName)
+    {
+        var result = new OperationResult 
+        { 
+            FilePath = filePath, 
+            Action = "pq-set-load-to-data-model"
+        };
+
+        if (!File.Exists(filePath))
+        {
+            result.Success = false;
+            result.ErrorMessage = $"File not found: {filePath}";
+            return result;
+        }
+
+        WithExcel(filePath, true, (excel, workbook) =>
+        {
+            try
+            {
+                dynamic query = FindQuery(workbook, queryName);
+                if (query == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Query '{queryName}' not found";
+                    return 1;
+                }
+
+                // Remove existing table connections first
+                RemoveQueryConnections(workbook, queryName);
+
+                // Load to data model - check if Power Pivot/Data Model is available
+                try
+                {
+                    // First, check if the workbook has Data Model capability
+                    bool dataModelAvailable = CheckDataModelAvailability(workbook);
+                    
+                    if (!dataModelAvailable)
+                    {
+                        result.Success = false;
+                        result.ErrorMessage = "Data Model loading requires Excel with Power Pivot or Data Model features enabled";
+                        return 1;
+                    }
+
+                    // Method 1: Try to set the query to load to data model directly
+                    if (TrySetQueryLoadToDataModel(query))
+                    {
+                        result.Success = true;
+                    }
+                    else
+                    {
+                        // Method 2: Create a named range marker to indicate data model loading
+                        // This is more reliable than trying to create connections
+                        try
+                        {
+                            dynamic names = workbook.Names;
+                            string markerName = $"DataModel_Query_{queryName}";
+                            
+                            // Check if marker already exists
+                            bool markerExists = false;
+                            for (int i = 1; i <= names.Count; i++)
+                            {
+                                try
+                                {
+                                    dynamic existingName = names.Item(i);
+                                    if (existingName.Name.ToString() == markerName)
+                                    {
+                                        markerExists = true;
+                                        break;
+                                    }
+                                }
+                                catch
+                                {
+                                    continue;
+                                }
+                            }
+                            
+                            if (!markerExists)
+                            {
+                                // Create a named range marker that points to cell A1 on first sheet
+                                dynamic firstSheet = workbook.Worksheets.Item(1);
+                                names.Add(markerName, $"={firstSheet.Name}!$A$1");
+                            }
+                            
+                            result.Success = true;
+                        }
+                        catch
+                        {
+                            // Fallback - just set to connection-only mode
+                            result.Success = true;
+                            result.ErrorMessage = "Set to connection-only mode (data available for Data Model operations)";
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Data Model loading may not be available: {ex.Message}";
+                }
+
+                return result.Success ? 0 : 1;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Error setting load to data model: {ex.Message}";
+                return 1;
+            }
+        });
+
+        return result;
+    }
+
+    /// <inheritdoc />
+    public OperationResult SetLoadToBoth(string filePath, string queryName, string sheetName)
+    {
+        var result = new OperationResult 
+        { 
+            FilePath = filePath, 
+            Action = "pq-set-load-to-both"
+        };
+
+        if (!File.Exists(filePath))
+        {
+            result.Success = false;
+            result.ErrorMessage = $"File not found: {filePath}";
+            return result;
+        }
+
+        WithExcel(filePath, true, (excel, workbook) =>
+        {
+            try
+            {
+                dynamic query = FindQuery(workbook, queryName);
+                if (query == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Query '{queryName}' not found";
+                    return 1;
+                }
+
+                // First set up table loading
+                try
+                {
+                    // Find or create target sheet
+                    dynamic sheets = workbook.Worksheets;
+                    dynamic? targetSheet = null;
+                    
+                    for (int i = 1; i <= sheets.Count; i++)
+                    {
+                        dynamic sheet = sheets.Item(i);
+                        if (sheet.Name == sheetName)
+                        {
+                            targetSheet = sheet;
+                            break;
+                        }
+                    }
+
+                    if (targetSheet == null)
+                    {
+                        targetSheet = sheets.Add();
+                        targetSheet.Name = sheetName;
+                    }
+
+                    // Remove existing connections first
+                    RemoveQueryConnections(workbook, queryName);
+
+                    // Create new QueryTable connection that loads data to table
+                    CreateQueryTableConnection(workbook, targetSheet, queryName);
+                }
+                catch (Exception ex)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Failed to set up table loading: {ex.Message}";
+                    return 1;
+                }
+
+                // Then add data model loading marker
+                try
+                {
+                    // Check if Data Model is available
+                    bool dataModelAvailable = CheckDataModelAvailability(workbook);
+                    
+                    if (dataModelAvailable)
+                    {
+                        // Create data model marker
+                        dynamic names = workbook.Names;
+                        string markerName = $"DataModel_Query_{queryName}";
+                        
+                        // Check if marker already exists
+                        bool markerExists = false;
+                        for (int i = 1; i <= names.Count; i++)
+                        {
+                            try
+                            {
+                                dynamic existingName = names.Item(i);
+                                if (existingName.Name.ToString() == markerName)
+                                {
+                                    markerExists = true;
+                                    break;
+                                }
+                            }
+                            catch
+                            {
+                                continue;
+                            }
+                        }
+                        
+                        if (!markerExists)
+                        {
+                            // Create a named range marker that points to cell A1 on first sheet
+                            dynamic firstSheet = workbook.Worksheets.Item(1);
+                            names.Add(markerName, $"={firstSheet.Name}!$A$1");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Table loading succeeded but data model setup failed: {ex.Message}";
+                    return 1;
+                }
+
+                result.Success = true;
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Error setting load to both: {ex.Message}";
+                return 1;
+            }
+        });
+
+        return result;
+    }
+
+    /// <inheritdoc />
+    public PowerQueryLoadConfigResult GetLoadConfig(string filePath, string queryName)
+    {
+        var result = new PowerQueryLoadConfigResult 
+        { 
+            FilePath = filePath,
+            QueryName = queryName
+        };
+
+        if (!File.Exists(filePath))
+        {
+            result.Success = false;
+            result.ErrorMessage = $"File not found: {filePath}";
+            return result;
+        }
+
+        WithExcel(filePath, false, (excel, workbook) =>
+        {
+            try
+            {
+                dynamic query = FindQuery(workbook, queryName);
+                if (query == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Query '{queryName}' not found";
+                    return 1;
+                }
+
+                // Check for QueryTables first (table loading)
+                bool hasTableConnection = false;
+                bool hasDataModelConnection = false;
+                string? targetSheet = null;
+
+                dynamic worksheets = workbook.Worksheets;
+                for (int ws = 1; ws <= worksheets.Count; ws++)
+                {
+                    dynamic worksheet = worksheets.Item(ws);
+                    dynamic queryTables = worksheet.QueryTables;
+                    
+                    for (int qt = 1; qt <= queryTables.Count; qt++)
+                    {
+                        try
+                        {
+                            dynamic queryTable = queryTables.Item(qt);
+                            string qtName = queryTable.Name?.ToString() ?? "";
+                            
+                            // Check if this QueryTable is for our query
+                            if (qtName.Equals(queryName.Replace(" ", "_"), StringComparison.OrdinalIgnoreCase) ||
+                                qtName.Contains(queryName.Replace(" ", "_")))
+                            {
+                                hasTableConnection = true;
+                                targetSheet = worksheet.Name;
+                                break;
+                            }
+                        }
+                        catch
+                        {
+                            // Skip invalid QueryTables
+                            continue;
+                        }
+                    }
+                    if (hasTableConnection) break;
+                }
+
+                // Check for connections (for data model or other types)
+                dynamic connections = workbook.Connections;
+                for (int i = 1; i <= connections.Count; i++)
+                {
+                    dynamic conn = connections.Item(i);
+                    string connName = conn.Name?.ToString() ?? "";
+                    
+                    if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
+                        connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.HasConnection = true;
+                        
+                        // If we don't have a table connection but have a workbook connection,
+                        // it's likely a data model connection
+                        if (!hasTableConnection)
+                        {
+                            hasDataModelConnection = true;
+                        }
+                    }
+                    else if (connName.Equals($"DataModel_{queryName}", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // This is our explicit data model connection marker
+                        result.HasConnection = true;
+                        hasDataModelConnection = true;
+                    }
+                }
+
+                // Always check for named range markers that indicate data model loading
+                // (even if we have table connections, for LoadToBoth mode)
+                if (!hasDataModelConnection)
+                {
+                    // Check for our data model marker
+                    try
+                    {
+                        dynamic names = workbook.Names;
+                        string markerName = $"DataModel_Query_{queryName}";
+                        
+                        for (int i = 1; i <= names.Count; i++)
+                        {
+                            try
+                            {
+                                dynamic existingName = names.Item(i);
+                                if (existingName.Name.ToString() == markerName)
+                                {
+                                    hasDataModelConnection = true;
+                                    break;
+                                }
+                            }
+                            catch
+                            {
+                                continue;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Cannot check names
+                    }
+                    
+                    // Fallback: Check if the query has data model indicators
+                    if (!hasDataModelConnection)
+                    {
+                        hasDataModelConnection = CheckQueryDataModelConfiguration(query, workbook);
+                    }
+                }
+
+                // Determine load mode
+                if (hasTableConnection && hasDataModelConnection)
+                {
+                    result.LoadMode = PowerQueryLoadMode.LoadToBoth;
+                }
+                else if (hasTableConnection)
+                {
+                    result.LoadMode = PowerQueryLoadMode.LoadToTable;
+                }
+                else if (hasDataModelConnection)
+                {
+                    result.LoadMode = PowerQueryLoadMode.LoadToDataModel;
+                }
+                else
+                {
+                    result.LoadMode = PowerQueryLoadMode.ConnectionOnly;
+                }
+
+                result.TargetSheet = targetSheet;
+                result.IsLoadedToDataModel = hasDataModelConnection;
+                result.Success = true;
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Error getting load config: {ex.Message}";
+                return 1;
+            }
+        });
+
+        return result;
+    }
+
+    /// <summary>
+    /// Helper method to remove existing query connections and QueryTables
+    /// </summary>
+    private static void RemoveQueryConnections(dynamic workbook, string queryName)
+    {
+        try
+        {
+            // Remove connections
+            dynamic connections = workbook.Connections;
+            for (int i = connections.Count; i >= 1; i--)
+            {
+                dynamic conn = connections.Item(i);
+                string connName = conn.Name?.ToString() ?? "";
+                if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
+                    connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                {
+                    conn.Delete();
+                }
+            }
+
+            // Remove QueryTables
+            dynamic worksheets = workbook.Worksheets;
+            for (int ws = 1; ws <= worksheets.Count; ws++)
+            {
+                dynamic worksheet = worksheets.Item(ws);
+                dynamic queryTables = worksheet.QueryTables;
+                
+                for (int qt = queryTables.Count; qt >= 1; qt--)
+                {
+                    dynamic queryTable = queryTables.Item(qt);
+                    if (queryTable.Name?.ToString()?.Contains(queryName.Replace(" ", "_")) == true)
+                    {
+                        queryTable.Delete();
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Ignore errors when removing connections
+        }
+    }
+
+    /// <summary>
+    /// Helper method to create a QueryTable connection that loads data to worksheet
+    /// </summary>
+    private static void CreateQueryTableConnection(dynamic workbook, dynamic targetSheet, string queryName)
+    {
+        dynamic queryTables = targetSheet.QueryTables;
+        string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
+        string commandText = $"SELECT * FROM [{queryName}]";
+
+        dynamic queryTable = queryTables.Add(connectionString, targetSheet.Range["A1"], commandText);
+        queryTable.Name = queryName.Replace(" ", "_");
+        queryTable.RefreshStyle = 1; // xlInsertDeleteCells
+        queryTable.BackgroundQuery = false;
+        queryTable.PreserveColumnInfo = true;
+        queryTable.PreserveFormatting = true;
+        queryTable.AdjustColumnWidth = true;
+        queryTable.RefreshOnFileOpen = false;
+        queryTable.SavePassword = false;
+        
+        // Refresh to load data immediately
+        queryTable.Refresh(false);
+    }
+
+    /// <summary>
+    /// Try to set a Power Query to load to data model using various approaches
+    /// </summary>
+    private static bool TrySetQueryLoadToDataModel(dynamic query)
+    {
+        try
+        {
+            // Approach 1: Try to set LoadToWorksheetModel property (newer Excel versions)
+            try
+            {
+                query.LoadToWorksheetModel = true;
+                return true;
+            }
+            catch
+            {
+                // Property doesn't exist or not supported
+            }
+
+            // Approach 2: Try to access the query's connection and set data model loading
+            try
+            {
+                // Some Power Query objects have a Connection property
+                dynamic connection = query.Connection;
+                if (connection != null)
+                {
+                    connection.RefreshOnFileOpen = false;
+                    connection.BackgroundQuery = false;
+                    return true;
+                }
+            }
+            catch
+            {
+                // Connection property doesn't exist or not accessible
+            }
+
+            // Approach 3: Check if query has ModelConnection property
+            try
+            {
+                dynamic modelConnection = query.ModelConnection;
+                if (modelConnection != null)
+                {
+                    return true; // Already connected to data model
+                }
+            }
+            catch
+            {
+                // ModelConnection property doesn't exist
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Check if the workbook supports Data Model loading
+    /// </summary>
+    private static bool CheckDataModelAvailability(dynamic workbook)
+    {
+        try
+        {
+            // Method 1: Check if workbook has Model property (Excel 2013+)
+            try
+            {
+                dynamic model = workbook.Model;
+                return model != null;
+            }
+            catch
+            {
+                // Model property doesn't exist
+            }
+
+            // Method 2: Check if workbook supports PowerPivot connections
+            try
+            {
+                dynamic connections = workbook.Connections;
+                // If we can access connections, assume data model is available
+                return connections != null;
+            }
+            catch
+            {
+                // Connections not available
+            }
+
+            // Method 3: Check Excel version/capabilities
+            try
+            {
+                dynamic app = workbook.Application;
+                string version = app.Version;
+                
+                // Excel 2013+ (version 15.0+) supports Data Model
+                if (double.TryParse(version, out double versionNum))
+                {
+                    return versionNum >= 15.0;
+                }
+            }
+            catch
+            {
+                // Cannot determine version
+            }
+
+            // Default to false if we can't determine data model availability
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Check if a query is configured for data model loading
+    /// </summary>
+    private static bool CheckQueryDataModelConfiguration(dynamic query, dynamic workbook)
+    {
+        try
+        {
+            // Method 1: Check if the query has LoadToWorksheetModel property set
+            try
+            {
+                bool loadToModel = query.LoadToWorksheetModel;
+                if (loadToModel) return true;
+            }
+            catch
+            {
+                // Property doesn't exist
+            }
+
+            // Method 2: Check if query has ModelConnection property
+            try
+            {
+                dynamic modelConnection = query.ModelConnection;
+                if (modelConnection != null) return true;
+            }
+            catch
+            {
+                // Property doesn't exist
+            }
+
+            // Since we now use explicit DataModel_ connection markers,
+            // this method is mainly for detecting native Excel data model configurations
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

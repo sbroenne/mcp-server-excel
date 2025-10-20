@@ -78,16 +78,17 @@ public class IntegrationWorkflowTests : IDisposable
     {
         // 1. Set cell value
         var setCellResult = _cellCommands.SetValue(_testExcelFile, "Sheet1", "A1", "TestValue");
-        Assert.True(setCellResult.Success);
+        Assert.True(setCellResult.Success, $"Failed to set cell value: {setCellResult.ErrorMessage}");
 
-        // 2. Create parameter (named range) pointing to cell
-        var createParamResult = _parameterCommands.Create(_testExcelFile, "TestParam", "Sheet1!A1");
-        Assert.True(createParamResult.Success);
+        // 2. Create parameter (named range) pointing to cell - Use unique name
+        string paramName = "TestParam_" + Guid.NewGuid().ToString("N")[..8];
+        var createParamResult = _parameterCommands.Create(_testExcelFile, paramName, "Sheet1!A1");
+        Assert.True(createParamResult.Success, $"Failed to create parameter: {createParamResult.ErrorMessage}");
 
         // 3. Get parameter value
-        var getParamResult = _parameterCommands.Get(_testExcelFile, "TestParam");
-        Assert.True(getParamResult.Success);
-        Assert.Equal("TestValue", getParamResult.Value);
+        var getParamResult = _parameterCommands.Get(_testExcelFile, paramName);
+        Assert.True(getParamResult.Success, $"Failed to get parameter: {getParamResult.ErrorMessage}");
+        Assert.Equal("TestValue", getParamResult.Value?.ToString());
     }
 
     [Fact]
@@ -102,9 +103,11 @@ public class IntegrationWorkflowTests : IDisposable
         _cellCommands.SetValue(_testExcelFile, "Config", "A1", "AppName");
         _cellCommands.SetValue(_testExcelFile, "Config", "B1", "MyApp");
 
-        // 3. Create parameters
-        _parameterCommands.Create(_testExcelFile, "AppNameLabel", "Config!A1");
-        _parameterCommands.Create(_testExcelFile, "AppNameValue", "Config!B1");
+        // 3. Create parameters - Use unique names
+        string labelParam = "AppNameLabel_" + Guid.NewGuid().ToString("N")[..8];
+        string valueParam = "AppNameValue_" + Guid.NewGuid().ToString("N")[..8];
+        _parameterCommands.Create(_testExcelFile, labelParam, "Config!A1");
+        _parameterCommands.Create(_testExcelFile, valueParam, "Config!B1");
 
         // 4. List parameters
         var listResult = _parameterCommands.List(_testExcelFile);
@@ -152,7 +155,8 @@ public class IntegrationWorkflowTests : IDisposable
         // 4. Get calculated value
         var getValueResult = _cellCommands.GetValue(_testExcelFile, "Sheet1", "A3");
         Assert.True(getValueResult.Success);
-        Assert.Equal("30", getValueResult.Value);
+        // Excel may return numeric value as number or string, so compare as string
+        Assert.Equal("30", getValueResult.Value?.ToString());
     }
 
     [Fact]

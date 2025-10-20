@@ -57,55 +57,55 @@ dotnet run --project src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
 
 ## 🛠️ Resource-Based Tools
 
-The MCP server provides **6 powerful resource-based tools** that follow REST-like design principles. Each tool supports multiple actions through a single, consistent interface:
+The MCP server provides **6 focused resource-based tools** optimized for AI coding agents. Each tool handles only Excel-specific operations:
 
-### 1. **`excel_file`** - File Management
+### 1. **`excel_file`** - Excel File Creation 🎯
 
-**Actions**: `create-empty`, `validate`, `check-exists`
+**Actions**: `create-empty` (1 action)
 
-- Create new Excel workbooks (.xlsx or .xlsm)
-- Validate file format and existence
-- Check file properties and status
+- Create new Excel workbooks (.xlsx or .xlsm) for automation workflows
+- 🎯 **LLM-Optimized**: File validation and existence checks can be done natively by AI agents
 
-### 2. **`excel_powerquery`** - Power Query Management  
+### 2. **`excel_powerquery`** - Power Query M Code Management 🧠
 
-**Actions**: `list`, `view`, `import`, `export`, `update`, `refresh`, `loadto`, `delete`
+**Actions**: `list`, `view`, `import`, `export`, `update`, `delete`, `set-load-to-table`, `set-load-to-data-model`, `set-load-to-both`, `set-connection-only`, `get-load-config` (11 actions)
 
-- Manage M code and data transformations
-- Import/export queries for version control
-- Refresh data connections and load to worksheets
+- Complete Power Query lifecycle for AI-assisted M code development
+- Import/export queries for version control and code review
+- Configure data loading modes and refresh connections
+- 🎯 **LLM-Optimized**: AI can analyze and refactor M code for performance
 
-### 3. **`excel_worksheet`** - Worksheet Operations
+### 3. **`excel_worksheet`** - Worksheet Operations & Bulk Data 📊
 
-**Actions**: `list`, `read`, `write`, `create`, `rename`, `copy`, `delete`, `clear`, `append`  
+**Actions**: `list`, `read`, `write`, `create`, `rename`, `copy`, `delete`, `clear`, `append` (9 actions)  
 
-- CRUD operations on worksheets and data ranges
-- Bulk data import/export with CSV support
-- Dynamic worksheet management
+- Full worksheet lifecycle with bulk data operations for efficient AI-driven automation
+- CSV import/export and data processing capabilities
+- 🎯 **LLM-Optimized**: Bulk operations reduce the number of tool calls needed
 
-### 4. **`excel_parameter`** - Named Range Management
+### 4. **`excel_parameter`** - Named Ranges as Configuration ⚙️
 
-**Actions**: `list`, `get`, `set`, `create`, `delete`
+**Actions**: `list`, `get`, `set`, `create`, `delete` (5 actions)
 
-- Manage named ranges as configuration parameters
-- Get/set parameter values for dynamic workbooks
-- Create and manage parameter schemas
+- Excel configuration management through named ranges for dynamic AI-controlled parameters
+- Parameter-driven workbook automation and templating
+- 🎯 **LLM-Optimized**: AI can dynamically configure Excel behavior via parameters
 
-### 5. **`excel_cell`** - Cell Operations
+### 5. **`excel_cell`** - Individual Cell Precision Operations 🎯
 
-**Actions**: `get-value`, `set-value`, `get-formula`, `set-formula`
+**Actions**: `get-value`, `set-value`, `get-formula`, `set-formula` (4 actions)
 
-- Individual cell value and formula operations
-- Precise cell-level data manipulation
-- Formula validation and management
+- Granular cell control for precise AI-driven formula and value manipulation
+- Individual cell operations when bulk operations aren't appropriate
+- 🎯 **LLM-Optimized**: Perfect for AI formula generation and cell-specific logic
 
-### 6. **`excel_vba`** - VBA Script Management ⚠️ *(.xlsm files only)*
+### 6. **`excel_vba`** - VBA Macro Management & Execution 📜
 
-**Actions**: `list`, `export`, `import`, `update`, `run`, `delete`, `setup-trust`, `check-trust`
+**Actions**: `list`, `export`, `import`, `update`, `run`, `delete` (6 actions) ⚠️ *(.xlsm files only)*
 
-- VBA module management and execution
-- Script import/export for version control  
-- Trust configuration for macro execution
+- Complete VBA lifecycle for AI-assisted macro development and automation
+- Script import/export for version control and code review
+- 🎯 **LLM-Optimized**: AI can enhance VBA with error handling, logging, and best practices
 
 ## 💬 Example AI Assistant Interactions
 

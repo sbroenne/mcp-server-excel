@@ -57,47 +57,6 @@ public class ExcelMcpServerTests : IDisposable
     }
 
     [Fact]
-    public void ExcelFile_ValidateExistingFile_ShouldReturnValidTrue()
-    {
-        // Arrange - Create a file first
-        ExcelTools.ExcelFile("create-empty", _testExcelFile);
-
-        // Act
-        var result = ExcelTools.ExcelFile("validate", _testExcelFile);
-
-        // Assert
-        var json = JsonDocument.Parse(result);
-        Assert.True(json.RootElement.GetProperty("valid").GetBoolean());
-    }
-
-    [Fact]
-    public void ExcelFile_ValidateNonExistentFile_ShouldReturnValidFalse()
-    {
-        // Act
-        var result = ExcelTools.ExcelFile("validate", "nonexistent.xlsx");
-
-        // Assert
-        var json = JsonDocument.Parse(result);
-        Assert.False(json.RootElement.GetProperty("valid").GetBoolean());
-        Assert.Equal("File does not exist", json.RootElement.GetProperty("error").GetString());
-    }
-
-    [Fact]
-    public void ExcelFile_CheckExists_ShouldReturnExistsStatus()
-    {
-        // Act - Test non-existent file
-        var result1 = ExcelTools.ExcelFile("check-exists", _testExcelFile);
-        var json1 = JsonDocument.Parse(result1);
-        Assert.False(json1.RootElement.GetProperty("exists").GetBoolean());
-
-        // Create file and test again
-        ExcelTools.ExcelFile("create-empty", _testExcelFile);
-        var result2 = ExcelTools.ExcelFile("check-exists", _testExcelFile);
-        var json2 = JsonDocument.Parse(result2);
-        Assert.True(json2.RootElement.GetProperty("exists").GetBoolean());
-    }
-
-    [Fact]
     public void ExcelFile_UnknownAction_ShouldReturnError()
     {
         // Act
@@ -120,7 +79,7 @@ public class ExcelMcpServerTests : IDisposable
         // Assert
         var json = JsonDocument.Parse(result);
         // Should succeed (return success: true) when file exists
-        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(json.RootElement.GetProperty("Success").GetBoolean());
     }
 
     [Fact]
@@ -131,7 +90,7 @@ public class ExcelMcpServerTests : IDisposable
 
         // Assert
         var json = JsonDocument.Parse(result);
-        Assert.True(json.RootElement.TryGetProperty("error", out _));
+        Assert.True(json.RootElement.TryGetProperty("ErrorMessage", out _));
     }
 
     [Fact]
@@ -145,7 +104,7 @@ public class ExcelMcpServerTests : IDisposable
 
         // Assert
         var json = JsonDocument.Parse(result);
-        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(json.RootElement.GetProperty("Success").GetBoolean());
     }
 
     [Fact]
@@ -189,7 +148,7 @@ in
             return;
         }
         
-        Assert.True(importJson.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(importJson.RootElement.GetProperty("Success").GetBoolean());
 
         // Act - View the imported query
         var viewResult = ExcelTools.ExcelPowerQuery("view", _testExcelFile, queryName);
@@ -208,7 +167,7 @@ in
         }
         else
         {
-            Assert.True(viewJson.RootElement.GetProperty("success").GetBoolean());
+            Assert.True(viewJson.RootElement.GetProperty("Success").GetBoolean());
         }
         
         // Assert the operation succeeded (current MCP server only returns success/error, not the actual M code)
@@ -218,7 +177,7 @@ in
         // Act - List queries to verify it appears
         var listResult = ExcelTools.ExcelPowerQuery("list", _testExcelFile);
         var listJson = JsonDocument.Parse(listResult);
-        Assert.True(listJson.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(listJson.RootElement.GetProperty("Success").GetBoolean());
         
         // NOTE: Current MCP server architecture limitation - list operations only return success/error
         // The actual query data is not returned in JSON format, only displayed to console
@@ -229,6 +188,6 @@ in
         // Act - Delete the query
         var deleteResult = ExcelTools.ExcelPowerQuery("delete", _testExcelFile, queryName);
         var deleteJson = JsonDocument.Parse(deleteResult);
-        Assert.True(deleteJson.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(deleteJson.RootElement.GetProperty("Success").GetBoolean());
     }
 }

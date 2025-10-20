@@ -520,4 +520,176 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         return 0;
     }
+
+    /// <summary>
+    /// Sets a Power Query to Connection Only mode
+    /// </summary>
+    public int SetConnectionOnly(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-connection-only <file.xlsx> <queryName>");
+            return 1;
+        }
+
+        string filePath = args[1];
+        string queryName = args[2];
+
+        AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Connection Only mode...[/]");
+
+        var result = _coreCommands.SetConnectionOnly(filePath, queryName);
+
+        if (!result.Success)
+        {
+            AnsiConsole.MarkupLine($"[red]✗[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+
+        AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' is now Connection Only");
+        return 0;
+    }
+
+    /// <summary>
+    /// Sets a Power Query to Load to Table mode
+    /// </summary>
+    public int SetLoadToTable(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-load-to-table <file.xlsx> <queryName> <sheetName>");
+            return 1;
+        }
+
+        string filePath = args[1];
+        string queryName = args[2];
+        string sheetName = args[3];
+
+        AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Load to Table mode (sheet: {sheetName})...[/]");
+
+        var result = _coreCommands.SetLoadToTable(filePath, queryName, sheetName);
+
+        if (!result.Success)
+        {
+            AnsiConsole.MarkupLine($"[red]✗[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+
+        AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' is now loading to worksheet '{sheetName}'");
+        return 0;
+    }
+
+    /// <summary>
+    /// Sets a Power Query to Load to Data Model mode
+    /// </summary>
+    public int SetLoadToDataModel(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-load-to-data-model <file.xlsx> <queryName>");
+            return 1;
+        }
+
+        string filePath = args[1];
+        string queryName = args[2];
+
+        AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Load to Data Model mode...[/]");
+
+        var result = _coreCommands.SetLoadToDataModel(filePath, queryName);
+
+        if (!result.Success)
+        {
+            AnsiConsole.MarkupLine($"[red]✗[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+
+        AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' is now loading to Data Model");
+        return 0;
+    }
+
+    /// <summary>
+    /// Sets a Power Query to Load to Both modes
+    /// </summary>
+    public int SetLoadToBoth(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-load-to-both <file.xlsx> <queryName> <sheetName>");
+            return 1;
+        }
+
+        string filePath = args[1];
+        string queryName = args[2];
+        string sheetName = args[3];
+
+        AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Load to Both modes (table + data model, sheet: {sheetName})...[/]");
+
+        var result = _coreCommands.SetLoadToBoth(filePath, queryName, sheetName);
+
+        if (!result.Success)
+        {
+            AnsiConsole.MarkupLine($"[red]✗[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+
+        AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' is now loading to both worksheet '{sheetName}' and Data Model");
+        return 0;
+    }
+
+    /// <summary>
+    /// Gets the current load configuration of a Power Query
+    /// </summary>
+    public int GetLoadConfig(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-get-load-config <file.xlsx> <queryName>");
+            return 1;
+        }
+
+        string filePath = args[1];
+        string queryName = args[2];
+
+        AnsiConsole.MarkupLine($"[bold]Getting load configuration for '{queryName}'...[/]\n");
+
+        var result = _coreCommands.GetLoadConfig(filePath, queryName);
+
+        if (!result.Success)
+        {
+            AnsiConsole.MarkupLine($"[red]✗[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+
+        var table = new Table()
+            .Border(TableBorder.Rounded)
+            .AddColumn("Property")
+            .AddColumn("Value");
+
+        table.AddRow("Query Name", result.QueryName);
+        table.AddRow("Load Mode", result.LoadMode.ToString());
+        table.AddRow("Has Connection", result.HasConnection ? "Yes" : "No");
+        table.AddRow("Target Sheet", result.TargetSheet ?? "None");
+        table.AddRow("Loaded to Data Model", result.IsLoadedToDataModel ? "Yes" : "No");
+
+        AnsiConsole.Write(table);
+
+        // Add helpful information based on load mode
+        AnsiConsole.WriteLine();
+        switch (result.LoadMode)
+        {
+            case Core.Models.PowerQueryLoadMode.ConnectionOnly:
+                AnsiConsole.MarkupLine("[dim]Connection Only: Query data is not loaded to worksheet or data model[/]");
+                break;
+            case Core.Models.PowerQueryLoadMode.LoadToTable:
+                AnsiConsole.MarkupLine("[dim]Load to Table: Query data is loaded to worksheet[/]");
+                break;
+            case Core.Models.PowerQueryLoadMode.LoadToDataModel:
+                AnsiConsole.MarkupLine("[dim]Load to Data Model: Query data is loaded to PowerPivot data model[/]");
+                break;
+            case Core.Models.PowerQueryLoadMode.LoadToBoth:
+                AnsiConsole.MarkupLine("[dim]Load to Both: Query data is loaded to both worksheet and data model[/]");
+                break;
+        }
+
+        return 0;
+    }
 }

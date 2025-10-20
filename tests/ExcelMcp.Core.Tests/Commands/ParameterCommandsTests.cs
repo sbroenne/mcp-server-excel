@@ -78,32 +78,38 @@ public class ParameterCommandsTests : IDisposable
     [Fact]
     public void Set_WithValidParameter_ReturnsSuccess()
     {
-        // Arrange
-        string paramName = "SetTestParam";
-        _parameterCommands.Create(_testExcelFile, paramName, "Sheet1!C1");
+        // Arrange - Use unique parameter name to avoid conflicts
+        string paramName = "SetTestParam_" + Guid.NewGuid().ToString("N")[..8];
+        var createResult = _parameterCommands.Create(_testExcelFile, paramName, "Sheet1!C1");
+        
+        // Ensure parameter was created successfully
+        Assert.True(createResult.Success, $"Failed to create parameter: {createResult.ErrorMessage}");
 
         // Act
         var result = _parameterCommands.Set(_testExcelFile, paramName, "TestValue");
 
         // Assert
-        Assert.True(result.Success);
+        Assert.True(result.Success, $"Failed to set parameter: {result.ErrorMessage}");
     }
 
     [Fact]
     public void Set_ThenGet_ReturnsSetValue()
     {
-        // Arrange
-        string paramName = "GetSetParam";
+        // Arrange - Use unique parameter name to avoid conflicts
+        string paramName = "GetSetParam_" + Guid.NewGuid().ToString("N")[..8];
         string testValue = "Integration Test Value";
-        _parameterCommands.Create(_testExcelFile, paramName, "Sheet1!D1");
+        var createResult = _parameterCommands.Create(_testExcelFile, paramName, "Sheet1!D1");
+        
+        // Ensure parameter was created successfully
+        Assert.True(createResult.Success, $"Failed to create parameter: {createResult.ErrorMessage}");
 
         // Act
         var setResult = _parameterCommands.Set(_testExcelFile, paramName, testValue);
         var getResult = _parameterCommands.Get(_testExcelFile, paramName);
 
         // Assert
-        Assert.True(setResult.Success);
-        Assert.True(getResult.Success);
+        Assert.True(setResult.Success, $"Failed to set parameter: {setResult.ErrorMessage}");
+        Assert.True(getResult.Success, $"Failed to get parameter: {getResult.ErrorMessage}");
         Assert.Equal(testValue, getResult.Value?.ToString());
     }
 

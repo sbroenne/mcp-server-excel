@@ -91,7 +91,7 @@ public class ParameterCommands : IParameterCommands
         {
             try
             {
-                dynamic? nameObj = FindNamedRange(workbook, paramName);
+                dynamic? nameObj = FindName(workbook, paramName);
                 if (nameObj == null)
                 {
                     result.Success = false;
@@ -150,7 +150,7 @@ public class ParameterCommands : IParameterCommands
         {
             try
             {
-                dynamic? nameObj = FindNamedRange(workbook, paramName);
+                dynamic? nameObj = FindName(workbook, paramName);
                 if (nameObj == null)
                 {
                     result.Success = false;
@@ -206,7 +206,9 @@ public class ParameterCommands : IParameterCommands
 
                 // Create new named range
                 dynamic namesCollection = workbook.Names;
-                namesCollection.Add(paramName, reference);
+                // Ensure reference is properly formatted for Excel COM
+                string formattedReference = reference.StartsWith("=") ? reference : $"={reference}";
+                namesCollection.Add(paramName, formattedReference);
 
                 workbook.Save();
                 result.Success = true;
@@ -243,7 +245,7 @@ public class ParameterCommands : IParameterCommands
         {
             try
             {
-                dynamic? nameObj = FindNamedRange(workbook, paramName);
+                dynamic? nameObj = FindName(workbook, paramName);
                 if (nameObj == null)
                 {
                     result.Success = false;

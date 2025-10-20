@@ -166,6 +166,63 @@ public class PowerQueryViewResult : ResultBase
 }
 
 /// <summary>
+/// Power Query load configuration modes
+/// </summary>
+public enum PowerQueryLoadMode
+{
+    /// <summary>
+    /// Connection only - no data loaded to worksheet or data model
+    /// </summary>
+    ConnectionOnly,
+    
+    /// <summary>
+    /// Load to table in worksheet
+    /// </summary>
+    LoadToTable,
+    
+    /// <summary>
+    /// Load to Data Model (PowerPivot)
+    /// </summary>
+    LoadToDataModel,
+    
+    /// <summary>
+    /// Load to both table and data model
+    /// </summary>
+    LoadToBoth
+}
+
+/// <summary>
+/// Result for Power Query load configuration
+/// </summary>
+public class PowerQueryLoadConfigResult : ResultBase
+{
+    /// <summary>
+    /// Name of the query
+    /// </summary>
+    public string QueryName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Current load mode
+    /// </summary>
+    public PowerQueryLoadMode LoadMode { get; set; }
+    
+    /// <summary>
+    /// Target worksheet name (if LoadToTable or LoadToBoth)
+    /// </summary>
+    public string? TargetSheet { get; set; }
+    
+    /// <summary>
+    /// Whether the query has an active connection
+    /// </summary>
+    public bool HasConnection { get; set; }
+    
+    /// <summary>
+    /// Whether the query is loaded to data model
+    /// </summary>
+    public bool IsLoadedToDataModel { get; set; }
+}
+
+/// <summary>
 /// Result for listing named ranges/parameters
 /// </summary>
 public class ParameterListResult : ResultBase

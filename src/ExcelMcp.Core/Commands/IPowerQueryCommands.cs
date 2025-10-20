@@ -48,6 +48,31 @@ public interface IPowerQueryCommands
     OperationResult LoadTo(string filePath, string queryName, string sheetName);
     
     /// <summary>
+    /// Sets a Power Query to Connection Only mode (no data loaded to worksheet)
+    /// </summary>
+    OperationResult SetConnectionOnly(string filePath, string queryName);
+    
+    /// <summary>
+    /// Sets a Power Query to Load to Table mode (data loaded to worksheet)  
+    /// </summary>
+    OperationResult SetLoadToTable(string filePath, string queryName, string sheetName);
+    
+    /// <summary>
+    /// Sets a Power Query to Load to Data Model mode (data loaded to PowerPivot)
+    /// </summary>
+    OperationResult SetLoadToDataModel(string filePath, string queryName);
+    
+    /// <summary>
+    /// Sets a Power Query to Load to Both modes (table + data model)
+    /// </summary>
+    OperationResult SetLoadToBoth(string filePath, string queryName, string sheetName);
+    
+    /// <summary>
+    /// Gets the current load configuration of a Power Query
+    /// </summary>
+    PowerQueryLoadConfigResult GetLoadConfig(string filePath, string queryName);
+    
+    /// <summary>
     /// Deletes a Power Query from the workbook
     /// </summary>
     OperationResult Delete(string filePath, string queryName);
