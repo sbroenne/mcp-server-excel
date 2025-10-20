@@ -13,6 +13,7 @@ jobs:
       issues: write
       pull-requests: write
       packages: write
+      id-token: write  # Required for NuGet OIDC trusted publishing
     
     steps:
     - uses: actions/checkout@v4
@@ -72,6 +73,22 @@ jobs:
     - name: Pack NuGet Package
       run: dotnet pack src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-build --output ./nupkg
       
+    - name: Publish to NuGet.org
+      run: |
+        $version = $env:PACKAGE_VERSION
+        $packagePath = "nupkg/Sbroenne.ExcelMcp.McpServer.$version.nupkg"
+        
+        Write-Output "Publishing $packagePath to NuGet.org using OIDC trusted publishing..."
+        
+        dotnet nuget push $packagePath `
+          --api-key az `
+          --source https://api.nuget.org/v3/index.json `
+          --skip-duplicate
+        
+        Write-Output "🚀 Published Sbroenne.ExcelMcp.McpServer.$version to NuGet.org"
+        Write-Output "🔗 Package will be available at: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer/$version"
+      shell: pwsh
+      
     - name: Create MCP Server Release Package
       run: |
         $version = $env:PACKAGE_VERSION
@@ -122,15 +139,6 @@ jobs:
         Compress-Archive -Path "release/ExcelMcp-MCP-Server-$version/*" -DestinationPath "ExcelMcp-MCP-Server-$version-windows.zip"
         
         Write-Output "Created ExcelMcp-MCP-Server-$version-windows.zip"
-      shell: pwsh
-      
-    - name: Publish to NuGet
-      run: |
-        $nupkgFiles = Get-ChildItem -Path "./nupkg" -Filter "*.nupkg"
-        foreach ($nupkg in $nupkgFiles) {
-          Write-Output "Publishing $($nupkg.Name) to NuGet..."
-          dotnet nuget push $nupkg.FullName --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
-        }
       shell: pwsh
       
     - name: Create GitHub Release

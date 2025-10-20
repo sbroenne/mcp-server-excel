@@ -12,15 +12,21 @@ This document outlines the separate build and release processes for the ExcelMcp
 **Features**:
 
 - Builds and packages only the MCP Server
-- Publishes to NuGet as a .NET tool
+- Publishes to NuGet as a .NET tool (using OIDC trusted publishing)
 - Creates GitHub release with MCP-focused documentation
 - Optimized for AI assistant integration
+- Single workflow handles both NuGet publishing and GitHub release
 
 **Release Artifacts**:
 
 - `ExcelMcp-MCP-Server-{version}-windows.zip` - Binary package
-- NuGet package: `ExcelMcp.McpServer` on NuGet.org
+- NuGet package: `Sbroenne.ExcelMcp.McpServer` on NuGet.org
 - Installation guide focused on MCP usage
+
+**Publishing Method**:
+- Uses OIDC (OpenID Connect) trusted publishing for secure NuGet authentication
+- No API keys stored in secrets - authentication via GitHub identity
+- Publishes to NuGet.org within the same workflow that creates the GitHub release
 
 **Use Cases**:
 
@@ -62,13 +68,15 @@ This document outlines the separate build and release processes for the ExcelMcp
 
 - Builds both MCP Server and CLI
 - Creates combined distribution package
+- Publishes MCP Server to NuGet (using OIDC trusted publishing)
 - Comprehensive release with both tools
 - Maintains backward compatibility
 
 **Release Artifacts**:
 
 - `ExcelMcp-{version}-windows.zip` - Combined package
-- Contains both CLI and MCP Server
+- NuGet package: `Sbroenne.ExcelMcp.McpServer` on NuGet.org
+- Contains both CLI and MCP Server binaries
 - Unified documentation and installation guide
 
 **Use Cases**:
@@ -100,10 +108,10 @@ This document outlines the separate build and release processes for the ExcelMcp
 git tag mcp-v1.3.0
 git push origin mcp-v1.3.0
 
-# This triggers:
-# - Build MCP server only
-# - Publish to NuGet
-# - Create GitHub release with MCP-focused docs
+# This triggers release-mcp-server.yml which:
+# - Builds MCP server
+# - Publishes to NuGet using OIDC trusted publishing
+# - Creates GitHub release with MCP-focused docs and binary ZIP
 ```
 
 ### Releasing CLI Only
@@ -113,10 +121,10 @@ git push origin mcp-v1.3.0
 git tag cli-v2.2.0
 git push origin cli-v2.2.0
 
-# This triggers:
-# - Build CLI only
-# - Create binary distribution
-# - Create GitHub release with CLI-focused docs
+# This triggers release-cli.yml which:
+# - Builds CLI only
+# - Creates binary distribution (no NuGet publishing)
+# - Creates GitHub release with CLI-focused docs
 ```
 
 ### Combined Release
@@ -126,10 +134,11 @@ git push origin cli-v2.2.0
 git tag v3.1.0
 git push origin v3.1.0
 
-# This triggers:
-# - Build both MCP server and CLI
-# - Combined distribution package
-# - Comprehensive release documentation
+# This triggers release.yml which:
+# - Builds both MCP server and CLI
+# - Publishes MCP Server to NuGet using OIDC trusted publishing
+# - Creates combined distribution package
+# - Creates GitHub release with comprehensive documentation
 ```
 
 ## Documentation Strategy
