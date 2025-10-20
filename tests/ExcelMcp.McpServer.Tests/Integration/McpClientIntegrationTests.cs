@@ -12,6 +12,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration;
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
+[Trait("Layer", "McpServer")]
 [Trait("Feature", "MCPProtocol")]
 public class McpClientIntegrationTests : IDisposable
 {

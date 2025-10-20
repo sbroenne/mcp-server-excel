@@ -12,13 +12,13 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 [Trait("Speed", "Medium")]
 [Trait("Feature", "Files")]
 [Trait("Layer", "Core")]
-public class FileCommandsTests : IDisposable
+public class CoreFileCommandsTests : IDisposable
 {
     private readonly FileCommands _fileCommands;
     private readonly string _tempDir;
     private readonly List<string> _createdFiles;
 
-    public FileCommandsTests()
+    public CoreFileCommandsTests()
     {
         _fileCommands = new FileCommands();
         

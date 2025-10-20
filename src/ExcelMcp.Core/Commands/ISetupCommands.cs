@@ -13,6 +13,11 @@ public interface ISetupCommands
     VbaTrustResult EnableVbaTrust();
     
     /// <summary>
+    /// Disable VBA project access trust in Excel
+    /// </summary>
+    VbaTrustResult DisableVbaTrust();
+    
+    /// <summary>
     /// Check current VBA trust status
     /// </summary>
     /// <param name="testFilePath">Path to Excel file to test VBA access</param>

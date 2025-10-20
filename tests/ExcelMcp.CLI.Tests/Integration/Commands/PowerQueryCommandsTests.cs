@@ -13,13 +13,13 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 [Trait("Speed", "Medium")]
 [Trait("Feature", "PowerQuery")]
 [Trait("Layer", "CLI")]
-public class PowerQueryCommandsTests : IDisposable
+public class CliPowerQueryCommandsTests : IDisposable
 {
     private readonly PowerQueryCommands _cliCommands;
     private readonly string _tempDir;
     private readonly List<string> _createdFiles;
 
-    public PowerQueryCommandsTests()
+    public CliPowerQueryCommandsTests()
     {
         _cliCommands = new PowerQueryCommands();
         

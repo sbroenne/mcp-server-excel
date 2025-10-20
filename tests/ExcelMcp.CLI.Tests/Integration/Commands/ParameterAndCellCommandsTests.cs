@@ -13,12 +13,12 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 [Trait("Speed", "Medium")]
 [Trait("Feature", "Parameters")]
 [Trait("Layer", "CLI")]
-public class ParameterCommandsTests : IDisposable
+public class CliParameterCommandsTests : IDisposable
 {
     private readonly ParameterCommands _cliCommands;
     private readonly string _tempDir;
 
-    public ParameterCommandsTests()
+    public CliParameterCommandsTests()
     {
         _cliCommands = new ParameterCommands();
         
@@ -131,12 +131,12 @@ public class ParameterCommandsTests : IDisposable
 [Trait("Speed", "Medium")]
 [Trait("Feature", "Cells")]
 [Trait("Layer", "CLI")]
-public class CellCommandsTests : IDisposable
+public class CliCellCommandsTests : IDisposable
 {
     private readonly CellCommands _cliCommands;
     private readonly string _tempDir;
 
-    public CellCommandsTests()
+    public CliCellCommandsTests()
     {
         _cliCommands = new CellCommands();
         

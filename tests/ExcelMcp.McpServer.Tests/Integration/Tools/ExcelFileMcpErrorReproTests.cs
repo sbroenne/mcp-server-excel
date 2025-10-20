@@ -10,6 +10,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Fast")]
+[Trait("Layer", "McpServer")]
 public class ExcelFileMcpErrorReproTests
 {
     private readonly ITestOutputHelper _output;

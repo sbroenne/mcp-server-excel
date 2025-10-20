@@ -9,6 +9,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
+[Trait("Layer", "McpServer")]
 [Trait("Feature", "PowerQuery")]
 [Trait("RequiresExcel", "true")]
 public class PowerQueryComErrorTests : IDisposable

@@ -13,13 +13,13 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 [Trait("Speed", "Medium")]
 [Trait("Feature", "Files")]
 [Trait("Layer", "CLI")]
-public class FileCommandsTests : IDisposable
+public class CliFileCommandsTests : IDisposable
 {
     private readonly FileCommands _cliCommands;
     private readonly string _tempDir;
     private readonly List<string> _createdFiles;
 
-    public FileCommandsTests()
+    public CliFileCommandsTests()
     {
         _cliCommands = new FileCommands();
         

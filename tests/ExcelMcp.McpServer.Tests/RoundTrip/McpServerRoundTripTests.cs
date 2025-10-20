@@ -12,6 +12,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.RoundTrip;
 /// </summary>
 [Trait("Category", "RoundTrip")]
 [Trait("Speed", "Slow")]
+[Trait("Layer", "McpServer")]
 [Trait("Feature", "MCPProtocol")]
 public class McpServerRoundTripTests : IDisposable
 {

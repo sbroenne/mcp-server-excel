@@ -1681,6 +1681,126 @@ dotnet test
 
 This architecture **scales** as the project grows and **enables** both rapid development and comprehensive quality assurance.
 
+## 🏷️ **CRITICAL: Test Naming and Trait Standardization (October 2025)**
+
+### **Problem: Duplicate Test Class Names Breaking FQDN Filtering**
+
+**Issue Discovered**: Test classes shared names across CLI, Core, and MCP Server projects, preventing precise test filtering:
+- `FileCommandsTests` existed in both CLI and Core projects
+- `PowerQueryCommandsTests` existed in both CLI and Core projects
+- `ParameterCommandsTests` existed in both CLI and Core projects
+- `CellCommandsTests` existed in both CLI and Core projects
+
+**Impact**: 
+- ❌ FQDN filtering like `--filter "FullyQualifiedName~FileCommandsTests"` matched tests from BOTH projects
+- ❌ Unable to run layer-specific tests without running all matching tests
+- ❌ Confusion about which tests were actually being executed
+
+### **Solution: Layer-Prefixed Test Class Names**
+
+**Naming Convention Applied:**
+```csharp
+// CLI Tests - Use "Cli" prefix
+public class CliFileCommandsTests { }
+public class CliPowerQueryCommandsTests { }
+public class CliParameterCommandsTests { }
+public class CliCellCommandsTests { }
+
+// Core Tests - Use "Core" prefix
+public class CoreFileCommandsTests { }
+public class CorePowerQueryCommandsTests { }
+public class CoreParameterCommandsTests { }
+public class CoreCellCommandsTests { }
+
+// MCP Server Tests - Use descriptive names or "Mcp" prefix
+public class ExcelMcpServerTests { }
+public class McpServerRoundTripTests { }
+public class McpClientIntegrationTests { }
+```
+
+### **Problem: Missing Layer Traits in MCP Server Tests**
+
+**Issue Discovered**: 9 MCP Server test classes lacked the required `[Trait("Layer", "McpServer")]` trait, violating test organization standards.
+
+**Fix Applied**: Added `[Trait("Layer", "McpServer")]` to all MCP Server test classes:
+- ExcelMcpServerTests.cs
+- McpServerRoundTripTests.cs
+- McpClientIntegrationTests.cs
+- DetailedErrorMessageTests.cs
+- ExcelFileDirectoryTests.cs
+- ExcelFileMcpErrorReproTests.cs
+- ExcelFileToolErrorTests.cs
+- McpParameterBindingTests.cs
+- PowerQueryComErrorTests.cs
+
+### **Standard Test Trait Pattern**
+
+**ALL test classes MUST include these traits:**
+```csharp
+[Trait("Category", "Integration")]      // Required: Unit | Integration | RoundTrip
+[Trait("Speed", "Medium")]              // Required: Fast | Medium | Slow
+[Trait("Layer", "Core")]                // Required: Core | CLI | McpServer
+[Trait("Feature", "PowerQuery")]        // Recommended: PowerQuery | VBA | Files | etc.
+[Trait("RequiresExcel", "true")]        // Optional: true when Excel is needed
+public class CorePowerQueryCommandsTests { }
+```
+
+### **Test Filtering Best Practices**
+
+**✅ Project-Specific Filtering (Recommended - No Warnings):**
+```bash
+# Target specific test project - no warnings
+dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Category=Unit"
+dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj --filter "Feature=Files"
+dotnet test tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj --filter "Category=Integration"
+```
+
+**⚠️ Cross-Project Filtering (Shows Warnings But Works):**
+```bash
+# Filters across all projects - shows "no match" warnings for projects without matching tests
+dotnet test --filter "Category=Unit"        # All unit tests from all projects
+dotnet test --filter "Feature=PowerQuery"   # PowerQuery tests from all layers
+dotnet test --filter "Speed=Fast"           # Fast tests from all projects
+```
+
+**Why Warnings Occur**: When running solution-level filters, the filter is applied to all 3 test projects, but each project only contains tests from one layer. The "no test matches" warnings are harmless but noisy.
+
+**Best Practice**: Use project-specific filtering to eliminate warnings and make test execution intent clear.
+
+### **Benefits Achieved**
+
+✅ **Precise Test Filtering**: Can target specific layer tests without ambiguity
+✅ **Clear Intent**: Test class names explicitly indicate which layer they test
+✅ **Complete Trait Coverage**: All 180+ tests now have proper `Layer` trait
+✅ **No More FQDN Conflicts**: Unique class names enable reliable test filtering
+✅ **Better Organization**: Follows layer-based naming convention consistently
+✅ **Faster Development**: Can run only relevant tests during development
+
+### **Rules for Future Test Development**
+
+**ALWAYS follow these rules when creating new tests:**
+
+1. **Prefix test class names with layer:**
+   - CLI tests: `Cli*Tests`
+   - Core tests: `Core*Tests`
+   - MCP tests: `Mcp*Tests` or descriptive names
+
+2. **Include ALL required traits:**
+   ```csharp
+   [Trait("Category", "...")]  // Required
+   [Trait("Speed", "...")]     // Required
+   [Trait("Layer", "...")]     // Required - NEVER SKIP THIS!
+   [Trait("Feature", "...")]   // Recommended
+   ```
+
+3. **Never create duplicate test class names across projects** - this breaks FQDN filtering
+
+4. **Use project-specific filtering** to avoid "no match" warnings
+
+5. **Verify trait coverage** before committing new tests
+
+**Lesson Learned**: Consistent test naming and complete trait coverage are essential for LLM-friendly test organization. FQDN filtering enables precise test selection during development, and proper traits enable flexible execution strategies.
+
 ## Contributing Guidelines
 
 When extending excelcli with Copilot:
@@ -1690,6 +1810,7 @@ When extending excelcli with Copilot:
 3. **Document Everything:** Include XML docs and usage examples
 4. **Handle Errors Gracefully:** Provide helpful error messages
 5. **Maintain Performance:** Use efficient Excel COM operations
+6. **Follow Test Naming Standards:** Use layer prefixes and complete traits
 
 ### Sample Contribution Workflow
 

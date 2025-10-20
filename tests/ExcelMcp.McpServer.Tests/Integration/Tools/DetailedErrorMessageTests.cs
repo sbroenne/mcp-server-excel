@@ -17,6 +17,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Fast")]
+[Trait("Layer", "McpServer")]
 [Trait("Feature", "ErrorHandling")]
 public class DetailedErrorMessageTests : IDisposable
 {

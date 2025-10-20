@@ -12,6 +12,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
+[Trait("Layer", "McpServer")]
 public class McpParameterBindingTests : IDisposable
 {
     private readonly ITestOutputHelper _output;

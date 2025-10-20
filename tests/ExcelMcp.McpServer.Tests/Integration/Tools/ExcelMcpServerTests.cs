@@ -11,6 +11,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
+[Trait("Layer", "McpServer")]
 [Trait("Feature", "MCP")]
 public class ExcelMcpServerTests : IDisposable
 {
@@ -84,12 +85,13 @@ public class ExcelMcpServerTests : IDisposable
     [Fact]
     public void ExcelWorksheet_NonExistentFile_ShouldReturnError()
     {
-        // Act
-        var result = ExcelWorksheetTool.ExcelWorksheet("list", "nonexistent.xlsx");
+        // Act & Assert - Should throw McpException with detailed error message
+        var exception = Assert.Throws<ModelContextProtocol.McpException>(() =>
+            ExcelWorksheetTool.ExcelWorksheet("list", "nonexistent.xlsx"));
 
-        // Assert
-        var json = JsonDocument.Parse(result);
-        Assert.True(json.RootElement.TryGetProperty("ErrorMessage", out _));
+        // Verify detailed error message includes action and file path
+        Assert.Contains("list failed for 'nonexistent.xlsx'", exception.Message);
+        Assert.Contains("File not found", exception.Message);
     }
 
     [Fact]

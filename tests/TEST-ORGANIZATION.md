@@ -272,26 +272,47 @@ All tests should use traits for filtering:
 [Trait("Category", "Integration")]  // Unit, Integration, RoundTrip
 [Trait("Speed", "Fast")]            // Fast, Medium, Slow
 [Trait("Feature", "Files")]         // Files, PowerQuery, VBA, etc.
-[Trait("Layer", "Core")]            // Core, CLI, MCP
+[Trait("Layer", "Core")]            // Core, CLI, McpServer
 ```
 
 ## Running Tests
 
+### **Project-Specific (Recommended - No Warnings)**
+
 ```bash
-# Run all Core tests (primary suite)
-dotnet test --filter "Layer=Core"
+# Run all tests in a specific project
+dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj
+dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj
+dotnet test tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj
 
-# Run all CLI tests (minimal suite)
-dotnet test --filter "Layer=CLI"
+# Run by category within a project
+dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Category=Unit"
+dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Category=Integration"
+dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Category=RoundTrip"
 
-# Run fast tests only
-dotnet test --filter "Speed=Fast"
+# Run by feature within a project
+dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Feature=PowerQuery"
+dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj --filter "Feature=Files"
+```
 
-# Run specific feature tests
-dotnet test --filter "Feature=Files&Layer=Core"
+### **Cross-Project (Shows Warnings But Works)**
 
-# Run all tests except slow ones
-dotnet test --filter "Speed!=Slow"
+```bash
+# Run tests across all projects by category
+dotnet test --filter "Category=Unit"        # Fast tests from all projects
+dotnet test --filter "Category=Integration" # Integration tests from all projects
+
+# Run by speed across all projects
+dotnet test --filter "Speed=Fast"           # Quick feedback
+dotnet test --filter "Speed!=Slow"          # Exclude slow tests
+
+# Run by feature across all projects
+dotnet test --filter "Feature=PowerQuery"   # PowerQuery tests from all layers
+dotnet test --filter "Feature=VBA"          # VBA tests from all layers
+
+# Note: Layer filters at solution level will show warnings because each
+# test project only contains tests from one layer. Use project-specific
+# commands to avoid warnings.
 ```
 
 ## Test Structure Guidelines
