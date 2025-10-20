@@ -47,11 +47,11 @@ public class ExcelMcpServerTests : IDisposable
     public void ExcelFile_CreateEmpty_ShouldReturnSuccessJson()
     {
         // Act
-        var result = ExcelTools.ExcelFile("create-empty", _testExcelFile);
+        var createResult = ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
 
         // Assert
-        Assert.NotNull(result);
-        var json = JsonDocument.Parse(result);
+        Assert.NotNull(createResult);
+        var json = JsonDocument.Parse(createResult);
         Assert.True(json.RootElement.GetProperty("success").GetBoolean());
         Assert.True(File.Exists(_testExcelFile));
     }
@@ -59,22 +59,21 @@ public class ExcelMcpServerTests : IDisposable
     [Fact]
     public void ExcelFile_UnknownAction_ShouldReturnError()
     {
-        // Act
-        var result = ExcelTools.ExcelFile("unknown", _testExcelFile);
-
-        // Assert
-        var json = JsonDocument.Parse(result);
-        Assert.True(json.RootElement.TryGetProperty("error", out _));
+        // Act & Assert - Should throw McpException for unknown action
+        var exception = Assert.Throws<ModelContextProtocol.McpException>(() =>
+            ExcelFileTool.ExcelFile("unknown", _testExcelFile));
+        
+        Assert.Contains("Unknown action 'unknown'", exception.Message);
     }
 
     [Fact]
     public void ExcelWorksheet_List_ShouldReturnSuccessAfterCreation()
     {
         // Arrange
-        ExcelTools.ExcelFile("create-empty", _testExcelFile);
+        ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
 
         // Act
-        var result = ExcelTools.ExcelWorksheet("list", _testExcelFile);
+        var result = ExcelWorksheetTool.ExcelWorksheet("list", _testExcelFile);
 
         // Assert
         var json = JsonDocument.Parse(result);
@@ -86,7 +85,7 @@ public class ExcelMcpServerTests : IDisposable
     public void ExcelWorksheet_NonExistentFile_ShouldReturnError()
     {
         // Act
-        var result = ExcelTools.ExcelWorksheet("list", "nonexistent.xlsx");
+        var result = ExcelWorksheetTool.ExcelWorksheet("list", "nonexistent.xlsx");
 
         // Assert
         var json = JsonDocument.Parse(result);
@@ -97,10 +96,10 @@ public class ExcelMcpServerTests : IDisposable
     public void ExcelParameter_List_ShouldReturnSuccessAfterCreation()
     {
         // Arrange
-        ExcelTools.ExcelFile("create-empty", _testExcelFile);
+        ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
 
         // Act
-        var result = ExcelTools.ExcelParameter("list", _testExcelFile);
+        var result = ExcelParameterTool.ExcelParameter("list", _testExcelFile);
 
         // Assert
         var json = JsonDocument.Parse(result);
@@ -110,19 +109,18 @@ public class ExcelMcpServerTests : IDisposable
     [Fact]
     public void ExcelCell_GetValue_RequiresExistingFile()
     {
-        // Act - Try to get cell value from non-existent file
-        var result = ExcelTools.ExcelCell("get-value", "nonexistent.xlsx", "Sheet1", "A1");
-
-        // Assert
-        var json = JsonDocument.Parse(result);
-        Assert.True(json.RootElement.TryGetProperty("error", out _));
+        // Act & Assert - Should throw McpException for non-existent file
+        var exception = Assert.Throws<ModelContextProtocol.McpException>(() =>
+            ExcelCellTool.ExcelCell("get-value", "nonexistent.xlsx", "Sheet1", "A1"));
+        
+        Assert.Contains("File not found", exception.Message);
     }
 
     [Fact]
     public void ExcelPowerQuery_CreateAndReadWorkflow_ShouldSucceed()
     {
         // Arrange
-        ExcelTools.ExcelFile("create-empty", _testExcelFile);
+        ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
         var queryName = "ToolTestQuery";
         var mCodeFile = Path.Combine(_tempDir, "tool-test-query.pq");
         var mCode = @"let
@@ -133,7 +131,7 @@ in
         File.WriteAllText(mCodeFile, mCode);
 
         // Act - Import Power Query
-        var importResult = ExcelTools.ExcelPowerQuery("import", _testExcelFile, queryName, sourceOrTargetPath: mCodeFile);
+        var importResult = ExcelPowerQueryTool.ExcelPowerQuery("import", _testExcelFile, queryName, sourcePath: mCodeFile);
         
         // Debug: Print the actual response to understand the structure
         System.Console.WriteLine($"Import result JSON: {importResult}");
@@ -151,7 +149,7 @@ in
         Assert.True(importJson.RootElement.GetProperty("Success").GetBoolean());
 
         // Act - View the imported query
-        var viewResult = ExcelTools.ExcelPowerQuery("view", _testExcelFile, queryName);
+        var viewResult = ExcelPowerQueryTool.ExcelPowerQuery("view", _testExcelFile, queryName);
         
         // Debug: Print the actual response to understand the structure
         System.Console.WriteLine($"View result JSON: {viewResult}");
@@ -175,7 +173,7 @@ in
         // TODO: Enhance MCP server to return actual M code content for view operations
 
         // Act - List queries to verify it appears
-        var listResult = ExcelTools.ExcelPowerQuery("list", _testExcelFile);
+        var listResult = ExcelPowerQueryTool.ExcelPowerQuery("list", _testExcelFile);
         var listJson = JsonDocument.Parse(listResult);
         Assert.True(listJson.RootElement.GetProperty("Success").GetBoolean());
         
@@ -186,7 +184,7 @@ in
         // TODO: Future enhancement - modify MCP server to return structured data instead of just success/error
 
         // Act - Delete the query
-        var deleteResult = ExcelTools.ExcelPowerQuery("delete", _testExcelFile, queryName);
+        var deleteResult = ExcelPowerQueryTool.ExcelPowerQuery("delete", _testExcelFile, queryName);
         var deleteJson = JsonDocument.Parse(deleteResult);
         Assert.True(deleteJson.RootElement.GetProperty("Success").GetBoolean());
     }

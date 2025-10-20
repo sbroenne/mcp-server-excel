@@ -198,20 +198,20 @@ in
 
             // Step 1: Create Excel file
             _output.WriteLine("Step 1: Creating Excel file...");
-            await CallExcelTool(server, "excel_file", new { action = "create-empty", filePath = testFile });
+            await CallExcelTool(server, "excel_file", new { action = "create-empty", excelPath = testFile });
 
             // Step 2: Create target worksheet
             _output.WriteLine("Step 2: Creating target worksheet...");
-            await CallExcelTool(server, "excel_worksheet", new { action = "create", filePath = testFile, sheetName = targetSheet });
+            await CallExcelTool(server, "excel_worksheet", new { action = "create", excelPath = testFile, sheetName = targetSheet });
 
             // Step 3: Import Power Query
             _output.WriteLine("Step 3: Importing Power Query...");
             var importResponse = await CallExcelTool(server, "excel_powerquery", new 
             { 
                 action = "import", 
-                filePath = testFile, 
+                excelPath = testFile, 
                 queryName = queryName,
-                sourceOrTargetPath = originalMCodeFile
+                sourcePath = originalMCodeFile
             });
             var importJson = JsonDocument.Parse(importResponse);
             Assert.True(importJson.RootElement.GetProperty("Success").GetBoolean());
@@ -221,7 +221,7 @@ in
             var setLoadResponse = await CallExcelTool(server, "excel_powerquery", new 
             { 
                 action = "set-load-to-table", 
-                filePath = testFile, 
+                excelPath = testFile, 
                 queryName = queryName,
                 targetSheet = targetSheet
             });
@@ -233,7 +233,7 @@ in
             var readResponse = await CallExcelTool(server, "excel_worksheet", new 
             { 
                 action = "read", 
-                filePath = testFile, 
+                excelPath = testFile, 
                 sheetName = targetSheet,
                 range = "A1:D10"  // Read headers plus data
             });
@@ -252,9 +252,9 @@ in
             var exportResponse = await CallExcelTool(server, "excel_powerquery", new 
             { 
                 action = "export", 
-                filePath = testFile, 
+                excelPath = testFile, 
                 queryName = queryName,
-                sourceOrTargetPath = exportedMCodeFile
+                targetPath = exportedMCodeFile
             });
             var exportJson = JsonDocument.Parse(exportResponse);
             Assert.True(exportJson.RootElement.GetProperty("Success").GetBoolean());
@@ -265,9 +265,9 @@ in
             var updateResponse = await CallExcelTool(server, "excel_powerquery", new 
             { 
                 action = "update", 
-                filePath = testFile, 
+                excelPath = testFile, 
                 queryName = queryName,
-                sourceOrTargetPath = updatedMCodeFile
+                sourcePath = updatedMCodeFile
             });
             var updateJson = JsonDocument.Parse(updateResponse);
             Assert.True(updateJson.RootElement.GetProperty("Success").GetBoolean());
@@ -281,7 +281,7 @@ in
             var updatedReadResponse = await CallExcelTool(server, "excel_worksheet", new 
             { 
                 action = "read", 
-                filePath = testFile, 
+                excelPath = testFile, 
                 sheetName = targetSheet,
                 range = "A1:E10"  // Read more columns for Status column
             });
@@ -301,7 +301,7 @@ in
             var listResponse = await CallExcelTool(server, "excel_powerquery", new 
             { 
                 action = "list", 
-                filePath = testFile
+                excelPath = testFile
             });
             var listJson = JsonDocument.Parse(listResponse);
             Assert.True(listJson.RootElement.GetProperty("Success").GetBoolean());
@@ -400,16 +400,16 @@ End Sub";
 
             // Step 1: Create Excel file (.xlsm for VBA support)
             _output.WriteLine("Step 1: Creating Excel .xlsm file...");
-            await CallExcelTool(server, "excel_file", new { action = "create-empty", filePath = testFile });
+            await CallExcelTool(server, "excel_file", new { action = "create-empty", excelPath = testFile });
 
             // Step 2: Import original VBA module
             _output.WriteLine("Step 2: Importing original VBA module...");
             var importResponse = await CallExcelTool(server, "excel_vba", new 
             { 
                 action = "import", 
-                filePath = testFile, 
+                excelPath = testFile, 
                 moduleName = moduleName,
-                sourceOrTargetPath = originalVbaFile
+                sourcePath = originalVbaFile
             });
             var importJson = JsonDocument.Parse(importResponse);
             Assert.True(importJson.RootElement.GetProperty("Success").GetBoolean());
@@ -419,7 +419,7 @@ End Sub";
             var runResponse = await CallExcelTool(server, "excel_vba", new 
             { 
                 action = "run", 
-                filePath = testFile, 
+                excelPath = testFile, 
                 moduleAndProcedure = $"{moduleName}.GenerateTestData"
             });
             var runJson = JsonDocument.Parse(runResponse);
@@ -430,7 +430,7 @@ End Sub";
             var listSheetsResponse = await CallExcelTool(server, "excel_worksheet", new 
             { 
                 action = "list", 
-                filePath = testFile
+                excelPath = testFile
             });
             var listSheetsJson = JsonDocument.Parse(listSheetsResponse);
             Assert.True(listSheetsJson.RootElement.GetProperty("Success").GetBoolean());
@@ -442,7 +442,7 @@ End Sub";
             var readInitialResponse = await CallExcelTool(server, "excel_worksheet", new 
             { 
                 action = "read", 
-                filePath = testFile, 
+                excelPath = testFile, 
                 sheetName = testSheetName,
                 range = "A1:C10"
             });
@@ -460,9 +460,9 @@ End Sub";
             var exportResponse = await CallExcelTool(server, "excel_vba", new 
             { 
                 action = "export", 
-                filePath = testFile, 
+                excelPath = testFile, 
                 moduleName = moduleName,
-                sourceOrTargetPath = exportedVbaFile
+                targetPath = exportedVbaFile
             });
             var exportJson = JsonDocument.Parse(exportResponse);
             Assert.True(exportJson.RootElement.GetProperty("Success").GetBoolean());
@@ -473,9 +473,9 @@ End Sub";
             var updateResponse = await CallExcelTool(server, "excel_vba", new 
             { 
                 action = "update", 
-                filePath = testFile, 
+                excelPath = testFile, 
                 moduleName = moduleName,
-                sourceOrTargetPath = updatedVbaFile
+                sourcePath = updatedVbaFile
             });
             var updateJson = JsonDocument.Parse(updateResponse);
             Assert.True(updateJson.RootElement.GetProperty("Success").GetBoolean());
@@ -485,7 +485,7 @@ End Sub";
             var runUpdatedResponse = await CallExcelTool(server, "excel_vba", new 
             { 
                 action = "run", 
-                filePath = testFile, 
+                excelPath = testFile, 
                 moduleAndProcedure = $"{moduleName}.GenerateTestData"
             });
             var runUpdatedJson = JsonDocument.Parse(runUpdatedResponse);
@@ -496,7 +496,7 @@ End Sub";
             var readUpdatedResponse = await CallExcelTool(server, "excel_worksheet", new 
             { 
                 action = "read", 
-                filePath = testFile, 
+                excelPath = testFile, 
                 sheetName = testSheetName,
                 range = "A1:E10"  // Read more columns for Status and Generated columns
             });
@@ -515,7 +515,7 @@ End Sub";
             var listVbaResponse = await CallExcelTool(server, "excel_vba", new 
             { 
                 action = "list", 
-                filePath = testFile
+                excelPath = testFile
             });
             var listVbaJson = JsonDocument.Parse(listVbaResponse);
             Assert.True(listVbaJson.RootElement.GetProperty("Success").GetBoolean());

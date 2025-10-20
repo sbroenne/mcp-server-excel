@@ -1,4 +1,5 @@
 using ModelContextProtocol.Server;
+using ModelContextProtocol;
 using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -26,42 +27,57 @@ public static class ExcelToolsBase
     };
 
     /// <summary>
-    /// Creates a standardized error response for unknown actions.
-    /// Pattern: Use this for consistent error handling across all tools.
+    /// Throws MCP exception for unknown actions.
+    /// SDK Pattern: Use McpException for parameter validation errors.
     /// </summary>
     /// <param name="action">The invalid action that was attempted</param>
     /// <param name="supportedActions">List of supported actions for this tool</param>
-    /// <returns>JSON error response</returns>
-    public static string CreateUnknownActionError(string action, params string[] supportedActions)
+    /// <exception cref="McpException">Always throws with descriptive error message</exception>
+    public static void ThrowUnknownAction(string action, params string[] supportedActions)
     {
-        return JsonSerializer.Serialize(new 
-        { 
-            error = $"Unknown action '{action}'. Supported: {string.Join(", ", supportedActions)}" 
-        }, JsonOptions);
+        throw new McpException(
+            $"Unknown action '{action}'. Supported: {string.Join(", ", supportedActions)}");
     }
 
     /// <summary>
-    /// Creates a standardized exception error response.
-    /// Pattern: Use this for consistent exception handling across all tools.
+    /// Throws MCP exception for missing required parameters.
+    /// SDK Pattern: Use McpException for parameter validation errors.
+    /// </summary>
+    /// <param name="parameterName">Name of the missing parameter</param>
+    /// <param name="action">The action that requires the parameter</param>
+    /// <exception cref="McpException">Always throws with descriptive error message</exception>
+    public static void ThrowMissingParameter(string parameterName, string action)
+    {
+        throw new McpException(
+            $"{parameterName} is required for {action} action");
+    }
+
+    /// <summary>
+    /// Wraps exceptions in MCP exceptions for better error reporting.
+    /// SDK Pattern: Wrap business logic exceptions in McpException with context.
+    /// LLM-Optimized: Include full exception details including stack trace context for debugging.
     /// </summary>
     /// <param name="ex">The exception that occurred</param>
     /// <param name="action">The action that was being attempted</param>
     /// <param name="filePath">The file path involved (optional)</param>
-    /// <returns>JSON error response</returns>
-    public static string CreateExceptionError(Exception ex, string action, string? filePath = null)
+    /// <exception cref="McpException">Always throws with contextual error message</exception>
+    public static void ThrowInternalError(Exception ex, string action, string? filePath = null)
     {
-        var errorObj = new Dictionary<string, object?>
-        {
-            ["error"] = ex.Message,
-            ["action"] = action
-        };
+        // Build comprehensive error message for LLM debugging
+        var message = filePath != null 
+            ? $"{action} failed for '{filePath}': {ex.Message}"
+            : $"{action} failed: {ex.Message}";
         
-        if (!string.IsNullOrEmpty(filePath))
+        // Include exception type and inner exception details for better diagnostics
+        if (ex.InnerException != null)
         {
-            errorObj["filePath"] = filePath;
+            message += $" (Inner: {ex.InnerException.Message})";
         }
-
-        return JsonSerializer.Serialize(errorObj, JsonOptions);
+        
+        // Add exception type to help identify the root cause
+        message += $" [Exception Type: {ex.GetType().Name}]";
+        
+        throw new McpException(message, ex);
     }
 
     /// <summary>

@@ -20,6 +20,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// Note: Named ranges are Excel's way of creating reusable parameters that can be 
 /// referenced in formulas and Power Query. They're ideal for configuration values.
 /// </summary>
+[McpServerToolType]
 public static class ExcelParameterTool
 {
     /// <summary>
@@ -56,54 +57,95 @@ public static class ExcelParameterTool
                 "set" => SetParameter(parameterCommands, excelPath, parameterName, value),
                 "create" => CreateParameter(parameterCommands, excelPath, parameterName, value),
                 "delete" => DeleteParameter(parameterCommands, excelPath, parameterName),
-                _ => ExcelToolsBase.CreateUnknownActionError(action, "list", "get", "set", "create", "delete")
+                _ => throw new ModelContextProtocol.McpException(
+                    $"Unknown action '{action}'. Supported: list, get, set, create, delete")
             };
+        }
+        catch (ModelContextProtocol.McpException)
+        {
+            throw; // Re-throw MCP exceptions as-is
         }
         catch (Exception ex)
         {
-            return ExcelToolsBase.CreateExceptionError(ex, action, excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action, excelPath);
+            throw; // Unreachable but satisfies compiler
         }
     }
 
     private static string ListParameters(ParameterCommands commands, string filePath)
     {
         var result = commands.List(filePath);
+        
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"list failed for '{filePath}': {result.ErrorMessage}");
+        }
+        
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static string GetParameter(ParameterCommands commands, string filePath, string? parameterName)
     {
         if (string.IsNullOrEmpty(parameterName))
-            return JsonSerializer.Serialize(new { error = "parameterName is required for get action" }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException("parameterName is required for get action");
 
         var result = commands.Get(filePath, parameterName);
+        
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"get failed for '{filePath}': {result.ErrorMessage}");
+        }
+        
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static string SetParameter(ParameterCommands commands, string filePath, string? parameterName, string? value)
     {
         if (string.IsNullOrEmpty(parameterName) || value == null)
-            return JsonSerializer.Serialize(new { error = "parameterName and value are required for set action" }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException("parameterName and value are required for set action");
 
         var result = commands.Set(filePath, parameterName, value);
+        
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set failed for '{filePath}': {result.ErrorMessage}");
+        }
+        
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static string CreateParameter(ParameterCommands commands, string filePath, string? parameterName, string? value)
     {
         if (string.IsNullOrEmpty(parameterName) || string.IsNullOrEmpty(value))
-            return JsonSerializer.Serialize(new { error = "parameterName and value (cell reference) are required for create action" }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException("parameterName and value (cell reference) are required for create action");
 
         var result = commands.Create(filePath, parameterName, value);
+        
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"create failed for '{filePath}': {result.ErrorMessage}");
+        }
+        
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static string DeleteParameter(ParameterCommands commands, string filePath, string? parameterName)
     {
         if (string.IsNullOrEmpty(parameterName))
-            return JsonSerializer.Serialize(new { error = "parameterName is required for delete action" }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException("parameterName is required for delete action");
 
         var result = commands.Delete(filePath, parameterName);
+        
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"delete failed for '{filePath}': {result.ErrorMessage}");
+        }
+        
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 }

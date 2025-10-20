@@ -19,6 +19,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// Note: For bulk operations, use ExcelWorksheetTool instead.
 /// This tool is optimized for precise, single-cell operations.
 /// </summary>
+[McpServerToolType]
 public static class ExcelCellTool
 {
     /// <summary>
@@ -56,18 +57,29 @@ public static class ExcelCellTool
         {
             var cellCommands = new CellCommands();
 
-            return action.ToLowerInvariant() switch
+            switch (action.ToLowerInvariant())
             {
-                "get-value" => GetCellValue(cellCommands, excelPath, sheetName, cellAddress),
-                "set-value" => SetCellValue(cellCommands, excelPath, sheetName, cellAddress, value),
-                "get-formula" => GetCellFormula(cellCommands, excelPath, sheetName, cellAddress),
-                "set-formula" => SetCellFormula(cellCommands, excelPath, sheetName, cellAddress, value),
-                _ => ExcelToolsBase.CreateUnknownActionError(action, "get-value", "set-value", "get-formula", "set-formula")
-            };
+                case "get-value":
+                    return GetCellValue(cellCommands, excelPath, sheetName, cellAddress);
+                case "set-value":
+                    return SetCellValue(cellCommands, excelPath, sheetName, cellAddress, value);
+                case "get-formula":
+                    return GetCellFormula(cellCommands, excelPath, sheetName, cellAddress);
+                case "set-formula":
+                    return SetCellFormula(cellCommands, excelPath, sheetName, cellAddress, value);
+                default:
+                    ExcelToolsBase.ThrowUnknownAction(action, "get-value", "set-value", "get-formula", "set-formula");
+                    throw new InvalidOperationException(); // Never reached
+            }
+        }
+        catch (ModelContextProtocol.McpException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
-            return ExcelToolsBase.CreateExceptionError(ex, action, excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action, excelPath);
+            throw;
         }
     }
 
@@ -75,10 +87,10 @@ public static class ExcelCellTool
     {
         var result = commands.GetValue(excelPath, sheetName, cellAddress);
         
-        // For test compatibility, return simple error format when file doesn't exist
-        if (!result.Success && !File.Exists(excelPath))
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            return JsonSerializer.Serialize(new { error = "File not found" }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException($"get-value failed for '{excelPath}': {result.ErrorMessage}");
         }
         
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -87,24 +99,45 @@ public static class ExcelCellTool
     private static string SetCellValue(CellCommands commands, string excelPath, string sheetName, string cellAddress, string? value)
     {
         if (value == null)
-            return JsonSerializer.Serialize(new { error = "value is required for set-value action" }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException("value is required for set-value action");
 
         var result = commands.SetValue(excelPath, sheetName, cellAddress, value);
+        
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-value failed for '{excelPath}': {result.ErrorMessage}");
+        }
+        
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static string GetCellFormula(CellCommands commands, string excelPath, string sheetName, string cellAddress)
     {
         var result = commands.GetFormula(excelPath, sheetName, cellAddress);
+        
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"get-formula failed for '{excelPath}': {result.ErrorMessage}");
+        }
+        
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static string SetCellFormula(CellCommands commands, string excelPath, string sheetName, string cellAddress, string? value)
     {
         if (string.IsNullOrEmpty(value))
-            return JsonSerializer.Serialize(new { error = "value (formula) is required for set-formula action" }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException("value (formula) is required for set-formula action");
 
         var result = commands.SetFormula(excelPath, sheetName, cellAddress, value);
+        
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-formula failed for '{excelPath}': {result.ErrorMessage}");
+        }
+        
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 }

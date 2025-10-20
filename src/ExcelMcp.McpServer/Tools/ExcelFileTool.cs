@@ -14,6 +14,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Use "create-empty" for new Excel files in automation workflows
 /// - File validation and existence checks can be done with standard file system operations
 /// </summary>
+[McpServerToolType]
 public static class ExcelFileTool
 {
     /// <summary>
@@ -22,32 +23,35 @@ public static class ExcelFileTool
     [McpServerTool(Name = "excel_file")]
     [Description("Manage Excel files. Supports: create-empty.")]
     public static string ExcelFile(
-        [Required]
-        [RegularExpression("^(create-empty)$")]
         [Description("Action to perform: create-empty")] 
         string action,
         
-        [Required]
-        [FileExtensions(Extensions = "xlsx,xlsm")]
         [Description("Excel file path (.xlsx or .xlsm extension)")] 
-        string excelPath,
-        
-        [Description("Optional: macro-enabled flag for create-empty (default: false)")] 
-        bool macroEnabled = false)
+        string excelPath)
     {
         try
         {
             var fileCommands = new FileCommands();
 
-            return action.ToLowerInvariant() switch
+            switch (action.ToLowerInvariant())
             {
-                "create-empty" => CreateEmptyFile(fileCommands, excelPath, macroEnabled),
-                _ => ExcelToolsBase.CreateUnknownActionError(action, "create-empty")
-            };
+                case "create-empty":
+                    // Determine if macro-enabled based on file extension
+                    bool macroEnabled = excelPath.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase);
+                    return CreateEmptyFile(fileCommands, excelPath, macroEnabled);
+                    
+                default:
+                    throw new ModelContextProtocol.McpException($"Unknown action '{action}'. Supported: create-empty");
+            }
+        }
+        catch (ModelContextProtocol.McpException)
+        {
+            throw; // Re-throw MCP exceptions as-is
         }
         catch (Exception ex)
         {
-            return ExcelToolsBase.CreateExceptionError(ex, action, excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action, excelPath);
+            throw; // Unreachable but satisfies compiler
         }
     }
 

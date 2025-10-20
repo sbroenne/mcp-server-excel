@@ -21,6 +21,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Use "clear" to empty worksheet ranges
 /// - Use "append" to add data to existing worksheet content
 /// </summary>
+[McpServerToolType]
 public static class ExcelWorksheetTool
 {
     /// <summary>
@@ -67,91 +68,159 @@ public static class ExcelWorksheetTool
                 "delete" => DeleteWorksheet(sheetCommands, excelPath, sheetName),
                 "clear" => ClearWorksheet(sheetCommands, excelPath, sheetName, range),
                 "append" => AppendWorksheet(sheetCommands, excelPath, sheetName, range),
-                _ => ExcelToolsBase.CreateUnknownActionError(action, 
-                    "list", "read", "write", "create", "rename", "copy", "delete", "clear", "append")
+                _ => throw new ModelContextProtocol.McpException(
+                    $"Unknown action '{action}'. Supported: list, read, write, create, rename, copy, delete, clear, append")
             };
+        }
+        catch (ModelContextProtocol.McpException)
+        {
+            throw; // Re-throw MCP exceptions as-is
         }
         catch (Exception ex)
         {
-            return ExcelToolsBase.CreateExceptionError(ex, action, excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action, excelPath);
+            throw; // Unreachable but satisfies compiler
         }
     }
 
     private static string ListWorksheets(SheetCommands commands, string filePath)
     {
         var result = commands.List(filePath);
+        
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"list failed for '{filePath}': {result.ErrorMessage}");
+        }
+        
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static string ReadWorksheet(SheetCommands commands, string filePath, string? sheetName, string? range)
     {
         if (string.IsNullOrEmpty(sheetName))
-            return JsonSerializer.Serialize(new { error = "sheetName is required for read action" }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException("sheetName is required for read action");
 
         var result = commands.Read(filePath, sheetName, range ?? "");
+        
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"read failed for '{filePath}': {result.ErrorMessage}");
+        }
+        
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static string WriteWorksheet(SheetCommands commands, string filePath, string? sheetName, string? dataPath)
     {
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(dataPath))
-            return JsonSerializer.Serialize(new { error = "sheetName and range (CSV file path) are required for write action" }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException("sheetName and range (CSV file path) are required for write action");
 
         var result = commands.Write(filePath, sheetName, dataPath);
+        
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"write failed for '{filePath}': {result.ErrorMessage}");
+        }
+        
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static string CreateWorksheet(SheetCommands commands, string filePath, string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
-            return JsonSerializer.Serialize(new { error = "sheetName is required for create action" }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException("sheetName is required for create action");
 
         var result = commands.Create(filePath, sheetName);
+        
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"create failed for '{filePath}': {result.ErrorMessage}");
+        }
+        
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static string RenameWorksheet(SheetCommands commands, string filePath, string? sheetName, string? targetName)
     {
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
-            return JsonSerializer.Serialize(new { error = "sheetName and targetName are required for rename action" }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException("sheetName and targetName are required for rename action");
 
         var result = commands.Rename(filePath, sheetName, targetName);
+        
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"rename failed for '{filePath}': {result.ErrorMessage}");
+        }
+        
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static string CopyWorksheet(SheetCommands commands, string filePath, string? sheetName, string? targetName)
     {
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
-            return JsonSerializer.Serialize(new { error = "sheetName and targetName are required for copy action" }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException("sheetName and targetName are required for copy action");
 
         var result = commands.Copy(filePath, sheetName, targetName);
+        
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"copy failed for '{filePath}': {result.ErrorMessage}");
+        }
+        
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static string DeleteWorksheet(SheetCommands commands, string filePath, string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
-            return JsonSerializer.Serialize(new { error = "sheetName is required for delete action" }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException("sheetName is required for delete action");
 
         var result = commands.Delete(filePath, sheetName);
+        
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"delete failed for '{filePath}': {result.ErrorMessage}");
+        }
+        
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static string ClearWorksheet(SheetCommands commands, string filePath, string? sheetName, string? range)
     {
         if (string.IsNullOrEmpty(sheetName))
-            return JsonSerializer.Serialize(new { error = "sheetName is required for clear action" }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException("sheetName is required for clear action");
 
         var result = commands.Clear(filePath, sheetName, range ?? "");
+        
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"clear failed for '{filePath}': {result.ErrorMessage}");
+        }
+        
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static string AppendWorksheet(SheetCommands commands, string filePath, string? sheetName, string? dataPath)
     {
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(dataPath))
-            return JsonSerializer.Serialize(new { error = "sheetName and range (CSV file path) are required for append action" }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException("sheetName and range (CSV file path) are required for append action");
 
         var result = commands.Append(filePath, sheetName, dataPath);
+        
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"append failed for '{filePath}': {result.ErrorMessage}");
+        }
+        
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 }
