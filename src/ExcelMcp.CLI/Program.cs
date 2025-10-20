@@ -66,6 +66,13 @@ class Program
                 "pq-errors" => powerQuery.Errors(args),
                 "pq-loadto" => powerQuery.LoadTo(args),
                 "pq-delete" => powerQuery.Delete(args),
+                
+                // Power Query Load Configuration commands
+                "pq-set-connection-only" => powerQuery.SetConnectionOnly(args),
+                "pq-set-load-to-table" => powerQuery.SetLoadToTable(args),
+                "pq-set-load-to-data-model" => powerQuery.SetLoadToDataModel(args),
+                "pq-set-load-to-both" => powerQuery.SetLoadToBoth(args),
+                "pq-get-load-config" => powerQuery.GetLoadConfig(args),
 
                 // Sheet commands
                 "sheet-list" => sheet.List(args),
@@ -220,6 +227,14 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]pq-refresh[/] file.xlsx query-name            Refresh a specific Power Query");
         AnsiConsole.MarkupLine("  [cyan]pq-loadto[/] file.xlsx query-name sheet       Load Power Query to worksheet");
         AnsiConsole.MarkupLine("  [cyan]pq-delete[/] file.xlsx query-name             Delete Power Query");
+        AnsiConsole.WriteLine();
+        
+        AnsiConsole.MarkupLine("[bold yellow]Power Query Load Configuration:[/]");
+        AnsiConsole.MarkupLine("  [cyan]pq-set-connection-only[/] file.xlsx query     Set query to Connection Only");
+        AnsiConsole.MarkupLine("  [cyan]pq-set-load-to-table[/] file.xlsx query sheet Set query to Load to Table");
+        AnsiConsole.MarkupLine("  [cyan]pq-set-load-to-data-model[/] file.xlsx query Set query to Load to Data Model");
+        AnsiConsole.MarkupLine("  [cyan]pq-set-load-to-both[/] file.xlsx query sheet Set query to Load to Both");
+        AnsiConsole.MarkupLine("  [cyan]pq-get-load-config[/] file.xlsx query        Get current load configuration");
         AnsiConsole.WriteLine();
         
         AnsiConsole.MarkupLine("[bold yellow]Sheet Commands:[/]");

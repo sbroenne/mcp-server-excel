@@ -18,6 +18,13 @@ This document explains how to run different types of tests in the ExcelMcp proje
 - **Speed**: Medium (5-15 seconds)
 - **Run by default**: Yes
 
+### MCP Protocol Tests (Medium Speed, True Integration)
+
+- **What**: Start MCP server process and communicate via stdio using JSON-RPC
+- **Requirements**: Excel installation + Windows + Built MCP server
+- **Speed**: Medium (10-20 seconds)
+- **Run by default**: Yes - tests actual MCP client/server communication
+
 ### Round Trip Tests (Slow, On-Request Only)
 
 - **What**: Complex end-to-end workflows combining multiple ExcelMcp features
@@ -74,6 +81,9 @@ dotnet test --filter "Feature=Worksheets"
 
 # Run only file operation tests
 dotnet test --filter "Feature=Files"
+
+# Run only MCP Protocol tests (true MCP client integration)
+dotnet test --filter "Feature=MCPProtocol"
 ```
 
 ### Specific Test Classes
@@ -138,7 +148,10 @@ tests/
 │       ├── SheetCommandsTests.cs       # [Integration, Medium, Worksheets] - Sheet operations
 │       └── IntegrationRoundTripTests.cs # [RoundTrip, Slow, EndToEnd] - Complex workflows
 ├── ExcelMcp.McpServer.Tests/
-│   └── [MCP Server specific tests]
+│   ├── Tools/
+│   │   └── ExcelMcpServerTests.cs       # [Integration, Medium, MCP] - Direct tool method tests
+│   └── Integration/
+│       └── McpClientIntegrationTests.cs # [Integration, Medium, MCPProtocol] - True MCP client tests
 ```
 
 ## Test Organization in Test Explorer
@@ -165,12 +178,67 @@ Tests are organized using multiple traits for better filtering:
 - **CI Compatible**: ❌ No (unless using Windows runners with Excel)
 - **Purpose**: Validate Excel COM operations, feature functionality
 
+### MCP Protocol Tests (`Feature=MCPProtocol`)
+
+- **Requirements**: Windows + Excel installation + Built MCP server executable
+- **Platforms**: Windows only
+- **CI Compatible**: ❌ No (unless using Windows runners with Excel)
+- **Purpose**: True MCP client integration - starts server process and communicates via stdio
+
 ### Round Trip Tests (`Category=RoundTrip`)
 
 - **Requirements**: Windows + Excel installation + VBA trust settings
 - **Platforms**: Windows only
 - **CI Compatible**: ❌ No (unless using specialized Windows runners)
 - **Purpose**: End-to-end workflow validation
+
+## MCP Testing: Tool Tests vs Protocol Tests
+
+The MCP Server has two types of tests that serve different purposes:
+
+### Tool Tests (`ExcelMcpServerTests.cs`)
+
+```csharp
+// Direct method calls - tests tool logic only
+var result = ExcelTools.ExcelFile("create-empty", filePath);
+var json = JsonDocument.Parse(result);
+Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+```
+
+**What it tests:**
+
+- ✅ Tool method logic and JSON response format
+- ✅ Excel COM operations and error handling
+- ✅ Parameter validation and edge cases
+
+**What it DOESN'T test:**
+
+- ❌ MCP protocol communication (JSON-RPC over stdio)
+- ❌ Tool discovery and metadata
+- ❌ MCP client/server handshake
+- ❌ Process lifecycle and stdio communication
+
+### Protocol Tests (`McpClientIntegrationTests.cs`)
+
+```csharp
+// True MCP client - starts server process and communicates via stdio
+var server = StartMcpServer(); // Starts actual MCP server process
+var response = await SendMcpRequestAsync(server, initRequest); // JSON-RPC over stdio
+```
+
+**What it tests:**
+
+- ✅ Complete MCP protocol implementation
+- ✅ Tool discovery via `tools/list`
+- ✅ JSON-RPC communication over stdio
+- ✅ Server initialization and handshake
+- ✅ Process lifecycle management
+- ✅ End-to-end MCP client experience
+
+**Why both are needed:**
+
+- **Tool Tests**: Fast feedback for core functionality
+- **Protocol Tests**: Validate what AI assistants actually experience
 
 ## Troubleshooting
 

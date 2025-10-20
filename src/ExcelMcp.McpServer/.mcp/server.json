@@ -1,176 +1,49 @@
 {
-  "mcpVersion": "2024-11-05",
-  "name": "ExcelMcp Server",
-  "version": "2.0.0",
-  "description": "Model Context Protocol server for Excel automation. Enables AI assistants to automate Excel development workflows - Power Query refactoring, VBA enhancement, and Excel automation through structured JSON API.",
-  "author": {
-    "name": "ExcelMcp Project",
-    "email": "support@excelmcp.io"
-  },
-  "homepage": "https://github.com/sbroenne/mcp-server-excel",
-  "license": "MIT",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+  "name": "io.github.sbroenne/mcp-server-excel",
+  "description": "MCP server for Excel automation - Power Query refactoring, VBA enhancement, Excel development",
+  "version": "1.0.0",
+  "title": "Excel MCP Server",
+  "websiteUrl": "https://github.com/sbroenne/mcp-server-excel",
   "repository": {
-    "type": "git",
-    "url": "https://github.com/sbroenne/mcp-server-excel.git"
+    "url": "https://github.com/sbroenne/mcp-server-excel",
+    "source": "github",
+    "subfolder": "src/ExcelMcp.McpServer"
   },
-  "bugs": "https://github.com/sbroenne/mcp-server-excel/issues",
-  "capabilities": {
-    "resources": {},
-    "tools": {
-      "listChanged": false
-    },
-    "prompts": {},
-    "logging": {}
-  },
-  "config": {
-    "commands": {
-      "start": "dnx Sbroenne.ExcelMcp.McpServer@latest --yes"
-    },
-    "environment": {
-      "requirements": [
+  "packages": [
+    {
+      "registryType": "nuget",
+      "registryBaseUrl": "https://api.nuget.org",
+      "identifier": "Sbroenne.ExcelMcp.McpServer",
+      "version": "1.0.0",
+      "runtimeHint": "dnx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
         {
-          "name": ".NET 10 SDK",
-          "install": "winget install Microsoft.DotNet.SDK.10"
-        },
+          "type": "positional",
+          "value": "--yes"
+        }
+      ],
+      "environmentVariables": [
         {
-          "name": "Microsoft Excel",
-          "platform": "windows"
+          "name": "EXCEL_PATH", 
+          "description": "Path to Excel installation (optional - auto-detected)",
+          "isRequired": false
         }
       ]
     }
-  },
-  "tools": [
-    {
-      "name": "excel_file",
-      "description": "Manage Excel files - create, validate, check existence",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "action": {
-            "type": "string",
-            "enum": ["create-empty", "validate", "check-exists"]
-          },
-          "filePath": {
-            "type": "string",
-            "description": "Path to Excel file"
-          }
-        },
-        "required": ["action", "filePath"]
-      }
-    },
-    {
-      "name": "excel_powerquery",
-      "description": "Manage Power Query operations - list, view, import, export, update, refresh, delete",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "action": {
-            "type": "string",
-            "enum": ["list", "view", "import", "export", "update", "refresh", "delete", "loadto"]
-          },
-          "filePath": {
-            "type": "string",
-            "description": "Path to Excel file"
-          },
-          "queryName": {
-            "type": "string",
-            "description": "Name of Power Query"
-          }
-        },
-        "required": ["action", "filePath"]
-      }
-    },
-    {
-      "name": "excel_worksheet",
-      "description": "Manage worksheets - list, read, write, create, rename, copy, delete, clear, append",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "action": {
-            "type": "string",
-            "enum": ["list", "read", "write", "create", "rename", "copy", "delete", "clear", "append"]
-          },
-          "filePath": {
-            "type": "string",
-            "description": "Path to Excel file"
-          },
-          "sheetName": {
-            "type": "string",
-            "description": "Name of worksheet"
-          }
-        },
-        "required": ["action", "filePath"]
-      }
-    },
-    {
-      "name": "excel_parameter",
-      "description": "Manage named ranges/parameters - list, get, set, create, delete",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "action": {
-            "type": "string",
-            "enum": ["list", "get", "set", "create", "delete"]
-          },
-          "filePath": {
-            "type": "string",
-            "description": "Path to Excel file"
-          },
-          "paramName": {
-            "type": "string",
-            "description": "Name of parameter/named range"
-          }
-        },
-        "required": ["action", "filePath"]
-      }
-    },
-    {
-      "name": "excel_cell",
-      "description": "Manage individual cells - get/set values and formulas",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "action": {
-            "type": "string",
-            "enum": ["get-value", "set-value", "get-formula", "set-formula"]
-          },
-          "filePath": {
-            "type": "string",
-            "description": "Path to Excel file"
-          },
-          "sheetName": {
-            "type": "string",
-            "description": "Name of worksheet"
-          },
-          "cellAddress": {
-            "type": "string",
-            "description": "Cell address (e.g., A1)"
-          }
-        },
-        "required": ["action", "filePath", "sheetName", "cellAddress"]
-      }
-    },
-    {
-      "name": "excel_vba",
-      "description": "Manage VBA scripts - list, export, import, update, run, delete",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "action": {
-            "type": "string",
-            "enum": ["list", "export", "import", "update", "run", "delete"]
-          },
-          "filePath": {
-            "type": "string",
-            "description": "Path to Excel file (.xlsm required for VBA operations)"
-          },
-          "moduleName": {
-            "type": "string",
-            "description": "Name of VBA module"
-          }
-        },
-        "required": ["action", "filePath"]
+  ],
+  "_meta": {
+    "io.modelcontextprotocol.registry/publisher-provided": {
+      "tool": "dotnet-publisher",
+      "version": "10.0.0",
+      "build_info": {
+        "dotnet_version": "10.0.0",
+        "target_framework": "net9.0",
+        "configuration": "Release"
       }
     }
-  ]
+  }
 }

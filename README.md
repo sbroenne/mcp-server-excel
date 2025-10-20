@@ -26,67 +26,91 @@ A **Model Context Protocol (MCP) server** that enables **AI assistants** like Gi
 
 ## 🚀 Quick Start
 
-### Install MCP Server using Microsoft's NuGet MCP Approach (Recommended)
+### Install & Configure (2 Steps)
+
+#### Step 1: Install .NET 10 SDK
 
 ```powershell
-# Install .NET 10 SDK first (required for dnx command)
 winget install Microsoft.DotNet.SDK.10
-
-# Download and execute MCP server using dnx
-dnx Sbroenne.ExcelMcp.McpServer@latest --yes
 ```
 
-The `dnx` command automatically downloads the latest version from NuGet.org and executes the MCP server. This follows Microsoft's official [NuGet MCP approach](https://learn.microsoft.com/en-us/nuget/concepts/nuget-mcp) for packaging and distributing MCP servers.
+#### Step 2: Configure GitHub Copilot MCP Server
 
-> **Note:** The MCP server will appear to "hang" after startup - this is expected behavior as it waits for MCP protocol messages from your AI assistant.
-
-### Configure with AI Assistants
-
-**GitHub Copilot Integration:**
+Create or modify `.vscode/mcp.json` in your workspace:
 
 ```json
-// Add to your VS Code settings.json or MCP client configuration
 {
-  "mcp": {
-    "servers": {
-      "excel": {
-        "command": "dnx",
-        "args": ["Sbroenne.ExcelMcp.McpServer@latest", "--yes"],
-        "description": "Excel development operations through MCP"
-      }
+  "servers": {
+    "excel": {
+      "command": "dnx",
+      "args": ["Sbroenne.ExcelMcp.McpServer", "--yes"]
     }
   }
 }
 ```
 
+That's it! The `dnx` command automatically downloads and runs the latest version when GitHub Copilot needs it.
+
+## 🧠 **GitHub Copilot Integration**
+
+To make GitHub Copilot aware of ExcelMcp in your own projects:
+
+1. **Copy the Copilot Instructions** to your project:
+
+   ```bash
+   # Copy ExcelMcp automation instructions to your project's .github directory
+   curl -o .github/copilot-instructions.md https://raw.githubusercontent.com/sbroenne/mcp-server-excel/main/docs/excel-powerquery-vba-copilot-instructions.md
+   ```
+
+2. **Configure VS Code** (optional but recommended):
+
+   ```json
+   {
+     "github.copilot.enable": {
+       "*": true,
+       "csharp": true,
+       "powershell": true,
+       "yaml": true
+     }
+   }
+   ```
+
+### **Effective Copilot Prompting**
+
+With the ExcelMcp instructions installed, Copilot will automatically suggest Excel operations through the MCP server. Here's how to get the best results:
+
+```text
+"Use the excel MCP server to..." - Reference the configured server name
+"Create an Excel workbook with Power Query that..." - Natural language Excel tasks
+"Help me debug this Excel automation issue..." - For troubleshooting assistance
+"Export the VBA code from this Excel file..." - Specific Excel operations
+```
+
+### Alternative AI Assistants
+
 **Claude Desktop Integration:**
 
+Add to your Claude Desktop MCP configuration:
+
 ```json
-// Add to Claude Desktop MCP configuration
 {
   "mcpServers": {
     "excel": {
       "command": "dnx",
-      "args": ["Sbroenne.ExcelMcp.McpServer@latest", "--yes"]
+      "args": ["Sbroenne.ExcelMcp.McpServer", "--yes"]
     }
   }
 }
 ```
 
-### Build from Source
+**Direct Command Line Testing:**
 
 ```powershell
-# Clone and build
-git clone https://github.com/sbroenne/mcp-server-excel.git
-cd mcp-server-excel
-dotnet build -c Release
-
-# Run MCP server
-dotnet run --project src/ExcelMcp.McpServer
-
-# Run tests (requires Excel installed locally)
-dotnet test --filter "Category=Unit"
+# Test the MCP server directly
+dnx Sbroenne.ExcelMcp.McpServer --yes
 ```
+
+> **Note:** The MCP server will appear to "hang" after startup - this is expected behavior as it waits for MCP protocol messages from your AI assistant.
 
 ## ✨ Key Features
 
@@ -109,7 +133,6 @@ dotnet test --filter "Category=Unit"
 | **[🔧 ExcelMcp.CLI](docs/CLI.md)** | Command-line interface for direct Excel automation |
 | **[📋 Command Reference](docs/COMMANDS.md)** | Complete reference for all 40+ CLI commands |
 | **[⚙️ Installation Guide](docs/INSTALLATION.md)** | Building from source and installation options |
-| **[🤖 GitHub Copilot Integration](docs/COPILOT.md)** | Using ExcelMcp with GitHub Copilot |
 | **[🔧 Development Workflow](docs/DEVELOPMENT.md)** | Contributing guidelines and PR requirements |
 | **[📦 NuGet Publishing](docs/NUGET_TRUSTED_PUBLISHING.md)** | Trusted publishing setup for maintainers |
 
@@ -148,14 +171,14 @@ dotnet test --filter "Category=Unit"
 
 ## 6️⃣ MCP Tools Overview
 
-The MCP server provides 6 resource-based tools for AI assistants:
+The MCP server provides 6 focused resource-based tools for AI assistants:
 
-- **excel_file** - File management (create, validate, check-exists)
-- **excel_powerquery** - Power Query operations (list, view, import, export, update, refresh, delete)
-- **excel_worksheet** - Worksheet operations (list, read, write, create, rename, copy, delete, clear, append)
-- **excel_parameter** - Named range management (list, get, set, create, delete)
-- **excel_cell** - Cell operations (get-value, set-value, get-formula, set-formula)
-- **excel_vba** - VBA script management (list, export, import, update, run, delete)
+- **excel_file** - Excel file creation (1 action: create-empty) 🎯 *Only Excel-specific operations*
+- **excel_powerquery** - Power Query M code management (11 actions: list, view, import, export, update, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config)
+- **excel_worksheet** - Worksheet operations and bulk data handling (9 actions: list, read, write, create, rename, copy, delete, clear, append)
+- **excel_parameter** - Named ranges as configuration parameters (5 actions: list, get, set, create, delete)
+- **excel_cell** - Individual cell precision operations (4 actions: get-value, set-value, get-formula, set-formula)
+- **excel_vba** - VBA macro management and execution (6 actions: list, export, import, update, run, delete)
 
 > 🧠 **[Complete MCP Server Guide →](src/ExcelMcp.McpServer/README.md)** - Detailed MCP integration and AI examples
 

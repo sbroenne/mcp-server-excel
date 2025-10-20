@@ -118,21 +118,208 @@ The `main` branch is protected with:
 - **Require up-to-date branches** - Must be current with main
 - **No direct pushes** - All changes via PR only
 
-## 🧪 **Testing Requirements**
+## 🧪 **Testing Requirements & Organization**
+
+### **Three-Tier Test Architecture**
+
+ExcelMcp uses a **production-ready three-tier testing approach** with organized directory structure:
+
+```
+tests/
+├── ExcelMcp.Core.Tests/
+│   ├── Unit/           # Fast tests, no Excel required (~2-5 sec)
+│   ├── Integration/    # Medium speed, requires Excel (~1-15 min)
+│   └── RoundTrip/      # Slow, comprehensive workflows (~3-10 min each)
+├── ExcelMcp.McpServer.Tests/
+│   ├── Unit/           # Fast tests, no server required  
+│   ├── Integration/    # Medium speed, requires MCP server
+│   └── RoundTrip/      # Slow, end-to-end protocol testing
+└── ExcelMcp.CLI.Tests/
+    ├── Unit/           # Fast tests, no Excel required
+    └── Integration/    # Medium speed, requires Excel & CLI
+```
+
+### **Development Workflow Commands**
+
+**During Development (Fast Feedback):**
+```powershell
+# Quick validation - runs in 2-5 seconds
+dotnet test --filter "Category=Unit"
+```
+
+**Before Commit (Comprehensive):**
+```powershell
+# Full local validation - runs in 10-20 minutes
+dotnet test --filter "Category=Unit|Category=Integration"
+```
+
+**Release Validation (Complete):**
+```powershell
+# Complete test suite - runs in 30-60 minutes
+dotnet test
+
+# Or specifically run slow round trip tests
+dotnet test --filter "Category=RoundTrip"
+```
+
+### **Test Categories & Guidelines**
+
+**Unit Tests (`Category=Unit`)**
+- ✅ Pure logic, no external dependencies
+- ✅ Fast execution (2-5 seconds total)
+- ✅ Can run in CI without Excel
+- ✅ Mock external dependencies
+
+**Integration Tests (`Category=Integration`)**
+- ✅ Single feature with Excel interaction
+- ✅ Medium speed (1-15 minutes total)
+- ✅ Requires Excel installation
+- ✅ Real COM operations
+
+**Round Trip Tests (`Category=RoundTrip`)**
+- ✅ Complete end-to-end workflows
+- ✅ Slow execution (3-10 minutes each)
+- ✅ Verifies actual Excel state changes
+- ✅ Comprehensive scenario coverage
+
+### **Adding New Tests**
+
+When creating tests, follow these placement guidelines:
+
+```csharp
+// Unit Test Example
+[Trait("Category", "Unit")]
+[Trait("Speed", "Fast")]
+[Trait("Layer", "Core")]
+public class CommandLogicTests 
+{
+    // Tests business logic without Excel
+}
+
+// Integration Test Example  
+[Trait("Category", "Integration")]
+[Trait("Speed", "Medium")]
+[Trait("Feature", "PowerQuery")]
+[Trait("RequiresExcel", "true")]
+public class PowerQueryCommandsTests
+{
+    // Tests single Excel operations
+}
+
+// Round Trip Test Example
+[Trait("Category", "RoundTrip")]
+[Trait("Speed", "Slow")]
+[Trait("Feature", "EndToEnd")]
+[Trait("RequiresExcel", "true")]
+public class VbaWorkflowTests
+{
+    // Tests complete workflows: import → run → verify → export
+}
+```
+
+### **PR Testing Requirements**
 
 Before creating a PR, ensure:
 
 ```powershell
-# All tests pass
-dotnet test
+# Minimum requirement - All unit tests pass
+dotnet test --filter "Category=Unit"
 
-# Code builds without warnings  
+# Recommended - Unit + Integration tests pass  
+dotnet test --filter "Category=Unit|Category=Integration"
+
+# Code builds without warnings
 dotnet build -c Release
 
 # Code follows style guidelines (automatic via EditorConfig)
 ```
 
-## 📝 **PR Template Checklist**
+**For Complex Features:**
+- ✅ Add unit tests for core logic
+- ✅ Add integration tests for Excel operations
+- ✅ Consider round trip tests for workflows
+- ✅ Update documentation
+
+## 📋 **MCP Server Configuration Management**
+
+### **CRITICAL: Keep server.json in Sync**
+
+When modifying MCP Server functionality, **you must update** `src/ExcelMcp.McpServer/.mcp/server.json`:
+
+#### **When to Update server.json:**
+
+- ✅ **Adding new MCP tools** - Add tool definition to `"tools"` array
+- ✅ **Modifying tool parameters** - Update `inputSchema` and `properties`
+- ✅ **Changing tool descriptions** - Update `description` fields
+- ✅ **Adding new capabilities** - Update `"capabilities"` section
+- ✅ **Changing requirements** - Update `"environment"."requirements"`
+
+#### **server.json Synchronization Checklist:**
+
+```powershell
+# After making MCP Server code changes, verify:
+
+# 1. Tool definitions match actual implementations
+Compare-Object (Get-Content "src/ExcelMcp.McpServer/.mcp/server.json" | ConvertFrom-Json).tools (Get-ChildItem "src/ExcelMcp.McpServer/Tools/*.cs")
+
+# 2. Build succeeds with updated configuration
+dotnet build src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
+
+# 3. Test MCP server starts without errors
+dnx Sbroenne.ExcelMcp.McpServer --yes
+```
+
+#### **server.json Structure:**
+
+```json
+{
+  "version": "2.0.0",          // ← Updated by release workflow
+  "tools": [                   // ← Must match Tools/*.cs implementations
+    {
+      "name": "excel_file",    // ← Must match [McpServerTool] attribute
+      "description": "...",    // ← Keep description accurate
+      "inputSchema": {         // ← Must match method parameters
+        "properties": {
+          "action": { ... },   // ← Must match actual actions supported
+          "filePath": { ... }   // ← Must match parameter types
+        }
+      }
+    }
+  ]
+}
+```
+
+#### **Common server.json Update Scenarios:**
+
+1. **Adding New Tool:**
+   ```csharp
+   // In Tools/NewTool.cs
+   [McpServerTool]
+   public async Task<string> NewTool(string action, string parameter)
+   ```
+   ```json
+   // Add to server.json tools array
+   {
+     "name": "excel_newtool",
+     "description": "New functionality description",
+     "inputSchema": { ... }
+   }
+   ```
+
+2. **Adding Action to Existing Tool:**
+   ```csharp
+   // In existing tool method
+   case "new-action":
+     return HandleNewAction(parameter);
+   ```
+   ```json
+   // Update inputSchema properties.action enum
+   "action": {
+     "enum": ["list", "create", "new-action"]  // ← Add new action
+   }
+   ```
+
+## �📝 **PR Template Checklist**
 
 When creating a PR, verify:
 
@@ -140,6 +327,7 @@ When creating a PR, verify:
 - [ ] **All tests pass** (unit tests minimum)
 - [ ] **New features have tests**
 - [ ] **Documentation updated** (README, COMMANDS.md, etc.)
+- [ ] **MCP server.json updated** (if MCP Server changes) ← **NEW**
 - [ ] **Breaking changes documented**
 - [ ] **Follows existing code patterns**
 - [ ] **Commit messages are clear**

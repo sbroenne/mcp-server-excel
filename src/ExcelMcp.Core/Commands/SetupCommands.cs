@@ -1,6 +1,5 @@
-using Spectre.Console;
 using Microsoft.Win32;
-using System;
+using Sbroenne.ExcelMcp.Core.Models;
 using static Sbroenne.ExcelMcp.Core.ExcelHelper;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -10,15 +9,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 public class SetupCommands : ISetupCommands
 {
-    /// <summary>
-    /// Enable VBA project access trust in Excel registry
-    /// </summary>
-    public int EnableVbaTrust(string[] args)
+    /// <inheritdoc />
+    public VbaTrustResult EnableVbaTrust()
     {
         try
         {
-            AnsiConsole.MarkupLine("[cyan]Enabling VBA project access trust...[/]");
-            
             // Try different Office versions and architectures
             string[] registryPaths = {
                 @"SOFTWARE\Microsoft\Office\16.0\Excel\Security",  // Office 2019/2021/365
@@ -29,95 +24,164 @@ public class SetupCommands : ISetupCommands
                 @"SOFTWARE\WOW6432Node\Microsoft\Office\14.0\Excel\Security"
             };
 
-            bool successfullySet = false;
+            var result = new VbaTrustResult();
             
             foreach (string path in registryPaths)
             {
                 try
                 {
-                    using (RegistryKey key = Registry.CurrentUser.CreateSubKey(path))
+                    using (RegistryKey? key = Registry.CurrentUser.CreateSubKey(path))
                     {
                         if (key != null)
                         {
                             // Set AccessVBOM = 1 to trust VBA project access
                             key.SetValue("AccessVBOM", 1, RegistryValueKind.DWord);
-                            AnsiConsole.MarkupLine($"[green]✓[/] Set VBA trust in: {path}");
-                            successfullySet = true;
+                            result.RegistryPathsSet.Add(path);
                         }
                     }
                 }
-                catch (Exception ex)
+                catch
                 {
-                    AnsiConsole.MarkupLine($"[dim]Skipped {path}: {ex.Message.EscapeMarkup()}[/]");
+                    // Skip paths that don't exist or can't be accessed
                 }
             }
 
-            if (successfullySet)
+            if (result.RegistryPathsSet.Count > 0)
             {
-                AnsiConsole.MarkupLine("[green]✓[/] VBA project access trust has been enabled!");
-                AnsiConsole.MarkupLine("[yellow]Note:[/] You may need to restart Excel for changes to take effect.");
-                return 0;
+                result.Success = true;
+                result.IsTrusted = true;
+                result.ManualInstructions = "You may need to restart Excel for changes to take effect.";
             }
             else
             {
-                AnsiConsole.MarkupLine("[red]Error:[/] Could not find Excel registry keys to modify.");
-                AnsiConsole.MarkupLine("[yellow]Manual setup:[/] File → Options → Trust Center → Trust Center Settings → Macro Settings");
-                AnsiConsole.MarkupLine("[yellow]Manual setup:[/] Check 'Trust access to the VBA project object model'");
-                return 1;
+                result.Success = false;
+                result.IsTrusted = false;
+                result.ErrorMessage = "Could not find Excel registry keys to modify.";
+                result.ManualInstructions = "File → Options → Trust Center → Trust Center Settings → Macro Settings\nCheck 'Trust access to the VBA project object model'";
             }
+            
+            return result;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
-            return 1;
+            return new VbaTrustResult
+            {
+                Success = false,
+                IsTrusted = false,
+                ErrorMessage = ex.Message,
+                ManualInstructions = "File → Options → Trust Center → Trust Center Settings → Macro Settings\nCheck 'Trust access to the VBA project object model'"
+            };
         }
     }
 
-    /// <summary>
-    /// Check current VBA trust status
-    /// </summary>
-    public int CheckVbaTrust(string[] args)
+    /// <inheritdoc />
+    public VbaTrustResult DisableVbaTrust()
     {
-        if (args.Length < 2)
+        try
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] check-vba-trust <test-file.xlsx>");
-            AnsiConsole.MarkupLine("[yellow]Note:[/] Provide a test Excel file to verify VBA access");
-            return 1;
+            // Try different Office versions and architectures
+            string[] registryPaths = {
+                @"SOFTWARE\Microsoft\Office\16.0\Excel\Security",  // Office 2019/2021/365
+                @"SOFTWARE\Microsoft\Office\15.0\Excel\Security",  // Office 2013
+                @"SOFTWARE\Microsoft\Office\14.0\Excel\Security",  // Office 2010
+                @"SOFTWARE\WOW6432Node\Microsoft\Office\16.0\Excel\Security",  // 32-bit on 64-bit
+                @"SOFTWARE\WOW6432Node\Microsoft\Office\15.0\Excel\Security",
+                @"SOFTWARE\WOW6432Node\Microsoft\Office\14.0\Excel\Security"
+            };
+
+            var result = new VbaTrustResult();
+            
+            foreach (string path in registryPaths)
+            {
+                try
+                {
+                    using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(path, writable: true))
+                    {
+                        if (key != null)
+                        {
+                            // Set AccessVBOM = 0 to disable VBA project access
+                            key.SetValue("AccessVBOM", 0, RegistryValueKind.DWord);
+                            result.RegistryPathsSet.Add(path);
+                        }
+                    }
+                }
+                catch
+                {
+                    // Skip paths that don't exist or can't be accessed
+                }
+            }
+
+            if (result.RegistryPathsSet.Count > 0)
+            {
+                result.Success = true;
+                result.IsTrusted = false;
+                result.ManualInstructions = "VBA trust has been disabled. Restart Excel for changes to take effect.";
+            }
+            else
+            {
+                result.Success = false;
+                result.IsTrusted = false;
+                result.ErrorMessage = "Could not find Excel registry keys to modify.";
+            }
+            
+            return result;
+        }
+        catch (Exception ex)
+        {
+            return new VbaTrustResult
+            {
+                Success = false,
+                IsTrusted = false,
+                ErrorMessage = ex.Message
+            };
+        }
+    }
+
+    /// <inheritdoc />
+    public VbaTrustResult CheckVbaTrust(string testFilePath)
+    {
+        if (string.IsNullOrEmpty(testFilePath))
+        {
+            return new VbaTrustResult
+            {
+                Success = false,
+                IsTrusted = false,
+                ErrorMessage = "Test file path is required",
+                FilePath = testFilePath
+            };
         }
 
-        string testFile = args[1];
-        if (!File.Exists(testFile))
+        if (!File.Exists(testFilePath))
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] Test file not found: {testFile}");
-            return 1;
+            return new VbaTrustResult
+            {
+                Success = false,
+                IsTrusted = false,
+                ErrorMessage = $"Test file not found: {testFilePath}",
+                FilePath = testFilePath
+            };
         }
 
         try
         {
-            AnsiConsole.MarkupLine("[cyan]Checking VBA project access trust...[/]");
+            var result = new VbaTrustResult { FilePath = testFilePath };
             
-            int result = WithExcel(testFile, false, (excel, workbook) =>
+            int exitCode = WithExcel(testFilePath, false, (excel, workbook) =>
             {
                 try
                 {
                     dynamic vbProject = workbook.VBProject;
-                    int componentCount = vbProject.VBComponents.Count;
-                    
-                    AnsiConsole.MarkupLine($"[green]✓[/] VBA project access is [green]TRUSTED[/]");
-                    AnsiConsole.MarkupLine($"[dim]Found {componentCount} VBA components in workbook[/]");
+                    result.ComponentCount = vbProject.VBComponents.Count;
+                    result.IsTrusted = true;
+                    result.Success = true;
                     return 0;
                 }
                 catch (Exception ex)
                 {
-                    AnsiConsole.MarkupLine($"[red]✗[/] VBA project access is [red]NOT TRUSTED[/]");
-                    AnsiConsole.MarkupLine($"[dim]Error: {ex.Message.EscapeMarkup()}[/]");
-                    
-                    AnsiConsole.MarkupLine("");
-                    AnsiConsole.MarkupLine("[yellow]To enable VBA access:[/]");
-                    AnsiConsole.MarkupLine("1. Run: [cyan]ExcelCLI setup-vba-trust[/]");
-                    AnsiConsole.MarkupLine("2. Or manually: File → Options → Trust Center → Trust Center Settings → Macro Settings");
-                    AnsiConsole.MarkupLine("3. Check: 'Trust access to the VBA project object model'");
-                    
+                    result.IsTrusted = false;
+                    result.Success = false;
+                    result.ErrorMessage = ex.Message;
+                    result.ManualInstructions = "Run 'setup-vba-trust' or manually: File → Options → Trust Center → Trust Center Settings → Macro Settings\nCheck 'Trust access to the VBA project object model'";
                     return 1;
                 }
             });
@@ -126,8 +190,13 @@ public class SetupCommands : ISetupCommands
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]Error testing VBA access:[/] {ex.Message.EscapeMarkup()}");
-            return 1;
+            return new VbaTrustResult
+            {
+                Success = false,
+                IsTrusted = false,
+                ErrorMessage = $"Error testing VBA access: {ex.Message}",
+                FilePath = testFilePath
+            };
         }
     }
 }

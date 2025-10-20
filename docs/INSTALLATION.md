@@ -1,101 +1,18 @@
-# Installation Guide
+# ExcelMcp CLI Installation Guide
 
-Choose your installation method based on your use case:
-
-- **🧠 MCP Server**: For AI assistant integration (GitHub Copilot, Claude, ChatGPT)
-- **🔧 CLI Tool**: For direct automation and development workflows
-- **📦 Combined**: Both tools for complete Excel development environment
+Complete installation guide for the ExcelMcp CLI tool for direct Excel automation and development workflows.
 
 ## 🎯 System Requirements
 
 - **Windows OS** - Required for Excel COM interop
 - **Microsoft Excel** - Must be installed on the machine (2016+)
-- **.NET 10 SDK** - Install via: `winget install Microsoft.DotNet.SDK.10`
+- **.NET 10 Runtime** - Install via: `winget install Microsoft.DotNet.Runtime.10`
+
+> **Note:** For the MCP Server (AI assistant integration), see the [main README](../README.md).
 
 ---
 
-## 🧠 MCP Server Installation
-
-**For AI assistant integration and conversational Excel workflows**
-
-### Option 1: Microsoft's NuGet MCP Approach (Recommended)
-
-Use the official `dnx` command to download and execute the MCP Server:
-
-```powershell
-# Download and execute MCP server using dnx
-dnx Sbroenne.ExcelMcp.McpServer@latest --yes
-
-# Execute specific version
-dnx Sbroenne.ExcelMcp.McpServer@1.0.0 --yes
-
-# Use with private feed
-dnx Sbroenne.ExcelMcp.McpServer@latest --source https://your-feed.com --yes
-```
-
-**Benefits:**
-- ✅ Official Microsoft approach for NuGet MCP servers
-- ✅ Automatic download and execution in one command
-- ✅ No separate installation step required
-- ✅ Perfect for AI assistant integration
-- ✅ Follows [Microsoft's NuGet MCP guidance](https://learn.microsoft.com/en-us/nuget/concepts/nuget-mcp)
-
-### Option 2: Download Binary
-
-1. **Download the latest MCP Server release**:
-   - Go to [Releases](https://github.com/sbroenne/mcp-server-excel/releases)
-   - Download `ExcelMcp-MCP-Server-{version}-windows.zip`
-
-2. **Extract and run**:
-
-   ```powershell
-   # Extract to your preferred location
-   Expand-Archive -Path "ExcelMcp-MCP-Server-1.0.0-windows.zip" -DestinationPath "C:\Tools\ExcelMcp-MCP"
-   
-   # Run the MCP server
-   dotnet C:\Tools\ExcelMcp-MCP\ExcelMcp.McpServer.dll
-   ```
-
-### Configure with AI Assistants
-
-**GitHub Copilot Integration:**
-
-Add to your VS Code settings.json or MCP client configuration:
-
-```json
-{
-  "mcp": {
-    "servers": {
-      "excel": {
-        "command": "dnx",
-        "args": ["Sbroenne.ExcelMcp.McpServer@latest", "--yes"],
-        "description": "Excel development operations through MCP"
-      }
-    }
-  }
-}
-```
-
-**Claude Desktop Integration:**
-
-Add to Claude Desktop MCP configuration:
-
-```json
-{
-  "mcpServers": {
-    "excel": {
-      "command": "dnx",
-      "args": ["Sbroenne.ExcelMcp.McpServer@latest", "--yes"]
-    }
-  }
-}
-```
-
----
-
-## 🔧 CLI Tool Installation
-
-**For direct automation, development workflows, and CI/CD integration**
+## 🔧 CLI Installation
 
 ### Option 1: Download Binary (Recommended)
 
@@ -107,7 +24,7 @@ Add to Claude Desktop MCP configuration:
 
    ```powershell
    # Extract to your preferred location
-   Expand-Archive -Path "ExcelMcp-CLI-2.0.0-windows.zip" -DestinationPath "C:\Tools\ExcelMcp-CLI"
+   Expand-Archive -Path "ExcelMcp-CLI-1.0.0-windows.zip" -DestinationPath "C:\Tools\ExcelMcp-CLI"
    
    # Add to PATH (optional but recommended)
    $env:PATH += ";C:\Tools\ExcelMcp-CLI"
@@ -142,45 +59,7 @@ excelcli.exe script-list "macros.xlsm"
 
 ---
 
-## 📦 Combined Installation
-
-**For users who need both MCP Server and CLI tools**
-
-### Download Combined Package
-
-1. **Download the combined release**:
-   - Go to [Releases](https://github.com/sbroenne/mcp-server-excel/releases)
-   - Download `ExcelMcp-{version}-windows.zip` (combined package)
-
-2. **Extract and setup**:
-
-   ```powershell
-   # Extract to your preferred location
-   Expand-Archive -Path "ExcelMcp-3.0.0-windows.zip" -DestinationPath "C:\Tools\ExcelMcp"
-   
-   # Add CLI to PATH
-   $env:PATH += ";C:\Tools\ExcelMcp\CLI"
-   [Environment]::SetEnvironmentVariable("PATH", $env:PATH, "User")
-   
-   # Install MCP Server as .NET tool (from extracted files)
-   dotnet tool install --global --add-source C:\Tools\ExcelMcp\MCP-Server ExcelMcp.McpServer
-   ```
-
-3. **Verify both tools**:
-
-   ```powershell
-   # Test CLI
-   excelcli.exe create-empty "test.xlsx"
-   
-   # Test MCP Server
-   mcp-excel --help
-   ```
-
----
-
 ## 🔨 Build from Source
-
-**For developers who want to build both tools from source**
 
 ### Prerequisites
 
@@ -215,17 +94,6 @@ excelcli.exe script-list "macros.xlsm"
 
 ### After Building
 
-**MCP Server:**
-
-```powershell
-# Run MCP server from build
-dotnet run --project src/ExcelMcp.McpServer
-
-# Or install as .NET tool from local build
-dotnet pack src/ExcelMcp.McpServer -c Release
-dotnet tool install --global --add-source src/ExcelMcp.McpServer/bin/Release ExcelMcp.McpServer
-```
-
 **CLI Tool:**
 
 ```powershell
@@ -243,11 +111,11 @@ excelcli.exe create-empty "test.xlsx"
 
 ### Installation Options
 
-#### Option 1: Add to PATH (Recommended for coding agents)
+#### Option 1: Add to PATH (Recommended)
 
 ```powershell
 # Add the build directory to your system PATH
-$buildPath = "$(Get-Location)\src\\ExcelMcp.CLI\\bin\Release\net10.0"
+$buildPath = "$(Get-Location)\src\ExcelMcp.CLI\bin\Release\net10.0"
 $env:PATH += ";$buildPath"
 
 # Make permanent (requires admin privileges)
@@ -257,35 +125,33 @@ $env:PATH += ";$buildPath"
 #### Option 2: Copy to a tools directory
 
 ```powershell
+# Create tools directory
+New-Item -ItemType Directory -Path "C:\Tools\ExcelMcp-CLI" -Force
+
+# Copy CLI files
+Copy-Item "src\ExcelMcp.CLI\bin\Release\net10.0\*" "C:\Tools\ExcelMcp-CLI\" -Recurse
+
+# Add to PATH
+$env:PATH += ";C:\Tools\ExcelMcp-CLI"
+[Environment]::SetEnvironmentVariable("PATH", $env:PATH, "User")
+```
+
 ---
 
 ## 🔧 VBA Configuration
 
-**Required for VBA script operations (both MCP Server and CLI)**
+### Required for VBA script operations
 
 If you plan to use VBA script commands, configure VBA trust:
 
 ```powershell
-# One-time setup for VBA automation (works with both tools)
-# For CLI:
+# One-time setup for VBA automation
 excelcli.exe setup-vba-trust
-
-# For MCP Server (through AI assistant):
-# Ask your AI assistant: "Setup VBA trust for Excel automation"
 ```
 
 This configures the necessary registry settings to allow programmatic access to VBA projects.
 
 ---
-
-## 📋 Installation Summary
-
-| Use Case | Tool | Installation Method | Command |
-|----------|------|-------------------|---------|
-| **AI Assistant Integration** | MCP Server | .NET Tool | `dotnet tool install --global Sbroenne.ExcelMcp.McpServer` |
-| **Direct Automation** | CLI | Binary Download | Download `ExcelMcp-CLI-{version}-windows.zip` |
-| **Development/Testing** | Both | Build from Source | `git clone` + `dotnet build` |
-| **Complete Environment** | Combined | Binary Download | Download `ExcelMcp-{version}-windows.zip` |
 
 ## 🆘 Troubleshooting
 
@@ -303,12 +169,12 @@ This configures the necessary registry settings to allow programmatic access to 
 
 **".NET runtime not found" error:**
 
-- Install .NET 10 SDK: `winget install Microsoft.DotNet.SDK.10`
+- Install .NET 10 Runtime: `winget install Microsoft.DotNet.Runtime.10`
 - Verify installation: `dotnet --version`
 
 **VBA access denied:**
 
-- Run the VBA trust setup command once
+- Run the VBA trust setup command once: `excelcli.exe setup-vba-trust`
 - Restart Excel after running the trust setup
 
 ### Getting Help
@@ -320,9 +186,30 @@ This configures the necessary registry settings to allow programmatic access to 
 
 ---
 
+## 📋 CLI Command Summary
+
+| Category | Commands | Description |
+|----------|----------|-------------|
+| **File Operations** | `create-empty` | Create Excel workbooks (.xlsx, .xlsm) |
+| **Power Query** | `pq-list`, `pq-view`, `pq-import`, `pq-export`, `pq-update`, `pq-refresh`, `pq-loadto`, `pq-delete` | Manage Power Query M code |
+| **Worksheets** | `sheet-list`, `sheet-read`, `sheet-write`, `sheet-create`, `sheet-rename`, `sheet-copy`, `sheet-delete`, `sheet-clear`, `sheet-append` | Worksheet operations |
+| **Parameters** | `param-list`, `param-get`, `param-set`, `param-create`, `param-delete` | Named range management |
+| **Cells** | `cell-get-value`, `cell-set-value`, `cell-get-formula`, `cell-set-formula` | Individual cell operations |
+| **VBA Scripts** | `script-list`, `script-export`, `script-import`, `script-update`, `script-run`, `script-delete` | VBA macro management |
+| **Setup** | `setup-vba-trust`, `check-vba-trust` | VBA configuration |
+
+> **📋 [Complete Command Reference →](COMMANDS.md)** - Detailed documentation for all 40+ commands
+
+---
+
 ## 🔄 Development & Contributing
 
 **Important:** All changes to this project must be made through **Pull Requests (PRs)**. Direct commits to `main` are not allowed.
+
+- 📋 **Development Workflow**: See [DEVELOPMENT.md](DEVELOPMENT.md) for complete PR process
+- 🤝 **Contributing Guide**: See [CONTRIBUTING.md](CONTRIBUTING.md) for code standards
+
+Version numbers are automatically managed by the release workflow - **do not update version numbers manually**.
 
 - 📋 **Development Workflow**: See [DEVELOPMENT.md](DEVELOPMENT.md) for complete PR process
 - 🤝 **Contributing Guide**: See [CONTRIBUTING.md](CONTRIBUTING.md) for code standards

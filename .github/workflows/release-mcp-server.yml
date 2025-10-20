@@ -20,7 +20,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 10.0.x
+        dotnet-version: 9.0.x
         
     - name: Update MCP Server Version
       run: |
@@ -37,7 +37,20 @@ jobs:
         $mcpContent = $mcpContent -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
         Set-Content $mcpCsprojPath $mcpContent
         
-        Write-Output "Updated MCP Server version to $version"
+        # Update MCP Server configuration
+        $serverJsonPath = "src/ExcelMcp.McpServer/.mcp/server.json"
+        $serverContent = Get-Content $serverJsonPath -Raw
+        
+        # Update main version field (near top of file, not in _meta section)
+        $serverContent = $serverContent -replace '(\s*"version":\s*)"[\d\.]+"(\s*,\s*\n\s*"title")' , "`$1`"$version`"`$2"
+        
+        # Update package version in packages array (specifically after identifier field)
+        $serverContent = $serverContent -replace '("identifier":\s*"Sbroenne\.ExcelMcp\.McpServer",\s*\n\s*"version":\s*)"[\d\.]+"', "`$1`"$version`""
+        
+        Set-Content $serverJsonPath $serverContent
+        
+        Write-Output "Updated MCP Server project version to $version"
+        Write-Output "Updated MCP Server configuration version to $version"
         
         # Set environment variable for later steps
         echo "PACKAGE_VERSION=$version" >> $env:GITHUB_ENV
@@ -68,7 +81,7 @@ jobs:
         New-Item -ItemType Directory -Path "release/ExcelMcp-MCP-Server-$version" -Force
         
         # Copy MCP Server files
-        Copy-Item "src/ExcelMcp.McpServer/bin/Release/net10.0/*" "release/ExcelMcp-MCP-Server-$version/" -Recurse
+        Copy-Item "src/ExcelMcp.McpServer/bin/Release/net9.0/*" "release/ExcelMcp-MCP-Server-$version/" -Recurse
         
         # Copy documentation
         Copy-Item "README.md" "release/ExcelMcp-MCP-Server-$version/"
@@ -98,7 +111,7 @@ jobs:
         $readmeContent += "- Excel Development Focus - Power Query, VBA, worksheets`n`n"
         $readmeContent += "## Requirements`n`n"
         $readmeContent += "- Windows OS with Microsoft Excel installed`n"
-        $readmeContent += "- .NET 10.0 runtime`n"
+        $readmeContent += "- .NET 9.0 runtime`n"
         $readmeContent += "- Excel 2016+ (for COM interop)`n`n"
         $readmeContent += "## License`n`n"
         $readmeContent += "MIT License - see LICENSE file for details.`n"
@@ -153,7 +166,7 @@ jobs:
         $releaseNotes += "- excel_vba - VBA script management (list, export, import, update, run, delete)`n`n"
         $releaseNotes += "### Requirements`n"
         $releaseNotes += "- Windows OS with Microsoft Excel installed`n"
-        $releaseNotes += "- .NET 10.0 runtime`n"
+        $releaseNotes += "- .NET 9.0 runtime`n"
         $releaseNotes += "- Excel 2016+ (for COM interop)`n`n"
         $releaseNotes += "### Documentation`n"
         $releaseNotes += "- Configuration Guide: See README.md in package`n"

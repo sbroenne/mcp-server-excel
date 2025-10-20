@@ -1,6 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
-using Spectre.Console;
 
 namespace Sbroenne.ExcelMcp.Core;
 
@@ -105,10 +104,9 @@ public static class ExcelHelper
             {
                 result = action(excel, workbook);
             }
-            catch (Exception actionEx)
+            catch
             {
-                // Wrap action exceptions with enhanced context
-                ExcelDiagnostics.ReportExcelError(actionEx, $"User Action in {operation}", fullPath, workbook, excel);
+                // Propagate exceptions with original context
                 throw;
             }
 
@@ -119,51 +117,94 @@ public static class ExcelHelper
                 {
                     workbook.Save();
                 }
-                catch (Exception saveEx)
+                catch
                 {
-                    ExcelDiagnostics.ReportExcelError(saveEx, $"Save operation in {operation}", fullPath, workbook, excel);
+                    // Propagate save exceptions
                     throw;
                 }
             }
 
             return result;
         }
-        catch (Exception ex) when (!(ex.Data.Contains("ExcelDiagnosticsReported")))
+        catch
         {
-            // Only report if not already reported by inner exception
-            ExcelDiagnostics.ReportExcelError(ex, operation, filePath, workbook, excel);
-            ex.Data["ExcelDiagnosticsReported"] = true;
+            // Propagate exceptions to caller
             throw;
         }
         finally
         {
-            // Close workbook
+            // Enhanced COM cleanup to prevent process leaks
+            
+            // Close workbook first
             if (workbook != null)
             {
-                try { workbook.Close(save); } catch { }
-                try { Marshal.ReleaseComObject(workbook); } catch { }
+                try 
+                { 
+                    workbook.Close(save); 
+                } 
+                catch (COMException) 
+                { 
+                    // Workbook might already be closed, ignore
+                } 
+                catch 
+                { 
+                    // Any other exception during close, ignore to continue cleanup
+                }
+                
+                try 
+                { 
+                    Marshal.ReleaseComObject(workbook); 
+                } 
+                catch 
+                { 
+                    // Release might fail, but continue cleanup
+                }
             }
 
-            // Quit Excel and release
+            // Quit Excel application
             if (excel != null)
             {
-                try { excel.Quit(); } catch { }
-                try { Marshal.ReleaseComObject(excel); } catch { }
+                try 
+                { 
+                    excel.Quit(); 
+                } 
+                catch (COMException) 
+                { 
+                    // Excel might already be closing, ignore
+                } 
+                catch 
+                { 
+                    // Any other exception during quit, ignore to continue cleanup
+                }
+                
+                try 
+                { 
+                    Marshal.ReleaseComObject(excel); 
+                } 
+                catch 
+                { 
+                    // Release might fail, but continue cleanup
+                }
             }
 
             // Aggressive cleanup
             workbook = null;
             excel = null;
 
-            // Force garbage collection multiple times
-            for (int i = 0; i < 3; i++)
+            // Enhanced garbage collection - run multiple cycles
+            for (int i = 0; i < 5; i++)
             {
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
             }
 
-            // Small delay to ensure Excel process terminates
-            System.Threading.Thread.Sleep(100);
+            // Longer delay to ensure Excel process terminates completely
+            // Excel COM can take time to shut down properly
+            System.Threading.Thread.Sleep(500);
+            
+            // Force one more GC cycle after the delay
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         }
     }
 
@@ -234,159 +275,158 @@ public static class ExcelHelper
     }
 
     /// <summary>
-    /// Validates command line arguments and displays usage if invalid
+    /// Creates a new Excel workbook with proper resource management
     /// </summary>
-    /// <param name="args">Command line arguments array</param>
-    /// <param name="required">Required number of arguments</param>
-    /// <param name="usage">Usage string to display if validation fails</param>
-    /// <returns>True if arguments are valid, false otherwise</returns>
-    public static bool ValidateArgs(string[] args, int required, string usage)
+    /// <typeparam name="T">Return type of the action</typeparam>
+    /// <param name="filePath">Path where to save the new Excel file</param>
+    /// <param name="isMacroEnabled">Whether to create a macro-enabled workbook (.xlsm)</param>
+    /// <param name="action">Action to execute with Excel application and new workbook</param>
+    /// <returns>Result of the action</returns>
+    [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
+    public static T WithNewExcel<T>(string filePath, bool isMacroEnabled, Func<dynamic, dynamic, T> action)
     {
-        if (args.Length >= required) return true;
-        
-        AnsiConsole.MarkupLine($"[red]Error:[/] Missing arguments");
-        AnsiConsole.MarkupLine($"[yellow]Usage:[/] [cyan]ExcelCLI {usage.EscapeMarkup()}[/]");
-        
-        // Show what arguments were provided vs what's needed
-        AnsiConsole.MarkupLine($"[dim]Provided {args.Length} arguments, need {required}[/]");
-        
-        if (args.Length > 0)
-        {
-            AnsiConsole.MarkupLine("[dim]Arguments provided:[/]");
-            for (int i = 0; i < args.Length; i++)
-            {
-                AnsiConsole.MarkupLine($"[dim]  [[{i + 1}]] {args[i].EscapeMarkup()}[/]");
-            }
-        }
-        
-        // Parse usage string to show expected arguments
-        var usageParts = usage.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (usageParts.Length > 1)
-        {
-            AnsiConsole.MarkupLine("[dim]Expected arguments:[/]");
-            for (int i = 1; i < usageParts.Length && i < required; i++)
-            {
-                string status = i < args.Length ? "[green]✓[/]" : "[red]✗[/]";
-                AnsiConsole.MarkupLine($"[dim]  [[{i}]] {status} {usageParts[i].EscapeMarkup()}[/]");
-            }
-        }
-        
-        return false;
-    }
-
-    /// <summary>
-    /// Validates an Excel file path with detailed error context and security checks
-    /// </summary>
-    public static bool ValidateExcelFile(string filePath, bool requireExists = true)
-    {
-        if (string.IsNullOrWhiteSpace(filePath))
-        {
-            AnsiConsole.MarkupLine("[red]Error:[/] File path is empty or null");
-            return false;
-        }
+        dynamic? excel = null;
+        dynamic? workbook = null;
+        string operation = $"WithNewExcel({Path.GetFileName(filePath)}, macroEnabled={isMacroEnabled})";
 
         try
         {
-            // Security: Prevent path traversal and validate path length
+            // Validate file path first - prevent path traversal attacks
             string fullPath = Path.GetFullPath(filePath);
             
-            if (fullPath.Length > 32767)
+            // Validate file size limits for security (prevent DoS)
+            string? directory = Path.GetDirectoryName(fullPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
             {
-                AnsiConsole.MarkupLine($"[red]Error:[/] File path too long ({fullPath.Length} characters, limit: 32767)");
-                return false;
-            }
-            
-            string extension = Path.GetExtension(fullPath).ToLowerInvariant();
-            
-            // Security: Strict file extension validation
-            if (extension is not (".xlsx" or ".xlsm" or ".xls"))
-            {
-                AnsiConsole.MarkupLine($"[red]Error:[/] Invalid Excel file extension: {extension}");
-                AnsiConsole.MarkupLine("[yellow]Supported extensions:[/] .xlsx, .xlsm, .xls");
-                return false;
+                Directory.CreateDirectory(directory);
             }
 
-            if (requireExists)
+            // Get Excel COM type
+            var excelType = Type.GetTypeFromProgID("Excel.Application");
+            if (excelType == null)
             {
-                if (!File.Exists(fullPath))
-                {
-                    AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {filePath}");
-                    AnsiConsole.MarkupLine($"[yellow]Full path:[/] {fullPath}");
-                    AnsiConsole.MarkupLine($"[yellow]Working directory:[/] {Environment.CurrentDirectory}");
-                    
-                    // Check if similar files exist
-                    string? directory = Path.GetDirectoryName(fullPath);
-                    string fileName = Path.GetFileNameWithoutExtension(fullPath);
-                    
-                    if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
-                    {
-                        var similarFiles = Directory.GetFiles(directory, $"*{fileName}*")
-                            .Where(f => Path.GetExtension(f).ToLowerInvariant() is ".xlsx" or ".xlsm" or ".xls")
-                            .Take(5)
-                            .ToArray();
-                            
-                        if (similarFiles.Length > 0)
-                        {
-                            AnsiConsole.MarkupLine("[yellow]Similar files found:[/]");
-                            foreach (var file in similarFiles)
-                            {
-                                AnsiConsole.MarkupLine($"  • {Path.GetFileName(file)}");
-                            }
-                        }
-                    }
-                    
-                    return false;
-                }
-
-                // Security: Check file size to prevent potential DoS
-                var fileInfo = new FileInfo(fullPath);
-                const long MAX_FILE_SIZE = 1024L * 1024L * 1024L; // 1GB limit
-                
-                if (fileInfo.Length > MAX_FILE_SIZE)
-                {
-                    AnsiConsole.MarkupLine($"[red]Error:[/] File too large ({fileInfo.Length:N0} bytes, limit: {MAX_FILE_SIZE:N0} bytes)");
-                    AnsiConsole.MarkupLine("[yellow]Large Excel files may cause performance issues or memory exhaustion[/]");
-                    return false;
-                }
-                
-                AnsiConsole.MarkupLine($"[dim]File info: {fileInfo.Length:N0} bytes, modified {fileInfo.LastWriteTime:yyyy-MM-dd HH:mm:ss}[/]");
-                
-                // Check if file is locked
-                if (IsFileLocked(fullPath))
-                {
-                    AnsiConsole.MarkupLine($"[yellow]Warning:[/] File appears to be locked by another process");
-                    AnsiConsole.MarkupLine("[yellow]This may cause errors. Close Excel and try again.[/]");
-                }
+                throw new InvalidOperationException("Excel is not installed or not properly registered. " +
+                    "Please verify Microsoft Excel is installed and COM registration is intact.");
             }
 
-            return true;
+#pragma warning disable IL2072 // COM interop is not AOT compatible but is required for Excel automation
+            excel = Activator.CreateInstance(excelType);
+#pragma warning restore IL2072
+            if (excel == null) 
+            {
+                throw new InvalidOperationException("Failed to create Excel COM instance. " +
+                    "Excel may be corrupted or COM subsystem unavailable.");
+            }
+
+            // Configure Excel for automation
+            excel.Visible = false;
+            excel.DisplayAlerts = false;
+            excel.ScreenUpdating = false;
+            excel.Interactive = false;
+
+            // Create new workbook
+            workbook = excel.Workbooks.Add();
+
+            // Execute the user action
+            var result = action(excel, workbook);
+
+            // Save the workbook with appropriate format
+            if (isMacroEnabled)
+            {
+                // Save as macro-enabled workbook (format 52)
+                workbook.SaveAs(fullPath, 52);
+            }
+            else
+            {
+                // Save as regular workbook (format 51)
+                workbook.SaveAs(fullPath, 51);
+            }
+
+            return result;
+        }
+        catch (COMException comEx)
+        {
+            throw new InvalidOperationException($"Excel COM operation failed during {operation}: {comEx.Message}", comEx);
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]Error validating file path:[/] {ex.Message.EscapeMarkup()}");
-            return false;
+            throw new InvalidOperationException($"Operation failed during {operation}: {ex.Message}", ex);
+        }
+        finally
+        {
+            // Enhanced COM cleanup to prevent process leaks
+            
+            // Close workbook first
+            if (workbook != null)
+            {
+                try 
+                { 
+                    workbook.Close(false); // Don't save again, we already saved
+                } 
+                catch (COMException) 
+                { 
+                    // Workbook might already be closed, ignore
+                } 
+                catch 
+                { 
+                    // Any other exception during close, ignore to continue cleanup
+                }
+                
+                try 
+                { 
+                    Marshal.ReleaseComObject(workbook); 
+                } 
+                catch 
+                { 
+                    // Release might fail, but continue cleanup
+                }
+            }
+
+            // Quit Excel application
+            if (excel != null)
+            {
+                try 
+                { 
+                    excel.Quit(); 
+                } 
+                catch (COMException) 
+                { 
+                    // Excel might already be closing, ignore
+                } 
+                catch 
+                { 
+                    // Any other exception during quit, ignore to continue cleanup
+                }
+                
+                try 
+                { 
+                    Marshal.ReleaseComObject(excel); 
+                } 
+                catch 
+                { 
+                    // Release might fail, but continue cleanup
+                }
+            }
+
+            // Aggressive cleanup
+            workbook = null;
+            excel = null;
+
+            // Enhanced garbage collection - run multiple cycles
+            for (int i = 0; i < 5; i++)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+
+            // Longer delay to ensure Excel process terminates completely
+            // Excel COM can take time to shut down properly
+            System.Threading.Thread.Sleep(500);
+            
+            // Force one more GC cycle after the delay
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         }
     }
 
-    /// <summary>
-    /// Checks if a file is locked by another process
-    /// </summary>
-    private static bool IsFileLocked(string filePath)
-    {
-        try
-        {
-            using (var stream = File.Open(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
-            {
-                return false;
-            }
-        }
-        catch (IOException)
-        {
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
 }

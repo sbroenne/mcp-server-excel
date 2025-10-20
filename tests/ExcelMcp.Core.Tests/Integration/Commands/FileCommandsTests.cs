@@ -2,45 +2,48 @@ using Xunit;
 using Sbroenne.ExcelMcp.Core.Commands;
 using System.IO;
 
-namespace Sbroenne.ExcelMcp.CLI.Tests.Commands;
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 
 /// <summary>
-/// Integration tests for file operations including Excel workbook creation and management.
-/// These tests require Excel installation and validate file manipulation commands.
+/// Unit tests for Core FileCommands - testing data layer without UI
+/// These tests verify that Core returns correct Result objects
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
 [Trait("Feature", "Files")]
-public class FileCommandsTests : IDisposable
+[Trait("Layer", "Core")]
+public class CoreFileCommandsTests : IDisposable
 {
     private readonly FileCommands _fileCommands;
     private readonly string _tempDir;
     private readonly List<string> _createdFiles;
 
-    public FileCommandsTests()
+    public CoreFileCommandsTests()
     {
         _fileCommands = new FileCommands();
         
         // Create temp directory for test files
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCLI_FileTests_{Guid.NewGuid():N}");
+        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_FileTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
         
         _createdFiles = new List<string>();
     }
 
     [Fact]
-    public void CreateEmpty_WithValidPath_CreatesExcelFile()
+    public void CreateEmpty_WithValidPath_ReturnsSuccessResult()
     {
         // Arrange
         string testFile = Path.Combine(_tempDir, "TestFile.xlsx");
-        string[] args = { "create-empty", testFile };
         _createdFiles.Add(testFile);
 
         // Act
-        int result = _fileCommands.CreateEmpty(args);
+        var result = _fileCommands.CreateEmpty(testFile);
 
         // Assert
-        Assert.Equal(0, result);
+        Assert.True(result.Success);
+        Assert.Null(result.ErrorMessage);
+        Assert.Equal("create-empty", result.Action);
+        Assert.NotNull(result.FilePath);
         Assert.True(File.Exists(testFile));
         
         // Verify it's a valid Excel file by checking size > 0
@@ -49,70 +52,69 @@ public class FileCommandsTests : IDisposable
     }
 
     [Fact]
-    public void CreateEmpty_WithNestedDirectory_CreatesDirectoryAndFile()
+    public void CreateEmpty_WithNestedDirectory_CreatesDirectoryAndReturnsSuccess()
     {
         // Arrange
         string nestedDir = Path.Combine(_tempDir, "nested", "deep", "path");
         string testFile = Path.Combine(nestedDir, "TestFile.xlsx");
-        string[] args = { "create-empty", testFile };
         _createdFiles.Add(testFile);
 
         // Act
-        int result = _fileCommands.CreateEmpty(args);
+        var result = _fileCommands.CreateEmpty(testFile);
 
         // Assert
-        Assert.Equal(0, result);
+        Assert.True(result.Success);
         Assert.True(Directory.Exists(nestedDir));
         Assert.True(File.Exists(testFile));
     }
 
     [Fact]
-    public void CreateEmpty_WithInvalidArgs_ReturnsError()
+    public void CreateEmpty_WithEmptyPath_ReturnsErrorResult()
     {
         // Arrange
-        string[] args = { "create-empty" }; // Missing file argument
+        string invalidPath = "";
 
         // Act
-        int result = _fileCommands.CreateEmpty(args);
+        var result = _fileCommands.CreateEmpty(invalidPath);
 
         // Assert
-        Assert.Equal(1, result);
+        Assert.False(result.Success);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.Equal("create-empty", result.Action);
     }
 
     [Fact]
-    public void CreateEmpty_WithRelativePath_CreatesFileWithAbsolutePath()
+    public void CreateEmpty_WithRelativePath_ConvertsToAbsoluteAndReturnsSuccess()
     {
         // Arrange
         string relativePath = "RelativeTestFile.xlsx";
-        string[] args = { "create-empty", relativePath };
-        
-        // The file will be created in the current directory
         string expectedPath = Path.GetFullPath(relativePath);
         _createdFiles.Add(expectedPath);
 
         // Act
-        int result = _fileCommands.CreateEmpty(args);
+        var result = _fileCommands.CreateEmpty(relativePath);
 
         // Assert
-        Assert.Equal(0, result);
+        Assert.True(result.Success);
         Assert.True(File.Exists(expectedPath));
+        Assert.Equal(expectedPath, Path.GetFullPath(result.FilePath!));
     }
 
     [Theory]
     [InlineData("TestFile.xlsx")]
     [InlineData("TestFile.xlsm")]
-    public void CreateEmpty_WithValidExtensions_CreatesFile(string fileName)
+    public void CreateEmpty_WithValidExtensions_ReturnsSuccessResult(string fileName)
     {
         // Arrange
         string testFile = Path.Combine(_tempDir, fileName);
-        string[] args = { "create-empty", testFile };
         _createdFiles.Add(testFile);
 
         // Act
-        int result = _fileCommands.CreateEmpty(args);
+        var result = _fileCommands.CreateEmpty(testFile);
 
         // Assert
-        Assert.Equal(0, result);
+        Assert.True(result.Success);
+        Assert.Null(result.ErrorMessage);
         Assert.True(File.Exists(testFile));
     }
 
@@ -120,36 +122,37 @@ public class FileCommandsTests : IDisposable
     [InlineData("TestFile.xls")]
     [InlineData("TestFile.csv")]
     [InlineData("TestFile.txt")]
-    public void CreateEmpty_WithInvalidExtensions_ReturnsError(string fileName)
+    public void CreateEmpty_WithInvalidExtensions_ReturnsErrorResult(string fileName)
     {
         // Arrange
         string testFile = Path.Combine(_tempDir, fileName);
-        string[] args = { "create-empty", testFile };
 
         // Act
-        int result = _fileCommands.CreateEmpty(args);
+        var result = _fileCommands.CreateEmpty(testFile);
 
         // Assert
-        Assert.Equal(1, result);
+        Assert.False(result.Success);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.Contains("extension", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         Assert.False(File.Exists(testFile));
     }
 
     [Fact]
-    public void CreateEmpty_WithInvalidPath_ReturnsError()
+    public void CreateEmpty_WithInvalidPath_ReturnsErrorResult()
     {
         // Arrange - Use invalid characters in path
         string invalidPath = Path.Combine(_tempDir, "invalid<>file.xlsx");
-        string[] args = { "create-empty", invalidPath };
 
         // Act
-        int result = _fileCommands.CreateEmpty(args);
+        var result = _fileCommands.CreateEmpty(invalidPath);
 
         // Assert
-        Assert.Equal(1, result);
+        Assert.False(result.Success);
+        Assert.NotNull(result.ErrorMessage);
     }
 
     [Fact]
-    public void CreateEmpty_MultipleTimes_CreatesMultipleFiles()
+    public void CreateEmpty_MultipleTimes_ReturnsSuccessForEachFile()
     {
         // Arrange
         string[] testFiles = {
@@ -163,20 +166,65 @@ public class FileCommandsTests : IDisposable
         // Act & Assert
         foreach (string testFile in testFiles)
         {
-            string[] args = { "create-empty", testFile };
-            int result = _fileCommands.CreateEmpty(args);
+            var result = _fileCommands.CreateEmpty(testFile);
             
-            Assert.Equal(0, result);
-            Assert.True(File.Exists(testFile));
-        }
-
-        // Verify all files exist
-        foreach (string testFile in testFiles)
-        {
+            Assert.True(result.Success);
+            Assert.Null(result.ErrorMessage);
             Assert.True(File.Exists(testFile));
         }
     }
 
+    [Fact]
+    public void CreateEmpty_FileAlreadyExists_WithoutOverwrite_ReturnsError()
+    {
+        // Arrange
+        string testFile = Path.Combine(_tempDir, "ExistingFile.xlsx");
+        _createdFiles.Add(testFile);
+        
+        // Create file first
+        var firstResult = _fileCommands.CreateEmpty(testFile);
+        Assert.True(firstResult.Success);
+
+        // Act - Try to create again without overwrite flag
+        var result = _fileCommands.CreateEmpty(testFile, overwriteIfExists: false);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.Contains("already exists", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void CreateEmpty_FileAlreadyExists_WithOverwrite_ReturnsSuccess()
+    {
+        // Arrange
+        string testFile = Path.Combine(_tempDir, "OverwriteFile.xlsx");
+        _createdFiles.Add(testFile);
+        
+        // Create file first
+        var firstResult = _fileCommands.CreateEmpty(testFile);
+        Assert.True(firstResult.Success);
+        
+        // Get original file info
+        var originalInfo = new FileInfo(testFile);
+        var originalTime = originalInfo.LastWriteTime;
+        
+        // Wait a bit to ensure different timestamp
+        System.Threading.Thread.Sleep(100);
+
+        // Act - Overwrite
+        var result = _fileCommands.CreateEmpty(testFile, overwriteIfExists: true);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Null(result.ErrorMessage);
+        
+        // Verify file was overwritten (new timestamp)
+        var newInfo = new FileInfo(testFile);
+        Assert.True(newInfo.LastWriteTime > originalTime);
+    }
+
+    
     public void Dispose()
     {
         // Clean up test files

@@ -1,3 +1,5 @@
+using Sbroenne.ExcelMcp.Core.Models;
+
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
@@ -8,35 +10,30 @@ public interface IScriptCommands
     /// <summary>
     /// Lists all VBA modules and procedures in the workbook
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsm]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int List(string[] args);
+    ScriptListResult List(string filePath);
     
     /// <summary>
     /// Exports VBA module code to a file
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsm, moduleName, outputFile]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int Export(string[] args);
+    Task<OperationResult> Export(string filePath, string moduleName, string outputFile);
     
     /// <summary>
     /// Imports VBA code from a file to create a new module
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsm, moduleName, vbaFile]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    Task<int> Import(string[] args);
+    Task<OperationResult> Import(string filePath, string moduleName, string vbaFile);
     
     /// <summary>
     /// Updates an existing VBA module with new code
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsm, moduleName, vbaFile]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    Task<int> Update(string[] args);
+    Task<OperationResult> Update(string filePath, string moduleName, string vbaFile);
     
     /// <summary>
     /// Runs a VBA procedure with optional parameters
     /// </summary>
-    /// <param name="args">Command arguments: [file.xlsm, module.procedure, param1, param2, ...]</param>
-    /// <returns>0 on success, 1 on error</returns>
-    int Run(string[] args);
+    OperationResult Run(string filePath, string procedureName, params string[] parameters);
+    
+    /// <summary>
+    /// Deletes a VBA module
+    /// </summary>
+    OperationResult Delete(string filePath, string moduleName);
 }

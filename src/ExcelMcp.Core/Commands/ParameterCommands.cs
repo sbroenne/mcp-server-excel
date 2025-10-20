@@ -1,4 +1,4 @@
-using Spectre.Console;
+using Sbroenne.ExcelMcp.Core.Models;
 using static Sbroenne.ExcelMcp.Core.ExcelHelper;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -9,223 +9,284 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public class ParameterCommands : IParameterCommands
 {
     /// <inheritdoc />
-    public int List(string[] args)
+    public ParameterListResult List(string filePath)
     {
-        if (!ValidateArgs(args, 2, "param-list <file.xlsx>")) return 1;
-        if (!File.Exists(args[1]))
+        if (!File.Exists(filePath))
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
-            return 1;
+            return new ParameterListResult
+            {
+                Success = false,
+                ErrorMessage = $"File not found: {filePath}",
+                FilePath = filePath
+            };
         }
 
-        AnsiConsole.MarkupLine($"[bold]Named Ranges/Parameters in:[/] {Path.GetFileName(args[1])}\n");
+        var result = new ParameterListResult { FilePath = filePath };
 
-        return WithExcel(args[1], false, (excel, workbook) =>
+        WithExcel(filePath, false, (excel, workbook) =>
         {
-            var names = new List<(string Name, string RefersTo)>();
-
-            // Get Named Ranges
             try
             {
                 dynamic namesCollection = workbook.Names;
                 int count = namesCollection.Count;
+                
                 for (int i = 1; i <= count; i++)
                 {
-                    dynamic nameObj = namesCollection.Item(i);
-                    string name = nameObj.Name;
-                    string refersTo = nameObj.RefersTo ?? "";
-                    names.Add((name, refersTo.Length > 80 ? refersTo[..77] + "..." : refersTo));
+                    try
+                    {
+                        dynamic nameObj = namesCollection.Item(i);
+                        string name = nameObj.Name;
+                        string refersTo = nameObj.RefersTo ?? "";
+                        
+                        // Try to get value
+                        object? value = null;
+                        try
+                        {
+                            value = nameObj.RefersToRange?.Value2;
+                        }
+                        catch { }
+                        
+                        result.Parameters.Add(new ParameterInfo
+                        {
+                            Name = name,
+                            RefersTo = refersTo,
+                            Value = value,
+                            ValueType = value?.GetType().Name ?? "null"
+                        });
+                    }
+                    catch { }
                 }
+                
+                result.Success = true;
+                return 0;
             }
-            catch { }
-
-            // Display named ranges
-            if (names.Count > 0)
+            catch (Exception ex)
             {
-                var table = new Table();
-                table.AddColumn("[bold]Parameter Name[/]");
-                table.AddColumn("[bold]Value/Formula[/]");
-
-                foreach (var (name, refersTo) in names.OrderBy(n => n.Name))
-                {
-                    table.AddRow(
-                        $"[yellow]{name.EscapeMarkup()}[/]",
-                        $"[dim]{refersTo.EscapeMarkup()}[/]"
-                    );
-                }
-
-                AnsiConsole.Write(table);
-                AnsiConsole.WriteLine();
-                AnsiConsole.MarkupLine($"[bold]Total:[/] {names.Count} named ranges");
-            }
-            else
-            {
-                AnsiConsole.MarkupLine("[yellow]No named ranges found[/]");
-            }
-
-            return 0;
-        });
-    }
-
-    /// <inheritdoc />
-    public int Set(string[] args)
-    {
-        if (!ValidateArgs(args, 4, "param-set <file.xlsx> <param-name> <value>")) return 1;
-        if (!File.Exists(args[1]))
-        {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
-            return 1;
-        }
-
-        var paramName = args[2];
-        var value = args[3];
-
-        return WithExcel(args[1], true, (excel, workbook) =>
-        {
-            dynamic? nameObj = FindName(workbook, paramName);
-            if (nameObj == null)
-            {
-                AnsiConsole.MarkupLine($"[red]Error:[/] Parameter '{paramName}' not found");
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
                 return 1;
             }
-
-            nameObj.RefersTo = value;
-            workbook.Save();
-            AnsiConsole.MarkupLine($"[green]✓[/] Set parameter '{paramName}' = '{value}'");
-            return 0;
         });
+
+        return result;
     }
 
     /// <inheritdoc />
-    public int Get(string[] args)
+    public OperationResult Set(string filePath, string paramName, string value)
     {
-        if (!ValidateArgs(args, 3, "param-get <file.xlsx> <param-name>")) return 1;
-        if (!File.Exists(args[1]))
+        if (!File.Exists(filePath))
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
-            return 1;
+            return new OperationResult
+            {
+                Success = false,
+                ErrorMessage = $"File not found: {filePath}",
+                FilePath = filePath,
+                Action = "set-parameter"
+            };
         }
 
-        var paramName = args[2];
+        var result = new OperationResult { FilePath = filePath, Action = "set-parameter" };
 
-        return WithExcel(args[1], false, (excel, workbook) =>
+        WithExcel(filePath, true, (excel, workbook) =>
         {
             try
             {
                 dynamic? nameObj = FindName(workbook, paramName);
                 if (nameObj == null)
                 {
-                    AnsiConsole.MarkupLine($"[red]Error:[/] Parameter '{paramName}' not found");
+                    result.Success = false;
+                    result.ErrorMessage = $"Parameter '{paramName}' not found";
                     return 1;
                 }
 
-                string refersTo = nameObj.RefersTo ?? "";
+                dynamic refersToRange = nameObj.RefersToRange;
                 
-                // Try to get the actual value if it's a cell reference
-                try
+                // Try to parse as number, otherwise set as text
+                if (double.TryParse(value, out double numValue))
                 {
-                    dynamic refersToRange = nameObj.RefersToRange;
-                    if (refersToRange != null)
-                    {
-                        object cellValue = refersToRange.Value2;
-                        AnsiConsole.MarkupLine($"[cyan]{paramName}:[/] {cellValue?.ToString()?.EscapeMarkup() ?? "[null]"}");
-                        AnsiConsole.MarkupLine($"[dim]Refers to: {refersTo.EscapeMarkup()}[/]");
-                    }
-                    else
-                    {
-                        AnsiConsole.MarkupLine($"[cyan]{paramName}:[/] {refersTo.EscapeMarkup()}");
-                    }
+                    refersToRange.Value2 = numValue;
                 }
-                catch
+                else if (bool.TryParse(value, out bool boolValue))
                 {
-                    // If we can't get the range value, just show the formula
-                    AnsiConsole.MarkupLine($"[cyan]{paramName}:[/] {refersTo.EscapeMarkup()}");
+                    refersToRange.Value2 = boolValue;
+                }
+                else
+                {
+                    refersToRange.Value2 = value;
                 }
 
+                workbook.Save();
+                result.Success = true;
                 return 0;
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
                 return 1;
             }
         });
+
+        return result;
     }
 
     /// <inheritdoc />
-    public int Create(string[] args)
+    public ParameterValueResult Get(string filePath, string paramName)
     {
-        if (!ValidateArgs(args, 4, "param-create <file.xlsx> <param-name> <value-or-reference>")) return 1;
-        if (!File.Exists(args[1]))
+        if (!File.Exists(filePath))
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
-            return 1;
+            return new ParameterValueResult
+            {
+                Success = false,
+                ErrorMessage = $"File not found: {filePath}",
+                FilePath = filePath,
+                ParameterName = paramName
+            };
         }
 
-        var paramName = args[2];
-        var valueOrRef = args[3];
+        var result = new ParameterValueResult { FilePath = filePath, ParameterName = paramName };
 
-        return WithExcel(args[1], true, (excel, workbook) =>
+        WithExcel(filePath, false, (excel, workbook) =>
+        {
+            try
+            {
+                dynamic? nameObj = FindName(workbook, paramName);
+                if (nameObj == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Parameter '{paramName}' not found";
+                    return 1;
+                }
+
+                result.RefersTo = nameObj.RefersTo ?? "";
+                result.Value = nameObj.RefersToRange?.Value2;
+                result.ValueType = result.Value?.GetType().Name ?? "null";
+                result.Success = true;
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
+                return 1;
+            }
+        });
+
+        return result;
+    }
+
+    /// <inheritdoc />
+    public OperationResult Create(string filePath, string paramName, string reference)
+    {
+        if (!File.Exists(filePath))
+        {
+            return new OperationResult
+            {
+                Success = false,
+                ErrorMessage = $"File not found: {filePath}",
+                FilePath = filePath,
+                Action = "create-parameter"
+            };
+        }
+
+        var result = new OperationResult { FilePath = filePath, Action = "create-parameter" };
+
+        WithExcel(filePath, true, (excel, workbook) =>
         {
             try
             {
                 // Check if parameter already exists
-                dynamic? existingName = FindName(workbook, paramName);
-                if (existingName != null)
+                dynamic? existing = FindNamedRange(workbook, paramName);
+                if (existing != null)
                 {
-                    AnsiConsole.MarkupLine($"[red]Error:[/] Parameter '{paramName}' already exists");
+                    result.Success = false;
+                    result.ErrorMessage = $"Parameter '{paramName}' already exists";
                     return 1;
                 }
 
                 // Create new named range
-                dynamic names = workbook.Names;
-                names.Add(paramName, valueOrRef);
+                dynamic namesCollection = workbook.Names;
+                // Ensure reference is properly formatted for Excel COM
+                string formattedReference = reference.StartsWith("=") ? reference : $"={reference}";
+                namesCollection.Add(paramName, formattedReference);
 
                 workbook.Save();
-                AnsiConsole.MarkupLine($"[green]✓[/] Created parameter '{paramName}' = '{valueOrRef.EscapeMarkup()}'");
+                result.Success = true;
                 return 0;
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
                 return 1;
             }
         });
+
+        return result;
     }
 
     /// <inheritdoc />
-    public int Delete(string[] args)
+    public OperationResult Delete(string filePath, string paramName)
     {
-        if (!ValidateArgs(args, 3, "param-delete <file.xlsx> <param-name>")) return 1;
-        if (!File.Exists(args[1]))
+        if (!File.Exists(filePath))
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
-            return 1;
+            return new OperationResult
+            {
+                Success = false,
+                ErrorMessage = $"File not found: {filePath}",
+                FilePath = filePath,
+                Action = "delete-parameter"
+            };
         }
 
-        var paramName = args[2];
+        var result = new OperationResult { FilePath = filePath, Action = "delete-parameter" };
 
-        return WithExcel(args[1], true, (excel, workbook) =>
+        WithExcel(filePath, true, (excel, workbook) =>
         {
             try
             {
                 dynamic? nameObj = FindName(workbook, paramName);
                 if (nameObj == null)
                 {
-                    AnsiConsole.MarkupLine($"[red]Error:[/] Parameter '{paramName}' not found");
+                    result.Success = false;
+                    result.ErrorMessage = $"Parameter '{paramName}' not found";
                     return 1;
                 }
 
                 nameObj.Delete();
                 workbook.Save();
-                AnsiConsole.MarkupLine($"[green]✓[/] Deleted parameter '{paramName}'");
+                result.Success = true;
                 return 0;
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
                 return 1;
             }
         });
+
+        return result;
+    }
+
+    private static dynamic? FindNamedRange(dynamic workbook, string name)
+    {
+        try
+        {
+            dynamic namesCollection = workbook.Names;
+            int count = namesCollection.Count;
+            
+            for (int i = 1; i <= count; i++)
+            {
+                dynamic nameObj = namesCollection.Item(i);
+                if (nameObj.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                {
+                    return nameObj;
+                }
+            }
+        }
+        catch { }
+        
+        return null;
     }
 }

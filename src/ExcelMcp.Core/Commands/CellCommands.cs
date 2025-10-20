@@ -1,4 +1,4 @@
-using Spectre.Console;
+using Sbroenne.ExcelMcp.Core.Models;
 using static Sbroenne.ExcelMcp.Core.ExcelHelper;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -9,66 +9,84 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public class CellCommands : ICellCommands
 {
     /// <inheritdoc />
-    public int GetValue(string[] args)
+    public CellValueResult GetValue(string filePath, string sheetName, string cellAddress)
     {
-        if (!ValidateArgs(args, 4, "cell-get-value <file.xlsx> <sheet-name> <cell-address>")) return 1;
-        if (!File.Exists(args[1]))
+        if (!File.Exists(filePath))
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
-            return 1;
+            return new CellValueResult
+            {
+                Success = false,
+                ErrorMessage = $"File not found: {filePath}",
+                FilePath = filePath,
+                CellAddress = cellAddress
+            };
         }
 
-        var sheetName = args[2];
-        var cellAddress = args[3];
+        var result = new CellValueResult
+        {
+            FilePath = filePath,
+            CellAddress = $"{sheetName}!{cellAddress}"
+        };
 
-        return WithExcel(args[1], false, (excel, workbook) =>
+        WithExcel(filePath, false, (excel, workbook) =>
         {
             try
             {
                 dynamic? sheet = FindSheet(workbook, sheetName);
                 if (sheet == null)
                 {
-                    AnsiConsole.MarkupLine($"[red]Error:[/] Sheet '{sheetName}' not found");
+                    result.Success = false;
+                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
                     return 1;
                 }
 
                 dynamic cell = sheet.Range[cellAddress];
-                object value = cell.Value2;
-                string displayValue = value?.ToString() ?? "[null]";
-
-                AnsiConsole.MarkupLine($"[cyan]{sheetName}!{cellAddress}:[/] {displayValue.EscapeMarkup()}");
+                result.Value = cell.Value2;
+                result.ValueType = result.Value?.GetType().Name ?? "null";
+                result.Formula = cell.Formula;
+                result.Success = true;
                 return 0;
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
                 return 1;
             }
         });
+
+        return result;
     }
 
     /// <inheritdoc />
-    public int SetValue(string[] args)
+    public OperationResult SetValue(string filePath, string sheetName, string cellAddress, string value)
     {
-        if (!ValidateArgs(args, 5, "cell-set-value <file.xlsx> <sheet-name> <cell-address> <value>")) return 1;
-        if (!File.Exists(args[1]))
+        if (!File.Exists(filePath))
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
-            return 1;
+            return new OperationResult
+            {
+                Success = false,
+                ErrorMessage = $"File not found: {filePath}",
+                FilePath = filePath,
+                Action = "set-value"
+            };
         }
 
-        var sheetName = args[2];
-        var cellAddress = args[3];
-        var value = args[4];
+        var result = new OperationResult
+        {
+            FilePath = filePath,
+            Action = "set-value"
+        };
 
-        return WithExcel(args[1], true, (excel, workbook) =>
+        WithExcel(filePath, true, (excel, workbook) =>
         {
             try
             {
                 dynamic? sheet = FindSheet(workbook, sheetName);
                 if (sheet == null)
                 {
-                    AnsiConsole.MarkupLine($"[red]Error:[/] Sheet '{sheetName}' not found");
+                    result.Success = false;
+                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
                     return 1;
                 }
 
@@ -89,79 +107,83 @@ public class CellCommands : ICellCommands
                 }
 
                 workbook.Save();
-                AnsiConsole.MarkupLine($"[green]✓[/] Set {sheetName}!{cellAddress} = '{value.EscapeMarkup()}'");
+                result.Success = true;
                 return 0;
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
                 return 1;
             }
         });
+
+        return result;
     }
 
     /// <inheritdoc />
-    public int GetFormula(string[] args)
+    public CellValueResult GetFormula(string filePath, string sheetName, string cellAddress)
     {
-        if (!ValidateArgs(args, 4, "cell-get-formula <file.xlsx> <sheet-name> <cell-address>")) return 1;
-        if (!File.Exists(args[1]))
+        if (!File.Exists(filePath))
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
-            return 1;
+            return new CellValueResult
+            {
+                Success = false,
+                ErrorMessage = $"File not found: {filePath}",
+                FilePath = filePath,
+                CellAddress = cellAddress
+            };
         }
 
-        var sheetName = args[2];
-        var cellAddress = args[3];
+        var result = new CellValueResult
+        {
+            FilePath = filePath,
+            CellAddress = $"{sheetName}!{cellAddress}"
+        };
 
-        return WithExcel(args[1], false, (excel, workbook) =>
+        WithExcel(filePath, false, (excel, workbook) =>
         {
             try
             {
                 dynamic? sheet = FindSheet(workbook, sheetName);
                 if (sheet == null)
                 {
-                    AnsiConsole.MarkupLine($"[red]Error:[/] Sheet '{sheetName}' not found");
+                    result.Success = false;
+                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
                     return 1;
                 }
 
                 dynamic cell = sheet.Range[cellAddress];
-                string formula = cell.Formula ?? "";
-                object value = cell.Value2;
-                string displayValue = value?.ToString() ?? "[null]";
-
-                if (string.IsNullOrEmpty(formula))
-                {
-                    AnsiConsole.MarkupLine($"[cyan]{sheetName}!{cellAddress}:[/] [yellow](no formula)[/] Value: {displayValue.EscapeMarkup()}");
-                }
-                else
-                {
-                    AnsiConsole.MarkupLine($"[cyan]{sheetName}!{cellAddress}:[/] {formula.EscapeMarkup()}");
-                    AnsiConsole.MarkupLine($"[dim]Result: {displayValue.EscapeMarkup()}[/]");
-                }
-
+                result.Formula = cell.Formula ?? "";
+                result.Value = cell.Value2;
+                result.ValueType = result.Value?.GetType().Name ?? "null";
+                result.Success = true;
                 return 0;
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
                 return 1;
             }
         });
+
+        return result;
     }
 
     /// <inheritdoc />
-    public int SetFormula(string[] args)
+    public OperationResult SetFormula(string filePath, string sheetName, string cellAddress, string formula)
     {
-        if (!ValidateArgs(args, 5, "cell-set-formula <file.xlsx> <sheet-name> <cell-address> <formula>")) return 1;
-        if (!File.Exists(args[1]))
+        if (!File.Exists(filePath))
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {args[1]}");
-            return 1;
+            return new OperationResult
+            {
+                Success = false,
+                ErrorMessage = $"File not found: {filePath}",
+                FilePath = filePath,
+                Action = "set-formula"
+            };
         }
-
-        var sheetName = args[2];
-        var cellAddress = args[3];
-        var formula = args[4];
 
         // Ensure formula starts with =
         if (!formula.StartsWith("="))
@@ -169,14 +191,21 @@ public class CellCommands : ICellCommands
             formula = "=" + formula;
         }
 
-        return WithExcel(args[1], true, (excel, workbook) =>
+        var result = new OperationResult
+        {
+            FilePath = filePath,
+            Action = "set-formula"
+        };
+
+        WithExcel(filePath, true, (excel, workbook) =>
         {
             try
             {
                 dynamic? sheet = FindSheet(workbook, sheetName);
                 if (sheet == null)
                 {
-                    AnsiConsole.MarkupLine($"[red]Error:[/] Sheet '{sheetName}' not found");
+                    result.Success = false;
+                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
                     return 1;
                 }
 
@@ -184,20 +213,17 @@ public class CellCommands : ICellCommands
                 cell.Formula = formula;
 
                 workbook.Save();
-                
-                // Get the calculated result
-                object result = cell.Value2;
-                string displayResult = result?.ToString() ?? "[null]";
-                
-                AnsiConsole.MarkupLine($"[green]✓[/] Set {sheetName}!{cellAddress} = {formula.EscapeMarkup()}");
-                AnsiConsole.MarkupLine($"[dim]Result: {displayResult.EscapeMarkup()}[/]");
+                result.Success = true;
                 return 0;
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
                 return 1;
             }
         });
+
+        return result;
     }
 }

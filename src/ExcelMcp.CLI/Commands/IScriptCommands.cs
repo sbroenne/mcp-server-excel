@@ -10,4 +10,5 @@ public interface IScriptCommands
     Task<int> Import(string[] args);
     Task<int> Update(string[] args);
     int Run(string[] args);
+    int Delete(string[] args);
 }
