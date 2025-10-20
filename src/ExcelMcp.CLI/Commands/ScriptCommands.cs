@@ -1,5 +1,6 @@
 using Spectre.Console;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -13,6 +14,32 @@ public class ScriptCommands : IScriptCommands
     public ScriptCommands()
     {
         _coreCommands = new Core.Commands.ScriptCommands();
+    }
+    
+    /// <summary>
+    /// Displays VBA trust guidance when VbaTrustRequiredResult is encountered
+    /// </summary>
+    private static void DisplayVbaTrustGuidance(VbaTrustRequiredResult trustError)
+    {
+        AnsiConsole.WriteLine();
+        
+        var panel = new Panel(new Markup(
+            $"[yellow]VBA Trust Access Required[/]\n\n" +
+            $"{trustError.Explanation}\n\n" +
+            $"[cyan]How to enable VBA trust:[/]\n" +
+            string.Join("\n", trustError.SetupInstructions.Select((s, i) => $"  {i + 1}. {s}")) + "\n\n" +
+            $"[dim]This is a one-time setup. After enabling, VBA operations will work.[/]\n\n" +
+            $"[cyan]📖 More information:[/]\n" +
+            $"[link]{trustError.DocumentationUrl}[/]"
+        ));
+        panel.Header = new PanelHeader("[yellow]⚠ Setup Required[/]");
+        panel.Border = BoxBorder.Rounded;
+        panel.BorderStyle = new Style(Color.Yellow);
+        
+        AnsiConsole.Write(panel);
+        
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("[dim]After enabling VBA trust in Excel, run this command again.[/]");
     }
 
     /// <inheritdoc />
@@ -40,9 +67,12 @@ public class ScriptCommands : IScriptCommands
                 AnsiConsole.MarkupLine($"  • Create new .xlsm file: [cyan]ExcelCLI create-empty \"file.xlsm\"[/]");
                 AnsiConsole.MarkupLine($"  • Save existing file as .xlsm in Excel");
             }
-            else if (result.ErrorMessage?.Contains("not trusted") == true)
+            else if (result.ErrorMessage?.Contains("not enabled") == true || result.ErrorMessage?.Contains("not trusted") == true)
             {
-                AnsiConsole.MarkupLine("[yellow]Solution:[/] Run: [cyan]ExcelCLI setup-vba-trust[/]");
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine("[yellow]VBA trust access is required to list VBA modules.[/]");
+                AnsiConsole.MarkupLine("[dim]Enable it manually in Excel:[/] File → Options → Trust Center → Trust Center Settings → Macro Settings");
+                AnsiConsole.MarkupLine("[dim]Check '✓ Trust access to the VBA project object model'[/]");
             }
             
             return 1;
@@ -101,6 +131,13 @@ public class ScriptCommands : IScriptCommands
 
         var result = _coreCommands.Export(filePath, moduleName, outputFile).Result;
 
+        // Handle VBA trust guidance
+        if (result is VbaTrustRequiredResult trustError)
+        {
+            DisplayVbaTrustGuidance(trustError);
+            return 1;
+        }
+
         if (!result.Success)
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
@@ -139,6 +176,13 @@ public class ScriptCommands : IScriptCommands
 
         var result = await _coreCommands.Import(filePath, moduleName, vbaFile);
 
+        // Handle VBA trust guidance
+        if (result is VbaTrustRequiredResult trustError)
+        {
+            DisplayVbaTrustGuidance(trustError);
+            return 1;
+        }
+
         if (!result.Success)
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
@@ -169,6 +213,13 @@ public class ScriptCommands : IScriptCommands
         string vbaFile = args[3];
 
         var result = await _coreCommands.Update(filePath, moduleName, vbaFile);
+
+        // Handle VBA trust guidance
+        if (result is VbaTrustRequiredResult trustError)
+        {
+            DisplayVbaTrustGuidance(trustError);
+            return 1;
+        }
 
         if (!result.Success)
         {
@@ -209,15 +260,16 @@ public class ScriptCommands : IScriptCommands
 
         var result = _coreCommands.Run(filePath, procedureName, parameters);
 
+        // Handle VBA trust guidance
+        if (result is VbaTrustRequiredResult trustError)
+        {
+            DisplayVbaTrustGuidance(trustError);
+            return 1;
+        }
+
         if (!result.Success)
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-            
-            if (result.ErrorMessage?.Contains("not trusted") == true)
-            {
-                AnsiConsole.MarkupLine("[yellow]Solution:[/] Run: [cyan]ExcelCLI setup-vba-trust[/]");
-            }
-            
             return 1;
         }
 
@@ -244,6 +296,13 @@ public class ScriptCommands : IScriptCommands
         }
 
         var result = _coreCommands.Delete(filePath, moduleName);
+
+        // Handle VBA trust guidance
+        if (result is VbaTrustRequiredResult trustError)
+        {
+            DisplayVbaTrustGuidance(trustError);
+            return 1;
+        }
 
         if (!result.Success)
         {

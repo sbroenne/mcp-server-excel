@@ -1,5 +1,6 @@
 using Spectre.Console;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -13,6 +14,68 @@ public class PowerQueryCommands : IPowerQueryCommands
     public PowerQueryCommands()
     {
         _coreCommands = new Core.Commands.PowerQueryCommands();
+    }
+    
+    /// <summary>
+    /// Parses privacy level from command line arguments or environment variable
+    /// </summary>
+    private static PowerQueryPrivacyLevel? ParsePrivacyLevel(string[] args)
+    {
+        // Check for --privacy-level parameter
+        for (int i = 0; i < args.Length - 1; i++)
+        {
+            if (args[i] == "--privacy-level" && i + 1 < args.Length)
+            {
+                if (Enum.TryParse<PowerQueryPrivacyLevel>(args[i + 1], ignoreCase: true, out var level))
+                {
+                    return level;
+                }
+            }
+        }
+        
+        // Check environment variable as fallback
+        string? envLevel = Environment.GetEnvironmentVariable("EXCEL_DEFAULT_PRIVACY_LEVEL");
+        if (!string.IsNullOrEmpty(envLevel))
+        {
+            if (Enum.TryParse<PowerQueryPrivacyLevel>(envLevel, ignoreCase: true, out var level))
+            {
+                return level;
+            }
+        }
+        
+        return null;
+    }
+    
+    /// <summary>
+    /// Displays privacy consent prompt when PowerQueryPrivacyErrorResult is encountered
+    /// </summary>
+    private static void DisplayPrivacyConsentPrompt(PowerQueryPrivacyErrorResult error)
+    {
+        AnsiConsole.WriteLine();
+        
+        var panel = new Panel(new Markup(
+            $"[yellow]Power Query Privacy Level Required[/]\n\n" +
+            $"Your query combines data from multiple sources. Excel requires a privacy level to be specified.\n\n" +
+            (error.ExistingPrivacyLevels.Count > 0 
+                ? $"[cyan]Existing queries in this workbook:[/]\n" +
+                  string.Join("\n", error.ExistingPrivacyLevels.Select(q => $"  • {q.QueryName}: {q.PrivacyLevel}")) + "\n\n"
+                : "") +
+            $"[cyan]Recommended:[/] {error.RecommendedPrivacyLevel}\n" +
+            $"{error.Explanation}\n\n" +
+            $"[dim]To proceed, run the command again with:[/]\n" +
+            $"  --privacy-level {error.RecommendedPrivacyLevel}\n\n" +
+            $"[dim]Or choose a different level:[/]\n" +
+            $"  --privacy-level None          (least secure, ignores privacy)\n" +
+            $"  --privacy-level Private       (most secure, prevents combining)\n" +
+            $"  --privacy-level Organizational (internal data sources)\n" +
+            $"  --privacy-level Public        (public data sources)"
+        ));
+        panel.Header = new PanelHeader("[yellow]⚠ User Consent Required[/]");
+        panel.Border = BoxBorder.Rounded;
+        panel.BorderStyle = new Style(Color.Yellow);
+        
+        AnsiConsole.Write(panel);
+        AnsiConsole.WriteLine();
     }
 
     /// <inheritdoc />
@@ -138,15 +201,23 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         if (args.Length < 4)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-update <file.xlsx> <query-name> <mcode-file>");
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-update <file.xlsx> <query-name> <mcode-file> [--privacy-level <None|Private|Organizational|Public>]");
             return 1;
         }
 
         string filePath = args[1];
         string queryName = args[2];
         string mCodeFile = args[3];
+        var privacyLevel = ParsePrivacyLevel(args);
 
-        var result = await _coreCommands.Update(filePath, queryName, mCodeFile);
+        var result = await _coreCommands.Update(filePath, queryName, mCodeFile, privacyLevel);
+
+        // Handle privacy error result
+        if (result is PowerQueryPrivacyErrorResult privacyError)
+        {
+            DisplayPrivacyConsentPrompt(privacyError);
+            return 1;
+        }
 
         if (!result.Success)
         {
@@ -196,15 +267,23 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         if (args.Length < 4)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-import <file.xlsx> <query-name> <mcode-file>");
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-import <file.xlsx> <query-name> <mcode-file> [--privacy-level <None|Private|Organizational|Public>]");
             return 1;
         }
 
         string filePath = args[1];
         string queryName = args[2];
         string mCodeFile = args[3];
+        var privacyLevel = ParsePrivacyLevel(args);
 
-        var result = await _coreCommands.Import(filePath, queryName, mCodeFile);
+        var result = await _coreCommands.Import(filePath, queryName, mCodeFile, privacyLevel);
+
+        // Handle privacy error result
+        if (result is PowerQueryPrivacyErrorResult privacyError)
+        {
+            DisplayPrivacyConsentPrompt(privacyError);
+            return 1;
+        }
 
         if (!result.Success)
         {
@@ -556,17 +635,25 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         if (args.Length < 4)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-load-to-table <file.xlsx> <queryName> <sheetName>");
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-load-to-table <file.xlsx> <queryName> <sheetName> [--privacy-level <None|Private|Organizational|Public>]");
             return 1;
         }
 
         string filePath = args[1];
         string queryName = args[2];
         string sheetName = args[3];
+        var privacyLevel = ParsePrivacyLevel(args);
 
         AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Load to Table mode (sheet: {sheetName})...[/]");
 
-        var result = _coreCommands.SetLoadToTable(filePath, queryName, sheetName);
+        var result = _coreCommands.SetLoadToTable(filePath, queryName, sheetName, privacyLevel);
+
+        // Handle privacy error result
+        if (result is PowerQueryPrivacyErrorResult privacyError)
+        {
+            DisplayPrivacyConsentPrompt(privacyError);
+            return 1;
+        }
 
         if (!result.Success)
         {
@@ -585,16 +672,24 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         if (args.Length < 3)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-load-to-data-model <file.xlsx> <queryName>");
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-load-to-data-model <file.xlsx> <queryName> [--privacy-level <None|Private|Organizational|Public>]");
             return 1;
         }
 
         string filePath = args[1];
         string queryName = args[2];
+        var privacyLevel = ParsePrivacyLevel(args);
 
         AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Load to Data Model mode...[/]");
 
-        var result = _coreCommands.SetLoadToDataModel(filePath, queryName);
+        var result = _coreCommands.SetLoadToDataModel(filePath, queryName, privacyLevel);
+
+        // Handle privacy error result
+        if (result is PowerQueryPrivacyErrorResult privacyError)
+        {
+            DisplayPrivacyConsentPrompt(privacyError);
+            return 1;
+        }
 
         if (!result.Success)
         {
@@ -613,17 +708,25 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         if (args.Length < 4)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-load-to-both <file.xlsx> <queryName> <sheetName>");
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-load-to-both <file.xlsx> <queryName> <sheetName> [--privacy-level <None|Private|Organizational|Public>]");
             return 1;
         }
 
         string filePath = args[1];
         string queryName = args[2];
         string sheetName = args[3];
+        var privacyLevel = ParsePrivacyLevel(args);
 
         AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Load to Both modes (table + data model, sheet: {sheetName})...[/]");
 
-        var result = _coreCommands.SetLoadToBoth(filePath, queryName, sheetName);
+        var result = _coreCommands.SetLoadToBoth(filePath, queryName, sheetName, privacyLevel);
+
+        // Handle privacy error result
+        if (result is PowerQueryPrivacyErrorResult privacyError)
+        {
+            DisplayPrivacyConsentPrompt(privacyError);
+            return 1;
+        }
 
         if (!result.Success)
         {
