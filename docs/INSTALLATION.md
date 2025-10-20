@@ -51,8 +51,12 @@ excelcli.exe create-empty "workbook.xlsx"
 excelcli.exe pq-list "workbook.xlsx"
 excelcli.exe sheet-read "workbook.xlsx" "Sheet1" "A1:D10"
 
-# VBA operations (requires one-time setup)
-excelcli.exe setup-vba-trust
+# Power Query with privacy levels
+excelcli.exe pq-import "workbook.xlsx" "MyQuery" "query.pq" --privacy-level Private
+
+# VBA operations (requires one-time manual setup in Excel)
+# Enable VBA trust: Excel → File → Options → Trust Center → Trust Center Settings
+# → Macro Settings → Check "Trust access to the VBA project object model"
 excelcli.exe create-empty "macros.xlsm"
 excelcli.exe script-list "macros.xlsm"
 ```
@@ -142,14 +146,38 @@ $env:PATH += ";C:\Tools\ExcelMcp-CLI"
 
 ### Required for VBA script operations
 
-If you plan to use VBA script commands, configure VBA trust:
+If you plan to use VBA script commands, you must manually enable VBA trust in Excel (one-time setup):
+
+**Steps to Enable VBA Trust:**
+
+1. Open Microsoft Excel
+2. Go to **File → Options → Trust Center**
+3. Click **"Trust Center Settings"**
+4. Select **"Macro Settings"**
+5. Check **"✓ Trust access to the VBA project object model"**
+6. Click **OK** twice to save settings
+
+After enabling this setting, VBA operations will work automatically. If VBA trust is not enabled, commands will display these instructions.
+
+**Security Note:** ExcelMcp never modifies registry settings or security configurations automatically. Users must explicitly enable VBA trust through Excel's settings to maintain security control.
+
+---
+
+## 🔧 Power Query Privacy Configuration
+
+### Optional: Set default privacy level for automation
+
+For automated workflows, you can set a default privacy level via environment variable:
 
 ```powershell
-# One-time setup for VBA automation
-excelcli.exe setup-vba-trust
+# Set default privacy level (None, Private, Organizational, or Public)
+$env:EXCEL_DEFAULT_PRIVACY_LEVEL = "Private"
+
+# Make it permanent (optional)
+[Environment]::SetEnvironmentVariable("EXCEL_DEFAULT_PRIVACY_LEVEL", "Private", "User")
 ```
 
-This configures the necessary registry settings to allow programmatic access to VBA projects.
+Without this setting, commands will prompt for privacy level when needed, providing recommendations based on your existing queries.
 
 ---
 
@@ -174,8 +202,9 @@ This configures the necessary registry settings to allow programmatic access to 
 
 **VBA access denied:**
 
-- Run the VBA trust setup command once: `excelcli.exe setup-vba-trust`
-- Restart Excel after running the trust setup
+- Enable VBA trust manually in Excel: File → Options → Trust Center → Trust Center Settings → Macro Settings → Check "Trust access to the VBA project object model"
+- Restart Excel after enabling the setting
+- If VBA commands still fail, ensure Excel is not running with elevated privileges
 
 ### Getting Help
 
@@ -191,12 +220,11 @@ This configures the necessary registry settings to allow programmatic access to 
 | Category | Commands | Description |
 |----------|----------|-------------|
 | **File Operations** | `create-empty` | Create Excel workbooks (.xlsx, .xlsm) |
-| **Power Query** | `pq-list`, `pq-view`, `pq-import`, `pq-export`, `pq-update`, `pq-refresh`, `pq-loadto`, `pq-delete` | Manage Power Query M code |
+| **Power Query** | `pq-list`, `pq-view`, `pq-import`, `pq-export`, `pq-update`, `pq-refresh`, `pq-loadto`, `pq-delete` | Manage Power Query M code with optional `--privacy-level` parameter |
 | **Worksheets** | `sheet-list`, `sheet-read`, `sheet-write`, `sheet-create`, `sheet-rename`, `sheet-copy`, `sheet-delete`, `sheet-clear`, `sheet-append` | Worksheet operations |
 | **Parameters** | `param-list`, `param-get`, `param-set`, `param-create`, `param-delete` | Named range management |
 | **Cells** | `cell-get-value`, `cell-set-value`, `cell-get-formula`, `cell-set-formula` | Individual cell operations |
-| **VBA Scripts** | `script-list`, `script-export`, `script-import`, `script-update`, `script-run`, `script-delete` | VBA macro management |
-| **Setup** | `setup-vba-trust`, `check-vba-trust` | VBA configuration |
+| **VBA Scripts** | `script-list`, `script-export`, `script-import`, `script-update`, `script-run`, `script-delete` | VBA macro management (requires manual VBA trust setup in Excel) |
 
 > **📋 [Complete Command Reference →](COMMANDS.md)** - Detailed documentation for all 40+ commands
 
