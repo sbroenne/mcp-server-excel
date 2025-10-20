@@ -2,7 +2,7 @@ using Xunit;
 using Sbroenne.ExcelMcp.Core.Models;
 using System.Collections.Generic;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Models;
+namespace Sbroenne.ExcelMcp.Core.Tests.Unit.Models;
 
 /// <summary>
 /// Unit tests for Result types - no Excel required

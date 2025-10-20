@@ -806,4 +806,331 @@ in
         var textValue = content.GetProperty("text").GetString();
         return textValue ?? string.Empty;
     }
+
+    [Fact]
+    public async Task McpServer_VbaRoundTrip_ShouldImportRunAndVerifyExcelStateChanges()
+    {
+        // Arrange
+        var server = StartMcpServer();
+        await InitializeServer(server);
+        var testFile = Path.Combine(_tempDir, "vba-roundtrip-test.xlsm");
+        var moduleName = "DataGeneratorModule";
+        var originalVbaFile = Path.Combine(_tempDir, "original-generator.vba");
+        var updatedVbaFile = Path.Combine(_tempDir, "enhanced-generator.vba");
+        var exportedVbaFile = Path.Combine(_tempDir, "exported-module.vba");
+        var testSheetName = "VBATestSheet";
+
+        // Original VBA code - creates a sheet and fills it with data
+        var originalVbaCode = @"Option Explicit
+
+Public Sub GenerateTestData()
+    Dim ws As Worksheet
+    
+    ' Create new worksheet
+    Set ws = ActiveWorkbook.Worksheets.Add
+    ws.Name = ""VBATestSheet""
+    
+    ' Fill with basic data
+    ws.Cells(1, 1).Value = ""ID""
+    ws.Cells(1, 2).Value = ""Name""
+    ws.Cells(1, 3).Value = ""Value""
+    
+    ws.Cells(2, 1).Value = 1
+    ws.Cells(2, 2).Value = ""Original""
+    ws.Cells(2, 3).Value = 100
+    
+    ws.Cells(3, 1).Value = 2
+    ws.Cells(3, 2).Value = ""Data""
+    ws.Cells(3, 3).Value = 200
+End Sub";
+
+        // Enhanced VBA code - creates more sophisticated data
+        var updatedVbaCode = @"Option Explicit
+
+Public Sub GenerateTestData()
+    Dim ws As Worksheet
+    Dim i As Integer
+    
+    ' Create new worksheet (delete if exists)
+    On Error Resume Next
+    Application.DisplayAlerts = False
+    ActiveWorkbook.Worksheets(""VBATestSheet"").Delete
+    On Error GoTo 0
+    Application.DisplayAlerts = True
+    
+    Set ws = ActiveWorkbook.Worksheets.Add
+    ws.Name = ""VBATestSheet""
+    
+    ' Enhanced headers
+    ws.Cells(1, 1).Value = ""ID""
+    ws.Cells(1, 2).Value = ""Name""
+    ws.Cells(1, 3).Value = ""Value""
+    ws.Cells(1, 4).Value = ""Status""
+    ws.Cells(1, 5).Value = ""Generated""
+    
+    ' Generate multiple rows of enhanced data
+    For i = 2 To 6
+        ws.Cells(i, 1).Value = i - 1
+        ws.Cells(i, 2).Value = ""Enhanced_"" & (i - 1)
+        ws.Cells(i, 3).Value = (i - 1) * 150
+        ws.Cells(i, 4).Value = ""Active""
+        ws.Cells(i, 5).Value = Now()
+    Next i
+End Sub";
+
+        await File.WriteAllTextAsync(originalVbaFile, originalVbaCode);
+        await File.WriteAllTextAsync(updatedVbaFile, updatedVbaCode);
+
+        try
+        {
+            _output.WriteLine("=== VBA ROUND TRIP TEST: Complete VBA Development Workflow ===");
+
+            // Step 1: Create Excel file (.xlsm for VBA support)
+            _output.WriteLine("Step 1: Creating Excel .xlsm file...");
+            await CallExcelTool(server, "excel_file", new { action = "create-empty", filePath = testFile });
+
+            // Step 2: Import original VBA module
+            _output.WriteLine("Step 2: Importing original VBA module...");
+            var importResponse = await CallExcelTool(server, "excel_vba", new 
+            { 
+                action = "import", 
+                filePath = testFile, 
+                moduleName = moduleName,
+                sourceOrTargetPath = originalVbaFile
+            });
+            var importJson = JsonDocument.Parse(importResponse);
+            Assert.True(importJson.RootElement.GetProperty("Success").GetBoolean(), 
+                $"VBA import failed: {importJson.RootElement.GetProperty("ErrorMessage").GetString()}");
+
+            // Step 3: List VBA modules to verify import
+            _output.WriteLine("Step 3: Listing VBA modules...");
+            var listResponse = await CallExcelTool(server, "excel_vba", new 
+            { 
+                action = "list", 
+                filePath = testFile
+            });
+            var listJson = JsonDocument.Parse(listResponse);
+            Assert.True(listJson.RootElement.GetProperty("Success").GetBoolean());
+            
+            // Extract module names from Scripts array
+            Assert.True(listJson.RootElement.TryGetProperty("Scripts", out var scriptsElement));
+            var moduleNames = scriptsElement.EnumerateArray()
+                .Select(script => script.GetProperty("Name").GetString())
+                .Where(name => name != null)
+                .ToArray();
+            Assert.Contains(moduleName, moduleNames);
+            _output.WriteLine($"✓ Found VBA module '{moduleName}' in list");
+
+            // Step 4: Run the VBA to create sheet and fill data
+            _output.WriteLine("Step 4: Running VBA to generate test data...");
+            var runResponse = await CallExcelTool(server, "excel_vba", new 
+            { 
+                action = "run", 
+                filePath = testFile, 
+                procedure = $"{moduleName}.GenerateTestData",
+                parameters = Array.Empty<string>()
+            });
+            var runJson = JsonDocument.Parse(runResponse);
+            Assert.True(runJson.RootElement.GetProperty("Success").GetBoolean(), 
+                $"VBA execution failed: {runJson.RootElement.GetProperty("ErrorMessage").GetString()}");
+
+            // Step 5: Verify the VBA created the sheet by listing worksheets
+            _output.WriteLine("Step 5: Verifying VBA created the worksheet...");
+            var listSheetsResponse = await CallExcelTool(server, "excel_worksheet", new 
+            { 
+                action = "list", 
+                filePath = testFile
+            });
+            var listSheetsJson = JsonDocument.Parse(listSheetsResponse);
+            Assert.True(listSheetsJson.RootElement.GetProperty("Success").GetBoolean());
+            
+            Assert.True(listSheetsJson.RootElement.TryGetProperty("Worksheets", out var worksheetsElement));
+            var worksheetNames = worksheetsElement.EnumerateArray()
+                .Select(ws => ws.GetProperty("Name").GetString())
+                .Where(name => name != null)
+                .ToArray();
+            Assert.Contains(testSheetName, worksheetNames);
+            _output.WriteLine($"✓ VBA successfully created worksheet '{testSheetName}'");
+
+            // Step 6: Read the data that VBA wrote to verify original functionality
+            _output.WriteLine("Step 6: Reading VBA-generated data...");
+            var readResponse = await CallExcelTool(server, "excel_worksheet", new 
+            { 
+                action = "read", 
+                filePath = testFile, 
+                sheetName = testSheetName,
+                range = "A1:C3"
+            });
+            var readJson = JsonDocument.Parse(readResponse);
+            Assert.True(readJson.RootElement.GetProperty("Success").GetBoolean(), 
+                $"Data read failed: {readJson.RootElement.GetProperty("ErrorMessage").GetString()}");
+            
+            Assert.True(readJson.RootElement.TryGetProperty("Data", out var dataElement));
+            var dataRows = dataElement.EnumerateArray().ToArray();
+            Assert.Equal(3, dataRows.Length); // Header + 2 rows
+            
+            // Verify original data structure
+            var headerRow = dataRows[0].EnumerateArray().Select(cell => cell.GetString() ?? "").ToArray();
+            Assert.Contains("ID", headerRow);
+            Assert.Contains("Name", headerRow);
+            Assert.Contains("Value", headerRow);
+            
+            var dataRow1 = dataRows[1].EnumerateArray().Select(cell => 
+                cell.ValueKind == JsonValueKind.String ? cell.GetString() ?? "" : 
+                cell.ValueKind == JsonValueKind.Number ? cell.ToString() : 
+                cell.ToString()).ToArray();
+            Assert.Contains("1", dataRow1);
+            Assert.Contains("Original", dataRow1);
+            Assert.Contains("100", dataRow1);
+            _output.WriteLine("✓ Successfully verified original VBA-generated data");
+
+            // Step 7: Export the original module for verification
+            _output.WriteLine("Step 7: Exporting original VBA module...");
+            var exportResponse1 = await CallExcelTool(server, "excel_vba", new 
+            { 
+                action = "export", 
+                filePath = testFile, 
+                moduleName = moduleName,
+                sourceOrTargetPath = exportedVbaFile
+            });
+            var exportJson1 = JsonDocument.Parse(exportResponse1);
+            Assert.True(exportJson1.RootElement.GetProperty("Success").GetBoolean());
+            
+            var exportedContent1 = await File.ReadAllTextAsync(exportedVbaFile);
+            Assert.Contains("GenerateTestData", exportedContent1);
+            Assert.Contains("Original", exportedContent1);
+            _output.WriteLine("✓ Successfully exported original VBA module");
+
+            // Step 8: Update the module with enhanced version
+            _output.WriteLine("Step 8: Updating VBA module with enhanced version...");
+            var updateResponse = await CallExcelTool(server, "excel_vba", new 
+            { 
+                action = "update", 
+                filePath = testFile, 
+                moduleName = moduleName,
+                sourceOrTargetPath = updatedVbaFile
+            });
+            var updateJson = JsonDocument.Parse(updateResponse);
+            Assert.True(updateJson.RootElement.GetProperty("Success").GetBoolean(), 
+                $"VBA update failed: {updateJson.RootElement.GetProperty("ErrorMessage").GetString()}");
+
+            // Step 9: Run the updated VBA to generate enhanced data
+            _output.WriteLine("Step 9: Running updated VBA to generate enhanced data...");
+            var runResponse2 = await CallExcelTool(server, "excel_vba", new 
+            { 
+                action = "run", 
+                filePath = testFile, 
+                procedure = $"{moduleName}.GenerateTestData",
+                parameters = Array.Empty<string>()
+            });
+            var runJson2 = JsonDocument.Parse(runResponse2);
+            Assert.True(runJson2.RootElement.GetProperty("Success").GetBoolean(), 
+                $"Enhanced VBA execution failed: {runJson2.RootElement.GetProperty("ErrorMessage").GetString()}");
+
+            // Step 10: Read the enhanced data to verify update worked
+            _output.WriteLine("Step 10: Reading enhanced VBA-generated data...");
+            var readResponse2 = await CallExcelTool(server, "excel_worksheet", new 
+            { 
+                action = "read", 
+                filePath = testFile, 
+                sheetName = testSheetName,
+                range = "A1:E6"
+            });
+            var readJson2 = JsonDocument.Parse(readResponse2);
+            Assert.True(readJson2.RootElement.GetProperty("Success").GetBoolean(), 
+                $"Enhanced data read failed: {readJson2.RootElement.GetProperty("ErrorMessage").GetString()}");
+            
+            Assert.True(readJson2.RootElement.TryGetProperty("Data", out var enhancedDataElement));
+            var enhancedDataRows = enhancedDataElement.EnumerateArray().ToArray();
+            Assert.Equal(6, enhancedDataRows.Length); // Header + 5 rows
+            
+            // Verify enhanced data structure
+            var enhancedHeaderRow = enhancedDataRows[0].EnumerateArray().Select(cell => cell.GetString() ?? "").ToArray();
+            Assert.Contains("ID", enhancedHeaderRow);
+            Assert.Contains("Name", enhancedHeaderRow);
+            Assert.Contains("Value", enhancedHeaderRow);
+            Assert.Contains("Status", enhancedHeaderRow);
+            Assert.Contains("Generated", enhancedHeaderRow);
+            
+            var enhancedDataRow1 = enhancedDataRows[1].EnumerateArray().Select(cell => 
+                cell.ValueKind == JsonValueKind.String ? cell.GetString() ?? "" : 
+                cell.ValueKind == JsonValueKind.Number ? cell.ToString() : 
+                cell.ToString()).ToArray();
+            Assert.Contains("1", enhancedDataRow1);
+            Assert.Contains("Enhanced_1", enhancedDataRow1);
+            Assert.Contains("150", enhancedDataRow1);
+            Assert.Contains("Active", enhancedDataRow1);
+            _output.WriteLine("✓ Successfully verified enhanced VBA-generated data with 5 columns and 5 data rows");
+
+            // Step 11: Export updated module and verify changes
+            _output.WriteLine("Step 11: Exporting updated VBA module...");
+            var exportResponse2 = await CallExcelTool(server, "excel_vba", new 
+            { 
+                action = "export", 
+                filePath = testFile, 
+                moduleName = moduleName,
+                sourceOrTargetPath = exportedVbaFile
+            });
+            var exportJson2 = JsonDocument.Parse(exportResponse2);
+            Assert.True(exportJson2.RootElement.GetProperty("Success").GetBoolean());
+            
+            var exportedContent2 = await File.ReadAllTextAsync(exportedVbaFile);
+            Assert.Contains("Enhanced_", exportedContent2);
+            Assert.Contains("Status", exportedContent2);
+            Assert.Contains("For i = 2 To 6", exportedContent2);
+            _output.WriteLine("✓ Successfully exported enhanced VBA module with verified content");
+
+            // Step 12: Final cleanup - delete the module
+            _output.WriteLine("Step 12: Deleting VBA module...");
+            var deleteResponse = await CallExcelTool(server, "excel_vba", new 
+            { 
+                action = "delete", 
+                filePath = testFile, 
+                moduleName = moduleName
+            });
+            var deleteJson = JsonDocument.Parse(deleteResponse);
+            Assert.True(deleteJson.RootElement.GetProperty("Success").GetBoolean(), 
+                $"VBA module deletion failed: {deleteJson.RootElement.GetProperty("ErrorMessage").GetString()}");
+
+            // Step 13: Verify module is deleted
+            _output.WriteLine("Step 13: Verifying VBA module deletion...");
+            var listResponse2 = await CallExcelTool(server, "excel_vba", new 
+            { 
+                action = "list", 
+                filePath = testFile
+            });
+            var listJson2 = JsonDocument.Parse(listResponse2);
+            Assert.True(listJson2.RootElement.GetProperty("Success").GetBoolean());
+            
+            Assert.True(listJson2.RootElement.TryGetProperty("Scripts", out var finalScriptsElement));
+            var finalModuleNames = finalScriptsElement.EnumerateArray()
+                .Select(script => script.GetProperty("Name").GetString())
+                .Where(name => name != null)
+                .ToArray();
+            Assert.DoesNotContain(moduleName, finalModuleNames);
+
+            _output.WriteLine("=== VBA ROUND TRIP TEST COMPLETED SUCCESSFULLY ===");
+            _output.WriteLine("✓ Created Excel .xlsm file for VBA support");
+            _output.WriteLine("✓ Imported VBA module from source file");
+            _output.WriteLine("✓ Executed VBA to create worksheet and fill with original data (3x3)");
+            _output.WriteLine("✓ Verified initial data (ID/Name/Value columns with Original/Data entries)");
+            _output.WriteLine("✓ Updated VBA module with enhanced code (5 columns, loop generation)");
+            _output.WriteLine("✓ Re-executed VBA to generate enhanced data (5x6)");
+            _output.WriteLine("✓ Verified enhanced data (ID/Name/Value/Status/Generated with Enhanced_ entries)");
+            _output.WriteLine("✓ Exported updated VBA code with integrity verification");
+            _output.WriteLine("✓ Deleted VBA module successfully");
+            _output.WriteLine("✓ All VBA development lifecycle operations working through MCP Server");
+        }
+        finally
+        {
+            server?.Kill();
+            server?.Dispose();
+            
+            // Cleanup files
+            if (File.Exists(testFile)) File.Delete(testFile);
+            if (File.Exists(originalVbaFile)) File.Delete(originalVbaFile);
+            if (File.Exists(updatedVbaFile)) File.Delete(updatedVbaFile);
+            if (File.Exists(exportedVbaFile)) File.Delete(exportedVbaFile);
+        }
+    }
 }

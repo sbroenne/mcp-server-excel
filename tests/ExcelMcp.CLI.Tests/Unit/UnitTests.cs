@@ -1,7 +1,7 @@
 using Xunit;
 using Sbroenne.ExcelMcp.Core;
 
-namespace Sbroenne.ExcelMcp.CLI.Tests;
+namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 
 /// <summary>
 /// Fast unit tests that don't require Excel installation.

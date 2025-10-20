@@ -2,7 +2,7 @@ using Xunit;
 using Sbroenne.ExcelMcp.CLI.Commands;
 using System.IO;
 
-namespace Sbroenne.ExcelMcp.CLI.Tests.Commands;
+namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 
 /// <summary>
 /// Tests for CLI FileCommands - verifying CLI-specific behavior (formatting, user interaction)

@@ -60,51 +60,19 @@ public class FileCommands : IFileCommands
                 }
             }
 
-            // Create Excel workbook with COM automation
-            var excelType = Type.GetTypeFromProgID("Excel.Application");
-            if (excelType == null)
+            // Create Excel workbook using proper resource management
+            bool isMacroEnabled = extension == ".xlsm";
+            
+            return WithNewExcel(filePath, isMacroEnabled, (excel, workbook) =>
             {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = "Excel is not installed. Cannot create Excel files.",
-                    FilePath = filePath,
-                    Action = "create-empty"
-                };
-            }
-
-#pragma warning disable IL2072 // COM interop is not AOT compatible
-            dynamic excel = Activator.CreateInstance(excelType)!;
-#pragma warning restore IL2072
-            try
-            {
-                excel.Visible = false;
-                excel.DisplayAlerts = false;
-                
-                // Create new workbook
-                dynamic workbook = excel.Workbooks.Add();
-                
-                // Optional: Set up a basic structure
+                // Set up a basic structure
                 dynamic sheet = workbook.Worksheets.Item(1);
                 sheet.Name = "Sheet1";
                 
                 // Add a comment to indicate this was created by ExcelCLI
-                sheet.Range["A1"].AddComment($"Created by ExcelCLI on {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                sheet.Range["A1"].Comment.Visible = false;
-                
-                // Save the workbook with appropriate format
-                if (extension == ".xlsm")
-                {
-                    // Save as macro-enabled workbook (format 52)
-                    workbook.SaveAs(filePath, 52);
-                }
-                else
-                {
-                    // Save as regular workbook (format 51)
-                    workbook.SaveAs(filePath, 51);
-                }
-                
-                workbook.Close(false);
+                dynamic cell = sheet.Range["A1"];
+                dynamic comment = cell.AddComment($"Created by ExcelCLI on {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                comment.Visible = false;
                 
                 return new OperationResult
                 {
@@ -112,20 +80,7 @@ public class FileCommands : IFileCommands
                     FilePath = filePath,
                     Action = "create-empty"
                 };
-            }
-            finally
-            {
-                try { excel.Quit(); } catch { }
-                try { System.Runtime.InteropServices.Marshal.ReleaseComObject(excel); } catch { }
-                
-                // Force garbage collection
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-                GC.Collect();
-                
-                // Small delay for Excel to fully close
-                System.Threading.Thread.Sleep(100);
-            }
+            });
         }
         catch (Exception ex)
         {
@@ -139,47 +94,5 @@ public class FileCommands : IFileCommands
         }
     }
     
-    /// <inheritdoc />
-    public FileValidationResult Validate(string filePath)
-    {
-        try
-        {
-            filePath = Path.GetFullPath(filePath);
-            
-            var result = new FileValidationResult
-            {
-                Success = true,
-                FilePath = filePath,
-                Exists = File.Exists(filePath)
-            };
-            
-            if (result.Exists)
-            {
-                var fileInfo = new FileInfo(filePath);
-                result.Size = fileInfo.Length;
-                result.Extension = fileInfo.Extension;
-                result.LastModified = fileInfo.LastWriteTime;
-                result.IsValid = result.Extension.ToLowerInvariant() == ".xlsx" || 
-                                 result.Extension.ToLowerInvariant() == ".xlsm";
-            }
-            else
-            {
-                result.Extension = Path.GetExtension(filePath);
-                result.IsValid = false;
-            }
-            
-            return result;
-        }
-        catch (Exception ex)
-        {
-            return new FileValidationResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message,
-                FilePath = filePath,
-                Exists = false,
-                IsValid = false
-            };
-        }
-    }
+
 }

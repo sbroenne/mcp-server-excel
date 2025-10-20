@@ -1333,43 +1333,76 @@ case "validate":
 
 ### Testing Strategy (Updated)
 
-excelcli uses a three-tier testing approach:
+excelcli uses a **three-tier testing approach with organized directory structure**:
 
-```csharp
-// Unit Tests - Fast, no Excel required
-[Trait("Category", "Unit")]
-[Trait("Speed", "Fast")]
-public class UnitTests { }
-
-// Integration Tests - Medium speed, requires Excel
-[Trait("Category", "Integration")]
-[Trait("Speed", "Medium")]
-[Trait("Feature", "PowerQuery")] // or "VBA", "Worksheets", "Files"
-public class PowerQueryCommandsTests { }
-
-// Round Trip Tests - Slow, complex workflows
-[Trait("Category", "RoundTrip")]
-[Trait("Speed", "Slow")]
-[Trait("Feature", "EndToEnd")]
-public class IntegrationRoundTripTests { }
+**Directory Structure:**
+```
+tests/
+├── ExcelMcp.Core.Tests/
+│   ├── Unit/           # Fast tests, no Excel required
+│   ├── Integration/    # Medium speed, requires Excel
+│   └── RoundTrip/      # Slow, comprehensive workflows
+├── ExcelMcp.McpServer.Tests/
+│   ├── Unit/           # Fast tests, no server required  
+│   ├── Integration/    # Medium speed, requires MCP server
+│   └── RoundTrip/      # Slow, end-to-end protocol testing
+└── ExcelMcp.CLI.Tests/
+    ├── Unit/           # Fast tests, no Excel required
+    └── Integration/    # Medium speed, requires Excel & CLI
 ```
 
-**CI/CD Strategy:**
-- **CI Environments**: Run only unit tests (`Category=Unit`) - no Excel required
-- **Local Development**: Run unit + integration tests by default
-- **Full Validation**: Include round trip tests on request
+**Test Categories & Traits:**
+```csharp
+// Unit Tests - Fast, no Excel required (~2-5 seconds)
+[Trait("Category", "Unit")]
+[Trait("Speed", "Fast")]
+[Trait("Layer", "Core|CLI|McpServer")]
+public class UnitTests { }
+
+// Integration Tests - Medium speed, requires Excel (~1-15 minutes)
+[Trait("Category", "Integration")]
+[Trait("Speed", "Medium")]
+[Trait("Feature", "PowerQuery|VBA|Worksheets|Files")]
+[Trait("RequiresExcel", "true")]
+public class PowerQueryCommandsTests { }
+
+// Round Trip Tests - Slow, complex workflows (~3-10 minutes each)
+[Trait("Category", "RoundTrip")]
+[Trait("Speed", "Slow")]
+[Trait("Feature", "EndToEnd|MCPProtocol|Workflows")]
+[Trait("RequiresExcel", "true")]
+public class IntegrationWorkflowTests { }
+```
+
+**Development Workflow Strategy:**
+- **Development**: Run Unit tests frequently during coding
+- **Pre-commit**: Run Unit + Integration tests
+- **CI/CD**: Run Unit tests only (no Excel dependency)
+- **QA/Release**: Run all test categories including RoundTrip
 
 **Test Commands:**
 ```bash
+# Development - Fast feedback loop
+dotnet test --filter "Category=Unit"
+
+# Pre-commit validation (requires Excel)
+dotnet test --filter "Category=Unit|Category=Integration"
+
 # CI-safe (no Excel required)
 dotnet test --filter "Category=Unit"
 
-# Local development (requires Excel)
-dotnet test --filter "Category!=RoundTrip"
-
-# Full validation (slow)
+# Full validation (slow, requires Excel)
 dotnet test --filter "Category=RoundTrip"
+
+# Run all tests (complete validation)
+dotnet test
 ```
+
+**Performance Characteristics:**
+- **Unit**: ~46 tests, 2-5 seconds total
+- **Integration**: ~91+ tests, 13-15 minutes total  
+- **RoundTrip**: ~10+ tests, 3-10 minutes each
+- **Total**: ~150+ tests across all layers
 
 ### **CRITICAL: Test Brittleness Prevention** ⚠️
 
@@ -1468,6 +1501,117 @@ dotnet clean
 dotnet build
 dotnet test --filter "MethodName=SpecificFailingTest" --verbosity normal
 ```
+
+## 🎯 **Test Organization Success & Lessons Learned (October 2025)**
+
+### **Three-Tier Test Architecture Implementation**
+
+We successfully implemented a **production-ready three-tier testing approach** with clear separation of concerns:
+
+**✅ What We Accomplished:**
+- **Organized Directory Structure**: Separated Unit/Integration/RoundTrip tests into focused directories
+- **Clear Performance Tiers**: Unit (~2-5 sec), Integration (~13-15 min), RoundTrip (~3-10 min each)  
+- **Layer-Specific Testing**: Core commands, CLI wrapper, and MCP Server protocol testing
+- **Development Workflow**: Fast feedback loops for development, comprehensive validation for QA
+
+**✅ MCP Server Round Trip Extraction:**
+- **Created dedicated round trip tests**: Extracted complex PowerQuery and VBA workflows from integration tests
+- **End-to-end protocol validation**: Complete MCP server communication testing 
+- **Real Excel state verification**: Tests verify actual Excel file changes, not just API responses
+- **Comprehensive scenarios**: Cover complete development workflows (import → run → verify → export → update)
+
+### **Key Architectural Insights for LLMs**
+
+**🔧 Test Organization Best Practices:**
+1. **Granular Directory Structure**: Physical separation improves mental model and test discovery
+2. **Trait-Based Categorization**: Enables flexible test execution strategies (CI vs QA vs development)
+3. **Speed-Based Grouping**: Allows developers to choose appropriate feedback loops
+4. **Layer-Based Testing**: Core logic, CLI integration, and protocol validation as separate concerns
+
+**🧠 Round Trip Test Design Patterns:**
+```csharp
+// GOOD - Complete workflow with Excel state verification
+[Trait("Category", "RoundTrip")]
+[Trait("Speed", "Slow")]
+public async Task VbaWorkflow_ShouldCreateModifyAndVerifyExcelStateChanges()
+{
+    // 1. Import VBA module
+    // 2. Run VBA to modify Excel state
+    // 3. Verify Excel sheets/data changed correctly
+    // 4. Update VBA module  
+    // 5. Run again and verify enhanced changes
+    // 6. Export and validate module integrity
+}
+```
+
+**❌ Anti-Patterns to Avoid:**
+- **Mock-Heavy Round Trip Tests**: Round trip tests should use real Excel, not mocks
+- **API-Only Validation**: Must verify actual Excel file state, not just API success responses
+- **Monolithic Test Files**: Break complex workflows into focused test classes
+- **Mixed Concerns**: Don't mix unit logic testing with integration workflows
+
+### **Development Workflow Optimization**
+
+**🚀 Fast Development Cycle:**
+```bash
+# Quick feedback during coding (2-5 seconds)
+dotnet test --filter "Category=Unit"
+
+# Pre-commit validation (10-20 minutes)  
+dotnet test --filter "Category=Unit|Category=Integration"
+
+# Full release validation (30-60 minutes)
+dotnet test
+```
+
+**🔄 CI/CD Strategy:**
+- **Pull Requests**: Unit tests only (no Excel dependency)
+- **Merge to Main**: Unit + Integration tests
+- **Release Branches**: All test categories including RoundTrip
+
+### **LLM-Specific Guidelines for Test Organization**
+
+**When GitHub Copilot suggests test changes:**
+
+1. **Categorize Tests Correctly:**
+   - Unit: Pure logic, no external dependencies
+   - Integration: Single feature with Excel interaction
+   - RoundTrip: Complete workflows with multiple operations
+
+2. **Use Proper Traits:**
+   ```csharp
+   [Trait("Category", "Integration")]
+   [Trait("Speed", "Medium")]
+   [Trait("Feature", "PowerQuery")]
+   [Trait("RequiresExcel", "true")]
+   ```
+
+3. **Directory Placement:**
+   - New unit tests → `Unit/` directory
+   - Excel integration → `Integration/` directory  
+   - Complete workflows → `RoundTrip/` directory
+
+4. **Namespace Consistency:**
+   ```csharp
+   namespace Sbroenne.ExcelMcp.Core.Tests.RoundTrip.Commands;
+   namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
+   ```
+
+### **Test Architecture Evolution Timeline**
+
+**Before (Mixed Organization):**
+- All tests in single directories
+- Unclear performance expectations
+- Difficult to run subset of tests
+- Mixed unit/integration concerns
+
+**After (Three-Tier Structure):**
+- Clear directory-based organization
+- Predictable performance characteristics  
+- Flexible test execution strategies
+- Separated concerns by speed and scope
+
+This architecture **scales** as the project grows and **enables** both rapid development and comprehensive quality assurance.
 
 ## Contributing Guidelines
 

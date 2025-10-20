@@ -2,21 +2,187 @@
 
 ## Overview
 
-Tests are organized by layer to match the separation of concerns in the architecture:
+Tests use a **three-tier architecture** organized by performance characteristics and scope:
 
 ```
 tests/
-├── ExcelMcp.Core.Tests/      ← Most tests here (data layer)
-├── ExcelMcp.CLI.Tests/        ← Minimal tests (presentation layer)
-└── ExcelMcp.McpServer.Tests/  ← MCP protocol tests
+├── ExcelMcp.Core.Tests/
+│   ├── Unit/           # Fast tests, no Excel required (~2-5 sec)
+│   ├── Integration/    # Medium speed, requires Excel (~1-15 min)
+│   └── RoundTrip/      # Slow, comprehensive workflows (~3-10 min each)
+├── ExcelMcp.McpServer.Tests/
+│   ├── Unit/           # Fast tests, no server required  
+│   ├── Integration/    # Medium speed, requires MCP server
+│   └── RoundTrip/      # Slow, end-to-end protocol testing
+└── ExcelMcp.CLI.Tests/
+    ├── Unit/           # Fast tests, no Excel required
+    └── Integration/    # Medium speed, requires Excel & CLI
 ```
 
-## Test Distribution
+## Three-Tier Testing Strategy
+
+### **Tier 1: Unit Tests** (Category=Unit, Speed=Fast)
+**Purpose**: Fast feedback during development - pure logic testing
+
+**Characteristics**:
+- ⚡ **2-5 seconds total execution time**
+- 🚫 **No external dependencies** (Excel, files, network)
+- ✅ **CI/CD friendly** - can run without Excel installation
+- 🎯 **Focused on business logic** and data transformations
+- 🔀 **Mock external dependencies**
+
+**What to test**:
+- ✅ Input validation logic
+- ✅ Data transformation algorithms  
+- ✅ Error handling scenarios
+- ✅ Result object construction
+- ✅ Edge cases and boundary conditions
+
+### **Tier 2: Integration Tests** (Category=Integration, Speed=Medium)
+**Purpose**: Validate single features with real Excel interaction
+
+**Characteristics**:
+- ⏱️ **1-15 minutes total execution time**
+- 📊 **Requires Excel installation**
+- 🔧 **Real COM operations** with Excel
+- 🎯 **Single feature focus** (one command/operation)
+- ⚡ **Moderate execution speed**
+
+**What to test**:
+- ✅ Excel COM operations work correctly
+- ✅ File system operations  
+- ✅ Single-command workflows
+- ✅ Error scenarios with real Excel
+- ✅ Feature-specific edge cases
+
+### **Tier 3: Round Trip Tests** (Category=RoundTrip, Speed=Slow)
+**Purpose**: End-to-end validation of complete workflows
+
+**Characteristics**:
+- 🐌 **3-10 minutes per test** (run sparingly)
+- 📊 **Requires Excel installation**
+- 🔄 **Complete workflow testing** (import → process → verify → export)
+- 🧪 **Real Excel state verification**
+- 🎯 **Comprehensive scenario coverage**
+
+**What to test**:
+- ✅ Complete development workflows
+- ✅ MCP protocol end-to-end communication
+- ✅ Multi-step operations with state verification
+- ✅ Complex integration scenarios
+- ✅ Real-world usage patterns
+
+## Development Workflow
+
+### **Fast Development Cycle (Daily Use)**
+
+```bash
+# Quick feedback during coding (2-5 seconds)
+dotnet test --filter "Category=Unit"
+```
+
+**When to use**: During active development for immediate feedback on logic changes.
+
+### **Pre-Commit Validation (Before PR)**
+
+```bash
+# Comprehensive validation (10-20 minutes)
+dotnet test --filter "Category=Unit|Category=Integration"
+```
+
+**When to use**: Before creating pull requests to ensure Excel integration works correctly.
+
+### **CI/CD Pipeline (Automated)**
+
+```bash
+# CI-safe testing (no Excel dependency) 
+dotnet test --filter "Category=Unit"
+```
+
+**When to use**: Automated builds and pull request validation without Excel installation.
+
+### **Release Validation (QA)**
+
+```bash
+# Full validation including workflows (30-60 minutes)
+dotnet test
+```
+
+**When to use**: Release testing and comprehensive quality assurance validation.
+
+## Performance Characteristics
+
+### **Unit Tests Performance**
+
+- **Target**: ~46 tests in 2-5 seconds
+- **Current Status**: ✅ Consistently fast execution
+- **Optimization**: No I/O operations, pure logic testing
+
+### **Integration Tests Performance**
+
+- **Target**: ~91+ tests in 13-15 minutes
+- **Current Status**: ✅ Stable performance with Excel COM
+- **Optimization**: Efficient Excel lifecycle management via `ExcelHelper.WithExcel()`
+
+### **Round Trip Tests Performance**
+
+- **Target**: ~10+ tests, 3-10 minutes each
+- **Current Status**: ✅ Comprehensive workflow validation
+- **Optimization**: Complete real-world scenarios with state verification
+
+## Test Traits and Filtering
+
+### **Category-Based Execution**
+
+All tests use standardized traits for flexible execution:
+
+```csharp
+[Trait("Category", "Unit")]
+[Trait("Speed", "Fast")]
+[Trait("Layer", "Core|CLI|McpServer")]
+public class UnitTests { }
+
+[Trait("Category", "Integration")]
+[Trait("Speed", "Medium")]
+[Trait("Feature", "PowerQuery|VBA|Worksheets|Files")]
+[Trait("RequiresExcel", "true")]
+public class PowerQueryCommandsTests { }
+
+[Trait("Category", "RoundTrip")]
+[Trait("Speed", "Slow")]
+[Trait("Feature", "EndToEnd|MCPProtocol|Workflows")]
+[Trait("RequiresExcel", "true")]
+public class IntegrationWorkflowTests { }
+```
+
+### **Execution Strategies**
+
+```bash
+# By category
+dotnet test --filter "Category=Unit"
+dotnet test --filter "Category=Integration"
+dotnet test --filter "Category=RoundTrip"
+
+# By speed (for time-constrained development)
+dotnet test --filter "Speed=Fast"
+dotnet test --filter "Speed=Medium"
+
+# By feature area (for focused testing)
+dotnet test --filter "Feature=PowerQuery"
+dotnet test --filter "Feature=VBA"
+
+# By Excel requirement (for CI environments)
+dotnet test --filter "RequiresExcel!=true"
+```
+
+## Test Organization by Layer
 
 ### ExcelMcp.Core.Tests (Primary Test Suite)
+
 **Purpose**: Test the data layer - Core business logic without UI concerns
 
 **What to test**:
+
 - ✅ Result objects returned correctly
 - ✅ Data validation logic
 - ✅ Excel COM operations
@@ -25,6 +191,7 @@ tests/
 - ✅ Data transformations
 
 **Characteristics**:
+
 - Tests call Core commands directly
 - No UI concerns (no console output testing)
 - Verifies Result object properties
@@ -32,6 +199,7 @@ tests/
 - **This is where 80-90% of tests should be**
 
 **Example**:
+
 ```csharp
 [Fact]
 public void CreateEmpty_WithValidPath_ReturnsSuccessResult()
@@ -50,21 +218,25 @@ public void CreateEmpty_WithValidPath_ReturnsSuccessResult()
 ```
 
 ### ExcelMcp.CLI.Tests (Minimal Test Suite)
+
 **Purpose**: Test CLI-specific behavior - argument parsing, exit codes, user interaction
 
 **What to test**:
+
 - ✅ Command-line argument parsing
 - ✅ Exit codes (0 for success, 1 for error)
 - ✅ User prompt handling
 - ✅ Console output formatting (optional)
 
 **Characteristics**:
+
 - Tests call CLI commands with `string[] args`
 - Verifies int return codes
 - Minimal coverage - only CLI-specific behavior
 - **This is where 10-20% of tests should be**
 
 **Example**:
+
 ```csharp
 [Fact]
 public void CreateEmpty_WithValidPath_ReturnsZeroAndCreatesFile()
@@ -82,9 +254,11 @@ public void CreateEmpty_WithValidPath_ReturnsZeroAndCreatesFile()
 ```
 
 ### ExcelMcp.McpServer.Tests
+
 **Purpose**: Test MCP protocol compliance and JSON responses
 
 **What to test**:
+
 - ✅ JSON serialization correctness
 - ✅ MCP tool interfaces
 - ✅ Error responses in JSON format

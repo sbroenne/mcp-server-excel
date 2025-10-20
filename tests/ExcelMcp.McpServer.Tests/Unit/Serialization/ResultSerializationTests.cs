@@ -3,7 +3,7 @@ using System.Text.Json;
 using Sbroenne.ExcelMcp.Core.Models;
 using System.Collections.Generic;
 
-namespace Sbroenne.ExcelMcp.McpServer.Tests.Serialization;
+namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit.Serialization;
 
 /// <summary>
 /// Unit tests for JSON serialization of Result objects - no Excel required

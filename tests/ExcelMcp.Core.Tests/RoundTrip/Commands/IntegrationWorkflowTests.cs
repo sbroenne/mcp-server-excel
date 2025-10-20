@@ -3,15 +3,16 @@ using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 using System.IO;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
+namespace Sbroenne.ExcelMcp.Core.Tests.RoundTrip.Commands;
 
 /// <summary>
-/// Integration tests for complete Core workflows combining multiple operations.
+/// Round trip tests for complete Core workflows combining multiple operations.
 /// These tests require Excel installation and validate end-to-end Core data operations.
 /// Tests use Core commands directly (not through CLI wrapper).
 /// </summary>
 [Trait("Layer", "Core")]
-[Trait("Category", "Integration")]
+[Trait("Category", "RoundTrip")]
+[Trait("Speed", "Slow")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "Workflows")]
 public class IntegrationWorkflowTests : IDisposable
@@ -54,8 +55,7 @@ public class IntegrationWorkflowTests : IDisposable
     public void Workflow_CreateFile_AddSheet_WriteData_ReadData()
     {
         // 1. Validate file exists
-        var validateResult = _fileCommands.Validate(_testExcelFile);
-        Assert.True(validateResult.IsValid);
+        Assert.True(File.Exists(_testExcelFile), "Test Excel file should exist");
 
         // 2. Create new sheet
         var createSheetResult = _sheetCommands.Create(_testExcelFile, "DataSheet");

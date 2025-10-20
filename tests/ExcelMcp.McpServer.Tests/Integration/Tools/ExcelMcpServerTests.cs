@@ -3,7 +3,7 @@ using Sbroenne.ExcelMcp.McpServer.Tools;
 using System.IO;
 using System.Text.Json;
 
-namespace Sbroenne.ExcelMcp.McpServer.Tests.Tools;
+namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
 /// <summary>
 /// Integration tests for ExcelCLI MCP Server using official MCP SDK

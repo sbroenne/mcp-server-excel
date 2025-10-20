@@ -224,61 +224,7 @@ public class FileCommandsTests : IDisposable
         Assert.True(newInfo.LastWriteTime > originalTime);
     }
 
-    [Fact]
-    public void Validate_ExistingValidFile_ReturnsValidResult()
-    {
-        // Arrange
-        string testFile = Path.Combine(_tempDir, "ValidFile.xlsx");
-        _createdFiles.Add(testFile);
-        var createResult = _fileCommands.CreateEmpty(testFile);
-        Assert.True(createResult.Success);
-
-        // Act
-        var result = _fileCommands.Validate(testFile);
-
-        // Assert
-        Assert.True(result.Success);
-        Assert.True(result.IsValid);
-        Assert.True(result.Exists);
-        Assert.Equal(".xlsx", result.Extension);
-        Assert.True(result.Size > 0);
-        Assert.NotEqual(DateTime.MinValue, result.LastModified);
-    }
-
-    [Fact]
-    public void Validate_NonExistentFile_ReturnsInvalidResult()
-    {
-        // Arrange
-        string testFile = Path.Combine(_tempDir, "NonExistent.xlsx");
-
-        // Act
-        var result = _fileCommands.Validate(testFile);
-
-        // Assert
-        Assert.True(result.Success); // Validate operation succeeded
-        Assert.False(result.IsValid); // File is not valid
-        Assert.False(result.Exists);
-        Assert.Equal(0, result.Size);
-    }
-
-    [Fact]
-    public void Validate_FileWithInvalidExtension_ReturnsInvalidResult()
-    {
-        // Arrange
-        string testFile = Path.Combine(_tempDir, "test.txt");
-        File.WriteAllText(testFile, "test");
-        _createdFiles.Add(testFile);
-
-        // Act
-        var result = _fileCommands.Validate(testFile);
-
-        // Assert
-        Assert.True(result.Success);
-        Assert.False(result.IsValid);
-        Assert.True(result.Exists);
-        Assert.Equal(".txt", result.Extension);
-    }
-
+    
     public void Dispose()
     {
         // Clean up test files

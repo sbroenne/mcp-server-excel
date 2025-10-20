@@ -14,11 +14,5 @@ public interface IFileCommands
     /// <param name="overwriteIfExists">Whether to overwrite if file already exists</param>
     /// <returns>Operation result</returns>
     OperationResult CreateEmpty(string filePath, bool overwriteIfExists = false);
-    
-    /// <summary>
-    /// Validates an Excel file
-    /// </summary>
-    /// <param name="filePath">Path to the Excel file to validate</param>
-    /// <returns>File validation result</returns>
-    FileValidationResult Validate(string filePath);
+
 }
