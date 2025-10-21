@@ -1,7 +1,6 @@
-using Xunit;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.Core.Models;
-using System.Collections.Generic;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit.Serialization;
 
@@ -193,9 +192,9 @@ public class ResultSerializationTests
             FilePath = "test.xlsm",
             Scripts = new List<ScriptInfo>
             {
-                new() 
-                { 
-                    Name = "Module1", 
+                new()
+                {
+                    Name = "Module1",
                     Type = "Standard",
                     LineCount = 150,
                     Procedures = new List<string> { "Main", "Helper" }
@@ -226,8 +225,8 @@ public class ResultSerializationTests
             FilePath = "test.xlsx",
             Queries = new List<PowerQueryInfo>
             {
-                new() 
-                { 
+                new()
+                {
                     Name = "SalesData",
                     Formula = "let Source = Excel.CurrentWorkbook() in Source",
                     IsConnectionOnly = false

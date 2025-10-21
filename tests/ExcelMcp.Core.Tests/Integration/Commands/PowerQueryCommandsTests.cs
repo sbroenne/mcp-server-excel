@@ -1,7 +1,6 @@
-using Xunit;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
-using System.IO;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 
@@ -27,14 +26,14 @@ public class CorePowerQueryCommandsTests : IDisposable
     {
         _powerQueryCommands = new PowerQueryCommands();
         _fileCommands = new FileCommands();
-        
+
         // Create temp directory for test files
         _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_PQ_Tests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
-        
+
         _testExcelFile = Path.Combine(_tempDir, "TestWorkbook.xlsx");
         _testQueryFile = Path.Combine(_tempDir, "TestQuery.pq");
-        
+
         // Create test Excel file and Power Query
         CreateTestExcelFile();
         CreateTestQueryFile();
@@ -64,7 +63,7 @@ public class CorePowerQueryCommandsTests : IDisposable
     )
 in
     Source";
-    
+
         File.WriteAllText(_testQueryFile, mCode);
     }
 
@@ -256,7 +255,7 @@ in
         // Arrange - Import and set to connection only
         var importResult = await _powerQueryCommands.Import(_testExcelFile, "TestConnectionOnlyConfig", _testQueryFile);
         Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
-        
+
         var setResult = _powerQueryCommands.SetConnectionOnly(_testExcelFile, "TestConnectionOnlyConfig");
         Assert.True(setResult.Success, $"Failed to set connection only: {setResult.ErrorMessage}");
 
@@ -277,7 +276,7 @@ in
         // Arrange - Import and set to load to table
         var importResult = await _powerQueryCommands.Import(_testExcelFile, "TestLoadToTableConfig", _testQueryFile);
         Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
-        
+
         var setResult = _powerQueryCommands.SetLoadToTable(_testExcelFile, "TestLoadToTableConfig", "ConfigTestSheet");
         Assert.True(setResult.Success, $"Failed to set load to table: {setResult.ErrorMessage}");
 
@@ -298,10 +297,10 @@ in
         // Arrange - Import and set to load to data model
         var importResult = await _powerQueryCommands.Import(_testExcelFile, "TestLoadToDataModelConfig", _testQueryFile);
         Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
-        
+
         var setResult = _powerQueryCommands.SetLoadToDataModel(_testExcelFile, "TestLoadToDataModelConfig");
         Assert.True(setResult.Success, $"Failed to set load to data model: {setResult.ErrorMessage}");
-        
+
         // Debug output
         if (!string.IsNullOrEmpty(setResult.ErrorMessage))
         {
@@ -325,7 +324,7 @@ in
         // Arrange - Import and set to load to both
         var importResult = await _powerQueryCommands.Import(_testExcelFile, "TestLoadToBothConfig", _testQueryFile);
         Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
-        
+
         var setResult = _powerQueryCommands.SetLoadToBoth(_testExcelFile, "TestLoadToBothConfig", "BothTestSheet");
         Assert.True(setResult.Success, $"Failed to set load to both: {setResult.ErrorMessage}");
 
@@ -348,11 +347,11 @@ in
         Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
 
         // Act & Assert - Test switching between different load modes
-        
+
         // 1. Set to Connection Only
         var setConnectionOnlyResult = _powerQueryCommands.SetConnectionOnly(_testExcelFile, "TestWorkflowQuery");
         Assert.True(setConnectionOnlyResult.Success, $"SetConnectionOnly failed: {setConnectionOnlyResult.ErrorMessage}");
-        
+
         var getConnectionOnlyResult = _powerQueryCommands.GetLoadConfig(_testExcelFile, "TestWorkflowQuery");
         Assert.True(getConnectionOnlyResult.Success, $"GetLoadConfig after SetConnectionOnly failed: {getConnectionOnlyResult.ErrorMessage}");
         Assert.Equal(PowerQueryLoadMode.ConnectionOnly, getConnectionOnlyResult.LoadMode);
@@ -360,7 +359,7 @@ in
         // 2. Switch to Load to Table
         var setLoadToTableResult = _powerQueryCommands.SetLoadToTable(_testExcelFile, "TestWorkflowQuery", "WorkflowSheet");
         Assert.True(setLoadToTableResult.Success, $"SetLoadToTable failed: {setLoadToTableResult.ErrorMessage}");
-        
+
         var getLoadToTableResult = _powerQueryCommands.GetLoadConfig(_testExcelFile, "TestWorkflowQuery");
         Assert.True(getLoadToTableResult.Success, $"GetLoadConfig after SetLoadToTable failed: {getLoadToTableResult.ErrorMessage}");
         Assert.Equal(PowerQueryLoadMode.LoadToTable, getLoadToTableResult.LoadMode);
@@ -369,7 +368,7 @@ in
         // 3. Switch to Load to Data Model
         var setLoadToDataModelResult = _powerQueryCommands.SetLoadToDataModel(_testExcelFile, "TestWorkflowQuery");
         Assert.True(setLoadToDataModelResult.Success, $"SetLoadToDataModel failed: {setLoadToDataModelResult.ErrorMessage}");
-        
+
         var getLoadToDataModelResult = _powerQueryCommands.GetLoadConfig(_testExcelFile, "TestWorkflowQuery");
         Assert.True(getLoadToDataModelResult.Success, $"GetLoadConfig after SetLoadToDataModel failed: {getLoadToDataModelResult.ErrorMessage}");
         Assert.Equal(PowerQueryLoadMode.LoadToDataModel, getLoadToDataModelResult.LoadMode);
@@ -378,7 +377,7 @@ in
         // 4. Switch to Load to Both
         var setLoadToBothResult = _powerQueryCommands.SetLoadToBoth(_testExcelFile, "TestWorkflowQuery", "BothWorkflowSheet");
         Assert.True(setLoadToBothResult.Success, $"SetLoadToBoth failed: {setLoadToBothResult.ErrorMessage}");
-        
+
         var getLoadToBothResult = _powerQueryCommands.GetLoadConfig(_testExcelFile, "TestWorkflowQuery");
         Assert.True(getLoadToBothResult.Success, $"GetLoadConfig after SetLoadToBoth failed: {getLoadToBothResult.ErrorMessage}");
         Assert.Equal(PowerQueryLoadMode.LoadToBoth, getLoadToBothResult.LoadMode);

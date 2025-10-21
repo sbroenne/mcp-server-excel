@@ -1,7 +1,7 @@
+using System.Text.Json;
+using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
 using Xunit.Abstractions;
-using Sbroenne.ExcelMcp.McpServer.Tools;
-using System.Text.Json;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
@@ -27,7 +27,7 @@ public class ExcelFileMcpErrorReproTests
         var tempDir = Path.Combine(Path.GetTempPath(), $"MCPClient_Tests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
         var testFile = Path.Combine(tempDir, "roundtrip-test.xlsx");
-        
+
         try
         {
             _output.WriteLine($"Testing exact MCP scenario:");
@@ -37,13 +37,13 @@ public class ExcelFileMcpErrorReproTests
 
             // Act - Call the tool with exact parameters from MCP test
             var result = ExcelFileTool.ExcelFile("create-empty", testFile);
-            
+
             _output.WriteLine($"Tool result: {result}");
-            
+
             // Parse the result to understand format
             var jsonDoc = JsonDocument.Parse(result);
             _output.WriteLine($"JSON structure: {jsonDoc.RootElement}");
-            
+
             if (jsonDoc.RootElement.TryGetProperty("success", out var successElement))
             {
                 var success = successElement.GetBoolean();

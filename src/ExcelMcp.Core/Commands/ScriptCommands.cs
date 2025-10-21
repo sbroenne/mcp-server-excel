@@ -23,7 +23,7 @@ public class ScriptCommands : IScriptCommands
                 @"Software\Microsoft\Office\15.0\Excel\Security",  // Office 2013
                 @"Software\Microsoft\Office\14.0\Excel\Security"   // Office 2010
             };
-            
+
             foreach (string path in registryPaths)
             {
                 try
@@ -37,7 +37,7 @@ public class ScriptCommands : IScriptCommands
                 }
                 catch { /* Try next path */ }
             }
-            
+
             return false; // Assume not enabled if cannot read registry
         }
         catch
@@ -45,7 +45,7 @@ public class ScriptCommands : IScriptCommands
             return false;
         }
     }
-    
+
     /// <summary>
     /// Creates VBA trust guidance result
     /// </summary>
@@ -59,7 +59,7 @@ public class ScriptCommands : IScriptCommands
             Explanation = "VBA operations require 'Trust access to the VBA project object model' to be enabled in Excel settings. This is a one-time setup that allows programmatic access to VBA code."
         };
     }
-    
+
     /// <summary>
     /// Check if VBA project access is trusted and available
     /// </summary>
@@ -69,7 +69,7 @@ public class ScriptCommands : IScriptCommands
         {
             bool isTrusted = false;
             string? errorMessage = null;
-            
+
             WithExcel(filePath, false, (excel, workbook) =>
             {
                 try
@@ -97,7 +97,7 @@ public class ScriptCommands : IScriptCommands
                     return 1;
                 }
             });
-            
+
             return (isTrusted, errorMessage);
         }
         catch (Exception ex)
@@ -178,12 +178,12 @@ public class ScriptCommands : IScriptCommands
                     {
                         dynamic codeModule = component.CodeModule;
                         moduleLineCount = codeModule.CountOfLines;
-                        
+
                         // Parse procedures from code
                         for (int line = 1; line <= moduleLineCount; line++)
                         {
                             string codeLine = codeModule.Lines[line, 1];
-                            if (codeLine.TrimStart().StartsWith("Sub ") || 
+                            if (codeLine.TrimStart().StartsWith("Sub ") ||
                                 codeLine.TrimStart().StartsWith("Function ") ||
                                 codeLine.TrimStart().StartsWith("Public Sub ") ||
                                 codeLine.TrimStart().StartsWith("Public Function ") ||
@@ -250,9 +250,9 @@ public class ScriptCommands : IScriptCommands
     /// <inheritdoc />
     public async Task<OperationResult> Export(string filePath, string moduleName, string outputFile)
     {
-        var result = new OperationResult 
-        { 
-            FilePath = filePath, 
+        var result = new OperationResult
+        {
+            FilePath = filePath,
             Action = "script-export"
         };
 
@@ -340,9 +340,9 @@ public class ScriptCommands : IScriptCommands
     /// <inheritdoc />
     public async Task<OperationResult> Import(string filePath, string moduleName, string vbaFile)
     {
-        var result = new OperationResult 
-        { 
-            FilePath = filePath, 
+        var result = new OperationResult
+        {
+            FilePath = filePath,
             Action = "script-import"
         };
 
@@ -398,7 +398,7 @@ public class ScriptCommands : IScriptCommands
                 // Add new module
                 dynamic newModule = vbComponents.Add(1); // 1 = vbext_ct_StdModule
                 newModule.Name = moduleName;
-                
+
                 dynamic codeModule = newModule.CodeModule;
                 codeModule.AddFromString(vbaCode);
 
@@ -427,9 +427,9 @@ public class ScriptCommands : IScriptCommands
     /// <inheritdoc />
     public async Task<OperationResult> Update(string filePath, string moduleName, string vbaFile)
     {
-        var result = new OperationResult 
-        { 
-            FilePath = filePath, 
+        var result = new OperationResult
+        {
+            FilePath = filePath,
             Action = "script-update"
         };
 
@@ -490,12 +490,12 @@ public class ScriptCommands : IScriptCommands
 
                 dynamic codeModule = targetComponent.CodeModule;
                 int lineCount = codeModule.CountOfLines;
-                
+
                 if (lineCount > 0)
                 {
                     codeModule.DeleteLines(1, lineCount);
                 }
-                
+
                 codeModule.AddFromString(vbaCode);
 
                 result.Success = true;
@@ -523,9 +523,9 @@ public class ScriptCommands : IScriptCommands
     /// <inheritdoc />
     public OperationResult Run(string filePath, string procedureName, params string[] parameters)
     {
-        var result = new OperationResult 
-        { 
-            FilePath = filePath, 
+        var result = new OperationResult
+        {
+            FilePath = filePath,
             Action = "script-run"
         };
 
@@ -589,9 +589,9 @@ public class ScriptCommands : IScriptCommands
     /// <inheritdoc />
     public OperationResult Delete(string filePath, string moduleName)
     {
-        var result = new OperationResult 
-        { 
-            FilePath = filePath, 
+        var result = new OperationResult
+        {
+            FilePath = filePath,
             Action = "script-delete"
         };
 

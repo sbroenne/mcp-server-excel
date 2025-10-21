@@ -1,8 +1,7 @@
-using Xunit;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
-using System.IO;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 
@@ -26,13 +25,13 @@ public class VbaTrustDetectionTests : IDisposable
     {
         _scriptCommands = new ScriptCommands();
         _fileCommands = new FileCommands();
-        
+
         // Create temp directory for test files
         _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_VBATrust_Tests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
-        
+
         _testExcelFile = Path.Combine(_tempDir, "VBATrustTestWorkbook.xlsm");
-        
+
         // Create test Excel file (macro-enabled)
         CreateTestExcelFile();
     }
@@ -85,14 +84,14 @@ public class VbaTrustDetectionTests : IDisposable
     {
         // Note: This test validates that List returns a ScriptListResult
         // and handles VBA trust issues appropriately
-        
+
         // Act
         var result = _scriptCommands.List(_testExcelFile);
 
         // Assert
         Assert.NotNull(result);
         Assert.IsType<ScriptListResult>(result);
-        
+
         // If VBA trust is not enabled, result may have an error or be empty
         // If VBA trust is enabled, result should have Scripts list
         Assert.NotNull(result.Scripts);
@@ -103,7 +102,7 @@ public class VbaTrustDetectionTests : IDisposable
     {
         // This test validates that TestVbaTrustScope properly manages VBA trust
         // It should enable trust, then revert to original state
-        
+
         // Arrange - Check initial trust state
         bool initialTrustState = IsVbaTrustEnabled();
 
@@ -133,7 +132,7 @@ End Sub";
         using (var _ = new TestVbaTrustScope())
         {
             var importResult = await _scriptCommands.Import(_testExcelFile, "TestModule", vbaFile);
-            
+
             // Should succeed when VBA trust is enabled
             if (!importResult.Success)
             {

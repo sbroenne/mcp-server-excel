@@ -11,22 +11,22 @@ public interface IParameterCommands
     /// Lists all named ranges in the workbook
     /// </summary>
     ParameterListResult List(string filePath);
-    
+
     /// <summary>
     /// Sets the value of a named range
     /// </summary>
     OperationResult Set(string filePath, string paramName, string value);
-    
+
     /// <summary>
     /// Gets the value of a named range
     /// </summary>
     ParameterValueResult Get(string filePath, string paramName);
-    
+
     /// <summary>
     /// Creates a new named range
     /// </summary>
     OperationResult Create(string filePath, string paramName, string reference);
-    
+
     /// <summary>
     /// Deletes a named range
     /// </summary>

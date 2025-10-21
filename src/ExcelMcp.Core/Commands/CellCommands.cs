@@ -91,7 +91,7 @@ public class CellCommands : ICellCommands
                 }
 
                 dynamic cell = sheet.Range[cellAddress];
-                
+
                 // Try to parse as number, otherwise set as text
                 if (double.TryParse(value, out double numValue))
                 {

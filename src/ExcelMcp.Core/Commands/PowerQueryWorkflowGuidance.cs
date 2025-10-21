@@ -1,5 +1,3 @@
-using Sbroenne.ExcelMcp.Core.Models;
-
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
@@ -26,7 +24,7 @@ public static class PowerQueryWorkflowGuidance
                 "Check data source connections and credentials"
             };
         }
-        
+
         if (isConnectionOnly)
         {
             return new List<string>
@@ -37,7 +35,7 @@ public static class PowerQueryWorkflowGuidance
                 "Then use 'refresh' to validate the query works"
             };
         }
-        
+
         return new List<string>
         {
             "Query imported and data loaded successfully",
@@ -45,7 +43,7 @@ public static class PowerQueryWorkflowGuidance
             "Use 'get-load-config' to check configuration"
         };
     }
-    
+
     /// <summary>
     /// Get suggested next steps after updating a query
     /// </summary>
@@ -64,7 +62,7 @@ public static class PowerQueryWorkflowGuidance
                 "Revert changes if needed with 'update' using previous version"
             };
         }
-        
+
         if (configPreserved)
         {
             return new List<string>
@@ -74,7 +72,7 @@ public static class PowerQueryWorkflowGuidance
                 "Use 'get-load-config' to verify configuration if needed"
             };
         }
-        
+
         return new List<string>
         {
             "Query updated successfully",
@@ -82,7 +80,7 @@ public static class PowerQueryWorkflowGuidance
             "Check 'get-load-config' to verify load settings"
         };
     }
-    
+
     /// <summary>
     /// Get suggested next steps after configuring load destination
     /// </summary>
@@ -98,7 +96,7 @@ public static class PowerQueryWorkflowGuidance
             "Data will now refresh to this location automatically"
         };
     }
-    
+
     /// <summary>
     /// Get suggested next steps after refreshing a query
     /// </summary>
@@ -117,7 +115,7 @@ public static class PowerQueryWorkflowGuidance
                 "Common issues: authentication, connectivity, M syntax, privacy levels"
             };
         }
-        
+
         if (isConnectionOnly)
         {
             return new List<string>
@@ -128,7 +126,7 @@ public static class PowerQueryWorkflowGuidance
                 "Or use 'set-load-to-data-model' for PowerPivot"
             };
         }
-        
+
         return new List<string>
         {
             "Data refreshed successfully",
@@ -137,7 +135,7 @@ public static class PowerQueryWorkflowGuidance
             "Data model is up to date"
         };
     }
-    
+
     /// <summary>
     /// Get suggested next steps for error recovery scenarios
     /// </summary>
@@ -191,7 +189,7 @@ public static class PowerQueryWorkflowGuidance
             }
         };
     }
-    
+
     /// <summary>
     /// Get workflow hint based on operation context
     /// </summary>
@@ -204,7 +202,7 @@ public static class PowerQueryWorkflowGuidance
         {
             return $"{operation} failed. Review error details and suggested recovery steps.";
         }
-        
+
         return operation switch
         {
             "pq-import" => "WORKFLOW: Import → Configure Load → Refresh → Validate",

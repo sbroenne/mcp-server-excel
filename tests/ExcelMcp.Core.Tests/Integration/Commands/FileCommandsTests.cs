@@ -1,6 +1,5 @@
-using Xunit;
 using Sbroenne.ExcelMcp.Core.Commands;
-using System.IO;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 
@@ -21,11 +20,11 @@ public class CoreFileCommandsTests : IDisposable
     public CoreFileCommandsTests()
     {
         _fileCommands = new FileCommands();
-        
+
         // Create temp directory for test files
         _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_FileTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
-        
+
         _createdFiles = new List<string>();
     }
 
@@ -45,7 +44,7 @@ public class CoreFileCommandsTests : IDisposable
         Assert.Equal("create-empty", result.Action);
         Assert.NotNull(result.FilePath);
         Assert.True(File.Exists(testFile));
-        
+
         // Verify it's a valid Excel file by checking size > 0
         var fileInfo = new FileInfo(testFile);
         Assert.True(fileInfo.Length > 0);
@@ -160,14 +159,14 @@ public class CoreFileCommandsTests : IDisposable
             Path.Combine(_tempDir, "File2.xlsx"),
             Path.Combine(_tempDir, "File3.xlsx")
         };
-        
+
         _createdFiles.AddRange(testFiles);
 
         // Act & Assert
         foreach (string testFile in testFiles)
         {
             var result = _fileCommands.CreateEmpty(testFile);
-            
+
             Assert.True(result.Success);
             Assert.Null(result.ErrorMessage);
             Assert.True(File.Exists(testFile));
@@ -180,7 +179,7 @@ public class CoreFileCommandsTests : IDisposable
         // Arrange
         string testFile = Path.Combine(_tempDir, "ExistingFile.xlsx");
         _createdFiles.Add(testFile);
-        
+
         // Create file first
         var firstResult = _fileCommands.CreateEmpty(testFile);
         Assert.True(firstResult.Success);
@@ -200,15 +199,15 @@ public class CoreFileCommandsTests : IDisposable
         // Arrange
         string testFile = Path.Combine(_tempDir, "OverwriteFile.xlsx");
         _createdFiles.Add(testFile);
-        
+
         // Create file first
         var firstResult = _fileCommands.CreateEmpty(testFile);
         Assert.True(firstResult.Success);
-        
+
         // Get original file info
         var originalInfo = new FileInfo(testFile);
         var originalTime = originalInfo.LastWriteTime;
-        
+
         // Wait a bit to ensure different timestamp
         System.Threading.Thread.Sleep(100);
 
@@ -218,13 +217,13 @@ public class CoreFileCommandsTests : IDisposable
         // Assert
         Assert.True(result.Success);
         Assert.Null(result.ErrorMessage);
-        
+
         // Verify file was overwritten (new timestamp)
         var newInfo = new FileInfo(testFile);
         Assert.True(newInfo.LastWriteTime > originalTime);
     }
 
-    
+
     public void Dispose()
     {
         // Clean up test files
@@ -232,7 +231,7 @@ public class CoreFileCommandsTests : IDisposable
         {
             // Wait a bit for Excel to fully release files
             System.Threading.Thread.Sleep(500);
-            
+
             // Delete individual files first
             foreach (string file in _createdFiles)
             {
@@ -248,7 +247,7 @@ public class CoreFileCommandsTests : IDisposable
                     // Best effort cleanup
                 }
             }
-            
+
             // Then delete the temp directory
             if (Directory.Exists(_tempDir))
             {
@@ -274,7 +273,7 @@ public class CoreFileCommandsTests : IDisposable
         {
             // Best effort cleanup - don't fail tests if cleanup fails
         }
-        
+
         GC.SuppressFinalize(this);
     }
 }

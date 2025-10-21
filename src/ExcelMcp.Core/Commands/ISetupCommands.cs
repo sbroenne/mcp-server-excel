@@ -11,12 +11,12 @@ public interface ISetupCommands
     /// Enable VBA project access trust in Excel
     /// </summary>
     VbaTrustResult EnableVbaTrust();
-    
+
     /// <summary>
     /// Disable VBA project access trust in Excel
     /// </summary>
     VbaTrustResult DisableVbaTrust();
-    
+
     /// <summary>
     /// Check current VBA trust status
     /// </summary>

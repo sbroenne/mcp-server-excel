@@ -25,7 +25,7 @@ public class SetupCommands : ISetupCommands
             };
 
             var result = new VbaTrustResult();
-            
+
             foreach (string path in registryPaths)
             {
                 try
@@ -59,7 +59,7 @@ public class SetupCommands : ISetupCommands
                 result.ErrorMessage = "Could not find Excel registry keys to modify.";
                 result.ManualInstructions = "File → Options → Trust Center → Trust Center Settings → Macro Settings\nCheck 'Trust access to the VBA project object model'";
             }
-            
+
             return result;
         }
         catch (Exception ex)
@@ -90,7 +90,7 @@ public class SetupCommands : ISetupCommands
             };
 
             var result = new VbaTrustResult();
-            
+
             foreach (string path in registryPaths)
             {
                 try
@@ -123,7 +123,7 @@ public class SetupCommands : ISetupCommands
                 result.IsTrusted = false;
                 result.ErrorMessage = "Could not find Excel registry keys to modify.";
             }
-            
+
             return result;
         }
         catch (Exception ex)
@@ -165,7 +165,7 @@ public class SetupCommands : ISetupCommands
         try
         {
             var result = new VbaTrustResult { FilePath = testFilePath };
-            
+
             int exitCode = WithExcel(testFilePath, false, (excel, workbook) =>
             {
                 try
@@ -185,7 +185,7 @@ public class SetupCommands : ISetupCommands
                     return 1;
                 }
             });
-            
+
             return result;
         }
         catch (Exception ex)

@@ -1,6 +1,5 @@
-using Xunit;
 using Sbroenne.ExcelMcp.Core.Commands;
-using System.IO;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.RoundTrip.Commands;
 
@@ -28,16 +27,16 @@ public class ScriptCommandsRoundTripTests : IDisposable
         _scriptCommands = new ScriptCommands();
         _fileCommands = new FileCommands();
         _setupCommands = new SetupCommands();
-        
+
         // Create temp directory for test files
         _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_VBA_RoundTrip_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
-        
+
         _testExcelFile = Path.Combine(_tempDir, "RoundTripWorkbook.xlsm");
-        
+
         // Create test files
         CreateTestExcelFile();
-        
+
         // Check VBA trust
         CheckVbaTrust();
     }
@@ -157,14 +156,14 @@ End Sub";
             // Step 5: Read the data that VBA wrote to verify original functionality
             var readResult1 = worksheetCommands.Read(_testExcelFile, testSheetName, "A1:C3");
             Assert.True(readResult1.Success, $"Failed to read VBA-generated data: {readResult1.ErrorMessage}");
-            
+
             // Verify original data structure (headers + 2 data rows)
             Assert.Equal(3, readResult1.Data.Count); // Header + 2 rows
             var headerRow = readResult1.Data[0];
             Assert.Equal("ID", headerRow[0]?.ToString());
             Assert.Equal("Name", headerRow[1]?.ToString());
             Assert.Equal("Value", headerRow[2]?.ToString());
-            
+
             var dataRow1 = readResult1.Data[1];
             Assert.Equal("1", dataRow1[0]?.ToString());
             Assert.Equal("Original", dataRow1[1]?.ToString());
@@ -173,7 +172,7 @@ End Sub";
             // Step 6: Export the original module for verification
             var exportResult1 = await _scriptCommands.Export(_testExcelFile, moduleName, exportedVbaFile);
             Assert.True(exportResult1.Success, $"Failed to export original VBA module: {exportResult1.ErrorMessage}");
-            
+
             var exportedContent1 = await File.ReadAllTextAsync(exportedVbaFile);
             Assert.Contains("GenerateTestData", exportedContent1);
             Assert.Contains("Original", exportedContent1);
@@ -189,7 +188,7 @@ End Sub";
             // Step 9: Read the enhanced data to verify update worked
             var readResult2 = worksheetCommands.Read(_testExcelFile, testSheetName, "A1:E6");
             Assert.True(readResult2.Success, $"Failed to read enhanced VBA-generated data: {readResult2.ErrorMessage}");
-            
+
             // Verify enhanced data structure (headers + 5 data rows, 5 columns)
             Assert.Equal(6, readResult2.Data.Count); // Header + 5 rows
             var enhancedHeaderRow = readResult2.Data[0];
@@ -198,7 +197,7 @@ End Sub";
             Assert.Equal("Value", enhancedHeaderRow[2]?.ToString());
             Assert.Equal("Status", enhancedHeaderRow[3]?.ToString());
             Assert.Equal("Generated", enhancedHeaderRow[4]?.ToString());
-            
+
             var enhancedDataRow1 = readResult2.Data[1];
             Assert.Equal("1", enhancedDataRow1[0]?.ToString());
             Assert.Equal("Enhanced_1", enhancedDataRow1[1]?.ToString());
@@ -210,7 +209,7 @@ End Sub";
             // Step 10: Export updated module and verify changes
             var exportResult2 = await _scriptCommands.Export(_testExcelFile, moduleName, exportedVbaFile);
             Assert.True(exportResult2.Success, $"Failed to export updated VBA module: {exportResult2.ErrorMessage}");
-            
+
             var exportedContent2 = await File.ReadAllTextAsync(exportedVbaFile);
             Assert.Contains("Enhanced_", exportedContent2);
             Assert.Contains("Status", exportedContent2);

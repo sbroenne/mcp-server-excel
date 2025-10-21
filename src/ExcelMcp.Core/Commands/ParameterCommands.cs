@@ -29,7 +29,7 @@ public class ParameterCommands : IParameterCommands
             {
                 dynamic namesCollection = workbook.Names;
                 int count = namesCollection.Count;
-                
+
                 for (int i = 1; i <= count; i++)
                 {
                     try
@@ -37,14 +37,14 @@ public class ParameterCommands : IParameterCommands
                         dynamic nameObj = namesCollection.Item(i);
                         string name = nameObj.Name;
                         string refersTo = nameObj.RefersTo ?? "";
-                        
+
                         // Try to get value
                         object? value = null;
                         string valueType = "null";
                         try
                         {
                             var rawValue = nameObj.RefersToRange?.Value2;
-                            
+
                             // Convert 2D array to List<List<object?>> for JSON serialization
                             if (rawValue is object[,] array2D)
                             {
@@ -58,7 +58,7 @@ public class ParameterCommands : IParameterCommands
                             }
                         }
                         catch { }
-                        
+
                         result.Parameters.Add(new ParameterInfo
                         {
                             Name = name,
@@ -69,7 +69,7 @@ public class ParameterCommands : IParameterCommands
                     }
                     catch { }
                 }
-                
+
                 result.Success = true;
                 return 0;
             }
@@ -113,7 +113,7 @@ public class ParameterCommands : IParameterCommands
                 }
 
                 dynamic refersToRange = nameObj.RefersToRange;
-                
+
                 // Try to parse as number, otherwise set as text
                 if (double.TryParse(value, out double numValue))
                 {
@@ -288,7 +288,7 @@ public class ParameterCommands : IParameterCommands
         {
             dynamic namesCollection = workbook.Names;
             int count = namesCollection.Count;
-            
+
             for (int i = 1; i <= count; i++)
             {
                 dynamic nameObj = namesCollection.Item(i);
@@ -299,7 +299,7 @@ public class ParameterCommands : IParameterCommands
             }
         }
         catch { }
-        
+
         return null;
     }
 
@@ -311,11 +311,11 @@ public class ParameterCommands : IParameterCommands
     private static List<List<object?>> ConvertArrayToList(object[,] array2D)
     {
         var result = new List<List<object?>>();
-        
+
         // Excel arrays are 1-based, get the bounds
         int rows = array2D.GetLength(0);
         int cols = array2D.GetLength(1);
-        
+
         for (int row = 1; row <= rows; row++)
         {
             var rowList = new List<object?>();
@@ -325,7 +325,7 @@ public class ParameterCommands : IParameterCommands
             }
             result.Add(rowList);
         }
-        
+
         return result;
     }
 }

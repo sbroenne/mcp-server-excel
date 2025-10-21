@@ -1,6 +1,6 @@
+using Sbroenne.ExcelMcp.Core.Commands;
 using Xunit;
 using Xunit.Abstractions;
-using Sbroenne.ExcelMcp.Core.Commands;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
@@ -53,7 +53,7 @@ public class PowerQueryComErrorTests : IDisposable
         var testFile = Path.Combine(_tempDir, "simple-test.xlsx");
         var queryName = "SimpleTestQuery";
         var targetSheet = "DataSheet";
-        
+
         var simpleMCode = @"
 let
     Source = #table(
@@ -62,7 +62,7 @@ let
     )
 in
     Source";
-        
+
         var mCodeFile = Path.Combine(_tempDir, "simple-query.pq");
         File.WriteAllText(mCodeFile, simpleMCode);
 
@@ -82,13 +82,13 @@ in
 
         _output.WriteLine("Step 4: Attempting to set load to table (critical step)...");
         var setLoadResult = _powerQueryCommands.SetLoadToTable(testFile, queryName, targetSheet);
-        
+
         if (!setLoadResult.Success)
         {
             _output.WriteLine($"ERROR: {setLoadResult.ErrorMessage}");
             _output.WriteLine("This error will help us understand the COM issue");
         }
-        
+
         Assert.True(setLoadResult.Success, $"Failed to set load to table: {setLoadResult.ErrorMessage}");
     }
 
@@ -99,7 +99,7 @@ in
         var testFile = Path.Combine(_tempDir, "existing-sheet-test.xlsx");
         var queryName = "ExistingSheetQuery";
         var targetSheet = "PreExistingSheet";
-        
+
         var simpleMCode = @"
 let
     Source = #table(
@@ -108,7 +108,7 @@ let
     )
 in
     Source";
-        
+
         var mCodeFile = Path.Combine(_tempDir, "existing-sheet-query.pq");
         File.WriteAllText(mCodeFile, simpleMCode);
 
@@ -127,12 +127,12 @@ in
 
         _output.WriteLine("Step 4: Setting load to existing sheet...");
         var setLoadResult = _powerQueryCommands.SetLoadToTable(testFile, queryName, targetSheet);
-        
+
         if (!setLoadResult.Success)
         {
             _output.WriteLine($"ERROR WITH EXISTING SHEET: {setLoadResult.ErrorMessage}");
         }
-        
+
         Assert.True(setLoadResult.Success, $"Failed to set load to existing sheet: {setLoadResult.ErrorMessage}");
     }
 }

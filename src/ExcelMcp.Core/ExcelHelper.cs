@@ -27,20 +27,20 @@ public static class ExcelHelper
         {
             // Validate file path first - prevent path traversal attacks
             string fullPath = Path.GetFullPath(filePath);
-            
+
             // Additional security: ensure the file is within reasonable bounds
             if (fullPath.Length > 32767)
             {
                 throw new ArgumentException($"File path too long: {fullPath.Length} characters (Windows limit: 32767)");
             }
-            
+
             // Security: Validate file extension to prevent executing arbitrary files
             string extension = Path.GetExtension(fullPath).ToLowerInvariant();
             if (extension is not (".xlsx" or ".xlsm" or ".xls"))
             {
                 throw new ArgumentException($"Invalid file extension '{extension}'. Only Excel files (.xlsx, .xlsm, .xls) are supported.");
             }
-            
+
             if (!File.Exists(fullPath))
             {
                 throw new FileNotFoundException($"Excel file not found: {fullPath}", fullPath);
@@ -56,7 +56,7 @@ public static class ExcelHelper
 #pragma warning disable IL2072 // COM interop is not AOT compatible but is required for Excel automation
             excel = Activator.CreateInstance(excelType);
 #pragma warning restore IL2072
-            if (excel == null) 
+            if (excel == null)
             {
                 throw new InvalidOperationException("Failed to create Excel COM instance. " +
                     "Excel may be corrupted or COM subsystem unavailable.");
@@ -93,7 +93,7 @@ public static class ExcelHelper
                     "File may be corrupted, password-protected, or incompatible.", ex);
             }
 
-            if (workbook == null) 
+            if (workbook == null)
             {
                 throw new InvalidOperationException($"Failed to open workbook: {Path.GetFileName(fullPath)}");
             }
@@ -134,29 +134,29 @@ public static class ExcelHelper
         finally
         {
             // Enhanced COM cleanup to prevent process leaks
-            
+
             // Close workbook first
             if (workbook != null)
             {
-                try 
-                { 
-                    workbook.Close(save); 
-                } 
-                catch (COMException) 
-                { 
+                try
+                {
+                    workbook.Close(save);
+                }
+                catch (COMException)
+                {
                     // Workbook might already be closed, ignore
-                } 
-                catch 
-                { 
+                }
+                catch
+                {
                     // Any other exception during close, ignore to continue cleanup
                 }
-                
-                try 
-                { 
-                    Marshal.ReleaseComObject(workbook); 
-                } 
-                catch 
-                { 
+
+                try
+                {
+                    Marshal.ReleaseComObject(workbook);
+                }
+                catch
+                {
                     // Release might fail, but continue cleanup
                 }
             }
@@ -164,25 +164,25 @@ public static class ExcelHelper
             // Quit Excel application
             if (excel != null)
             {
-                try 
-                { 
-                    excel.Quit(); 
-                } 
-                catch (COMException) 
-                { 
+                try
+                {
+                    excel.Quit();
+                }
+                catch (COMException)
+                {
                     // Excel might already be closing, ignore
-                } 
-                catch 
-                { 
+                }
+                catch
+                {
                     // Any other exception during quit, ignore to continue cleanup
                 }
-                
-                try 
-                { 
-                    Marshal.ReleaseComObject(excel); 
-                } 
-                catch 
-                { 
+
+                try
+                {
+                    Marshal.ReleaseComObject(excel);
+                }
+                catch
+                {
                     // Release might fail, but continue cleanup
                 }
             }
@@ -201,7 +201,7 @@ public static class ExcelHelper
             // Longer delay to ensure Excel process terminates completely
             // Excel COM can take time to shut down properly
             System.Threading.Thread.Sleep(500);
-            
+
             // Force one more GC cycle after the delay
             GC.Collect();
             GC.WaitForPendingFinalizers();
@@ -293,7 +293,7 @@ public static class ExcelHelper
         {
             // Validate file path first - prevent path traversal attacks
             string fullPath = Path.GetFullPath(filePath);
-            
+
             // Validate file size limits for security (prevent DoS)
             string? directory = Path.GetDirectoryName(fullPath);
             if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
@@ -312,7 +312,7 @@ public static class ExcelHelper
 #pragma warning disable IL2072 // COM interop is not AOT compatible but is required for Excel automation
             excel = Activator.CreateInstance(excelType);
 #pragma warning restore IL2072
-            if (excel == null) 
+            if (excel == null)
             {
                 throw new InvalidOperationException("Failed to create Excel COM instance. " +
                     "Excel may be corrupted or COM subsystem unavailable.");
@@ -355,29 +355,29 @@ public static class ExcelHelper
         finally
         {
             // Enhanced COM cleanup to prevent process leaks
-            
+
             // Close workbook first
             if (workbook != null)
             {
-                try 
-                { 
+                try
+                {
                     workbook.Close(false); // Don't save again, we already saved
-                } 
-                catch (COMException) 
-                { 
+                }
+                catch (COMException)
+                {
                     // Workbook might already be closed, ignore
-                } 
-                catch 
-                { 
+                }
+                catch
+                {
                     // Any other exception during close, ignore to continue cleanup
                 }
-                
-                try 
-                { 
-                    Marshal.ReleaseComObject(workbook); 
-                } 
-                catch 
-                { 
+
+                try
+                {
+                    Marshal.ReleaseComObject(workbook);
+                }
+                catch
+                {
                     // Release might fail, but continue cleanup
                 }
             }
@@ -385,25 +385,25 @@ public static class ExcelHelper
             // Quit Excel application
             if (excel != null)
             {
-                try 
-                { 
-                    excel.Quit(); 
-                } 
-                catch (COMException) 
-                { 
+                try
+                {
+                    excel.Quit();
+                }
+                catch (COMException)
+                {
                     // Excel might already be closing, ignore
-                } 
-                catch 
-                { 
+                }
+                catch
+                {
                     // Any other exception during quit, ignore to continue cleanup
                 }
-                
-                try 
-                { 
-                    Marshal.ReleaseComObject(excel); 
-                } 
-                catch 
-                { 
+
+                try
+                {
+                    Marshal.ReleaseComObject(excel);
+                }
+                catch
+                {
                     // Release might fail, but continue cleanup
                 }
             }
@@ -422,7 +422,7 @@ public static class ExcelHelper
             // Longer delay to ensure Excel process terminates completely
             // Excel COM can take time to shut down properly
             System.Threading.Thread.Sleep(500);
-            
+
             // Force one more GC cycle after the delay
             GC.Collect();
             GC.WaitForPendingFinalizers();

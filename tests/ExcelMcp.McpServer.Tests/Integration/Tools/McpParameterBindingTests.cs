@@ -1,8 +1,7 @@
+using System.Diagnostics;
+using System.Text.Json;
 using Xunit;
 using Xunit.Abstractions;
-using System.Text.Json;
-using System.Diagnostics;
-using System.Text;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
@@ -30,7 +29,7 @@ public class McpParameterBindingTests : IDisposable
     {
         if (_serverProcess != null)
         {
-            try 
+            try
             {
                 if (!_serverProcess.HasExited)
                 {
@@ -43,7 +42,7 @@ public class McpParameterBindingTests : IDisposable
             }
         }
         _serverProcess?.Dispose();
-        
+
         try
         {
             if (Directory.Exists(_tempDir))
@@ -64,12 +63,12 @@ public class McpParameterBindingTests : IDisposable
         // Arrange
         var server = StartMcpServer();
         await InitializeServer(server);
-        
+
         var testFile = Path.Combine(_tempDir, "binding-test.xlsx");
 
         // Act & Assert
         _output.WriteLine("=== MCP Parameter Binding Test ===");
-        
+
         // First, let's see what tools are available
         _output.WriteLine("Querying available tools...");
         var toolsListRequest = new
@@ -79,28 +78,28 @@ public class McpParameterBindingTests : IDisposable
             method = "tools/list",
             @params = new { }
         };
-        
+
         var toolsListJson = JsonSerializer.Serialize(toolsListRequest);
         _output.WriteLine($"Sending tools list: {toolsListJson}");
         await server.StandardInput.WriteLineAsync(toolsListJson);
         await server.StandardInput.FlushAsync();
-        
+
         var toolsListResponse = await server.StandardOutput.ReadLineAsync();
         _output.WriteLine($"Available tools: {toolsListResponse}");
-        
+
         // Test the original excel_file tool to see what specific error occurs
         _output.WriteLine("Testing excel_file tool through MCP framework...");
-        var response = await CallExcelTool(server, "excel_file", new 
-        { 
-            action = "create-empty", 
+        var response = await CallExcelTool(server, "excel_file", new
+        {
+            action = "create-empty",
             excelPath = testFile
         });
-        
+
         _output.WriteLine($"MCP Response: {response}");
-        
+
         // Parse response to understand what happened
         var jsonDoc = JsonDocument.Parse(response);
-        
+
         // Handle different response formats
         if (jsonDoc.RootElement.TryGetProperty("error", out var errorProperty))
         {
@@ -116,7 +115,7 @@ public class McpParameterBindingTests : IDisposable
             {
                 var errorContent = result.GetProperty("content")[0].GetProperty("text").GetString();
                 _output.WriteLine($"❌ MCP Framework Error: {errorContent}");
-                
+
                 // This is the key error we're trying to debug
                 _output.WriteLine("🔍 This confirms the MCP framework is catching and suppressing the actual error");
                 Assert.Fail($"MCP framework error: {errorContent}");
@@ -125,7 +124,7 @@ public class McpParameterBindingTests : IDisposable
             {
                 var contentText = result.GetProperty("content")[0].GetProperty("text").GetString();
                 _output.WriteLine($"✅ MCP Success: {contentText}");
-                
+
                 // Parse the tool response
                 var toolResult = JsonDocument.Parse(contentText!);
                 if (toolResult.RootElement.TryGetProperty("success", out var successElement))
@@ -157,10 +156,10 @@ public class McpParameterBindingTests : IDisposable
             if (parent == null) break;
             workspaceRoot = parent.FullName;
         }
-        
+
         var serverPath = Path.Combine(workspaceRoot, "src", "ExcelMcp.McpServer", "bin", "Debug", "net9.0", "Sbroenne.ExcelMcp.McpServer.exe");
         _output.WriteLine($"Looking for server at: {serverPath}");
-        
+
         if (!File.Exists(serverPath))
         {
             _output.WriteLine("Server not found, building first...");
@@ -217,7 +216,7 @@ public class McpParameterBindingTests : IDisposable
 
         var json = JsonSerializer.Serialize(initRequest);
         _output.WriteLine($"Sending init: {json}");
-        
+
         await server.StandardInput.WriteLineAsync(json);
         await server.StandardInput.FlushAsync();
 
@@ -243,14 +242,14 @@ public class McpParameterBindingTests : IDisposable
 
         var json = JsonSerializer.Serialize(request);
         _output.WriteLine($"Sending tool call: {json}");
-        
+
         await server.StandardInput.WriteLineAsync(json);
         await server.StandardInput.FlushAsync();
 
         var response = await server.StandardOutput.ReadLineAsync();
         _output.WriteLine($"Received tool response: {response}");
         Assert.NotNull(response);
-        
+
         return response;
     }
 }

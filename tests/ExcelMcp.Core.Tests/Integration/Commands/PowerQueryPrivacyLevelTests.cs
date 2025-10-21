@@ -1,7 +1,6 @@
-using Xunit;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
-using System.IO;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 
@@ -25,13 +24,13 @@ public class PowerQueryPrivacyLevelTests : IDisposable
     {
         _powerQueryCommands = new PowerQueryCommands();
         _fileCommands = new FileCommands();
-        
+
         // Create temp directory for test files
         _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_Privacy_Tests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
-        
+
         _testExcelFile = Path.Combine(_tempDir, "PrivacyTestWorkbook.xlsx");
-        
+
         // Create test Excel file
         CreateTestExcelFile();
     }

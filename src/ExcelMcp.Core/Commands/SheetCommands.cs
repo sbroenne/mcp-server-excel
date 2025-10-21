@@ -1,6 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Models;
 using static Sbroenne.ExcelMcp.Core.ExcelHelper;
-using System.Text;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -47,7 +46,7 @@ public class SheetCommands : ISheetCommands
             {
                 dynamic? sheet = FindSheet(workbook, sheetName);
                 if (sheet == null) { result.Success = false; result.ErrorMessage = $"Sheet '{sheetName}' not found"; return 1; }
-                
+
                 dynamic rangeObj = sheet.Range[range];
                 object[,] values = rangeObj.Value2;
                 if (values != null)
@@ -81,16 +80,16 @@ public class SheetCommands : ISheetCommands
             {
                 dynamic? sheet = FindSheet(workbook, sheetName);
                 if (sheet == null) { result.Success = false; result.ErrorMessage = $"Sheet '{sheetName}' not found"; return 1; }
-                
+
                 var data = ParseCsv(csvData);
                 if (data.Count == 0) { result.Success = false; result.ErrorMessage = "No data to write"; return 1; }
-                
+
                 int rows = data.Count, cols = data[0].Count;
                 object[,] arr = new object[rows, cols];
                 for (int r = 0; r < rows; r++)
                     for (int c = 0; c < cols; c++)
                         arr[r, c] = data[r][c];
-                
+
                 dynamic range = sheet.Range[sheet.Cells[1, 1], sheet.Cells[rows, cols]];
                 range.Value2 = arr;
                 workbook.Save();
@@ -233,19 +232,19 @@ public class SheetCommands : ISheetCommands
             {
                 dynamic? sheet = FindSheet(workbook, sheetName);
                 if (sheet == null) { result.Success = false; result.ErrorMessage = $"Sheet '{sheetName}' not found"; return 1; }
-                
+
                 dynamic usedRange = sheet.UsedRange;
                 int lastRow = usedRange.Rows.Count;
-                
+
                 var data = ParseCsv(csvData);
                 if (data.Count == 0) { result.Success = false; result.ErrorMessage = "No data to append"; return 1; }
-                
+
                 int startRow = lastRow + 1, rows = data.Count, cols = data[0].Count;
                 object[,] arr = new object[rows, cols];
                 for (int r = 0; r < rows; r++)
                     for (int c = 0; c < cols; c++)
                         arr[r, c] = data[r][c];
-                
+
                 dynamic range = sheet.Range[sheet.Cells[startRow, 1], sheet.Cells[startRow + rows - 1, cols]];
                 range.Value2 = arr;
                 workbook.Save();

@@ -1,5 +1,5 @@
-using Xunit;
 using Sbroenne.ExcelMcp.CLI.Commands;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 
@@ -19,7 +19,7 @@ public class UnitTests
     {
         // Arrange
         var commands = new FileCommands();
-        
+
         // Act & Assert - Should not throw, should return error exit code
         try
         {
@@ -42,7 +42,7 @@ public class UnitTests
     {
         // Arrange
         var commands = new PowerQueryCommands();
-        
+
         // Act
         int actualExitCode = args[0] switch
         {
@@ -50,7 +50,7 @@ public class UnitTests
             "pq-view" => commands.View(args),
             _ => throw new ArgumentException($"Unknown command: {args[0]}")
         };
-        
+
         // Assert
         Assert.Equal(expectedExitCode, actualExitCode);
     }
@@ -64,7 +64,7 @@ public class UnitTests
     {
         // Arrange
         var commands = new SheetCommands();
-        
+
         // Act
         int actualExitCode = args[0] switch
         {
@@ -72,7 +72,7 @@ public class UnitTests
             "sheet-read" => commands.Read(args),
             _ => throw new ArgumentException($"Unknown command: {args[0]}")
         };
-        
+
         // Assert
         Assert.Equal(expectedExitCode, actualExitCode);
     }
@@ -88,7 +88,7 @@ public class UnitTests
     {
         // Arrange
         var commands = new ParameterCommands();
-        
+
         // Act
         int actualExitCode = args[0] switch
         {
@@ -97,7 +97,7 @@ public class UnitTests
             "param-set" => commands.Set(args),
             _ => throw new ArgumentException($"Unknown command: {args[0]}")
         };
-        
+
         // Assert
         Assert.Equal(expectedExitCode, actualExitCode);
     }
@@ -113,7 +113,7 @@ public class UnitTests
     {
         // Arrange
         var commands = new CellCommands();
-        
+
         // Act
         int actualExitCode = args[0] switch
         {
@@ -121,7 +121,7 @@ public class UnitTests
             "cell-set-value" => commands.SetValue(args),
             _ => throw new ArgumentException($"Unknown command: {args[0]}")
         };
-        
+
         // Assert
         Assert.Equal(expectedExitCode, actualExitCode);
     }
@@ -132,7 +132,7 @@ public class UnitTests
     {
         // Arrange
         var commands = new ScriptCommands();
-        
+
         // Act & Assert - Should not throw, should return error exit code
         try
         {
@@ -147,7 +147,7 @@ public class UnitTests
         {
             // If there's an exception, the CLI should handle it gracefully
             // This test documents current behavior - CLI may have markup issues
-            Assert.True(ex is InvalidOperationException || ex is ArgumentException, 
+            Assert.True(ex is InvalidOperationException || ex is ArgumentException,
                 $"Unexpected exception type: {ex.GetType().Name}: {ex.Message}");
         }
     }

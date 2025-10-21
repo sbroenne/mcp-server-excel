@@ -1,6 +1,5 @@
-using Xunit;
 using Sbroenne.ExcelMcp.Core.Commands;
-using System.IO;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 
@@ -24,12 +23,12 @@ public class CoreParameterCommandsTests : IDisposable
     {
         _parameterCommands = new ParameterCommands();
         _fileCommands = new FileCommands();
-        
+
         _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_ParamTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
-        
+
         _testExcelFile = Path.Combine(_tempDir, "TestWorkbook.xlsx");
-        
+
         // Create test Excel file
         var result = _fileCommands.CreateEmpty(_testExcelFile);
         if (!result.Success)
@@ -81,7 +80,7 @@ public class CoreParameterCommandsTests : IDisposable
         // Arrange - Use unique parameter name to avoid conflicts
         string paramName = "SetTestParam_" + Guid.NewGuid().ToString("N")[..8];
         var createResult = _parameterCommands.Create(_testExcelFile, paramName, "Sheet1!C1");
-        
+
         // Ensure parameter was created successfully
         Assert.True(createResult.Success, $"Failed to create parameter: {createResult.ErrorMessage}");
 
@@ -99,7 +98,7 @@ public class CoreParameterCommandsTests : IDisposable
         string paramName = "GetSetParam_" + Guid.NewGuid().ToString("N")[..8];
         string testValue = "Integration Test Value";
         var createResult = _parameterCommands.Create(_testExcelFile, paramName, "Sheet1!D1");
-        
+
         // Ensure parameter was created successfully
         Assert.True(createResult.Success, $"Failed to create parameter: {createResult.ErrorMessage}");
 
@@ -179,7 +178,7 @@ public class CoreParameterCommandsTests : IDisposable
         {
             // Ignore cleanup errors
         }
-        
+
         GC.SuppressFinalize(this);
     }
 }

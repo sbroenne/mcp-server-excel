@@ -1,6 +1,6 @@
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.Core.Models;
 using static Sbroenne.ExcelMcp.Core.ExcelHelper;
-using System.Runtime.InteropServices;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
