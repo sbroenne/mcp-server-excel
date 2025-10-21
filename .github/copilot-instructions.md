@@ -431,8 +431,48 @@ public int MyCommand(string[] args)
 - Workbook.Open()
 - Workbook.Close()
 - Excel.Quit()
-- COM object cleanup
-- Garbage collection (multiple cycles)
+- COM object cleanup with `Marshal.ReleaseComObject()`
+- Garbage collection (optimized 2-cycle pattern)
+- Proper null assignment
+
+**IMPORTANT: Release intermediate COM objects to prevent Excel from staying open:**
+
+```csharp
+public int MyCommand(string[] args)
+{
+    return ExcelHelper.WithExcel(filePath, save: false, (excel, workbook) =>
+    {
+        dynamic? queries = null;
+        try
+        {
+            queries = workbook.Queries; // COM object created
+            
+            for (int i = 1; i <= queries.Count; i++)
+            {
+                dynamic? query = null;
+                try
+                {
+                    query = queries.Item(i); // Another COM object
+                    // Use query...
+                }
+                finally
+                {
+                    ExcelHelper.ReleaseComObject(ref query); // Release it!
+                }
+            }
+            
+            return 0;
+        }
+        finally
+        {
+            ExcelHelper.ReleaseComObject(ref queries); // Release it!
+        }
+    });
+}
+```
+
+**Common mistake:** Not releasing intermediate objects like `sheet`, `cell`, `queries`, `connections`, etc.
+This causes GC pressure and prevents Excel from closing properly.
 - Process termination delay
 
 **Never manually manage Excel lifecycle - always use the helper!**

@@ -159,6 +159,8 @@ public static class ExcelHelper
                 {
                     // Release might fail, but continue cleanup
                 }
+                
+                workbook = null;
             }
 
             // Quit Excel application
@@ -185,26 +187,16 @@ public static class ExcelHelper
                 {
                     // Release might fail, but continue cleanup
                 }
+                
+                excel = null;
             }
 
-            // Aggressive cleanup
-            workbook = null;
-            excel = null;
-
-            // Enhanced garbage collection - run multiple cycles
-            for (int i = 0; i < 5; i++)
-            {
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-            }
-
-            // Longer delay to ensure Excel process terminates completely
-            // Excel COM can take time to shut down properly
-            System.Threading.Thread.Sleep(500);
-
-            // Force one more GC cycle after the delay
+            // Recommended COM cleanup pattern: 
+            // Two GC cycles are sufficient - one to collect, one to finalize
+            // Microsoft recommends against excessive GC.Collect() calls
             GC.Collect();
             GC.WaitForPendingFinalizers();
+            GC.Collect(); // Final collect to clean up objects queued during finalization
         }
     }
 
@@ -380,6 +372,8 @@ public static class ExcelHelper
                 {
                     // Release might fail, but continue cleanup
                 }
+                
+                workbook = null;
             }
 
             // Quit Excel application
@@ -406,26 +400,55 @@ public static class ExcelHelper
                 {
                     // Release might fail, but continue cleanup
                 }
+                
+                excel = null;
             }
 
-            // Aggressive cleanup
-            workbook = null;
-            excel = null;
-
-            // Enhanced garbage collection - run multiple cycles
-            for (int i = 0; i < 5; i++)
-            {
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-            }
-
-            // Longer delay to ensure Excel process terminates completely
-            // Excel COM can take time to shut down properly
-            System.Threading.Thread.Sleep(500);
-
-            // Force one more GC cycle after the delay
+            // Recommended COM cleanup pattern: 
+            // Two GC cycles are sufficient - one to collect, one to finalize
+            // Microsoft recommends against excessive GC.Collect() calls
             GC.Collect();
             GC.WaitForPendingFinalizers();
+            GC.Collect(); // Final collect to clean up objects queued during finalization
+        }
+    }
+
+    /// <summary>
+    /// Safely releases a COM object and sets the reference to null
+    /// </summary>
+    /// <param name="comObject">The COM object to release</param>
+    /// <remarks>
+    /// Use this helper to release intermediate COM objects (like ranges, worksheets, queries)
+    /// to prevent Excel process from staying open. This is especially important when
+    /// iterating through collections or accessing multiple COM properties.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// dynamic? queries = null;
+    /// try
+    /// {
+    ///     queries = workbook.Queries;
+    ///     // Use queries...
+    /// }
+    /// finally
+    /// {
+    ///     ReleaseComObject(ref queries);
+    /// }
+    /// </code>
+    /// </example>
+    public static void ReleaseComObject<T>(ref T? comObject) where T : class
+    {
+        if (comObject != null)
+        {
+            try
+            {
+                Marshal.ReleaseComObject(comObject);
+            }
+            catch
+            {
+                // Ignore errors during release
+            }
+            comObject = null;
         }
     }
 
