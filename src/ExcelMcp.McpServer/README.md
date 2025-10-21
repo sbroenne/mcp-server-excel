@@ -57,7 +57,7 @@ dotnet run --project src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
 
 ## 🛠️ Resource-Based Tools
 
-The MCP server provides **6 focused resource-based tools** optimized for AI coding agents. Each tool handles only Excel-specific operations:
+The MCP server provides **7 focused resource-based tools** optimized for AI coding agents. Each tool handles only Excel-specific operations:
 
 ### 1. **`excel_file`** - Excel File Creation 🎯
 
@@ -75,7 +75,17 @@ The MCP server provides **6 focused resource-based tools** optimized for AI codi
 - Configure data loading modes and refresh connections
 - 🎯 **LLM-Optimized**: AI can analyze and refactor M code for performance
 
-### 3. **`excel_worksheet`** - Worksheet Operations & Bulk Data 📊
+### 3. **`excel_connection`** - Data Connection Management 🔌
+
+**Actions**: `list`, `view`, `import`, `export`, `update`, `refresh`, `delete`, `loadto`, `properties`, `set-properties`, `test` (11 actions)
+
+- Manage OLEDB, ODBC, Text, Web, and other Excel data connections
+- Import/export connection definitions for version control
+- Configure connection properties (background query, refresh settings, password handling)
+- 🎯 **LLM-Optimized**: AI can manage external data sources and refresh strategies
+- 🔒 **Security**: Automatic password sanitization in all outputs
+
+### 4. **`excel_worksheet`** - Worksheet Operations & Bulk Data 📊
 
 **Actions**: `list`, `read`, `write`, `create`, `rename`, `copy`, `delete`, `clear`, `append` (9 actions)  
 
@@ -83,7 +93,7 @@ The MCP server provides **6 focused resource-based tools** optimized for AI codi
 - CSV import/export and data processing capabilities
 - 🎯 **LLM-Optimized**: Bulk operations reduce the number of tool calls needed
 
-### 4. **`excel_parameter`** - Named Ranges as Configuration ⚙️
+### 5. **`excel_parameter`** - Named Ranges as Configuration ⚙️
 
 **Actions**: `list`, `get`, `set`, `create`, `delete` (5 actions)
 
@@ -91,7 +101,7 @@ The MCP server provides **6 focused resource-based tools** optimized for AI codi
 - Parameter-driven workbook automation and templating
 - 🎯 **LLM-Optimized**: AI can dynamically configure Excel behavior via parameters
 
-### 5. **`excel_cell`** - Individual Cell Precision Operations 🎯
+### 6. **`excel_cell`** - Individual Cell Precision Operations 🎯
 
 **Actions**: `get-value`, `set-value`, `get-formula`, `set-formula` (4 actions)
 
@@ -99,7 +109,7 @@ The MCP server provides **6 focused resource-based tools** optimized for AI codi
 - Individual cell operations when bulk operations aren't appropriate
 - 🎯 **LLM-Optimized**: Perfect for AI formula generation and cell-specific logic
 
-### 6. **`excel_vba`** - VBA Macro Management & Execution 📜
+### 7. **`excel_vba`** - VBA Macro Management & Execution 📜
 
 **Actions**: `list`, `export`, `import`, `update`, `run`, `delete` (6 actions) ⚠️ *(.xlsm files only)*
 
@@ -131,6 +141,22 @@ Result: {"success": true, "action": "list", "filePath": "sales-report.xlsx"}
 User: "Export the M code for the 'CustomerData' query"
 AI Assistant uses: excel_powerquery(action="export", filePath="sales-report.xlsx", queryName="CustomerData", sourceOrTargetPath="customer-query.pq")
 Result: {"success": true, "action": "export", "filePath": "sales-report.xlsx"}
+```
+
+### Connection Management
+
+```text
+User: "Show me all data connections in my workbook"
+AI Assistant uses: excel_connection(action="list", excelPath="data-analysis.xlsx")
+Result: {"success": true, "connections": [{"name": "SalesDB", "type": "OLEDB", "isPowerQuery": false}]}
+
+User: "Refresh the SalesDB connection to get latest data"
+AI Assistant uses: excel_connection(action="refresh", excelPath="data-analysis.xlsx", connectionName="SalesDB")
+Result: {"success": true, "message": "Connection 'SalesDB' refreshed successfully"}
+
+User: "Export the connection definition for version control"
+AI Assistant uses: excel_connection(action="export", excelPath="data-analysis.xlsx", connectionName="SalesDB", targetPath="salesdb-connection.json")
+Result: {"success": true, "message": "Connection exported to salesdb-connection.json"}
 ```
 
 ### Worksheet Operations

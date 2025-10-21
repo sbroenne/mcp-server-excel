@@ -2,7 +2,62 @@
 
 > **📎 Related Instructions:** For projects using excelcli in other repositories, copy `docs/excel-powerquery-vba-copilot-instructions.md` to your project's `.github/copilot-instructions.md` for specialized Excel automation support.
 
-## 🔄 **CRITICAL: Continuous Learning Rule**
+## � **CRITICAL: No NotImplementedException - Full Implementation Required**
+
+**⛔ ABSOLUTE RULE: NotImplementedException is NEVER acceptable in any feature, command, or operation.**
+
+**This applies to ALL features:**
+- ✅ Power Query operations (list, view, import, export, update, refresh, delete, etc.)
+- ✅ Connection management (list, view, import, export, update, refresh, delete, etc.)
+- ✅ VBA operations (list, export, import, update, run, delete)
+- ✅ Worksheet operations (list, read, write, create, rename, copy, delete, clear, append)
+- ✅ Parameter management (list, get, set, create, delete)
+- ✅ Cell operations (get-value, set-value, get-formula, set-formula)
+- ✅ File operations (create-empty)
+- ✅ Any new features or commands added in the future
+
+**When implementing ANY feature:**
+1. ❌ **DO NOT** throw NotImplementedException and call it "complete"
+2. ❌ **DO NOT** create placeholder methods that don't work
+3. ❌ **DO NOT** write tests against non-functional code
+4. ❌ **DO NOT** test only error scenarios (FileNotFoundException, empty workbooks)
+5. ✅ **DO** implement full Excel COM interop for all operations
+6. ✅ **DO** create test helpers that create real Excel objects (connections, queries, VBA modules, worksheets, parameters)
+7. ✅ **DO** ensure all tests pass with real Excel operations, not mocks or empty objects
+8. ✅ **DO** verify operations work end-to-end with actual Excel data
+
+**If a feature requires Excel COM APIs you're unfamiliar with:**
+- Research the Excel Object Model documentation (https://docs.microsoft.com/en-us/office/vba/api/overview/excel)
+- Look at similar implementations in existing commands (PowerQueryCommands, ScriptCommands, SheetCommands)
+- Use existing ExcelHelper utilities (FindConnection, FindQuery, CreateQueryTable, etc.)
+- Ask for guidance on the specific COM API needed
+- Implement incrementally with tests at each step
+- Test with real Excel workbooks, not empty files
+
+**Feature completion checklist (applies to EVERY feature):**
+- [ ] All Core methods implemented with working Excel COM interop
+- [ ] CLI commands call Core methods and handle results
+- [ ] MCP Server tools expose Core functionality via protocol
+- [ ] Integration tests create real Excel objects and verify operations work correctly
+- [ ] Round trip tests exercise complete workflows with real data
+- [ ] Zero NotImplementedException in codebase
+- [ ] All tests pass (not just compile)
+- [ ] Operations tested with actual Excel data, not just error scenarios
+
+**NotImplementedException is only acceptable for:**
+- Explicitly documented future enhancements (marked with TODO and GitHub issue)
+- Features explicitly agreed to be out-of-scope (documented in specs)
+
+**Never acceptable:**
+- ❌ "Import works but throws NotImplementedException" - NOT ACCEPTABLE
+- ❌ "Tests pass but only test FileNotFoundException" - NOT ACCEPTABLE
+- ❌ "Round trip tests written but fail because no test data" - NOT ACCEPTABLE
+- ❌ "Feature complete but one method not implemented" - NOT ACCEPTABLE
+
+**Why this matters:**
+Throwing NotImplementedException and writing tests against non-functional code wastes time and creates false confidence. It gives the appearance of completion while providing zero actual functionality. Always implement the full functionality before moving to the next phase.
+
+## �🔄 **CRITICAL: Continuous Learning Rule**
 
 **After completing any significant task, GitHub Copilot MUST update these instructions with:**
 1. ✅ **Lessons learned** - Key insights, mistakes prevented, patterns discovered
@@ -46,7 +101,7 @@
 
 **This proactive approach ensures continuous knowledge accumulation and prevents future AI sessions from encountering the same problems.**
 
-## 🚨 **CRITICAL: MCP Server Documentation Accuracy (December 2024)**
+## 🚨 **CRITICAL: MCP Server Documentation Accuracy**
 
 ### **PowerQuery Refresh Action Was Missing**
 
@@ -334,7 +389,7 @@ for %%f in (*.xlsx) do (
 - **1-Based Indexing** - Excel uses 1-based collection indexing
 - **Error Resilient** - Comprehensive error handling for COM exceptions
 
-## 🎯 **MCP Server Refactoring Success (October 2025)**
+## 🎯 **MCP Server Refactoring Success**
 
 ### **From Monolithic to Modular Architecture**
 
@@ -1749,7 +1804,7 @@ public async Task Import_WithBrokenQuery_AutoRefreshDetectsError()
 - **Execution Time**: ~8.3 minutes (average ~24 seconds per test)
 - **Coverage**: Auto-refresh, config preservation, workflow guidance, error capture, edge cases
 
-## 🎯 **Test Organization Success & Lessons Learned (October 2025)**
+## 🎯 **Test Organization Success & Lessons Learned**
 
 ### **Three-Tier Test Architecture Implementation**
 
@@ -1860,7 +1915,7 @@ dotnet test
 
 This architecture **scales** as the project grows and **enables** both rapid development and comprehensive quality assurance.
 
-## 🏷️ **CRITICAL: Test Naming and Trait Standardization (October 2025)**
+## 🏷️ **CRITICAL: Test Naming and Trait Standardization**
 
 ### **Problem: Duplicate Test Class Names Breaking FQDN Filtering**
 
@@ -2355,7 +2410,7 @@ When users ask to make changes:
 - Follow security best practices
 - Use proper commit messages
 
-## 🎉 **Test Architecture Success & MCP Server Refactoring (October 2025)**
+## 🎉 **Test Architecture Success & MCP Server Refactoring**
 
 ### **MCP Server Modular Refactoring Complete**
 - **Problem**: Monolithic 649-line `ExcelTools.cs` difficult for LLMs to understand  
@@ -2379,7 +2434,7 @@ When users ask to make changes:
 - **Error Context**: Include detailed error messages for debugging
 - **Async Compatibility**: Properly handle Task results vs Task objects in serialization
 
-### **CLI Test Coverage Expansion Complete (October 2025)**
+### **CLI Test Coverage Expansion Complete**
 
 **Problem**: CLI tests had minimal coverage (5 tests, only FileCommands) with compilation errors and ~2% command coverage.
 
@@ -2411,7 +2466,7 @@ When users ask to make changes:
 
 **Lesson Learned**: CLI test coverage is essential for validating user-facing behavior. Tests should focus on presentation layer concerns (argument parsing, exit codes, error handling) without duplicating Core business logic tests. A comprehensive test suite catches CLI-specific issues like markup problems and path validation bugs.
 
-### **MCP Server Exception Handling Migration (October 2025)**
+### **MCP Server Exception Handling Migration**
 
 **Problem**: MCP Server tools were returning JSON error objects instead of throwing exceptions, not following official Microsoft MCP SDK best practices.
 
@@ -2524,7 +2579,7 @@ switch (action.ToLowerInvariant())
 
 **Lesson Learned**: MCP SDK simplifies error handling by letting the framework serialize exceptions into protocol-compliant error responses. Throwing exceptions is cleaner than manually constructing JSON, provides better type safety, and follows the official SDK pattern. Always verify SDK documentation rather than assuming patterns from other frameworks. Hidden hardcoded values (like `macroEnabled=false`) can cause subtle bugs that only appear in specific use cases.
 
-### **🚨 CRITICAL: LLM-Optimized Error Messages (October 2025)**
+### **🚨 CRITICAL: LLM-Optimized Error Messages**
 
 **Problem**: Generic error messages like "An error occurred invoking 'tool_name'" provide **zero diagnostic value** for LLMs trying to debug issues. When an AI assistant sees this message, it cannot determine:
 - What type of error occurred (file not found, permission denied, invalid parameter, etc.)
@@ -2594,7 +2649,7 @@ public static void ThrowInternalError(Exception ex, string action, string? fileP
 
 **Lesson Learned**: Error messages are **documentation for failure cases**. LLMs rely on detailed error messages to diagnose and fix issues. Generic errors force LLMs to guess, leading to trial-and-error debugging instead of targeted solutions. Investing in comprehensive error messages pays dividends in AI-assisted development quality.
 
-### **🔍 Known Issue: MCP SDK Exception Wrapping (October 2025)**
+### **🔍 Known Issue: MCP SDK Exception Wrapping**
 
 **Problem Discovered**: After implementing enhanced error handling with detailed McpException messages throughout all VBA methods, test still shows generic error:
 ```json
@@ -2719,3 +2774,154 @@ This represents a **fundamental improvement** in AI-assisted development UX - fu
 This demonstrates excelcli's **production-ready quality** with **comprehensive test coverage across all layers** and **optimal LLM architecture**.
 
 This project demonstrates the power of GitHub Copilot for creating sophisticated, production-ready CLI tools with proper architecture, comprehensive testing, excellent user experience, **professional development workflows**, and **cutting-edge MCP server integration** for AI-assisted Excel development.
+
+## 🎯 **Feature Development Best Practices**
+
+### **Specification-Driven Development**
+
+**Lesson Learned**: **Always create comprehensive specification before implementation** - prevents scope creep and costly rework.
+
+**Required Specification Components**:
+1. **COM API Research**: Verify Excel Object Model capabilities against official Microsoft documentation
+2. **DRY Analysis**: Identify shared utilities before duplicating code across features
+3. **Security Requirements**: Define security policies (password sanitization, defaults, etc.)
+4. **Testing Strategy**: Plan test coverage (unit, integration, round trip) with clear criteria
+5. **Implementation Phases**: Break work into clear phases with dependencies
+
+**Why This Matters**: Taking time to research COM API capabilities, analyze DRY opportunities, and design comprehensive testing strategy upfront saves hours of refactoring later. This approach is especially critical for AI-assisted development where LLMs need complete context to generate correct code.
+
+### **DRY (Don't Repeat Yourself) Compliance**
+
+**Lesson Learned**: **Extract shared utilities FIRST before building new features** - prevents duplication and establishes tested building blocks.
+
+**DRY Refactoring Process**:
+1. **Analyze Existing Code**: Identify duplicated patterns across similar commands
+2. **Extract to Shared Utilities**: Move common operations to ExcelHelper.cs or similar
+3. **Refactor Existing Code**: Update existing features to use shared utilities
+4. **Test Shared Utilities**: Create unit tests for extracted utilities
+5. **Build New Features**: Use shared utilities from the start
+
+**Examples of Shared Utilities**:
+- Connection/Query finding: `FindConnection()`, `FindQuery()`
+- Type identification: `GetConnectionTypeName()`, `IsPowerQueryConnection()`
+- Security: `SanitizeConnectionString()` for password masking
+- Cleanup: `RemoveConnections()`, `RemoveQueryTables()`
+- Creation: `CreateQueryTable()` with configurable options
+
+**Why This Matters**: Shared utilities prevent 60+ lines of duplicate code per feature and ensure consistent behavior across operations.
+
+### **Security-First Design**
+
+**Lesson Learned**: **Design security requirements from the start** - retrofitting security is error-prone.
+
+**Security Principles**:
+- **Sensitive Data**: Sanitize passwords, connection strings, credentials in ALL outputs
+- **Secure Defaults**: `SavePassword = false`, never export credentials by default
+- **User Consent**: Require explicit parameters for security-sensitive operations
+- **Clear Warnings**: Inform users when operations affect security (Power Query privacy levels, VBA trust)
+
+### **Test Helper Pattern for Excel COM Operations**
+
+**Lesson Learned**: Integration and round trip tests need **test helpers that create real Excel objects via COM interop**.
+
+**Test Helper Implementation Pattern**:
+```csharp
+public static class ConnectionTestHelper
+{
+    public static void CreateOleDbConnection(string filePath, string connectionName, string connectionString)
+    {
+        ExcelHelper.WithExcel(filePath, save: true, (excel, workbook) =>
+        {
+            dynamic connections = workbook.Connections;
+            dynamic newConnection = connections.Add2(
+                Name: connectionName,
+                Description: "Test connection",
+                ConnectionString: connectionString,
+                CommandText: "",
+                lCmdtype: null,
+                CreateModelConnection: false,
+                ImportRelationships: false
+            );
+            
+            // Configure properties as needed
+            if (newConnection.Type == 1) // OLEDB
+            {
+                dynamic oledb = newConnection.OLEDBConnection;
+                oledb.BackgroundQuery = true;
+                oledb.RefreshOnFileOpen = false;
+            }
+            
+            return 0;
+        });
+    }
+}
+```
+
+**Why This Matters**: 
+- Tests that operate on empty workbooks or mock objects provide **zero validation**
+- Test helpers create real Excel state for integration tests
+- Enables testing complete workflows with actual Excel operations
+
+**Pattern Applies To**:
+- Creating connections (OLEDB, ODBC, Text, Web)
+- Creating Power Query connections
+- Importing VBA modules
+- Creating named ranges
+- Setting up worksheets with data
+
+### **Phased Implementation Strategy**
+
+**Lesson Learned**: Break large features into focused phases with clear dependencies.
+
+**Recommended Phase Structure**:
+
+1. **Phase 0: Shared Utilities** (MANDATORY FIRST)
+   - Extract common patterns to shared helpers
+   - Refactor existing code to use utilities
+   - Create unit tests for utilities
+   - Prevents duplication in new feature
+
+2. **Phase 1: Core Implementation**
+   - Implement business logic with full COM interop
+   - Create comprehensive tests (unit + integration + round trip)
+   - Security: Implement sanitization and validation
+   - Error handling: Clear messages for all failure modes
+
+3. **Phase 2: CLI Layer**
+   - Create CLI commands calling Core methods
+   - Implement Spectre.Console formatting
+   - CLI-specific tests (argument parsing, exit codes)
+
+4. **Phase 3: MCP Server Integration**
+   - Create MCP tool with action-based routing
+   - Update server.json configuration
+   - MCP Server tests (JSON responses, protocol)
+
+5. **Phase 4: Documentation**
+   - Update README, COMMANDS.md
+   - Create usage examples
+   - Update architecture documentation
+
+**Why This Matters**: Clear phases prevent scope creep, enable incremental progress tracking, and ensure each layer builds on a solid foundation.
+
+### **Common Excel COM Pitfalls to Avoid**
+
+**Lesson Learned**: Document Excel-specific gotchas discovered during implementation.
+
+**RefreshAll() Hangs**:
+- ❌ `workbook.RefreshAll()` + `CalculateUntilAsyncQueriesDone()` hangs indefinitely
+- ✅ Iterate connections and refresh individually
+
+**Privacy Levels Are Power Query Specific**:
+- ❌ Privacy levels don't apply to regular connections (OLEDB, ODBC, Text)
+- ✅ Only Power Query M code connections combining multiple sources need privacy levels
+
+**Named Range Format**:
+- ❌ `namesCollection.Add("Param", "Sheet1!A1")` - Missing `=` prefix causes RefersToRange to fail
+- ✅ `namesCollection.Add("Param", "=Sheet1!A1")` - Correct Excel formula format
+
+**Power Query Connection Detection**:
+- Check connection provider for "Microsoft.Mashup.OleDb" string
+- Check connection name starts with "Query - "
+- Must redirect users to `pq-*` commands for Power Query operations
+

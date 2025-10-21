@@ -576,3 +576,132 @@ public class PowerQueryErrorCheckResult : ResultBase
     /// </summary>
     public string? Message { get; set; }
 }
+
+#region Connection Result Types
+
+/// <summary>
+/// Result for listing connections in a workbook
+/// </summary>
+public class ConnectionListResult : ResultBase
+{
+    /// <summary>
+    /// List of connections in the workbook
+    /// </summary>
+    public List<ConnectionInfo> Connections { get; set; } = new();
+}
+
+/// <summary>
+/// Information about a connection
+/// </summary>
+public class ConnectionInfo
+{
+    /// <summary>
+    /// Connection name
+    /// </summary>
+    public string Name { get; init; } = "";
+    
+    /// <summary>
+    /// Connection description
+    /// </summary>
+    public string? Description { get; init; }
+    
+    /// <summary>
+    /// Connection type (OLEDB, ODBC, XML, Text, Web, DataFeed, Model, Worksheet, NoSource)
+    /// </summary>
+    public string Type { get; init; } = "";
+    
+    /// <summary>
+    /// Last refresh date/time (if available)
+    /// </summary>
+    public DateTime? LastRefresh { get; init; }
+    
+    /// <summary>
+    /// Whether the connection refreshes in background
+    /// </summary>
+    public bool BackgroundQuery { get; init; }
+    
+    /// <summary>
+    /// Whether the connection refreshes when file opens
+    /// </summary>
+    public bool RefreshOnFileOpen { get; init; }
+    
+    /// <summary>
+    /// Whether this is a Power Query connection
+    /// </summary>
+    public bool IsPowerQuery { get; init; }
+}
+
+/// <summary>
+/// Result for viewing connection details
+/// </summary>
+public class ConnectionViewResult : ResultBase
+{
+    /// <summary>
+    /// Connection name
+    /// </summary>
+    public string ConnectionName { get; set; } = "";
+    
+    /// <summary>
+    /// Connection type (OLEDB, ODBC, XML, Text, Web, DataFeed, Model, Worksheet, NoSource)
+    /// </summary>
+    public string Type { get; set; } = "";
+    
+    /// <summary>
+    /// Connection string (SANITIZED - passwords masked)
+    /// </summary>
+    public string ConnectionString { get; set; } = "";
+    
+    /// <summary>
+    /// Command text (SQL query, M code reference, etc.)
+    /// </summary>
+    public string? CommandText { get; set; }
+    
+    /// <summary>
+    /// Command type (SQL, Table, Default, etc.)
+    /// </summary>
+    public string? CommandType { get; set; }
+    
+    /// <summary>
+    /// Whether this is a Power Query connection
+    /// </summary>
+    public bool IsPowerQuery { get; set; }
+    
+    /// <summary>
+    /// Full connection definition as JSON
+    /// </summary>
+    public string DefinitionJson { get; set; } = "";
+}
+
+/// <summary>
+/// Result for getting connection properties
+/// </summary>
+public class ConnectionPropertiesResult : ResultBase
+{
+    /// <summary>
+    /// Connection name
+    /// </summary>
+    public string ConnectionName { get; set; } = "";
+    
+    /// <summary>
+    /// Whether the connection refreshes in background
+    /// </summary>
+    public bool BackgroundQuery { get; set; }
+    
+    /// <summary>
+    /// Whether the connection refreshes when file opens
+    /// </summary>
+    public bool RefreshOnFileOpen { get; set; }
+    
+    /// <summary>
+    /// Whether password is saved with connection
+    /// </summary>
+    public bool SavePassword { get; set; }
+    
+    /// <summary>
+    /// Refresh period in minutes (0 = no automatic refresh)
+    /// </summary>
+    public int RefreshPeriod { get; set; }
+}
+
+#endregion
+
