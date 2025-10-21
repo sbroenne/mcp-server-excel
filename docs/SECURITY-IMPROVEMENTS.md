@@ -60,12 +60,14 @@ public static class PathValidator
 **Security Controls Implemented**:
 
 1. **Path Normalization**: Uses `Path.GetFullPath()` to resolve relative paths and normalize format
-2. **Length Validation**: Enforces Windows path length limit (32,767 characters)
-3. **Character Validation**: Checks for invalid path characters
-4. **Existence Validation**: Verifies input files exist before operations
+2. **Length Validation**: Enforces Windows path length limit (32,767 characters) - DoS prevention
+3. **File Existence Validation**: Verifies input files exist before operations
+4. **File Size Validation**: Limits input files to 100MB to prevent DoS attacks from extremely large files
 5. **Directory Creation**: Safely creates directories for output files
 6. **Extension Whitelist**: Validates file extensions against allowed list
 7. **Comprehensive Error Handling**: Provides clear error messages without leaking sensitive information
+
+**Note**: `Path.GetFullPath()` already validates path characters, so additional character validation is redundant and has been removed for simplicity.
 
 **Validation Examples**:
 
@@ -162,11 +164,12 @@ Already implements comprehensive validation:
 - ✅ Validate output file paths before writing
 - ✅ Use Path.GetFullPath() for path normalization
 - ✅ Add comprehensive error handling
+- ✅ Add file size validation (100MB limit) to prevent DoS attacks
+- ✅ Remove redundant character validation (GetFullPath already validates)
 
 ### Future Enhancements
-- Consider adding file size limits for input files (DoS prevention)
-- Consider implementing file type validation (magic number checks)
-- Consider adding rate limiting for file operations
+- Consider implementing configurable file size limits per operation type
+- Consider adding rate limiting for file operations if exposed via web API
 - Consider logging security events for audit purposes
 
 ## References
@@ -178,7 +181,13 @@ Already implements comprehensive validation:
 
 ## Changelog
 
-**2025-10-21**
+**2025-10-21 (Update 2)**
+- Added file size validation (100MB limit) to prevent DoS attacks
+- Removed redundant character validation (Path.GetFullPath already validates)
+- Added test for file size validation parameter
+- Optimized PathValidator implementation
+
+**2025-10-21 (Initial)**
 - Created PathValidator security helper class
 - Added path validation to PowerQueryCommands (Import, Update, Export)
 - Added path validation to ScriptCommands (Import, Update, Export)

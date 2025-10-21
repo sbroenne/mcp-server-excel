@@ -13,6 +13,11 @@ public static class PathValidator
     private const int MaxPathLength = 32767;
 
     /// <summary>
+    /// Maximum allowed file size for input files (100MB) to prevent DoS attacks
+    /// </summary>
+    private const long MaxInputFileSize = 100 * 1024 * 1024;
+
+    /// <summary>
     /// Validates and normalizes a file path to prevent path traversal attacks
     /// </summary>
     /// <param name="path">The file path to validate</param>
@@ -37,7 +42,7 @@ public static class PathValidator
             throw new ArgumentException($"Invalid path format: {ex.Message}", parameterName, ex);
         }
 
-        // Check for path length limits
+        // Check for path length limits (DoS prevention)
         if (fullPath.Length > MaxPathLength)
         {
             throw new ArgumentException(
@@ -45,11 +50,7 @@ public static class PathValidator
                 parameterName);
         }
 
-        // Check for invalid path characters (additional validation beyond GetFullPath)
-        if (fullPath.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
-        {
-            throw new ArgumentException("Path contains invalid characters", parameterName);
-        }
+        // Note: Path.GetFullPath() already validates characters, so no need for additional check
 
         return fullPath;
     }
@@ -59,16 +60,30 @@ public static class PathValidator
     /// </summary>
     /// <param name="path">The file path to validate</param>
     /// <param name="parameterName">Name of the parameter for error messages</param>
+    /// <param name="validateSize">Whether to validate file size (default: true)</param>
     /// <returns>The normalized full path</returns>
-    /// <exception cref="ArgumentException">Thrown if path is invalid</exception>
+    /// <exception cref="ArgumentException">Thrown if path is invalid or file is too large</exception>
     /// <exception cref="FileNotFoundException">Thrown if file does not exist</exception>
-    public static string ValidateExistingFile(string path, string parameterName = "path")
+    public static string ValidateExistingFile(string path, string parameterName = "path", bool validateSize = true)
     {
         string fullPath = ValidateAndNormalizePath(path, parameterName);
 
         if (!File.Exists(fullPath))
         {
             throw new FileNotFoundException($"File not found: {fullPath}", fullPath);
+        }
+
+        // Validate file size to prevent DoS attacks from extremely large files
+        if (validateSize)
+        {
+            var fileInfo = new FileInfo(fullPath);
+            if (fileInfo.Length > MaxInputFileSize)
+            {
+                throw new ArgumentException(
+                    $"File too large: {fileInfo.Length:N0} bytes (maximum: {MaxInputFileSize:N0} bytes = 100MB). " +
+                    "This limit prevents denial-of-service attacks from processing extremely large files.",
+                    parameterName);
+            }
         }
 
         return fullPath;
