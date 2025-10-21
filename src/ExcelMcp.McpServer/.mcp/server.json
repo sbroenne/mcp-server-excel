@@ -1,49 +1,22 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
-  "name": "io.github.sbroenne/mcp-server-excel",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
   "description": "MCP server for Excel automation - Power Query refactoring, VBA enhancement, Excel development",
+  "name": "io.github.sbroenne/mcp-server-excel",
   "version": "1.0.0",
-  "title": "Excel MCP Server",
-  "websiteUrl": "https://github.com/sbroenne/mcp-server-excel",
-  "repository": {
-    "url": "https://github.com/sbroenne/mcp-server-excel",
-    "source": "github",
-    "subfolder": "src/ExcelMcp.McpServer"
-  },
   "packages": [
     {
       "registryType": "nuget",
-      "registryBaseUrl": "https://api.nuget.org",
       "identifier": "Sbroenne.ExcelMcp.McpServer",
       "version": "1.0.0",
-      "runtimeHint": "dnx",
       "transport": {
         "type": "stdio"
       },
-      "packageArguments": [
-        {
-          "type": "positional",
-          "value": "--yes"
-        }
-      ],
-      "environmentVariables": [
-        {
-          "name": "EXCEL_PATH", 
-          "description": "Path to Excel installation (optional - auto-detected)",
-          "isRequired": false
-        }
-      ]
+      "packageArguments": [],
+      "environmentVariables": []
     }
   ],
-  "_meta": {
-    "io.modelcontextprotocol.registry/publisher-provided": {
-      "tool": "dotnet-publisher",
-      "version": "10.0.0",
-      "build_info": {
-        "dotnet_version": "10.0.0",
-        "target_framework": "net9.0",
-        "configuration": "Release"
-      }
-    }
+  "repository": {
+    "url": "https://github.com/sbroenne/mcp-server-excel",
+    "source": "github"
   }
 }
