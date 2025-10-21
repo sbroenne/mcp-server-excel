@@ -599,6 +599,7 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? query = null;
             try
             {
                 // Apply privacy level if specified
@@ -607,7 +608,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                     ApplyPrivacyLevel(workbook, privacyLevel.Value);
                 }
 
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     var queryNames = GetQueryNames(workbook);
@@ -643,6 +644,10 @@ public class PowerQueryCommands : IPowerQueryCommands
                 result.Success = false;
                 result.ErrorMessage = $"Error updating query: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ExcelHelper.ReleaseComObject(ref query);
             }
         });
 
@@ -778,9 +783,10 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, false, (excel, workbook) =>
         {
+            dynamic? query = null;
             try
             {
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     var queryNames = GetQueryNames(workbook);
@@ -806,6 +812,10 @@ public class PowerQueryCommands : IPowerQueryCommands
                 result.Success = false;
                 result.ErrorMessage = $"Error exporting query: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ExcelHelper.ReleaseComObject(ref query);
             }
         });
 
@@ -844,6 +854,9 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? existingQuery = null;
+            dynamic? queriesCollection = null;
+            dynamic? newQuery = null;
             try
             {
                 // Apply privacy level if specified
@@ -853,7 +866,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
 
                 // Check if query already exists
-                dynamic existingQuery = FindQuery(workbook, queryName);
+                existingQuery = FindQuery(workbook, queryName);
                 if (existingQuery != null)
                 {
                     result.Success = false;
@@ -862,8 +875,8 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
 
                 // Add new query
-                dynamic queriesCollection = workbook.Queries;
-                dynamic newQuery = queriesCollection.Add(queryName, mCode);
+                queriesCollection = workbook.Queries;
+                newQuery = queriesCollection.Add(queryName, mCode);
 
                 result.Success = true;
                 return 0;
@@ -883,6 +896,12 @@ public class PowerQueryCommands : IPowerQueryCommands
                 result.Success = false;
                 result.ErrorMessage = $"Error importing query: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ExcelHelper.ReleaseComObject(ref newQuery);
+                ExcelHelper.ReleaseComObject(ref queriesCollection);
+                ExcelHelper.ReleaseComObject(ref existingQuery);
             }
         });
 
