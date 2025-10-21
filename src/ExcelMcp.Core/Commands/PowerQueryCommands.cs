@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Security;
 using static Sbroenne.ExcelMcp.Core.ExcelHelper;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -488,10 +489,15 @@ public class PowerQueryCommands : IPowerQueryCommands
             return result;
         }
 
-        if (!File.Exists(mCodeFile))
+        // Validate and normalize the M code file path to prevent path traversal attacks
+        try
+        {
+            mCodeFile = PathValidator.ValidateExistingFile(mCodeFile, nameof(mCodeFile));
+        }
+        catch (Exception ex)
         {
             result.Success = false;
-            result.ErrorMessage = $"M code file not found: {mCodeFile}";
+            result.ErrorMessage = $"Invalid M code file path: {ex.Message}";
             return result;
         }
 
@@ -667,6 +673,18 @@ public class PowerQueryCommands : IPowerQueryCommands
             return result;
         }
 
+        // Validate and normalize the output file path to prevent path traversal attacks
+        try
+        {
+            outputFile = PathValidator.ValidateOutputFile(outputFile, nameof(outputFile), allowOverwrite: true);
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Invalid output file path: {ex.Message}";
+            return result;
+        }
+
         WithExcel(filePath, false, (excel, workbook) =>
         {
             try
@@ -719,10 +737,15 @@ public class PowerQueryCommands : IPowerQueryCommands
             return result;
         }
 
-        if (!File.Exists(mCodeFile))
+        // Validate and normalize the M code file path to prevent path traversal attacks
+        try
+        {
+            mCodeFile = PathValidator.ValidateExistingFile(mCodeFile, nameof(mCodeFile));
+        }
+        catch (Exception ex)
         {
             result.Success = false;
-            result.ErrorMessage = $"M code file not found: {mCodeFile}";
+            result.ErrorMessage = $"Invalid M code file path: {ex.Message}";
             return result;
         }
 

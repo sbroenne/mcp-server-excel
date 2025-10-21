@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Security;
 using static Sbroenne.ExcelMcp.Core.ExcelHelper;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -263,6 +264,18 @@ public class ScriptCommands : IScriptCommands
             return result;
         }
 
+        // Validate and normalize the output file path to prevent path traversal attacks
+        try
+        {
+            outputFile = PathValidator.ValidateOutputFile(outputFile, nameof(outputFile), allowOverwrite: true);
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Invalid output file path: {ex.Message}";
+            return result;
+        }
+
         var (isValid, validationError) = ValidateVbaFile(filePath);
         if (!isValid)
         {
@@ -353,10 +366,15 @@ public class ScriptCommands : IScriptCommands
             return result;
         }
 
-        if (!File.Exists(vbaFile))
+        // Validate and normalize the VBA file path to prevent path traversal attacks
+        try
+        {
+            vbaFile = PathValidator.ValidateExistingFile(vbaFile, nameof(vbaFile));
+        }
+        catch (Exception ex)
         {
             result.Success = false;
-            result.ErrorMessage = $"VBA file not found: {vbaFile}";
+            result.ErrorMessage = $"Invalid VBA file path: {ex.Message}";
             return result;
         }
 
@@ -440,10 +458,15 @@ public class ScriptCommands : IScriptCommands
             return result;
         }
 
-        if (!File.Exists(vbaFile))
+        // Validate and normalize the VBA file path to prevent path traversal attacks
+        try
+        {
+            vbaFile = PathValidator.ValidateExistingFile(vbaFile, nameof(vbaFile));
+        }
+        catch (Exception ex)
         {
             result.Success = false;
-            result.ErrorMessage = $"VBA file not found: {vbaFile}";
+            result.ErrorMessage = $"Invalid VBA file path: {ex.Message}";
             return result;
         }
 
