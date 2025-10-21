@@ -21,6 +21,16 @@ public abstract class ResultBase
     /// File path of the Excel file
     /// </summary>
     public string? FilePath { get; set; }
+    
+    /// <summary>
+    /// Suggested next actions for LLM workflow guidance
+    /// </summary>
+    public List<string> SuggestedNextActions { get; set; } = new();
+    
+    /// <summary>
+    /// Contextual workflow hint for LLM
+    /// </summary>
+    public string? WorkflowHint { get; set; }
 }
 
 /// <summary>
@@ -495,4 +505,76 @@ public class VbaTrustRequiredResult : OperationResult
     /// User-friendly explanation of why trust is required
     /// </summary>
     public string Explanation { get; init; } = "VBA operations require 'Trust access to the VBA project object model' to be enabled in Excel settings. This is a one-time setup that allows programmatic access to VBA code.";
+}
+
+/// <summary>
+/// Result for Power Query refresh operations with error detection
+/// </summary>
+public class PowerQueryRefreshResult : ResultBase
+{
+    /// <summary>
+    /// Name of the query that was refreshed
+    /// </summary>
+    public string QueryName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Whether query has errors after refresh attempt
+    /// </summary>
+    public bool HasErrors { get; set; }
+    
+    /// <summary>
+    /// List of error messages detected
+    /// </summary>
+    public List<string> ErrorMessages { get; set; } = new();
+    
+    /// <summary>
+    /// When the refresh was attempted
+    /// </summary>
+    public DateTime RefreshTime { get; set; }
+    
+    /// <summary>
+    /// Whether this is a connection-only query
+    /// </summary>
+    public bool IsConnectionOnly { get; set; }
+    
+    /// <summary>
+    /// Worksheet name where data was loaded (if applicable)
+    /// </summary>
+    public string? LoadedToSheet { get; set; }
+}
+
+/// <summary>
+/// Result for Power Query error checking
+/// </summary>
+public class PowerQueryErrorCheckResult : ResultBase
+{
+    /// <summary>
+    /// Name of the query checked
+    /// </summary>
+    public string QueryName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Whether errors were detected
+    /// </summary>
+    public bool HasErrors { get; set; }
+    
+    /// <summary>
+    /// List of error messages
+    /// </summary>
+    public List<string> ErrorMessages { get; set; } = new();
+    
+    /// <summary>
+    /// Category of error (Authentication, Connectivity, Privacy, Syntax, Permissions, Unknown)
+    /// </summary>
+    public string? ErrorCategory { get; set; }
+    
+    /// <summary>
+    /// Whether this is a connection-only query
+    /// </summary>
+    public bool IsConnectionOnly { get; set; }
+    
+    /// <summary>
+    /// Additional message
+    /// </summary>
+    public string? Message { get; set; }
 }

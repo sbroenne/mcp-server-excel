@@ -15,14 +15,14 @@ public class ScriptCommands : IScriptCommands
     {
         _coreCommands = new Core.Commands.ScriptCommands();
     }
-    
+
     /// <summary>
     /// Displays VBA trust guidance when VbaTrustRequiredResult is encountered
     /// </summary>
     private static void DisplayVbaTrustGuidance(VbaTrustRequiredResult trustError)
     {
         AnsiConsole.WriteLine();
-        
+
         var panel = new Panel(new Markup(
             $"[yellow]VBA Trust Access Required[/]\n\n" +
             $"{trustError.Explanation}\n\n" +
@@ -35,9 +35,9 @@ public class ScriptCommands : IScriptCommands
         panel.Header = new PanelHeader("[yellow]⚠ Setup Required[/]");
         panel.Border = BoxBorder.Rounded;
         panel.BorderStyle = new Style(Color.Yellow);
-        
+
         AnsiConsole.Write(panel);
-        
+
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("[dim]After enabling VBA trust in Excel, run this command again.[/]");
     }
@@ -59,7 +59,7 @@ public class ScriptCommands : IScriptCommands
         if (!result.Success)
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-            
+
             if (result.ErrorMessage?.Contains("macro-enabled") == true)
             {
                 AnsiConsole.MarkupLine($"[yellow]Current file:[/] {Path.GetFileName(filePath)} ({Path.GetExtension(filePath)})");
@@ -74,7 +74,7 @@ public class ScriptCommands : IScriptCommands
                 AnsiConsole.MarkupLine("[dim]Enable it manually in Excel:[/] File → Options → Trust Center → Trust Center Settings → Macro Settings");
                 AnsiConsole.MarkupLine("[dim]Check '✓ Trust access to the VBA project object model'[/]");
             }
-            
+
             return 1;
         }
 
@@ -87,10 +87,10 @@ public class ScriptCommands : IScriptCommands
 
             foreach (var script in result.Scripts.OrderBy(s => s.Name))
             {
-                string procedures = script.Procedures.Count > 0 
+                string procedures = script.Procedures.Count > 0
                     ? string.Join(", ", script.Procedures.Take(5)) + (script.Procedures.Count > 5 ? "..." : "")
                     : "[dim](no procedures)[/]";
-                
+
                 table.AddRow(
                     $"[cyan]{script.Name.EscapeMarkup()}[/]",
                     script.Type.EscapeMarkup(),
@@ -100,7 +100,7 @@ public class ScriptCommands : IScriptCommands
 
             AnsiConsole.Write(table);
             AnsiConsole.MarkupLine($"\n[dim]Total: {result.Scripts.Count} script(s)[/]");
-            
+
             // Usage hints
             AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine("[dim]Next steps:[/]");
@@ -141,17 +141,17 @@ public class ScriptCommands : IScriptCommands
         if (!result.Success)
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-            
+
             if (result.ErrorMessage?.Contains("not found") == true)
             {
                 AnsiConsole.MarkupLine("[yellow]Tip:[/] Use [cyan]script-list[/] to see available modules");
             }
-            
+
             return 1;
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Exported VBA module '[cyan]{moduleName}[/]' to [cyan]{outputFile}[/]");
-        
+
         if (File.Exists(outputFile))
         {
             var fileInfo = new FileInfo(outputFile);
@@ -186,16 +186,32 @@ public class ScriptCommands : IScriptCommands
         if (!result.Success)
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-            
+
             if (result.ErrorMessage?.Contains("already exists") == true)
             {
                 AnsiConsole.MarkupLine("[yellow]Tip:[/] Use [cyan]script-update[/] to modify existing modules");
             }
-            
+
             return 1;
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Imported VBA module '[cyan]{moduleName}[/]' from [cyan]{vbaFile}[/]");
+
+        // Display workflow hints if available
+        if (!string.IsNullOrEmpty(result.WorkflowHint))
+        {
+            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+        }
+
+        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+        {
+            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+            foreach (var suggestion in result.SuggestedNextActions)
+            {
+                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+            }
+        }
+
         return 0;
     }
 
@@ -224,16 +240,32 @@ public class ScriptCommands : IScriptCommands
         if (!result.Success)
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-            
+
             if (result.ErrorMessage?.Contains("not found") == true)
             {
                 AnsiConsole.MarkupLine("[yellow]Tip:[/] Use [cyan]script-import[/] to create new modules");
             }
-            
+
             return 1;
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Updated VBA module '[cyan]{moduleName}[/]' from [cyan]{vbaFile}[/]");
+
+        // Display workflow hints if available
+        if (!string.IsNullOrEmpty(result.WorkflowHint))
+        {
+            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+        }
+
+        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+        {
+            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+            foreach (var suggestion in result.SuggestedNextActions)
+            {
+                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+            }
+        }
+
         return 0;
     }
 
@@ -274,6 +306,22 @@ public class ScriptCommands : IScriptCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] VBA procedure '[cyan]{procedureName}[/]' executed successfully");
+
+        // Display workflow hints if available
+        if (!string.IsNullOrEmpty(result.WorkflowHint))
+        {
+            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+        }
+
+        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+        {
+            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+            foreach (var suggestion in result.SuggestedNextActions)
+            {
+                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+            }
+        }
+
         return 0;
     }
 
@@ -311,6 +359,22 @@ public class ScriptCommands : IScriptCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Deleted VBA module '[cyan]{moduleName}[/]'");
+
+        // Display workflow hints if available
+        if (!string.IsNullOrEmpty(result.WorkflowHint))
+        {
+            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+        }
+
+        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+        {
+            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+            foreach (var suggestion in result.SuggestedNextActions)
+            {
+                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+            }
+        }
+
         return 0;
     }
 }

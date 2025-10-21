@@ -9,7 +9,7 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 public class FileCommands : IFileCommands
 {
     private readonly Core.Commands.FileCommands _coreCommands = new();
-    
+
     public int CreateEmpty(string[] args)
     {
         // Validate arguments
@@ -21,13 +21,13 @@ public class FileCommands : IFileCommands
         }
 
         string filePath = Path.GetFullPath(args[1]);
-        
+
         // Check if file already exists and ask for confirmation
         bool overwrite = false;
         if (File.Exists(filePath))
         {
             AnsiConsole.MarkupLine($"[yellow]Warning:[/] File already exists: {filePath}");
-            
+
             if (!AnsiConsole.Confirm("Do you want to overwrite the existing file?"))
             {
                 AnsiConsole.MarkupLine("[dim]Operation cancelled.[/]");
@@ -35,10 +35,10 @@ public class FileCommands : IFileCommands
             }
             overwrite = true;
         }
-        
+
         // Call core command
         var result = _coreCommands.CreateEmpty(filePath, overwrite);
-        
+
         // Format and display result
         if (result.Success)
         {
@@ -52,18 +52,34 @@ public class FileCommands : IFileCommands
                 AnsiConsole.MarkupLine($"[green]✓[/] Created Excel workbook: [cyan]{Path.GetFileName(filePath)}[/]");
             }
             AnsiConsole.MarkupLine($"[dim]Full path: {filePath}[/]");
+
+            // Display workflow hints if available
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
             return 0;
         }
         else
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-            
+
             // Provide helpful tips based on error
             if (result.ErrorMessage?.Contains("extension") == true)
             {
                 AnsiConsole.MarkupLine("[yellow]Tip:[/] Use .xlsm for macro-enabled workbooks");
             }
-            
+
             return 1;
         }
     }

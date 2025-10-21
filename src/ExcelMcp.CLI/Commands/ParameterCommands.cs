@@ -8,7 +8,7 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 public class ParameterCommands : IParameterCommands
 {
     private readonly Core.Commands.ParameterCommands _coreCommands = new();
-    
+
     public int List(string[] args)
     {
         if (args.Length < 2)
@@ -21,7 +21,7 @@ public class ParameterCommands : IParameterCommands
         AnsiConsole.MarkupLine($"[bold]Named Ranges/Parameters in:[/] {Path.GetFileName(filePath)}\n");
 
         var result = _coreCommands.List(filePath);
-        
+
         if (result.Success)
         {
             if (result.Parameters.Count > 0)
@@ -67,10 +67,26 @@ public class ParameterCommands : IParameterCommands
         var value = args[3];
 
         var result = _coreCommands.Set(filePath, paramName, value);
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Set parameter '{paramName.EscapeMarkup()}' = '{value.EscapeMarkup()}'");
+
+            // Display workflow hints if available
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
             return 0;
         }
         else
@@ -92,7 +108,7 @@ public class ParameterCommands : IParameterCommands
         var paramName = args[2];
 
         var result = _coreCommands.Get(filePath, paramName);
-        
+
         if (result.Success)
         {
             string value = result.Value?.ToString() ?? "[null]";
@@ -121,10 +137,26 @@ public class ParameterCommands : IParameterCommands
         var reference = args[3];
 
         var result = _coreCommands.Create(filePath, paramName, reference);
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Created parameter '{paramName.EscapeMarkup()}' -> {reference.EscapeMarkup()}");
+
+            // Display workflow hints if available
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
             return 0;
         }
         else
@@ -146,10 +178,26 @@ public class ParameterCommands : IParameterCommands
         var paramName = args[2];
 
         var result = _coreCommands.Delete(filePath, paramName);
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Deleted parameter '{paramName.EscapeMarkup()}'");
+
+            // Display workflow hints if available
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
             return 0;
         }
         else
