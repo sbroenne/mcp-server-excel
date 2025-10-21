@@ -491,9 +491,10 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, false, (excel, workbook) =>
         {
+            dynamic? query = null;
             try
             {
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     var queryNames = GetQueryNames(workbook);
@@ -514,22 +515,35 @@ public class PowerQueryCommands : IPowerQueryCommands
 
                 // Check if connection only
                 bool isConnectionOnly = true;
+                dynamic? connections = null;
                 try
                 {
-                    dynamic connections = workbook.Connections;
+                    connections = workbook.Connections;
                     for (int c = 1; c <= connections.Count; c++)
                     {
-                        dynamic conn = connections.Item(c);
-                        string connName = conn.Name?.ToString() ?? "";
-                        if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
-                            connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                        dynamic? conn = null;
+                        try
                         {
-                            isConnectionOnly = false;
-                            break;
+                            conn = connections.Item(c);
+                            string connName = conn.Name?.ToString() ?? "";
+                            if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
+                                connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                            {
+                                isConnectionOnly = false;
+                                break;
+                            }
+                        }
+                        finally
+                        {
+                            ExcelHelper.ReleaseComObject(ref conn);
                         }
                     }
                 }
                 catch { }
+                finally
+                {
+                    ExcelHelper.ReleaseComObject(ref connections);
+                }
 
                 result.IsConnectionOnly = isConnectionOnly;
                 result.Success = true;
@@ -540,6 +554,10 @@ public class PowerQueryCommands : IPowerQueryCommands
                 result.Success = false;
                 result.ErrorMessage = $"Error viewing query: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ExcelHelper.ReleaseComObject(ref query);
             }
         });
 
