@@ -92,15 +92,17 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         var privacyLevels = new List<QueryPrivacyInfo>();
 
+        dynamic? queries = null;
         try
         {
-            dynamic queries = workbook.Queries;
+            queries = workbook.Queries;
 
             for (int i = 1; i <= queries.Count; i++)
             {
+                dynamic? query = null;
                 try
                 {
-                    dynamic query = queries.Item(i);
+                    query = queries.Item(i);
                     string name = query.Name ?? $"Query{i}";
                     string formula = query.Formula ?? "";
 
@@ -111,9 +113,17 @@ public class PowerQueryCommands : IPowerQueryCommands
                     }
                 }
                 catch { /* Skip queries that can't be read */ }
+                finally
+                {
+                    ExcelHelper.ReleaseComObject(ref query);
+                }
             }
         }
         catch { /* If we can't read queries, just proceed with empty list */ }
+        finally
+        {
+            ExcelHelper.ReleaseComObject(ref queries);
+        }
 
         var recommended = DetermineRecommendedPrivacyLevel(privacyLevels);
 
@@ -133,6 +143,9 @@ public class PowerQueryCommands : IPowerQueryCommands
     /// </summary>
     private static void ApplyPrivacyLevel(dynamic workbook, PowerQueryPrivacyLevel privacyLevel)
     {
+        dynamic? customProps = null;
+        dynamic? application = null;
+        
         try
         {
             // In Excel COM, privacy settings are typically applied at the workbook or query level
@@ -143,19 +156,27 @@ public class PowerQueryCommands : IPowerQueryCommands
             try
             {
                 // Some Excel versions support setting privacy through workbook properties
-                dynamic customProps = workbook.CustomDocumentProperties;
+                customProps = workbook.CustomDocumentProperties;
                 string privacyValue = privacyLevel.ToString();
 
                 // Try to update existing property
                 bool found = false;
                 for (int i = 1; i <= customProps.Count; i++)
                 {
-                    dynamic prop = customProps.Item(i);
-                    if (prop.Name == "PowerQueryPrivacyLevel")
+                    dynamic? prop = null;
+                    try
                     {
-                        prop.Value = privacyValue;
-                        found = true;
-                        break;
+                        prop = customProps.Item(i);
+                        if (prop.Name == "PowerQueryPrivacyLevel")
+                        {
+                            prop.Value = privacyValue;
+                            found = true;
+                            break;
+                        }
+                    }
+                    finally
+                    {
+                        ExcelHelper.ReleaseComObject(ref prop);
                     }
                 }
 
@@ -166,12 +187,16 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
             }
             catch { /* Property approach not supported in this Excel version */ }
+            finally
+            {
+                ExcelHelper.ReleaseComObject(ref customProps);
+            }
 
             // The key approach: Set Fast Data Load to false when using privacy levels
             // This ensures Excel respects privacy settings
             try
             {
-                dynamic application = workbook.Application;
+                application = workbook.Application;
                 // Set calculation mode that respects privacy
                 if (privacyLevel != PowerQueryPrivacyLevel.None)
                 {
@@ -180,6 +205,10 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
             }
             catch { /* Application settings not accessible */ }
+            finally
+            {
+                ExcelHelper.ReleaseComObject(ref application);
+            }
         }
         catch (Exception)
         {
@@ -278,35 +307,56 @@ public class PowerQueryCommands : IPowerQueryCommands
     /// </summary>
     private static string? DetermineLoadedSheet(dynamic workbook, string queryName)
     {
+        dynamic? worksheets = null;
         try
         {
-            dynamic worksheets = workbook.Worksheets;
+            worksheets = workbook.Worksheets;
             for (int ws = 1; ws <= worksheets.Count; ws++)
             {
-                dynamic worksheet = worksheets.Item(ws);
-                dynamic queryTables = worksheet.QueryTables;
-
-                for (int qt = 1; qt <= queryTables.Count; qt++)
+                dynamic? worksheet = null;
+                dynamic? queryTables = null;
+                try
                 {
-                    try
-                    {
-                        dynamic queryTable = queryTables.Item(qt);
-                        string qtName = queryTable.Name?.ToString() ?? "";
+                    worksheet = worksheets.Item(ws);
+                    queryTables = worksheet.QueryTables;
 
-                        if (qtName.Equals(queryName.Replace(" ", "_"), StringComparison.OrdinalIgnoreCase) ||
-                            qtName.Contains(queryName.Replace(" ", "_")))
+                    for (int qt = 1; qt <= queryTables.Count; qt++)
+                    {
+                        dynamic? queryTable = null;
+                        try
                         {
-                            return worksheet.Name;
+                            queryTable = queryTables.Item(qt);
+                            string qtName = queryTable.Name?.ToString() ?? "";
+
+                            if (qtName.Equals(queryName.Replace(" ", "_"), StringComparison.OrdinalIgnoreCase) ||
+                                qtName.Contains(queryName.Replace(" ", "_")))
+                            {
+                                string sheetName = worksheet.Name;
+                                return sheetName;
+                            }
+                        }
+                        catch
+                        {
+                            continue;
+                        }
+                        finally
+                        {
+                            ExcelHelper.ReleaseComObject(ref queryTable);
                         }
                     }
-                    catch
-                    {
-                        continue;
-                    }
+                }
+                finally
+                {
+                    ExcelHelper.ReleaseComObject(ref queryTables);
+                    ExcelHelper.ReleaseComObject(ref worksheet);
                 }
             }
         }
         catch { }
+        finally
+        {
+            ExcelHelper.ReleaseComObject(ref worksheets);
+        }
 
         return null;
     }
@@ -325,16 +375,18 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, false, (excel, workbook) =>
         {
+            dynamic? queriesCollection = null;
             try
             {
-                dynamic queriesCollection = workbook.Queries;
+                queriesCollection = workbook.Queries;
                 int count = queriesCollection.Count;
 
                 for (int i = 1; i <= count; i++)
                 {
+                    dynamic? query = null;
                     try
                     {
-                        dynamic query = queriesCollection.Item(i);
+                        query = queriesCollection.Item(i);
                         string name = query.Name ?? $"Query{i}";
                         string formula = query.Formula ?? "";
 
@@ -342,22 +394,35 @@ public class PowerQueryCommands : IPowerQueryCommands
 
                         // Check if connection only
                         bool isConnectionOnly = true;
+                        dynamic? connections = null;
                         try
                         {
-                            dynamic connections = workbook.Connections;
+                            connections = workbook.Connections;
                             for (int c = 1; c <= connections.Count; c++)
                             {
-                                dynamic conn = connections.Item(c);
-                                string connName = conn.Name?.ToString() ?? "";
-                                if (connName.Equals(name, StringComparison.OrdinalIgnoreCase) ||
-                                    connName.Equals($"Query - {name}", StringComparison.OrdinalIgnoreCase))
+                                dynamic? conn = null;
+                                try
                                 {
-                                    isConnectionOnly = false;
-                                    break;
+                                    conn = connections.Item(c);
+                                    string connName = conn.Name?.ToString() ?? "";
+                                    if (connName.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+                                        connName.Equals($"Query - {name}", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        isConnectionOnly = false;
+                                        break;
+                                    }
+                                }
+                                finally
+                                {
+                                    ExcelHelper.ReleaseComObject(ref conn);
                                 }
                             }
                         }
                         catch { }
+                        finally
+                        {
+                            ExcelHelper.ReleaseComObject(ref connections);
+                        }
 
                         result.Queries.Add(new PowerQueryInfo
                         {
@@ -377,6 +442,10 @@ public class PowerQueryCommands : IPowerQueryCommands
                             IsConnectionOnly = false
                         });
                     }
+                    finally
+                    {
+                        ExcelHelper.ReleaseComObject(ref query);
+                    }
                 }
 
                 result.Success = true;
@@ -394,6 +463,10 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
 
                 return 1;
+            }
+            finally
+            {
+                ExcelHelper.ReleaseComObject(ref queriesCollection);
             }
         });
 
