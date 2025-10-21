@@ -208,17 +208,38 @@ public static class ExcelHelper
     /// <returns>The query COM object if found, null otherwise</returns>
     public static dynamic? FindQuery(dynamic workbook, string queryName)
     {
+        dynamic? queriesCollection = null;
         try
         {
-            dynamic queriesCollection = workbook.Queries;
+            queriesCollection = workbook.Queries;
             int count = queriesCollection.Count;
             for (int i = 1; i <= count; i++)
             {
-                dynamic query = queriesCollection.Item(i);
-                if (query.Name == queryName) return query;
+                dynamic? query = null;
+                try
+                {
+                    query = queriesCollection.Item(i);
+                    if (query.Name == queryName)
+                    {
+                        // Return the query but don't release it - caller owns it
+                        return query;
+                    }
+                }
+                finally
+                {
+                    // Only release if not returning
+                    if (query != null && query.Name != queryName)
+                    {
+                        ReleaseComObject(ref query);
+                    }
+                }
             }
         }
         catch { }
+        finally
+        {
+            ReleaseComObject(ref queriesCollection);
+        }
         return null;
     }
 

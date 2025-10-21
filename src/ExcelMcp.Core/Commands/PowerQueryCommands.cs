@@ -1358,15 +1358,29 @@ public class PowerQueryCommands : IPowerQueryCommands
     private static List<string> GetQueryNames(dynamic workbook)
     {
         var names = new List<string>();
+        dynamic? queriesCollection = null;
         try
         {
-            dynamic queriesCollection = workbook.Queries;
+            queriesCollection = workbook.Queries;
             for (int i = 1; i <= queriesCollection.Count; i++)
             {
-                names.Add(queriesCollection.Item(i).Name);
+                dynamic? query = null;
+                try
+                {
+                    query = queriesCollection.Item(i);
+                    names.Add(query.Name);
+                }
+                finally
+                {
+                    ExcelHelper.ReleaseComObject(ref query);
+                }
             }
         }
         catch { }
+        finally
+        {
+            ExcelHelper.ReleaseComObject(ref queriesCollection);
+        }
         return names;
     }
 
@@ -2216,41 +2230,74 @@ in
     /// </summary>
     private static void RemoveQueryConnections(dynamic workbook, string queryName)
     {
+        dynamic? connections = null;
+        dynamic? worksheets = null;
         try
         {
             // Remove connections
-            dynamic connections = workbook.Connections;
+            connections = workbook.Connections;
             for (int i = connections.Count; i >= 1; i--)
             {
-                dynamic conn = connections.Item(i);
-                string connName = conn.Name?.ToString() ?? "";
-                if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
-                    connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                dynamic? conn = null;
+                try
                 {
-                    conn.Delete();
+                    conn = connections.Item(i);
+                    string connName = conn.Name?.ToString() ?? "";
+                    if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
+                        connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                    {
+                        conn.Delete();
+                    }
+                }
+                finally
+                {
+                    ExcelHelper.ReleaseComObject(ref conn);
                 }
             }
 
             // Remove QueryTables
-            dynamic worksheets = workbook.Worksheets;
+            worksheets = workbook.Worksheets;
             for (int ws = 1; ws <= worksheets.Count; ws++)
             {
-                dynamic worksheet = worksheets.Item(ws);
-                dynamic queryTables = worksheet.QueryTables;
-
-                for (int qt = queryTables.Count; qt >= 1; qt--)
+                dynamic? worksheet = null;
+                dynamic? queryTables = null;
+                try
                 {
-                    dynamic queryTable = queryTables.Item(qt);
-                    if (queryTable.Name?.ToString()?.Contains(queryName.Replace(" ", "_")) == true)
+                    worksheet = worksheets.Item(ws);
+                    queryTables = worksheet.QueryTables;
+
+                    for (int qt = queryTables.Count; qt >= 1; qt--)
                     {
-                        queryTable.Delete();
+                        dynamic? queryTable = null;
+                        try
+                        {
+                            queryTable = queryTables.Item(qt);
+                            if (queryTable.Name?.ToString()?.Contains(queryName.Replace(" ", "_")) == true)
+                            {
+                                queryTable.Delete();
+                            }
+                        }
+                        finally
+                        {
+                            ExcelHelper.ReleaseComObject(ref queryTable);
+                        }
                     }
+                }
+                finally
+                {
+                    ExcelHelper.ReleaseComObject(ref queryTables);
+                    ExcelHelper.ReleaseComObject(ref worksheet);
                 }
             }
         }
         catch
         {
             // Ignore errors when removing connections
+        }
+        finally
+        {
+            ExcelHelper.ReleaseComObject(ref worksheets);
+            ExcelHelper.ReleaseComObject(ref connections);
         }
     }
 
