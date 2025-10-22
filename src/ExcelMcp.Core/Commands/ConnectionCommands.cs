@@ -23,13 +23,13 @@ public class ConnectionCommands : IConnectionCommands
             try
             {
                 dynamic connections = workbook.Connections;
-                
+
                 for (int i = 1; i <= connections.Count; i++)
                 {
                     try
                     {
                         dynamic conn = connections.Item(i);
-                        
+
                         var connInfo = new ConnectionInfo
                         {
                             Name = conn.Name?.ToString() ?? "",
@@ -40,7 +40,7 @@ public class ConnectionCommands : IConnectionCommands
                             RefreshOnFileOpen = GetRefreshOnFileOpenSetting(conn),
                             LastRefresh = GetLastRefreshDate(conn)
                         };
-                        
+
                         result.Connections.Add(connInfo);
                     }
                     catch
@@ -49,7 +49,7 @@ public class ConnectionCommands : IConnectionCommands
                         continue;
                     }
                 }
-                
+
                 result.Success = true;
                 return result;
             }
@@ -67,10 +67,10 @@ public class ConnectionCommands : IConnectionCommands
     /// </summary>
     public ConnectionViewResult View(string filePath, string connectionName)
     {
-        var result = new ConnectionViewResult 
-        { 
+        var result = new ConnectionViewResult
+        {
             FilePath = filePath,
-            ConnectionName = connectionName 
+            ConnectionName = connectionName
         };
 
         return WithExcel(filePath, save: false, (excel, workbook) =>
@@ -78,25 +78,25 @@ public class ConnectionCommands : IConnectionCommands
             try
             {
                 dynamic? conn = FindConnection(workbook, connectionName);
-                
+
                 if (conn == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Connection '{connectionName}' not found";
                     return result;
                 }
-                
+
                 result.Type = GetConnectionTypeName(conn.Type);
                 result.IsPowerQuery = IsPowerQueryConnection(conn);
-                
+
                 // Get connection string (sanitized for security)
                 string? rawConnectionString = GetConnectionString(conn);
                 result.ConnectionString = SanitizeConnectionString(rawConnectionString);
-                
+
                 // Get command text and type
                 result.CommandText = GetCommandText(conn);
                 result.CommandType = GetCommandType(conn);
-                
+
                 // Build comprehensive JSON definition
                 var definition = new
                 {
@@ -109,12 +109,12 @@ public class ConnectionCommands : IConnectionCommands
                     CommandType = result.CommandType,
                     Properties = GetConnectionProperties(conn)
                 };
-                
-                result.DefinitionJson = JsonSerializer.Serialize(definition, new JsonSerializerOptions 
-                { 
-                    WriteIndented = true 
+
+                result.DefinitionJson = JsonSerializer.Serialize(definition, new JsonSerializerOptions
+                {
+                    WriteIndented = true
                 });
-                
+
                 result.Success = true;
                 return result;
             }
@@ -132,10 +132,10 @@ public class ConnectionCommands : IConnectionCommands
     /// </summary>
     public OperationResult Import(string filePath, string connectionName, string jsonFilePath)
     {
-        var result = new OperationResult 
-        { 
+        var result = new OperationResult
+        {
             FilePath = filePath,
-            Action = "import" 
+            Action = "import"
         };
 
         try
@@ -147,17 +147,17 @@ public class ConnectionCommands : IConnectionCommands
                 result.ErrorMessage = $"JSON file not found: {jsonFilePath}";
                 return result;
             }
-            
+
             string jsonContent = File.ReadAllText(jsonFilePath);
             var definition = JsonSerializer.Deserialize<ConnectionDefinition>(jsonContent);
-            
+
             if (definition == null)
             {
                 result.Success = false;
                 result.ErrorMessage = "Failed to parse JSON connection definition";
                 return result;
             }
-            
+
             return WithExcel(filePath, save: true, (excel, workbook) =>
             {
                 try
@@ -170,10 +170,10 @@ public class ConnectionCommands : IConnectionCommands
                         result.ErrorMessage = $"Connection '{connectionName}' already exists. Use 'update' to modify existing connection.";
                         return result;
                     }
-                    
+
                     // Create new connection based on type
                     CreateConnection(workbook, connectionName, definition);
-                    
+
                     result.Success = true;
                     return result;
                 }
@@ -198,10 +198,10 @@ public class ConnectionCommands : IConnectionCommands
     /// </summary>
     public OperationResult Export(string filePath, string connectionName, string jsonFilePath)
     {
-        var result = new OperationResult 
-        { 
+        var result = new OperationResult
+        {
             FilePath = filePath,
-            Action = "export" 
+            Action = "export"
         };
 
         return WithExcel(filePath, save: false, (excel, workbook) =>
@@ -209,14 +209,14 @@ public class ConnectionCommands : IConnectionCommands
             try
             {
                 dynamic? conn = FindConnection(workbook, connectionName);
-                
+
                 if (conn == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Connection '{connectionName}' not found";
                     return result;
                 }
-                
+
                 // Check if this is a Power Query connection
                 if (IsPowerQueryConnection(conn))
                 {
@@ -224,7 +224,7 @@ public class ConnectionCommands : IConnectionCommands
                     result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Use 'pq-export' command instead.";
                     return result;
                 }
-                
+
                 // Build connection definition
                 var definition = new ConnectionDefinition
                 {
@@ -239,16 +239,16 @@ public class ConnectionCommands : IConnectionCommands
                     SavePassword = false, // Never export with SavePassword = true (security)
                     RefreshPeriod = GetRefreshPeriod(conn)
                 };
-                
+
                 // Serialize to JSON
-                string json = JsonSerializer.Serialize(definition, new JsonSerializerOptions 
-                { 
-                    WriteIndented = true 
+                string json = JsonSerializer.Serialize(definition, new JsonSerializerOptions
+                {
+                    WriteIndented = true
                 });
-                
+
                 // Write to file
                 File.WriteAllText(jsonFilePath, json);
-                
+
                 result.Success = true;
                 return result;
             }
@@ -266,10 +266,10 @@ public class ConnectionCommands : IConnectionCommands
     /// </summary>
     public OperationResult Update(string filePath, string connectionName, string jsonFilePath)
     {
-        var result = new OperationResult 
-        { 
+        var result = new OperationResult
+        {
             FilePath = filePath,
-            Action = "update" 
+            Action = "update"
         };
 
         try
@@ -281,30 +281,30 @@ public class ConnectionCommands : IConnectionCommands
                 result.ErrorMessage = $"JSON file not found: {jsonFilePath}";
                 return result;
             }
-            
+
             string jsonContent = File.ReadAllText(jsonFilePath);
             var definition = JsonSerializer.Deserialize<ConnectionDefinition>(jsonContent);
-            
+
             if (definition == null)
             {
                 result.Success = false;
                 result.ErrorMessage = "Failed to parse JSON connection definition";
                 return result;
             }
-            
+
             return WithExcel(filePath, save: true, (excel, workbook) =>
             {
                 try
                 {
                     dynamic? conn = FindConnection(workbook, connectionName);
-                    
+
                     if (conn == null)
                     {
                         result.Success = false;
                         result.ErrorMessage = $"Connection '{connectionName}' not found. Use 'import' to create new connection.";
                         return result;
                     }
-                    
+
                     // Check if this is a Power Query connection
                     if (IsPowerQueryConnection(conn))
                     {
@@ -312,10 +312,10 @@ public class ConnectionCommands : IConnectionCommands
                         result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Use 'pq-update' command instead.";
                         return result;
                     }
-                    
+
                     // Update connection properties
                     UpdateConnectionProperties(conn, definition);
-                    
+
                     result.Success = true;
                     return result;
                 }
@@ -340,10 +340,10 @@ public class ConnectionCommands : IConnectionCommands
     /// </summary>
     public OperationResult Refresh(string filePath, string connectionName)
     {
-        var result = new OperationResult 
-        { 
+        var result = new OperationResult
+        {
             FilePath = filePath,
-            Action = "refresh" 
+            Action = "refresh"
         };
 
         return WithExcel(filePath, save: true, (excel, workbook) =>
@@ -351,17 +351,17 @@ public class ConnectionCommands : IConnectionCommands
             try
             {
                 dynamic? conn = FindConnection(workbook, connectionName);
-                
+
                 if (conn == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Connection '{connectionName}' not found";
                     return result;
                 }
-                
+
                 // Refresh the connection
                 conn.Refresh();
-                
+
                 result.Success = true;
                 return result;
             }
@@ -379,10 +379,10 @@ public class ConnectionCommands : IConnectionCommands
     /// </summary>
     public OperationResult Delete(string filePath, string connectionName)
     {
-        var result = new OperationResult 
-        { 
+        var result = new OperationResult
+        {
             FilePath = filePath,
-            Action = "delete" 
+            Action = "delete"
         };
 
         return WithExcel(filePath, save: true, (excel, workbook) =>
@@ -390,14 +390,14 @@ public class ConnectionCommands : IConnectionCommands
             try
             {
                 dynamic? conn = FindConnection(workbook, connectionName);
-                
+
                 if (conn == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Connection '{connectionName}' not found";
                     return result;
                 }
-                
+
                 // Check if this is a Power Query connection
                 if (IsPowerQueryConnection(conn))
                 {
@@ -405,13 +405,13 @@ public class ConnectionCommands : IConnectionCommands
                     result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Use 'pq-delete' command instead.";
                     return result;
                 }
-                
+
                 // Remove associated QueryTables first
                 RemoveQueryTables(workbook, connectionName);
-                
+
                 // Delete the connection
                 conn.Delete();
-                
+
                 result.Success = true;
                 return result;
             }
@@ -429,10 +429,10 @@ public class ConnectionCommands : IConnectionCommands
     /// </summary>
     public OperationResult LoadTo(string filePath, string connectionName, string sheetName)
     {
-        var result = new OperationResult 
-        { 
+        var result = new OperationResult
+        {
             FilePath = filePath,
-            Action = "loadto" 
+            Action = "loadto"
         };
 
         return WithExcel(filePath, save: true, (excel, workbook) =>
@@ -440,14 +440,14 @@ public class ConnectionCommands : IConnectionCommands
             try
             {
                 dynamic? conn = FindConnection(workbook, connectionName);
-                
+
                 if (conn == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Connection '{connectionName}' not found";
                     return result;
                 }
-                
+
                 // Check if this is a Power Query connection
                 if (IsPowerQueryConnection(conn))
                 {
@@ -455,11 +455,11 @@ public class ConnectionCommands : IConnectionCommands
                     result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Use 'pq-loadto' command instead.";
                     return result;
                 }
-                
+
                 // Find or create target sheet
                 dynamic sheets = workbook.Worksheets;
                 dynamic? targetSheet = null;
-                
+
                 for (int i = 1; i <= sheets.Count; i++)
                 {
                     dynamic sheet = sheets.Item(i);
@@ -469,25 +469,25 @@ public class ConnectionCommands : IConnectionCommands
                         break;
                     }
                 }
-                
+
                 if (targetSheet == null)
                 {
                     targetSheet = sheets.Add();
                     targetSheet.Name = sheetName;
                 }
-                
+
                 // Remove existing QueryTables first
                 RemoveQueryTables(workbook, connectionName);
-                
+
                 // Create QueryTable to load data
                 var options = new QueryTableOptions
                 {
                     Name = connectionName,
                     RefreshImmediately = true
                 };
-                
+
                 CreateQueryTableForConnection(targetSheet, connectionName, conn, options);
-                
+
                 result.Success = true;
                 return result;
             }
@@ -505,10 +505,10 @@ public class ConnectionCommands : IConnectionCommands
     /// </summary>
     public ConnectionPropertiesResult GetProperties(string filePath, string connectionName)
     {
-        var result = new ConnectionPropertiesResult 
-        { 
+        var result = new ConnectionPropertiesResult
+        {
             FilePath = filePath,
-            ConnectionName = connectionName 
+            ConnectionName = connectionName
         };
 
         return WithExcel(filePath, save: false, (excel, workbook) =>
@@ -516,19 +516,19 @@ public class ConnectionCommands : IConnectionCommands
             try
             {
                 dynamic? conn = FindConnection(workbook, connectionName);
-                
+
                 if (conn == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Connection '{connectionName}' not found";
                     return result;
                 }
-                
+
                 result.BackgroundQuery = GetBackgroundQuerySetting(conn);
                 result.RefreshOnFileOpen = GetRefreshOnFileOpenSetting(conn);
                 result.SavePassword = GetSavePasswordSetting(conn);
                 result.RefreshPeriod = GetRefreshPeriod(conn);
-                
+
                 result.Success = true;
                 return result;
             }
@@ -544,14 +544,14 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Sets connection properties
     /// </summary>
-    public OperationResult SetProperties(string filePath, string connectionName, 
-        bool? backgroundQuery = null, bool? refreshOnFileOpen = null, 
+    public OperationResult SetProperties(string filePath, string connectionName,
+        bool? backgroundQuery = null, bool? refreshOnFileOpen = null,
         bool? savePassword = null, int? refreshPeriod = null)
     {
-        var result = new OperationResult 
-        { 
+        var result = new OperationResult
+        {
             FilePath = filePath,
-            Action = "set-properties" 
+            Action = "set-properties"
         };
 
         return WithExcel(filePath, save: true, (excel, workbook) =>
@@ -559,14 +559,14 @@ public class ConnectionCommands : IConnectionCommands
             try
             {
                 dynamic? conn = FindConnection(workbook, connectionName);
-                
+
                 if (conn == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Connection '{connectionName}' not found";
                     return result;
                 }
-                
+
                 // Check if this is a Power Query connection
                 if (IsPowerQueryConnection(conn))
                 {
@@ -574,13 +574,13 @@ public class ConnectionCommands : IConnectionCommands
                     result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Power Query properties cannot be modified directly.";
                     return result;
                 }
-                
+
                 // Update properties if specified
                 SetConnectionProperty(conn, "BackgroundQuery", backgroundQuery);
                 SetConnectionProperty(conn, "RefreshOnFileOpen", refreshOnFileOpen);
                 SetConnectionProperty(conn, "SavePassword", savePassword);
                 SetConnectionProperty(conn, "RefreshPeriod", refreshPeriod);
-                
+
                 result.Success = true;
                 return result;
             }
@@ -598,10 +598,10 @@ public class ConnectionCommands : IConnectionCommands
     /// </summary>
     public OperationResult Test(string filePath, string connectionName)
     {
-        var result = new OperationResult 
-        { 
+        var result = new OperationResult
+        {
             FilePath = filePath,
-            Action = "test" 
+            Action = "test"
         };
 
         return WithExcel(filePath, save: false, (excel, workbook) =>
@@ -609,36 +609,36 @@ public class ConnectionCommands : IConnectionCommands
             try
             {
                 dynamic? conn = FindConnection(workbook, connectionName);
-                
+
                 if (conn == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Connection '{connectionName}' not found";
                     return result;
                 }
-                
+
                 // Get connection type
                 int connType = conn.Type;
                 string typeName = GetConnectionTypeName(connType);
-                
-                // For Web (4) and Text (3) connections, connection string might not be accessible
+
+                // For Text (4) and Web (5) connections, connection string might not be accessible
                 // until a QueryTable is created. Just verify the connection object exists.
-                if (connType == 3 || connType == 4)
+                if (connType == 4 || connType == 5)
                 {
                     result.Success = true;
                     return result;
                 }
-                
+
                 // For other connection types (OLEDB, ODBC), validate connection string
                 string? connectionString = GetConnectionString(conn);
-                
+
                 if (string.IsNullOrWhiteSpace(connectionString))
                 {
                     result.Success = false;
                     result.ErrorMessage = "Connection has no connection string configured";
                     return result;
                 }
-                
+
                 // Connection exists and is accessible
                 result.Success = true;
                 return result;
@@ -659,7 +659,7 @@ public class ConnectionCommands : IConnectionCommands
         try
         {
             int connType = conn.Type;
-            
+
             if (connType == 1) // OLEDB
             {
                 return conn.OLEDBConnection?.BackgroundQuery ?? false;
@@ -681,7 +681,7 @@ public class ConnectionCommands : IConnectionCommands
         {
             // Property not available
         }
-        
+
         return false;
     }
 
@@ -690,7 +690,7 @@ public class ConnectionCommands : IConnectionCommands
         try
         {
             int connType = conn.Type;
-            
+
             if (connType == 1) // OLEDB
             {
                 return conn.OLEDBConnection?.RefreshOnFileOpen ?? false;
@@ -712,7 +712,7 @@ public class ConnectionCommands : IConnectionCommands
         {
             // Property not available
         }
-        
+
         return false;
     }
 
@@ -721,7 +721,7 @@ public class ConnectionCommands : IConnectionCommands
         try
         {
             int connType = conn.Type;
-            
+
             if (connType == 1) // OLEDB
             {
                 return conn.OLEDBConnection?.SavePassword ?? false;
@@ -743,7 +743,7 @@ public class ConnectionCommands : IConnectionCommands
         {
             // Property not available
         }
-        
+
         return false;
     }
 
@@ -752,7 +752,7 @@ public class ConnectionCommands : IConnectionCommands
         try
         {
             int connType = conn.Type;
-            
+
             if (connType == 1) // OLEDB
             {
                 return conn.OLEDBConnection?.RefreshPeriod ?? 0;
@@ -766,7 +766,7 @@ public class ConnectionCommands : IConnectionCommands
         {
             // Property not available
         }
-        
+
         return 0;
     }
 
@@ -775,7 +775,7 @@ public class ConnectionCommands : IConnectionCommands
         try
         {
             int connType = conn.Type;
-            
+
             if (connType == 1) // OLEDB
             {
                 var refreshDate = conn.OLEDBConnection?.RefreshDate;
@@ -797,7 +797,7 @@ public class ConnectionCommands : IConnectionCommands
         {
             // Property not available
         }
-        
+
         return null;
     }
 
@@ -807,7 +807,7 @@ public class ConnectionCommands : IConnectionCommands
         {
             int connType = conn.Type;
             string? connectionString = null;
-            
+
             if (connType == 1) // OLEDB
             {
                 connectionString = conn.OLEDBConnection?.Connection?.ToString();
@@ -816,7 +816,7 @@ public class ConnectionCommands : IConnectionCommands
             {
                 connectionString = conn.ODBCConnection?.Connection?.ToString();
             }
-            else if (connType == 3) // Text
+            else if (connType == 4) // TEXT (xlConnectionTypeTEXT)
             {
                 // Try to get from TextConnection first
                 dynamic textConn = conn.TextConnection;
@@ -825,7 +825,7 @@ public class ConnectionCommands : IConnectionCommands
                     try { connectionString = textConn.Connection?.ToString(); } catch { }
                 }
             }
-            else if (connType == 4) // Web
+            else if (connType == 5) // WEB (xlConnectionTypeWEB)
             {
                 // Try to get from WebConnection first
                 dynamic webConn = conn.WebConnection;
@@ -834,7 +834,7 @@ public class ConnectionCommands : IConnectionCommands
                     try { connectionString = webConn.Connection?.ToString(); } catch { }
                 }
             }
-            
+
             // If we still don't have a connection string, try the root ConnectionString property
             if (string.IsNullOrWhiteSpace(connectionString))
             {
@@ -847,14 +847,14 @@ public class ConnectionCommands : IConnectionCommands
                     // Property not available
                 }
             }
-            
+
             return connectionString;
         }
         catch
         {
             // Property not available
         }
-        
+
         return null;
     }
 
@@ -863,7 +863,7 @@ public class ConnectionCommands : IConnectionCommands
         try
         {
             int connType = conn.Type;
-            
+
             if (connType == 1) // OLEDB
             {
                 return conn.OLEDBConnection?.CommandText?.ToString();
@@ -885,7 +885,7 @@ public class ConnectionCommands : IConnectionCommands
         {
             // Property not available
         }
-        
+
         return null;
     }
 
@@ -894,7 +894,7 @@ public class ConnectionCommands : IConnectionCommands
         try
         {
             int connType = conn.Type;
-            
+
             if (connType == 1) // OLEDB
             {
                 int? cmdType = conn.OLEDBConnection?.CommandType;
@@ -926,7 +926,7 @@ public class ConnectionCommands : IConnectionCommands
         {
             // Property not available
         }
-        
+
         return null;
     }
 
@@ -953,10 +953,10 @@ public class ConnectionCommands : IConnectionCommands
         try
         {
             dynamic connections = workbook.Connections;
-            
+
             // Create connection using Connections.Add() method
             // Per Microsoft documentation: https://learn.microsoft.com/en-us/office/vba/api/excel.connections.add
-            // Parameters: Name (Required), Description (Required), ConnectionString (Required), 
+            // Parameters: Name (Required), Description (Required), ConnectionString (Required),
             //             CommandText (Required), lCmdtype (Optional), CreateModelConnection (Optional), ImportRelationships (Optional)
             dynamic newConnection = connections.Add(
                 Name: connectionName,
@@ -966,7 +966,7 @@ public class ConnectionCommands : IConnectionCommands
                 // Note: Omitting optional parameters (lCmdtype, CreateModelConnection, ImportRelationships)
                 // to let Excel use defaults
             );
-            
+
             // Connection created successfully
             // Note: Setting additional properties after creation can cause COM errors
             // If needed in the future, handle carefully based on connection type
@@ -987,9 +987,9 @@ public class ConnectionCommands : IConnectionCommands
             {
                 conn.Description = definition.Description;
             }
-            
+
             int connType = conn.Type;
-            
+
             if (connType == 1) // OLEDB
             {
                 var oledb = conn.OLEDBConnection;
@@ -1124,11 +1124,11 @@ public class ConnectionCommands : IConnectionCommands
     private static void SetConnectionProperty<T>(dynamic conn, string propertyName, T? value) where T : struct
     {
         if (!value.HasValue) return;
-        
+
         try
         {
             int connType = conn.Type;
-            
+
             if (connType == 1) // OLEDB
             {
                 var oledb = conn.OLEDBConnection;
@@ -1186,28 +1186,28 @@ public class ConnectionCommands : IConnectionCommands
         }
     }
 
-    private static void CreateQueryTableForConnection(dynamic targetSheet, string connectionName, 
+    private static void CreateQueryTableForConnection(dynamic targetSheet, string connectionName,
         dynamic conn, QueryTableOptions options)
     {
         // For regular connections (not Power Query), we need connection string
         string? connectionString = GetConnectionString(conn);
         string? commandText = GetCommandText(conn);
-        
+
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException("Connection has no connection string");
         }
-        
+
         // Command text can be empty for some connection types (Text, Web)
         // Use empty string if not provided
         if (string.IsNullOrWhiteSpace(commandText))
         {
             commandText = "";
         }
-        
+
         dynamic queryTables = targetSheet.QueryTables;
         dynamic queryTable = queryTables.Add(connectionString, targetSheet.Range["A1"], commandText);
-        
+
         queryTable.Name = options.Name.Replace(" ", "_");
         queryTable.RefreshStyle = 1; // xlInsertDeleteCells
         queryTable.BackgroundQuery = options.BackgroundQuery;
@@ -1216,7 +1216,7 @@ public class ConnectionCommands : IConnectionCommands
         queryTable.PreserveColumnInfo = options.PreserveColumnInfo;
         queryTable.PreserveFormatting = options.PreserveFormatting;
         queryTable.AdjustColumnWidth = options.AdjustColumnWidth;
-        
+
         if (options.RefreshImmediately)
         {
             queryTable.Refresh(false);

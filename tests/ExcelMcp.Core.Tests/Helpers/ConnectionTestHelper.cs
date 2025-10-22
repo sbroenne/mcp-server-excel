@@ -21,7 +21,7 @@ public static class ConnectionTestHelper
             {
                 // Get connections collection
                 dynamic connections = workbook.Connections;
-                
+
                 // Create OLEDB connection using positional parameters
                 // Connections.Add(Name, Description, ConnectionString, CommandText)
                 dynamic newConnection = connections.Add(
@@ -30,7 +30,7 @@ public static class ConnectionTestHelper
                     connectionString,
                     ""
                 );
-                
+
                 // Configure OLEDB connection properties
                 if (newConnection.Type == 1) // OLEDB
                 {
@@ -42,7 +42,7 @@ public static class ConnectionTestHelper
                         oledb.SavePassword = false;
                     }
                 }
-                
+
                 return 0; // Success
             }
             catch (Exception ex)
@@ -62,7 +62,7 @@ public static class ConnectionTestHelper
             try
             {
                 dynamic connections = workbook.Connections;
-                
+
                 // Create ODBC connection using positional parameters
                 dynamic newConnection = connections.Add(
                     connectionName,
@@ -70,7 +70,7 @@ public static class ConnectionTestHelper
                     connectionString,
                     ""
                 );
-                
+
                 return 0; // Success
             }
             catch (Exception ex)
@@ -96,12 +96,12 @@ public static class ConnectionTestHelper
                     // Create a simple CSV file for testing
                     File.WriteAllText(textFilePath, "Column1,Column2,Column3\nValue1,Value2,Value3\nTest1,Test2,Test3");
                 }
-                
+
                 dynamic connections = workbook.Connections;
-                
+
                 // Create text file connection using the SAME approach as Import
                 string connectionString = $"TEXT;{textFilePath}";
-                
+
                 // Use Connections.Add() with named parameters like Import does
                 dynamic newConnection = connections.Add(
                     Name: connectionName,
@@ -109,10 +109,10 @@ public static class ConnectionTestHelper
                     ConnectionString: connectionString,
                     CommandText: ""
                 );
-                
+
                 // Connection created - Excel should handle the rest
                 // If Import works, this should too
-                
+
                 return 0; // Success
             }
             catch (Exception ex)
@@ -133,23 +133,22 @@ public static class ConnectionTestHelper
             try
             {
                 dynamic connections = workbook.Connections;
-                
-                // Create web connection using the SAME approach as Import
-                // Connection string format: URL;https://example.com
+
+                // Create web connection using the SAME approach as Import and CreateTextFileConnection
+                // Use URL; prefix in connection string to indicate web connection type
                 string connectionString = $"URL;{url}";
-                
-                // Use Connections.Add() - this should work the same as Import
+
+                // Use Connections.Add() with named parameters like Import does
                 dynamic newConnection = connections.Add(
                     Name: connectionName,
                     Description: $"Test web connection created by {nameof(CreateWebConnection)}",
                     ConnectionString: connectionString,
                     CommandText: ""
                 );
-                
+
                 // Connection created - Excel should handle the rest
-                // If Import works without setting WebConnection.Connection explicitly,
-                // then our helper shouldn't need to either
-                
+                // With the URL; prefix, Excel should recognize this as a Web connection (type 5)
+
                 return 0; // Success
             }
             catch (Exception ex)
@@ -169,7 +168,7 @@ public static class ConnectionTestHelper
             try
             {
                 dynamic connectionsCollection = workbook.Connections;
-                
+
                 foreach (var (name, type, connectionString) in connections)
                 {
                     // Use positional parameters
@@ -180,7 +179,7 @@ public static class ConnectionTestHelper
                         ""
                     );
                 }
-                
+
                 return 0; // Success
             }
             catch (Exception ex)

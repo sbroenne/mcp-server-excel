@@ -145,7 +145,7 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         dynamic? customProps = null;
         dynamic? application = null;
-        
+
         try
         {
             // In Excel COM, privacy settings are typically applied at the workbook or query level
@@ -2007,8 +2007,8 @@ in
                 RemoveQueryTables(workbook, queryName);
 
                 // Create new QueryTable connection that loads data to table
-                var queryTableOptions = new QueryTableOptions 
-                { 
+                var queryTableOptions = new QueryTableOptions
+                {
                     Name = queryName,
                     RefreshImmediately = true
                 };
@@ -2276,8 +2276,8 @@ in
                     RemoveQueryTables(workbook, queryName);
 
                     // Create new QueryTable connection that loads data to table
-                    var queryTableOptions = new QueryTableOptions 
-                    { 
+                    var queryTableOptions = new QueryTableOptions
+                    {
                         Name = queryName,
                         RefreshImmediately = true
                     };
