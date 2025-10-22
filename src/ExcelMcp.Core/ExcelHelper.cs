@@ -837,4 +837,244 @@ public static class ExcelHelper
 
     #endregion
 
+    #region Data Model Helper Methods
+
+    /// <summary>
+    /// Checks if workbook has a Data Model
+    /// </summary>
+    /// <param name="workbook">Workbook COM object</param>
+    /// <returns>True if Data Model exists</returns>
+    public static bool HasDataModel(dynamic workbook)
+    {
+        dynamic? model = null;
+        try
+        {
+            model = workbook.Model;
+            if (model == null) return false;
+
+            // Try to access model tables to confirm model is accessible
+            dynamic? modelTables = null;
+            try
+            {
+                modelTables = model.ModelTables;
+                return modelTables != null;
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                ReleaseComObject(ref modelTables);
+            }
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            ReleaseComObject(ref model);
+        }
+    }
+
+    /// <summary>
+    /// Finds a Data Model table by name
+    /// </summary>
+    /// <param name="model">Model COM object</param>
+    /// <param name="tableName">Table name to find</param>
+    /// <returns>Table COM object if found, null otherwise</returns>
+    public static dynamic? FindModelTable(dynamic model, string tableName)
+    {
+        dynamic? modelTables = null;
+        try
+        {
+            modelTables = model.ModelTables;
+            for (int i = 1; i <= modelTables.Count; i++)
+            {
+                dynamic? table = null;
+                try
+                {
+                    table = modelTables.Item(i);
+                    string name = table.Name?.ToString() ?? "";
+                    if (name.Equals(tableName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var result = table;
+                        table = null; // Don't release - returning it
+                        return result;
+                    }
+                }
+                finally
+                {
+                    if (table != null) ReleaseComObject(ref table);
+                }
+            }
+        }
+        finally
+        {
+            ReleaseComObject(ref modelTables);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Finds a DAX measure by name across all tables in the model
+    /// </summary>
+    /// <param name="model">Model COM object</param>
+    /// <param name="measureName">Measure name to find</param>
+    /// <returns>Measure COM object if found, null otherwise</returns>
+    public static dynamic? FindModelMeasure(dynamic model, string measureName)
+    {
+        dynamic? modelTables = null;
+        try
+        {
+            modelTables = model.ModelTables;
+            for (int t = 1; t <= modelTables.Count; t++)
+            {
+                dynamic? table = null;
+                dynamic? measures = null;
+                try
+                {
+                    table = modelTables.Item(t);
+                    measures = table.ModelMeasures;
+
+                    for (int m = 1; m <= measures.Count; m++)
+                    {
+                        dynamic? measure = null;
+                        try
+                        {
+                            measure = measures.Item(m);
+                            string name = measure.Name?.ToString() ?? "";
+                            if (name.Equals(measureName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                var result = measure;
+                                measure = null; // Don't release - returning it
+                                return result;
+                            }
+                        }
+                        finally
+                        {
+                            if (measure != null) ReleaseComObject(ref measure);
+                        }
+                    }
+                }
+                finally
+                {
+                    ReleaseComObject(ref measures);
+                    ReleaseComObject(ref table);
+                }
+            }
+        }
+        finally
+        {
+            ReleaseComObject(ref modelTables);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Gets all measure names from the Data Model
+    /// </summary>
+    /// <param name="model">Model COM object</param>
+    /// <returns>List of measure names</returns>
+    public static List<string> GetModelMeasureNames(dynamic model)
+    {
+        var names = new List<string>();
+        dynamic? modelTables = null;
+        try
+        {
+            modelTables = model.ModelTables;
+            for (int t = 1; t <= modelTables.Count; t++)
+            {
+                dynamic? table = null;
+                dynamic? measures = null;
+                try
+                {
+                    table = modelTables.Item(t);
+                    measures = table.ModelMeasures;
+
+                    for (int m = 1; m <= measures.Count; m++)
+                    {
+                        dynamic? measure = null;
+                        try
+                        {
+                            measure = measures.Item(m);
+                            names.Add(measure.Name?.ToString() ?? "");
+                        }
+                        finally
+                        {
+                            ReleaseComObject(ref measure);
+                        }
+                    }
+                }
+                finally
+                {
+                    ReleaseComObject(ref measures);
+                    ReleaseComObject(ref table);
+                }
+            }
+        }
+        finally
+        {
+            ReleaseComObject(ref modelTables);
+        }
+        return names;
+    }
+
+    /// <summary>
+    /// Gets the table name that contains a specific measure
+    /// </summary>
+    /// <param name="model">Model COM object</param>
+    /// <param name="measureName">Measure name to find</param>
+    /// <returns>Table name if found, null otherwise</returns>
+    public static string? GetMeasureTableName(dynamic model, string measureName)
+    {
+        dynamic? modelTables = null;
+        try
+        {
+            modelTables = model.ModelTables;
+            for (int t = 1; t <= modelTables.Count; t++)
+            {
+                dynamic? table = null;
+                dynamic? measures = null;
+                try
+                {
+                    table = modelTables.Item(t);
+                    string tableName = table.Name?.ToString() ?? "";
+                    measures = table.ModelMeasures;
+
+                    for (int m = 1; m <= measures.Count; m++)
+                    {
+                        dynamic? measure = null;
+                        try
+                        {
+                            measure = measures.Item(m);
+                            string name = measure.Name?.ToString() ?? "";
+                            if (name.Equals(measureName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                return tableName;
+                            }
+                        }
+                        finally
+                        {
+                            ReleaseComObject(ref measure);
+                        }
+                    }
+                }
+                finally
+                {
+                    ReleaseComObject(ref measures);
+                    ReleaseComObject(ref table);
+                }
+            }
+        }
+        finally
+        {
+            ReleaseComObject(ref modelTables);
+        }
+        return null;
+    }
+
+    #endregion
+
 }

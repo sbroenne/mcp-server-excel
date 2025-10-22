@@ -705,3 +705,159 @@ public class ConnectionPropertiesResult : ResultBase
 
 #endregion
 
+#region Data Model Result Types
+
+/// <summary>
+/// Result for listing Data Model tables
+/// </summary>
+public class DataModelTableListResult : ResultBase
+{
+    /// <summary>
+    /// List of tables in the Data Model
+    /// </summary>
+    public List<DataModelTableInfo> Tables { get; set; } = new();
+}
+
+/// <summary>
+/// Information about a Data Model table
+/// </summary>
+public class DataModelTableInfo
+{
+    /// <summary>
+    /// Table name
+    /// </summary>
+    public string Name { get; init; } = "";
+
+    /// <summary>
+    /// Source query or connection name
+    /// </summary>
+    public string SourceName { get; init; } = "";
+
+    /// <summary>
+    /// Number of rows in the table
+    /// </summary>
+    public int RecordCount { get; init; }
+
+    /// <summary>
+    /// Last refresh date/time (if available)
+    /// </summary>
+    public DateTime? RefreshDate { get; init; }
+}
+
+/// <summary>
+/// Result for listing DAX measures
+/// </summary>
+public class DataModelMeasureListResult : ResultBase
+{
+    /// <summary>
+    /// List of DAX measures in the model
+    /// </summary>
+    public List<DataModelMeasureInfo> Measures { get; set; } = new();
+}
+
+/// <summary>
+/// Information about a DAX measure
+/// </summary>
+public class DataModelMeasureInfo
+{
+    /// <summary>
+    /// Measure name
+    /// </summary>
+    public string Name { get; init; } = "";
+
+    /// <summary>
+    /// Table name where measure is defined
+    /// </summary>
+    public string Table { get; init; } = "";
+
+    /// <summary>
+    /// DAX formula preview (truncated for display)
+    /// </summary>
+    public string FormulaPreview { get; init; } = "";
+
+    /// <summary>
+    /// Measure description (if available)
+    /// </summary>
+    public string? Description { get; init; }
+}
+
+/// <summary>
+/// Result for viewing measure details
+/// </summary>
+public class DataModelMeasureViewResult : ResultBase
+{
+    /// <summary>
+    /// Measure name
+    /// </summary>
+    public string MeasureName { get; set; } = "";
+
+    /// <summary>
+    /// Table name where measure is defined
+    /// </summary>
+    public string TableName { get; set; } = "";
+
+    /// <summary>
+    /// Complete DAX formula
+    /// </summary>
+    public string DaxFormula { get; set; } = "";
+
+    /// <summary>
+    /// Measure description
+    /// </summary>
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// Format string (e.g., "$#,##0.00", "0.00%")
+    /// </summary>
+    public string? FormatString { get; set; }
+
+    /// <summary>
+    /// Number of characters in DAX formula
+    /// </summary>
+    public int CharacterCount { get; set; }
+}
+
+/// <summary>
+/// Result for listing model relationships
+/// </summary>
+public class DataModelRelationshipListResult : ResultBase
+{
+    /// <summary>
+    /// List of relationships in the model
+    /// </summary>
+    public List<DataModelRelationshipInfo> Relationships { get; set; } = new();
+}
+
+/// <summary>
+/// Information about a table relationship
+/// </summary>
+public class DataModelRelationshipInfo
+{
+    /// <summary>
+    /// Source table name (foreign key side)
+    /// </summary>
+    public string FromTable { get; init; } = "";
+
+    /// <summary>
+    /// Source column name (foreign key)
+    /// </summary>
+    public string FromColumn { get; init; } = "";
+
+    /// <summary>
+    /// Target table name (primary key side)
+    /// </summary>
+    public string ToTable { get; init; } = "";
+
+    /// <summary>
+    /// Target column name (primary key)
+    /// </summary>
+    public string ToColumn { get; init; } = "";
+
+    /// <summary>
+    /// Whether this relationship is active
+    /// </summary>
+    public bool IsActive { get; init; }
+}
+
+#endregion
+
