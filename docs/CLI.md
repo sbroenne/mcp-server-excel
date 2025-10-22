@@ -52,7 +52,7 @@ dotnet test --filter "Category=Unit"
 
 - 🔧 **Power Query Development** - Extract, refactor, and version control M code
 - 📋 **VBA Development Tools** - Manage VBA modules, run macros, and enhance code
-- 📊 **Excel Automation API** - 40+ commands for Excel operations and workflows
+- 📊 **Excel Automation API** - 50+ commands for Excel operations and workflows
 - 💾 **COM Interop Excellence** - Controls the actual Excel application for full access
 - 🛡️ **Production Ready** - Enterprise-grade with security validation and robust error handling
 - 🔄 **CI/CD Integration** - Perfect for automated Excel development workflows
@@ -93,10 +93,11 @@ dotnet test --filter "Category=Unit"
 
 ## 📋 Commands Overview
 
-ExcelMcp.CLI provides 40+ commands across 6 categories:
+ExcelMcp.CLI provides 50+ commands across 7 categories:
 
 - **File Operations** (2) - Create Excel workbooks (.xlsx, .xlsm)
 - **Power Query** (8) - M code management and data transformation  
+- **Connections** (11) - Excel connection management (OLEDB, ODBC, Text, Web)
 - **VBA Scripts** (6) - Macro development and execution
 - **Worksheets** (9) - Data manipulation and sheet management
 - **Parameters** (5) - Named range configuration

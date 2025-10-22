@@ -192,6 +192,90 @@ excelcli param-create <file.xlsx> <param-name> <reference>
 excelcli param-delete <file.xlsx> <param-name>
 ```
 
+## Connection Commands (`conn-*`)
+
+Manage Excel connections (OLEDB, ODBC, Text, Web, etc.).
+
+**conn-list** - List all connections in workbook
+
+```powershell
+excelcli conn-list <file.xlsx>
+```
+
+**conn-view** - Display connection details and connection string
+
+```powershell
+excelcli conn-view <file.xlsx> <connection-name>
+```
+
+**conn-import** - Import connection from ODC file
+
+```powershell
+excelcli conn-import <file.xlsx> <connection-name> <source.odc>
+```
+
+**conn-export** - Export connection to ODC file
+
+```powershell
+excelcli conn-export <file.xlsx> <connection-name> <output.odc>
+```
+
+**conn-update** - Update existing connection from ODC file
+
+```powershell
+excelcli conn-update <file.xlsx> <connection-name> <source.odc>
+```
+
+**conn-refresh** - Refresh connection data
+
+```powershell
+excelcli conn-refresh <file.xlsx> <connection-name>
+```
+
+**conn-delete** - Delete connection from workbook
+
+```powershell
+excelcli conn-delete <file.xlsx> <connection-name>
+```
+
+**conn-loadto** - Load connection-only connection to worksheet table
+
+```powershell
+excelcli conn-loadto <file.xlsx> <connection-name> <sheet-name>
+```
+
+**conn-properties** - Get connection properties (refresh settings, background query, etc.)
+
+```powershell
+excelcli conn-properties <file.xlsx> <connection-name>
+```
+
+**conn-set-properties** - Set connection properties
+
+```powershell
+excelcli conn-set-properties <file.xlsx> <connection-name> <property-json>
+```
+
+**conn-test** - Test connection connectivity
+
+```powershell
+excelcli conn-test <file.xlsx> <connection-name>
+```
+
+**Supported Connection Types:**
+- **OLEDB** - OLE DB data sources (SQL Server, Access, etc.)
+- **ODBC** - ODBC data sources
+- **Text** - Text/CSV file imports
+- **Web** - Web queries
+- **DataFeed** - Data feed connections
+- **Model** - Data model connections
+- **Worksheet** - Worksheet connections
+
+**⚠️ Important Notes:**
+- Connection strings may contain sensitive data (passwords, credentials)
+- Use `conn-export` carefully - ODC files may contain credentials
+- Power Query connections use `pq-*` commands instead of `conn-*`
+
 ## Cell Commands (`cell-*`)
 
 Manage individual cells.

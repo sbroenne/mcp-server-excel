@@ -146,7 +146,7 @@ dnx Sbroenne.ExcelMcp.McpServer --yes
 | **[🚀 Quick Start Guide](instructions/excel-powerquery-vba-copilot-instructions.md)** | Complete guide for users - copy to `.github/copilot-instructions.md` in your projects |
 | **[🧠 MCP Server Guide](src/ExcelMcp.McpServer/README.md)** | MCP server setup and AI integration examples |
 | **[🔧 ExcelMcp.CLI](docs/CLI.md)** | Command-line interface for direct Excel automation |
-| **[📋 Command Reference](docs/COMMANDS.md)** | Complete reference for all 40+ CLI commands |
+| **[📋 Command Reference](docs/COMMANDS.md)** | Complete reference for all 50+ CLI commands |
 | **[⚙️ Installation Guide](docs/INSTALLATION.md)** | Building from source and installation options |
 | **[🔧 Development Workflow](docs/DEVELOPMENT.md)** | Contributing guidelines and PR requirements |
 | **[📦 NuGet Publishing](docs/NUGET_TRUSTED_PUBLISHING.md)** | Trusted publishing setup for maintainers |
@@ -201,7 +201,7 @@ The MCP server provides 7 focused resource-based tools for AI assistants:
 ## 🔗 Additional Tools
 
 - **[ExcelMcp.CLI](docs/CLI.md)** - Command-line interface for direct Excel automation
-- **[Command Reference](docs/COMMANDS.md)** - All 40+ CLI commands for script-based workflows
+- **[Command Reference](docs/COMMANDS.md)** - All 50+ CLI commands for script-based workflows
 
 ## 🤝 Contributing
 
