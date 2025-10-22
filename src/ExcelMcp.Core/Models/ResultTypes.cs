@@ -859,5 +859,26 @@ public class DataModelRelationshipInfo
     public bool IsActive { get; init; }
 }
 
+/// <summary>
+/// Result for DAX formula validation
+/// </summary>
+public class DataModelValidationResult : ResultBase
+{
+    /// <summary>
+    /// Whether the DAX formula is valid
+    /// </summary>
+    public bool IsValid { get; set; }
+
+    /// <summary>
+    /// Validation error message (if not valid)
+    /// </summary>
+    public string? ValidationError { get; set; }
+
+    /// <summary>
+    /// DAX formula that was validated
+    /// </summary>
+    public string DaxFormula { get; set; } = "";
+}
+
 #endregion
 
