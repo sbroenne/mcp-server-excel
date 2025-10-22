@@ -159,6 +159,8 @@ public static class ExcelHelper
                 {
                     // Release might fail, but continue cleanup
                 }
+                
+                workbook = null;
             }
 
             // Quit Excel application
@@ -185,26 +187,16 @@ public static class ExcelHelper
                 {
                     // Release might fail, but continue cleanup
                 }
+                
+                excel = null;
             }
 
-            // Aggressive cleanup
-            workbook = null;
-            excel = null;
-
-            // Enhanced garbage collection - run multiple cycles
-            for (int i = 0; i < 5; i++)
-            {
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-            }
-
-            // Longer delay to ensure Excel process terminates completely
-            // Excel COM can take time to shut down properly
-            System.Threading.Thread.Sleep(500);
-
-            // Force one more GC cycle after the delay
+            // Recommended COM cleanup pattern: 
+            // Two GC cycles are sufficient - one to collect, one to finalize
+            // Microsoft recommends against excessive GC.Collect() calls
             GC.Collect();
             GC.WaitForPendingFinalizers();
+            GC.Collect(); // Final collect to clean up objects queued during finalization
         }
     }
 
@@ -216,17 +208,38 @@ public static class ExcelHelper
     /// <returns>The query COM object if found, null otherwise</returns>
     public static dynamic? FindQuery(dynamic workbook, string queryName)
     {
+        dynamic? queriesCollection = null;
         try
         {
-            dynamic queriesCollection = workbook.Queries;
+            queriesCollection = workbook.Queries;
             int count = queriesCollection.Count;
             for (int i = 1; i <= count; i++)
             {
-                dynamic query = queriesCollection.Item(i);
-                if (query.Name == queryName) return query;
+                dynamic? query = null;
+                try
+                {
+                    query = queriesCollection.Item(i);
+                    if (query.Name == queryName)
+                    {
+                        // Return the query but don't release it - caller owns it
+                        return query;
+                    }
+                }
+                finally
+                {
+                    // Only release if not returning
+                    if (query != null && query.Name != queryName)
+                    {
+                        ReleaseComObject(ref query);
+                    }
+                }
             }
         }
         catch { }
+        finally
+        {
+            ReleaseComObject(ref queriesCollection);
+        }
         return null;
     }
 
@@ -238,17 +251,37 @@ public static class ExcelHelper
     /// <returns>The named range COM object if found, null otherwise</returns>
     public static dynamic? FindName(dynamic workbook, string name)
     {
+        dynamic? namesCollection = null;
         try
         {
-            dynamic namesCollection = workbook.Names;
+            namesCollection = workbook.Names;
             int count = namesCollection.Count;
             for (int i = 1; i <= count; i++)
             {
-                dynamic nameObj = namesCollection.Item(i);
-                if (nameObj.Name == name) return nameObj;
+                dynamic? nameObj = null;
+                try
+                {
+                    nameObj = namesCollection.Item(i);
+                    if (nameObj.Name == name)
+                    {
+                        return nameObj; // Caller owns this object
+                    }
+                }
+                finally
+                {
+                    // Only release non-matching names
+                    if (nameObj != null && nameObj.Name != name)
+                    {
+                        ReleaseComObject(ref nameObj);
+                    }
+                }
             }
         }
         catch { }
+        finally
+        {
+            ReleaseComObject(ref namesCollection);
+        }
         return null;
     }
 
@@ -260,17 +293,37 @@ public static class ExcelHelper
     /// <returns>The worksheet COM object if found, null otherwise</returns>
     public static dynamic? FindSheet(dynamic workbook, string sheetName)
     {
+        dynamic? sheetsCollection = null;
         try
         {
-            dynamic sheetsCollection = workbook.Worksheets;
+            sheetsCollection = workbook.Worksheets;
             int count = sheetsCollection.Count;
             for (int i = 1; i <= count; i++)
             {
-                dynamic sheet = sheetsCollection.Item(i);
-                if (sheet.Name == sheetName) return sheet;
+                dynamic? sheet = null;
+                try
+                {
+                    sheet = sheetsCollection.Item(i);
+                    if (sheet.Name == sheetName)
+                    {
+                        return sheet; // Caller owns this object
+                    }
+                }
+                finally
+                {
+                    // Only release non-matching sheets
+                    if (sheet != null && sheet.Name != sheetName)
+                    {
+                        ReleaseComObject(ref sheet);
+                    }
+                }
             }
         }
         catch { }
+        finally
+        {
+            ReleaseComObject(ref sheetsCollection);
+        }
         return null;
     }
 
@@ -380,6 +433,8 @@ public static class ExcelHelper
                 {
                     // Release might fail, but continue cleanup
                 }
+                
+                workbook = null;
             }
 
             // Quit Excel application
@@ -406,26 +461,55 @@ public static class ExcelHelper
                 {
                     // Release might fail, but continue cleanup
                 }
+                
+                excel = null;
             }
 
-            // Aggressive cleanup
-            workbook = null;
-            excel = null;
-
-            // Enhanced garbage collection - run multiple cycles
-            for (int i = 0; i < 5; i++)
-            {
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-            }
-
-            // Longer delay to ensure Excel process terminates completely
-            // Excel COM can take time to shut down properly
-            System.Threading.Thread.Sleep(500);
-
-            // Force one more GC cycle after the delay
+            // Recommended COM cleanup pattern: 
+            // Two GC cycles are sufficient - one to collect, one to finalize
+            // Microsoft recommends against excessive GC.Collect() calls
             GC.Collect();
             GC.WaitForPendingFinalizers();
+            GC.Collect(); // Final collect to clean up objects queued during finalization
+        }
+    }
+
+    /// <summary>
+    /// Safely releases a COM object and sets the reference to null
+    /// </summary>
+    /// <param name="comObject">The COM object to release</param>
+    /// <remarks>
+    /// Use this helper to release intermediate COM objects (like ranges, worksheets, queries)
+    /// to prevent Excel process from staying open. This is especially important when
+    /// iterating through collections or accessing multiple COM properties.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// dynamic? queries = null;
+    /// try
+    /// {
+    ///     queries = workbook.Queries;
+    ///     // Use queries...
+    /// }
+    /// finally
+    /// {
+    ///     ReleaseComObject(ref queries);
+    /// }
+    /// </code>
+    /// </example>
+    public static void ReleaseComObject<T>(ref T? comObject) where T : class
+    {
+        if (comObject != null)
+        {
+            try
+            {
+                Marshal.ReleaseComObject(comObject);
+            }
+            catch
+            {
+                // Ignore errors during release
+            }
+            comObject = null;
         }
     }
 

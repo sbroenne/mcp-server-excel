@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Security;
 using static Sbroenne.ExcelMcp.Core.ExcelHelper;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -91,15 +92,17 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         var privacyLevels = new List<QueryPrivacyInfo>();
 
+        dynamic? queries = null;
         try
         {
-            dynamic queries = workbook.Queries;
+            queries = workbook.Queries;
 
             for (int i = 1; i <= queries.Count; i++)
             {
+                dynamic? query = null;
                 try
                 {
-                    dynamic query = queries.Item(i);
+                    query = queries.Item(i);
                     string name = query.Name ?? $"Query{i}";
                     string formula = query.Formula ?? "";
 
@@ -110,9 +113,17 @@ public class PowerQueryCommands : IPowerQueryCommands
                     }
                 }
                 catch { /* Skip queries that can't be read */ }
+                finally
+                {
+                    ExcelHelper.ReleaseComObject(ref query);
+                }
             }
         }
         catch { /* If we can't read queries, just proceed with empty list */ }
+        finally
+        {
+            ExcelHelper.ReleaseComObject(ref queries);
+        }
 
         var recommended = DetermineRecommendedPrivacyLevel(privacyLevels);
 
@@ -132,6 +143,9 @@ public class PowerQueryCommands : IPowerQueryCommands
     /// </summary>
     private static void ApplyPrivacyLevel(dynamic workbook, PowerQueryPrivacyLevel privacyLevel)
     {
+        dynamic? customProps = null;
+        dynamic? application = null;
+        
         try
         {
             // In Excel COM, privacy settings are typically applied at the workbook or query level
@@ -142,19 +156,27 @@ public class PowerQueryCommands : IPowerQueryCommands
             try
             {
                 // Some Excel versions support setting privacy through workbook properties
-                dynamic customProps = workbook.CustomDocumentProperties;
+                customProps = workbook.CustomDocumentProperties;
                 string privacyValue = privacyLevel.ToString();
 
                 // Try to update existing property
                 bool found = false;
                 for (int i = 1; i <= customProps.Count; i++)
                 {
-                    dynamic prop = customProps.Item(i);
-                    if (prop.Name == "PowerQueryPrivacyLevel")
+                    dynamic? prop = null;
+                    try
                     {
-                        prop.Value = privacyValue;
-                        found = true;
-                        break;
+                        prop = customProps.Item(i);
+                        if (prop.Name == "PowerQueryPrivacyLevel")
+                        {
+                            prop.Value = privacyValue;
+                            found = true;
+                            break;
+                        }
+                    }
+                    finally
+                    {
+                        ExcelHelper.ReleaseComObject(ref prop);
                     }
                 }
 
@@ -165,12 +187,16 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
             }
             catch { /* Property approach not supported in this Excel version */ }
+            finally
+            {
+                ExcelHelper.ReleaseComObject(ref customProps);
+            }
 
             // The key approach: Set Fast Data Load to false when using privacy levels
             // This ensures Excel respects privacy settings
             try
             {
-                dynamic application = workbook.Application;
+                application = workbook.Application;
                 // Set calculation mode that respects privacy
                 if (privacyLevel != PowerQueryPrivacyLevel.None)
                 {
@@ -179,6 +205,10 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
             }
             catch { /* Application settings not accessible */ }
+            finally
+            {
+                ExcelHelper.ReleaseComObject(ref application);
+            }
         }
         catch (Exception)
         {
@@ -277,35 +307,56 @@ public class PowerQueryCommands : IPowerQueryCommands
     /// </summary>
     private static string? DetermineLoadedSheet(dynamic workbook, string queryName)
     {
+        dynamic? worksheets = null;
         try
         {
-            dynamic worksheets = workbook.Worksheets;
+            worksheets = workbook.Worksheets;
             for (int ws = 1; ws <= worksheets.Count; ws++)
             {
-                dynamic worksheet = worksheets.Item(ws);
-                dynamic queryTables = worksheet.QueryTables;
-
-                for (int qt = 1; qt <= queryTables.Count; qt++)
+                dynamic? worksheet = null;
+                dynamic? queryTables = null;
+                try
                 {
-                    try
-                    {
-                        dynamic queryTable = queryTables.Item(qt);
-                        string qtName = queryTable.Name?.ToString() ?? "";
+                    worksheet = worksheets.Item(ws);
+                    queryTables = worksheet.QueryTables;
 
-                        if (qtName.Equals(queryName.Replace(" ", "_"), StringComparison.OrdinalIgnoreCase) ||
-                            qtName.Contains(queryName.Replace(" ", "_")))
+                    for (int qt = 1; qt <= queryTables.Count; qt++)
+                    {
+                        dynamic? queryTable = null;
+                        try
                         {
-                            return worksheet.Name;
+                            queryTable = queryTables.Item(qt);
+                            string qtName = queryTable.Name?.ToString() ?? "";
+
+                            if (qtName.Equals(queryName.Replace(" ", "_"), StringComparison.OrdinalIgnoreCase) ||
+                                qtName.Contains(queryName.Replace(" ", "_")))
+                            {
+                                string sheetName = worksheet.Name;
+                                return sheetName;
+                            }
+                        }
+                        catch
+                        {
+                            continue;
+                        }
+                        finally
+                        {
+                            ExcelHelper.ReleaseComObject(ref queryTable);
                         }
                     }
-                    catch
-                    {
-                        continue;
-                    }
+                }
+                finally
+                {
+                    ExcelHelper.ReleaseComObject(ref queryTables);
+                    ExcelHelper.ReleaseComObject(ref worksheet);
                 }
             }
         }
         catch { }
+        finally
+        {
+            ExcelHelper.ReleaseComObject(ref worksheets);
+        }
 
         return null;
     }
@@ -324,16 +375,18 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, false, (excel, workbook) =>
         {
+            dynamic? queriesCollection = null;
             try
             {
-                dynamic queriesCollection = workbook.Queries;
+                queriesCollection = workbook.Queries;
                 int count = queriesCollection.Count;
 
                 for (int i = 1; i <= count; i++)
                 {
+                    dynamic? query = null;
                     try
                     {
-                        dynamic query = queriesCollection.Item(i);
+                        query = queriesCollection.Item(i);
                         string name = query.Name ?? $"Query{i}";
                         string formula = query.Formula ?? "";
 
@@ -341,22 +394,35 @@ public class PowerQueryCommands : IPowerQueryCommands
 
                         // Check if connection only
                         bool isConnectionOnly = true;
+                        dynamic? connections = null;
                         try
                         {
-                            dynamic connections = workbook.Connections;
+                            connections = workbook.Connections;
                             for (int c = 1; c <= connections.Count; c++)
                             {
-                                dynamic conn = connections.Item(c);
-                                string connName = conn.Name?.ToString() ?? "";
-                                if (connName.Equals(name, StringComparison.OrdinalIgnoreCase) ||
-                                    connName.Equals($"Query - {name}", StringComparison.OrdinalIgnoreCase))
+                                dynamic? conn = null;
+                                try
                                 {
-                                    isConnectionOnly = false;
-                                    break;
+                                    conn = connections.Item(c);
+                                    string connName = conn.Name?.ToString() ?? "";
+                                    if (connName.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+                                        connName.Equals($"Query - {name}", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        isConnectionOnly = false;
+                                        break;
+                                    }
+                                }
+                                finally
+                                {
+                                    ExcelHelper.ReleaseComObject(ref conn);
                                 }
                             }
                         }
                         catch { }
+                        finally
+                        {
+                            ExcelHelper.ReleaseComObject(ref connections);
+                        }
 
                         result.Queries.Add(new PowerQueryInfo
                         {
@@ -376,6 +442,10 @@ public class PowerQueryCommands : IPowerQueryCommands
                             IsConnectionOnly = false
                         });
                     }
+                    finally
+                    {
+                        ExcelHelper.ReleaseComObject(ref query);
+                    }
                 }
 
                 result.Success = true;
@@ -393,6 +463,10 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
 
                 return 1;
+            }
+            finally
+            {
+                ExcelHelper.ReleaseComObject(ref queriesCollection);
             }
         });
 
@@ -417,9 +491,10 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, false, (excel, workbook) =>
         {
+            dynamic? query = null;
             try
             {
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     var queryNames = GetQueryNames(workbook);
@@ -440,22 +515,35 @@ public class PowerQueryCommands : IPowerQueryCommands
 
                 // Check if connection only
                 bool isConnectionOnly = true;
+                dynamic? connections = null;
                 try
                 {
-                    dynamic connections = workbook.Connections;
+                    connections = workbook.Connections;
                     for (int c = 1; c <= connections.Count; c++)
                     {
-                        dynamic conn = connections.Item(c);
-                        string connName = conn.Name?.ToString() ?? "";
-                        if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
-                            connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                        dynamic? conn = null;
+                        try
                         {
-                            isConnectionOnly = false;
-                            break;
+                            conn = connections.Item(c);
+                            string connName = conn.Name?.ToString() ?? "";
+                            if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
+                                connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                            {
+                                isConnectionOnly = false;
+                                break;
+                            }
+                        }
+                        finally
+                        {
+                            ExcelHelper.ReleaseComObject(ref conn);
                         }
                     }
                 }
                 catch { }
+                finally
+                {
+                    ExcelHelper.ReleaseComObject(ref connections);
+                }
 
                 result.IsConnectionOnly = isConnectionOnly;
                 result.Success = true;
@@ -466,6 +554,10 @@ public class PowerQueryCommands : IPowerQueryCommands
                 result.Success = false;
                 result.ErrorMessage = $"Error viewing query: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ExcelHelper.ReleaseComObject(ref query);
             }
         });
 
@@ -488,10 +580,15 @@ public class PowerQueryCommands : IPowerQueryCommands
             return result;
         }
 
-        if (!File.Exists(mCodeFile))
+        // Validate and normalize the M code file path to prevent path traversal attacks
+        try
+        {
+            mCodeFile = PathValidator.ValidateExistingFile(mCodeFile, nameof(mCodeFile));
+        }
+        catch (Exception ex)
         {
             result.Success = false;
-            result.ErrorMessage = $"M code file not found: {mCodeFile}";
+            result.ErrorMessage = $"Invalid M code file path: {ex.Message}";
             return result;
         }
 
@@ -502,6 +599,7 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? query = null;
             try
             {
                 // Apply privacy level if specified
@@ -510,7 +608,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                     ApplyPrivacyLevel(workbook, privacyLevel.Value);
                 }
 
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     var queryNames = GetQueryNames(workbook);
@@ -546,6 +644,10 @@ public class PowerQueryCommands : IPowerQueryCommands
                 result.Success = false;
                 result.ErrorMessage = $"Error updating query: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ExcelHelper.ReleaseComObject(ref query);
             }
         });
 
@@ -667,11 +769,24 @@ public class PowerQueryCommands : IPowerQueryCommands
             return result;
         }
 
+        // Validate and normalize the output file path to prevent path traversal attacks
+        try
+        {
+            outputFile = PathValidator.ValidateOutputFile(outputFile, nameof(outputFile), allowOverwrite: true);
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Invalid output file path: {ex.Message}";
+            return result;
+        }
+
         WithExcel(filePath, false, (excel, workbook) =>
         {
+            dynamic? query = null;
             try
             {
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     var queryNames = GetQueryNames(workbook);
@@ -698,6 +813,10 @@ public class PowerQueryCommands : IPowerQueryCommands
                 result.ErrorMessage = $"Error exporting query: {ex.Message}";
                 return 1;
             }
+            finally
+            {
+                ExcelHelper.ReleaseComObject(ref query);
+            }
         });
 
         return await Task.FromResult(result);
@@ -719,10 +838,15 @@ public class PowerQueryCommands : IPowerQueryCommands
             return result;
         }
 
-        if (!File.Exists(mCodeFile))
+        // Validate and normalize the M code file path to prevent path traversal attacks
+        try
+        {
+            mCodeFile = PathValidator.ValidateExistingFile(mCodeFile, nameof(mCodeFile));
+        }
+        catch (Exception ex)
         {
             result.Success = false;
-            result.ErrorMessage = $"M code file not found: {mCodeFile}";
+            result.ErrorMessage = $"Invalid M code file path: {ex.Message}";
             return result;
         }
 
@@ -730,6 +854,9 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? existingQuery = null;
+            dynamic? queriesCollection = null;
+            dynamic? newQuery = null;
             try
             {
                 // Apply privacy level if specified
@@ -739,7 +866,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
 
                 // Check if query already exists
-                dynamic existingQuery = FindQuery(workbook, queryName);
+                existingQuery = FindQuery(workbook, queryName);
                 if (existingQuery != null)
                 {
                     result.Success = false;
@@ -748,8 +875,8 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
 
                 // Add new query
-                dynamic queriesCollection = workbook.Queries;
-                dynamic newQuery = queriesCollection.Add(queryName, mCode);
+                queriesCollection = workbook.Queries;
+                newQuery = queriesCollection.Add(queryName, mCode);
 
                 result.Success = true;
                 return 0;
@@ -769,6 +896,12 @@ public class PowerQueryCommands : IPowerQueryCommands
                 result.Success = false;
                 result.ErrorMessage = $"Error importing query: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ExcelHelper.ReleaseComObject(ref newQuery);
+                ExcelHelper.ReleaseComObject(ref queriesCollection);
+                ExcelHelper.ReleaseComObject(ref existingQuery);
             }
         });
 
@@ -858,9 +991,10 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? query = null;
             try
             {
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     var queryNames = GetQueryNames(workbook);
@@ -877,22 +1011,36 @@ public class PowerQueryCommands : IPowerQueryCommands
 
                 // Check if query has a connection to refresh
                 dynamic? targetConnection = null;
+                dynamic? connections = null;
                 try
                 {
-                    dynamic connections = workbook.Connections;
+                    connections = workbook.Connections;
                     for (int i = 1; i <= connections.Count; i++)
                     {
-                        dynamic conn = connections.Item(i);
-                        string connName = conn.Name?.ToString() ?? "";
-                        if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
-                            connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                        dynamic? conn = null;
+                        try
                         {
-                            targetConnection = conn;
-                            break;
+                            conn = connections.Item(i);
+                            string connName = conn.Name?.ToString() ?? "";
+                            if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
+                                connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                            {
+                                targetConnection = conn;
+                                conn = null; // Don't release - we're using it
+                                break;
+                            }
+                        }
+                        finally
+                        {
+                            ReleaseComObject(ref conn);
                         }
                     }
                 }
                 catch { }
+                finally
+                {
+                    ReleaseComObject(ref connections);
+                }
 
                 if (targetConnection != null)
                 {
@@ -924,10 +1072,15 @@ public class PowerQueryCommands : IPowerQueryCommands
                         result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetErrorRecoverySteps(errorCategory);
                         result.WorkflowHint = PowerQueryWorkflowGuidance.GetWorkflowHint("pq-refresh", false);
                     }
+                    finally
+                    {
+                        ReleaseComObject(ref targetConnection);
+                    }
                 }
                 else
                 {
                     // Connection-only query
+                    ReleaseComObject(ref query);
                     result.Success = true;
                     result.IsConnectionOnly = true;
                     result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterRefresh(
@@ -973,9 +1126,10 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, false, (excel, workbook) =>
         {
+            dynamic? query = null;
             try
             {
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -984,24 +1138,37 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
 
                 // Try to get error information if available
+                dynamic? connections = null;
                 try
                 {
-                    dynamic connections = workbook.Connections;
+                    connections = workbook.Connections;
                     for (int i = 1; i <= connections.Count; i++)
                     {
-                        dynamic conn = connections.Item(i);
-                        string connName = conn.Name?.ToString() ?? "";
-                        if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
-                            connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                        dynamic? conn = null;
+                        try
                         {
-                            // Connection found - query has been loaded
-                            result.MCode = "No error information available through Excel COM interface";
-                            result.Success = true;
-                            return 0;
+                            conn = connections.Item(i);
+                            string connName = conn.Name?.ToString() ?? "";
+                            if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
+                                connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                            {
+                                // Connection found - query has been loaded
+                                result.MCode = "No error information available through Excel COM interface";
+                                result.Success = true;
+                                return 0;
+                            }
+                        }
+                        finally
+                        {
+                            ReleaseComObject(ref conn);
                         }
                     }
                 }
                 catch { }
+                finally
+                {
+                    ReleaseComObject(ref connections);
+                }
 
                 result.MCode = "Query is connection-only - no error information available";
                 result.Success = true;
@@ -1012,6 +1179,10 @@ public class PowerQueryCommands : IPowerQueryCommands
                 result.Success = false;
                 result.ErrorMessage = $"Error checking query errors: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref query);
             }
         });
 
@@ -1036,9 +1207,10 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? query = null;
             try
             {
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -1047,119 +1219,202 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
 
                 // Find or create target sheet
-                dynamic sheets = workbook.Worksheets;
+                dynamic? sheets = null;
                 dynamic? targetSheet = null;
-
-                for (int i = 1; i <= sheets.Count; i++)
+                try
                 {
-                    dynamic sheet = sheets.Item(i);
-                    if (sheet.Name == sheetName)
+                    sheets = workbook.Worksheets;
+
+                    for (int i = 1; i <= sheets.Count; i++)
                     {
-                        targetSheet = sheet;
-                        break;
+                        dynamic? sheet = null;
+                        try
+                        {
+                            sheet = sheets.Item(i);
+                            if (sheet.Name == sheetName)
+                            {
+                                targetSheet = sheet;
+                                sheet = null; // Don't release - we're using it
+                                break;
+                            }
+                        }
+                        finally
+                        {
+                            ReleaseComObject(ref sheet);
+                        }
+                    }
+
+                    if (targetSheet == null)
+                    {
+                        targetSheet = sheets.Add();
+                        targetSheet.Name = sheetName;
                     }
                 }
-
-                if (targetSheet == null)
+                finally
                 {
-                    targetSheet = sheets.Add();
-                    targetSheet.Name = sheetName;
+                    ReleaseComObject(ref sheets);
                 }
 
                 // Get the workbook connections to find our query
-                dynamic connections = workbook.Connections;
+                dynamic? connections = null;
                 dynamic? targetConnection = null;
-
-                // Look for existing connection for this query
-                for (int i = 1; i <= connections.Count; i++)
+                try
                 {
-                    dynamic conn = connections.Item(i);
-                    string connName = conn.Name?.ToString() ?? "";
-                    if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
-                        connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                    connections = workbook.Connections;
+
+                    // Look for existing connection for this query
+                    for (int i = 1; i <= connections.Count; i++)
                     {
-                        targetConnection = conn;
-                        break;
+                        dynamic? conn = null;
+                        try
+                        {
+                            conn = connections.Item(i);
+                            string connName = conn.Name?.ToString() ?? "";
+                            if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
+                                connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                            {
+                                targetConnection = conn;
+                                conn = null; // Don't release - we're using it
+                                break;
+                            }
+                        }
+                        finally
+                        {
+                            ReleaseComObject(ref conn);
+                        }
                     }
+                }
+                finally
+                {
+                    ReleaseComObject(ref connections);
                 }
 
                 // If no connection exists, we need to create one by loading the query to table
                 if (targetConnection == null)
                 {
                     // Access the query through the Queries collection and load it to table
-                    dynamic queries = workbook.Queries;
+                    dynamic? queries = null;
                     dynamic? targetQuery = null;
-
-                    for (int i = 1; i <= queries.Count; i++)
+                    dynamic? queryTables = null;
+                    dynamic? queryTable = null;
+                    dynamic? rangeObj = null;
+                    try
                     {
-                        dynamic q = queries.Item(i);
-                        if (q.Name.Equals(queryName, StringComparison.OrdinalIgnoreCase))
+                        queries = workbook.Queries;
+
+                        for (int i = 1; i <= queries.Count; i++)
                         {
-                            targetQuery = q;
-                            break;
+                            dynamic? q = null;
+                            try
+                            {
+                                q = queries.Item(i);
+                                if (q.Name.Equals(queryName, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    targetQuery = q;
+                                    q = null; // Don't release - we're using it
+                                    break;
+                                }
+                            }
+                            finally
+                            {
+                                ReleaseComObject(ref q);
+                            }
                         }
-                    }
 
-                    if (targetQuery == null)
+                        if (targetQuery == null)
+                        {
+                            result.Success = false;
+                            result.ErrorMessage = $"Query '{queryName}' not found in queries collection";
+                            return 1;
+                        }
+
+                        // Create a QueryTable using the Mashup provider
+                        queryTables = targetSheet.QueryTables;
+                        string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
+                        string commandText = $"SELECT * FROM [{queryName}]";
+
+                        rangeObj = targetSheet.Range["A1"];
+                        queryTable = queryTables.Add(connectionString, rangeObj, commandText);
+                        queryTable.Name = queryName.Replace(" ", "_");
+                        queryTable.RefreshStyle = 1; // xlInsertDeleteCells
+
+                        // Set additional properties for better data loading
+                        queryTable.BackgroundQuery = false; // Don't run in background
+                        queryTable.PreserveColumnInfo = true;
+                        queryTable.PreserveFormatting = true;
+                        queryTable.AdjustColumnWidth = true;
+
+                        // Refresh to actually load the data
+                        queryTable.Refresh(false); // false = wait for completion
+                    }
+                    finally
                     {
-                        result.Success = false;
-                        result.ErrorMessage = $"Query '{queryName}' not found in queries collection";
-                        return 1;
+                        ReleaseComObject(ref rangeObj);
+                        ReleaseComObject(ref queryTable);
+                        ReleaseComObject(ref queryTables);
+                        ReleaseComObject(ref targetQuery);
+                        ReleaseComObject(ref queries);
                     }
-
-                    // Create a QueryTable using the Mashup provider
-                    dynamic queryTables = targetSheet.QueryTables;
-                    string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
-                    string commandText = $"SELECT * FROM [{queryName}]";
-
-                    dynamic queryTable = queryTables.Add(connectionString, targetSheet.Range["A1"], commandText);
-                    queryTable.Name = queryName.Replace(" ", "_");
-                    queryTable.RefreshStyle = 1; // xlInsertDeleteCells
-
-                    // Set additional properties for better data loading
-                    queryTable.BackgroundQuery = false; // Don't run in background
-                    queryTable.PreserveColumnInfo = true;
-                    queryTable.PreserveFormatting = true;
-                    queryTable.AdjustColumnWidth = true;
-
-                    // Refresh to actually load the data
-                    queryTable.Refresh(false); // false = wait for completion
                 }
                 else
                 {
                     // Connection exists, create QueryTable from existing connection
-                    dynamic queryTables = targetSheet.QueryTables;
-
-                    // Remove any existing QueryTable with the same name
+                    dynamic? queryTables = null;
+                    dynamic? queryTable = null;
+                    dynamic? rangeObj = null;
                     try
                     {
-                        for (int i = queryTables.Count; i >= 1; i--)
+                        queryTables = targetSheet.QueryTables;
+
+                        // Remove any existing QueryTable with the same name
+                        try
                         {
-                            dynamic qt = queryTables.Item(i);
-                            if (qt.Name.Equals(queryName.Replace(" ", "_"), StringComparison.OrdinalIgnoreCase))
+                            for (int i = queryTables.Count; i >= 1; i--)
                             {
-                                qt.Delete();
+                                dynamic? qt = null;
+                                try
+                                {
+                                    qt = queryTables.Item(i);
+                                    if (qt.Name.Equals(queryName.Replace(" ", "_"), StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        qt.Delete();
+                                    }
+                                }
+                                finally
+                                {
+                                    ReleaseComObject(ref qt);
+                                }
                             }
                         }
+                        catch { } // Ignore errors if no existing QueryTable
+
+                        // Create new QueryTable
+                        string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
+                        string commandText = $"SELECT * FROM [{queryName}]";
+
+                        rangeObj = targetSheet.Range["A1"];
+                        queryTable = queryTables.Add(connectionString, rangeObj, commandText);
+                        queryTable.Name = queryName.Replace(" ", "_");
+                        queryTable.RefreshStyle = 1; // xlInsertDeleteCells
+                        queryTable.BackgroundQuery = false;
+                        queryTable.PreserveColumnInfo = true;
+                        queryTable.PreserveFormatting = true;
+                        queryTable.AdjustColumnWidth = true;
+
+                        // Refresh to load data
+                        queryTable.Refresh(false);
                     }
-                    catch { } // Ignore errors if no existing QueryTable
-
-                    // Create new QueryTable
-                    string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
-                    string commandText = $"SELECT * FROM [{queryName}]";
-
-                    dynamic queryTable = queryTables.Add(connectionString, targetSheet.Range["A1"], commandText);
-                    queryTable.Name = queryName.Replace(" ", "_");
-                    queryTable.RefreshStyle = 1; // xlInsertDeleteCells
-                    queryTable.BackgroundQuery = false;
-                    queryTable.PreserveColumnInfo = true;
-                    queryTable.PreserveFormatting = true;
-                    queryTable.AdjustColumnWidth = true;
-
-                    // Refresh to load data
-                    queryTable.Refresh(false);
+                    finally
+                    {
+                        ReleaseComObject(ref rangeObj);
+                        ReleaseComObject(ref queryTable);
+                        ReleaseComObject(ref queryTables);
+                        ReleaseComObject(ref targetConnection);
+                    }
                 }
 
+                ReleaseComObject(ref targetSheet);
+                ReleaseComObject(ref query);
                 result.Success = true;
                 return 0;
             }
@@ -1192,9 +1447,11 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? query = null;
+            dynamic? queriesCollection = null;
             try
             {
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -1202,7 +1459,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                     return 1;
                 }
 
-                dynamic queriesCollection = workbook.Queries;
+                queriesCollection = workbook.Queries;
                 queriesCollection.Item(queryName).Delete();
 
                 result.Success = true;
@@ -1213,6 +1470,11 @@ public class PowerQueryCommands : IPowerQueryCommands
                 result.Success = false;
                 result.ErrorMessage = $"Error deleting query: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref queriesCollection);
+                ReleaseComObject(ref query);
             }
         });
 
@@ -1225,15 +1487,29 @@ public class PowerQueryCommands : IPowerQueryCommands
     private static List<string> GetQueryNames(dynamic workbook)
     {
         var names = new List<string>();
+        dynamic? queriesCollection = null;
         try
         {
-            dynamic queriesCollection = workbook.Queries;
+            queriesCollection = workbook.Queries;
             for (int i = 1; i <= queriesCollection.Count; i++)
             {
-                names.Add(queriesCollection.Item(i).Name);
+                dynamic? query = null;
+                try
+                {
+                    query = queriesCollection.Item(i);
+                    names.Add(query.Name);
+                }
+                finally
+                {
+                    ExcelHelper.ReleaseComObject(ref query);
+                }
             }
         }
         catch { }
+        finally
+        {
+            ExcelHelper.ReleaseComObject(ref queriesCollection);
+        }
         return names;
     }
 
@@ -1251,43 +1527,71 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, false, (excel, workbook) =>
         {
+            dynamic? worksheets = null;
+            dynamic? names = null;
             try
             {
                 // Get all tables from all worksheets
-                dynamic worksheets = workbook.Worksheets;
+                worksheets = workbook.Worksheets;
                 for (int ws = 1; ws <= worksheets.Count; ws++)
                 {
-                    dynamic worksheet = worksheets.Item(ws);
-                    string wsName = worksheet.Name;
-
-                    dynamic tables = worksheet.ListObjects;
-                    for (int i = 1; i <= tables.Count; i++)
+                    dynamic? worksheet = null;
+                    dynamic? tables = null;
+                    try
                     {
-                        dynamic table = tables.Item(i);
-                        result.Worksheets.Add(new WorksheetInfo
+                        worksheet = worksheets.Item(ws);
+                        string wsName = worksheet.Name;
+
+                        tables = worksheet.ListObjects;
+                        for (int i = 1; i <= tables.Count; i++)
                         {
-                            Name = table.Name,
-                            Index = i,
-                            Visible = true
-                        });
+                            dynamic? table = null;
+                            try
+                            {
+                                table = tables.Item(i);
+                                result.Worksheets.Add(new WorksheetInfo
+                                {
+                                    Name = table.Name,
+                                    Index = i,
+                                    Visible = true
+                                });
+                            }
+                            finally
+                            {
+                                ReleaseComObject(ref table);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        ReleaseComObject(ref tables);
+                        ReleaseComObject(ref worksheet);
                     }
                 }
 
                 // Get all named ranges
-                dynamic names = workbook.Names;
+                names = workbook.Names;
                 int namedRangeIndex = result.Worksheets.Count + 1;
                 for (int i = 1; i <= names.Count; i++)
                 {
-                    dynamic name = names.Item(i);
-                    string nameValue = name.Name;
-                    if (!nameValue.StartsWith("_"))
+                    dynamic? name = null;
+                    try
                     {
-                        result.Worksheets.Add(new WorksheetInfo
+                        name = names.Item(i);
+                        string nameValue = name.Name;
+                        if (!nameValue.StartsWith("_"))
                         {
-                            Name = nameValue,
-                            Index = namedRangeIndex++,
-                            Visible = true
-                        });
+                            result.Worksheets.Add(new WorksheetInfo
+                            {
+                                Name = nameValue,
+                                Index = namedRangeIndex++,
+                                Visible = true
+                            });
+                        }
+                    }
+                    finally
+                    {
+                        ReleaseComObject(ref name);
                     }
                 }
 
@@ -1299,6 +1603,11 @@ public class PowerQueryCommands : IPowerQueryCommands
                 result.Success = false;
                 result.ErrorMessage = $"Error listing sources: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref names);
+                ReleaseComObject(ref worksheets);
             }
         });
 
@@ -1323,6 +1632,8 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? queriesCollection = null;
+            dynamic? tempQuery = null;
             try
             {
                 // Create a test query to load the source
@@ -1332,8 +1643,8 @@ let
 in
     Source";
 
-                dynamic queriesCollection = workbook.Queries;
-                dynamic tempQuery = queriesCollection.Add("_TestQuery", testQuery);
+                queriesCollection = workbook.Queries;
+                tempQuery = queriesCollection.Add("_TestQuery", testQuery);
 
                 // Try to refresh
                 bool refreshSuccess = false;
@@ -1361,6 +1672,11 @@ in
                 result.ErrorMessage = $"Source '{sourceName}' not found or cannot be loaded: {ex.Message}";
                 return 1;
             }
+            finally
+            {
+                ReleaseComObject(ref tempQuery);
+                ReleaseComObject(ref queriesCollection);
+            }
         });
 
         return result;
@@ -1384,58 +1700,97 @@ in
 
         WithExcel(filePath, false, (excel, workbook) =>
         {
+            dynamic? names = null;
+            dynamic? worksheets = null;
             try
             {
                 // Check if it's a named range (single value)
-                dynamic names = workbook.Names;
+                names = workbook.Names;
                 for (int i = 1; i <= names.Count; i++)
                 {
-                    dynamic name = names.Item(i);
-                    string nameValue = name.Name;
-                    if (nameValue == sourceName)
+                    dynamic? name = null;
+                    try
                     {
-                        try
+                        name = names.Item(i);
+                        string nameValue = name.Name;
+                        if (nameValue == sourceName)
                         {
-                            var value = name.RefersToRange.Value;
-                            result.Data.Add(new List<object?> { value });
-                            result.RowCount = 1;
-                            result.ColumnCount = 1;
-                            result.Success = true;
-                            return 0;
+                            try
+                            {
+                                var value = name.RefersToRange.Value;
+                                result.Data.Add(new List<object?> { value });
+                                result.RowCount = 1;
+                                result.ColumnCount = 1;
+                                result.Success = true;
+                                return 0;
+                            }
+                            catch
+                            {
+                                result.Success = false;
+                                result.ErrorMessage = "Named range found but value cannot be read (may be #REF!)";
+                                return 1;
+                            }
                         }
-                        catch
-                        {
-                            result.Success = false;
-                            result.ErrorMessage = "Named range found but value cannot be read (may be #REF!)";
-                            return 1;
-                        }
+                    }
+                    finally
+                    {
+                        ReleaseComObject(ref name);
                     }
                 }
 
                 // Check if it's a table
-                dynamic worksheets = workbook.Worksheets;
+                worksheets = workbook.Worksheets;
                 for (int ws = 1; ws <= worksheets.Count; ws++)
                 {
-                    dynamic worksheet = worksheets.Item(ws);
-                    dynamic tables = worksheet.ListObjects;
-                    for (int i = 1; i <= tables.Count; i++)
+                    dynamic? worksheet = null;
+                    dynamic? tables = null;
+                    try
                     {
-                        dynamic table = tables.Item(i);
-                        if (table.Name == sourceName)
+                        worksheet = worksheets.Item(ws);
+                        tables = worksheet.ListObjects;
+                        for (int i = 1; i <= tables.Count; i++)
                         {
-                            result.RowCount = table.ListRows.Count;
-                            result.ColumnCount = table.ListColumns.Count;
-
-                            // Get column names
-                            dynamic listCols = table.ListColumns;
-                            for (int c = 1; c <= Math.Min(result.ColumnCount, 10); c++)
+                            dynamic? table = null;
+                            dynamic? listCols = null;
+                            try
                             {
-                                result.Headers.Add(listCols.Item(c).Name);
-                            }
+                                table = tables.Item(i);
+                                if (table.Name == sourceName)
+                                {
+                                    result.RowCount = table.ListRows.Count;
+                                    result.ColumnCount = table.ListColumns.Count;
 
-                            result.Success = true;
-                            return 0;
+                                    // Get column names
+                                    listCols = table.ListColumns;
+                                    for (int c = 1; c <= Math.Min(result.ColumnCount, 10); c++)
+                                    {
+                                        dynamic? listCol = null;
+                                        try
+                                        {
+                                            listCol = listCols.Item(c);
+                                            result.Headers.Add(listCol.Name);
+                                        }
+                                        finally
+                                        {
+                                            ReleaseComObject(ref listCol);
+                                        }
+                                    }
+
+                                    result.Success = true;
+                                    return 0;
+                                }
+                            }
+                            finally
+                            {
+                                ReleaseComObject(ref listCols);
+                                ReleaseComObject(ref table);
+                            }
                         }
+                    }
+                    finally
+                    {
+                        ReleaseComObject(ref tables);
+                        ReleaseComObject(ref worksheet);
                     }
                 }
 
@@ -1448,6 +1803,11 @@ in
                 result.Success = false;
                 result.ErrorMessage = $"Error peeking source: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref worksheets);
+                ReleaseComObject(ref names);
             }
         });
 
@@ -1472,6 +1832,8 @@ in
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? queriesCollection = null;
+            dynamic? tempQuery = null;
             try
             {
                 // Create a temporary query with the expression
@@ -1481,8 +1843,8 @@ let
 in
     Result";
 
-                dynamic queriesCollection = workbook.Queries;
-                dynamic tempQuery = queriesCollection.Add("_EvalQuery", evalQuery);
+                queriesCollection = workbook.Queries;
+                tempQuery = queriesCollection.Add("_EvalQuery", evalQuery);
 
                 result.MCode = evalQuery;
                 result.CharacterCount = evalQuery.Length;
@@ -1511,6 +1873,11 @@ in
                 result.ErrorMessage = $"Expression evaluation failed: {ex.Message}";
                 return 1;
             }
+            finally
+            {
+                ReleaseComObject(ref tempQuery);
+                ReleaseComObject(ref queriesCollection);
+            }
         });
 
         return result;
@@ -1534,9 +1901,10 @@ in
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? query = null;
             try
             {
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -1555,6 +1923,10 @@ in
                 result.Success = false;
                 result.ErrorMessage = $"Error setting connection only: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref query);
             }
         });
 
@@ -1579,6 +1951,9 @@ in
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? query = null;
+            dynamic? sheets = null;
+            dynamic? targetSheet = null;
             try
             {
                 // Apply privacy level if specified
@@ -1587,7 +1962,7 @@ in
                     ApplyPrivacyLevel(workbook, privacyLevel.Value);
                 }
 
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -1596,16 +1971,27 @@ in
                 }
 
                 // Find or create target sheet
-                dynamic sheets = workbook.Worksheets;
-                dynamic? targetSheet = null;
+                sheets = workbook.Worksheets;
 
                 for (int i = 1; i <= sheets.Count; i++)
                 {
-                    dynamic sheet = sheets.Item(i);
-                    if (sheet.Name == sheetName)
+                    dynamic? sheet = null;
+                    try
                     {
-                        targetSheet = sheet;
-                        break;
+                        sheet = sheets.Item(i);
+                        if (sheet.Name == sheetName)
+                        {
+                            targetSheet = sheet;
+                            sheet = null; // Don't release - we're keeping it
+                            break;
+                        }
+                    }
+                    finally
+                    {
+                        if (sheet != null)
+                        {
+                            ReleaseComObject(ref sheet);
+                        }
                     }
                 }
 
@@ -1640,6 +2026,12 @@ in
                 result.ErrorMessage = $"Error setting load to table: {ex.Message}";
                 return 1;
             }
+            finally
+            {
+                ReleaseComObject(ref targetSheet);
+                ReleaseComObject(ref sheets);
+                ReleaseComObject(ref query);
+            }
         });
 
         return result;
@@ -1663,6 +2055,7 @@ in
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? query = null;
             try
             {
                 // Apply privacy level if specified
@@ -1671,7 +2064,7 @@ in
                     ApplyPrivacyLevel(workbook, privacyLevel.Value);
                 }
 
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -1704,18 +2097,21 @@ in
                     {
                         // Method 2: Create a named range marker to indicate data model loading
                         // This is more reliable than trying to create connections
+                        dynamic? names = null;
+                        dynamic? firstSheet = null;
                         try
                         {
-                            dynamic names = workbook.Names;
+                            names = workbook.Names;
                             string markerName = $"DataModel_Query_{queryName}";
 
                             // Check if marker already exists
                             bool markerExists = false;
                             for (int i = 1; i <= names.Count; i++)
                             {
+                                dynamic? existingName = null;
                                 try
                                 {
-                                    dynamic existingName = names.Item(i);
+                                    existingName = names.Item(i);
                                     if (existingName.Name.ToString() == markerName)
                                     {
                                         markerExists = true;
@@ -1726,13 +2122,26 @@ in
                                 {
                                     continue;
                                 }
+                                finally
+                                {
+                                    ReleaseComObject(ref existingName);
+                                }
                             }
 
                             if (!markerExists)
                             {
                                 // Create a named range marker that points to cell A1 on first sheet
-                                dynamic firstSheet = workbook.Worksheets.Item(1);
-                                names.Add(markerName, $"={firstSheet.Name}!$A$1");
+                                dynamic? worksheets = null;
+                                try
+                                {
+                                    worksheets = workbook.Worksheets;
+                                    firstSheet = worksheets.Item(1);
+                                    names.Add(markerName, $"={firstSheet.Name}!$A$1");
+                                }
+                                finally
+                                {
+                                    ReleaseComObject(ref worksheets);
+                                }
                             }
 
                             result.Success = true;
@@ -1742,6 +2151,11 @@ in
                             // Fallback - just set to connection-only mode
                             result.Success = true;
                             result.ErrorMessage = "Set to connection-only mode (data available for Data Model operations)";
+                        }
+                        finally
+                        {
+                            ReleaseComObject(ref firstSheet);
+                            ReleaseComObject(ref names);
                         }
                     }
                 }
@@ -1769,6 +2183,10 @@ in
                 result.ErrorMessage = $"Error setting load to data model: {ex.Message}";
                 return 1;
             }
+            finally
+            {
+                ReleaseComObject(ref query);
+            }
         });
 
         return result;
@@ -1792,6 +2210,7 @@ in
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? query = null;
             try
             {
                 // Apply privacy level if specified
@@ -1800,7 +2219,7 @@ in
                     ApplyPrivacyLevel(workbook, privacyLevel.Value);
                 }
 
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -1809,19 +2228,32 @@ in
                 }
 
                 // First set up table loading
+                dynamic? sheets = null;
+                dynamic? targetSheet = null;
                 try
                 {
                     // Find or create target sheet
-                    dynamic sheets = workbook.Worksheets;
-                    dynamic? targetSheet = null;
+                    sheets = workbook.Worksheets;
 
                     for (int i = 1; i <= sheets.Count; i++)
                     {
-                        dynamic sheet = sheets.Item(i);
-                        if (sheet.Name == sheetName)
+                        dynamic? sheet = null;
+                        try
                         {
-                            targetSheet = sheet;
-                            break;
+                            sheet = sheets.Item(i);
+                            if (sheet.Name == sheetName)
+                            {
+                                targetSheet = sheet;
+                                sheet = null; // Don't release - we're keeping it
+                                break;
+                            }
+                        }
+                        finally
+                        {
+                            if (sheet != null)
+                            {
+                                ReleaseComObject(ref sheet);
+                            }
                         }
                     }
 
@@ -1843,8 +2275,16 @@ in
                     result.ErrorMessage = $"Failed to set up table loading: {ex.Message}";
                     return 1;
                 }
+                finally
+                {
+                    ReleaseComObject(ref targetSheet);
+                    ReleaseComObject(ref sheets);
+                }
 
                 // Then add data model loading marker
+                dynamic? names = null;
+                dynamic? firstSheet = null;
+                dynamic? worksheets2 = null;
                 try
                 {
                     // Check if Data Model is available
@@ -1853,16 +2293,17 @@ in
                     if (dataModelAvailable)
                     {
                         // Create data model marker
-                        dynamic names = workbook.Names;
+                        names = workbook.Names;
                         string markerName = $"DataModel_Query_{queryName}";
 
                         // Check if marker already exists
                         bool markerExists = false;
                         for (int i = 1; i <= names.Count; i++)
                         {
+                            dynamic? existingName = null;
                             try
                             {
-                                dynamic existingName = names.Item(i);
+                                existingName = names.Item(i);
                                 if (existingName.Name.ToString() == markerName)
                                 {
                                     markerExists = true;
@@ -1873,12 +2314,17 @@ in
                             {
                                 continue;
                             }
+                            finally
+                            {
+                                ReleaseComObject(ref existingName);
+                            }
                         }
 
                         if (!markerExists)
                         {
                             // Create a named range marker that points to cell A1 on first sheet
-                            dynamic firstSheet = workbook.Worksheets.Item(1);
+                            worksheets2 = workbook.Worksheets;
+                            firstSheet = worksheets2.Item(1);
                             names.Add(markerName, $"={firstSheet.Name}!$A$1");
                         }
                     }
@@ -1888,6 +2334,12 @@ in
                     result.Success = false;
                     result.ErrorMessage = $"Table loading succeeded but data model setup failed: {ex.Message}";
                     return 1;
+                }
+                finally
+                {
+                    ReleaseComObject(ref worksheets2);
+                    ReleaseComObject(ref firstSheet);
+                    ReleaseComObject(ref names);
                 }
 
                 result.Success = true;
@@ -1908,6 +2360,10 @@ in
                 result.Success = false;
                 result.ErrorMessage = $"Error setting load to both: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref query);
             }
         });
 
@@ -2083,41 +2539,74 @@ in
     /// </summary>
     private static void RemoveQueryConnections(dynamic workbook, string queryName)
     {
+        dynamic? connections = null;
+        dynamic? worksheets = null;
         try
         {
             // Remove connections
-            dynamic connections = workbook.Connections;
+            connections = workbook.Connections;
             for (int i = connections.Count; i >= 1; i--)
             {
-                dynamic conn = connections.Item(i);
-                string connName = conn.Name?.ToString() ?? "";
-                if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
-                    connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                dynamic? conn = null;
+                try
                 {
-                    conn.Delete();
+                    conn = connections.Item(i);
+                    string connName = conn.Name?.ToString() ?? "";
+                    if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
+                        connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                    {
+                        conn.Delete();
+                    }
+                }
+                finally
+                {
+                    ExcelHelper.ReleaseComObject(ref conn);
                 }
             }
 
             // Remove QueryTables
-            dynamic worksheets = workbook.Worksheets;
+            worksheets = workbook.Worksheets;
             for (int ws = 1; ws <= worksheets.Count; ws++)
             {
-                dynamic worksheet = worksheets.Item(ws);
-                dynamic queryTables = worksheet.QueryTables;
-
-                for (int qt = queryTables.Count; qt >= 1; qt--)
+                dynamic? worksheet = null;
+                dynamic? queryTables = null;
+                try
                 {
-                    dynamic queryTable = queryTables.Item(qt);
-                    if (queryTable.Name?.ToString()?.Contains(queryName.Replace(" ", "_")) == true)
+                    worksheet = worksheets.Item(ws);
+                    queryTables = worksheet.QueryTables;
+
+                    for (int qt = queryTables.Count; qt >= 1; qt--)
                     {
-                        queryTable.Delete();
+                        dynamic? queryTable = null;
+                        try
+                        {
+                            queryTable = queryTables.Item(qt);
+                            if (queryTable.Name?.ToString()?.Contains(queryName.Replace(" ", "_")) == true)
+                            {
+                                queryTable.Delete();
+                            }
+                        }
+                        finally
+                        {
+                            ExcelHelper.ReleaseComObject(ref queryTable);
+                        }
                     }
+                }
+                finally
+                {
+                    ExcelHelper.ReleaseComObject(ref queryTables);
+                    ExcelHelper.ReleaseComObject(ref worksheet);
                 }
             }
         }
         catch
         {
             // Ignore errors when removing connections
+        }
+        finally
+        {
+            ExcelHelper.ReleaseComObject(ref worksheets);
+            ExcelHelper.ReleaseComObject(ref connections);
         }
     }
 

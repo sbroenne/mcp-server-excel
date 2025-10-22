@@ -168,10 +168,13 @@ public class SetupCommands : ISetupCommands
 
             int exitCode = WithExcel(testFilePath, false, (excel, workbook) =>
             {
+                dynamic? vbProject = null;
+                dynamic? vbComponents = null;
                 try
                 {
-                    dynamic vbProject = workbook.VBProject;
-                    result.ComponentCount = vbProject.VBComponents.Count;
+                    vbProject = workbook.VBProject;
+                    vbComponents = vbProject.VBComponents;
+                    result.ComponentCount = vbComponents.Count;
                     result.IsTrusted = true;
                     result.Success = true;
                     return 0;
@@ -183,6 +186,11 @@ public class SetupCommands : ISetupCommands
                     result.ErrorMessage = ex.Message;
                     result.ManualInstructions = "Run 'setup-vba-trust' or manually: File → Options → Trust Center → Trust Center Settings → Macro Settings\nCheck 'Trust access to the VBA project object model'";
                     return 1;
+                }
+                finally
+                {
+                    ReleaseComObject(ref vbComponents);
+                    ReleaseComObject(ref vbProject);
                 }
             });
 

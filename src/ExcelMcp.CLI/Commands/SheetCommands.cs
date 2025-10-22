@@ -1,4 +1,5 @@
 using Spectre.Console;
+using Sbroenne.ExcelMcp.Core.Security;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -96,6 +97,17 @@ public class SheetCommands : ISheetCommands
         if (!File.Exists(csvFile))
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] CSV file not found: {csvFile}");
+            return 1;
+        }
+
+        // Validate and normalize CSV file path to prevent path traversal attacks
+        try
+        {
+            csvFile = PathValidator.ValidateExistingFile(csvFile, nameof(csvFile));
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] Invalid CSV file path: {ex.Message.EscapeMarkup()}");
             return 1;
         }
 
@@ -337,6 +349,17 @@ public class SheetCommands : ISheetCommands
         if (!File.Exists(csvFile))
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] CSV file not found: {csvFile}");
+            return 1;
+        }
+
+        // Validate and normalize CSV file path to prevent path traversal attacks
+        try
+        {
+            csvFile = PathValidator.ValidateExistingFile(csvFile, nameof(csvFile));
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] Invalid CSV file path: {ex.Message.EscapeMarkup()}");
             return 1;
         }
 
