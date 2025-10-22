@@ -8,7 +8,9 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 /// Integration tests for Power Query Auto-Refresh and Workflow Guidance features.
 /// Tests validate Phase 1 & 2 enhancements: error capture, config preservation, auto-validation.
 /// These tests require Excel installation and validate the complete workflow guidance system.
+/// Uses Excel instance pooling for improved test performance.
 /// </summary>
+[Collection(nameof(ExcelPooledTestCollection))]
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]

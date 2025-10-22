@@ -8,7 +8,9 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 /// <summary>
 /// Integration tests for VBA Trust Detection functionality.
 /// These tests validate VBA trust detection, guidance generation, and TestVbaTrustScope helper.
+/// Uses Excel instance pooling for improved test performance.
 /// </summary>
+[Collection(nameof(ExcelPooledTestCollection))]
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]

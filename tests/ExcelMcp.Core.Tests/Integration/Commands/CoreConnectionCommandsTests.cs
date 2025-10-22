@@ -7,7 +7,9 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Commands;
 /// <summary>
 /// Integration tests for ConnectionCommands - Core layer
 /// Tests real Excel COM operations with actual Excel files
+/// Uses Excel instance pooling for improved test performance.
 /// </summary>
+[Collection(nameof(ExcelPooledTestCollection))]
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
 [Trait("Layer", "Core")]
@@ -56,7 +58,7 @@ public class CoreConnectionCommandsTests : IDisposable
         {
             // Ignore cleanup errors
         }
-        
+
         GC.SuppressFinalize(this);
     }
 
@@ -65,10 +67,10 @@ public class CoreConnectionCommandsTests : IDisposable
         var fileCommands = new FileCommands();
         string filePath = Path.Combine(_testDataDir, $"test_{Guid.NewGuid().ToString("N")[..8]}.xlsx");
         var result = fileCommands.CreateEmpty(filePath, overwriteIfExists: false);
-        
+
         Assert.True(result.Success, $"Failed to create test workbook: {result.ErrorMessage}");
         _filesToCleanup.Add(filePath);
-        
+
         return filePath;
     }
 
@@ -169,7 +171,7 @@ public class CoreConnectionCommandsTests : IDisposable
         // Arrange
         string filePath = CreateTestWorkbook();
         string jsonPath = Path.Combine(_testDataDir, "update.json");
-        
+
         // Create minimal JSON
         File.WriteAllText(jsonPath, "{\"Name\":\"Test\",\"Type\":\"OLEDB\"}");
         _filesToCleanup.Add(jsonPath);
@@ -405,10 +407,10 @@ public class CoreConnectionCommandsTests : IDisposable
         // This test would require creating a workbook with a Power Query connection
         // For now, we validate that Power Query detection logic is in place
         // by checking the error messages contain appropriate guidance
-        
+
         // NOTE: Full testing requires a workbook with actual Power Query connections
         // This is a placeholder for comprehensive Power Query detection testing
-        
+
         Assert.True(true, "Power Query detection tests require workbooks with PQ connections");
     }
 
@@ -426,7 +428,7 @@ public class CoreConnectionCommandsTests : IDisposable
         // Arrange
         string filePath = CreateTestWorkbook();
         string jsonPath = Path.Combine(_testDataDir, "import.json");
-        
+
         // Create connection to a web page (no external dependencies needed for creation)
         File.WriteAllText(jsonPath, @"{
             ""Name"": ""TestWebConnection"",
@@ -442,7 +444,7 @@ public class CoreConnectionCommandsTests : IDisposable
 
         // Assert
         Assert.True(result.Success, $"Import failed: {result.ErrorMessage}");
-        
+
         // Verify connection was created
         var listResult = _commands.List(filePath);
         Assert.True(listResult.Success);
@@ -473,10 +475,10 @@ public class CoreConnectionCommandsTests : IDisposable
     {
         // This test validates that password sanitization is applied
         // Would require a workbook with actual connections containing passwords
-        
+
         // NOTE: Full testing requires workbooks with connections that have passwords
         // This is a placeholder for comprehensive security testing
-        
+
         Assert.True(true, "Password sanitization tests require connections with passwords");
     }
 
