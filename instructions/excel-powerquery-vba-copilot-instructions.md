@@ -300,11 +300,13 @@ Create a Power Query in report.xlsx that:
 Refresh the query and show me the first 10 rows of output
 ```
 
-**Step 3: Optimize Performance**
+**Step 3: Code Analysis and Optimization**
 
 ```
-Review the 'DataTransform' query and suggest performance improvements
+Review the 'DataTransform' query M code and suggest specific improvements I can make
 ```
+
+*Note: I can view and help you understand M code, suggest structural improvements, and help you implement changes, but I don't have built-in M code performance analysis engines. I'll help you apply Power Query best practices.*
 
 **Step 4: Version Control**
 
@@ -571,23 +573,25 @@ Refresh all queries and verify no errors
 **Power Query Review:**
 
 ```
-Review all Power Query queries in analysis.xlsx for:
-1. Performance issues and optimization opportunities
-2. Query folding potential
-3. Redundant transformations
-4. Best practices violations
-Apply fixes and explain the improvements
+Review all Power Query queries in analysis.xlsx. Show me the M code for each query and help me identify:
+1. Potential structural improvements
+2. Best practices I should apply
+3. Common Power Query patterns I could use
+4. Data loading configuration optimizations
+Guide me through implementing the improvements.
 ```
+
+*Note: I'll help you review and improve M code structure and apply Power Query best practices, but I don't have automated performance analysis engines. I provide guidance based on Power Query development patterns and your specific needs.*
 
 **VBA Code Review:**
 
 ```
-Review all VBA modules in automation.xlsm for:
-1. Error handling gaps
-2. Performance issues
-3. Code organization improvements
-4. Security concerns
-Apply best practices and explain changes
+Review all VBA modules in automation.xlsm. Show me the code and help me identify:
+1. Error handling gaps and help me add proper error handling
+2. Code organization improvements
+3. Security best practices I should apply
+4. Performance optimizations I can implement
+Guide me through applying the improvements.
 ```
 
 ### Workflow 4: Data Pipeline Automation
