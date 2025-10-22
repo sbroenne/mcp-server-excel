@@ -565,7 +565,7 @@ public class PowerQueryCommands : IPowerQueryCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> Update(string filePath, string queryName, string mCodeFile, PowerQueryPrivacyLevel? privacyLevel = null, bool autoRefresh = true)
+    public async Task<OperationResult> Update(string filePath, string queryName, string mCodeFile, PowerQueryPrivacyLevel? privacyLevel = null)
     {
         var result = new OperationResult
         {
@@ -686,60 +686,32 @@ public class PowerQueryCommands : IPowerQueryCommands
             }
         }
 
-        // STEP 4: Auto-refresh after successful update to validate changes
-        if (result.Success && autoRefresh)
+        // STEP 4: Provide guidance based on validation status
+        if (result.Success)
         {
-            var refreshResult = Refresh(filePath, queryName);
-            if (!refreshResult.Success || refreshResult.HasErrors)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Query updated but validation failed: {string.Join(", ", refreshResult.ErrorMessages)}";
-                result.SuggestedNextActions = new List<string>
-                {
-                    "Query update failed validation",
-                    "Review error messages and fix M code issues",
-                    "Use 'view' to examine updated M code",
-                    "Revert changes if needed with 'update' using previous version"
-                };
-                result.WorkflowHint = PowerQueryWorkflowGuidance.GetWorkflowHint("pq-update", false);
-                return result;
-            }
-
-            // Update and refresh successful
             if (configRestored)
             {
-                result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterUpdate(
-                    configPreserved: true,
-                    hasErrors: false);
-                result.WorkflowHint = $"Query updated and validated successfully. Load configuration preserved ({loadConfigBefore.LoadMode} to {loadConfigBefore.TargetSheet ?? "Data Model"}).";
+                // Config restored means query was reloaded and validated via SetLoadToTable/DataModel/Both
+                result.SuggestedNextActions = new List<string>
+                {
+                    "Query updated and reloaded successfully (validated via reload)",
+                    "Data refreshed during load configuration restoration",
+                    "Use 'refresh' explicitly if you need latest data from source",
+                    "Use 'view' to verify M code changes"
+                };
+                result.WorkflowHint = $"Query updated and validated via reload. Load configuration preserved ({loadConfigBefore.LoadMode} to {loadConfigBefore.TargetSheet ?? "Data Model"}).";
             }
             else
             {
-                result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterUpdate(
-                    configPreserved: false,
-                    hasErrors: false);
-                result.WorkflowHint = "Query updated and validated successfully (connection-only).";
-            }
-        }
-        else if (result.Success)
-        {
-            // Update successful but no auto-refresh
-            if (configRestored)
-            {
+                // Connection-only query - M code updated but NOT validated
                 result.SuggestedNextActions = new List<string>
                 {
-                    "Query updated successfully, load configuration preserved (validation skipped)",
-                    "Use 'refresh' to validate the changes",
-                    "Use 'get-load-config' to verify configuration"
+                    "Query M code updated (connection-only - NOT validated yet)",
+                    "⚠️ Use 'set-load-to-table' to validate and load data",
+                    "Or use 'refresh' after loading (refresh only works with loaded queries)",
+                    "Or use 'view' to review M code changes"
                 };
-                result.WorkflowHint = $"Query updated. Load configuration preserved ({loadConfigBefore.LoadMode}).";
-            }
-            else
-            {
-                result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterUpdate(
-                    configPreserved: false,
-                    hasErrors: false);
-                result.WorkflowHint = "Query updated successfully (connection-only).";
+                result.WorkflowHint = "Query updated as connection-only (M code not executed or validated).";
             }
         }
         else
@@ -823,7 +795,7 @@ public class PowerQueryCommands : IPowerQueryCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> Import(string filePath, string queryName, string mCodeFile, PowerQueryPrivacyLevel? privacyLevel = null, bool autoRefresh = true, bool loadToWorksheet = true, string? worksheetName = null)
+    public async Task<OperationResult> Import(string filePath, string queryName, string mCodeFile, PowerQueryPrivacyLevel? privacyLevel = null, bool loadToWorksheet = true, string? worksheetName = null)
     {
         var result = new OperationResult
         {
@@ -927,46 +899,35 @@ public class PowerQueryCommands : IPowerQueryCommands
             }
         }
 
-        // Auto-refresh after successful import to validate query
-        if (result.Success && autoRefresh)
+        // Provide guidance based on validation status
+        if (result.Success)
         {
-            var refreshResult = Refresh(filePath, queryName);
-            if (!refreshResult.Success || refreshResult.HasErrors)
+            if (loadToWorksheet)
             {
-                result.Success = false;
-                result.ErrorMessage = $"Query imported but validation failed: {string.Join(", ", refreshResult.ErrorMessages)}";
+                // Query was loaded to worksheet, validated via SetLoadToTable execution
                 result.SuggestedNextActions = new List<string>
                 {
-                    "Query created but has errors",
-                    "Use 'view' to review M code",
-                    "Fix data source issues before proceeding"
+                    "Query imported and data loaded to worksheet (validated via initial load)",
+                    "Data is current as of import time",
+                    "Use 'refresh' to update data when source changes",
+                    "Use 'get-load-config' to check configuration",
+                    "Use 'view' to inspect M code"
                 };
-                result.WorkflowHint = PowerQueryWorkflowGuidance.GetWorkflowHint("pq-import", false);
-                return result;
+                result.WorkflowHint = "Query imported and validated successfully. Data loaded to worksheet.";
             }
-
-            // Import and refresh successful
-            result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterImport(
-                isConnectionOnly: !loadToWorksheet || refreshResult.IsConnectionOnly,
-                hasErrors: false);
-            result.WorkflowHint = loadToWorksheet
-                ? $"Query imported, data loaded to worksheet, and validated successfully"
-                : refreshResult.IsConnectionOnly
-                    ? "Query imported and validated successfully (connection-only mode)"
-                    : $"Query imported, validated, and data loaded to {refreshResult.LoadedToSheet}";
-        }
-        else if (result.Success)
-        {
-            // Import successful but no auto-refresh
-            result.SuggestedNextActions = new List<string>
+            else
             {
-                loadToWorksheet
-                    ? "Query imported and loaded to worksheet (validation skipped)"
-                    : "Query imported successfully (validation skipped)",
-                "Use 'refresh' to validate the query works",
-                "Use 'get-load-config' to check configuration"
-            };
-            result.WorkflowHint = PowerQueryWorkflowGuidance.GetWorkflowHint("pq-import", true);
+                // Connection-only query - M code stored but NOT validated
+                result.SuggestedNextActions = new List<string>
+                {
+                    "Query imported as connection-only (NOT validated yet)",
+                    "⚠️ M code has not been executed or validated",
+                    "Use 'set-load-to-table' to validate and load data",
+                    "Or use 'refresh' after loading (refresh only works with loaded queries)",
+                    "Use 'view' to review imported M code"
+                };
+                result.WorkflowHint = "Query imported as connection-only (M code not executed or validated).";
+            }
         }
 
         return result;
