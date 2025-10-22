@@ -1207,9 +1207,10 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? query = null;
             try
             {
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -1292,79 +1293,128 @@ public class PowerQueryCommands : IPowerQueryCommands
                 if (targetConnection == null)
                 {
                     // Access the query through the Queries collection and load it to table
-                    dynamic queries = workbook.Queries;
+                    dynamic? queries = null;
                     dynamic? targetQuery = null;
-
-                    for (int i = 1; i <= queries.Count; i++)
+                    dynamic? queryTables = null;
+                    dynamic? queryTable = null;
+                    dynamic? rangeObj = null;
+                    try
                     {
-                        dynamic q = queries.Item(i);
-                        if (q.Name.Equals(queryName, StringComparison.OrdinalIgnoreCase))
+                        queries = workbook.Queries;
+
+                        for (int i = 1; i <= queries.Count; i++)
                         {
-                            targetQuery = q;
-                            break;
+                            dynamic? q = null;
+                            try
+                            {
+                                q = queries.Item(i);
+                                if (q.Name.Equals(queryName, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    targetQuery = q;
+                                    q = null; // Don't release - we're using it
+                                    break;
+                                }
+                            }
+                            finally
+                            {
+                                ReleaseComObject(ref q);
+                            }
                         }
-                    }
 
-                    if (targetQuery == null)
+                        if (targetQuery == null)
+                        {
+                            result.Success = false;
+                            result.ErrorMessage = $"Query '{queryName}' not found in queries collection";
+                            return 1;
+                        }
+
+                        // Create a QueryTable using the Mashup provider
+                        queryTables = targetSheet.QueryTables;
+                        string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
+                        string commandText = $"SELECT * FROM [{queryName}]";
+
+                        rangeObj = targetSheet.Range["A1"];
+                        queryTable = queryTables.Add(connectionString, rangeObj, commandText);
+                        queryTable.Name = queryName.Replace(" ", "_");
+                        queryTable.RefreshStyle = 1; // xlInsertDeleteCells
+
+                        // Set additional properties for better data loading
+                        queryTable.BackgroundQuery = false; // Don't run in background
+                        queryTable.PreserveColumnInfo = true;
+                        queryTable.PreserveFormatting = true;
+                        queryTable.AdjustColumnWidth = true;
+
+                        // Refresh to actually load the data
+                        queryTable.Refresh(false); // false = wait for completion
+                    }
+                    finally
                     {
-                        result.Success = false;
-                        result.ErrorMessage = $"Query '{queryName}' not found in queries collection";
-                        return 1;
+                        ReleaseComObject(ref rangeObj);
+                        ReleaseComObject(ref queryTable);
+                        ReleaseComObject(ref queryTables);
+                        ReleaseComObject(ref targetQuery);
+                        ReleaseComObject(ref queries);
                     }
-
-                    // Create a QueryTable using the Mashup provider
-                    dynamic queryTables = targetSheet.QueryTables;
-                    string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
-                    string commandText = $"SELECT * FROM [{queryName}]";
-
-                    dynamic queryTable = queryTables.Add(connectionString, targetSheet.Range["A1"], commandText);
-                    queryTable.Name = queryName.Replace(" ", "_");
-                    queryTable.RefreshStyle = 1; // xlInsertDeleteCells
-
-                    // Set additional properties for better data loading
-                    queryTable.BackgroundQuery = false; // Don't run in background
-                    queryTable.PreserveColumnInfo = true;
-                    queryTable.PreserveFormatting = true;
-                    queryTable.AdjustColumnWidth = true;
-
-                    // Refresh to actually load the data
-                    queryTable.Refresh(false); // false = wait for completion
                 }
                 else
                 {
                     // Connection exists, create QueryTable from existing connection
-                    dynamic queryTables = targetSheet.QueryTables;
-
-                    // Remove any existing QueryTable with the same name
+                    dynamic? queryTables = null;
+                    dynamic? queryTable = null;
+                    dynamic? rangeObj = null;
                     try
                     {
-                        for (int i = queryTables.Count; i >= 1; i--)
+                        queryTables = targetSheet.QueryTables;
+
+                        // Remove any existing QueryTable with the same name
+                        try
                         {
-                            dynamic qt = queryTables.Item(i);
-                            if (qt.Name.Equals(queryName.Replace(" ", "_"), StringComparison.OrdinalIgnoreCase))
+                            for (int i = queryTables.Count; i >= 1; i--)
                             {
-                                qt.Delete();
+                                dynamic? qt = null;
+                                try
+                                {
+                                    qt = queryTables.Item(i);
+                                    if (qt.Name.Equals(queryName.Replace(" ", "_"), StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        qt.Delete();
+                                    }
+                                }
+                                finally
+                                {
+                                    ReleaseComObject(ref qt);
+                                }
                             }
                         }
+                        catch { } // Ignore errors if no existing QueryTable
+
+                        // Create new QueryTable
+                        string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
+                        string commandText = $"SELECT * FROM [{queryName}]";
+
+                        rangeObj = targetSheet.Range["A1"];
+                        queryTable = queryTables.Add(connectionString, rangeObj, commandText);
+                        queryTable.Name = queryName.Replace(" ", "_");
+                        queryTable.RefreshStyle = 1; // xlInsertDeleteCells
+                        queryTable.BackgroundQuery = false;
+                        queryTable.PreserveColumnInfo = true;
+                        queryTable.PreserveFormatting = true;
+                        queryTable.AdjustColumnWidth = true;
+
+                        // Refresh to load data
+                        queryTable.Refresh(false);
                     }
-                    catch { } // Ignore errors if no existing QueryTable
-
-                    // Create new QueryTable
-                    string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
-                    string commandText = $"SELECT * FROM [{queryName}]";
-
-                    dynamic queryTable = queryTables.Add(connectionString, targetSheet.Range["A1"], commandText);
-                    queryTable.Name = queryName.Replace(" ", "_");
-                    queryTable.RefreshStyle = 1; // xlInsertDeleteCells
-                    queryTable.BackgroundQuery = false;
-                    queryTable.PreserveColumnInfo = true;
-                    queryTable.PreserveFormatting = true;
-                    queryTable.AdjustColumnWidth = true;
-
-                    // Refresh to load data
-                    queryTable.Refresh(false);
+                    finally
+                    {
+                        ReleaseComObject(ref rangeObj);
+                        ReleaseComObject(ref queryTable);
+                        ReleaseComObject(ref queryTables);
+                        ReleaseComObject(ref targetConnection);
+                    }
                 }
 
+                ReleaseComObject(ref targetSheet);
+                ReleaseComObject(ref query);
                 result.Success = true;
                 return 0;
             }
@@ -1397,9 +1447,11 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? query = null;
+            dynamic? queriesCollection = null;
             try
             {
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -1407,7 +1459,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                     return 1;
                 }
 
-                dynamic queriesCollection = workbook.Queries;
+                queriesCollection = workbook.Queries;
                 queriesCollection.Item(queryName).Delete();
 
                 result.Success = true;
@@ -1418,6 +1470,11 @@ public class PowerQueryCommands : IPowerQueryCommands
                 result.Success = false;
                 result.ErrorMessage = $"Error deleting query: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref queriesCollection);
+                ReleaseComObject(ref query);
             }
         });
 
@@ -1753,9 +1810,10 @@ in
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? query = null;
             try
             {
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -1774,6 +1832,10 @@ in
                 result.Success = false;
                 result.ErrorMessage = $"Error setting connection only: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref query);
             }
         });
 
