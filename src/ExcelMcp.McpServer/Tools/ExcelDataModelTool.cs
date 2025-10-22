@@ -17,16 +17,24 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Use "export-measure" to save DAX formula to a file
 /// - Use "list-relationships" to see table relationships
 /// - Use "refresh" to update Data Model data
+/// - Use "create-measure" to add new DAX measures (TOM API)
+/// - Use "update-measure" to modify existing measures (TOM API)
+/// - Use "create-relationship" to define table relationships (TOM API)
+/// - Use "update-relationship" to modify relationships (TOM API)
+/// - Use "create-column" to add calculated columns (TOM API)
+/// - Use "validate-dax" to check DAX syntax (TOM API)
 ///
 /// Phase 1 Scope (COM API):
 /// - Tables: List and view metadata
-/// - Measures: List, view, and export DAX formulas
-/// - Relationships: List relationships between tables
+/// - Measures: List, view, export, and delete DAX formulas
+/// - Relationships: List and delete relationships
 /// - Refresh: Refresh Data Model connections
 ///
-/// Out of Scope (requires TOM API - Phase 4):
-/// - Calculated columns
-/// - Advanced DAX operations
+/// Phase 4 Scope (TOM API):
+/// - Measures: Create and update with full DAX support
+/// - Relationships: Create and update with advanced options
+/// - Calculated Columns: Create DAX-based calculated columns
+/// - DAX Validation: Syntax checking before creation
 /// </summary>
 [McpServerToolType]
 public static class ExcelDataModelTool
@@ -35,11 +43,11 @@ public static class ExcelDataModelTool
     /// Manage Excel Data Model (Power Pivot) - tables, measures, relationships
     /// </summary>
     [McpServerTool(Name = "excel_datamodel")]
-    [Description("Manage Excel Data Model operations. Supports: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship.")]
+    [Description("Manage Excel Data Model operations. Supports: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, create-measure, update-measure, create-relationship, update-relationship, create-column, validate-dax.")]
     public static async Task<string> ExcelDataModel(
         [Required]
-        [RegularExpression("^(list-tables|list-measures|view-measure|export-measure|list-relationships|refresh|delete-measure|delete-relationship)$")]
-        [Description("Action: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship")]
+        [RegularExpression("^(list-tables|list-measures|view-measure|export-measure|list-relationships|refresh|delete-measure|delete-relationship|create-measure|update-measure|create-relationship|update-relationship|create-column|validate-dax)$")]
+        [Description("Action: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, create-measure, update-measure, create-relationship, update-relationship, create-column, validate-dax")]
         string action,
 
         [Required]
@@ -48,7 +56,7 @@ public static class ExcelDataModelTool
         string excelPath,
 
         [StringLength(255, MinimumLength = 1)]
-        [Description("Measure name (for view-measure, export-measure, delete-measure)")]
+        [Description("Measure name (for view-measure, export-measure, delete-measure, update-measure)")]
         string? measureName = null,
 
         [FileExtensions(Extensions = "dax")]
@@ -56,27 +64,60 @@ public static class ExcelDataModelTool
         string? outputPath = null,
 
         [StringLength(255, MinimumLength = 1)]
-        [Description("Source table name (for delete-relationship)")]
+        [Description("Table name (for create-measure, create-column)")]
+        string? tableName = null,
+
+        [StringLength(8000, MinimumLength = 1)]
+        [Description("DAX formula (for create-measure, update-measure, create-column, validate-dax)")]
+        string? daxFormula = null,
+
+        [StringLength(1000)]
+        [Description("Description (for create-measure, update-measure, create-column)")]
+        string? description = null,
+
+        [StringLength(255)]
+        [Description("Format string (for create-measure, update-measure), e.g., '#,##0.00', '0.00%'")]
+        string? formatString = null,
+
+        [StringLength(255, MinimumLength = 1)]
+        [Description("Source table name (for delete-relationship, create-relationship, update-relationship)")]
         string? fromTable = null,
 
         [StringLength(255, MinimumLength = 1)]
-        [Description("Source column name (for delete-relationship)")]
+        [Description("Source column name (for delete-relationship, create-relationship, update-relationship)")]
         string? fromColumn = null,
 
         [StringLength(255, MinimumLength = 1)]
-        [Description("Target table name (for delete-relationship)")]
+        [Description("Target table name (for delete-relationship, create-relationship, update-relationship)")]
         string? toTable = null,
 
         [StringLength(255, MinimumLength = 1)]
-        [Description("Target column name (for delete-relationship)")]
-        string? toColumn = null)
+        [Description("Target column name (for delete-relationship, create-relationship, update-relationship)")]
+        string? toColumn = null,
+
+        [Description("Whether relationship is active (for create-relationship, update-relationship), default: true")]
+        bool? isActive = null,
+
+        [RegularExpression("^(Single|Both)$")]
+        [Description("Cross-filter direction (for create-relationship, update-relationship): Single (default), Both")]
+        string? crossFilterDirection = null,
+
+        [StringLength(255, MinimumLength = 1)]
+        [Description("Column name (for create-column)")]
+        string? columnName = null,
+
+        [RegularExpression("^(String|Integer|Double|Boolean|DateTime)$")]
+        [Description("Data type (for create-column): String, Integer, Double, Boolean, DateTime")]
+        string? dataType = null)
     {
         try
         {
             var dataModelCommands = new DataModelCommands();
+            var tomCommands = new DataModelTomCommands();
 
             return action.ToLowerInvariant() switch
             {
+                // COM API operations (Phase 1)
                 "list-tables" => ListTables(dataModelCommands, excelPath),
                 "list-measures" => ListMeasures(dataModelCommands, excelPath),
                 "view-measure" => ViewMeasure(dataModelCommands, excelPath, measureName),
@@ -85,8 +126,17 @@ public static class ExcelDataModelTool
                 "refresh" => Refresh(dataModelCommands, excelPath),
                 "delete-measure" => DeleteMeasure(dataModelCommands, excelPath, measureName),
                 "delete-relationship" => DeleteRelationship(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn),
+
+                // TOM API operations (Phase 4)
+                "create-measure" => CreateMeasure(tomCommands, excelPath, tableName, measureName, daxFormula, description, formatString),
+                "update-measure" => UpdateMeasure(tomCommands, excelPath, measureName, daxFormula, description, formatString),
+                "create-relationship" => CreateRelationship(tomCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, crossFilterDirection),
+                "update-relationship" => UpdateRelationship(tomCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, crossFilterDirection),
+                "create-column" => CreateCalculatedColumn(tomCommands, excelPath, tableName, columnName, daxFormula, description, dataType),
+                "validate-dax" => ValidateDax(tomCommands, excelPath, daxFormula),
+
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship")
+                    $"Unknown action '{action}'. Supported: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, create-measure, update-measure, create-relationship, update-relationship, create-column, validate-dax")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -369,6 +419,267 @@ public static class ExcelDataModelTool
             };
         }
         result.WorkflowHint = "Relationship deleted. Next, verify remaining relationships or create new ones.";
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    // TOM API Action Handlers (Phase 4)
+
+    private static string CreateMeasure(
+        DataModelTomCommands commands,
+        string filePath,
+        string? tableName,
+        string? measureName,
+        string? daxFormula,
+        string? description,
+        string? formatString)
+    {
+        if (string.IsNullOrWhiteSpace(tableName))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for create-measure action");
+        }
+
+        if (string.IsNullOrWhiteSpace(measureName))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'measureName' is required for create-measure action");
+        }
+
+        if (string.IsNullOrWhiteSpace(daxFormula))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'daxFormula' is required for create-measure action");
+        }
+
+        var result = commands.CreateMeasure(filePath, tableName, measureName, daxFormula, description, formatString);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+            {
+                result.SuggestedNextActions = new List<string>
+                {
+                    "Verify table name is correct",
+                    "Check DAX formula syntax",
+                    "Ensure TOM API connection is available"
+                };
+            }
+            throw new ModelContextProtocol.McpException($"create-measure failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string UpdateMeasure(
+        DataModelTomCommands commands,
+        string filePath,
+        string? measureName,
+        string? daxFormula,
+        string? description,
+        string? formatString)
+    {
+        if (string.IsNullOrWhiteSpace(measureName))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'measureName' is required for update-measure action");
+        }
+
+        var result = commands.UpdateMeasure(filePath, measureName, daxFormula, description, formatString);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+            {
+                result.SuggestedNextActions = new List<string>
+                {
+                    "Use 'list-measures' to see available measures",
+                    "Verify measure name is correct",
+                    "Check DAX formula syntax if updating formula"
+                };
+            }
+            throw new ModelContextProtocol.McpException($"update-measure failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string CreateRelationship(
+        DataModelTomCommands commands,
+        string filePath,
+        string? fromTable,
+        string? fromColumn,
+        string? toTable,
+        string? toColumn,
+        bool? isActive,
+        string? crossFilterDirection)
+    {
+        if (string.IsNullOrWhiteSpace(fromTable))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'fromTable' is required for create-relationship action");
+        }
+
+        if (string.IsNullOrWhiteSpace(fromColumn))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'fromColumn' is required for create-relationship action");
+        }
+
+        if (string.IsNullOrWhiteSpace(toTable))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'toTable' is required for create-relationship action");
+        }
+
+        if (string.IsNullOrWhiteSpace(toColumn))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'toColumn' is required for create-relationship action");
+        }
+
+        var result = commands.CreateRelationship(
+            filePath,
+            fromTable,
+            fromColumn,
+            toTable,
+            toColumn,
+            isActive ?? true,
+            crossFilterDirection ?? "Single"
+        );
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+            {
+                result.SuggestedNextActions = new List<string>
+                {
+                    "Verify table and column names",
+                    "Check that columns have compatible data types",
+                    "Use 'list-tables' to see available tables"
+                };
+            }
+            throw new ModelContextProtocol.McpException($"create-relationship failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string UpdateRelationship(
+        DataModelTomCommands commands,
+        string filePath,
+        string? fromTable,
+        string? fromColumn,
+        string? toTable,
+        string? toColumn,
+        bool? isActive,
+        string? crossFilterDirection)
+    {
+        if (string.IsNullOrWhiteSpace(fromTable))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'fromTable' is required for update-relationship action");
+        }
+
+        if (string.IsNullOrWhiteSpace(fromColumn))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'fromColumn' is required for update-relationship action");
+        }
+
+        if (string.IsNullOrWhiteSpace(toTable))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'toTable' is required for update-relationship action");
+        }
+
+        if (string.IsNullOrWhiteSpace(toColumn))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'toColumn' is required for update-relationship action");
+        }
+
+        var result = commands.UpdateRelationship(
+            filePath,
+            fromTable,
+            fromColumn,
+            toTable,
+            toColumn,
+            isActive,
+            crossFilterDirection
+        );
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+            {
+                result.SuggestedNextActions = new List<string>
+                {
+                    "Use 'list-relationships' to see available relationships",
+                    "Verify relationship exists",
+                    "Check table and column names"
+                };
+            }
+            throw new ModelContextProtocol.McpException($"update-relationship failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string CreateCalculatedColumn(
+        DataModelTomCommands commands,
+        string filePath,
+        string? tableName,
+        string? columnName,
+        string? daxFormula,
+        string? description,
+        string? dataType)
+    {
+        if (string.IsNullOrWhiteSpace(tableName))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for create-column action");
+        }
+
+        if (string.IsNullOrWhiteSpace(columnName))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'columnName' is required for create-column action");
+        }
+
+        if (string.IsNullOrWhiteSpace(daxFormula))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'daxFormula' is required for create-column action");
+        }
+
+        var result = commands.CreateCalculatedColumn(
+            filePath,
+            tableName,
+            columnName,
+            daxFormula,
+            description,
+            dataType ?? "String"
+        );
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+            {
+                result.SuggestedNextActions = new List<string>
+                {
+                    "Verify table name is correct",
+                    "Check DAX formula syntax",
+                    "Ensure data type is valid (String, Integer, Double, Boolean, DateTime)"
+                };
+            }
+            throw new ModelContextProtocol.McpException($"create-column failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string ValidateDax(
+        DataModelTomCommands commands,
+        string filePath,
+        string? daxFormula)
+    {
+        if (string.IsNullOrWhiteSpace(daxFormula))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'daxFormula' is required for validate-dax action");
+        }
+
+        var result = commands.ValidateDax(filePath, daxFormula);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"validate-dax failed for '{filePath}': {result.ErrorMessage}");
+        }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
