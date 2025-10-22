@@ -6,26 +6,28 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- UI Framework -->
-  <PackageVersion Include="Spectre.Console" Version="0.51.0" />
+    <PackageVersion Include="Microsoft.AnalysisServices.NetCore.retail.amd64" Version="19.84.1" />
+    <PackageVersion Include="Microsoft.AnalysisServices.Tabular" Version="13.0.2150.3" />
+    <PackageVersion Include="Spectre.Console" Version="0.51.0" />
     <!-- Microsoft Extensions for MCP Server -->
-  <PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
-  <PackageVersion Include="Microsoft.Extensions.Logging" Version="8.0.1" />
-  <PackageVersion Include="Microsoft.Extensions.Configuration" Version="9.0.0" />
-  <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
-  <PackageVersion Include="System.Text.Json" Version="8.0.6" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="8.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <PackageVersion Include="System.Text.Json" Version="8.0.6" />
     <!-- MCP (Model Context Protocol) -->
     <!-- MCP SDK -->
-  <PackageVersion Include="ModelContextProtocol" Version="0.4.0-preview.3" />
+    <PackageVersion Include="ModelContextProtocol" Version="0.4.0-preview.3" />
     <!-- Testing Framework -->
-  <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.0" />
-  <PackageVersion Include="System.Net.Http" Version="4.3.5" />
-  <PackageVersion Include="System.Text.RegularExpressions" Version="4.3.2" />
-  <PackageVersion Include="xunit" Version="2.7.0" />
-  <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.0" />
-  <PackageVersion Include="coverlet.collector" Version="6.1.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.0" />
+    <PackageVersion Include="System.Net.Http" Version="4.3.5" />
+    <PackageVersion Include="System.Text.RegularExpressions" Version="4.3.2" />
+    <PackageVersion Include="xunit" Version="2.7.0" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.0" />
+    <PackageVersion Include="coverlet.collector" Version="6.1.0" />
     <!-- Code Analysis and Security -->
-  <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.5" />
-  <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="9.0.0" />
-  <PackageVersion Include="SecurityCodeScan.VS2019" Version="5.7.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.5" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="9.0.0" />
+    <PackageVersion Include="SecurityCodeScan.VS2019" Version="5.7.0" />
   </ItemGroup>
 </Project>
