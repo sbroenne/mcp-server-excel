@@ -273,17 +273,37 @@ public static class ExcelHelper
     /// <returns>The worksheet COM object if found, null otherwise</returns>
     public static dynamic? FindSheet(dynamic workbook, string sheetName)
     {
+        dynamic? sheetsCollection = null;
         try
         {
-            dynamic sheetsCollection = workbook.Worksheets;
+            sheetsCollection = workbook.Worksheets;
             int count = sheetsCollection.Count;
             for (int i = 1; i <= count; i++)
             {
-                dynamic sheet = sheetsCollection.Item(i);
-                if (sheet.Name == sheetName) return sheet;
+                dynamic? sheet = null;
+                try
+                {
+                    sheet = sheetsCollection.Item(i);
+                    if (sheet.Name == sheetName)
+                    {
+                        return sheet; // Caller owns this object
+                    }
+                }
+                finally
+                {
+                    // Only release non-matching sheets
+                    if (sheet != null && sheet.Name != sheetName)
+                    {
+                        ReleaseComObject(ref sheet);
+                    }
+                }
             }
         }
         catch { }
+        finally
+        {
+            ReleaseComObject(ref sheetsCollection);
+        }
         return null;
     }
 

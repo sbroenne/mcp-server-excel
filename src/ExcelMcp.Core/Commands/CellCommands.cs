@@ -30,9 +30,11 @@ public class CellCommands : ICellCommands
 
         WithExcel(filePath, false, (excel, workbook) =>
         {
+            dynamic? sheet = null;
+            dynamic? cell = null;
             try
             {
-                dynamic? sheet = FindSheet(workbook, sheetName);
+                sheet = FindSheet(workbook, sheetName);
                 if (sheet == null)
                 {
                     result.Success = false;
@@ -40,7 +42,7 @@ public class CellCommands : ICellCommands
                     return 1;
                 }
 
-                dynamic cell = sheet.Range[cellAddress];
+                cell = sheet.Range[cellAddress];
                 result.Value = cell.Value2;
                 result.ValueType = result.Value?.GetType().Name ?? "null";
                 result.Formula = cell.Formula;
@@ -52,6 +54,11 @@ public class CellCommands : ICellCommands
                 result.Success = false;
                 result.ErrorMessage = ex.Message;
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref cell);
+                ReleaseComObject(ref sheet);
             }
         });
 
@@ -80,9 +87,11 @@ public class CellCommands : ICellCommands
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? sheet = null;
+            dynamic? cell = null;
             try
             {
-                dynamic? sheet = FindSheet(workbook, sheetName);
+                sheet = FindSheet(workbook, sheetName);
                 if (sheet == null)
                 {
                     result.Success = false;
@@ -90,7 +99,7 @@ public class CellCommands : ICellCommands
                     return 1;
                 }
 
-                dynamic cell = sheet.Range[cellAddress];
+                cell = sheet.Range[cellAddress];
 
                 // Try to parse as number, otherwise set as text
                 if (double.TryParse(value, out double numValue))
@@ -115,6 +124,11 @@ public class CellCommands : ICellCommands
                 result.Success = false;
                 result.ErrorMessage = ex.Message;
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref cell);
+                ReleaseComObject(ref sheet);
             }
         });
 
@@ -143,9 +157,11 @@ public class CellCommands : ICellCommands
 
         WithExcel(filePath, false, (excel, workbook) =>
         {
+            dynamic? sheet = null;
+            dynamic? cell = null;
             try
             {
-                dynamic? sheet = FindSheet(workbook, sheetName);
+                sheet = FindSheet(workbook, sheetName);
                 if (sheet == null)
                 {
                     result.Success = false;
@@ -153,7 +169,7 @@ public class CellCommands : ICellCommands
                     return 1;
                 }
 
-                dynamic cell = sheet.Range[cellAddress];
+                cell = sheet.Range[cellAddress];
                 result.Formula = cell.Formula ?? "";
                 result.Value = cell.Value2;
                 result.ValueType = result.Value?.GetType().Name ?? "null";
@@ -165,6 +181,11 @@ public class CellCommands : ICellCommands
                 result.Success = false;
                 result.ErrorMessage = ex.Message;
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref cell);
+                ReleaseComObject(ref sheet);
             }
         });
 
@@ -199,9 +220,11 @@ public class CellCommands : ICellCommands
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? sheet = null;
+            dynamic? cell = null;
             try
             {
-                dynamic? sheet = FindSheet(workbook, sheetName);
+                sheet = FindSheet(workbook, sheetName);
                 if (sheet == null)
                 {
                     result.Success = false;
@@ -209,7 +232,7 @@ public class CellCommands : ICellCommands
                     return 1;
                 }
 
-                dynamic cell = sheet.Range[cellAddress];
+                cell = sheet.Range[cellAddress];
                 cell.Formula = formula;
 
                 workbook.Save();
@@ -221,6 +244,11 @@ public class CellCommands : ICellCommands
                 result.Success = false;
                 result.ErrorMessage = ex.Message;
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref cell);
+                ReleaseComObject(ref sheet);
             }
         });
 
