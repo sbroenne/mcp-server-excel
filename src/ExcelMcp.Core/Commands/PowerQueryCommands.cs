@@ -1951,6 +1951,9 @@ in
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? query = null;
+            dynamic? sheets = null;
+            dynamic? targetSheet = null;
             try
             {
                 // Apply privacy level if specified
@@ -1959,7 +1962,7 @@ in
                     ApplyPrivacyLevel(workbook, privacyLevel.Value);
                 }
 
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -1968,16 +1971,27 @@ in
                 }
 
                 // Find or create target sheet
-                dynamic sheets = workbook.Worksheets;
-                dynamic? targetSheet = null;
+                sheets = workbook.Worksheets;
 
                 for (int i = 1; i <= sheets.Count; i++)
                 {
-                    dynamic sheet = sheets.Item(i);
-                    if (sheet.Name == sheetName)
+                    dynamic? sheet = null;
+                    try
                     {
-                        targetSheet = sheet;
-                        break;
+                        sheet = sheets.Item(i);
+                        if (sheet.Name == sheetName)
+                        {
+                            targetSheet = sheet;
+                            sheet = null; // Don't release - we're keeping it
+                            break;
+                        }
+                    }
+                    finally
+                    {
+                        if (sheet != null)
+                        {
+                            ReleaseComObject(ref sheet);
+                        }
                     }
                 }
 
@@ -2012,6 +2026,12 @@ in
                 result.ErrorMessage = $"Error setting load to table: {ex.Message}";
                 return 1;
             }
+            finally
+            {
+                ReleaseComObject(ref targetSheet);
+                ReleaseComObject(ref sheets);
+                ReleaseComObject(ref query);
+            }
         });
 
         return result;
@@ -2035,6 +2055,7 @@ in
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? query = null;
             try
             {
                 // Apply privacy level if specified
@@ -2043,7 +2064,7 @@ in
                     ApplyPrivacyLevel(workbook, privacyLevel.Value);
                 }
 
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -2076,18 +2097,21 @@ in
                     {
                         // Method 2: Create a named range marker to indicate data model loading
                         // This is more reliable than trying to create connections
+                        dynamic? names = null;
+                        dynamic? firstSheet = null;
                         try
                         {
-                            dynamic names = workbook.Names;
+                            names = workbook.Names;
                             string markerName = $"DataModel_Query_{queryName}";
 
                             // Check if marker already exists
                             bool markerExists = false;
                             for (int i = 1; i <= names.Count; i++)
                             {
+                                dynamic? existingName = null;
                                 try
                                 {
-                                    dynamic existingName = names.Item(i);
+                                    existingName = names.Item(i);
                                     if (existingName.Name.ToString() == markerName)
                                     {
                                         markerExists = true;
@@ -2098,13 +2122,26 @@ in
                                 {
                                     continue;
                                 }
+                                finally
+                                {
+                                    ReleaseComObject(ref existingName);
+                                }
                             }
 
                             if (!markerExists)
                             {
                                 // Create a named range marker that points to cell A1 on first sheet
-                                dynamic firstSheet = workbook.Worksheets.Item(1);
-                                names.Add(markerName, $"={firstSheet.Name}!$A$1");
+                                dynamic? worksheets = null;
+                                try
+                                {
+                                    worksheets = workbook.Worksheets;
+                                    firstSheet = worksheets.Item(1);
+                                    names.Add(markerName, $"={firstSheet.Name}!$A$1");
+                                }
+                                finally
+                                {
+                                    ReleaseComObject(ref worksheets);
+                                }
                             }
 
                             result.Success = true;
@@ -2114,6 +2151,11 @@ in
                             // Fallback - just set to connection-only mode
                             result.Success = true;
                             result.ErrorMessage = "Set to connection-only mode (data available for Data Model operations)";
+                        }
+                        finally
+                        {
+                            ReleaseComObject(ref firstSheet);
+                            ReleaseComObject(ref names);
                         }
                     }
                 }
@@ -2141,6 +2183,10 @@ in
                 result.ErrorMessage = $"Error setting load to data model: {ex.Message}";
                 return 1;
             }
+            finally
+            {
+                ReleaseComObject(ref query);
+            }
         });
 
         return result;
@@ -2164,6 +2210,7 @@ in
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? query = null;
             try
             {
                 // Apply privacy level if specified
@@ -2172,7 +2219,7 @@ in
                     ApplyPrivacyLevel(workbook, privacyLevel.Value);
                 }
 
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -2181,19 +2228,32 @@ in
                 }
 
                 // First set up table loading
+                dynamic? sheets = null;
+                dynamic? targetSheet = null;
                 try
                 {
                     // Find or create target sheet
-                    dynamic sheets = workbook.Worksheets;
-                    dynamic? targetSheet = null;
+                    sheets = workbook.Worksheets;
 
                     for (int i = 1; i <= sheets.Count; i++)
                     {
-                        dynamic sheet = sheets.Item(i);
-                        if (sheet.Name == sheetName)
+                        dynamic? sheet = null;
+                        try
                         {
-                            targetSheet = sheet;
-                            break;
+                            sheet = sheets.Item(i);
+                            if (sheet.Name == sheetName)
+                            {
+                                targetSheet = sheet;
+                                sheet = null; // Don't release - we're keeping it
+                                break;
+                            }
+                        }
+                        finally
+                        {
+                            if (sheet != null)
+                            {
+                                ReleaseComObject(ref sheet);
+                            }
                         }
                     }
 
@@ -2215,8 +2275,16 @@ in
                     result.ErrorMessage = $"Failed to set up table loading: {ex.Message}";
                     return 1;
                 }
+                finally
+                {
+                    ReleaseComObject(ref targetSheet);
+                    ReleaseComObject(ref sheets);
+                }
 
                 // Then add data model loading marker
+                dynamic? names = null;
+                dynamic? firstSheet = null;
+                dynamic? worksheets2 = null;
                 try
                 {
                     // Check if Data Model is available
@@ -2225,16 +2293,17 @@ in
                     if (dataModelAvailable)
                     {
                         // Create data model marker
-                        dynamic names = workbook.Names;
+                        names = workbook.Names;
                         string markerName = $"DataModel_Query_{queryName}";
 
                         // Check if marker already exists
                         bool markerExists = false;
                         for (int i = 1; i <= names.Count; i++)
                         {
+                            dynamic? existingName = null;
                             try
                             {
-                                dynamic existingName = names.Item(i);
+                                existingName = names.Item(i);
                                 if (existingName.Name.ToString() == markerName)
                                 {
                                     markerExists = true;
@@ -2245,12 +2314,17 @@ in
                             {
                                 continue;
                             }
+                            finally
+                            {
+                                ReleaseComObject(ref existingName);
+                            }
                         }
 
                         if (!markerExists)
                         {
                             // Create a named range marker that points to cell A1 on first sheet
-                            dynamic firstSheet = workbook.Worksheets.Item(1);
+                            worksheets2 = workbook.Worksheets;
+                            firstSheet = worksheets2.Item(1);
                             names.Add(markerName, $"={firstSheet.Name}!$A$1");
                         }
                     }
@@ -2260,6 +2334,12 @@ in
                     result.Success = false;
                     result.ErrorMessage = $"Table loading succeeded but data model setup failed: {ex.Message}";
                     return 1;
+                }
+                finally
+                {
+                    ReleaseComObject(ref worksheets2);
+                    ReleaseComObject(ref firstSheet);
+                    ReleaseComObject(ref names);
                 }
 
                 result.Success = true;
@@ -2280,6 +2360,10 @@ in
                 result.Success = false;
                 result.ErrorMessage = $"Error setting load to both: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref query);
             }
         });
 
