@@ -92,6 +92,24 @@ in
         return filePath;
     }
 
+    private string CreateQueryFileWithData(string fileName, params string[] values)
+    {
+        var filePath = Path.Combine(_tempDir, fileName);
+        // Create a simple table with the provided values in Column1
+        var rows = string.Join(",\n            ", values.Select(v => $@"{{""{v}""}}"));
+        string mCode = $@"let
+    Source = #table(
+        {{""Column1""}},
+        {{
+            {rows}
+        }}
+    )
+in
+    Source";
+        File.WriteAllText(filePath, mCode);
+        return filePath;
+    }
+
     #endregion
 
     #region Refresh Error Capture Tests
@@ -347,6 +365,56 @@ in
 
         var configAfter = _powerQueryCommands.GetLoadConfig(excelFile, "ConnectionOnlyUpdate");
         Assert.Equal(PowerQueryLoadMode.ConnectionOnly, configAfter.LoadMode);
+    }
+
+    [Fact]
+    public async Task Update_WithLoadedQuery_ActuallyUpdatesWorksheetData()
+    {
+        // This test validates the complete workflow:
+        // 1. Import query with initial data and load to worksheet
+        // 2. Update query with different data
+        // 3. Verify worksheet contains the NEW data, not the old data
+
+        // Arrange
+        var excelFile = CreateTestExcelFile();
+        var initialQueryFile = CreateQueryFileWithData("InitialData.pq", "Original1", "Original2", "Original3");
+        var updatedQueryFile = CreateQueryFileWithData("UpdatedData.pq", "Updated1", "Updated2", "Updated3");
+
+        // Step 1: Import query with initial data (default loadToWorksheet=true)
+        var importResult = await _powerQueryCommands.Import(excelFile, "DataUpdateTest", initialQueryFile);
+        Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
+
+        // Verify initial data is in worksheet
+        var sheetCommands = new SheetCommands();
+        var initialData = sheetCommands.Read(excelFile, "DataUpdateTest", "A1:A4"); // Header + 3 rows
+        Assert.True(initialData.Success, $"Initial read failed: {initialData.ErrorMessage}");
+        Assert.NotNull(initialData.Data);
+        Assert.Equal(4, initialData.Data.Count); // 4 rows (header + 3 data rows)
+        
+        // Verify initial values are present (Data is List<List<object?>>, so row[0] is first column)
+        Assert.Equal("Original1", initialData.Data[1][0]?.ToString()); // Row 2 (index 1), Column 1 (index 0)
+        Assert.Equal("Original2", initialData.Data[2][0]?.ToString()); // Row 3, Column 1
+        Assert.Equal("Original3", initialData.Data[3][0]?.ToString()); // Row 4, Column 1
+
+        // Step 2: Update query with different data
+        var updateResult = await _powerQueryCommands.Update(excelFile, "DataUpdateTest", updatedQueryFile);
+        Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
+
+        // Step 3: Verify worksheet now contains UPDATED data, not original data
+        var updatedData = sheetCommands.Read(excelFile, "DataUpdateTest", "A1:A4");
+        Assert.True(updatedData.Success, $"Updated read failed: {updatedData.ErrorMessage}");
+        Assert.NotNull(updatedData.Data);
+        Assert.Equal(4, updatedData.Data.Count);
+
+        // Critical assertions: Data should be DIFFERENT from original
+        Assert.Equal("Updated1", updatedData.Data[1][0]?.ToString());
+        Assert.Equal("Updated2", updatedData.Data[2][0]?.ToString());
+        Assert.Equal("Updated3", updatedData.Data[3][0]?.ToString());
+
+        // Ensure old data is NOT present
+        Assert.NotEqual("Original1", updatedData.Data[1][0]?.ToString());
+        Assert.NotEqual("Original2", updatedData.Data[2][0]?.ToString());
+        Assert.NotEqual("Original3", updatedData.Data[3][0]?.ToString());
     }
 
     #endregion
