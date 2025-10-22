@@ -76,15 +76,9 @@ public static class ExcelToolsPoolManager
     {
         var pool = Pool;
 
-        if (pool != null)
-        {
-            // Use pooled instance for better performance
-            return pool.WithPooledExcel(filePath, save, action);
-        }
-        else
-        {
-            // Fall back to single-instance pattern
-            return ExcelHelper.WithExcel(filePath, save, action);
-        }
+        // Use pooled instance for better performance if available; otherwise, fall back to single-instance pattern.
+        return pool != null
+            ? pool.WithPooledExcel(filePath, save, action)
+            : ExcelHelper.WithExcel(filePath, save, action);
     }
 }
