@@ -43,6 +43,7 @@ class Program
             var cell = new CellCommands();
             var script = new ScriptCommands();
             var file = new FileCommands();
+            var connection = new ConnectionCommands();
 
             return args[0].ToLower() switch
             {
@@ -96,6 +97,19 @@ class Program
                 "cell-set-value" => cell.SetValue(args),
                 "cell-get-formula" => cell.GetFormula(args),
                 "cell-set-formula" => cell.SetFormula(args),
+
+                // Connection commands
+                "conn-list" => connection.List(args),
+                "conn-view" => connection.View(args),
+                "conn-import" => connection.Import(args),
+                "conn-export" => connection.Export(args),
+                "conn-update" => connection.Update(args),
+                "conn-refresh" => connection.Refresh(args),
+                "conn-delete" => connection.Delete(args),
+                "conn-loadto" => connection.LoadTo(args),
+                "conn-properties" => connection.GetProperties(args),
+                "conn-set-properties" => connection.SetProperties(args),
+                "conn-test" => connection.Test(args),
 
                 // Script commands
                 "script-list" => script.List(args),
@@ -259,6 +273,20 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]cell-set-value[/] file.xlsx sheet cell value   Set cell value");
         AnsiConsole.MarkupLine("  [cyan]cell-get-formula[/] file.xlsx sheet cell       Get cell formula");
         AnsiConsole.MarkupLine("  [cyan]cell-set-formula[/] file.xlsx sheet cell form  Set cell formula");
+        AnsiConsole.WriteLine();
+
+        AnsiConsole.MarkupLine("[bold yellow]Connection Commands:[/]");
+        AnsiConsole.MarkupLine("  [cyan]conn-list[/] file.xlsx                         List all connections");
+        AnsiConsole.MarkupLine("  [cyan]conn-view[/] file.xlsx conn-name              View connection details");
+        AnsiConsole.MarkupLine("  [cyan]conn-import[/] file.xlsx conn-name def.json   Import connection from JSON");
+        AnsiConsole.MarkupLine("  [cyan]conn-export[/] file.xlsx conn-name out.json   Export connection to JSON");
+        AnsiConsole.MarkupLine("  [cyan]conn-update[/] file.xlsx conn-name def.json   Update connection from JSON");
+        AnsiConsole.MarkupLine("  [cyan]conn-refresh[/] file.xlsx conn-name           Refresh connection data");
+        AnsiConsole.MarkupLine("  [cyan]conn-delete[/] file.xlsx conn-name            Delete connection");
+        AnsiConsole.MarkupLine("  [cyan]conn-loadto[/] file.xlsx conn-name sheet      Load connection to worksheet");
+        AnsiConsole.MarkupLine("  [cyan]conn-properties[/] file.xlsx conn-name        Get connection properties");
+        AnsiConsole.MarkupLine("  [cyan]conn-set-properties[/] file.xlsx conn-name... Set connection properties");
+        AnsiConsole.MarkupLine("  [cyan]conn-test[/] file.xlsx conn-name              Test connection validity");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Script Commands:[/]");

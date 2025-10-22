@@ -146,7 +146,7 @@ dnx Sbroenne.ExcelMcp.McpServer --yes
 | **[🚀 Quick Start Guide](instructions/excel-powerquery-vba-copilot-instructions.md)** | Complete guide for users - copy to `.github/copilot-instructions.md` in your projects |
 | **[🧠 MCP Server Guide](src/ExcelMcp.McpServer/README.md)** | MCP server setup and AI integration examples |
 | **[🔧 ExcelMcp.CLI](docs/CLI.md)** | Command-line interface for direct Excel automation |
-| **[📋 Command Reference](docs/COMMANDS.md)** | Complete reference for all 40+ CLI commands |
+| **[📋 Command Reference](docs/COMMANDS.md)** | Complete reference for all 50+ CLI commands |
 | **[⚙️ Installation Guide](docs/INSTALLATION.md)** | Building from source and installation options |
 | **[🔧 Development Workflow](docs/DEVELOPMENT.md)** | Contributing guidelines and PR requirements |
 | **[📦 NuGet Publishing](docs/NUGET_TRUSTED_PUBLISHING.md)** | Trusted publishing setup for maintainers |
@@ -184,12 +184,13 @@ dnx Sbroenne.ExcelMcp.McpServer --yes
 
 > **🚨 Critical:** ExcelMcp controls the actual running Excel application through COM interop, not just Excel file formats. This provides access to Excel's full feature set (Power Query engine, VBA runtime, formula calculations, charts, pivot tables) but requires Excel to be installed and available for automation.
 
-## 6️⃣ MCP Tools Overview
+## 7️⃣ MCP Tools Overview
 
-The MCP server provides 6 focused resource-based tools for AI assistants:
+The MCP server provides 7 focused resource-based tools for AI assistants:
 
 - **excel_file** - Excel file creation (1 action: create-empty) 🎯 *Only Excel-specific operations*
 - **excel_powerquery** - Power Query M code management (11 actions: list, view, import, export, update, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config)
+- **excel_connection** - Data connection management (11 actions: list, view, import, export, update, refresh, delete, loadto, properties, set-properties, test) 🔌 *OLEDB, ODBC, Text, Web connections*
 - **excel_worksheet** - Worksheet operations and bulk data handling (9 actions: list, read, write, create, rename, copy, delete, clear, append)
 - **excel_parameter** - Named ranges as configuration parameters (5 actions: list, get, set, create, delete)
 - **excel_cell** - Individual cell precision operations (4 actions: get-value, set-value, get-formula, set-formula)
@@ -200,7 +201,7 @@ The MCP server provides 6 focused resource-based tools for AI assistants:
 ## 🔗 Additional Tools
 
 - **[ExcelMcp.CLI](docs/CLI.md)** - Command-line interface for direct Excel automation
-- **[Command Reference](docs/COMMANDS.md)** - All 40+ CLI commands for script-based workflows
+- **[Command Reference](docs/COMMANDS.md)** - All 50+ CLI commands for script-based workflows
 
 ## 🤝 Contributing
 

@@ -145,7 +145,7 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         dynamic? customProps = null;
         dynamic? application = null;
-        
+
         try
         {
             // In Excel COM, privacy settings are typically applied at the workbook or query level
@@ -1913,7 +1913,8 @@ in
                 }
 
                 // Remove any existing connections and QueryTables for this query
-                RemoveQueryConnections(workbook, queryName);
+                RemoveConnections(workbook, queryName);
+                RemoveQueryTables(workbook, queryName);
 
                 result.Success = true;
                 return 0;
@@ -2002,10 +2003,16 @@ in
                 }
 
                 // Remove existing connections first
-                RemoveQueryConnections(workbook, queryName);
+                RemoveConnections(workbook, queryName);
+                RemoveQueryTables(workbook, queryName);
 
                 // Create new QueryTable connection that loads data to table
-                CreateQueryTableConnection(workbook, targetSheet, queryName);
+                var queryTableOptions = new QueryTableOptions
+                {
+                    Name = queryName,
+                    RefreshImmediately = true
+                };
+                CreateQueryTable(targetSheet, queryName, queryTableOptions);
 
                 result.Success = true;
                 return 0;
@@ -2073,7 +2080,8 @@ in
                 }
 
                 // Remove existing table connections first
-                RemoveQueryConnections(workbook, queryName);
+                RemoveConnections(workbook, queryName);
+                RemoveQueryTables(workbook, queryName);
 
                 // Load to data model - check if Power Pivot/Data Model is available
                 try
@@ -2264,10 +2272,16 @@ in
                     }
 
                     // Remove existing connections first
-                    RemoveQueryConnections(workbook, queryName);
+                    RemoveConnections(workbook, queryName);
+                    RemoveQueryTables(workbook, queryName);
 
                     // Create new QueryTable connection that loads data to table
-                    CreateQueryTableConnection(workbook, targetSheet, queryName);
+                    var queryTableOptions = new QueryTableOptions
+                    {
+                        Name = queryName,
+                        RefreshImmediately = true
+                    };
+                    CreateQueryTable(targetSheet, queryName, queryTableOptions);
                 }
                 catch (Exception ex)
                 {
