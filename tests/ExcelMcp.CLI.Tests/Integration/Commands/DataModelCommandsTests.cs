@@ -40,7 +40,7 @@ public class CliDataModelCommandsTests : IDisposable
         // Use CLI command to create file
         string[] args = { "create-empty", _testExcelFile };
         int exitCode = _cliFileCommands.CreateEmpty(args);
-        
+
         if (exitCode != 0)
         {
             throw new InvalidOperationException("Failed to create test Excel file using CLI command");
@@ -184,7 +184,7 @@ public class CliDataModelCommandsTests : IDisposable
         int exitCode = _cliCommands.ListTables(args);
 
         // Assert - CLI returns 0 for success or 1 if no Data Model (both acceptable)
-        Assert.True(exitCode == 0 || exitCode == 1, 
+        Assert.True(exitCode == 0 || exitCode == 1,
             $"Expected exit code 0 (success) or 1 (no Data Model), got {exitCode}");
     }
 
@@ -254,6 +254,113 @@ public class CliDataModelCommandsTests : IDisposable
         int exitCode = await _cliCommands.ExportMeasure(args);
 
         // Assert - CLI returns 1 for error (measure not found or no Data Model)
+        Assert.Equal(1, exitCode);
+    }
+
+    #endregion
+
+    #region Delete Operations Tests
+
+    [Fact]
+    public void DeleteMeasure_WithMissingArguments_ReturnsError()
+    {
+        // Arrange
+        string[] args = { "dm-delete-measure", _testExcelFile };
+
+        // Act
+        int exitCode = _cliCommands.DeleteMeasure(args);
+
+        // Assert - CLI returns 1 for missing arguments
+        Assert.Equal(1, exitCode);
+    }
+
+    [Fact]
+    public void DeleteMeasure_WithNonExistentFile_ReturnsError()
+    {
+        // Arrange
+        string[] args = { "dm-delete-measure", "NonExistent.xlsx", "SomeMeasure" };
+
+        // Act
+        int exitCode = _cliCommands.DeleteMeasure(args);
+
+        // Assert - CLI returns 1 for file not found
+        Assert.Equal(1, exitCode);
+    }
+
+    [Fact]
+    public void DeleteMeasure_WithValidMeasure_ReturnsSuccess()
+    {
+        // Arrange - Create a test measure first
+        var measureName = "TestMeasure_" + Guid.NewGuid().ToString("N")[..8];
+        
+        try
+        {
+            DataModelTestHelper.CreateTestMeasure(_testExcelFile, measureName, "SUM(Sales[Amount])");
+        }
+        catch (InvalidOperationException)
+        {
+            // Data Model creation may fail on some Excel versions - skip test
+            return;
+        }
+
+        string[] args = { "dm-delete-measure", _testExcelFile, measureName };
+
+        // Act
+        int exitCode = _cliCommands.DeleteMeasure(args);
+
+        // Assert - CLI returns 0 for success
+        Assert.Equal(0, exitCode);
+    }
+
+    [Fact]
+    public void DeleteMeasure_WithNonExistentMeasure_ReturnsError()
+    {
+        // Arrange
+        string[] args = { "dm-delete-measure", _testExcelFile, "NonExistentMeasure" };
+
+        // Act
+        int exitCode = _cliCommands.DeleteMeasure(args);
+
+        // Assert - CLI returns 1 for error (measure not found or no Data Model)
+        Assert.Equal(1, exitCode);
+    }
+
+    [Fact]
+    public void DeleteRelationship_WithMissingArguments_ReturnsError()
+    {
+        // Arrange - Missing columns
+        string[] args = { "dm-delete-relationship", _testExcelFile, "Table1", "Col1" };
+
+        // Act
+        int exitCode = _cliCommands.DeleteRelationship(args);
+
+        // Assert - CLI returns 1 for missing arguments
+        Assert.Equal(1, exitCode);
+    }
+
+    [Fact]
+    public void DeleteRelationship_WithNonExistentFile_ReturnsError()
+    {
+        // Arrange
+        string[] args = { "dm-delete-relationship", "NonExistent.xlsx", "Table1", "Col1", "Table2", "Col2" };
+
+        // Act
+        int exitCode = _cliCommands.DeleteRelationship(args);
+
+        // Assert - CLI returns 1 for file not found
+        Assert.Equal(1, exitCode);
+    }
+
+    [Fact]
+    public void DeleteRelationship_WithNonExistentRelationship_ReturnsError()
+    {
+        // Arrange
+        string[] args = { "dm-delete-relationship", _testExcelFile, "FakeTable", "FakeCol", "OtherTable", "OtherCol" };
+
+        // Act
+        int exitCode = _cliCommands.DeleteRelationship(args);
+
+        // Assert - CLI returns 1 for error (relationship not found or no Data Model)
         Assert.Equal(1, exitCode);
     }
 

@@ -506,4 +506,58 @@ public static class DataModelTestHelper
 
         return null;
     }
+
+    /// <summary>
+    /// Creates a single test measure in the Data Model for testing delete operations.
+    /// Throws InvalidOperationException if Sales table doesn't exist in Data Model.
+    /// </summary>
+    public static void CreateTestMeasure(string filePath, string measureName, string formula)
+    {
+        ExcelHelper.WithExcel(filePath, save: true, (excel, workbook) =>
+        {
+            dynamic? model = null;
+            dynamic? modelTables = null;
+            dynamic? salesTable = null;
+            dynamic? measures = null;
+            dynamic? measure = null;
+
+            try
+            {
+                // Get the Data Model
+                model = workbook.Model;
+                modelTables = model.ModelTables;
+
+                // Find Sales table in Data Model (created by CreateSampleDataModel)
+                salesTable = FindOrCreateModelTable(modelTables, "Sales");
+                if (salesTable == null)
+                {
+                    throw new InvalidOperationException("Sales table not found in Data Model. Data Model may not be available on this Excel version.");
+                }
+
+                measures = salesTable.ModelMeasures;
+
+                // Create the test measure
+                measure = measures.Add(
+                    MeasureName: measureName,
+                    AssociatedColumn: null,
+                    Formula: formula,
+                    FormatInformation: null
+                );
+            }
+            catch (COMException ex)
+            {
+                throw new InvalidOperationException($"Could not create test measure: {ex.Message}", ex);
+            }
+            finally
+            {
+                ExcelHelper.ReleaseComObject(ref measure);
+                ExcelHelper.ReleaseComObject(ref measures);
+                ExcelHelper.ReleaseComObject(ref salesTable);
+                ExcelHelper.ReleaseComObject(ref modelTables);
+                ExcelHelper.ReleaseComObject(ref model);
+            }
+
+            return 0;
+        });
+    }
 }

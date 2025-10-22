@@ -341,6 +341,130 @@ public class CoreDataModelCommandsTests : IDisposable
         }
     }
 
+    [Fact]
+    public void DeleteMeasure_WithValidMeasure_ReturnsSuccessResult()
+    {
+        // Arrange - Create a test measure first
+        var measureName = "TestMeasure_" + Guid.NewGuid().ToString("N")[..8];
+        
+        try
+        {
+            DataModelTestHelper.CreateTestMeasure(_testExcelFile, measureName, "SUM(Sales[Amount])");
+        }
+        catch (InvalidOperationException)
+        {
+            // Data Model creation may fail on some Excel versions - skip test
+            return;
+        }
+
+        // Act
+        var result = _dataModelCommands.DeleteMeasure(_testExcelFile, measureName);
+
+        // Assert
+        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+        Assert.NotNull(result.SuggestedNextActions);
+        Assert.Contains(result.SuggestedNextActions, s => s.Contains("deleted successfully"));
+    }
+
+    [Fact]
+    public void DeleteMeasure_WithNonExistentMeasure_ReturnsErrorResult()
+    {
+        // Act
+        var result = _dataModelCommands.DeleteMeasure(_testExcelFile, "NonExistentMeasure");
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.True(
+            result.ErrorMessage.Contains("does not contain a Data Model") ||
+            result.ErrorMessage.Contains("Measure 'NonExistentMeasure' not found"),
+            $"Expected 'no Data Model' or 'measure not found' error, but got: {result.ErrorMessage}"
+        );
+    }
+
+    [Fact]
+    public void DeleteMeasure_WithNonExistentFile_ReturnsErrorResult()
+    {
+        // Act
+        var result = _dataModelCommands.DeleteMeasure("NonExistent.xlsx", "SomeMeasure");
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.Contains("File not found", result.ErrorMessage);
+    }
+
+    [Fact]
+    public void DeleteRelationship_WithValidRelationship_ReturnsSuccessResult()
+    {
+        // Arrange - Create a test relationship first (if Data Model has tables)
+        // This test may be skipped if Data Model creation failed
+        var listResult = _dataModelCommands.ListRelationships(_testExcelFile);
+        
+        if (!listResult.Success || listResult.Relationships == null || listResult.Relationships.Count == 0)
+        {
+            // Skip test if no Data Model or no relationships available
+            return;
+        }
+
+        // Use the first relationship for testing
+        var rel = listResult.Relationships[0];
+
+        // Act
+        var result = _dataModelCommands.DeleteRelationship(
+            _testExcelFile,
+            rel.FromTable,
+            rel.FromColumn,
+            rel.ToTable,
+            rel.ToColumn
+        );
+
+        // Assert
+        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+        Assert.NotNull(result.SuggestedNextActions);
+        Assert.Contains(result.SuggestedNextActions, s => s.Contains("deleted successfully"));
+    }
+
+    [Fact]
+    public void DeleteRelationship_WithNonExistentRelationship_ReturnsErrorResult()
+    {
+        // Act
+        var result = _dataModelCommands.DeleteRelationship(
+            _testExcelFile,
+            "FakeTable",
+            "FakeColumn",
+            "OtherTable",
+            "OtherColumn"
+        );
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.True(
+            result.ErrorMessage.Contains("does not contain a Data Model") ||
+            result.ErrorMessage.Contains("not found in Data Model"),
+            $"Expected 'no Data Model' or 'not found' error, but got: {result.ErrorMessage}"
+        );
+    }
+
+    [Fact]
+    public void DeleteRelationship_WithNonExistentFile_ReturnsErrorResult()
+    {
+        // Act
+        var result = _dataModelCommands.DeleteRelationship(
+            "NonExistent.xlsx",
+            "Table1",
+            "Col1",
+            "Table2",
+            "Col2"
+        );
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.Contains("File not found", result.ErrorMessage);
+    }
+
     public void Dispose()
     {
         if (_disposed) return;

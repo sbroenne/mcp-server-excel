@@ -258,7 +258,7 @@ public class DataModelCommands : IDataModelCommands
                 foreach (var rel in result.Relationships.OrderBy(r => r.FromTable).ThenBy(r => r.ToTable))
                 {
                     string active = rel.IsActive ? "[green]✓[/]" : "[dim]○[/]";
-                    
+
                     table.AddRow(
                         rel.FromTable.EscapeMarkup(),
                         rel.FromColumn.EscapeMarkup(),
@@ -310,13 +310,13 @@ public class DataModelCommands : IDataModelCommands
         }
 
         var filePath = args[1];
-        
+
         AnsiConsole.Status()
             .Start($"Refreshing Data Model in {Path.GetFileName(filePath)}...", ctx =>
             {
                 ctx.Spinner(Spinner.Known.Dots);
                 ctx.SpinnerStyle(Style.Parse("cyan"));
-                
+
                 // Small delay to show spinner
                 System.Threading.Thread.Sleep(100);
             });

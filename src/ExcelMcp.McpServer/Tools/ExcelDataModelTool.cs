@@ -317,7 +317,7 @@ public static class ExcelDataModelTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string DeleteRelationship(DataModelCommands commands, string filePath, 
+    private static string DeleteRelationship(DataModelCommands commands, string filePath,
         string? fromTable, string? fromColumn, string? toTable, string? toColumn)
     {
         if (string.IsNullOrWhiteSpace(fromTable))
