@@ -129,7 +129,7 @@ public static class ExcelHelper
             T result;
             int retryCount = 0;
             const int maxRetries = 3;
-            
+
             while (true)
             {
                 try
@@ -143,7 +143,7 @@ public static class ExcelHelper
                     // This can happen during parallel operations or when Excel is processing
                     retryCount++;
                     System.Threading.Thread.Sleep(500 * retryCount); // Exponential backoff: 500ms, 1s, 1.5s
-                    
+
                     if (retryCount >= maxRetries)
                     {
                         throw new InvalidOperationException(

@@ -180,7 +180,7 @@ public class CoreDataModelCommandsTests : IDisposable
         {
             // Should have Sales, Customers, and Products tables
             Assert.True(result.Tables.Count >= 3, $"Expected at least 3 tables, got {result.Tables.Count}");
-            
+
             var tableNames = result.Tables.Select(t => t.Name).ToList();
             Assert.Contains("Sales", tableNames);
             Assert.Contains("Customers", tableNames);
@@ -244,9 +244,9 @@ public class CoreDataModelCommandsTests : IDisposable
             Assert.True(result.Relationships.Count >= 2, $"Expected at least 2 relationships, got {result.Relationships.Count}");
 
             // Validate Sales->Customers relationship
-            var salesCustomersRel = result.Relationships.FirstOrDefault(r => 
+            var salesCustomersRel = result.Relationships.FirstOrDefault(r =>
                 r.FromTable == "Sales" && r.ToTable == "Customers");
-            
+
             if (salesCustomersRel != null)
             {
                 Assert.Equal("CustomerID", salesCustomersRel.FromColumn);
@@ -255,9 +255,9 @@ public class CoreDataModelCommandsTests : IDisposable
             }
 
             // Validate Sales->Products relationship
-            var salesProductsRel = result.Relationships.FirstOrDefault(r => 
+            var salesProductsRel = result.Relationships.FirstOrDefault(r =>
                 r.FromTable == "Sales" && r.ToTable == "Products");
-            
+
             if (salesProductsRel != null)
             {
                 Assert.Equal("ProductID", salesProductsRel.FromColumn);
@@ -306,7 +306,7 @@ public class CoreDataModelCommandsTests : IDisposable
         if (result.Success)
         {
             Assert.True(File.Exists(exportPath), "DAX file should be created");
-            
+
             var daxContent = File.ReadAllText(exportPath);
             Assert.NotEmpty(daxContent);
             Assert.Contains("SUM", daxContent, StringComparison.OrdinalIgnoreCase);

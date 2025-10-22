@@ -17,7 +17,7 @@ public static class DataModelTestHelper
     {
         // Add small delay to prevent Excel from getting overwhelmed during parallel test execution
         System.Threading.Thread.Sleep(100);
-        
+
         ExcelHelper.WithExcel(filePath, save: true, (excel, workbook) =>
         {
             try
@@ -26,16 +26,16 @@ public static class DataModelTestHelper
                 CreateSalesWorksheet(workbook);
                 CreateCustomersWorksheet(workbook);
                 CreateProductsWorksheet(workbook);
-                
+
                 // Add tables to Data Model
                 AddTablesToDataModel(workbook);
-                
+
                 // Create sample measures
                 CreateSampleMeasures(workbook);
-                
+
                 // Create relationships
                 CreateRelationships(workbook);
-                
+
                 return 0;
             }
             catch (COMException ex) when (ex.HResult == unchecked((int)0x8001010A))
@@ -53,14 +53,14 @@ public static class DataModelTestHelper
     {
         dynamic? sheet = null;
         dynamic? range = null;
-        
+
         try
         {
             // Create Sales worksheet
             dynamic sheets = workbook.Worksheets;
             sheet = sheets.Add();
             sheet.Name = "Sales";
-            
+
             // Headers
             sheet.Range["A1"].Value2 = "SalesID";
             sheet.Range["B1"].Value2 = "Date";
@@ -68,7 +68,7 @@ public static class DataModelTestHelper
             sheet.Range["D1"].Value2 = "ProductID";
             sheet.Range["E1"].Value2 = "Amount";
             sheet.Range["F1"].Value2 = "Quantity";
-            
+
             // Sample data (10 rows)
             var salesData = new object[,]
             {
@@ -83,10 +83,10 @@ public static class DataModelTestHelper
                 { 9, new DateTime(2024, 5, 10), 104, 1001, 2500.00, 5 },
                 { 10, new DateTime(2024, 5, 25), 101, 1004, 2400.00, 4 }
             };
-            
+
             range = sheet.Range["A2:F11"];
             range.Value2 = salesData;
-            
+
             // Format the table
             range = sheet.Range["A1:F11"];
             dynamic? listObject = null;
@@ -104,7 +104,7 @@ public static class DataModelTestHelper
             {
                 ExcelHelper.ReleaseComObject(ref listObject);
             }
-            
+
             ExcelHelper.ReleaseComObject(ref range);
         }
         finally
@@ -118,20 +118,20 @@ public static class DataModelTestHelper
     {
         dynamic? sheet = null;
         dynamic? range = null;
-        
+
         try
         {
             // Create Customers worksheet
             dynamic sheets = workbook.Worksheets;
             sheet = sheets.Add();
             sheet.Name = "Customers";
-            
+
             // Headers
             sheet.Range["A1"].Value2 = "CustomerID";
             sheet.Range["B1"].Value2 = "Name";
             sheet.Range["C1"].Value2 = "Region";
             sheet.Range["D1"].Value2 = "Country";
-            
+
             // Sample data
             var customersData = new object[,]
             {
@@ -141,10 +141,10 @@ public static class DataModelTestHelper
                 { 104, "Innovation Labs", "West", "Canada" },
                 { 105, "Digital Ventures", "North", "USA" }
             };
-            
+
             range = sheet.Range["A2:D6"];
             range.Value2 = customersData;
-            
+
             // Format the table
             range = sheet.Range["A1:D6"];
             dynamic? listObject = null;
@@ -162,7 +162,7 @@ public static class DataModelTestHelper
             {
                 ExcelHelper.ReleaseComObject(ref listObject);
             }
-            
+
             ExcelHelper.ReleaseComObject(ref range);
         }
         finally
@@ -176,20 +176,20 @@ public static class DataModelTestHelper
     {
         dynamic? sheet = null;
         dynamic? range = null;
-        
+
         try
         {
             // Create Products worksheet
             dynamic sheets = workbook.Worksheets;
             sheet = sheets.Add();
             sheet.Name = "Products";
-            
+
             // Headers
             sheet.Range["A1"].Value2 = "ProductID";
             sheet.Range["B1"].Value2 = "Name";
             sheet.Range["C1"].Value2 = "Category";
             sheet.Range["D1"].Value2 = "Price";
-            
+
             // Sample data
             var productsData = new object[,]
             {
@@ -199,10 +199,10 @@ public static class DataModelTestHelper
                 { 1004, "Monitor 4K", "Accessories", 450.00 },
                 { 1005, "Keyboard RGB", "Accessories", 120.00 }
             };
-            
+
             range = sheet.Range["A2:D6"];
             range.Value2 = productsData;
-            
+
             // Format the table
             range = sheet.Range["A1:D6"];
             dynamic? listObject = null;
@@ -220,7 +220,7 @@ public static class DataModelTestHelper
             {
                 ExcelHelper.ReleaseComObject(ref listObject);
             }
-            
+
             ExcelHelper.ReleaseComObject(ref range);
         }
         finally
@@ -237,7 +237,7 @@ public static class DataModelTestHelper
         {
             // Get the Data Model
             model = workbook.Model;
-            
+
             // Add each table to the Data Model
             // Note: In Excel COM, adding tables to Data Model is done through Connections
             // The tables are automatically added when we create PowerPivot relationships
@@ -261,22 +261,22 @@ public static class DataModelTestHelper
         dynamic? salesTable = null;
         dynamic? measures = null;
         dynamic? measure = null;
-        
+
         try
         {
             // Get the Data Model
             model = workbook.Model;
             modelTables = model.ModelTables;
-            
+
             // Find or create Sales table in Data Model
             salesTable = FindOrCreateModelTable(modelTables, "Sales");
             if (salesTable == null)
             {
                 return; // Data Model not available
             }
-            
+
             measures = salesTable.ModelMeasures;
-            
+
             // Create Total Sales measure
             measure = measures.Add(
                 MeasureName: "Total Sales",
@@ -285,7 +285,7 @@ public static class DataModelTestHelper
                 FormatInformation: null
             );
             ExcelHelper.ReleaseComObject(ref measure);
-            
+
             // Create Average Sale measure
             measure = measures.Add(
                 MeasureName: "Average Sale",
@@ -294,7 +294,7 @@ public static class DataModelTestHelper
                 FormatInformation: null
             );
             ExcelHelper.ReleaseComObject(ref measure);
-            
+
             // Create Total Customers measure
             measure = measures.Add(
                 MeasureName: "Total Customers",
@@ -331,31 +331,31 @@ public static class DataModelTestHelper
         dynamic? salesColumns = null;
         dynamic? customersColumns = null;
         dynamic? productsColumns = null;
-        
+
         try
         {
             // Get the Data Model
             model = workbook.Model;
             modelTables = model.ModelTables;
             modelRelationships = model.ModelRelationships;
-            
+
             // Get tables
             salesTable = FindModelTable(modelTables, "Sales");
             customersTable = FindModelTable(modelTables, "Customers");
             productsTable = FindModelTable(modelTables, "Products");
-            
+
             if (salesTable == null || customersTable == null || productsTable == null)
             {
                 return; // Tables not in Data Model
             }
-            
+
             // Create Sales -> Customers relationship
             salesColumns = salesTable.ModelTableColumns;
             customersColumns = customersTable.ModelTableColumns;
-            
+
             dynamic? customerIdColumn = FindColumn(salesColumns, "CustomerID");
             dynamic? customersIdColumn = FindColumn(customersColumns, "CustomerID");
-            
+
             if (customerIdColumn != null && customersIdColumn != null)
             {
                 relationship = modelRelationships.Add(
@@ -365,16 +365,16 @@ public static class DataModelTestHelper
                 relationship.Active = true;
                 ExcelHelper.ReleaseComObject(ref relationship);
             }
-            
+
             ExcelHelper.ReleaseComObject(ref customerIdColumn);
             ExcelHelper.ReleaseComObject(ref customersIdColumn);
-            
+
             // Create Sales -> Products relationship
             productsColumns = productsTable.ModelTableColumns;
-            
+
             dynamic? productIdColumn = FindColumn(salesColumns, "ProductID");
             dynamic? productsIdColumn = FindColumn(productsColumns, "ProductID");
-            
+
             if (productIdColumn != null && productsIdColumn != null)
             {
                 relationship = modelRelationships.Add(
@@ -384,7 +384,7 @@ public static class DataModelTestHelper
                 relationship.Active = true;
                 ExcelHelper.ReleaseComObject(ref relationship);
             }
-            
+
             ExcelHelper.ReleaseComObject(ref productIdColumn);
             ExcelHelper.ReleaseComObject(ref productsIdColumn);
         }
@@ -432,7 +432,7 @@ public static class DataModelTestHelper
                     }
                 }
             }
-            
+
             // Table not found, try to add it
             // Note: This requires the table to exist in the workbook first
             return null;
@@ -471,7 +471,7 @@ public static class DataModelTestHelper
         {
             // Ignore errors
         }
-        
+
         return null;
     }
 
@@ -503,7 +503,7 @@ public static class DataModelTestHelper
         {
             // Ignore errors
         }
-        
+
         return null;
     }
 }
