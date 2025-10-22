@@ -991,9 +991,10 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? query = null;
             try
             {
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     var queryNames = GetQueryNames(workbook);
@@ -1010,22 +1011,36 @@ public class PowerQueryCommands : IPowerQueryCommands
 
                 // Check if query has a connection to refresh
                 dynamic? targetConnection = null;
+                dynamic? connections = null;
                 try
                 {
-                    dynamic connections = workbook.Connections;
+                    connections = workbook.Connections;
                     for (int i = 1; i <= connections.Count; i++)
                     {
-                        dynamic conn = connections.Item(i);
-                        string connName = conn.Name?.ToString() ?? "";
-                        if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
-                            connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                        dynamic? conn = null;
+                        try
                         {
-                            targetConnection = conn;
-                            break;
+                            conn = connections.Item(i);
+                            string connName = conn.Name?.ToString() ?? "";
+                            if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
+                                connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                            {
+                                targetConnection = conn;
+                                conn = null; // Don't release - we're using it
+                                break;
+                            }
+                        }
+                        finally
+                        {
+                            ReleaseComObject(ref conn);
                         }
                     }
                 }
                 catch { }
+                finally
+                {
+                    ReleaseComObject(ref connections);
+                }
 
                 if (targetConnection != null)
                 {
@@ -1057,10 +1072,15 @@ public class PowerQueryCommands : IPowerQueryCommands
                         result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetErrorRecoverySteps(errorCategory);
                         result.WorkflowHint = PowerQueryWorkflowGuidance.GetWorkflowHint("pq-refresh", false);
                     }
+                    finally
+                    {
+                        ReleaseComObject(ref targetConnection);
+                    }
                 }
                 else
                 {
                     // Connection-only query
+                    ReleaseComObject(ref query);
                     result.Success = true;
                     result.IsConnectionOnly = true;
                     result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterRefresh(
@@ -1106,9 +1126,10 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, false, (excel, workbook) =>
         {
+            dynamic? query = null;
             try
             {
-                dynamic query = FindQuery(workbook, queryName);
+                query = FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -1117,24 +1138,37 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
 
                 // Try to get error information if available
+                dynamic? connections = null;
                 try
                 {
-                    dynamic connections = workbook.Connections;
+                    connections = workbook.Connections;
                     for (int i = 1; i <= connections.Count; i++)
                     {
-                        dynamic conn = connections.Item(i);
-                        string connName = conn.Name?.ToString() ?? "";
-                        if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
-                            connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                        dynamic? conn = null;
+                        try
                         {
-                            // Connection found - query has been loaded
-                            result.MCode = "No error information available through Excel COM interface";
-                            result.Success = true;
-                            return 0;
+                            conn = connections.Item(i);
+                            string connName = conn.Name?.ToString() ?? "";
+                            if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
+                                connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                            {
+                                // Connection found - query has been loaded
+                                result.MCode = "No error information available through Excel COM interface";
+                                result.Success = true;
+                                return 0;
+                            }
+                        }
+                        finally
+                        {
+                            ReleaseComObject(ref conn);
                         }
                     }
                 }
                 catch { }
+                finally
+                {
+                    ReleaseComObject(ref connections);
+                }
 
                 result.MCode = "Query is connection-only - no error information available";
                 result.Success = true;
@@ -1145,6 +1179,10 @@ public class PowerQueryCommands : IPowerQueryCommands
                 result.Success = false;
                 result.ErrorMessage = $"Error checking query errors: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref query);
             }
         });
 
@@ -1180,40 +1218,74 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
 
                 // Find or create target sheet
-                dynamic sheets = workbook.Worksheets;
+                dynamic? sheets = null;
                 dynamic? targetSheet = null;
-
-                for (int i = 1; i <= sheets.Count; i++)
+                try
                 {
-                    dynamic sheet = sheets.Item(i);
-                    if (sheet.Name == sheetName)
+                    sheets = workbook.Worksheets;
+
+                    for (int i = 1; i <= sheets.Count; i++)
                     {
-                        targetSheet = sheet;
-                        break;
+                        dynamic? sheet = null;
+                        try
+                        {
+                            sheet = sheets.Item(i);
+                            if (sheet.Name == sheetName)
+                            {
+                                targetSheet = sheet;
+                                sheet = null; // Don't release - we're using it
+                                break;
+                            }
+                        }
+                        finally
+                        {
+                            ReleaseComObject(ref sheet);
+                        }
+                    }
+
+                    if (targetSheet == null)
+                    {
+                        targetSheet = sheets.Add();
+                        targetSheet.Name = sheetName;
                     }
                 }
-
-                if (targetSheet == null)
+                finally
                 {
-                    targetSheet = sheets.Add();
-                    targetSheet.Name = sheetName;
+                    ReleaseComObject(ref sheets);
                 }
 
                 // Get the workbook connections to find our query
-                dynamic connections = workbook.Connections;
+                dynamic? connections = null;
                 dynamic? targetConnection = null;
-
-                // Look for existing connection for this query
-                for (int i = 1; i <= connections.Count; i++)
+                try
                 {
-                    dynamic conn = connections.Item(i);
-                    string connName = conn.Name?.ToString() ?? "";
-                    if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
-                        connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                    connections = workbook.Connections;
+
+                    // Look for existing connection for this query
+                    for (int i = 1; i <= connections.Count; i++)
                     {
-                        targetConnection = conn;
-                        break;
+                        dynamic? conn = null;
+                        try
+                        {
+                            conn = connections.Item(i);
+                            string connName = conn.Name?.ToString() ?? "";
+                            if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
+                                connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                            {
+                                targetConnection = conn;
+                                conn = null; // Don't release - we're using it
+                                break;
+                            }
+                        }
+                        finally
+                        {
+                            ReleaseComObject(ref conn);
+                        }
                     }
+                }
+                finally
+                {
+                    ReleaseComObject(ref connections);
                 }
 
                 // If no connection exists, we need to create one by loading the query to table
