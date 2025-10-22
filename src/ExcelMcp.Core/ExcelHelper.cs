@@ -125,16 +125,37 @@ public static class ExcelHelper
                 throw new InvalidOperationException($"Failed to open workbook: {Path.GetFileName(fullPath)}");
             }
 
-            // Execute the user action with error context
+            // Execute the user action with error context and retry logic for transient errors
             T result;
-            try
+            int retryCount = 0;
+            const int maxRetries = 3;
+            
+            while (true)
             {
-                result = action(excel, workbook);
-            }
-            catch
-            {
-                // Propagate exceptions with original context
-                throw;
+                try
+                {
+                    result = action(excel, workbook);
+                    break; // Success - exit retry loop
+                }
+                catch (COMException comEx) when (comEx.HResult == unchecked((int)0x8001010A) && retryCount < maxRetries)
+                {
+                    // Excel is busy (RPC_E_SERVERCALL_RETRYLATER)
+                    // This can happen during parallel operations or when Excel is processing
+                    retryCount++;
+                    System.Threading.Thread.Sleep(500 * retryCount); // Exponential backoff: 500ms, 1s, 1.5s
+                    
+                    if (retryCount >= maxRetries)
+                    {
+                        throw new InvalidOperationException(
+                            "Excel is busy. Please close any dialogs and try again.", comEx);
+                    }
+                    // Continue retry loop
+                }
+                catch
+                {
+                    // Propagate all other exceptions with original context
+                    throw;
+                }
             }
 
             // Save if requested

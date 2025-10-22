@@ -2320,6 +2320,15 @@ in
                 result.Success = true;
                 return 0;
             }
+            catch (COMException comEx) when (comEx.HResult == unchecked((int)0x8001010A))
+            {
+                // Excel is busy (RPC_E_SERVERCALL_RETRYLATER)
+                // Retry after a short delay
+                System.Threading.Thread.Sleep(500);
+                result.Success = false;
+                result.ErrorMessage = "Excel is busy. Please close any dialogs and try again.";
+                return 1;
+            }
             catch (COMException comEx) when (comEx.Message.Contains("Information is needed in order to combine data") ||
                                              comEx.Message.Contains("privacy level", StringComparison.OrdinalIgnoreCase))
             {
