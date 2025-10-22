@@ -24,8 +24,7 @@ public interface IPowerQueryCommands
     /// <param name="queryName">Name of the query to update</param>
     /// <param name="mCodeFile">Path to M code file</param>
     /// <param name="privacyLevel">Optional privacy level for data combining. If not specified and privacy error occurs, operation returns PowerQueryPrivacyErrorResult for user to choose.</param>
-    /// <param name="autoRefresh">Automatically refresh query after update to validate changes work (default: true)</param>
-    Task<OperationResult> Update(string filePath, string queryName, string mCodeFile, PowerQueryPrivacyLevel? privacyLevel = null, bool autoRefresh = true);
+    Task<OperationResult> Update(string filePath, string queryName, string mCodeFile, PowerQueryPrivacyLevel? privacyLevel = null);
 
     /// <summary>
     /// Exports a Power Query's M code to a file
@@ -39,10 +38,9 @@ public interface IPowerQueryCommands
     /// <param name="queryName">Name for the new query</param>
     /// <param name="mCodeFile">Path to M code file</param>
     /// <param name="privacyLevel">Optional privacy level for data combining. If not specified and privacy error occurs, operation returns PowerQueryPrivacyErrorResult for user to choose.</param>
-    /// <param name="autoRefresh">Automatically refresh query after import to validate it works (default: true)</param>
-    /// <param name="loadToWorksheet">Automatically load query data to a worksheet (default: true)</param>
+    /// <param name="loadToWorksheet">Automatically load query data to a worksheet (default: true). When true, validates query by executing it.</param>
     /// <param name="worksheetName">Optional worksheet name to load data to. If not specified, uses query name</param>
-    Task<OperationResult> Import(string filePath, string queryName, string mCodeFile, PowerQueryPrivacyLevel? privacyLevel = null, bool autoRefresh = true, bool loadToWorksheet = true, string? worksheetName = null);
+    Task<OperationResult> Import(string filePath, string queryName, string mCodeFile, PowerQueryPrivacyLevel? privacyLevel = null, bool loadToWorksheet = true, string? worksheetName = null);
 
     /// <summary>
     /// Refreshes a Power Query to update its data with error detection

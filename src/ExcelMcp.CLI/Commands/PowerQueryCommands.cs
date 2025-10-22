@@ -292,7 +292,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         var privacyLevel = ParsePrivacyLevel(args);
         bool loadToWorksheet = !args.Any(a => a.Equals("--connection-only", StringComparison.OrdinalIgnoreCase));
 
-        var result = await _coreCommands.Import(filePath, queryName, mCodeFile, privacyLevel, autoRefresh: true, loadToWorksheet: loadToWorksheet);
+        var result = await _coreCommands.Import(filePath, queryName, mCodeFile, privacyLevel, loadToWorksheet: loadToWorksheet);
 
         // Handle privacy error result
         if (result is PowerQueryPrivacyErrorResult privacyError)

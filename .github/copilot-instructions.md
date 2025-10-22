@@ -125,6 +125,56 @@ Throwing NotImplementedException and writing tests against non-functional code w
 
 **Lesson Learned**: Documentation accuracy is critical for LLM usability. Missing actions cause confusion and failed interactions. Always validate that documented capabilities exist in code.
 
+### **autoRefresh Parameter Was Redundant**
+
+**Problem Discovered**: User question "do we have a test where we load an invalid powerquery to a table?" revealed that validation only happens during execution, not import. This led to discovering `autoRefresh` parameter was completely redundant.
+
+**Root Cause**:
+- ❌ `autoRefresh` parameter added to Import/Update operations for "validation"
+- ❌ But `loadToWorksheet=true` (default) already validates via SetLoadToTable execution
+- ❌ SetLoadToTable validates via `queryTable.Refresh(false)` - execution validates M code
+- ❌ Connection-only queries are never validated until first load
+- ❌ `autoRefresh` created hidden performance cost (double API calls to Excel)
+
+**Core Principle Discovered**:
+✅ **Validation = Execution = Loading Data**
+- Power Query M code validation happens ONLY during data execution
+- SetLoadToTable validates because it executes: `CreateQueryTable` → `queryTable.Refresh(false)`
+- Excel's M engine is lenient - accepts invalid code at import, errors appear at execution time
+- Connection-only queries are NOT validated until first load operation
+
+**Fix Applied** (Issue #19):
+- ✅ Removed autoRefresh parameter from IPowerQueryCommands.Import() and Update()
+- ✅ Removed ~110 lines of redundant autoRefresh logic from PowerQueryCommands
+- ✅ Updated MCP Server ExcelPowerQueryTool with explicit default behavior guidance
+- ✅ Enhanced SuggestedNextActions to guide LLMs when to refresh
+- ✅ Removed 5 obsolete tests, preserved critical validation test
+- ✅ Fixed test expectations (5 suggestions now, not 3-4)
+- ✅ Test results: 256/257 passing (99.6%)
+
+**Enhanced Documentation**:
+```csharp
+// MCP Server tool description now includes:
+"IMPORTANT: Validation = Execution = Loading Data
+- Import DEFAULT behavior: Automatically loads to worksheet (validates M code by executing it)
+- To skip validation: Use loadToWorksheet=false (connection-only, NOT validated)
+- Connection-only queries are NOT validated until first execution"
+```
+
+**Prevention Strategy**:
+- ⚠️ **Validation always requires execution** - Don't create separate "validate" parameters
+- ⚠️ **Default behavior should be safe** - loadToWorksheet=true validates automatically
+- ⚠️ **Warn users about unvalidated state** - Clear messaging when validation is skipped
+- ⚠️ **Test with actual Excel behavior** - Excel M code validation is unpredictable (lenient)
+- ⚠️ **Remove redundant abstractions** - Don't hide Excel's actual behavior behind misleading parameters
+
+**Lesson Learned**: 
+- Abstractions that hide Excel's actual behavior are harmful for LLM decision-making
+- Default behaviors should provide validation, with opt-out for advanced users
+- "Validation" in Power Query context means "execute to load data", not "syntax check"
+- Excel's M code engine accepts invalid code at import - errors only appear during execution
+- Removing redundant parameters improves LLM understanding and reduces hidden performance costs
+
 ## What is ExcelMcp?
 
 excelcli is a Windows-only command-line tool that provides programmatic access to Microsoft Excel through COM interop. It's specifically designed for coding agents and automation scripts to manipulate Excel workbooks without requiring the Excel UI.
