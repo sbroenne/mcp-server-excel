@@ -589,7 +589,48 @@ finally
 }
 ```
 
-### 4. Validate Inputs Before COM Operations
+### 4. Excel Connection Type Discrepancy (CRITICAL!)
+
+**⚠️ IMPORTANT: Excel COM API connection types don't match the official XlConnectionType enum spec!**
+
+**Official Spec (CONNECTIONS-FEATURE-SPEC.md)**:
+- Type 3 = xlConnectionTypeXMLMAP
+- Type 4 = xlConnectionTypeTEXT  
+- Type 5 = xlConnectionTypeWEB
+
+**Actual Excel COM Runtime Behavior**:
+- Type 3 → Uses `.TextConnection` property (TEXT file connections)
+- Type 4 → Uses `.WebConnection` property (WEB query connections)
+- Type 5 → Unknown/unused in practice
+
+**Code Pattern to Follow**:
+```csharp
+int connType = conn.Type;
+
+// For TEXT file connections
+if (connType == 3)  // Runtime reality, NOT spec!
+{
+    dynamic textConn = conn.TextConnection;
+    // Access text connection properties
+}
+
+// For WEB query connections  
+else if (connType == 4)  // Runtime reality, NOT spec!
+{
+    dynamic webConn = conn.WebConnection;
+    // Access web connection properties
+}
+```
+
+**Why This Matters**:
+- `ExcelHelper.GetConnectionTypeName()` follows the spec (type 4="Text", type 5="Web")
+- BUT actual connection property accessors use type 3 for TextConnection, type 4 for WebConnection
+- Tests create connections with `"TEXT;..."` and `"URL;..."` prefixes
+- Excel assigns type 3 or 4 at runtime, NOT 4 or 5 as spec suggests
+
+**Always use runtime types (3 for TEXT, 4 for WEB) when working with connection objects!**
+
+### 5. Validate Inputs Before COM Operations
 
 ```csharp
 // Check file exists
@@ -604,7 +645,7 @@ if (!ValidateArgs(args, 3, "command <file> <arg1> <arg2>"))
     return 1;
 ```
 
-### 5. Named Range Reference Format (CRITICAL!)
+### 6. Named Range Reference Format (CRITICAL!)
 
 ```csharp
 // WRONG - RefersToRange will fail with COM error 0x800A03EC
