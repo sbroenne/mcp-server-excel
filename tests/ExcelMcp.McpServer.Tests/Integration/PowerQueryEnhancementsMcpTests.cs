@@ -67,13 +67,13 @@ public class PowerQueryEnhancementsMcpTests : IDisposable
     }
 
     [Fact]
-    public async Task PowerQuery_Import_WithAutoRefresh_ShouldValidateAndProvideGuidance()
+    public async Task PowerQuery_Import_ShouldValidateAndProvideGuidance()
     {
         // Arrange
         var server = StartMcpServer();
         await InitializeServer(server);
 
-        var testFile = Path.Combine(_tempDir, "import-autorefresh-test.xlsx");
+        var testFile = Path.Combine(_tempDir, "import-workflow-test.xlsx");
         var queryFile = Path.Combine(_tempDir, "test-query.pq");
 
         // Create a simple valid M code query
@@ -92,14 +92,14 @@ in
         // Create Excel file
         await CallExcelTool(server, "excel_file", new { action = "create-empty", excelPath = testFile });
 
-        // Act - Import with auto-refresh (default is true)
+        // Act - Import with loadToWorksheet (default: true validates via execution)
         var importResponse = await CallExcelTool(server, "excel_powerquery", new
         {
             action = "import",
             excelPath = testFile,
-            queryName = "AutoRefreshTest",
+            queryName = "WorkflowTest",
             sourcePath = queryFile
-            // autoRefresh defaults to true
+            // loadToWorksheet defaults to true (validates via SetLoadToTable execution)
         });
 
         // Assert
@@ -136,13 +136,13 @@ in
     }
 
     [Fact]
-    public async Task PowerQuery_Import_WithAutoRefreshFalse_ShouldSkipValidation()
+    public async Task PowerQuery_Import_WithConnectionOnly_ShouldSkipValidation()
     {
         // Arrange
         var server = StartMcpServer();
         await InitializeServer(server);
 
-        var testFile = Path.Combine(_tempDir, "import-no-autorefresh-test.xlsx");
+        var testFile = Path.Combine(_tempDir, "import-connection-only-test.xlsx");
         var queryFile = Path.Combine(_tempDir, "test-query-2.pq");
 
         var mCode = @"let
@@ -153,14 +153,14 @@ in
 
         await CallExcelTool(server, "excel_file", new { action = "create-empty", excelPath = testFile });
 
-        // Act - Import with autoRefresh explicitly set to false
+        // Act - Import with loadToWorksheet=false (connection-only, NOT validated)
         var importResponse = await CallExcelTool(server, "excel_powerquery", new
         {
             action = "import",
             excelPath = testFile,
-            queryName = "NoAutoRefresh",
+            queryName = "ConnectionOnly",
             sourcePath = queryFile,
-            
+            loadToWorksheet = false  // Skips validation (connection-only)
         });
 
         // Assert
@@ -227,7 +227,7 @@ in
             excelPath = testFile,
             queryName = "ConfigTest",
             sourcePath = queryFile2
-            // autoRefresh defaults to true
+            // loadToWorksheet defaults to true (preserves existing load configuration)
         });
 
         // Assert

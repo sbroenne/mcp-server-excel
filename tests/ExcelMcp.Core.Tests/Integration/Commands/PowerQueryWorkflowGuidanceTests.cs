@@ -5,10 +5,13 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 
 /// <summary>
-/// Integration tests for Power Query Auto-Refresh and Workflow Guidance features.
-/// Tests validate Phase 1 & 2 enhancements: error capture, config preservation, auto-validation.
+/// Integration tests for Power Query Workflow Guidance features.
+/// Tests validate error capture, config preservation, and workflow suggestions.
 /// These tests require Excel installation and validate the complete workflow guidance system.
 /// Uses Excel instance pooling for improved test performance.
+/// 
+/// Note: autoRefresh parameter was removed in issue #19 as redundant - 
+/// validation happens via loadToWorksheet (default: true) during Import/Update operations.
 /// </summary>
 [Collection(nameof(ExcelPooledTestCollection))]
 [Trait("Layer", "Core")]
@@ -16,20 +19,20 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 [Trait("Speed", "Medium")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "PowerQuery")]
-public class CorePowerQueryAutoRefreshTests : IDisposable
+public class CorePowerQueryWorkflowGuidanceTests : IDisposable
 {
     private readonly IPowerQueryCommands _powerQueryCommands;
     private readonly IFileCommands _fileCommands;
     private readonly string _tempDir;
     private bool _disposed;
 
-    public CorePowerQueryAutoRefreshTests()
+    public CorePowerQueryWorkflowGuidanceTests()
     {
         _powerQueryCommands = new PowerQueryCommands();
         _fileCommands = new FileCommands();
 
         // Create temp directory for test files
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_PQ_AutoRefresh_{Guid.NewGuid():N}");
+        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_PQ_Workflow_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
     }
 
