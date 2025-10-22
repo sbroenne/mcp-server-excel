@@ -298,7 +298,7 @@ in
             excelPath = testFile,
             queryName = "WebQuery",
             sourcePath = queryFile,
-            
+
         });
 
         // Act - Refresh the query (will likely fail)

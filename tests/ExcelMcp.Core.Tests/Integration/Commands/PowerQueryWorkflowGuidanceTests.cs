@@ -9,8 +9,8 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 /// Tests validate error capture, config preservation, and workflow suggestions.
 /// These tests require Excel installation and validate the complete workflow guidance system.
 /// Uses Excel instance pooling for improved test performance.
-/// 
-/// Note: autoRefresh parameter was removed in issue #19 as redundant - 
+///
+/// Note: autoRefresh parameter was removed in issue #19 as redundant -
 /// validation happens via loadToWorksheet (default: true) during Import/Update operations.
 /// </summary>
 [Collection(nameof(ExcelPooledTestCollection))]
