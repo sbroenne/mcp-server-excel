@@ -9,17 +9,7 @@ namespace Sbroenne.ExcelMcp.Core;
 public static class ExcelHelper
 {
     /// <summary>
-    /// Optional Excel instance pool for improved performance in conversational workflows.
-    /// When set, WithExcel will use pooled instances instead of creating new Excel instances.
-    /// This is automatically configured by MCP Server for optimal AI assistant performance.
-    /// </summary>
-    public static ExcelInstancePool? InstancePool { get; set; }
-
-    /// <summary>
-    /// Executes an action with Excel COM automation using proper resource management.
-    /// Automatically uses pooled instances if InstancePool is configured, providing
-    /// significant performance improvements for conversational workflows (~2-5 second
-    /// startup overhead reduced to near-instantaneous for cached workbooks).
+    /// Executes an action with Excel COM automation using proper resource management
     /// </summary>
     /// <typeparam name="T">Return type of the action</typeparam>
     /// <param name="filePath">Path to the Excel file</param>
@@ -28,23 +18,6 @@ public static class ExcelHelper
     /// <returns>Result of the action</returns>
     [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
     public static T WithExcel<T>(string filePath, bool save, Func<dynamic, dynamic, T> action)
-    {
-        // Use pooled instance if available (MCP Server optimization)
-        var pool = InstancePool;
-        if (pool != null)
-        {
-            return pool.WithPooledExcel(filePath, save, action);
-        }
-
-        // Fall back to single-instance pattern (CLI and backward compatibility)
-        return WithExcelSingleInstance(filePath, save, action);
-    }
-
-    /// <summary>
-    /// Single-instance Excel execution pattern - creates new Excel instance for each operation.
-    /// This is the traditional pattern used by CLI commands for simplicity and reliability.
-    /// </summary>
-    private static T WithExcelSingleInstance<T>(string filePath, bool save, Func<dynamic, dynamic, T> action)
     {
         dynamic? excel = null;
         dynamic? workbook = null;
@@ -186,7 +159,7 @@ public static class ExcelHelper
                 {
                     // Release might fail, but continue cleanup
                 }
-
+                
                 workbook = null;
             }
 
@@ -214,11 +187,11 @@ public static class ExcelHelper
                 {
                     // Release might fail, but continue cleanup
                 }
-
+                
                 excel = null;
             }
 
-            // Recommended COM cleanup pattern:
+            // Recommended COM cleanup pattern: 
             // Two GC cycles are sufficient - one to collect, one to finalize
             // Microsoft recommends against excessive GC.Collect() calls
             GC.Collect();
@@ -460,7 +433,7 @@ public static class ExcelHelper
                 {
                     // Release might fail, but continue cleanup
                 }
-
+                
                 workbook = null;
             }
 
@@ -488,11 +461,11 @@ public static class ExcelHelper
                 {
                     // Release might fail, but continue cleanup
                 }
-
+                
                 excel = null;
             }
 
-            // Recommended COM cleanup pattern:
+            // Recommended COM cleanup pattern: 
             // Two GC cycles are sufficient - one to collect, one to finalize
             // Microsoft recommends against excessive GC.Collect() calls
             GC.Collect();
@@ -557,7 +530,7 @@ public static class ExcelHelper
             {
                 dynamic conn = connections.Item(i);
                 string name = conn.Name?.ToString() ?? "";
-
+                
                 // Match exact name or "Query - Name" pattern (Power Query connections)
                 if (name.Equals(connectionName, StringComparison.OrdinalIgnoreCase) ||
                     name.Equals($"Query - {connectionName}", StringComparison.OrdinalIgnoreCase))
@@ -570,7 +543,7 @@ public static class ExcelHelper
         {
             // Return null if any error occurs
         }
-
+        
         return null;
     }
 
@@ -582,7 +555,7 @@ public static class ExcelHelper
     public static List<string> GetConnectionNames(dynamic workbook)
     {
         var names = new List<string>();
-
+        
         try
         {
             dynamic connections = workbook.Connections;
@@ -600,7 +573,7 @@ public static class ExcelHelper
         {
             // Return empty list if any error occurs
         }
-
+        
         return names;
     }
 
@@ -645,7 +618,7 @@ public static class ExcelHelper
                     return true;
                 }
             }
-
+            
             // Also check connection name pattern (Power Query connections are named "Query - Name")
             string name = connection.Name?.ToString() ?? "";
             if (name.StartsWith("Query - ", StringComparison.OrdinalIgnoreCase))
@@ -657,7 +630,7 @@ public static class ExcelHelper
         {
             // If any error occurs, assume not a Power Query connection
         }
-
+        
         return false;
     }
 
@@ -673,7 +646,7 @@ public static class ExcelHelper
         {
             return string.Empty;
         }
-
+        
         // Regex pattern to match password in various formats:
         // Password=value; Pwd=value; password=value; pwd=value;
         // Handles both semicolon-terminated and end-of-string cases
@@ -695,13 +668,13 @@ public static class ExcelHelper
         try
         {
             dynamic connections = workbook.Connections;
-
+            
             // Iterate backwards to safely delete items
             for (int i = connections.Count; i >= 1; i--)
             {
                 dynamic conn = connections.Item(i);
                 string connName = conn.Name?.ToString() ?? "";
-
+                
                 // Match exact name or "Query - Name" pattern
                 if (connName.Equals(name, StringComparison.OrdinalIgnoreCase) ||
                     connName.Equals($"Query - {name}", StringComparison.OrdinalIgnoreCase))
@@ -727,18 +700,18 @@ public static class ExcelHelper
         {
             dynamic worksheets = workbook.Worksheets;
             string normalizedName = name.Replace(" ", "_");
-
+            
             for (int ws = 1; ws <= worksheets.Count; ws++)
             {
                 dynamic worksheet = worksheets.Item(ws);
                 dynamic queryTables = worksheet.QueryTables;
-
+                
                 // Iterate backwards to safely delete items
                 for (int qt = queryTables.Count; qt >= 1; qt--)
                 {
                     dynamic queryTable = queryTables.Item(qt);
                     string queryTableName = queryTable.Name?.ToString() ?? "";
-
+                    
                     // Match QueryTable names that contain the normalized name
                     if (queryTableName.Contains(normalizedName, StringComparison.OrdinalIgnoreCase))
                     {
@@ -762,37 +735,37 @@ public static class ExcelHelper
         /// Name of the query or connection
         /// </summary>
         public required string Name { get; init; }
-
+        
         /// <summary>
         /// Whether to refresh data in background
         /// </summary>
         public bool BackgroundQuery { get; init; } = false;
-
+        
         /// <summary>
         /// Whether to refresh data when file opens
         /// </summary>
         public bool RefreshOnFileOpen { get; init; } = false;
-
+        
         /// <summary>
         /// Whether to save password in connection
         /// </summary>
         public bool SavePassword { get; init; } = false;
-
+        
         /// <summary>
         /// Whether to preserve column information
         /// </summary>
         public bool PreserveColumnInfo { get; init; } = true;
-
+        
         /// <summary>
         /// Whether to preserve formatting
         /// </summary>
         public bool PreserveFormatting { get; init; } = true;
-
+        
         /// <summary>
         /// Whether to auto-adjust column width
         /// </summary>
         public bool AdjustColumnWidth { get; init; } = true;
-
+        
         /// <summary>
         /// Whether to refresh immediately after creation
         /// </summary>
@@ -808,16 +781,16 @@ public static class ExcelHelper
     public static void CreateQueryTable(dynamic targetSheet, string queryName, QueryTableOptions? options = null)
     {
         options ??= new QueryTableOptions { Name = queryName };
-
+        
         dynamic queryTables = targetSheet.QueryTables;
-
+        
         // Connection string for Power Query (uses Microsoft.Mashup.OleDb provider)
         string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
         string commandText = $"SELECT * FROM [{queryName}]";
 
         // Create QueryTable at cell A1
         dynamic queryTable = queryTables.Add(connectionString, targetSheet.Range["A1"], commandText);
-
+        
         // Configure QueryTable properties
         queryTable.Name = options.Name.Replace(" ", "_");
         queryTable.RefreshStyle = 1; // xlInsertDeleteCells
@@ -827,7 +800,7 @@ public static class ExcelHelper
         queryTable.PreserveColumnInfo = options.PreserveColumnInfo;
         queryTable.PreserveFormatting = options.PreserveFormatting;
         queryTable.AdjustColumnWidth = options.AdjustColumnWidth;
-
+        
         // Refresh immediately if requested
         if (options.RefreshImmediately)
         {

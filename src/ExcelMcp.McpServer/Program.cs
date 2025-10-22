@@ -1,8 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Sbroenne.ExcelMcp.Core;
-using Sbroenne.ExcelMcp.McpServer.Tools;
 
 namespace Sbroenne.ExcelMcp.McpServer;
 
@@ -15,11 +13,6 @@ namespace Sbroenne.ExcelMcp.McpServer;
 /// - excel_parameter: Manage named ranges as parameters
 /// - excel_cell: Individual cell operations (get/set values/formulas)
 /// - excel_vba: VBA script management and execution
-///
-/// Performance Optimization:
-/// Uses ExcelInstancePool for conversational workflows - reuses Excel instances
-/// across multiple operations on the same workbook, reducing startup overhead
-/// from ~2-5 seconds per operation to near-instantaneous for cached instances.
 /// </summary>
 public class Program
 {
@@ -33,41 +26,13 @@ public class Program
             consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
         });
 
-        // Register Excel instance pool as singleton for reuse across tool calls
-        // Idle instances are automatically cleaned up after 60 seconds
-        builder.Services.AddSingleton<ExcelInstancePool>(sp =>
-            new ExcelInstancePool(idleTimeout: TimeSpan.FromSeconds(60)));
-
-        // Initialize the pool for use by Core commands and MCP tools
-        var pool = new ExcelInstancePool(idleTimeout: TimeSpan.FromSeconds(60));
-
-        // Configure Core layer to use pooling (zero-change integration)
-        ExcelHelper.InstancePool = pool;
-
-        // Configure MCP tools layer to use pooling (for static access)
-        ExcelToolsPoolManager.Initialize(pool);
-
         // Add MCP server with Excel tools
         builder.Services
             .AddMcpServer()
             .WithStdioServerTransport()
             .WithToolsFromAssembly();
 
-        var host = builder.Build();
-
-        // Ensure pool is disposed on shutdown
-        var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
-        lifetime.ApplicationStopping.Register(() =>
-        {
-            // Clear pool references
-            ExcelHelper.InstancePool = null;
-            ExcelToolsPoolManager.Shutdown();
-
-            // Dispose pool instance
-            pool.Dispose();
-        });
-
-        await host.RunAsync();
+        await builder.Build().RunAsync();
     }
 
 

@@ -10,7 +10,6 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// <summary>
 /// Base class for Excel MCP tools providing common patterns and utilities.
 /// All Excel tools inherit from this to ensure consistency for LLM usage.
-/// Provides pooled Excel instance support for conversational workflow performance.
 /// </summary>
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
 public static class ExcelToolsBase
@@ -24,23 +23,6 @@ public static class ExcelToolsBase
         WriteIndented = true,
         Converters = { new JsonStringEnumConverter() }
     };
-
-    /// <summary>
-    /// Executes an action with Excel, using pooled instance if available for better performance.
-    /// This method provides automatic fallback to single-instance pattern if pooling is not enabled.
-    ///
-    /// Performance: Pooled instances reduce Excel startup overhead from ~2-5 seconds to near-instantaneous
-    /// for cached workbooks in conversational MCP workflows.
-    /// </summary>
-    /// <typeparam name="T">Return type of the action</typeparam>
-    /// <param name="filePath">Path to the Excel file</param>
-    /// <param name="save">Whether to save changes to the file</param>
-    /// <param name="action">Action to execute with Excel application and workbook</param>
-    /// <returns>Result of the action</returns>
-    public static T WithExcel<T>(string filePath, bool save, Func<dynamic, dynamic, T> action)
-    {
-        return ExcelToolsPoolManager.WithExcel(filePath, save, action);
-    }
 
     /// <summary>
     /// Throws MCP exception for unknown actions.
