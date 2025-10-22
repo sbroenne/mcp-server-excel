@@ -44,6 +44,7 @@ class Program
             var script = new ScriptCommands();
             var file = new FileCommands();
             var connection = new ConnectionCommands();
+            var dataModel = new DataModelCommands();
 
             return args[0].ToLower() switch
             {
@@ -117,6 +118,14 @@ class Program
                 "script-import" => await script.Import(args),
                 "script-update" => await script.Update(args),
                 "script-run" => script.Run(args),
+
+                // Data Model commands
+                "dm-list-tables" => dataModel.ListTables(args),
+                "dm-list-measures" => dataModel.ListMeasures(args),
+                "dm-view-measure" => dataModel.ViewMeasure(args),
+                "dm-export-measure" => await dataModel.ExportMeasure(args),
+                "dm-list-relationships" => dataModel.ListRelationships(args),
+                "dm-refresh" => dataModel.Refresh(args),
 
                 "--help" or "-h" => ShowHelp(),
                 _ => ShowHelp()
@@ -295,6 +304,15 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]script-import[/] file.xlsm module-name vba.txt Import VBA script");
         AnsiConsole.MarkupLine("  [cyan]script-update[/] file.xlsm module-name vba.txt Update VBA script");
         AnsiConsole.MarkupLine("  [cyan]script-run[/] file.xlsm macro-name (params)    Run VBA macro");
+        AnsiConsole.WriteLine();
+
+        AnsiConsole.MarkupLine("[bold yellow]Data Model Commands:[/]");
+        AnsiConsole.MarkupLine("  [cyan]dm-list-tables[/] file.xlsx                    List all Data Model tables");
+        AnsiConsole.MarkupLine("  [cyan]dm-list-measures[/] file.xlsx                  List all DAX measures");
+        AnsiConsole.MarkupLine("  [cyan]dm-view-measure[/] file.xlsx measure-name     View DAX measure formula");
+        AnsiConsole.MarkupLine("  [cyan]dm-export-measure[/] file.xlsx measure out.dax Export DAX measure to file");
+        AnsiConsole.MarkupLine("  [cyan]dm-list-relationships[/] file.xlsx            List Data Model relationships");
+        AnsiConsole.MarkupLine("  [cyan]dm-refresh[/] file.xlsx                        Refresh Data Model");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold green]Examples:[/]");

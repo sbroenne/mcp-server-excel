@@ -29,6 +29,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj" />
     <ProjectReference Include="..\..\src\ExcelMcp.Core\ExcelMcp.Core.csproj" />
+    <ProjectReference Include="..\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj" />
   </ItemGroup>
 
 </Project>
