@@ -1527,43 +1527,71 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, false, (excel, workbook) =>
         {
+            dynamic? worksheets = null;
+            dynamic? names = null;
             try
             {
                 // Get all tables from all worksheets
-                dynamic worksheets = workbook.Worksheets;
+                worksheets = workbook.Worksheets;
                 for (int ws = 1; ws <= worksheets.Count; ws++)
                 {
-                    dynamic worksheet = worksheets.Item(ws);
-                    string wsName = worksheet.Name;
-
-                    dynamic tables = worksheet.ListObjects;
-                    for (int i = 1; i <= tables.Count; i++)
+                    dynamic? worksheet = null;
+                    dynamic? tables = null;
+                    try
                     {
-                        dynamic table = tables.Item(i);
-                        result.Worksheets.Add(new WorksheetInfo
+                        worksheet = worksheets.Item(ws);
+                        string wsName = worksheet.Name;
+
+                        tables = worksheet.ListObjects;
+                        for (int i = 1; i <= tables.Count; i++)
                         {
-                            Name = table.Name,
-                            Index = i,
-                            Visible = true
-                        });
+                            dynamic? table = null;
+                            try
+                            {
+                                table = tables.Item(i);
+                                result.Worksheets.Add(new WorksheetInfo
+                                {
+                                    Name = table.Name,
+                                    Index = i,
+                                    Visible = true
+                                });
+                            }
+                            finally
+                            {
+                                ReleaseComObject(ref table);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        ReleaseComObject(ref tables);
+                        ReleaseComObject(ref worksheet);
                     }
                 }
 
                 // Get all named ranges
-                dynamic names = workbook.Names;
+                names = workbook.Names;
                 int namedRangeIndex = result.Worksheets.Count + 1;
                 for (int i = 1; i <= names.Count; i++)
                 {
-                    dynamic name = names.Item(i);
-                    string nameValue = name.Name;
-                    if (!nameValue.StartsWith("_"))
+                    dynamic? name = null;
+                    try
                     {
-                        result.Worksheets.Add(new WorksheetInfo
+                        name = names.Item(i);
+                        string nameValue = name.Name;
+                        if (!nameValue.StartsWith("_"))
                         {
-                            Name = nameValue,
-                            Index = namedRangeIndex++,
-                            Visible = true
-                        });
+                            result.Worksheets.Add(new WorksheetInfo
+                            {
+                                Name = nameValue,
+                                Index = namedRangeIndex++,
+                                Visible = true
+                            });
+                        }
+                    }
+                    finally
+                    {
+                        ReleaseComObject(ref name);
                     }
                 }
 
@@ -1575,6 +1603,11 @@ public class PowerQueryCommands : IPowerQueryCommands
                 result.Success = false;
                 result.ErrorMessage = $"Error listing sources: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref names);
+                ReleaseComObject(ref worksheets);
             }
         });
 
@@ -1599,6 +1632,8 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? queriesCollection = null;
+            dynamic? tempQuery = null;
             try
             {
                 // Create a test query to load the source
@@ -1608,8 +1643,8 @@ let
 in
     Source";
 
-                dynamic queriesCollection = workbook.Queries;
-                dynamic tempQuery = queriesCollection.Add("_TestQuery", testQuery);
+                queriesCollection = workbook.Queries;
+                tempQuery = queriesCollection.Add("_TestQuery", testQuery);
 
                 // Try to refresh
                 bool refreshSuccess = false;
@@ -1637,6 +1672,11 @@ in
                 result.ErrorMessage = $"Source '{sourceName}' not found or cannot be loaded: {ex.Message}";
                 return 1;
             }
+            finally
+            {
+                ReleaseComObject(ref tempQuery);
+                ReleaseComObject(ref queriesCollection);
+            }
         });
 
         return result;
@@ -1660,58 +1700,97 @@ in
 
         WithExcel(filePath, false, (excel, workbook) =>
         {
+            dynamic? names = null;
+            dynamic? worksheets = null;
             try
             {
                 // Check if it's a named range (single value)
-                dynamic names = workbook.Names;
+                names = workbook.Names;
                 for (int i = 1; i <= names.Count; i++)
                 {
-                    dynamic name = names.Item(i);
-                    string nameValue = name.Name;
-                    if (nameValue == sourceName)
+                    dynamic? name = null;
+                    try
                     {
-                        try
+                        name = names.Item(i);
+                        string nameValue = name.Name;
+                        if (nameValue == sourceName)
                         {
-                            var value = name.RefersToRange.Value;
-                            result.Data.Add(new List<object?> { value });
-                            result.RowCount = 1;
-                            result.ColumnCount = 1;
-                            result.Success = true;
-                            return 0;
+                            try
+                            {
+                                var value = name.RefersToRange.Value;
+                                result.Data.Add(new List<object?> { value });
+                                result.RowCount = 1;
+                                result.ColumnCount = 1;
+                                result.Success = true;
+                                return 0;
+                            }
+                            catch
+                            {
+                                result.Success = false;
+                                result.ErrorMessage = "Named range found but value cannot be read (may be #REF!)";
+                                return 1;
+                            }
                         }
-                        catch
-                        {
-                            result.Success = false;
-                            result.ErrorMessage = "Named range found but value cannot be read (may be #REF!)";
-                            return 1;
-                        }
+                    }
+                    finally
+                    {
+                        ReleaseComObject(ref name);
                     }
                 }
 
                 // Check if it's a table
-                dynamic worksheets = workbook.Worksheets;
+                worksheets = workbook.Worksheets;
                 for (int ws = 1; ws <= worksheets.Count; ws++)
                 {
-                    dynamic worksheet = worksheets.Item(ws);
-                    dynamic tables = worksheet.ListObjects;
-                    for (int i = 1; i <= tables.Count; i++)
+                    dynamic? worksheet = null;
+                    dynamic? tables = null;
+                    try
                     {
-                        dynamic table = tables.Item(i);
-                        if (table.Name == sourceName)
+                        worksheet = worksheets.Item(ws);
+                        tables = worksheet.ListObjects;
+                        for (int i = 1; i <= tables.Count; i++)
                         {
-                            result.RowCount = table.ListRows.Count;
-                            result.ColumnCount = table.ListColumns.Count;
-
-                            // Get column names
-                            dynamic listCols = table.ListColumns;
-                            for (int c = 1; c <= Math.Min(result.ColumnCount, 10); c++)
+                            dynamic? table = null;
+                            dynamic? listCols = null;
+                            try
                             {
-                                result.Headers.Add(listCols.Item(c).Name);
-                            }
+                                table = tables.Item(i);
+                                if (table.Name == sourceName)
+                                {
+                                    result.RowCount = table.ListRows.Count;
+                                    result.ColumnCount = table.ListColumns.Count;
 
-                            result.Success = true;
-                            return 0;
+                                    // Get column names
+                                    listCols = table.ListColumns;
+                                    for (int c = 1; c <= Math.Min(result.ColumnCount, 10); c++)
+                                    {
+                                        dynamic? listCol = null;
+                                        try
+                                        {
+                                            listCol = listCols.Item(c);
+                                            result.Headers.Add(listCol.Name);
+                                        }
+                                        finally
+                                        {
+                                            ReleaseComObject(ref listCol);
+                                        }
+                                    }
+
+                                    result.Success = true;
+                                    return 0;
+                                }
+                            }
+                            finally
+                            {
+                                ReleaseComObject(ref listCols);
+                                ReleaseComObject(ref table);
+                            }
                         }
+                    }
+                    finally
+                    {
+                        ReleaseComObject(ref tables);
+                        ReleaseComObject(ref worksheet);
                     }
                 }
 
@@ -1724,6 +1803,11 @@ in
                 result.Success = false;
                 result.ErrorMessage = $"Error peeking source: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref worksheets);
+                ReleaseComObject(ref names);
             }
         });
 
@@ -1748,6 +1832,8 @@ in
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? queriesCollection = null;
+            dynamic? tempQuery = null;
             try
             {
                 // Create a temporary query with the expression
@@ -1757,8 +1843,8 @@ let
 in
     Result";
 
-                dynamic queriesCollection = workbook.Queries;
-                dynamic tempQuery = queriesCollection.Add("_EvalQuery", evalQuery);
+                queriesCollection = workbook.Queries;
+                tempQuery = queriesCollection.Add("_EvalQuery", evalQuery);
 
                 result.MCode = evalQuery;
                 result.CharacterCount = evalQuery.Length;
@@ -1786,6 +1872,11 @@ in
                 result.Success = false;
                 result.ErrorMessage = $"Expression evaluation failed: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref tempQuery);
+                ReleaseComObject(ref queriesCollection);
             }
         });
 
