@@ -105,7 +105,7 @@ public sealed class ExcelInstancePool : IDisposable
                         Marshal.ReleaseComObject(pooledInstance.Workbook);
                         pooledInstance.Workbook = null;
                     }
-                    catch
+                    catch (Exception)
                     {
                         // Ignore cleanup errors
                     }
