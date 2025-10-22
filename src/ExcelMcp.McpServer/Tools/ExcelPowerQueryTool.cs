@@ -14,16 +14,21 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// LLM Usage Patterns:
 /// - Use "list" to see all Power Queries in a workbook
 /// - Use "view" to examine M code for a specific query
-/// - Use "import" to add new queries from .pq files
+/// - Use "import" to add new queries from .pq files (DEFAULT: auto-loads to worksheet for validation)
 /// - Use "export" to save M code to files for version control
-/// - Use "update" to modify existing query M code
+/// - Use "update" to modify existing query M code (preserves existing load configuration)
 /// - Use "refresh" to refresh query data from source
 /// - Use "delete" to remove queries
-/// - Use "set-load-to-table" to load query data to worksheet
+/// - Use "set-load-to-table" to load query data to worksheet (validates M code via execution)
 /// - Use "set-load-to-data-model" to load to Excel's data model
 /// - Use "set-load-to-both" to load to both table and data model
-/// - Use "set-connection-only" to prevent data loading
+/// - Use "set-connection-only" to prevent data loading (M code not validated)
 /// - Use "get-load-config" to check current loading configuration
+///
+/// IMPORTANT:
+/// - Import DEFAULT behavior: Automatically loads to worksheet (validates M code by executing it)
+/// - Validation = Execution: Power Query M code is only validated when data is actually loaded/refreshed
+/// - Connection-only queries are NOT validated until first execution via set-load-to-table or refresh
 /// </summary>
 [McpServerToolType]
 public static class ExcelPowerQueryTool
@@ -63,10 +68,7 @@ public static class ExcelPowerQueryTool
 
         [RegularExpression("^(None|Private|Organizational|Public)$")]
         [Description("Privacy level for Power Query data combining (optional). If not specified and privacy error occurs, LLM must ask user to choose: None (least secure), Private (most secure), Organizational (internal data), or Public (public data)")]
-        string? privacyLevel = null,
-
-        [Description("Automatically refresh and validate query after import/update operations (default: true). Set to false to skip validation.")]
-        bool autoRefresh = true)
+        string? privacyLevel = null)
     {
         try
         {
@@ -86,9 +88,9 @@ public static class ExcelPowerQueryTool
             {
                 "list" => ListPowerQueries(powerQueryCommands, excelPath),
                 "view" => ViewPowerQuery(powerQueryCommands, excelPath, queryName),
-                "import" => ImportPowerQuery(powerQueryCommands, excelPath, queryName, sourcePath, parsedPrivacyLevel, autoRefresh),
+                "import" => ImportPowerQuery(powerQueryCommands, excelPath, queryName, sourcePath, parsedPrivacyLevel),
                 "export" => ExportPowerQuery(powerQueryCommands, excelPath, queryName, targetPath),
-                "update" => UpdatePowerQuery(powerQueryCommands, excelPath, queryName, sourcePath, parsedPrivacyLevel, autoRefresh),
+                "update" => UpdatePowerQuery(powerQueryCommands, excelPath, queryName, sourcePath, parsedPrivacyLevel),
                 "refresh" => RefreshPowerQuery(powerQueryCommands, excelPath, queryName),
                 "delete" => DeletePowerQuery(powerQueryCommands, excelPath, queryName),
                 "set-load-to-table" => SetLoadToTable(powerQueryCommands, excelPath, queryName, targetSheet, parsedPrivacyLevel),
@@ -166,12 +168,12 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ImportPowerQuery(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, PowerQueryPrivacyLevel? privacyLevel, bool autoRefresh)
+    private static string ImportPowerQuery(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, PowerQueryPrivacyLevel? privacyLevel)
     {
         if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(sourcePath))
             throw new ModelContextProtocol.McpException("queryName and sourcePath are required for import action");
 
-        var result = commands.Import(excelPath, queryName, sourcePath, privacyLevel, autoRefresh).GetAwaiter().GetResult();
+        var result = commands.Import(excelPath, queryName, sourcePath, privacyLevel).GetAwaiter().GetResult();
 
         // Always provide actionable next steps and workflow hint for LLM guidance
         if (result.Success)
@@ -226,12 +228,12 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string UpdatePowerQuery(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, PowerQueryPrivacyLevel? privacyLevel, bool autoRefresh)
+    private static string UpdatePowerQuery(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, PowerQueryPrivacyLevel? privacyLevel)
     {
         if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(sourcePath))
             throw new ModelContextProtocol.McpException("queryName and sourcePath are required for update action");
 
-        var result = commands.Update(excelPath, queryName, sourcePath, privacyLevel, autoRefresh).GetAwaiter().GetResult();
+        var result = commands.Update(excelPath, queryName, sourcePath, privacyLevel).GetAwaiter().GetResult();
         if (result.Success)
         {
             result.SuggestedNextActions = new List<string>

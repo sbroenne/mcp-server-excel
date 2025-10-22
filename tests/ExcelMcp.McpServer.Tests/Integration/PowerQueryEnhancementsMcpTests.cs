@@ -160,7 +160,7 @@ in
             excelPath = testFile,
             queryName = "NoAutoRefresh",
             sourcePath = queryFile,
-            autoRefresh = false
+            
         });
 
         // Assert
@@ -298,7 +298,7 @@ in
             excelPath = testFile,
             queryName = "WebQuery",
             sourcePath = queryFile,
-            autoRefresh = false
+            
         });
 
         // Act - Refresh the query (will likely fail)
@@ -560,3 +560,4 @@ in
         return textValue ?? string.Empty;
     }
 }
+

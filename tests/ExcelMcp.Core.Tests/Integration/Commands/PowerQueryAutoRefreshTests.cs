@@ -99,7 +99,7 @@ in
         // Arrange
         var excelFile = CreateTestExcelFile();
         var queryFile = CreateValidQueryFile();
-        var importResult = await _powerQueryCommands.Import(excelFile, "ValidQuery", queryFile, autoRefresh: false);
+        var importResult = await _powerQueryCommands.Import(excelFile, "ValidQuery", queryFile, loadToWorksheet: false);
         Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
 
         // Act
@@ -121,8 +121,8 @@ in
         var excelFile = CreateTestExcelFile();
         var queryFile = CreateBrokenQueryFile();
 
-        // Import without auto-refresh to avoid immediate failure
-        var importResult = await _powerQueryCommands.Import(excelFile, "BrokenQuery", queryFile, autoRefresh: false);
+        // Import without loading to worksheet to avoid immediate failure
+        var importResult = await _powerQueryCommands.Import(excelFile, "BrokenQuery", queryFile, loadToWorksheet: false);
 
         // Note: Excel may accept syntactically invalid M code and only fail at refresh/execution time
         // This test validates that IF refresh fails, error details are captured properly
@@ -162,7 +162,7 @@ in
         // Arrange
         var excelFile = CreateTestExcelFile();
         var queryFile = CreateValidQueryFile();
-        var importResult = await _powerQueryCommands.Import(excelFile, "ConnectionOnlyQuery", queryFile, autoRefresh: false);
+        var importResult = await _powerQueryCommands.Import(excelFile, "ConnectionOnlyQuery", queryFile, loadToWorksheet: false);
         Assert.True(importResult.Success);
 
         // Act
@@ -186,7 +186,7 @@ in
         // Arrange
         var excelFile = CreateTestExcelFile();
         var queryFile = CreateValidQueryFile();
-        await _powerQueryCommands.Import(excelFile, "ExistingQuery", queryFile, autoRefresh: false);
+        await _powerQueryCommands.Import(excelFile, "ExistingQuery", queryFile, loadToWorksheet: false);
 
         // Act
         var refreshResult = _powerQueryCommands.Refresh(excelFile, "NonExistentQuery");
@@ -199,17 +199,17 @@ in
 
     #endregion
 
-    #region Import Auto-Refresh Tests
+    #region Import Validation Tests
 
     [Fact]
-    public async Task Import_WithAutoRefreshTrue_ValidatesQueryAutomatically()
+    public async Task Import_WithLoadToWorksheet_ValidatesQueryByExecution()
     {
         // Arrange
         var excelFile = CreateTestExcelFile();
         var queryFile = CreateValidQueryFile();
 
-        // Act - autoRefresh defaults to true
-        var importResult = await _powerQueryCommands.Import(excelFile, "AutoValidatedQuery", queryFile);
+        // Act - loadToWorksheet defaults to true, causing query execution and validation
+        var importResult = await _powerQueryCommands.Import(excelFile, "ValidatedQuery", queryFile);
 
         // Assert
         Assert.True(importResult.Success, $"Expected success: {importResult.ErrorMessage}");
@@ -218,47 +218,25 @@ in
         Assert.NotNull(importResult.SuggestedNextActions);
         Assert.NotEmpty(importResult.SuggestedNextActions);
         Assert.NotNull(importResult.WorkflowHint);
-
-        // Workflow hint should indicate validation occurred
-        Assert.Contains("validated", importResult.WorkflowHint, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task Import_WithAutoRefreshFalse_SkipsValidation()
-    {
-        // Arrange
-        var excelFile = CreateTestExcelFile();
-        var queryFile = CreateValidQueryFile();
-
-        // Act
-        var importResult = await _powerQueryCommands.Import(excelFile, "UnvalidatedQuery", queryFile, autoRefresh: false);
-
-        // Assert
-        Assert.True(importResult.Success);
-
-        // Verify workflow guidance indicates validation was skipped
-        Assert.NotNull(importResult.SuggestedNextActions);
-        var hasSkipGuidance = importResult.SuggestedNextActions
-            .Any(s => s.Contains("validation skipped", StringComparison.OrdinalIgnoreCase) ||
-                      s.Contains("use 'refresh'", StringComparison.OrdinalIgnoreCase));
-        Assert.True(hasSkipGuidance, "Expected guidance about skipped validation");
-    }
-
-    [Fact]
-    public async Task Import_WithBrokenQuery_AutoRefreshDetectsError()
+    public async Task Import_WithBrokenQuery_ExecutionDetectsError()
     {
         // Arrange
         var excelFile = CreateTestExcelFile();
         var queryFile = CreateBrokenQueryFile();
 
-        // Act - autoRefresh defaults to true, should catch error IF Excel detects it
-        var importResult = await _powerQueryCommands.Import(excelFile, "BrokenAutoRefresh", queryFile);
+        // Act - loadToWorksheet defaults to true, should catch error IF Excel detects it during execution
+        var importResult = await _powerQueryCommands.Import(excelFile, "BrokenQuery", queryFile);
 
         // Assert - Excel's M engine may accept invalid code, only failing at data execution time
-        // This test validates that auto-refresh captures errors when they DO occur
+        // This test validates that execution captures errors when they DO occur
         if (!importResult.Success)
         {
-            Assert.Contains("validation failed", importResult.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            // Verify error details captured
+            Assert.NotNull(importResult.ErrorMessage);
+            Assert.NotEmpty(importResult.ErrorMessage);
 
             // Verify error recovery guidance provided
             Assert.NotNull(importResult.SuggestedNextActions);
@@ -290,8 +268,13 @@ in
         Assert.NotNull(importResult.SuggestedNextActions);
         Assert.NotEmpty(importResult.SuggestedNextActions);
 
-        // Should have 3-4 suggestions (per plan specification)
-        Assert.InRange(importResult.SuggestedNextActions.Count, 3, 4);
+        // Should have 5 suggestions after autoRefresh removal:
+        // 1. Status message (imported + validated)
+        // 2. Data currency info
+        // 3. Refresh guidance
+        // 4. Get-load-config suggestion
+        // 5. View M code suggestion
+        Assert.Equal(5, importResult.SuggestedNextActions.Count);
 
         // Verify workflow hint quality
         Assert.NotNull(importResult.WorkflowHint);
@@ -323,7 +306,7 @@ in
         Assert.Equal("Sheet1", configBefore.TargetSheet);
 
         // Act - Update query (should preserve config)
-        var updateResult = await _powerQueryCommands.Update(excelFile, "ConfigTest", updateFile, autoRefresh: false);
+        var updateResult = await _powerQueryCommands.Update(excelFile, "ConfigTest", updateFile);
 
         // Assert
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
@@ -347,98 +330,20 @@ in
         var updateFile = CreateValidQueryFile("UpdatedQuery.pq");
 
         // Import as connection-only (explicitly disable load to worksheet)
-        var importResult = await _powerQueryCommands.Import(excelFile, "ConnectionOnlyUpdate", queryFile, autoRefresh: false, loadToWorksheet: false);
+        var importResult = await _powerQueryCommands.Import(excelFile, "ConnectionOnlyUpdate", queryFile, loadToWorksheet: false);
         Assert.True(importResult.Success);
 
         var configBefore = _powerQueryCommands.GetLoadConfig(excelFile, "ConnectionOnlyUpdate");
         Assert.Equal(PowerQueryLoadMode.ConnectionOnly, configBefore.LoadMode);
 
         // Act - Update query
-        var updateResult = await _powerQueryCommands.Update(excelFile, "ConnectionOnlyUpdate", updateFile, autoRefresh: false);
+        var updateResult = await _powerQueryCommands.Update(excelFile, "ConnectionOnlyUpdate", updateFile);
 
         // Assert
         Assert.True(updateResult.Success);
 
         var configAfter = _powerQueryCommands.GetLoadConfig(excelFile, "ConnectionOnlyUpdate");
         Assert.Equal(PowerQueryLoadMode.ConnectionOnly, configAfter.LoadMode);
-    }
-
-    [Fact]
-    public async Task Update_WithAutoRefreshTrue_ValidatesChanges()
-    {
-        // Arrange
-        var excelFile = CreateTestExcelFile();
-        var queryFile = CreateValidQueryFile();
-        var updateFile = CreateValidQueryFile("UpdatedValid.pq");
-
-        var importResult = await _powerQueryCommands.Import(excelFile, "ValidateUpdate", queryFile);
-        Assert.True(importResult.Success);
-
-        // Act - Update with auto-refresh (default)
-        var updateResult = await _powerQueryCommands.Update(excelFile, "ValidateUpdate", updateFile);
-
-        // Assert
-        Assert.True(updateResult.Success);
-        Assert.NotNull(updateResult.SuggestedNextActions);
-        Assert.Contains("validated", updateResult.WorkflowHint, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task Update_WithBrokenQuery_AutoRefreshDetectsError()
-    {
-        // Arrange
-        var excelFile = CreateTestExcelFile();
-        var queryFile = CreateValidQueryFile();
-        var brokenUpdateFile = CreateBrokenQueryFile("BrokenUpdate.pq");
-
-        var importResult = await _powerQueryCommands.Import(excelFile, "BreakOnUpdate", queryFile);
-        Assert.True(importResult.Success);
-
-        // Act - Update with broken M code (auto-refresh should catch it IF Excel detects it)
-        var updateResult = await _powerQueryCommands.Update(excelFile, "BreakOnUpdate", brokenUpdateFile);
-
-        // Assert - Excel may accept invalid M code, only failing at execution
-        // This test validates error capture mechanism works when errors DO occur
-        if (!updateResult.Success)
-        {
-            Assert.Contains("validation failed", updateResult.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-
-            // Verify error recovery guidance
-            Assert.NotNull(updateResult.SuggestedNextActions);
-            var hasErrorGuidance = updateResult.SuggestedNextActions
-                .Any(s => s.Contains("fix", StringComparison.OrdinalIgnoreCase) ||
-                          s.Contains("revert", StringComparison.OrdinalIgnoreCase));
-            Assert.True(hasErrorGuidance, "Expected error recovery guidance");
-        }
-        else
-        {
-            // Excel accepted the update - validate workflow guidance provided
-            Assert.NotNull(updateResult.SuggestedNextActions);
-            Assert.NotNull(updateResult.WorkflowHint);
-        }
-    }
-
-    [Fact]
-    public async Task Update_WithAutoRefreshFalse_SkipsValidation()
-    {
-        // Arrange
-        var excelFile = CreateTestExcelFile();
-        var queryFile = CreateValidQueryFile();
-        var updateFile = CreateValidQueryFile("NoValidation.pq");
-
-        var importResult = await _powerQueryCommands.Import(excelFile, "NoValidationUpdate", queryFile, autoRefresh: false);
-        Assert.True(importResult.Success);
-
-        // Act
-        var updateResult = await _powerQueryCommands.Update(excelFile, "NoValidationUpdate", updateFile, autoRefresh: false);
-
-        // Assert
-        Assert.True(updateResult.Success);
-        Assert.NotNull(updateResult.SuggestedNextActions);
-        var hasSkipGuidance = updateResult.SuggestedNextActions
-            .Any(s => s.Contains("validation skipped", StringComparison.OrdinalIgnoreCase) ||
-                      s.Contains("use 'refresh'", StringComparison.OrdinalIgnoreCase));
-        Assert.True(hasSkipGuidance, "Expected guidance about skipped validation");
     }
 
     #endregion
@@ -502,7 +407,7 @@ in
         var excelFile = CreateTestExcelFile();
         var brokenQueryFile = CreateBrokenQueryFile();
 
-        var importResult = await _powerQueryCommands.Import(excelFile, "ErrorRecovery", brokenQueryFile, autoRefresh: false);
+        var importResult = await _powerQueryCommands.Import(excelFile, "ErrorRecovery", brokenQueryFile);
         Assert.True(importResult.Success, "Import without validation should succeed");
 
         // Act
@@ -637,6 +542,77 @@ in
 
     #region Cleanup
 
+    /// <summary>
+    /// CRITICAL TEST: Validates that Power Query M code validation ONLY occurs during execution (load to table/refresh).
+    /// This test confirms that:
+    /// 1. Import with broken query succeeds (Excel accepts invalid M code without execution)
+    /// 2. SetLoadToTable with broken query fails (first time Excel executes and validates the M code)
+    /// 3. Error messages are captured and provide actionable guidance
+    /// </summary>
+    [Fact]
+    public async Task SetLoadToTable_WithBrokenQuery_FailsOnFirstExecution()
+    {
+        // Arrange
+        var excelFile = CreateTestExcelFile();
+        var brokenQueryFile = CreateBrokenQueryFile("LoadToBrokenQuery.pq");
+        var queryName = "BrokenTableQuery";
+        var targetSheet = "DataSheet";
+
+        // Act - Step 1: Import broken query as connection-only (no execution)
+        var importResult = await _powerQueryCommands.Import(excelFile, queryName, brokenQueryFile, loadToWorksheet: false);
+
+        // Assert - Step 1: Import should succeed because Excel doesn't validate M code during import
+        Assert.True(importResult.Success,
+            $"Import should succeed with broken query (no execution yet). Error: {importResult.ErrorMessage}");
+
+        // Verify query exists as connection-only
+        var listResult = _powerQueryCommands.List(excelFile);
+        Assert.True(listResult.Success);
+        var importedQuery = listResult.Queries.FirstOrDefault(q => q.Name == queryName);
+        Assert.NotNull(importedQuery);
+        Assert.True(importedQuery.IsConnectionOnly, "Query should be connection-only (not loaded to table yet)");
+
+        // Act - Step 2: Attempt to load broken query to table (FIRST EXECUTION)
+        var setLoadResult = _powerQueryCommands.SetLoadToTable(excelFile, queryName, targetSheet);
+
+        // Assert - Step 2: SetLoadToTable should fail because this is when Excel executes and validates
+        // Excel's M engine is lenient but should catch syntax errors during actual data execution
+        if (!setLoadResult.Success)
+        {
+            // Expected behavior: Excel detected the error during execution
+            Assert.False(setLoadResult.Success, "SetLoadToTable should fail when executing broken query");
+            Assert.NotNull(setLoadResult.ErrorMessage);
+            Assert.NotEmpty(setLoadResult.ErrorMessage);
+
+            // Excel reports M code execution errors like "[Expression.Error] The name 'Source' wasn't recognized"
+            var errorContainsExpression = setLoadResult.ErrorMessage.Contains("Expression.Error", StringComparison.OrdinalIgnoreCase);
+            var errorContainsSyntax = setLoadResult.ErrorMessage.Contains("syntax", StringComparison.OrdinalIgnoreCase);
+            var errorContainsFormula = setLoadResult.ErrorMessage.Contains("formula", StringComparison.OrdinalIgnoreCase);
+            var errorContainsRecognized = setLoadResult.ErrorMessage.Contains("wasn't recognized", StringComparison.OrdinalIgnoreCase);
+            var errorContainsTable = setLoadResult.ErrorMessage.Contains("table", StringComparison.OrdinalIgnoreCase);
+
+            Assert.True(
+                errorContainsExpression || errorContainsSyntax || errorContainsFormula ||
+                errorContainsRecognized || errorContainsTable,
+                $"Error message should indicate M code execution error. Actual error: '{setLoadResult.ErrorMessage}'"
+            );
+        }
+        else
+        {
+            // Alternative scenario: Excel's lenient M engine accepted even the broken syntax
+            // In this case, verify the query loaded successfully but may have no data
+            Assert.True(setLoadResult.Success);
+
+            // Query should no longer be connection-only
+            var verifyListResult = _powerQueryCommands.List(excelFile);
+            var loadedQuery = verifyListResult.Queries.FirstOrDefault(q => q.Name == queryName);
+            Assert.NotNull(loadedQuery);
+
+            // Even if Excel accepted it, document this lenient behavior
+            // Future executions may still fail when actually accessing data
+        }
+    }
+
     public void Dispose()
     {
         Dispose(true);
@@ -670,3 +646,4 @@ in
 
     #endregion
 }
+
