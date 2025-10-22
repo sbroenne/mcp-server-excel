@@ -346,7 +346,7 @@ public class CoreDataModelCommandsTests : IDisposable
     {
         // Arrange - Create a test measure first
         var measureName = "TestMeasure_" + Guid.NewGuid().ToString("N")[..8];
-        
+
         try
         {
             DataModelTestHelper.CreateTestMeasure(_testExcelFile, measureName, "SUM(Sales[Amount])");
@@ -400,7 +400,7 @@ public class CoreDataModelCommandsTests : IDisposable
         // Arrange - Create a test relationship first (if Data Model has tables)
         // This test may be skipped if Data Model creation failed
         var listResult = _dataModelCommands.ListRelationships(_testExcelFile);
-        
+
         if (!listResult.Success || listResult.Relationships == null || listResult.Relationships.Count == 0)
         {
             // Skip test if no Data Model or no relationships available

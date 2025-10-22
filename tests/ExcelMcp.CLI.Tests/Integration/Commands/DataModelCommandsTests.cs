@@ -292,7 +292,7 @@ public class CliDataModelCommandsTests : IDisposable
     {
         // Arrange - Create a test measure first
         var measureName = "TestMeasure_" + Guid.NewGuid().ToString("N")[..8];
-        
+
         try
         {
             DataModelTestHelper.CreateTestMeasure(_testExcelFile, measureName, "SUM(Sales[Amount])");
