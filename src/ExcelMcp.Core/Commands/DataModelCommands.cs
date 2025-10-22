@@ -48,7 +48,7 @@ public class DataModelCommands : IDataModelCommands
                         try
                         {
                             table = modelTables.Item(i);
-                            
+
                             var tableInfo = new DataModelTableInfo
                             {
                                 Name = table.Name?.ToString() ?? "",
@@ -250,7 +250,7 @@ public class DataModelCommands : IDataModelCommands
                     var measureNames = GetModelMeasureNames(model);
                     result.Success = false;
                     result.ErrorMessage = $"Measure '{measureName}' not found in Data Model.";
-                    
+
                     // Suggest similar measure names
                     var suggestions = new List<string>();
                     foreach (var m in measureNames)
@@ -261,12 +261,12 @@ public class DataModelCommands : IDataModelCommands
                             if (suggestions.Count >= 3) break;
                         }
                     }
-                    
+
                     if (suggestions.Any())
                     {
                         result.SuggestedNextActions = suggestions;
                     }
-                    
+
                     return result;
                 }
 
@@ -469,7 +469,7 @@ public class DataModelCommands : IDataModelCommands
                         try
                         {
                             relationship = relationships.Item(i);
-                            
+
                             // Get foreign key column and table
                             fkColumn = relationship.ForeignKeyColumn;
                             fkTable = fkColumn.Parent;

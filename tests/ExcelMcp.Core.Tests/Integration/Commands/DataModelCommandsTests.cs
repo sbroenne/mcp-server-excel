@@ -61,7 +61,7 @@ public class CoreDataModelCommandsTests : IDisposable
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
         Assert.NotNull(result.Tables);
-        
+
         // New file without Data Model should indicate that
         if (!result.Success && result.ErrorMessage?.Contains("does not contain a Data Model") == true)
         {
@@ -79,7 +79,7 @@ public class CoreDataModelCommandsTests : IDisposable
         // Assert
         Assert.True(result.Success || result.ErrorMessage?.Contains("does not contain a Data Model") == true,
             $"Expected success or 'no Data Model' message, but got: {result.ErrorMessage}");
-        
+
         if (result.Success)
         {
             Assert.NotNull(result.Measures);
@@ -123,7 +123,7 @@ public class CoreDataModelCommandsTests : IDisposable
         // Assert
         Assert.True(result.Success || result.ErrorMessage?.Contains("does not contain a Data Model") == true,
             $"Expected success or 'no Data Model' message, but got: {result.ErrorMessage}");
-        
+
         if (result.Success)
         {
             Assert.NotNull(result.Relationships);
@@ -166,7 +166,7 @@ public class CoreDataModelCommandsTests : IDisposable
             {
                 // Give Excel time to release file locks
                 System.Threading.Thread.Sleep(100);
-                
+
                 // Retry cleanup a few times if needed
                 for (int i = 0; i < 3; i++)
                 {
