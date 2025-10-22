@@ -1,6 +1,5 @@
-using Spectre.Console;
-using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
+using Spectre.Console;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -15,7 +14,7 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         _coreCommands = new Core.Commands.PowerQueryCommands();
     }
-    
+
     /// <summary>
     /// Parses privacy level from command line arguments or environment variable
     /// </summary>
@@ -32,7 +31,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
             }
         }
-        
+
         // Check environment variable as fallback
         string? envLevel = Environment.GetEnvironmentVariable("EXCEL_DEFAULT_PRIVACY_LEVEL");
         if (!string.IsNullOrEmpty(envLevel))
@@ -42,21 +41,21 @@ public class PowerQueryCommands : IPowerQueryCommands
                 return level;
             }
         }
-        
+
         return null;
     }
-    
+
     /// <summary>
     /// Displays privacy consent prompt when PowerQueryPrivacyErrorResult is encountered
     /// </summary>
     private static void DisplayPrivacyConsentPrompt(PowerQueryPrivacyErrorResult error)
     {
         AnsiConsole.WriteLine();
-        
+
         var panel = new Panel(new Markup(
             $"[yellow]Power Query Privacy Level Required[/]\n\n" +
             $"Your query combines data from multiple sources. Excel requires a privacy level to be specified.\n\n" +
-            (error.ExistingPrivacyLevels.Count > 0 
+            (error.ExistingPrivacyLevels.Count > 0
                 ? $"[cyan]Existing queries in this workbook:[/]\n" +
                   string.Join("\n", error.ExistingPrivacyLevels.Select(q => $"  • {q.QueryName}: {q.PrivacyLevel}")) + "\n\n"
                 : "") +
@@ -73,7 +72,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         panel.Header = new PanelHeader("[yellow]⚠ User Consent Required[/]");
         panel.Border = BoxBorder.Rounded;
         panel.BorderStyle = new Style(Color.Yellow);
-        
+
         AnsiConsole.Write(panel);
         AnsiConsole.WriteLine();
     }
@@ -95,7 +94,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         if (!result.Success)
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-            
+
             if (result.ErrorMessage?.Contains(".xls") == true)
             {
                 AnsiConsole.MarkupLine("[yellow]Note:[/] .xls files don't support Power Query. Use .xlsx or .xlsm");
@@ -105,7 +104,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                 AnsiConsole.MarkupLine("[yellow]This workbook may not have Power Query enabled[/]");
                 AnsiConsole.MarkupLine("[dim]Try opening the file in Excel and adding a Power Query first[/]");
             }
-            
+
             return 1;
         }
 
@@ -119,7 +118,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             foreach (var query in result.Queries.OrderBy(q => q.Name))
             {
                 string typeInfo = query.IsConnectionOnly ? "[dim]Connection Only[/]" : "Loaded";
-                
+
                 table.AddRow(
                     $"[cyan]{query.Name.EscapeMarkup()}[/]",
                     $"[dim]{query.FormulaPreview.EscapeMarkup()}[/]",
@@ -130,7 +129,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             AnsiConsole.Write(table);
             AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine($"[bold]Total:[/] {result.Queries.Count} Power Queries");
-            
+
             // Usage hints
             AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine("[dim]Next steps:[/]");
@@ -164,12 +163,12 @@ public class PowerQueryCommands : IPowerQueryCommands
         if (!result.Success)
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-            
+
             if (result.ErrorMessage?.Contains("Did you mean") == true)
             {
                 AnsiConsole.MarkupLine("[yellow]Tip:[/] Use [cyan]pq-list[/] to see all available queries");
             }
-            
+
             return 1;
         }
 
@@ -226,7 +225,23 @@ public class PowerQueryCommands : IPowerQueryCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Updated Power Query '[cyan]{queryName}[/]' from [cyan]{mCodeFile}[/]");
-        AnsiConsole.MarkupLine("[dim]Tip: Use pq-refresh to update the data[/]");
+
+        // Display workflow hints if available
+        if (!string.IsNullOrEmpty(result.WorkflowHint))
+        {
+            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+        }
+
+        // Display suggested next actions
+        if (result.SuggestedNextActions?.Any() == true)
+        {
+            AnsiConsole.MarkupLine("[yellow]Suggested next steps:[/]");
+            foreach (var action in result.SuggestedNextActions)
+            {
+                AnsiConsole.MarkupLine($"  [dim]•[/] {action.EscapeMarkup()}");
+            }
+        }
+
         return 0;
     }
 
@@ -252,7 +267,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Exported Power Query '[cyan]{queryName}[/]' to [cyan]{outputFile}[/]");
-        
+
         if (File.Exists(outputFile))
         {
             var fileInfo = new FileInfo(outputFile);
@@ -267,7 +282,7 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         if (args.Length < 4)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-import <file.xlsx> <query-name> <mcode-file> [--privacy-level <None|Private|Organizational|Public>]");
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-import <file.xlsx> <query-name> <mcode-file> [--privacy-level <None|Private|Organizational|Public>] [--connection-only]");
             return 1;
         }
 
@@ -275,8 +290,9 @@ public class PowerQueryCommands : IPowerQueryCommands
         string queryName = args[2];
         string mCodeFile = args[3];
         var privacyLevel = ParsePrivacyLevel(args);
+        bool loadToWorksheet = !args.Any(a => a.Equals("--connection-only", StringComparison.OrdinalIgnoreCase));
 
-        var result = await _coreCommands.Import(filePath, queryName, mCodeFile, privacyLevel);
+        var result = await _coreCommands.Import(filePath, queryName, mCodeFile, privacyLevel, autoRefresh: true, loadToWorksheet: loadToWorksheet);
 
         // Handle privacy error result
         if (result is PowerQueryPrivacyErrorResult privacyError)
@@ -288,16 +304,33 @@ public class PowerQueryCommands : IPowerQueryCommands
         if (!result.Success)
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-            
+
             if (result.ErrorMessage?.Contains("already exists") == true)
             {
                 AnsiConsole.MarkupLine("[yellow]Tip:[/] Use [cyan]pq-update[/] to modify existing queries");
             }
-            
+
             return 1;
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Imported Power Query '[cyan]{queryName}[/]' from [cyan]{mCodeFile}[/]");
+
+        // Display workflow hints if available
+        if (!string.IsNullOrEmpty(result.WorkflowHint))
+        {
+            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+        }
+
+        // Display suggested next actions
+        if (result.SuggestedNextActions?.Any() == true)
+        {
+            AnsiConsole.MarkupLine("[yellow]Suggested next steps:[/]");
+            foreach (var action in result.SuggestedNextActions)
+            {
+                AnsiConsole.MarkupLine($"  [dim]•[/] {action.EscapeMarkup()}");
+            }
+        }
+
         return 0;
     }
 
@@ -330,6 +363,21 @@ public class PowerQueryCommands : IPowerQueryCommands
         else
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Refreshed Power Query '[cyan]{queryName}[/]'");
+        }
+
+        // Display workflow hints if available
+        if (!string.IsNullOrEmpty(result.WorkflowHint))
+        {
+            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+        }
+
+        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+        {
+            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+            foreach (var suggestion in result.SuggestedNextActions)
+            {
+                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+            }
         }
 
         return 0;
@@ -413,6 +461,22 @@ public class PowerQueryCommands : IPowerQueryCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Deleted Power Query '[cyan]{queryName}[/]'");
+
+        // Display workflow hints if available
+        if (!string.IsNullOrEmpty(result.WorkflowHint))
+        {
+            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+        }
+
+        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+        {
+            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+            foreach (var suggestion in result.SuggestedNextActions)
+            {
+                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+            }
+        }
+
         return 0;
     }
 
@@ -451,7 +515,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             {
                 table.AddRow($"[cyan]{item.Name.EscapeMarkup()}[/]", "Table");
             }
-            
+
             foreach (var item in namedRanges)
             {
                 table.AddRow($"[yellow]{item.Name.EscapeMarkup()}[/]", "Named Range");
@@ -492,7 +556,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Source '[cyan]{sourceName}[/]' exists and can be loaded");
-        
+
         if (result.ErrorMessage != null)
         {
             AnsiConsole.MarkupLine($"\n[yellow]⚠[/] {result.ErrorMessage}");
@@ -625,6 +689,22 @@ public class PowerQueryCommands : IPowerQueryCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' is now Connection Only");
+
+        // Display workflow hints if available
+        if (!string.IsNullOrEmpty(result.WorkflowHint))
+        {
+            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+        }
+
+        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+        {
+            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+            foreach (var suggestion in result.SuggestedNextActions)
+            {
+                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+            }
+        }
+
         return 0;
     }
 
@@ -662,6 +742,22 @@ public class PowerQueryCommands : IPowerQueryCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' is now loading to worksheet '{sheetName}'");
+
+        // Display workflow hints if available
+        if (!string.IsNullOrEmpty(result.WorkflowHint))
+        {
+            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+        }
+
+        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+        {
+            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+            foreach (var suggestion in result.SuggestedNextActions)
+            {
+                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+            }
+        }
+
         return 0;
     }
 
@@ -698,6 +794,22 @@ public class PowerQueryCommands : IPowerQueryCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' is now loading to Data Model");
+
+        // Display workflow hints if available
+        if (!string.IsNullOrEmpty(result.WorkflowHint))
+        {
+            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+        }
+
+        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+        {
+            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+            foreach (var suggestion in result.SuggestedNextActions)
+            {
+                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+            }
+        }
+
         return 0;
     }
 
@@ -735,6 +847,22 @@ public class PowerQueryCommands : IPowerQueryCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' is now loading to both worksheet '{sheetName}' and Data Model");
+
+        // Display workflow hints if available
+        if (!string.IsNullOrEmpty(result.WorkflowHint))
+        {
+            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+        }
+
+        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+        {
+            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+            foreach (var suggestion in result.SuggestedNextActions)
+            {
+                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+            }
+        }
+
         return 0;
     }
 

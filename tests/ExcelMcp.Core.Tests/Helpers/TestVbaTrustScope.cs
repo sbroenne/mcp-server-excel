@@ -13,7 +13,7 @@ internal sealed class TestVbaTrustScope : IDisposable
 {
     private readonly bool _wasEnabled;
     private bool _isDisposed;
-    
+
     public TestVbaTrustScope()
     {
         _wasEnabled = IsVbaTrustEnabled();
@@ -21,12 +21,12 @@ internal sealed class TestVbaTrustScope : IDisposable
         {
             EnableVbaTrust();
             Thread.Sleep(150); // Registry propagation delay
-            
+
             if (!IsVbaTrustEnabled())
                 throw new InvalidOperationException("Test setup failed: Could not enable VBA trust");
         }
     }
-    
+
     public void Dispose()
     {
         if (!_isDisposed && !_wasEnabled)
@@ -37,14 +37,14 @@ internal sealed class TestVbaTrustScope : IDisposable
                 // Log but don't throw in Dispose
                 Console.Error.WriteLine($"Test cleanup warning: Could not disable VBA trust: {ex.Message}");
             }
-            finally 
-            { 
+            finally
+            {
                 _isDisposed = true;
                 GC.SuppressFinalize(this);
             }
         }
     }
-    
+
     private static bool IsVbaTrustEnabled()
     {
         try
@@ -55,7 +55,7 @@ internal sealed class TestVbaTrustScope : IDisposable
                 @"Software\Microsoft\Office\15.0\Excel\Security",  // Office 2013
                 @"Software\Microsoft\Office\14.0\Excel\Security"   // Office 2010
             };
-            
+
             foreach (string path in registryPaths)
             {
                 try
@@ -69,7 +69,7 @@ internal sealed class TestVbaTrustScope : IDisposable
                 }
                 catch { /* Try next path */ }
             }
-            
+
             return false;
         }
         catch
@@ -77,7 +77,7 @@ internal sealed class TestVbaTrustScope : IDisposable
             return false;
         }
     }
-    
+
     private static void EnableVbaTrust()
     {
         try
@@ -88,7 +88,7 @@ internal sealed class TestVbaTrustScope : IDisposable
                 @"Software\Microsoft\Office\15.0\Excel\Security",
                 @"Software\Microsoft\Office\14.0\Excel\Security"
             };
-            
+
             foreach (string path in registryPaths)
             {
                 try
@@ -104,7 +104,7 @@ internal sealed class TestVbaTrustScope : IDisposable
             throw new InvalidOperationException($"Failed to enable VBA trust for test: {ex.Message}", ex);
         }
     }
-    
+
     private static void DisableVbaTrust()
     {
         try
@@ -115,7 +115,7 @@ internal sealed class TestVbaTrustScope : IDisposable
                 @"Software\Microsoft\Office\15.0\Excel\Security",
                 @"Software\Microsoft\Office\14.0\Excel\Security"
             };
-            
+
             foreach (string path in registryPaths)
             {
                 try

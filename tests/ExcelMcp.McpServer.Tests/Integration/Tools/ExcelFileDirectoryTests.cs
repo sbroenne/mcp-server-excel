@@ -1,7 +1,7 @@
+using System.Text.Json;
+using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
 using Xunit.Abstractions;
-using Sbroenne.ExcelMcp.McpServer.Tools;
-using System.Text.Json;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
@@ -44,18 +44,18 @@ public class ExcelFileDirectoryTests : IDisposable
     {
         // Arrange
         var testFile = Path.Combine(_tempDir, "subdir", "test-file.xlsx");
-        
+
         _output.WriteLine($"Testing file creation in non-existent directory: {testFile}");
         _output.WriteLine($"Directory exists before: {Directory.Exists(Path.GetDirectoryName(testFile))}");
 
         // Act - Call the tool directly
         var result = ExcelFileTool.ExcelFile("create-empty", testFile);
-        
+
         _output.WriteLine($"Tool result: {result}");
-        
+
         // Parse the result
         var jsonDoc = JsonDocument.Parse(result);
-        
+
         if (jsonDoc.RootElement.TryGetProperty("success", out var successElement))
         {
             var success = successElement.GetBoolean();
@@ -76,15 +76,15 @@ public class ExcelFileDirectoryTests : IDisposable
         // Arrange - Create a path that might be too long
         var longPath = string.Join("", Enumerable.Repeat("verylongdirectoryname", 20));
         var testFile = Path.Combine(_tempDir, longPath, "test-file.xlsx");
-        
+
         _output.WriteLine($"Testing with very long path: {testFile.Length} characters");
         _output.WriteLine($"Path: {testFile}");
 
         // Act - Call the tool directly
         var result = ExcelFileTool.ExcelFile("create-empty", testFile);
-        
+
         _output.WriteLine($"Tool result: {result}");
-        
+
         // Just make sure it doesn't throw an exception
         var jsonDoc = JsonDocument.Parse(result);
         Assert.True(jsonDoc.RootElement.ValueKind == JsonValueKind.Object);

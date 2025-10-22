@@ -1,15 +1,14 @@
-using Sbroenne.ExcelMcp.Core.Commands;
-using ModelContextProtocol.Server;
 using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
+using ModelContextProtocol.Server;
+using Sbroenne.ExcelMcp.Core.Commands;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
 /// Excel file management tool for MCP server.
 /// Handles Excel file creation for automation workflows.
-/// 
+///
 /// LLM Usage Pattern:
 /// - Use "create-empty" for new Excel files in automation workflows
 /// - File validation and existence checks can be done with standard file system operations
@@ -23,10 +22,10 @@ public static class ExcelFileTool
     [McpServerTool(Name = "excel_file")]
     [Description("Manage Excel files. Supports: create-empty.")]
     public static string ExcelFile(
-        [Description("Action to perform: create-empty")] 
+        [Description("Action to perform: create-empty")]
         string action,
-        
-        [Description("Excel file path (.xlsx or .xlsm extension)")] 
+
+        [Description("Excel file path (.xlsx or .xlsm extension)")]
         string excelPath)
     {
         try
@@ -39,7 +38,7 @@ public static class ExcelFileTool
                     // Determine if macro-enabled based on file extension
                     bool macroEnabled = excelPath.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase);
                     return CreateEmptyFile(fileCommands, excelPath, macroEnabled);
-                    
+
                 default:
                     throw new ModelContextProtocol.McpException($"Unknown action '{action}'. Supported: create-empty");
             }
@@ -75,7 +74,16 @@ public static class ExcelFileTool
                 success = true,
                 filePath = result.FilePath,
                 macroEnabled,
-                message = "Excel file created successfully"
+                message = "Excel file created successfully",
+                suggestedNextActions = new[]
+                {
+                    "Use worksheet 'create' to add new worksheets",
+                    "Use PowerQuery 'import' to add data transformations",
+                    macroEnabled ? "Use VBA 'import' to add macro code" : "Use worksheet 'write' to populate data"
+                },
+                workflowHint = macroEnabled
+                    ? "Macro-enabled file created. Next, add worksheets, Power Query, or VBA code."
+                    : "Excel file created. Next, add worksheets and populate data."
             }, ExcelToolsBase.JsonOptions);
         }
         else
@@ -84,7 +92,14 @@ public static class ExcelFileTool
             {
                 success = false,
                 error = result.ErrorMessage,
-                filePath = result.FilePath
+                filePath = result.FilePath,
+                suggestedNextActions = new[]
+                {
+                    "Check that the target directory exists and is writable",
+                    "Verify the file doesn't already exist",
+                    "Try a different file path"
+                },
+                workflowHint = "File creation failed. Ensure the path is valid and writable."
             }, ExcelToolsBase.JsonOptions);
         }
     }

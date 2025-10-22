@@ -1,7 +1,6 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using ModelContextProtocol.Server;
 
 namespace Sbroenne.ExcelMcp.McpServer;
 
@@ -20,7 +19,7 @@ public class Program
     public static async Task Main(string[] args)
     {
         var builder = Host.CreateApplicationBuilder(args);
-        
+
         // Configure logging to stderr for MCP protocol compliance
         builder.Logging.AddConsole(consoleLogOptions =>
         {

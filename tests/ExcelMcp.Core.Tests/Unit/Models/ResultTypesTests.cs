@@ -1,6 +1,5 @@
-using Xunit;
 using Sbroenne.ExcelMcp.Core.Models;
-using System.Collections.Generic;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Unit.Models;
 
@@ -194,16 +193,16 @@ public class ResultTypesTests
             FilePath = "test.xlsm",
             Scripts = new List<ScriptInfo>
             {
-                new() 
-                { 
-                    Name = "Module1", 
+                new()
+                {
+                    Name = "Module1",
                     Type = "Standard",
                     Procedures = new List<string> { "Main", "Helper" },
                     LineCount = 150
                 },
-                new() 
-                { 
-                    Name = "Sheet1", 
+                new()
+                {
+                    Name = "Sheet1",
                     Type = "Worksheet",
                     Procedures = new List<string> { "Worksheet_Change" },
                     LineCount = 45
@@ -228,15 +227,15 @@ public class ResultTypesTests
             FilePath = "test.xlsx",
             Queries = new List<PowerQueryInfo>
             {
-                new() 
-                { 
-                    Name = "SalesData", 
+                new()
+                {
+                    Name = "SalesData",
                     Formula = "let Source = Excel.CurrentWorkbook() in Source",
                     IsConnectionOnly = false
                 },
-                new() 
-                { 
-                    Name = "Helper", 
+                new()
+                {
+                    Name = "Helper",
                     Formula = "(x) => x + 1",
                     IsConnectionOnly = true
                 }
@@ -279,9 +278,9 @@ public class ResultTypesTests
             Success = true,
             IsTrusted = true,
             ComponentCount = 5,
-            RegistryPathsSet = new List<string> 
-            { 
-                @"HKCU\Software\Microsoft\Office\16.0\Excel\Security\AccessVBOM" 
+            RegistryPathsSet = new List<string>
+            {
+                @"HKCU\Software\Microsoft\Office\16.0\Excel\Security\AccessVBOM"
             },
             ManualInstructions = null
         };

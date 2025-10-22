@@ -1,6 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Models;
 using static Sbroenne.ExcelMcp.Core.ExcelHelper;
-using System.Text;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -18,18 +17,31 @@ public class SheetCommands : ISheetCommands
         var result = new WorksheetListResult { FilePath = filePath };
         WithExcel(filePath, false, (excel, workbook) =>
         {
+            dynamic? sheets = null;
             try
             {
-                dynamic sheets = workbook.Worksheets;
+                sheets = workbook.Worksheets;
                 for (int i = 1; i <= sheets.Count; i++)
                 {
-                    dynamic sheet = sheets.Item(i);
-                    result.Worksheets.Add(new WorksheetInfo { Name = sheet.Name, Index = i });
+                    dynamic? sheet = null;
+                    try
+                    {
+                        sheet = sheets.Item(i);
+                        result.Worksheets.Add(new WorksheetInfo { Name = sheet.Name, Index = i });
+                    }
+                    finally
+                    {
+                        ReleaseComObject(ref sheet);
+                    }
                 }
                 result.Success = true;
                 return 0;
             }
             catch (Exception ex) { result.Success = false; result.ErrorMessage = ex.Message; return 1; }
+            finally
+            {
+                ReleaseComObject(ref sheets);
+            }
         });
         return result;
     }
@@ -43,12 +55,14 @@ public class SheetCommands : ISheetCommands
         var result = new WorksheetDataResult { FilePath = filePath, SheetName = sheetName, Range = range };
         WithExcel(filePath, false, (excel, workbook) =>
         {
+            dynamic? sheet = null;
+            dynamic? rangeObj = null;
             try
             {
-                dynamic? sheet = FindSheet(workbook, sheetName);
+                sheet = FindSheet(workbook, sheetName);
                 if (sheet == null) { result.Success = false; result.ErrorMessage = $"Sheet '{sheetName}' not found"; return 1; }
-                
-                dynamic rangeObj = sheet.Range[range];
+
+                rangeObj = sheet.Range[range];
                 object[,] values = rangeObj.Value2;
                 if (values != null)
                 {
@@ -64,6 +78,11 @@ public class SheetCommands : ISheetCommands
                 return 0;
             }
             catch (Exception ex) { result.Success = false; result.ErrorMessage = ex.Message; return 1; }
+            finally
+            {
+                ReleaseComObject(ref rangeObj);
+                ReleaseComObject(ref sheet);
+            }
         });
         return result;
     }
@@ -77,27 +96,40 @@ public class SheetCommands : ISheetCommands
         var result = new OperationResult { FilePath = filePath, Action = "write" };
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? sheet = null;
+            dynamic? cell1 = null;
+            dynamic? cell2 = null;
+            dynamic? range = null;
             try
             {
-                dynamic? sheet = FindSheet(workbook, sheetName);
+                sheet = FindSheet(workbook, sheetName);
                 if (sheet == null) { result.Success = false; result.ErrorMessage = $"Sheet '{sheetName}' not found"; return 1; }
-                
+
                 var data = ParseCsv(csvData);
                 if (data.Count == 0) { result.Success = false; result.ErrorMessage = "No data to write"; return 1; }
-                
+
                 int rows = data.Count, cols = data[0].Count;
                 object[,] arr = new object[rows, cols];
                 for (int r = 0; r < rows; r++)
                     for (int c = 0; c < cols; c++)
                         arr[r, c] = data[r][c];
-                
-                dynamic range = sheet.Range[sheet.Cells[1, 1], sheet.Cells[rows, cols]];
+
+                cell1 = sheet.Cells[1, 1];
+                cell2 = sheet.Cells[rows, cols];
+                range = sheet.Range[cell1, cell2];
                 range.Value2 = arr;
                 workbook.Save();
                 result.Success = true;
                 return 0;
             }
             catch (Exception ex) { result.Success = false; result.ErrorMessage = ex.Message; return 1; }
+            finally
+            {
+                ReleaseComObject(ref range);
+                ReleaseComObject(ref cell2);
+                ReleaseComObject(ref cell1);
+                ReleaseComObject(ref sheet);
+            }
         });
         return result;
     }
@@ -111,16 +143,23 @@ public class SheetCommands : ISheetCommands
         var result = new OperationResult { FilePath = filePath, Action = "create-sheet" };
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? sheets = null;
+            dynamic? newSheet = null;
             try
             {
-                dynamic sheets = workbook.Worksheets;
-                dynamic newSheet = sheets.Add();
+                sheets = workbook.Worksheets;
+                newSheet = sheets.Add();
                 newSheet.Name = sheetName;
                 workbook.Save();
                 result.Success = true;
                 return 0;
             }
             catch (Exception ex) { result.Success = false; result.ErrorMessage = ex.Message; return 1; }
+            finally
+            {
+                ReleaseComObject(ref newSheet);
+                ReleaseComObject(ref sheets);
+            }
         });
         return result;
     }
@@ -134,9 +173,10 @@ public class SheetCommands : ISheetCommands
         var result = new OperationResult { FilePath = filePath, Action = "rename-sheet" };
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? sheet = null;
             try
             {
-                dynamic? sheet = FindSheet(workbook, oldName);
+                sheet = FindSheet(workbook, oldName);
                 if (sheet == null) { result.Success = false; result.ErrorMessage = $"Sheet '{oldName}' not found"; return 1; }
                 sheet.Name = newName;
                 workbook.Save();
@@ -144,6 +184,10 @@ public class SheetCommands : ISheetCommands
                 return 0;
             }
             catch (Exception ex) { result.Success = false; result.ErrorMessage = ex.Message; return 1; }
+            finally
+            {
+                ReleaseComObject(ref sheet);
+            }
         });
         return result;
     }
@@ -157,18 +201,31 @@ public class SheetCommands : ISheetCommands
         var result = new OperationResult { FilePath = filePath, Action = "copy-sheet" };
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? sourceSheet = null;
+            dynamic? sheets = null;
+            dynamic? lastSheet = null;
+            dynamic? copiedSheet = null;
             try
             {
-                dynamic? sourceSheet = FindSheet(workbook, sourceName);
+                sourceSheet = FindSheet(workbook, sourceName);
                 if (sourceSheet == null) { result.Success = false; result.ErrorMessage = $"Sheet '{sourceName}' not found"; return 1; }
-                sourceSheet.Copy(After: workbook.Worksheets.Item(workbook.Worksheets.Count));
-                dynamic copiedSheet = workbook.Worksheets.Item(workbook.Worksheets.Count);
+                sheets = workbook.Worksheets;
+                lastSheet = sheets.Item(sheets.Count);
+                sourceSheet.Copy(After: lastSheet);
+                copiedSheet = sheets.Item(sheets.Count);
                 copiedSheet.Name = targetName;
                 workbook.Save();
                 result.Success = true;
                 return 0;
             }
             catch (Exception ex) { result.Success = false; result.ErrorMessage = ex.Message; return 1; }
+            finally
+            {
+                ReleaseComObject(ref copiedSheet);
+                ReleaseComObject(ref lastSheet);
+                ReleaseComObject(ref sheets);
+                ReleaseComObject(ref sourceSheet);
+            }
         });
         return result;
     }
@@ -182,9 +239,10 @@ public class SheetCommands : ISheetCommands
         var result = new OperationResult { FilePath = filePath, Action = "delete-sheet" };
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? sheet = null;
             try
             {
-                dynamic? sheet = FindSheet(workbook, sheetName);
+                sheet = FindSheet(workbook, sheetName);
                 if (sheet == null) { result.Success = false; result.ErrorMessage = $"Sheet '{sheetName}' not found"; return 1; }
                 sheet.Delete();
                 workbook.Save();
@@ -192,6 +250,10 @@ public class SheetCommands : ISheetCommands
                 return 0;
             }
             catch (Exception ex) { result.Success = false; result.ErrorMessage = ex.Message; return 1; }
+            finally
+            {
+                ReleaseComObject(ref sheet);
+            }
         });
         return result;
     }
@@ -205,17 +267,24 @@ public class SheetCommands : ISheetCommands
         var result = new OperationResult { FilePath = filePath, Action = "clear" };
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? sheet = null;
+            dynamic? rangeObj = null;
             try
             {
-                dynamic? sheet = FindSheet(workbook, sheetName);
+                sheet = FindSheet(workbook, sheetName);
                 if (sheet == null) { result.Success = false; result.ErrorMessage = $"Sheet '{sheetName}' not found"; return 1; }
-                dynamic rangeObj = sheet.Range[range];
+                rangeObj = sheet.Range[range];
                 rangeObj.Clear();
                 workbook.Save();
                 result.Success = true;
                 return 0;
             }
             catch (Exception ex) { result.Success = false; result.ErrorMessage = ex.Message; return 1; }
+            finally
+            {
+                ReleaseComObject(ref rangeObj);
+                ReleaseComObject(ref sheet);
+            }
         });
         return result;
     }
@@ -229,30 +298,48 @@ public class SheetCommands : ISheetCommands
         var result = new OperationResult { FilePath = filePath, Action = "append" };
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? sheet = null;
+            dynamic? usedRange = null;
+            dynamic? rows = null;
+            dynamic? cell1 = null;
+            dynamic? cell2 = null;
+            dynamic? range = null;
             try
             {
-                dynamic? sheet = FindSheet(workbook, sheetName);
+                sheet = FindSheet(workbook, sheetName);
                 if (sheet == null) { result.Success = false; result.ErrorMessage = $"Sheet '{sheetName}' not found"; return 1; }
-                
-                dynamic usedRange = sheet.UsedRange;
-                int lastRow = usedRange.Rows.Count;
-                
+
+                usedRange = sheet.UsedRange;
+                rows = usedRange.Rows;
+                int lastRow = rows.Count;
+
                 var data = ParseCsv(csvData);
                 if (data.Count == 0) { result.Success = false; result.ErrorMessage = "No data to append"; return 1; }
-                
-                int startRow = lastRow + 1, rows = data.Count, cols = data[0].Count;
-                object[,] arr = new object[rows, cols];
-                for (int r = 0; r < rows; r++)
+
+                int startRow = lastRow + 1, numRows = data.Count, cols = data[0].Count;
+                object[,] arr = new object[numRows, cols];
+                for (int r = 0; r < numRows; r++)
                     for (int c = 0; c < cols; c++)
                         arr[r, c] = data[r][c];
-                
-                dynamic range = sheet.Range[sheet.Cells[startRow, 1], sheet.Cells[startRow + rows - 1, cols]];
+
+                cell1 = sheet.Cells[startRow, 1];
+                cell2 = sheet.Cells[startRow + numRows - 1, cols];
+                range = sheet.Range[cell1, cell2];
                 range.Value2 = arr;
                 workbook.Save();
                 result.Success = true;
                 return 0;
             }
             catch (Exception ex) { result.Success = false; result.ErrorMessage = ex.Message; return 1; }
+            finally
+            {
+                ReleaseComObject(ref range);
+                ReleaseComObject(ref cell2);
+                ReleaseComObject(ref cell1);
+                ReleaseComObject(ref rows);
+                ReleaseComObject(ref usedRange);
+                ReleaseComObject(ref sheet);
+            }
         });
         return result;
     }

@@ -1,3 +1,29 @@
+---
+
+## Workflow Guidance and Next Actions
+
+All commands now display AI-powered workflow guidance after successful operations:
+
+- **Workflow Hint**: Contextual guidance in dim text
+- **Suggested Next Actions**: Bulleted list of recommended next steps
+
+**Example Output:**
+```
+✓ Imported VBA module 'DataProcessor' from processor.vba
+Next steps: Review the imported code for any required customizations
+
+Suggested Next Actions:
+  • Run the VBA procedure with script-run
+  • Export the module for version control with script-export
+  • Test the module functionality
+```
+
+### New Features
+- `--connection-only` flag for `pq-import` to create queries without loading data to worksheets
+- All commands display workflow hints and suggested actions after success
+
+---
+
 # Command Reference
 
 Complete reference for all ExcelMcp.CLI commands.

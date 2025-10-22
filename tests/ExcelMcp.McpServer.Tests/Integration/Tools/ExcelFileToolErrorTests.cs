@@ -1,7 +1,7 @@
+using System.Text.Json;
+using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
 using Xunit.Abstractions;
-using Sbroenne.ExcelMcp.McpServer.Tools;
-using System.Text.Json;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
@@ -44,18 +44,18 @@ public class ExcelFileToolErrorTests : IDisposable
     {
         // Arrange
         var testFile = Path.Combine(_tempDir, "test-file.xlsx");
-        
+
         _output.WriteLine($"Testing file creation at: {testFile}");
 
         // Act - Call the tool directly
         var result = ExcelFileTool.ExcelFile("create-empty", testFile);
-        
+
         _output.WriteLine($"Tool result: {result}");
-        
+
         // Parse the result
         var jsonDoc = JsonDocument.Parse(result);
         var success = jsonDoc.RootElement.GetProperty("success").GetBoolean();
-        
+
         // Assert
         Assert.True(success, $"File creation failed: {result}");
         Assert.True(File.Exists(testFile), "File was not actually created");
@@ -66,13 +66,13 @@ public class ExcelFileToolErrorTests : IDisposable
     {
         // Arrange
         var testFile = Path.Combine(_tempDir, "test-file.xlsx");
-        
+
         // Act & Assert - Should throw McpException for invalid action
         var exception = Assert.Throws<ModelContextProtocol.McpException>(() =>
             ExcelFileTool.ExcelFile("invalid-action", testFile));
-        
+
         _output.WriteLine($"Exception message for invalid action: {exception.Message}");
-        
+
         // Assert - Verify exception contains expected message
         Assert.Contains("Unknown action 'invalid-action'", exception.Message);
     }

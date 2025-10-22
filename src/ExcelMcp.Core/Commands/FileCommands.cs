@@ -14,7 +14,7 @@ public class FileCommands : IFileCommands
         try
         {
             filePath = Path.GetFullPath(filePath);
-            
+
             // Validate file extension
             string extension = Path.GetExtension(filePath).ToLowerInvariant();
             if (extension != ".xlsx" && extension != ".xlsm")
@@ -27,7 +27,7 @@ public class FileCommands : IFileCommands
                     Action = "create-empty"
                 };
             }
-            
+
             // Check if file already exists
             if (File.Exists(filePath) && !overwriteIfExists)
             {
@@ -62,18 +62,18 @@ public class FileCommands : IFileCommands
 
             // Create Excel workbook using proper resource management
             bool isMacroEnabled = extension == ".xlsm";
-            
+
             return WithNewExcel(filePath, isMacroEnabled, (excel, workbook) =>
             {
                 // Set up a basic structure
                 dynamic sheet = workbook.Worksheets.Item(1);
                 sheet.Name = "Sheet1";
-                
+
                 // Add a comment to indicate this was created by ExcelCLI
                 dynamic cell = sheet.Range["A1"];
                 dynamic comment = cell.AddComment($"Created by ExcelCLI on {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                 comment.Visible = false;
-                
+
                 return new OperationResult
                 {
                     Success = true,
@@ -93,6 +93,6 @@ public class FileCommands : IFileCommands
             };
         }
     }
-    
+
 
 }

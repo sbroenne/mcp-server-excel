@@ -1,4 +1,5 @@
 using Spectre.Console;
+using Sbroenne.ExcelMcp.Core.Security;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -21,7 +22,7 @@ public class SheetCommands : ISheetCommands
         AnsiConsole.MarkupLine($"[bold]Worksheets in:[/] {Path.GetFileName(filePath)}\n");
 
         var result = _coreCommands.List(filePath);
-        
+
         if (result.Success)
         {
             if (result.Worksheets.Count > 0)
@@ -64,7 +65,7 @@ public class SheetCommands : ISheetCommands
         var range = args[3];
 
         var result = _coreCommands.Read(filePath, sheetName, range);
-        
+
         if (result.Success)
         {
             foreach (var row in result.Data)
@@ -99,9 +100,20 @@ public class SheetCommands : ISheetCommands
             return 1;
         }
 
+        // Validate and normalize CSV file path to prevent path traversal attacks
+        try
+        {
+            csvFile = PathValidator.ValidateExistingFile(csvFile, nameof(csvFile));
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] Invalid CSV file path: {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
+
         var csvData = await File.ReadAllTextAsync(csvFile);
         var result = _coreCommands.Write(filePath, sheetName, csvData);
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Wrote data to {sheetName}");
@@ -126,10 +138,26 @@ public class SheetCommands : ISheetCommands
         var sheetName = args[2];
 
         var result = _coreCommands.Create(filePath, sheetName);
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Created worksheet '{sheetName.EscapeMarkup()}'");
+
+            // Display workflow hints if available
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
             return 0;
         }
         else
@@ -152,10 +180,26 @@ public class SheetCommands : ISheetCommands
         var newName = args[3];
 
         var result = _coreCommands.Rename(filePath, oldName, newName);
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Renamed '{oldName.EscapeMarkup()}' to '{newName.EscapeMarkup()}'");
+
+            // Display workflow hints if available
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
             return 0;
         }
         else
@@ -178,10 +222,26 @@ public class SheetCommands : ISheetCommands
         var targetName = args[3];
 
         var result = _coreCommands.Copy(filePath, sourceName, targetName);
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Copied '{sourceName.EscapeMarkup()}' to '{targetName.EscapeMarkup()}'");
+
+            // Display workflow hints if available
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
             return 0;
         }
         else
@@ -203,10 +263,26 @@ public class SheetCommands : ISheetCommands
         var sheetName = args[2];
 
         var result = _coreCommands.Delete(filePath, sheetName);
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Deleted worksheet '{sheetName.EscapeMarkup()}'");
+
+            // Display workflow hints if available
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
             return 0;
         }
         else
@@ -229,10 +305,26 @@ public class SheetCommands : ISheetCommands
         var range = args[3];
 
         var result = _coreCommands.Clear(filePath, sheetName, range);
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Cleared range {range.EscapeMarkup()} in {sheetName.EscapeMarkup()}");
+
+            // Display workflow hints if available
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
             return 0;
         }
         else
@@ -260,12 +352,39 @@ public class SheetCommands : ISheetCommands
             return 1;
         }
 
+        // Validate and normalize CSV file path to prevent path traversal attacks
+        try
+        {
+            csvFile = PathValidator.ValidateExistingFile(csvFile, nameof(csvFile));
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] Invalid CSV file path: {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
+
         var csvData = File.ReadAllText(csvFile);
         var result = _coreCommands.Append(filePath, sheetName, csvData);
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Appended data to {sheetName.EscapeMarkup()}");
+
+            // Display workflow hints if available
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
             return 0;
         }
         else

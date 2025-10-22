@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Security;
 using static Sbroenne.ExcelMcp.Core.ExcelHelper;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -23,7 +24,7 @@ public class ScriptCommands : IScriptCommands
                 @"Software\Microsoft\Office\15.0\Excel\Security",  // Office 2013
                 @"Software\Microsoft\Office\14.0\Excel\Security"   // Office 2010
             };
-            
+
             foreach (string path in registryPaths)
             {
                 try
@@ -37,7 +38,7 @@ public class ScriptCommands : IScriptCommands
                 }
                 catch { /* Try next path */ }
             }
-            
+
             return false; // Assume not enabled if cannot read registry
         }
         catch
@@ -45,7 +46,7 @@ public class ScriptCommands : IScriptCommands
             return false;
         }
     }
-    
+
     /// <summary>
     /// Creates VBA trust guidance result
     /// </summary>
@@ -59,7 +60,7 @@ public class ScriptCommands : IScriptCommands
             Explanation = "VBA operations require 'Trust access to the VBA project object model' to be enabled in Excel settings. This is a one-time setup that allows programmatic access to VBA code."
         };
     }
-    
+
     /// <summary>
     /// Check if VBA project access is trusted and available
     /// </summary>
@@ -69,7 +70,7 @@ public class ScriptCommands : IScriptCommands
         {
             bool isTrusted = false;
             string? errorMessage = null;
-            
+
             WithExcel(filePath, false, (excel, workbook) =>
             {
                 try
@@ -97,7 +98,7 @@ public class ScriptCommands : IScriptCommands
                     return 1;
                 }
             });
-            
+
             return (isTrusted, errorMessage);
         }
         catch (Exception ex)
@@ -152,61 +153,73 @@ public class ScriptCommands : IScriptCommands
 
         WithExcel(filePath, false, (excel, workbook) =>
         {
+            dynamic? vbaProject = null;
+            dynamic? vbComponents = null;
             try
             {
-                dynamic vbaProject = workbook.VBProject;
-                dynamic vbComponents = vbaProject.VBComponents;
+                vbaProject = workbook.VBProject;
+                vbComponents = vbaProject.VBComponents;
 
                 for (int i = 1; i <= vbComponents.Count; i++)
                 {
-                    dynamic component = vbComponents.Item(i);
-                    string name = component.Name;
-                    int type = component.Type;
-
-                    string typeStr = type switch
-                    {
-                        1 => "Module",
-                        2 => "Class",
-                        3 => "Form",
-                        100 => "Document",
-                        _ => $"Type{type}"
-                    };
-
-                    var procedures = new List<string>();
-                    int moduleLineCount = 0;
+                    dynamic? component = null;
+                    dynamic? codeModule = null;
                     try
                     {
-                        dynamic codeModule = component.CodeModule;
-                        moduleLineCount = codeModule.CountOfLines;
-                        
-                        // Parse procedures from code
-                        for (int line = 1; line <= moduleLineCount; line++)
+                        component = vbComponents.Item(i);
+                        string name = component.Name;
+                        int type = component.Type;
+
+                        string typeStr = type switch
                         {
-                            string codeLine = codeModule.Lines[line, 1];
-                            if (codeLine.TrimStart().StartsWith("Sub ") || 
-                                codeLine.TrimStart().StartsWith("Function ") ||
-                                codeLine.TrimStart().StartsWith("Public Sub ") ||
-                                codeLine.TrimStart().StartsWith("Public Function ") ||
-                                codeLine.TrimStart().StartsWith("Private Sub ") ||
-                                codeLine.TrimStart().StartsWith("Private Function "))
+                            1 => "Module",
+                            2 => "Class",
+                            3 => "Form",
+                            100 => "Document",
+                            _ => $"Type{type}"
+                        };
+
+                        var procedures = new List<string>();
+                        int moduleLineCount = 0;
+                        try
+                        {
+                            codeModule = component.CodeModule;
+                            moduleLineCount = codeModule.CountOfLines;
+
+                            // Parse procedures from code
+                            for (int line = 1; line <= moduleLineCount; line++)
                             {
-                                string procName = ExtractProcedureName(codeLine);
-                                if (!string.IsNullOrEmpty(procName))
+                                string codeLine = codeModule.Lines[line, 1];
+                                if (codeLine.TrimStart().StartsWith("Sub ") ||
+                                    codeLine.TrimStart().StartsWith("Function ") ||
+                                    codeLine.TrimStart().StartsWith("Public Sub ") ||
+                                    codeLine.TrimStart().StartsWith("Public Function ") ||
+                                    codeLine.TrimStart().StartsWith("Private Sub ") ||
+                                    codeLine.TrimStart().StartsWith("Private Function "))
                                 {
-                                    procedures.Add(procName);
+                                    string procName = ExtractProcedureName(codeLine);
+                                    if (!string.IsNullOrEmpty(procName))
+                                    {
+                                        procedures.Add(procName);
+                                    }
                                 }
                             }
                         }
-                    }
-                    catch { }
+                        catch { }
 
-                    result.Scripts.Add(new ScriptInfo
+                        result.Scripts.Add(new ScriptInfo
+                        {
+                            Name = name,
+                            Type = typeStr,
+                            LineCount = moduleLineCount,
+                            Procedures = procedures
+                        });
+                    }
+                    finally
                     {
-                        Name = name,
-                        Type = typeStr,
-                        LineCount = moduleLineCount,
-                        Procedures = procedures
-                    });
+                        ReleaseComObject(ref codeModule);
+                        ReleaseComObject(ref component);
+                    }
                 }
 
                 result.Success = true;
@@ -225,6 +238,11 @@ public class ScriptCommands : IScriptCommands
                 result.Success = false;
                 result.ErrorMessage = $"Error listing scripts: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref vbComponents);
+                ReleaseComObject(ref vbaProject);
             }
         });
 
@@ -250,9 +268,9 @@ public class ScriptCommands : IScriptCommands
     /// <inheritdoc />
     public async Task<OperationResult> Export(string filePath, string moduleName, string outputFile)
     {
-        var result = new OperationResult 
-        { 
-            FilePath = filePath, 
+        var result = new OperationResult
+        {
+            FilePath = filePath,
             Action = "script-export"
         };
 
@@ -260,6 +278,18 @@ public class ScriptCommands : IScriptCommands
         {
             result.Success = false;
             result.ErrorMessage = $"File not found: {filePath}";
+            return result;
+        }
+
+        // Validate and normalize the output file path to prevent path traversal attacks
+        try
+        {
+            outputFile = PathValidator.ValidateOutputFile(outputFile, nameof(outputFile), allowOverwrite: true);
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Invalid output file path: {ex.Message}";
             return result;
         }
 
@@ -279,19 +309,34 @@ public class ScriptCommands : IScriptCommands
 
         WithExcel(filePath, false, (excel, workbook) =>
         {
+            dynamic? vbaProject = null;
+            dynamic? vbComponents = null;
+            dynamic? targetComponent = null;
+            dynamic? codeModule = null;
             try
             {
-                dynamic vbaProject = workbook.VBProject;
-                dynamic vbComponents = vbaProject.VBComponents;
-                dynamic? targetComponent = null;
+                vbaProject = workbook.VBProject;
+                vbComponents = vbaProject.VBComponents;
 
                 for (int i = 1; i <= vbComponents.Count; i++)
                 {
-                    dynamic component = vbComponents.Item(i);
-                    if (component.Name == moduleName)
+                    dynamic? component = null;
+                    try
                     {
-                        targetComponent = component;
-                        break;
+                        component = vbComponents.Item(i);
+                        if (component.Name == moduleName)
+                        {
+                            targetComponent = component;
+                            component = null; // Don't release - we're keeping it
+                            break;
+                        }
+                    }
+                    finally
+                    {
+                        if (component != null)
+                        {
+                            ReleaseComObject(ref component);
+                        }
                     }
                 }
 
@@ -302,7 +347,7 @@ public class ScriptCommands : IScriptCommands
                     return 1;
                 }
 
-                dynamic codeModule = targetComponent.CodeModule;
+                codeModule = targetComponent.CodeModule;
                 int lineCount = codeModule.CountOfLines;
 
                 if (lineCount == 0)
@@ -322,8 +367,8 @@ public class ScriptCommands : IScriptCommands
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))
             {
                 // Trust was disabled during operation
-                result = CreateVbaTrustGuidance();
-                result.FilePath = filePath;
+                result.Success = false;
+                result.ErrorMessage = "VBA trust access is not enabled";
                 return 1;
             }
             catch (Exception ex)
@@ -331,6 +376,13 @@ public class ScriptCommands : IScriptCommands
                 result.Success = false;
                 result.ErrorMessage = $"Error exporting script: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref codeModule);
+                ReleaseComObject(ref targetComponent);
+                ReleaseComObject(ref vbComponents);
+                ReleaseComObject(ref vbaProject);
             }
         });
 
@@ -340,9 +392,9 @@ public class ScriptCommands : IScriptCommands
     /// <inheritdoc />
     public async Task<OperationResult> Import(string filePath, string moduleName, string vbaFile)
     {
-        var result = new OperationResult 
-        { 
-            FilePath = filePath, 
+        var result = new OperationResult
+        {
+            FilePath = filePath,
             Action = "script-import"
         };
 
@@ -353,10 +405,15 @@ public class ScriptCommands : IScriptCommands
             return result;
         }
 
-        if (!File.Exists(vbaFile))
+        // Validate and normalize the VBA file path to prevent path traversal attacks
+        try
+        {
+            vbaFile = PathValidator.ValidateExistingFile(vbaFile, nameof(vbaFile));
+        }
+        catch (Exception ex)
         {
             result.Success = false;
-            result.ErrorMessage = $"VBA file not found: {vbaFile}";
+            result.ErrorMessage = $"Invalid VBA file path: {ex.Message}";
             return result;
         }
 
@@ -378,28 +435,40 @@ public class ScriptCommands : IScriptCommands
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? vbaProject = null;
+            dynamic? vbComponents = null;
+            dynamic? newModule = null;
+            dynamic? codeModule = null;
             try
             {
-                dynamic vbaProject = workbook.VBProject;
-                dynamic vbComponents = vbaProject.VBComponents;
+                vbaProject = workbook.VBProject;
+                vbComponents = vbaProject.VBComponents;
 
                 // Check if module already exists
                 for (int i = 1; i <= vbComponents.Count; i++)
                 {
-                    dynamic component = vbComponents.Item(i);
-                    if (component.Name == moduleName)
+                    dynamic? component = null;
+                    try
                     {
-                        result.Success = false;
-                        result.ErrorMessage = $"Module '{moduleName}' already exists. Use script-update to modify it.";
-                        return 1;
+                        component = vbComponents.Item(i);
+                        if (component.Name == moduleName)
+                        {
+                            result.Success = false;
+                            result.ErrorMessage = $"Module '{moduleName}' already exists. Use script-update to modify it.";
+                            return 1;
+                        }
+                    }
+                    finally
+                    {
+                        ReleaseComObject(ref component);
                     }
                 }
 
                 // Add new module
-                dynamic newModule = vbComponents.Add(1); // 1 = vbext_ct_StdModule
+                newModule = vbComponents.Add(1); // 1 = vbext_ct_StdModule
                 newModule.Name = moduleName;
-                
-                dynamic codeModule = newModule.CodeModule;
+
+                codeModule = newModule.CodeModule;
                 codeModule.AddFromString(vbaCode);
 
                 result.Success = true;
@@ -419,6 +488,13 @@ public class ScriptCommands : IScriptCommands
                 result.ErrorMessage = $"Error importing script: {ex.Message}";
                 return 1;
             }
+            finally
+            {
+                ReleaseComObject(ref codeModule);
+                ReleaseComObject(ref newModule);
+                ReleaseComObject(ref vbComponents);
+                ReleaseComObject(ref vbaProject);
+            }
         });
 
         return result;
@@ -427,9 +503,9 @@ public class ScriptCommands : IScriptCommands
     /// <inheritdoc />
     public async Task<OperationResult> Update(string filePath, string moduleName, string vbaFile)
     {
-        var result = new OperationResult 
-        { 
-            FilePath = filePath, 
+        var result = new OperationResult
+        {
+            FilePath = filePath,
             Action = "script-update"
         };
 
@@ -440,10 +516,15 @@ public class ScriptCommands : IScriptCommands
             return result;
         }
 
-        if (!File.Exists(vbaFile))
+        // Validate and normalize the VBA file path to prevent path traversal attacks
+        try
+        {
+            vbaFile = PathValidator.ValidateExistingFile(vbaFile, nameof(vbaFile));
+        }
+        catch (Exception ex)
         {
             result.Success = false;
-            result.ErrorMessage = $"VBA file not found: {vbaFile}";
+            result.ErrorMessage = $"Invalid VBA file path: {ex.Message}";
             return result;
         }
 
@@ -465,19 +546,34 @@ public class ScriptCommands : IScriptCommands
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? vbaProject = null;
+            dynamic? vbComponents = null;
+            dynamic? targetComponent = null;
+            dynamic? codeModule = null;
             try
             {
-                dynamic vbaProject = workbook.VBProject;
-                dynamic vbComponents = vbaProject.VBComponents;
-                dynamic? targetComponent = null;
+                vbaProject = workbook.VBProject;
+                vbComponents = vbaProject.VBComponents;
 
                 for (int i = 1; i <= vbComponents.Count; i++)
                 {
-                    dynamic component = vbComponents.Item(i);
-                    if (component.Name == moduleName)
+                    dynamic? component = null;
+                    try
                     {
-                        targetComponent = component;
-                        break;
+                        component = vbComponents.Item(i);
+                        if (component.Name == moduleName)
+                        {
+                            targetComponent = component;
+                            component = null; // Don't release - we're keeping it
+                            break;
+                        }
+                    }
+                    finally
+                    {
+                        if (component != null)
+                        {
+                            ReleaseComObject(ref component);
+                        }
                     }
                 }
 
@@ -488,14 +584,14 @@ public class ScriptCommands : IScriptCommands
                     return 1;
                 }
 
-                dynamic codeModule = targetComponent.CodeModule;
+                codeModule = targetComponent.CodeModule;
                 int lineCount = codeModule.CountOfLines;
-                
+
                 if (lineCount > 0)
                 {
                     codeModule.DeleteLines(1, lineCount);
                 }
-                
+
                 codeModule.AddFromString(vbaCode);
 
                 result.Success = true;
@@ -515,6 +611,13 @@ public class ScriptCommands : IScriptCommands
                 result.ErrorMessage = $"Error updating script: {ex.Message}";
                 return 1;
             }
+            finally
+            {
+                ReleaseComObject(ref codeModule);
+                ReleaseComObject(ref targetComponent);
+                ReleaseComObject(ref vbComponents);
+                ReleaseComObject(ref vbaProject);
+            }
         });
 
         return result;
@@ -523,9 +626,9 @@ public class ScriptCommands : IScriptCommands
     /// <inheritdoc />
     public OperationResult Run(string filePath, string procedureName, params string[] parameters)
     {
-        var result = new OperationResult 
-        { 
-            FilePath = filePath, 
+        var result = new OperationResult
+        {
+            FilePath = filePath,
             Action = "script-run"
         };
 
@@ -589,9 +692,9 @@ public class ScriptCommands : IScriptCommands
     /// <inheritdoc />
     public OperationResult Delete(string filePath, string moduleName)
     {
-        var result = new OperationResult 
-        { 
-            FilePath = filePath, 
+        var result = new OperationResult
+        {
+            FilePath = filePath,
             Action = "script-delete"
         };
 
@@ -618,19 +721,33 @@ public class ScriptCommands : IScriptCommands
 
         WithExcel(filePath, true, (excel, workbook) =>
         {
+            dynamic? vbaProject = null;
+            dynamic? vbComponents = null;
+            dynamic? targetComponent = null;
             try
             {
-                dynamic vbaProject = workbook.VBProject;
-                dynamic vbComponents = vbaProject.VBComponents;
-                dynamic? targetComponent = null;
+                vbaProject = workbook.VBProject;
+                vbComponents = vbaProject.VBComponents;
 
                 for (int i = 1; i <= vbComponents.Count; i++)
                 {
-                    dynamic component = vbComponents.Item(i);
-                    if (component.Name == moduleName)
+                    dynamic? component = null;
+                    try
                     {
-                        targetComponent = component;
-                        break;
+                        component = vbComponents.Item(i);
+                        if (component.Name == moduleName)
+                        {
+                            targetComponent = component;
+                            component = null; // Don't release - we're keeping it
+                            break;
+                        }
+                    }
+                    finally
+                    {
+                        if (component != null)
+                        {
+                            ReleaseComObject(ref component);
+                        }
                     }
                 }
 
@@ -659,6 +776,12 @@ public class ScriptCommands : IScriptCommands
                 result.Success = false;
                 result.ErrorMessage = $"Error deleting module: {ex.Message}";
                 return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref targetComponent);
+                ReleaseComObject(ref vbComponents);
+                ReleaseComObject(ref vbaProject);
             }
         });
 

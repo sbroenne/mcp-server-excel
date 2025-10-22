@@ -25,7 +25,7 @@ public class SetupCommands : ISetupCommands
             };
 
             var result = new VbaTrustResult();
-            
+
             foreach (string path in registryPaths)
             {
                 try
@@ -59,7 +59,7 @@ public class SetupCommands : ISetupCommands
                 result.ErrorMessage = "Could not find Excel registry keys to modify.";
                 result.ManualInstructions = "File → Options → Trust Center → Trust Center Settings → Macro Settings\nCheck 'Trust access to the VBA project object model'";
             }
-            
+
             return result;
         }
         catch (Exception ex)
@@ -90,7 +90,7 @@ public class SetupCommands : ISetupCommands
             };
 
             var result = new VbaTrustResult();
-            
+
             foreach (string path in registryPaths)
             {
                 try
@@ -123,7 +123,7 @@ public class SetupCommands : ISetupCommands
                 result.IsTrusted = false;
                 result.ErrorMessage = "Could not find Excel registry keys to modify.";
             }
-            
+
             return result;
         }
         catch (Exception ex)
@@ -165,13 +165,16 @@ public class SetupCommands : ISetupCommands
         try
         {
             var result = new VbaTrustResult { FilePath = testFilePath };
-            
+
             int exitCode = WithExcel(testFilePath, false, (excel, workbook) =>
             {
+                dynamic? vbProject = null;
+                dynamic? vbComponents = null;
                 try
                 {
-                    dynamic vbProject = workbook.VBProject;
-                    result.ComponentCount = vbProject.VBComponents.Count;
+                    vbProject = workbook.VBProject;
+                    vbComponents = vbProject.VBComponents;
+                    result.ComponentCount = vbComponents.Count;
                     result.IsTrusted = true;
                     result.Success = true;
                     return 0;
@@ -184,8 +187,13 @@ public class SetupCommands : ISetupCommands
                     result.ManualInstructions = "Run 'setup-vba-trust' or manually: File → Options → Trust Center → Trust Center Settings → Macro Settings\nCheck 'Trust access to the VBA project object model'";
                     return 1;
                 }
+                finally
+                {
+                    ReleaseComObject(ref vbComponents);
+                    ReleaseComObject(ref vbProject);
+                }
             });
-            
+
             return result;
         }
         catch (Exception ex)

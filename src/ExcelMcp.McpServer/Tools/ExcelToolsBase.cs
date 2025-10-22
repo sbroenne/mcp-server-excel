@@ -1,9 +1,7 @@
-using ModelContextProtocol.Server;
-using ModelContextProtocol;
-using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Diagnostics.CodeAnalysis;
+using ModelContextProtocol;
 
 #pragma warning disable IL2070 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' requirements
 
@@ -64,19 +62,19 @@ public static class ExcelToolsBase
     public static void ThrowInternalError(Exception ex, string action, string? filePath = null)
     {
         // Build comprehensive error message for LLM debugging
-        var message = filePath != null 
+        var message = filePath != null
             ? $"{action} failed for '{filePath}': {ex.Message}"
             : $"{action} failed: {ex.Message}";
-        
+
         // Include exception type and inner exception details for better diagnostics
         if (ex.InnerException != null)
         {
             message += $" (Inner: {ex.InnerException.Message})";
         }
-        
+
         // Add exception type to help identify the root cause
         message += $" [Exception Type: {ex.GetType().Name}]";
-        
+
         throw new McpException(message, ex);
     }
 

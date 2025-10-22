@@ -1,7 +1,6 @@
-using Xunit;
 using System.Diagnostics;
 using System.Text.Json;
-using System.Text;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration;
@@ -31,7 +30,7 @@ public class McpClientIntegrationTests : IDisposable
     {
         if (_serverProcess != null)
         {
-            try 
+            try
             {
                 if (!_serverProcess.HasExited)
                 {
@@ -48,7 +47,7 @@ public class McpClientIntegrationTests : IDisposable
             }
         }
         _serverProcess?.Dispose();
-        
+
         if (Directory.Exists(_tempDir))
         {
             try { Directory.Delete(_tempDir, recursive: true); } catch { }
@@ -61,7 +60,7 @@ public class McpClientIntegrationTests : IDisposable
     {
         // Arrange
         var server = StartMcpServer();
-        
+
         // Act - Send MCP initialize request
         var initRequest = new
         {
@@ -81,13 +80,13 @@ public class McpClientIntegrationTests : IDisposable
         };
 
         var response = await SendMcpRequestAsync(server, initRequest);
-        
+
         // Assert
         Assert.NotNull(response);
         var json = JsonDocument.Parse(response);
         Assert.Equal("2.0", json.RootElement.GetProperty("jsonrpc").GetString());
         Assert.Equal(1, json.RootElement.GetProperty("id").GetInt32());
-        
+
         var result = json.RootElement.GetProperty("result");
         Assert.True(result.TryGetProperty("protocolVersion", out _));
         Assert.True(result.TryGetProperty("serverInfo", out _));
@@ -100,7 +99,7 @@ public class McpClientIntegrationTests : IDisposable
         // Arrange
         var server = StartMcpServer();
         await InitializeServer(server);
-        
+
         // Act - Send tools/list request
         var toolsRequest = new
         {
@@ -111,25 +110,25 @@ public class McpClientIntegrationTests : IDisposable
         };
 
         var response = await SendMcpRequestAsync(server, toolsRequest);
-        
+
         // Assert
         var json = JsonDocument.Parse(response);
         var tools = json.RootElement.GetProperty("result").GetProperty("tools");
-        
+
         Assert.Equal(6, tools.GetArrayLength());
-        
+
         var toolNames = tools.EnumerateArray()
             .Select(t => t.GetProperty("name").GetString())
             .OrderBy(n => n)
             .ToArray();
-            
-        Assert.Equal(new[] { 
-            "excel_cell", 
-            "excel_file", 
-            "excel_parameter", 
-            "excel_powerquery", 
-            "excel_vba", 
-            "excel_worksheet" 
+
+        Assert.Equal(new[] {
+            "excel_cell",
+            "excel_file",
+            "excel_parameter",
+            "excel_powerquery",
+            "excel_vba",
+            "excel_worksheet"
         }, toolNames);
     }
 
@@ -140,7 +139,7 @@ public class McpClientIntegrationTests : IDisposable
         var server = StartMcpServer();
         await InitializeServer(server);
         var testFile = Path.Combine(_tempDir, "mcp-test.xlsx");
-        
+
         // Act - Call excel_file tool to create empty file
         var toolCallRequest = new
         {
@@ -159,21 +158,21 @@ public class McpClientIntegrationTests : IDisposable
         };
 
         var response = await SendMcpRequestAsync(server, toolCallRequest);
-        
+
         // Assert
         var json = JsonDocument.Parse(response);
         var result = json.RootElement.GetProperty("result");
-        
+
         // Should have content array with text content
         Assert.True(result.TryGetProperty("content", out var content));
         var textContent = content.EnumerateArray().First();
         Assert.Equal("text", textContent.GetProperty("type").GetString());
-        
+
         var textValue = textContent.GetProperty("text").GetString();
         Assert.NotNull(textValue);
         var resultJson = JsonDocument.Parse(textValue);
         Assert.True(resultJson.RootElement.GetProperty("success").GetBoolean());
-        
+
         // Verify file was actually created
         Assert.True(File.Exists(testFile));
     }
@@ -184,7 +183,7 @@ public class McpClientIntegrationTests : IDisposable
         // Arrange
         var server = StartMcpServer();
         await InitializeServer(server);
-        
+
         // Act - Call non-existent tool
         var toolCallRequest = new
         {
@@ -199,7 +198,7 @@ public class McpClientIntegrationTests : IDisposable
         };
 
         var response = await SendMcpRequestAsync(server, toolCallRequest);
-        
+
         // Assert
         var json = JsonDocument.Parse(response);
         Assert.True(json.RootElement.TryGetProperty("error", out _));
@@ -212,13 +211,13 @@ public class McpClientIntegrationTests : IDisposable
         var server = StartMcpServer();
         await InitializeServer(server);
         var testFile = Path.Combine(_tempDir, "worksheet-test.xlsx");
-        
+
         // First create file
         await CallExcelTool(server, "excel_file", new { action = "create-empty", excelPath = testFile });
-        
+
         // Act - List worksheets
         var response = await CallExcelTool(server, "excel_worksheet", new { action = "list", excelPath = testFile });
-        
+
         // Assert
         var resultJson = JsonDocument.Parse(response);
         Assert.True(resultJson.RootElement.GetProperty("Success").GetBoolean());
@@ -234,7 +233,7 @@ public class McpClientIntegrationTests : IDisposable
         var testFile = Path.Combine(_tempDir, "powerquery-test.xlsx");
         var queryName = "TestQuery";
         var mCodeFile = Path.Combine(_tempDir, "test-query.pq");
-        
+
         // Create a simple M code query
         var mCode = @"let
     Source = ""Hello from Power Query!"",
@@ -242,87 +241,87 @@ public class McpClientIntegrationTests : IDisposable
 in
     Output";
         await File.WriteAllTextAsync(mCodeFile, mCode);
-        
+
         // First create Excel file
         await CallExcelTool(server, "excel_file", new { action = "create-empty", excelPath = testFile });
-        
+
         // Act - Import Power Query
-        var importResponse = await CallExcelTool(server, "excel_powerquery", new 
-        { 
-            action = "import", 
-            excelPath = testFile, 
+        var importResponse = await CallExcelTool(server, "excel_powerquery", new
+        {
+            action = "import",
+            excelPath = testFile,
             queryName = queryName,
             sourcePath = mCodeFile
         });
-        
+
         // Assert import succeeded
         var importJson = JsonDocument.Parse(importResponse);
         Assert.True(importJson.RootElement.GetProperty("Success").GetBoolean());
-        
+
         // Act - Read the Power Query back
-        var viewResponse = await CallExcelTool(server, "excel_powerquery", new 
-        { 
-            action = "view", 
-            excelPath = testFile, 
+        var viewResponse = await CallExcelTool(server, "excel_powerquery", new
+        {
+            action = "view",
+            excelPath = testFile,
             queryName = queryName
         });
-        
+
         // Assert view succeeded and contains the M code
         var viewJson = JsonDocument.Parse(viewResponse);
         Assert.True(viewJson.RootElement.GetProperty("Success").GetBoolean());
         Assert.True(viewJson.RootElement.TryGetProperty("MCode", out var formulaElement));
-        
+
         var retrievedMCode = formulaElement.GetString();
         Assert.NotNull(retrievedMCode);
         Assert.Contains("Hello from Power Query!", retrievedMCode);
         Assert.Contains("let", retrievedMCode);
-        
+
         // Act - List queries to verify it appears in the list
-        var listResponse = await CallExcelTool(server, "excel_powerquery", new 
-        { 
-            action = "list", 
+        var listResponse = await CallExcelTool(server, "excel_powerquery", new
+        {
+            action = "list",
             excelPath = testFile
         });
-        
+
         // Assert query appears in list
         var listJson = JsonDocument.Parse(listResponse);
         Assert.True(listJson.RootElement.GetProperty("Success").GetBoolean());
         Assert.True(listJson.RootElement.TryGetProperty("Queries", out var queriesElement));
-        
+
         var queries = queriesElement.EnumerateArray().Select(q => q.GetProperty("Name").GetString()).ToArray();
         Assert.Contains(queryName, queries);
-        
+
         _output.WriteLine($"Successfully created and read Power Query '{queryName}'");
         _output.WriteLine($"Retrieved M code: {retrievedMCode}");
-        
+
         // Act - Delete the Power Query to complete the workflow
-        var deleteResponse = await CallExcelTool(server, "excel_powerquery", new 
-        { 
-            action = "delete", 
-            excelPath = testFile, 
+        var deleteResponse = await CallExcelTool(server, "excel_powerquery", new
+        {
+            action = "delete",
+            excelPath = testFile,
             queryName = queryName
         });
-        
+
         // Assert delete succeeded
         var deleteJson = JsonDocument.Parse(deleteResponse);
         Assert.True(deleteJson.RootElement.GetProperty("Success").GetBoolean());
-        
+
         // Verify query is no longer in the list
-        var finalListResponse = await CallExcelTool(server, "excel_powerquery", new 
-        { 
-            action = "list", 
+        var finalListResponse = await CallExcelTool(server, "excel_powerquery", new
+        {
+            action = "list",
             excelPath = testFile
         });
-        
+
         var finalListJson = JsonDocument.Parse(finalListResponse);
         Assert.True(finalListJson.RootElement.GetProperty("Success").GetBoolean());
-        
+
         if (finalListJson.RootElement.TryGetProperty("queries", out var finalQueriesElement))
         {
             var finalQueries = finalQueriesElement.EnumerateArray().Select(q => q.GetProperty("name").GetString()).ToArray();
             Assert.DoesNotContain(queryName, finalQueries);
         }
-        
+
         _output.WriteLine($"Successfully deleted Power Query '{queryName}' - complete workflow test passed");
     }
 
@@ -331,17 +330,17 @@ in
     {
         var serverExePath = Path.Combine(
             Directory.GetCurrentDirectory(),
-            "..", "..", "..", "..", "..", "src", "ExcelMcp.McpServer", "bin", "Debug", "net9.0", 
+            "..", "..", "..", "..", "..", "src", "ExcelMcp.McpServer", "bin", "Debug", "net9.0",
             "Sbroenne.ExcelMcp.McpServer.exe"
         );
         serverExePath = Path.GetFullPath(serverExePath);
-        
+
         if (!File.Exists(serverExePath))
         {
             // Fallback to DLL execution
             serverExePath = Path.Combine(
                 Directory.GetCurrentDirectory(),
-                "..", "..", "..", "..", "..", "src", "ExcelMcp.McpServer", "bin", "Debug", "net9.0", 
+                "..", "..", "..", "..", "..", "src", "ExcelMcp.McpServer", "bin", "Debug", "net9.0",
                 "Sbroenne.ExcelMcp.McpServer.dll"
             );
             serverExePath = Path.GetFullPath(serverExePath);
@@ -360,7 +359,7 @@ in
 
         var process = Process.Start(startInfo);
         Assert.NotNull(process);
-        
+
         _serverProcess = process;
         return process;
     }
@@ -369,13 +368,13 @@ in
     {
         var json = JsonSerializer.Serialize(request);
         _output.WriteLine($"Sending: {json}");
-        
+
         await server.StandardInput.WriteLineAsync(json);
         await server.StandardInput.FlushAsync();
-        
+
         var response = await server.StandardOutput.ReadLineAsync();
         _output.WriteLine($"Received: {response ?? "NULL"}");
-        
+
         Assert.NotNull(response);
         return response;
     }
@@ -396,7 +395,7 @@ in
         };
 
         await SendMcpRequestAsync(server, initRequest);
-        
+
         // Send initialized notification
         var initializedNotification = new
         {
@@ -404,7 +403,7 @@ in
             method = "notifications/initialized",
             @params = new { }
         };
-        
+
         var json = JsonSerializer.Serialize(initializedNotification);
         await server.StandardInput.WriteLineAsync(json);
         await server.StandardInput.FlushAsync();

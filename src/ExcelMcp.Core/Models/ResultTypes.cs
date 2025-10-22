@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace Sbroenne.ExcelMcp.Core.Models;
 
 /// <summary>
@@ -11,16 +9,26 @@ public abstract class ResultBase
     /// Indicates whether the operation was successful
     /// </summary>
     public bool Success { get; set; }
-    
+
     /// <summary>
     /// Error message if operation failed
     /// </summary>
     public string? ErrorMessage { get; set; }
-    
+
     /// <summary>
     /// File path of the Excel file
     /// </summary>
     public string? FilePath { get; set; }
+
+    /// <summary>
+    /// Suggested next actions for LLM workflow guidance
+    /// </summary>
+    public List<string> SuggestedNextActions { get; set; } = new();
+
+    /// <summary>
+    /// Contextual workflow hint for LLM
+    /// </summary>
+    public string? WorkflowHint { get; set; }
 }
 
 /// <summary>
@@ -54,12 +62,12 @@ public class WorksheetInfo
     /// Name of the worksheet
     /// </summary>
     public string Name { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Index of the worksheet (1-based)
     /// </summary>
     public int Index { get; set; }
-    
+
     /// <summary>
     /// Whether the worksheet is visible
     /// </summary>
@@ -75,27 +83,27 @@ public class WorksheetDataResult : ResultBase
     /// Name of the worksheet
     /// </summary>
     public string SheetName { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Range that was read
     /// </summary>
     public string Range { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Data rows and columns
     /// </summary>
     public List<List<object?>> Data { get; set; } = new();
-    
+
     /// <summary>
     /// Column headers
     /// </summary>
     public List<string> Headers { get; set; } = new();
-    
+
     /// <summary>
     /// Number of rows
     /// </summary>
     public int RowCount { get; set; }
-    
+
     /// <summary>
     /// Number of columns
     /// </summary>
@@ -122,17 +130,17 @@ public class PowerQueryInfo
     /// Name of the Power Query
     /// </summary>
     public string Name { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Full M code formula
     /// </summary>
     public string Formula { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Preview of the formula (first 80 characters)
     /// </summary>
     public string FormulaPreview { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Whether the query is connection-only
     /// </summary>
@@ -148,17 +156,17 @@ public class PowerQueryViewResult : ResultBase
     /// Name of the Power Query
     /// </summary>
     public string QueryName { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Full M code
     /// </summary>
     public string MCode { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Number of characters in the M code
     /// </summary>
     public int CharacterCount { get; set; }
-    
+
     /// <summary>
     /// Whether the query is connection-only
     /// </summary>
@@ -174,17 +182,17 @@ public enum PowerQueryLoadMode
     /// Connection only - no data loaded to worksheet or data model
     /// </summary>
     ConnectionOnly,
-    
+
     /// <summary>
     /// Load to table in worksheet
     /// </summary>
     LoadToTable,
-    
+
     /// <summary>
     /// Load to Data Model (PowerPivot)
     /// </summary>
     LoadToDataModel,
-    
+
     /// <summary>
     /// Load to both table and data model
     /// </summary>
@@ -200,22 +208,22 @@ public class PowerQueryLoadConfigResult : ResultBase
     /// Name of the query
     /// </summary>
     public string QueryName { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Current load mode
     /// </summary>
     public PowerQueryLoadMode LoadMode { get; set; }
-    
+
     /// <summary>
     /// Target worksheet name (if LoadToTable or LoadToBoth)
     /// </summary>
     public string? TargetSheet { get; set; }
-    
+
     /// <summary>
     /// Whether the query has an active connection
     /// </summary>
     public bool HasConnection { get; set; }
-    
+
     /// <summary>
     /// Whether the query is loaded to data model
     /// </summary>
@@ -242,17 +250,17 @@ public class ParameterInfo
     /// Name of the parameter
     /// </summary>
     public string Name { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// What the parameter refers to
     /// </summary>
     public string RefersTo { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Current value
     /// </summary>
     public object? Value { get; set; }
-    
+
     /// <summary>
     /// Type of the value
     /// </summary>
@@ -268,17 +276,17 @@ public class ParameterValueResult : ResultBase
     /// Name of the parameter
     /// </summary>
     public string ParameterName { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Current value
     /// </summary>
     public object? Value { get; set; }
-    
+
     /// <summary>
     /// Type of the value
     /// </summary>
     public string ValueType { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// What the parameter refers to
     /// </summary>
@@ -305,17 +313,17 @@ public class ScriptInfo
     /// Name of the script module
     /// </summary>
     public string Name { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Type of the script module
     /// </summary>
     public string Type { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Number of lines in the module
     /// </summary>
     public int LineCount { get; set; }
-    
+
     /// <summary>
     /// List of procedures in the module
     /// </summary>
@@ -331,22 +339,22 @@ public class FileValidationResult : ResultBase
     /// Whether the file exists
     /// </summary>
     public bool Exists { get; set; }
-    
+
     /// <summary>
     /// Size of the file in bytes
     /// </summary>
     public long Size { get; set; }
-    
+
     /// <summary>
     /// File extension
     /// </summary>
     public string Extension { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Last modification time
     /// </summary>
     public DateTime LastModified { get; set; }
-    
+
     /// <summary>
     /// Whether the file is valid
     /// </summary>
@@ -362,17 +370,17 @@ public class CellValueResult : ResultBase
     /// Address of the cell (e.g., A1)
     /// </summary>
     public string CellAddress { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Current value of the cell
     /// </summary>
     public object? Value { get; set; }
-    
+
     /// <summary>
     /// Type of the value
     /// </summary>
     public string ValueType { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Formula in the cell, if any
     /// </summary>
@@ -388,17 +396,17 @@ public class VbaTrustResult : ResultBase
     /// Whether VBA project access is trusted
     /// </summary>
     public bool IsTrusted { get; set; }
-    
+
     /// <summary>
     /// Number of VBA components found (when checking trust)
     /// </summary>
     public int ComponentCount { get; set; }
-    
+
     /// <summary>
     /// Registry paths where trust was set
     /// </summary>
     public List<string> RegistryPathsSet { get; set; } = new();
-    
+
     /// <summary>
     /// Manual setup instructions if automated setup failed
     /// </summary>
@@ -414,17 +422,17 @@ public enum PowerQueryPrivacyLevel
     /// Ignores privacy levels, allows combining any data sources (least secure)
     /// </summary>
     None,
-    
+
     /// <summary>
     /// Prevents sharing data with other sources (most secure, recommended for sensitive data)
     /// </summary>
     Private,
-    
+
     /// <summary>
     /// Data can be shared within organization (recommended for internal data)
     /// </summary>
     Organizational,
-    
+
     /// <summary>
     /// Publicly available data sources (appropriate for public APIs)
     /// </summary>
@@ -445,17 +453,17 @@ public class PowerQueryPrivacyErrorResult : OperationResult
     /// Privacy levels detected in existing queries
     /// </summary>
     public List<QueryPrivacyInfo> ExistingPrivacyLevels { get; init; } = new();
-    
+
     /// <summary>
     /// Recommended privacy level based on existing queries
     /// </summary>
     public PowerQueryPrivacyLevel RecommendedPrivacyLevel { get; init; }
-    
+
     /// <summary>
     /// User-friendly explanation of the recommendation
     /// </summary>
     public string Explanation { get; init; } = "";
-    
+
     /// <summary>
     /// Original error message from Excel
     /// </summary>
@@ -472,7 +480,7 @@ public class VbaTrustRequiredResult : OperationResult
     /// Whether VBA trust is currently enabled
     /// </summary>
     public bool IsTrustEnabled { get; init; }
-    
+
     /// <summary>
     /// Step-by-step instructions for enabling VBA trust
     /// </summary>
@@ -485,14 +493,86 @@ public class VbaTrustRequiredResult : OperationResult
         "Check '✓ Trust access to the VBA project object model'",
         "Click OK twice to save settings"
     };
-    
+
     /// <summary>
     /// Official Microsoft documentation URL
     /// </summary>
     public string DocumentationUrl { get; init; } = "https://support.microsoft.com/office/enable-or-disable-macros-in-office-files-12b036fd-d140-4e74-b45e-16fed1a7e5c6";
-    
+
     /// <summary>
     /// User-friendly explanation of why trust is required
     /// </summary>
     public string Explanation { get; init; } = "VBA operations require 'Trust access to the VBA project object model' to be enabled in Excel settings. This is a one-time setup that allows programmatic access to VBA code.";
+}
+
+/// <summary>
+/// Result for Power Query refresh operations with error detection
+/// </summary>
+public class PowerQueryRefreshResult : ResultBase
+{
+    /// <summary>
+    /// Name of the query that was refreshed
+    /// </summary>
+    public string QueryName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether query has errors after refresh attempt
+    /// </summary>
+    public bool HasErrors { get; set; }
+
+    /// <summary>
+    /// List of error messages detected
+    /// </summary>
+    public List<string> ErrorMessages { get; set; } = new();
+
+    /// <summary>
+    /// When the refresh was attempted
+    /// </summary>
+    public DateTime RefreshTime { get; set; }
+
+    /// <summary>
+    /// Whether this is a connection-only query
+    /// </summary>
+    public bool IsConnectionOnly { get; set; }
+
+    /// <summary>
+    /// Worksheet name where data was loaded (if applicable)
+    /// </summary>
+    public string? LoadedToSheet { get; set; }
+}
+
+/// <summary>
+/// Result for Power Query error checking
+/// </summary>
+public class PowerQueryErrorCheckResult : ResultBase
+{
+    /// <summary>
+    /// Name of the query checked
+    /// </summary>
+    public string QueryName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether errors were detected
+    /// </summary>
+    public bool HasErrors { get; set; }
+
+    /// <summary>
+    /// List of error messages
+    /// </summary>
+    public List<string> ErrorMessages { get; set; } = new();
+
+    /// <summary>
+    /// Category of error (Authentication, Connectivity, Privacy, Syntax, Permissions, Unknown)
+    /// </summary>
+    public string? ErrorCategory { get; set; }
+
+    /// <summary>
+    /// Whether this is a connection-only query
+    /// </summary>
+    public bool IsConnectionOnly { get; set; }
+
+    /// <summary>
+    /// Additional message
+    /// </summary>
+    public string? Message { get; set; }
 }

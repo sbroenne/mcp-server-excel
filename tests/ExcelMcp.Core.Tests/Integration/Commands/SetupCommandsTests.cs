@@ -1,6 +1,5 @@
-using Xunit;
 using Sbroenne.ExcelMcp.Core.Commands;
-using System.IO;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 
@@ -24,12 +23,12 @@ public class SetupCommandsTests : IDisposable
     {
         _setupCommands = new SetupCommands();
         _fileCommands = new FileCommands();
-        
+
         _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_SetupTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
-        
+
         _testExcelFile = Path.Combine(_tempDir, "TestWorkbook.xlsm"); // Macro-enabled for VBA trust
-        
+
         // Create test Excel file
         var result = _fileCommands.CreateEmpty(_testExcelFile);
         if (!result.Success)
@@ -89,7 +88,7 @@ public class SetupCommandsTests : IDisposable
         {
             // Ignore cleanup errors
         }
-        
+
         GC.SuppressFinalize(this);
     }
 }

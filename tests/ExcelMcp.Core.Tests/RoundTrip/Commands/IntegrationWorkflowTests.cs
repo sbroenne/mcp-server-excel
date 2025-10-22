@@ -1,7 +1,5 @@
-using Xunit;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Models;
-using System.IO;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.RoundTrip.Commands;
 
@@ -31,13 +29,13 @@ public class IntegrationWorkflowTests : IDisposable
         _sheetCommands = new SheetCommands();
         _cellCommands = new CellCommands();
         _parameterCommands = new ParameterCommands();
-        
+
         // Create temp directory for test files
         _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_Integration_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
-        
+
         _testExcelFile = Path.Combine(_tempDir, "TestWorkbook.xlsx");
-        
+
         // Create test Excel file
         CreateTestExcelFile();
     }

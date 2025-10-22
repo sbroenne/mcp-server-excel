@@ -1,7 +1,6 @@
-using Xunit;
 using System.Diagnostics;
 using System.Text.Json;
-using System.Text;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.RoundTrip;
@@ -31,7 +30,7 @@ public class McpServerRoundTripTests : IDisposable
     {
         if (_serverProcess != null)
         {
-            try 
+            try
             {
                 if (!_serverProcess.HasExited)
                 {
@@ -48,7 +47,7 @@ public class McpServerRoundTripTests : IDisposable
             }
         }
         _serverProcess?.Dispose();
-        
+
         try
         {
             if (Directory.Exists(_tempDir))
@@ -71,17 +70,17 @@ public class McpServerRoundTripTests : IDisposable
         // Use the built executable directly instead of dotnet run for faster startup
         var serverExePath = Path.Combine(
             Directory.GetCurrentDirectory(),
-            "..", "..", "..", "..", "..", "src", "ExcelMcp.McpServer", "bin", "Debug", "net9.0", 
+            "..", "..", "..", "..", "..", "src", "ExcelMcp.McpServer", "bin", "Debug", "net9.0",
             "Sbroenne.ExcelMcp.McpServer.exe"
         );
         serverExePath = Path.GetFullPath(serverExePath);
-        
+
         if (!File.Exists(serverExePath))
         {
             // Fallback to DLL execution
             serverExePath = Path.Combine(
                 Directory.GetCurrentDirectory(),
-                "..", "..", "..", "..", "..", "src", "ExcelMcp.McpServer", "bin", "Debug", "net9.0", 
+                "..", "..", "..", "..", "..", "src", "ExcelMcp.McpServer", "bin", "Debug", "net9.0",
                 "Sbroenne.ExcelMcp.McpServer.dll"
             );
             serverExePath = Path.GetFullPath(serverExePath);
@@ -101,7 +100,7 @@ public class McpServerRoundTripTests : IDisposable
         var process = Process.Start(startInfo);
         if (process == null)
             throw new InvalidOperationException($"Failed to start MCP server from: {serverExePath}");
-            
+
         _serverProcess = process;
         return process;
     }
@@ -154,7 +153,7 @@ public class McpServerRoundTripTests : IDisposable
 
         var response = await server.StandardOutput.ReadLineAsync();
         Assert.NotNull(response);
-        
+
         var responseJson = JsonDocument.Parse(response);
         if (responseJson.RootElement.TryGetProperty("error", out var error))
         {
@@ -165,7 +164,7 @@ public class McpServerRoundTripTests : IDisposable
         var result = responseJson.RootElement.GetProperty("result");
         var content = result.GetProperty("content")[0].GetProperty("text").GetString();
         Assert.NotNull(content);
-        
+
         return content;
     }
 
@@ -227,10 +226,10 @@ in
 
             // Step 3: Import Power Query
             _output.WriteLine("Step 3: Importing Power Query...");
-            var importResponse = await CallExcelTool(server, "excel_powerquery", new 
-            { 
-                action = "import", 
-                excelPath = testFile, 
+            var importResponse = await CallExcelTool(server, "excel_powerquery", new
+            {
+                action = "import",
+                excelPath = testFile,
                 queryName = queryName,
                 sourcePath = originalMCodeFile
             });
@@ -239,10 +238,10 @@ in
 
             // Step 4: Set Power Query to Load to Table mode (this should actually load data)
             _output.WriteLine("Step 4: Setting Power Query to Load to Table mode...");
-            var setLoadResponse = await CallExcelTool(server, "excel_powerquery", new 
-            { 
-                action = "set-load-to-table", 
-                excelPath = testFile, 
+            var setLoadResponse = await CallExcelTool(server, "excel_powerquery", new
+            {
+                action = "set-load-to-table",
+                excelPath = testFile,
                 queryName = queryName,
                 targetSheet = targetSheet
             });
@@ -251,10 +250,10 @@ in
 
             // Step 5: Verify initial data was loaded
             _output.WriteLine("Step 5: Verifying initial data was loaded...");
-            var readResponse = await CallExcelTool(server, "excel_worksheet", new 
-            { 
-                action = "read", 
-                excelPath = testFile, 
+            var readResponse = await CallExcelTool(server, "excel_worksheet", new
+            {
+                action = "read",
+                excelPath = testFile,
                 sheetName = targetSheet,
                 range = "A1:D10"  // Read headers plus data
             });
@@ -271,10 +270,10 @@ in
 
             // Step 6: Export Power Query for comparison
             _output.WriteLine("Step 6: Exporting Power Query...");
-            var exportResponse = await CallExcelTool(server, "excel_powerquery", new 
-            { 
-                action = "export", 
-                excelPath = testFile, 
+            var exportResponse = await CallExcelTool(server, "excel_powerquery", new
+            {
+                action = "export",
+                excelPath = testFile,
                 queryName = queryName,
                 targetPath = exportedMCodeFile
             });
@@ -284,10 +283,10 @@ in
 
             // Step 7: Update Power Query with enhanced M code
             _output.WriteLine("Step 7: Updating Power Query with enhanced M code...");
-            var updateResponse = await CallExcelTool(server, "excel_powerquery", new 
-            { 
-                action = "update", 
-                excelPath = testFile, 
+            var updateResponse = await CallExcelTool(server, "excel_powerquery", new
+            {
+                action = "update",
+                excelPath = testFile,
                 queryName = queryName,
                 sourcePath = updatedMCodeFile
             });
@@ -296,15 +295,15 @@ in
 
             // Step 8: Refresh the Power Query to apply changes
             _output.WriteLine("Step 8: Refreshing Power Query to load updated data...");
-            var refreshResponse = await CallExcelTool(server, "excel_powerquery", new 
-            { 
-                action = "refresh", 
-                excelPath = testFile, 
+            var refreshResponse = await CallExcelTool(server, "excel_powerquery", new
+            {
+                action = "refresh",
+                excelPath = testFile,
                 queryName = queryName
             });
             var refreshJson = JsonDocument.Parse(refreshResponse);
             Assert.True(refreshJson.RootElement.GetProperty("Success").GetBoolean());
-            
+
             // NOTE: Power Query refresh behavior through MCP protocol may not immediately
             // reflect in worksheet data due to Excel COM timing. The Core tests verify
             // this functionality works correctly. MCP Server tests focus on protocol correctness.
@@ -312,14 +311,14 @@ in
 
             // Step 9: Verify query still exists after update (protocol verification)
             _output.WriteLine("Step 9: Verifying Power Query still exists after update...");
-            var finalListResponse = await CallExcelTool(server, "excel_powerquery", new 
-            { 
-                action = "list", 
+            var finalListResponse = await CallExcelTool(server, "excel_powerquery", new
+            {
+                action = "list",
                 excelPath = testFile
             });
             var finalListJson = JsonDocument.Parse(finalListResponse);
             Assert.True(finalListJson.RootElement.GetProperty("Success").GetBoolean());
-            
+
             // Verify query appears in list
             if (finalListJson.RootElement.TryGetProperty("Queries", out var finalQueriesElement))
             {
@@ -332,10 +331,10 @@ in
 
             // Step 10: Verify we can still read worksheet data (protocol check, not data validation)
             _output.WriteLine("Step 10: Verifying worksheet read still works...");
-            var updatedReadResponse = await CallExcelTool(server, "excel_worksheet", new 
-            { 
-                action = "read", 
-                excelPath = testFile, 
+            var updatedReadResponse = await CallExcelTool(server, "excel_worksheet", new
+            {
+                action = "read",
+                excelPath = testFile,
                 sheetName = targetSheet,
                 range = "A1:E10"  // Read more columns for Status column
             });
@@ -353,9 +352,9 @@ in
 
             // Step 11: List queries to verify final state
             _output.WriteLine("Step 10: Listing queries to verify integrity...");
-            var listResponse = await CallExcelTool(server, "excel_powerquery", new 
-            { 
-                action = "list", 
+            var listResponse = await CallExcelTool(server, "excel_powerquery", new
+            {
+                action = "list",
                 excelPath = testFile
             });
             var listJson = JsonDocument.Parse(listResponse);
@@ -458,10 +457,10 @@ End Sub";
 
             // Step 2: Import original VBA module
             _output.WriteLine("Step 2: Importing original VBA module...");
-            var importResponse = await CallExcelTool(server, "excel_vba", new 
-            { 
-                action = "import", 
-                excelPath = testFile, 
+            var importResponse = await CallExcelTool(server, "excel_vba", new
+            {
+                action = "import",
+                excelPath = testFile,
                 moduleName = moduleName,
                 sourcePath = originalVbaFile
             });
@@ -470,13 +469,13 @@ End Sub";
 
             // Step 3: Run original VBA to create initial sheet and data  
             _output.WriteLine("Step 3: Running original VBA to create initial data...");
-            var runResponse = await CallExcelTool(server, "excel_vba", new 
-            { 
-                action = "run", 
-                excelPath = testFile, 
+            var runResponse = await CallExcelTool(server, "excel_vba", new
+            {
+                action = "run",
+                excelPath = testFile,
                 moduleName = $"{moduleName}.GenerateTestData"
             });
-            
+
             // VBA run may return non-JSON responses in some cases - verify it's valid JSON
             JsonDocument? runJson = null;
             try
@@ -499,15 +498,15 @@ End Sub";
 
             // Step 4: Verify sheet operations still work (protocol check)
             _output.WriteLine("Step 4: Verifying worksheet list operation...");
-            var listSheetsResponse = await CallExcelTool(server, "excel_worksheet", new 
-            { 
-                action = "list", 
+            var listSheetsResponse = await CallExcelTool(server, "excel_worksheet", new
+            {
+                action = "list",
                 excelPath = testFile
             });
             _output.WriteLine($"List sheets response: {listSheetsResponse}");
             var listSheetsJson = JsonDocument.Parse(listSheetsResponse);
             Assert.True(listSheetsJson.RootElement.GetProperty("Success").GetBoolean());
-            
+
             // Try to get Sheets property, but don't fail if structure is different
             if (listSheetsJson.RootElement.TryGetProperty("Sheets", out var sheetsProperty))
             {
@@ -521,14 +520,14 @@ End Sub";
 
             // Step 5: Export VBA module (protocol check)
             _output.WriteLine("Step 5: Exporting VBA module...");
-            var exportResponse = await CallExcelTool(server, "excel_vba", new 
-            { 
-                action = "export", 
-                excelPath = testFile, 
+            var exportResponse = await CallExcelTool(server, "excel_vba", new
+            {
+                action = "export",
+                excelPath = testFile,
                 moduleName = moduleName,
                 outputPath = exportedVbaFile
             });
-            
+
             // Try to parse as JSON, but handle non-JSON responses gracefully
             JsonDocument? exportJson = null;
             try
@@ -550,14 +549,14 @@ End Sub";
 
             // Step 6: Update VBA module with enhanced code
             _output.WriteLine("Step 6: Updating VBA module with enhanced code...");
-            var updateResponse = await CallExcelTool(server, "excel_vba", new 
-            { 
-                action = "update", 
-                excelPath = testFile, 
+            var updateResponse = await CallExcelTool(server, "excel_vba", new
+            {
+                action = "update",
+                excelPath = testFile,
                 moduleName = moduleName,
                 sourcePath = updatedVbaFile
             });
-            
+
             // Try to parse as JSON, but handle non-JSON responses gracefully
             JsonDocument? updateJson = null;
             try
@@ -578,12 +577,12 @@ End Sub";
 
             // Step 7: List VBA modules to verify it still exists
             _output.WriteLine("Step 7: Listing VBA modules to verify integrity...");
-            var listModulesResponse = await CallExcelTool(server, "excel_vba", new 
-            { 
-                action = "list", 
+            var listModulesResponse = await CallExcelTool(server, "excel_vba", new
+            {
+                action = "list",
                 excelPath = testFile
             });
-            
+
             // Try to parse as JSON, but handle non-JSON responses gracefully
             JsonDocument? listModulesJson = null;
             try
@@ -621,7 +620,7 @@ End Sub";
         {
             server?.Kill();
             server?.Dispose();
-            
+
             // Cleanup files
             if (File.Exists(testFile)) File.Delete(testFile);
             if (File.Exists(originalVbaFile)) File.Delete(originalVbaFile);

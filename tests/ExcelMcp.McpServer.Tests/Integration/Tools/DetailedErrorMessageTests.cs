@@ -1,8 +1,7 @@
+using ModelContextProtocol;
+using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
 using Xunit.Abstractions;
-using Sbroenne.ExcelMcp.McpServer.Tools;
-using System.Text.Json;
-using ModelContextProtocol;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
@@ -43,7 +42,7 @@ public class DetailedErrorMessageTests : IDisposable
             }
         }
         catch { }
-        
+
         GC.SuppressFinalize(this);
     }
 
@@ -59,16 +58,16 @@ public class DetailedErrorMessageTests : IDisposable
 
         // Verify detailed error message components
         _output.WriteLine($"Error message: {exception.Message}");
-        
+
         // Should include action context
         Assert.Contains("list", exception.Message);
-        
+
         // Should include file path
         Assert.Contains(nonExistentFile, exception.Message);
-        
+
         // Should include specific error details
         Assert.Contains("File not found", exception.Message);
-        
+
         _output.WriteLine("✅ Verified: Action, file path, and error details included");
     }
 
@@ -83,12 +82,12 @@ public class DetailedErrorMessageTests : IDisposable
             ExcelCellTool.ExcelCell("get-value", nonExistentFile, "Sheet1", "A1"));
 
         _output.WriteLine($"Error message: {exception.Message}");
-        
+
         // Verify detailed components
         Assert.Contains("get-value", exception.Message);
         Assert.Contains(nonExistentFile, exception.Message);
         Assert.Contains("File not found", exception.Message);
-        
+
         _output.WriteLine("✅ Verified: Cell operation includes detailed context");
     }
 
@@ -103,12 +102,12 @@ public class DetailedErrorMessageTests : IDisposable
             ExcelParameterTool.ExcelParameter("list", nonExistentFile));
 
         _output.WriteLine($"Error message: {exception.Message}");
-        
+
         // Verify detailed components
         Assert.Contains("list", exception.Message);
         Assert.Contains(nonExistentFile, exception.Message);
         Assert.Contains("File not found", exception.Message);
-        
+
         _output.WriteLine("✅ Verified: Parameter operation includes detailed context");
     }
 
@@ -123,12 +122,12 @@ public class DetailedErrorMessageTests : IDisposable
             ExcelPowerQueryTool.ExcelPowerQuery("list", nonExistentFile));
 
         _output.WriteLine($"Error message: {exception.Message}");
-        
+
         // Verify detailed components
         Assert.Contains("list", exception.Message);
         Assert.Contains(nonExistentFile, exception.Message);
         Assert.Contains("File not found", exception.Message);
-        
+
         _output.WriteLine("✅ Verified: PowerQuery operation includes detailed context");
     }
 
@@ -143,13 +142,13 @@ public class DetailedErrorMessageTests : IDisposable
             ExcelVbaTool.ExcelVba("list", _testExcelFile));
 
         _output.WriteLine($"Error message: {exception.Message}");
-        
+
         // Verify detailed components
         Assert.Contains("list", exception.Message);
         Assert.Contains(_testExcelFile, exception.Message);
         Assert.Contains("macro-enabled", exception.Message.ToLower());
         Assert.Contains(".xlsm", exception.Message);
-        
+
         _output.WriteLine("✅ Verified: VBA operation includes detailed file type requirements");
     }
 
@@ -165,12 +164,12 @@ public class DetailedErrorMessageTests : IDisposable
             ExcelVbaTool.ExcelVba("run", xlsmFile, moduleName: null));
 
         _output.WriteLine($"Error message: {exception.Message}");
-        
+
         // Verify detailed components
         Assert.Contains("moduleName", exception.Message);
         Assert.Contains("required", exception.Message);
         Assert.Contains("run", exception.Message);
-        
+
         _output.WriteLine("✅ Verified: Missing parameter error includes parameter name and action");
     }
 
@@ -182,13 +181,13 @@ public class DetailedErrorMessageTests : IDisposable
             ExcelFileTool.ExcelFile("invalid-action", _testExcelFile));
 
         _output.WriteLine($"Error message: {exception.Message}");
-        
+
         // Verify detailed components
         Assert.Contains("Unknown action", exception.Message);
         Assert.Contains("invalid-action", exception.Message);
         Assert.Contains("Supported:", exception.Message);
         Assert.Contains("create-empty", exception.Message);
-        
+
         _output.WriteLine("✅ Verified: Unknown action error lists supported actions");
     }
 
@@ -200,14 +199,14 @@ public class DetailedErrorMessageTests : IDisposable
             ExcelWorksheetTool.ExcelWorksheet("invalid-action", _testExcelFile));
 
         _output.WriteLine($"Error message: {exception.Message}");
-        
+
         // Verify error lists multiple supported actions
         Assert.Contains("Unknown action", exception.Message);
         Assert.Contains("invalid-action", exception.Message);
         Assert.Contains("list", exception.Message);
         Assert.Contains("read", exception.Message);
         Assert.Contains("write", exception.Message);
-        
+
         _output.WriteLine("✅ Verified: Unknown action error provides comprehensive list of valid options");
     }
 
@@ -222,13 +221,13 @@ public class DetailedErrorMessageTests : IDisposable
             ExcelPowerQueryTool.ExcelPowerQuery("import", _testExcelFile, queryName: null, sourcePath: null));
 
         _output.WriteLine($"Error message: {exception.Message}");
-        
+
         // Verify detailed components
         Assert.Contains("queryName", exception.Message);
         Assert.Contains("sourcePath", exception.Message);
         Assert.Contains("required", exception.Message);
         Assert.Contains("import", exception.Message);
-        
+
         _output.WriteLine("✅ Verified: Missing parameters error lists all required parameters");
     }
 
@@ -243,11 +242,11 @@ public class DetailedErrorMessageTests : IDisposable
             ExcelCellTool.ExcelCell("set-value", _testExcelFile, "Sheet1", "A1", value: null));
 
         _output.WriteLine($"Error message: {exception.Message}");
-        
+
         // Verify parameter name is mentioned
         Assert.Contains("value", exception.Message);
         Assert.Contains("required", exception.Message);
-        
+
         _output.WriteLine("✅ Verified: Missing parameter error specifies which parameter is required");
     }
 
@@ -262,12 +261,12 @@ public class DetailedErrorMessageTests : IDisposable
             ExcelParameterTool.ExcelParameter("create", _testExcelFile, parameterName: null));
 
         _output.WriteLine($"Error message: {exception.Message}");
-        
+
         // Verify detailed components
         Assert.Contains("parameterName", exception.Message);
         Assert.Contains("required", exception.Message);
         Assert.Contains("create", exception.Message);
-        
+
         _output.WriteLine("✅ Verified: Missing parameter error includes action context");
     }
 
@@ -282,12 +281,12 @@ public class DetailedErrorMessageTests : IDisposable
             ExcelWorksheetTool.ExcelWorksheet("read", _testExcelFile, sheetName: null));
 
         _output.WriteLine($"Error message: {exception.Message}");
-        
+
         // Verify parameter name is mentioned
         Assert.Contains("sheetName", exception.Message);
         Assert.Contains("required", exception.Message);
         Assert.Contains("read", exception.Message);
-        
+
         _output.WriteLine("✅ Verified: Missing parameter includes action and parameter name");
     }
 }

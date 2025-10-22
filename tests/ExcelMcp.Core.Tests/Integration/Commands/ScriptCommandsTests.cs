@@ -1,7 +1,5 @@
-using Xunit;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Models;
-using System.IO;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Commands;
 
@@ -29,18 +27,18 @@ public class ScriptCommandsTests : IDisposable
         _scriptCommands = new ScriptCommands();
         _fileCommands = new FileCommands();
         _setupCommands = new SetupCommands();
-        
+
         // Create temp directory for test files
         _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_VBA_Tests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
-        
+
         _testExcelFile = Path.Combine(_tempDir, "TestWorkbook.xlsm");
         _testVbaFile = Path.Combine(_tempDir, "TestModule.vba");
-        
+
         // Create test files
         CreateTestExcelFile();
         CreateTestVbaFile();
-        
+
         // Check VBA trust
         CheckVbaTrust();
     }
@@ -65,7 +63,7 @@ End Function
 Public Sub TestSubroutine()
     MsgBox ""Test VBA""
 End Sub";
-    
+
         File.WriteAllText(_testVbaFile, vbaCode);
     }
 

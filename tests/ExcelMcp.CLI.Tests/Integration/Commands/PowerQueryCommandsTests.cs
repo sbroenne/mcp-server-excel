@@ -1,6 +1,5 @@
-using Xunit;
 using Sbroenne.ExcelMcp.CLI.Commands;
-using System.IO;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 
@@ -22,11 +21,11 @@ public class CliPowerQueryCommandsTests : IDisposable
     public CliPowerQueryCommandsTests()
     {
         _cliCommands = new PowerQueryCommands();
-        
+
         // Create temp directory for test files
         _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCLI_PowerQueryTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
-        
+
         _createdFiles = new List<string>();
     }
 
@@ -119,7 +118,7 @@ public class CliPowerQueryCommandsTests : IDisposable
         catch (Exception ex)
         {
             // CLI has markup issues - document current behavior
-            Assert.True(ex is InvalidOperationException || ex is ArgumentException, 
+            Assert.True(ex is InvalidOperationException || ex is ArgumentException,
                 $"Unexpected exception type: {ex.GetType().Name}: {ex.Message}");
         }
     }
@@ -130,7 +129,7 @@ public class CliPowerQueryCommandsTests : IDisposable
         try
         {
             System.Threading.Thread.Sleep(500);
-            
+
             foreach (string file in _createdFiles)
             {
                 try
@@ -142,7 +141,7 @@ public class CliPowerQueryCommandsTests : IDisposable
                 }
                 catch { }
             }
-            
+
             if (Directory.Exists(_tempDir))
             {
                 for (int i = 0; i < 3; i++)
@@ -163,7 +162,7 @@ public class CliPowerQueryCommandsTests : IDisposable
             }
         }
         catch { }
-        
+
         GC.SuppressFinalize(this);
     }
 }

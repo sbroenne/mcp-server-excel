@@ -8,7 +8,7 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 public class CellCommands : ICellCommands
 {
     private readonly Core.Commands.CellCommands _coreCommands = new();
-    
+
     public int GetValue(string[] args)
     {
         if (args.Length < 4)
@@ -22,7 +22,7 @@ public class CellCommands : ICellCommands
         var cellAddress = args[3];
 
         var result = _coreCommands.GetValue(filePath, sheetName, cellAddress);
-        
+
         if (result.Success)
         {
             string displayValue = result.Value?.ToString() ?? "[null]";
@@ -50,10 +50,26 @@ public class CellCommands : ICellCommands
         var value = args[4];
 
         var result = _coreCommands.SetValue(filePath, sheetName, cellAddress, value);
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Set {sheetName}!{cellAddress} = '{value.EscapeMarkup()}'");
+
+            // Display workflow hints if available
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
             return 0;
         }
         else
@@ -76,11 +92,11 @@ public class CellCommands : ICellCommands
         var cellAddress = args[3];
 
         var result = _coreCommands.GetFormula(filePath, sheetName, cellAddress);
-        
+
         if (result.Success)
         {
             string displayValue = result.Value?.ToString() ?? "[null]";
-            
+
             if (string.IsNullOrEmpty(result.Formula))
             {
                 AnsiConsole.MarkupLine($"[cyan]{result.CellAddress}:[/] [yellow](no formula)[/] Value: {displayValue.EscapeMarkup()}");
@@ -113,15 +129,31 @@ public class CellCommands : ICellCommands
         var formula = args[4];
 
         var result = _coreCommands.SetFormula(filePath, sheetName, cellAddress, formula);
-        
+
         if (result.Success)
         {
             // Need to get the result value by calling GetValue
             var valueResult = _coreCommands.GetValue(filePath, sheetName, cellAddress);
             string displayResult = valueResult.Value?.ToString() ?? "[null]";
-            
+
             AnsiConsole.MarkupLine($"[green]✓[/] Set {sheetName}!{cellAddress} = {formula.EscapeMarkup()}");
             AnsiConsole.MarkupLine($"[dim]Result: {displayResult.EscapeMarkup()}[/]");
+
+            // Display workflow hints if available
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
             return 0;
         }
         else

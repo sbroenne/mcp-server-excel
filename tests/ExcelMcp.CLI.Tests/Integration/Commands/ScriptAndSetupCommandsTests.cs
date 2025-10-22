@@ -1,6 +1,5 @@
-using Xunit;
 using Sbroenne.ExcelMcp.CLI.Commands;
-using System.IO;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 
@@ -21,7 +20,7 @@ public class ScriptCommandsTests : IDisposable
     public ScriptCommandsTests()
     {
         _cliCommands = new ScriptCommands();
-        
+
         // Create temp directory for test files
         _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCLI_ScriptTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
@@ -55,7 +54,7 @@ public class ScriptCommandsTests : IDisposable
         catch (Exception ex)
         {
             // CLI has markup issues - document current behavior
-            Assert.True(ex is InvalidOperationException, 
+            Assert.True(ex is InvalidOperationException,
                 $"Unexpected exception type: {ex.GetType().Name}: {ex.Message}");
         }
     }
@@ -127,7 +126,7 @@ public class ScriptCommandsTests : IDisposable
         catch (Exception ex)
         {
             // CLI has markup issues - document current behavior
-            Assert.True(ex is InvalidOperationException, 
+            Assert.True(ex is InvalidOperationException,
                 $"Unexpected exception type: {ex.GetType().Name}: {ex.Message}");
         }
     }
@@ -143,7 +142,7 @@ public class ScriptCommandsTests : IDisposable
             }
         }
         catch { }
-        
+
         GC.SuppressFinalize(this);
     }
 }

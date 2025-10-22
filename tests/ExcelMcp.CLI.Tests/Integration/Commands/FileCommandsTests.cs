@@ -1,6 +1,5 @@
-using Xunit;
 using Sbroenne.ExcelMcp.CLI.Commands;
-using System.IO;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 
@@ -22,11 +21,11 @@ public class CliFileCommandsTests : IDisposable
     public CliFileCommandsTests()
     {
         _cliCommands = new FileCommands();
-        
+
         // Create temp directory for test files
         _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCLI_FileTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
-        
+
         _createdFiles = new List<string>();
     }
 
@@ -98,7 +97,7 @@ public class CliFileCommandsTests : IDisposable
         try
         {
             System.Threading.Thread.Sleep(500);
-            
+
             foreach (string file in _createdFiles)
             {
                 try
@@ -110,7 +109,7 @@ public class CliFileCommandsTests : IDisposable
                 }
                 catch { }
             }
-            
+
             if (Directory.Exists(_tempDir))
             {
                 for (int i = 0; i < 3; i++)
@@ -131,7 +130,7 @@ public class CliFileCommandsTests : IDisposable
             }
         }
         catch { }
-        
+
         GC.SuppressFinalize(this);
     }
 }

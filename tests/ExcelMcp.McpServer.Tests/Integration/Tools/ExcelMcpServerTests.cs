@@ -1,7 +1,6 @@
-using Xunit;
-using Sbroenne.ExcelMcp.McpServer.Tools;
-using System.IO;
 using System.Text.Json;
+using Sbroenne.ExcelMcp.McpServer.Tools;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
@@ -23,7 +22,7 @@ public class ExcelMcpServerTests : IDisposable
         // Create temp directory for test files
         _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCLI_MCP_Tests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
-        
+
         _testExcelFile = Path.Combine(_tempDir, "MCPTestWorkbook.xlsx");
     }
 
@@ -63,7 +62,7 @@ public class ExcelMcpServerTests : IDisposable
         // Act & Assert - Should throw McpException for unknown action
         var exception = Assert.Throws<ModelContextProtocol.McpException>(() =>
             ExcelFileTool.ExcelFile("unknown", _testExcelFile));
-        
+
         Assert.Contains("Unknown action 'unknown'", exception.Message);
     }
 
@@ -114,7 +113,7 @@ public class ExcelMcpServerTests : IDisposable
         // Act & Assert - Should throw McpException for non-existent file
         var exception = Assert.Throws<ModelContextProtocol.McpException>(() =>
             ExcelCellTool.ExcelCell("get-value", "nonexistent.xlsx", "Sheet1", "A1"));
-        
+
         Assert.Contains("File not found", exception.Message);
     }
 
@@ -134,12 +133,12 @@ in
 
         // Act - Import Power Query
         var importResult = ExcelPowerQueryTool.ExcelPowerQuery("import", _testExcelFile, queryName, sourcePath: mCodeFile);
-        
+
         // Debug: Print the actual response to understand the structure
         System.Console.WriteLine($"Import result JSON: {importResult}");
-        
+
         var importJson = JsonDocument.Parse(importResult);
-        
+
         // Check if it's an error response
         if (importJson.RootElement.TryGetProperty("error", out var importErrorProperty))
         {
@@ -147,17 +146,17 @@ in
             // Skip the rest of the test if import failed
             return;
         }
-        
+
         Assert.True(importJson.RootElement.GetProperty("Success").GetBoolean());
 
         // Act - View the imported query
         var viewResult = ExcelPowerQueryTool.ExcelPowerQuery("view", _testExcelFile, queryName);
-        
+
         // Debug: Print the actual response to understand the structure
         System.Console.WriteLine($"View result JSON: {viewResult}");
-        
+
         var viewJson = JsonDocument.Parse(viewResult);
-        
+
         // Check if it's an error response
         if (viewJson.RootElement.TryGetProperty("error", out var errorProperty))
         {
@@ -169,7 +168,7 @@ in
         {
             Assert.True(viewJson.RootElement.GetProperty("Success").GetBoolean());
         }
-        
+
         // Assert the operation succeeded (current MCP server only returns success/error, not the actual M code)
         // Note: This is a limitation of the current MCP server architecture
         // TODO: Enhance MCP server to return actual M code content for view operations
@@ -178,7 +177,7 @@ in
         var listResult = ExcelPowerQueryTool.ExcelPowerQuery("list", _testExcelFile);
         var listJson = JsonDocument.Parse(listResult);
         Assert.True(listJson.RootElement.GetProperty("Success").GetBoolean());
-        
+
         // NOTE: Current MCP server architecture limitation - list operations only return success/error
         // The actual query data is not returned in JSON format, only displayed to console
         // This is because the MCP server wraps CLI commands that output to console
