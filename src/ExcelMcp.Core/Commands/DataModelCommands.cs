@@ -619,4 +619,212 @@ public class DataModelCommands : IDataModelCommands
             return result;
         });
     }
+
+    /// <inheritdoc />
+    public OperationResult DeleteMeasure(string filePath, string measureName)
+    {
+        var result = new OperationResult
+        {
+            FilePath = filePath,
+            Action = "model-delete-measure"
+        };
+
+        if (!File.Exists(filePath))
+        {
+            result.Success = false;
+            result.ErrorMessage = $"File not found: {filePath}";
+            return result;
+        }
+
+        return WithExcel(filePath, save: true, (excel, workbook) =>
+        {
+            dynamic? model = null;
+            dynamic? measure = null;
+            try
+            {
+                // Check if workbook has Data Model
+                if (!HasDataModel(workbook))
+                {
+                    result.Success = false;
+                    result.ErrorMessage = "This workbook does not contain a Data Model.";
+                    return result;
+                }
+
+                model = workbook.Model;
+
+                // Find the measure
+                measure = FindModelMeasure(model, measureName);
+                if (measure == null)
+                {
+                    var measureNames = GetModelMeasureNames(model);
+                    result.Success = false;
+                    result.ErrorMessage = $"Measure '{measureName}' not found in Data Model.";
+
+                    // Suggest similar measure names
+                    var suggestions = new List<string>();
+                    foreach (var m in measureNames)
+                    {
+                        if (m.Contains(measureName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            suggestions.Add($"Try measure: {m}");
+                            if (suggestions.Count >= 3) break;
+                        }
+                    }
+
+                    if (suggestions.Any())
+                    {
+                        result.SuggestedNextActions = suggestions;
+                    }
+
+                    return result;
+                }
+
+                // Delete the measure
+                measure.Delete();
+
+                result.Success = true;
+                result.SuggestedNextActions = new List<string>
+                {
+                    $"Measure '{measureName}' deleted successfully",
+                    "Use 'model-list-measures' to verify deletion",
+                    "Changes saved to workbook"
+                };
+                result.WorkflowHint = "Measure deleted. Next, verify remaining measures or create new ones.";
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Error deleting measure: {ex.Message}";
+            }
+            finally
+            {
+                ReleaseComObject(ref measure);
+                ReleaseComObject(ref model);
+            }
+
+            return result;
+        });
+    }
+
+    /// <inheritdoc />
+    public OperationResult DeleteRelationship(string filePath, string fromTable, string fromColumn, string toTable, string toColumn)
+    {
+        var result = new OperationResult
+        {
+            FilePath = filePath,
+            Action = "model-delete-relationship"
+        };
+
+        if (!File.Exists(filePath))
+        {
+            result.Success = false;
+            result.ErrorMessage = $"File not found: {filePath}";
+            return result;
+        }
+
+        return WithExcel(filePath, save: true, (excel, workbook) =>
+        {
+            dynamic? model = null;
+            dynamic? modelRelationships = null;
+            dynamic? relationship = null;
+            try
+            {
+                // Check if workbook has Data Model
+                if (!HasDataModel(workbook))
+                {
+                    result.Success = false;
+                    result.ErrorMessage = "This workbook does not contain a Data Model.";
+                    return result;
+                }
+
+                model = workbook.Model;
+                modelRelationships = model.ModelRelationships;
+
+                // Find the relationship
+                bool found = false;
+                for (int i = 1; i <= modelRelationships.Count; i++)
+                {
+                    try
+                    {
+                        relationship = modelRelationships.Item(i);
+
+                        dynamic? fkColumn = relationship.ForeignKeyColumn;
+                        dynamic? pkColumn = relationship.PrimaryKeyColumn;
+
+                        try
+                        {
+                            dynamic? fkTable = fkColumn.Parent;
+                            dynamic? pkTable = pkColumn.Parent;
+
+                            string currentFromTable = fkTable?.Name?.ToString() ?? "";
+                            string currentFromColumn = fkColumn?.Name?.ToString() ?? "";
+                            string currentToTable = pkTable?.Name?.ToString() ?? "";
+                            string currentToColumn = pkColumn?.Name?.ToString() ?? "";
+
+                            ReleaseComObject(ref fkTable);
+                            ReleaseComObject(ref pkTable);
+
+                            if (currentFromTable.Equals(fromTable, StringComparison.OrdinalIgnoreCase) &&
+                                currentFromColumn.Equals(fromColumn, StringComparison.OrdinalIgnoreCase) &&
+                                currentToTable.Equals(toTable, StringComparison.OrdinalIgnoreCase) &&
+                                currentToColumn.Equals(toColumn, StringComparison.OrdinalIgnoreCase))
+                            {
+                                // Delete the relationship
+                                relationship.Delete();
+                                found = true;
+                                break;
+                            }
+                        }
+                        finally
+                        {
+                            ReleaseComObject(ref fkColumn);
+                            ReleaseComObject(ref pkColumn);
+                        }
+                    }
+                    finally
+                    {
+                        if (!found || i < modelRelationships.Count)
+                        {
+                            ReleaseComObject(ref relationship);
+                        }
+                    }
+                }
+
+                if (!found)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} not found in Data Model.";
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        "Use 'model-list-relationships' to see available relationships",
+                        "Check table and column names for typos",
+                        "Verify the relationship exists in the Data Model"
+                    };
+                    return result;
+                }
+
+                result.Success = true;
+                result.SuggestedNextActions = new List<string>
+                {
+                    $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} deleted successfully",
+                    "Use 'model-list-relationships' to verify deletion",
+                    "Changes saved to workbook"
+                };
+                result.WorkflowHint = "Relationship deleted. Next, verify remaining relationships or create new ones.";
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Error deleting relationship: {ex.Message}";
+            }
+            finally
+            {
+                ReleaseComObject(ref relationship);
+                ReleaseComObject(ref modelRelationships);
+                ReleaseComObject(ref model);
+            }
+
+            return result;
+        });
+    }
 }

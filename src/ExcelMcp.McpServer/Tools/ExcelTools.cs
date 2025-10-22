@@ -5,13 +5,14 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// <summary>
 /// Excel tools documentation and guidance for Model Context Protocol (MCP) server.
 /// 
-/// 🔧 Tool Architecture (6 Domain-Focused Tools):
+/// 🔧 Tool Architecture (7 Domain-Focused Tools):
 /// - ExcelFileTool: File operations (create-empty)
 /// - ExcelPowerQueryTool: M code and data loading management  
 /// - ExcelWorksheetTool: Sheet operations and bulk data handling
 /// - ExcelParameterTool: Named ranges as configuration parameters
 /// - ExcelCellTool: Precise individual cell operations
 /// - ExcelVbaTool: VBA macro management and execution
+/// - ExcelDataModelTool: Data Model (Power Pivot) operations
 /// 
 /// 🤖 LLM Usage Guidelines:
 /// 1. Start with ExcelFileTool to create new Excel files
@@ -20,6 +21,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// 4. Use ExcelParameterTool for configuration and reusable values
 /// 5. Use ExcelCellTool for precision operations on individual cells
 /// 6. Use ExcelVbaTool for complex automation (requires .xlsm files)
+/// 7. Use ExcelDataModelTool for Data Model and DAX operations
 /// 
 /// 📝 Parameter Patterns:
 /// - action: Always the first parameter, defines what operation to perform
@@ -40,6 +42,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - ExcelParameterTool.cs: excel_parameter tool
 /// - ExcelCellTool.cs: excel_cell tool
 /// - ExcelVbaTool.cs: excel_vba tool
+/// - ExcelDataModelTool.cs: excel_datamodel tool
 /// 
 /// This prevents duplicate tool registration conflicts in the MCP framework.
 /// </summary>

@@ -40,4 +40,16 @@ public interface IDataModelCommands
     /// Usage: dm-refresh <file.xlsx>
     /// </summary>
     int Refresh(string[] args);
+
+    /// <summary>
+    /// Deletes a DAX measure from the Data Model
+    /// Usage: dm-delete-measure <file.xlsx> <measure-name>
+    /// </summary>
+    int DeleteMeasure(string[] args);
+
+    /// <summary>
+    /// Deletes a relationship from the Data Model
+    /// Usage: dm-delete-relationship <file.xlsx> <from-table> <from-column> <to-table> <to-column>
+    /// </summary>
+    int DeleteRelationship(string[] args);
 }

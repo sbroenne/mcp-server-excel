@@ -48,6 +48,25 @@ public interface IDataModelCommands
     DataModelRelationshipListResult ListRelationships(string filePath);
 
     /// <summary>
+    /// Deletes a DAX measure from the Data Model
+    /// </summary>
+    /// <param name="filePath">Path to Excel file with Data Model</param>
+    /// <param name="measureName">Name of the measure to delete</param>
+    /// <returns>Result indicating success or failure</returns>
+    OperationResult DeleteMeasure(string filePath, string measureName);
+
+    /// <summary>
+    /// Deletes a relationship from the Data Model
+    /// </summary>
+    /// <param name="filePath">Path to Excel file with Data Model</param>
+    /// <param name="fromTable">Source table name</param>
+    /// <param name="fromColumn">Source column name</param>
+    /// <param name="toTable">Target table name</param>
+    /// <param name="toColumn">Target column name</param>
+    /// <returns>Result indicating success or failure</returns>
+    OperationResult DeleteRelationship(string filePath, string fromTable, string fromColumn, string toTable, string toColumn);
+
+    /// <summary>
     /// Refreshes entire Data Model or specific table
     /// </summary>
     /// <param name="filePath">Path to Excel file with Data Model</param>

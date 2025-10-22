@@ -126,6 +126,8 @@ class Program
                 "dm-export-measure" => await dataModel.ExportMeasure(args),
                 "dm-list-relationships" => dataModel.ListRelationships(args),
                 "dm-refresh" => dataModel.Refresh(args),
+                "dm-delete-measure" => dataModel.DeleteMeasure(args),
+                "dm-delete-relationship" => dataModel.DeleteRelationship(args),
 
                 "--help" or "-h" => ShowHelp(),
                 _ => ShowHelp()
@@ -313,6 +315,8 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]dm-export-measure[/] file.xlsx measure out.dax Export DAX measure to file");
         AnsiConsole.MarkupLine("  [cyan]dm-list-relationships[/] file.xlsx            List Data Model relationships");
         AnsiConsole.MarkupLine("  [cyan]dm-refresh[/] file.xlsx                        Refresh Data Model");
+        AnsiConsole.MarkupLine("  [cyan]dm-delete-measure[/] file.xlsx measure-name   Delete DAX measure");
+        AnsiConsole.MarkupLine("  [cyan]dm-delete-relationship[/] file.xlsx from-tbl from-col to-tbl to-col  Delete relationship");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold green]Examples:[/]");
