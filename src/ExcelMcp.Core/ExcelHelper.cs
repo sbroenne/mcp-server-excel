@@ -251,17 +251,37 @@ public static class ExcelHelper
     /// <returns>The named range COM object if found, null otherwise</returns>
     public static dynamic? FindName(dynamic workbook, string name)
     {
+        dynamic? namesCollection = null;
         try
         {
-            dynamic namesCollection = workbook.Names;
+            namesCollection = workbook.Names;
             int count = namesCollection.Count;
             for (int i = 1; i <= count; i++)
             {
-                dynamic nameObj = namesCollection.Item(i);
-                if (nameObj.Name == name) return nameObj;
+                dynamic? nameObj = null;
+                try
+                {
+                    nameObj = namesCollection.Item(i);
+                    if (nameObj.Name == name)
+                    {
+                        return nameObj; // Caller owns this object
+                    }
+                }
+                finally
+                {
+                    // Only release non-matching names
+                    if (nameObj != null && nameObj.Name != name)
+                    {
+                        ReleaseComObject(ref nameObj);
+                    }
+                }
             }
         }
         catch { }
+        finally
+        {
+            ReleaseComObject(ref namesCollection);
+        }
         return null;
     }
 
