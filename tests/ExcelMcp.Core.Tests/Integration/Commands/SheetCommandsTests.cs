@@ -7,7 +7,9 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 /// Integration tests for Sheet Core operations.
 /// These tests require Excel installation and validate Core worksheet data operations.
 /// Tests use Core commands directly (not through CLI wrapper).
+/// Uses Excel instance pooling for improved test performance.
 /// </summary>
+[Collection(nameof(ExcelPooledTestCollection))]
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]

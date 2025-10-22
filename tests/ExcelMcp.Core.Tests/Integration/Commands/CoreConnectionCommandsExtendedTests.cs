@@ -9,7 +9,9 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Commands;
 /// Extended integration tests for Connection Core operations.
 /// These tests cover additional scenarios, edge cases, and validation logic.
 /// Tests use Core commands directly (not through CLI wrapper).
+/// Uses Excel instance pooling for improved test performance.
 /// </summary>
+[Collection(nameof(ExcelPooledTestCollection))]
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
@@ -27,11 +29,11 @@ public class CoreConnectionCommandsExtendedTests : IDisposable
     {
         _commands = new ConnectionCommands();
         _fileCommands = new FileCommands();
-        
+
         // Create temp directory for test files
         _testDataDir = Path.Combine(Path.GetTempPath(), $"ExcelMcp_ConnectionExtTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_testDataDir);
-        
+
         _filesToCleanup = new List<string>();
     }
 
@@ -39,12 +41,12 @@ public class CoreConnectionCommandsExtendedTests : IDisposable
     {
         string filePath = Path.Combine(_testDataDir, $"test_{Guid.NewGuid():N}.xlsx");
         var result = _fileCommands.CreateEmpty(filePath, overwriteIfExists: false);
-        
+
         if (!result.Success)
         {
             throw new InvalidOperationException($"Failed to create test workbook: {result.ErrorMessage}");
         }
-        
+
         _filesToCleanup.Add(filePath);
         return filePath;
     }
@@ -221,7 +223,7 @@ public class CoreConnectionCommandsExtendedTests : IDisposable
         // Arrange
         string filePath = CreateTestWorkbook();
         string jsonPath = Path.Combine(_testDataDir, "update.json");
-        
+
         // Create minimal JSON
         File.WriteAllText(jsonPath, "{\"Name\":\"NonexistentConnection\",\"Type\":\"OLEDB\"}");
         _filesToCleanup.Add(jsonPath);
@@ -240,7 +242,7 @@ public class CoreConnectionCommandsExtendedTests : IDisposable
         // Arrange
         string filePath = CreateTestWorkbook();
         string jsonPath = Path.Combine(_testDataDir, "malformed.json");
-        
+
         // Create invalid JSON
         File.WriteAllText(jsonPath, "{invalid json content");
         _filesToCleanup.Add(jsonPath);

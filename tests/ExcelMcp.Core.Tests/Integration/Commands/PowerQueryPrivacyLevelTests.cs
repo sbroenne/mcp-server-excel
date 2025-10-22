@@ -7,7 +7,9 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 /// <summary>
 /// Integration tests for Power Query Privacy Level functionality.
 /// These tests validate privacy level detection, recommendation, and application.
+/// Uses Excel instance pooling for improved test performance.
 /// </summary>
+[Collection(nameof(ExcelPooledTestCollection))]
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
@@ -65,7 +67,7 @@ public class PowerQueryPrivacyLevelTests : IDisposable
         string queryFile = Path.Combine(_tempDir, "TestQuery.pq");
         string mCode = @"let
     Source = #table(
-        {""Column1"", ""Column2""}, 
+        {""Column1"", ""Column2""},
         {
             {""Value1"", ""Value2""},
             {""A"", ""B""}
@@ -94,7 +96,7 @@ in
         string queryFile = Path.Combine(_tempDir, "SimpleQuery.pq");
         string mCode = @"let
     Source = #table(
-        {""Column1""}, 
+        {""Column1""},
         {{""Value1""}}
     )
 in
