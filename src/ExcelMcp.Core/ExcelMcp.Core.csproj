@@ -4,21 +4,21 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    
+
     <!-- Assembly and Namespace Configuration -->
     <AssemblyName>Sbroenne.ExcelMcp.Core</AssemblyName>
     <RootNamespace>Sbroenne.ExcelMcp.Core</RootNamespace>
-    
+
     <!-- Version Information -->
     <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
-    
+
     <!-- Package Information -->
     <PackageId>Sbroenne.ExcelMcp.Core</PackageId>
     <Description>Core library for Excel automation operations via COM interop by Sbroenne. Shared by ExcelMcp and ExcelMcp.McpServer.</Description>
     <PackageTags>excel;automation;com;powerquery;vba;core;mcp;sbroenne</PackageTags>
-    
+
     <!-- Documentation -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
