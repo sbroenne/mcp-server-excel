@@ -160,6 +160,14 @@ dnx Sbroenne.ExcelMcp.McpServer --yes
 - **Code Review** - Analyze M code for best practices and improvements
 - **Version Control** - Export/import Power Query code for Git workflows
 
+### **Data Model & DAX Development**
+
+- **Measure Management** - View, export, and delete DAX measures
+- **Relationship Analysis** - List and manage table relationships
+- **Data Model Inspection** - Explore tables, record counts, and structure
+- **Code Review** - Analyze DAX formulas for performance and best practices
+- **Version Control** - Export DAX measures to files for Git workflows
+
 ### **VBA Development & Enhancement**
 
 - **Error Handling** - Add comprehensive try-catch patterns to VBA modules

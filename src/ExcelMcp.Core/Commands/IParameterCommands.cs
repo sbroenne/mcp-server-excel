@@ -23,6 +23,11 @@ public interface IParameterCommands
     ParameterValueResult Get(string filePath, string paramName);
 
     /// <summary>
+    /// Updates a named range reference
+    /// </summary>
+    OperationResult Update(string filePath, string paramName, string reference);
+
+    /// <summary>
     /// Creates a new named range
     /// </summary>
     OperationResult Create(string filePath, string paramName, string reference);

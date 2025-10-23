@@ -258,7 +258,7 @@ public class DataModelCommands : IDataModelCommands
                 foreach (var rel in result.Relationships.OrderBy(r => r.FromTable).ThenBy(r => r.ToTable))
                 {
                     string active = rel.IsActive ? "[green]✓[/]" : "[dim]○[/]";
-                    
+
                     table.AddRow(
                         rel.FromTable.EscapeMarkup(),
                         rel.FromColumn.EscapeMarkup(),
@@ -310,13 +310,13 @@ public class DataModelCommands : IDataModelCommands
         }
 
         var filePath = args[1];
-        
+
         AnsiConsole.Status()
             .Start($"Refreshing Data Model in {Path.GetFileName(filePath)}...", ctx =>
             {
                 ctx.Spinner(Spinner.Known.Dots);
                 ctx.SpinnerStyle(Style.Parse("cyan"));
-                
+
                 // Small delay to show spinner
                 System.Threading.Thread.Sleep(100);
             });
@@ -347,6 +347,115 @@ public class DataModelCommands : IDataModelCommands
         else
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int DeleteMeasure(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] dm-delete-measure <file.xlsx> <measure-name>");
+            return 1;
+        }
+
+        var filePath = args[1];
+        var measureName = args[2];
+
+        AnsiConsole.MarkupLine($"[bold]Deleting measure:[/] {measureName.EscapeMarkup()} from {Path.GetFileName(filePath)}");
+
+        var result = _coreCommands.DeleteMeasure(filePath, measureName);
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Measure '{measureName.EscapeMarkup()}' deleted successfully");
+
+            // Display workflow hints if available
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"\n[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[yellow]Suggestions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
+            return 1;
+        }
+    }
+
+    public int DeleteRelationship(string[] args)
+    {
+        if (args.Length < 6)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] dm-delete-relationship <file.xlsx> <from-table> <from-column> <to-table> <to-column>");
+            return 1;
+        }
+
+        var filePath = args[1];
+        var fromTable = args[2];
+        var fromColumn = args[3];
+        var toTable = args[4];
+        var toColumn = args[5];
+
+        AnsiConsole.MarkupLine($"[bold]Deleting relationship:[/] {fromTable.EscapeMarkup()}.{fromColumn.EscapeMarkup()} → {toTable.EscapeMarkup()}.{toColumn.EscapeMarkup()}");
+
+        var result = _coreCommands.DeleteRelationship(filePath, fromTable, fromColumn, toTable, toColumn);
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Relationship deleted successfully");
+
+            // Display workflow hints if available
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"\n[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[yellow]Suggestions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
             return 1;
         }
     }

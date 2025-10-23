@@ -14,6 +14,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Use "list" to see all named ranges (parameters) in a workbook
 /// - Use "get" to retrieve parameter values for configuration
 /// - Use "set" to update parameter values for dynamic behavior
+/// - Use "update" to change parameter cell reference
 /// - Use "create" to define new named ranges as parameters
 /// - Use "delete" to remove obsolete parameters
 ///
@@ -27,11 +28,11 @@ public static class ExcelParameterTool
     /// Manage Excel parameters (named ranges) - configuration values and reusable references
     /// </summary>
     [McpServerTool(Name = "excel_parameter")]
-    [Description("Manage Excel named ranges as parameters. Supports: list, get, set, create, delete.")]
+    [Description("Manage Excel named ranges as parameters. Supports: list, get, set, update, create, delete.")]
     public static string ExcelParameter(
         [Required]
-        [RegularExpression("^(list|get|set|create|delete)$")]
-        [Description("Action: list, get, set, create, delete")]
+        [RegularExpression("^(list|get|set|update|create|delete)$")]
+        [Description("Action: list, get, set, update, create, delete")]
         string action,
 
         [Required]
@@ -43,7 +44,7 @@ public static class ExcelParameterTool
         [Description("Parameter (named range) name")]
         string? parameterName = null,
 
-        [Description("Parameter value (for set) or cell reference (for create, e.g., 'Sheet1!A1')")]
+        [Description("Parameter value (for set) or cell reference (for create/update, e.g., 'Sheet1!A1')")]
         string? value = null)
     {
         try
@@ -55,10 +56,11 @@ public static class ExcelParameterTool
                 "list" => ListParameters(parameterCommands, excelPath),
                 "get" => GetParameter(parameterCommands, excelPath, parameterName),
                 "set" => SetParameter(parameterCommands, excelPath, parameterName, value),
+                "update" => UpdateParameter(parameterCommands, excelPath, parameterName, value),
                 "create" => CreateParameter(parameterCommands, excelPath, parameterName, value),
                 "delete" => DeleteParameter(parameterCommands, excelPath, parameterName),
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: list, get, set, create, delete")
+                    $"Unknown action '{action}'. Supported: list, get, set, update, create, delete")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -157,6 +159,37 @@ public static class ExcelParameterTool
             "Verify formulas using this parameter recalculate"
         };
         result.WorkflowHint = "Parameter updated. Next, verify and refresh dependencies.";
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string UpdateParameter(ParameterCommands commands, string filePath, string? parameterName, string? value)
+    {
+        if (string.IsNullOrEmpty(parameterName) || string.IsNullOrEmpty(value))
+            throw new ModelContextProtocol.McpException("parameterName and value (cell reference) are required for update action");
+
+        var result = commands.Update(filePath, parameterName, value);
+
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            result.SuggestedNextActions = new List<string>
+            {
+                "Check that the parameter exists using 'list'",
+                "Verify the cell reference is valid (e.g., 'Sheet1!A1')",
+                "Ensure referenced sheet and cells exist"
+            };
+            result.WorkflowHint = "Update failed. Ensure the parameter exists and reference is valid.";
+            throw new ModelContextProtocol.McpException($"update failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        result.SuggestedNextActions = new List<string>
+        {
+            "Use 'get' to verify the new reference",
+            "Use 'set' to change the value if needed",
+            "Update formulas using this parameter if necessary"
+        };
+        result.WorkflowHint = "Parameter reference updated. Next, verify or modify the value.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }

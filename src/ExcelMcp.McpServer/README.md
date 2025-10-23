@@ -57,7 +57,7 @@ dotnet run --project src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
 
 ## 🛠️ Resource-Based Tools
 
-The MCP server provides **7 focused resource-based tools** optimized for AI coding agents. Each tool handles only Excel-specific operations:
+The MCP server provides **8 focused resource-based tools** optimized for AI coding agents. Each tool handles only Excel-specific operations:
 
 ### 1. **`excel_file`** - Excel File Creation 🎯
 
@@ -85,7 +85,18 @@ The MCP server provides **7 focused resource-based tools** optimized for AI codi
 - 🎯 **LLM-Optimized**: AI can manage external data sources and refresh strategies
 - 🔒 **Security**: Automatic password sanitization in all outputs
 
-### 4. **`excel_worksheet`** - Worksheet Operations & Bulk Data 📊
+### 4. **`excel_datamodel`** - Data Model & DAX Management 📈
+
+**Actions**: `list-tables`, `list-measures`, `view-measure`, `export-measure`, `list-relationships`, `refresh`, `delete-measure`, `delete-relationship` (8 actions)
+
+- Excel Data Model (Power Pivot) operations for enterprise analytics
+- DAX measure inspection, export, and deletion
+- Table relationship management and analysis
+- Data Model refresh and structure exploration
+- 🎯 **LLM-Optimized**: AI can analyze DAX formulas and optimize Data Model structure
+- 📝 **Note**: CREATE/UPDATE operations require TOM API (planned for future phase)
+
+### 5. **`excel_worksheet`** - Worksheet Operations & Bulk Data 📊
 
 **Actions**: `list`, `read`, `write`, `create`, `rename`, `copy`, `delete`, `clear`, `append` (9 actions)  
 
@@ -93,7 +104,7 @@ The MCP server provides **7 focused resource-based tools** optimized for AI codi
 - CSV import/export and data processing capabilities
 - 🎯 **LLM-Optimized**: Bulk operations reduce the number of tool calls needed
 
-### 5. **`excel_parameter`** - Named Ranges as Configuration ⚙️
+### 6. **`excel_parameter`** - Named Ranges as Configuration ⚙️
 
 **Actions**: `list`, `get`, `set`, `create`, `delete` (5 actions)
 
@@ -101,7 +112,7 @@ The MCP server provides **7 focused resource-based tools** optimized for AI codi
 - Parameter-driven workbook automation and templating
 - 🎯 **LLM-Optimized**: AI can dynamically configure Excel behavior via parameters
 
-### 6. **`excel_cell`** - Individual Cell Precision Operations 🎯
+### 7. **`excel_cell`** - Individual Cell Precision Operations 🎯
 
 **Actions**: `get-value`, `set-value`, `get-formula`, `set-formula` (4 actions)
 
@@ -109,7 +120,7 @@ The MCP server provides **7 focused resource-based tools** optimized for AI codi
 - Individual cell operations when bulk operations aren't appropriate
 - 🎯 **LLM-Optimized**: Perfect for AI formula generation and cell-specific logic
 
-### 7. **`excel_vba`** - VBA Macro Management & Execution 📜
+### 8. **`excel_vba`** - VBA Macro Management & Execution 📜
 
 **Actions**: `list`, `export`, `import`, `update`, `run`, `delete` (6 actions) ⚠️ *(.xlsm files only)*
 
@@ -157,6 +168,34 @@ Result: {"success": true, "message": "Connection 'SalesDB' refreshed successfull
 User: "Export the connection definition for version control"
 AI Assistant uses: excel_connection(action="export", excelPath="data-analysis.xlsx", connectionName="SalesDB", targetPath="salesdb-connection.json")
 Result: {"success": true, "message": "Connection exported to salesdb-connection.json"}
+```
+
+### Data Model Management
+
+```text
+User: "Show me all tables in the Data Model"
+AI Assistant uses: excel_datamodel(action="list-tables", excelPath="sales-analysis.xlsx")
+Result: {"success": true, "tables": [{"name": "Sales", "recordCount": 15420}, {"name": "Customers", "recordCount": 350}]}
+
+User: "List all DAX measures in my workbook"
+AI Assistant uses: excel_datamodel(action="list-measures", excelPath="sales-analysis.xlsx")
+Result: {"success": true, "measures": [{"name": "Total Sales", "formula": "SUM(Sales[Amount])", "table": "Sales"}]}
+
+User: "Export the 'Total Sales' measure to a file for version control"
+AI Assistant uses: excel_datamodel(action="export-measure", excelPath="sales-analysis.xlsx", measureName="Total Sales", outputPath="measures/total-sales.dax")
+Result: {"success": true, "message": "Measure exported successfully"}
+
+User: "Show me all relationships between tables"
+AI Assistant uses: excel_datamodel(action="list-relationships", excelPath="sales-analysis.xlsx")
+Result: {"success": true, "relationships": [{"fromTable": "Sales", "fromColumn": "CustomerID", "toTable": "Customers", "toColumn": "ID", "isActive": true}]}
+
+User: "Delete the old 'Previous Year Sales' measure"
+AI Assistant uses: excel_datamodel(action="delete-measure", excelPath="sales-analysis.xlsx", measureName="Previous Year Sales")
+Result: {"success": true, "message": "Measure 'Previous Year Sales' deleted successfully"}
+
+User: "Refresh the Data Model to get latest data"
+AI Assistant uses: excel_datamodel(action="refresh", excelPath="sales-analysis.xlsx")
+Result: {"success": true, "message": "Data Model refreshed successfully"}
 ```
 
 ### Worksheet Operations
