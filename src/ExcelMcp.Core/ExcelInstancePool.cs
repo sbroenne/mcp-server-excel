@@ -400,6 +400,10 @@ public sealed class ExcelInstancePool : IDisposable
 
         // Dispose semaphore
         _instanceSemaphore?.Dispose();
+
+        // Wait for Excel COM processes to fully terminate
+        // Excel processes can take 2-5 seconds to close after Quit() and GC
+        Thread.Sleep(500);
     }
 
     private class PooledExcelInstance

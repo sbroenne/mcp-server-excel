@@ -121,8 +121,9 @@ public class ExcelPooledTestFixture : IDisposable
         // Disable pooling first to prevent new operations from starting
         ExcelHelper.InstancePool = null;
 
-        // Small delay to let any in-flight operations complete
-        Thread.Sleep(100);
+        // Wait for any in-flight operations to complete
+        // Excel COM operations can take time, especially during cleanup
+        Thread.Sleep(500);
 
         // Now safe to dispose pool and clean up all Excel instances
         _pool?.Dispose();
