@@ -602,7 +602,10 @@ All Core Commands (zero changes needed)
 **MCP Server Configuration:**
 ```csharp
 // Program.cs - MCP Server startup
-var pool = new ExcelInstancePool(idleTimeout: TimeSpan.FromSeconds(60));
+var pool = new ExcelInstancePool(
+    idleTimeout: TimeSpan.FromSeconds(60), 
+    maxInstances: 10  // Limit concurrent Excel processes
+);
 ExcelHelper.InstancePool = pool; // Enable pooling for all Core commands
 ```
 
@@ -611,6 +614,8 @@ ExcelHelper.InstancePool = pool; // Enable pooling for all Core commands
 - ✅ **Conversational workflows** - Multiple operations in quick succession
 - ✅ **Auto cleanup** - Idle instances disposed after 60 seconds
 - ✅ **Thread-safe** - Concurrent MCP requests handled correctly
+- ✅ **Resource limits** - Max 10 Excel instances prevents system exhaustion
+- ✅ **LLM-friendly errors** - Clear guidance when pool is full
 - ✅ **Zero code changes** - Core commands automatically use pooling if enabled
 
 **CLI Behavior:**
@@ -624,10 +629,38 @@ ExcelHelper.InstancePool = pool; // Enable pooling for all Core commands
 - ❌ **CLI** - Keep simple single-instance pattern
 - ❌ **Long-lived processes** - Dispose pool when done
 
+**Pool Capacity Management:**
+
+When pool reaches max capacity (10 instances), operations timeout after 5 seconds and throw `ExcelPoolCapacityException` with actionable guidance:
+
+```
+Excel instance pool is at maximum capacity (10/10 instances active).
+Idle instances are automatically cleaned up after 60 seconds.
+
+SUGGESTED ACTIONS:
+1. Wait 60 seconds for idle instances to be automatically cleaned up
+2. Close workbooks you're no longer using with excel_file action='close-workbook'
+3. Check which files are currently open and close any you don't need
+4. Consider working on fewer files simultaneously
+```
+
+**LLM Can Resolve Capacity Issues:**
+```typescript
+// Explicitly close file to free pool slot
+excel_file({ 
+  action: "close-workbook", 
+  excelPath: "path/to/file.xlsx" 
+})
+// Returns: "Workbook closed in pool. Instance slot freed for reuse."
+```
+
 **Pool Management:**
 ```csharp
-// Create pool
-var pool = new ExcelInstancePool(idleTimeout: TimeSpan.FromSeconds(60));
+// Create pool with capacity limit
+var pool = new ExcelInstancePool(
+    idleTimeout: TimeSpan.FromSeconds(60),
+    maxInstances: 10  // Default: 10
+);
 
 // Enable pooling globally
 ExcelHelper.InstancePool = pool;
@@ -649,12 +682,19 @@ pool.CloseWorkbook(filePath);
 
 // Remove instance from pool completely
 pool.EvictInstance(filePath);
+
+// Monitor pool health
+int active = pool.ActiveInstances;  // Current instances
+long hits = pool.TotalHits;         // Cache hits
+double hitRate = pool.HitRate;      // Hit rate (0.0-1.0)
 ```
 
 **Performance Metrics:**
 - **First operation:** ~2-5 seconds (Excel startup)
 - **Subsequent operations (cached):** <100ms (instance reuse)
 - **Idle cleanup:** Automatic after 60 seconds inactivity
+- **Capacity limit:** Max 10 Excel instances (configurable)
+- **Timeout on full:** 5 seconds before exception thrown
 - **Memory overhead:** Minimal (one Excel instance per unique file path)
 
 ## Critical Excel COM Interop Rules

@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ModelContextProtocol;
+using Sbroenne.ExcelMcp.Core;
 
 #pragma warning disable IL2070 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' requirements
 
@@ -72,6 +73,7 @@ public static class ExcelToolsBase
     /// Wraps exceptions in MCP exceptions for better error reporting.
     /// SDK Pattern: Wrap business logic exceptions in McpException with context.
     /// LLM-Optimized: Include full exception details including stack trace context for debugging.
+    /// Special handling for ExcelPoolCapacityException to provide actionable guidance.
     /// </summary>
     /// <param name="ex">The exception that occurred</param>
     /// <param name="action">The action that was being attempted</param>
@@ -79,21 +81,33 @@ public static class ExcelToolsBase
     /// <exception cref="McpException">Always throws with contextual error message</exception>
     public static void ThrowInternalError(Exception ex, string action, string? filePath = null)
     {
+        // Special handling for pool capacity exception - provide LLM with actionable guidance
+        if (ex is ExcelPoolCapacityException poolEx)
+        {
+            var message = $"{action} failed: Excel instance pool is at maximum capacity " +
+                         $"({poolEx.ActiveInstances}/{poolEx.MaxInstances} instances active). " +
+                         $"Idle instances are automatically cleaned up after {poolEx.IdleTimeout.TotalSeconds:F0} seconds. " +
+                         $"\n\nSUGGESTED ACTIONS:\n" +
+                         string.Join("\n", poolEx.SuggestedActions.Select((a, i) => $"{i + 1}. {a}"));
+
+            throw new McpException(message, ex);
+        }
+
         // Build comprehensive error message for LLM debugging
-        var message = filePath != null
+        var errorMessage = filePath != null
             ? $"{action} failed for '{filePath}': {ex.Message}"
             : $"{action} failed: {ex.Message}";
 
         // Include exception type and inner exception details for better diagnostics
         if (ex.InnerException != null)
         {
-            message += $" (Inner: {ex.InnerException.Message})";
+            errorMessage += $" (Inner: {ex.InnerException.Message})";
         }
 
         // Add exception type to help identify the root cause
-        message += $" [Exception Type: {ex.GetType().Name}]";
+        errorMessage += $" [Exception Type: {ex.GetType().Name}]";
 
-        throw new McpException(message, ex);
+        throw new McpException(errorMessage, ex);
     }
 
     /// <summary>
