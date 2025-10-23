@@ -118,10 +118,13 @@ public class ExcelPooledTestFixture : IDisposable
 
     public void Dispose()
     {
-        // Disable pooling
+        // Disable pooling first to prevent new operations from starting
         ExcelHelper.InstancePool = null;
 
-        // Dispose pool and clean up all Excel instances
+        // Small delay to let any in-flight operations complete
+        Thread.Sleep(100);
+
+        // Now safe to dispose pool and clean up all Excel instances
         _pool?.Dispose();
 
         GC.SuppressFinalize(this);

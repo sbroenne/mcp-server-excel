@@ -175,9 +175,17 @@ public sealed class ExcelInstancePool : IDisposable
         finally
         {
             // Only release semaphore if we acquired it (i.e., created new instance)
-            if (semaphoreAcquired)
+            // AND the pool hasn't been disposed (prevents ObjectDisposedException during cleanup)
+            if (semaphoreAcquired && !_disposed)
             {
-                _instanceSemaphore.Release();
+                try
+                {
+                    _instanceSemaphore.Release();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Pool was disposed during operation - ignore
+                }
             }
         }
     }

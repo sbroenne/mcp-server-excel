@@ -124,7 +124,7 @@ public class ExcelInstancePoolIntegrationTests : IDisposable
 
         // Note: We don't kill all Excel processes - that would close user's personal Excel files!
         // Tests rely on proper pool cleanup via Dispose()
-        
+
         int initialExcelCount = GetExcelProcessCount();
         _output.WriteLine($"Initial Excel processes: {initialExcelCount}");
 
