@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AnalysisServices.NetCore.retail.amd64" />
+    <PackageReference Include="Microsoft.Extensions.ObjectPool" />
     <PackageReference Include="NuGet.Protocol" />
     <PackageReference Include="NuGet.Versioning" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers">
