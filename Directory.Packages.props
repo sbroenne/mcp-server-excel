@@ -15,6 +15,9 @@
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="9.0.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
     <PackageVersion Include="System.Text.Json" Version="8.0.6" />
+    <!-- NuGet API Client -->
+    <PackageVersion Include="NuGet.Protocol" Version="6.12.1" />
+    <PackageVersion Include="NuGet.Versioning" Version="6.12.1" />
     <!-- MCP (Model Context Protocol) -->
     <!-- MCP SDK -->
     <PackageVersion Include="ModelContextProtocol" Version="0.4.0-preview.3" />
