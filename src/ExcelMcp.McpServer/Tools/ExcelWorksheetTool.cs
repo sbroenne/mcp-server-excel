@@ -146,7 +146,21 @@ public static class ExcelWorksheetTool
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(dataPath))
             throw new ModelContextProtocol.McpException("sheetName and range (CSV file path) are required for write action");
 
-        var result = commands.Write(filePath, sheetName, dataPath);
+        // Read CSV file content before passing to Core command
+        if (!File.Exists(dataPath))
+            throw new ModelContextProtocol.McpException($"CSV file not found: {dataPath}");
+
+        string csvContent;
+        try
+        {
+            csvContent = File.ReadAllText(dataPath);
+        }
+        catch (Exception ex)
+        {
+            throw new ModelContextProtocol.McpException($"Failed to read CSV file '{dataPath}': {ex.Message}");
+        }
+
+        var result = commands.Write(filePath, sheetName, csvContent);
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -332,7 +346,21 @@ public static class ExcelWorksheetTool
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(dataPath))
             throw new ModelContextProtocol.McpException("sheetName and range (CSV file path) are required for append action");
 
-        var result = commands.Append(filePath, sheetName, dataPath);
+        // Read CSV file content before passing to Core command
+        if (!File.Exists(dataPath))
+            throw new ModelContextProtocol.McpException($"CSV file not found: {dataPath}");
+
+        string csvContent;
+        try
+        {
+            csvContent = File.ReadAllText(dataPath);
+        }
+        catch (Exception ex)
+        {
+            throw new ModelContextProtocol.McpException($"Failed to read CSV file '{dataPath}': {ex.Message}");
+        }
+
+        var result = commands.Append(filePath, sheetName, csvContent);
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
