@@ -305,6 +305,37 @@ public class ScriptListResult : ResultBase
 }
 
 /// <summary>
+/// Result for viewing VBA module code
+/// </summary>
+public class ScriptViewResult : ResultBase
+{
+    /// <summary>
+    /// Module name
+    /// </summary>
+    public string ModuleName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Module type
+    /// </summary>
+    public string ModuleType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Complete VBA code
+    /// </summary>
+    public string Code { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Number of lines in the module
+    /// </summary>
+    public int LineCount { get; set; }
+
+    /// <summary>
+    /// List of procedures in the module
+    /// </summary>
+    public List<string> Procedures { get; set; } = new();
+}
+
+/// <summary>
 /// Information about a VBA script
 /// </summary>
 public class ScriptInfo

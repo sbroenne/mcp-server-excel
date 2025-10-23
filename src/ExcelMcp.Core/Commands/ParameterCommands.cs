@@ -274,6 +274,77 @@ public class ParameterCommands : IParameterCommands
     }
 
     /// <inheritdoc />
+    public OperationResult Update(string filePath, string paramName, string reference)
+    {
+        if (!File.Exists(filePath))
+        {
+            return new OperationResult
+            {
+                Success = false,
+                ErrorMessage = $"File not found: {filePath}",
+                FilePath = filePath,
+                Action = "update-parameter"
+            };
+        }
+
+        var result = new OperationResult { FilePath = filePath, Action = "update-parameter" };
+
+        WithExcel(filePath, true, (excel, workbook) =>
+        {
+            dynamic? nameObj = null;
+            try
+            {
+                nameObj = FindName(workbook, paramName);
+                if (nameObj == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Parameter '{paramName}' not found";
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        "Use 'param-list' to see available parameters",
+                        "Use 'param-create' to create a new named range"
+                    };
+                    return 1;
+                }
+
+                // Ensure reference is properly formatted with = prefix
+                string formattedReference = reference.StartsWith("=") ? reference : $"={reference}";
+                
+                // Update the reference
+                nameObj.RefersTo = formattedReference;
+                
+                result.Success = true;
+                result.SuggestedNextActions = new List<string>
+                {
+                    $"Parameter '{paramName}' reference updated to '{reference}'",
+                    "Use 'param-get' to verify new value",
+                    "Use 'param-set' to change the value"
+                };
+                result.WorkflowHint = "Parameter reference updated. Next, verify or modify the value.";
+                
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Error updating parameter: {ex.Message}";
+                result.SuggestedNextActions = new List<string>
+                {
+                    "Check that reference is valid (e.g., 'Sheet1!A1' or '=Sheet1!A1')",
+                    "Ensure referenced sheet and cells exist"
+                };
+                return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref nameObj);
+            }
+        });
+
+        return result;
+    }
+
+    /// <inheritdoc />
     public OperationResult Delete(string filePath, string paramName)
     {
         if (!File.Exists(filePath))

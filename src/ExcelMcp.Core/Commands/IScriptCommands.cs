@@ -13,6 +13,11 @@ public interface IScriptCommands
     ScriptListResult List(string filePath);
 
     /// <summary>
+    /// Views VBA module code without exporting to file
+    /// </summary>
+    ScriptViewResult View(string filePath, string moduleName);
+
+    /// <summary>
     /// Exports VBA module code to a file
     /// </summary>
     Task<OperationResult> Export(string filePath, string moduleName, string outputFile);
