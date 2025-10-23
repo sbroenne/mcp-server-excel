@@ -57,7 +57,7 @@ dotnet run --project src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
 
 ## 🛠️ Resource-Based Tools
 
-The MCP server provides **8 focused resource-based tools** optimized for AI coding agents. Each tool handles only Excel-specific operations:
+The MCP server provides **9 focused resource-based tools** optimized for AI coding agents. Each tool handles only Excel-specific operations:
 
 ### 1. **`excel_file`** - Excel File Creation 🎯
 
@@ -127,6 +127,15 @@ The MCP server provides **8 focused resource-based tools** optimized for AI codi
 - Complete VBA lifecycle for AI-assisted macro development and automation
 - Script import/export for version control and code review
 - 🎯 **LLM-Optimized**: AI can enhance VBA with error handling, logging, and best practices
+
+### 9. **`excel_version`** - Version Checking ⚡
+
+**Actions**: `check` (1 action)
+
+- Check for updates on NuGet.org
+- Automatic startup check displays warning if outdated version detected
+- Provides update instructions and workflow guidance
+- 🎯 **LLM-Optimized**: AI can notify users about available updates and guide upgrade process
 
 ## 💬 Example AI Assistant Interactions
 
@@ -384,6 +393,24 @@ Your VBA module now includes:
 - Structured logging for debugging
 - Input validation and sanitization
 - Better code organization and comments
+```
+
+**Version Check and Update Workflow:**
+
+```text
+User: "Check if I'm running the latest version of ExcelMcp"
+
+Copilot: Let me check for updates:
+
+[Executes: excel_version check]
+
+Result: A newer version (1.2.0) is available. You are running version 1.0.0.
+
+Update instructions:
+The dnx command automatically downloads the latest version from NuGet.
+Simply restart VS Code to update - the MCP server will use the new version automatically.
+
+Would you like me to verify the update after you restart?
 ```
 
 **Power Query Code Review and Optimization:**

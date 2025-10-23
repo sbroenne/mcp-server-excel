@@ -15,15 +15,44 @@ public sealed class ExcelInstancePool : IDisposable
     private readonly ConcurrentDictionary<string, PooledExcelInstance> _instances = new();
     private readonly TimeSpan _idleTimeout;
     private readonly Timer _cleanupTimer;
+    private readonly SemaphoreSlim _instanceSemaphore;
+    private readonly int _maxInstances;
     private bool _disposed;
 
+    // Metrics
+    private long _totalGets;
+    private long _totalHits;
+
     /// <summary>
-    /// Creates a new Excel instance pool with the specified idle timeout.
+    /// Gets the current number of active pooled Excel instances.
+    /// </summary>
+    public int ActiveInstances => _instances.Count;
+
+    /// <summary>
+    /// Gets the total number of pool access requests.
+    /// </summary>
+    public long TotalGets => Interlocked.Read(ref _totalGets);
+
+    /// <summary>
+    /// Gets the total number of cache hits (reused instances).
+    /// </summary>
+    public long TotalHits => Interlocked.Read(ref _totalHits);
+
+    /// <summary>
+    /// Gets the cache hit rate (0.0 to 1.0).
+    /// </summary>
+    public double HitRate => TotalGets > 0 ? (double)TotalHits / TotalGets : 0;
+
+    /// <summary>
+    /// Creates a new Excel instance pool with the specified idle timeout and maximum instances.
     /// </summary>
     /// <param name="idleTimeout">Time before idle instances are disposed. Default: 60 seconds.</param>
-    public ExcelInstancePool(TimeSpan? idleTimeout = null)
+    /// <param name="maxInstances">Maximum number of concurrent Excel instances. Default: 10.</param>
+    public ExcelInstancePool(TimeSpan? idleTimeout = null, int maxInstances = 10)
     {
         _idleTimeout = idleTimeout ?? TimeSpan.FromSeconds(60);
+        _maxInstances = maxInstances;
+        _instanceSemaphore = new SemaphoreSlim(maxInstances, maxInstances);
 
         // Cleanup timer runs every 30 seconds to dispose idle instances
         _cleanupTimer = new Timer(CleanupIdleInstances, null,
@@ -38,79 +67,117 @@ public sealed class ExcelInstancePool : IDisposable
     /// <param name="save">Whether to save changes to the file</param>
     /// <param name="action">Action to execute with Excel application and workbook</param>
     /// <returns>Result of the action</returns>
+    /// <exception cref="ExcelPoolCapacityException">Thrown when pool is at maximum capacity and no slot becomes available within timeout period</exception>
     public T WithPooledExcel<T>(string filePath, bool save, Func<dynamic, dynamic, T> action)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        // Track pool access
+        Interlocked.Increment(ref _totalGets);
+
         // Normalize path for pooling (case-insensitive on Windows)
         string normalizedPath = Path.GetFullPath(filePath).ToLowerInvariant();
 
-        // Get or create pooled instance
-        var pooledInstance = _instances.GetOrAdd(normalizedPath, _ => CreatePooledInstance(filePath));
+        // Check if instance already exists
+        bool isExistingInstance = _instances.ContainsKey(normalizedPath);
+        bool semaphoreAcquired = false;
 
-        lock (pooledInstance.Lock)
+        try
         {
-            try
+            // Only wait for semaphore slot if creating NEW instance
+            if (!isExistingInstance)
             {
-                // Update last used timestamp
-                pooledInstance.LastUsed = DateTime.UtcNow;
-
-                // If workbook is not currently open, open it
-                if (pooledInstance.Workbook == null)
+                // Wait for available slot with timeout (prevents indefinite blocking)
+                // Timeout of 5 seconds is reasonable - if pool is full, LLM should know quickly
+                if (!_instanceSemaphore.Wait(TimeSpan.FromSeconds(5)))
                 {
-                    pooledInstance.Workbook = OpenWorkbook(pooledInstance.Excel, filePath);
+                    // Pool is at capacity - provide actionable guidance to LLM
+                    throw new ExcelPoolCapacityException(ActiveInstances, _maxInstances, _idleTimeout);
                 }
-
-                // Execute the user action
-                T result = action(pooledInstance.Excel, pooledInstance.Workbook);
-
-                // Save if requested
-                if (save && pooledInstance.Workbook != null)
-                {
-                    pooledInstance.Workbook.Save();
-                }
-
-                return result;
+                semaphoreAcquired = true;
             }
-            catch (COMException comEx) when (comEx.ErrorCode == unchecked((int)0x800A03EC))
+
+            // Get or create pooled instance
+            var pooledInstance = _instances.GetOrAdd(normalizedPath, _ => CreatePooledInstance(filePath));
+
+            // Track cache hit (if instance was reused)
+            if (isExistingInstance)
             {
-                // Excel object is no longer valid - recreate instance
-                DisposePooledInstance(pooledInstance, normalizedPath);
+                Interlocked.Increment(ref _totalHits);
+            }
 
-                // Retry with fresh instance
-                var newInstance = CreatePooledInstance(filePath);
-                _instances[normalizedPath] = newInstance;
-
-                lock (newInstance.Lock)
+            lock (pooledInstance.Lock)
+            {
+                try
                 {
-                    newInstance.Workbook = OpenWorkbook(newInstance.Excel, filePath);
-                    T result = action(newInstance.Excel, newInstance.Workbook);
+                    // Update last used timestamp
+                    pooledInstance.LastUsed = DateTime.UtcNow;
 
-                    if (save && newInstance.Workbook != null)
+                    // If workbook is not currently open, open it
+                    if (pooledInstance.Workbook == null)
                     {
-                        newInstance.Workbook.Save();
+                        pooledInstance.Workbook = OpenWorkbook(pooledInstance.Excel, filePath);
+                    }
+
+                    // Execute the user action
+                    T result = action(pooledInstance.Excel, pooledInstance.Workbook);
+
+                    // Save if requested
+                    if (save && pooledInstance.Workbook != null)
+                    {
+                        pooledInstance.Workbook.Save();
                     }
 
                     return result;
                 }
-            }
-            catch
-            {
-                // On error, close workbook but keep Excel instance alive for retry
-                if (pooledInstance.Workbook != null)
+                catch (COMException comEx) when (comEx.ErrorCode == unchecked((int)0x800A03EC))
                 {
-                    try
+                    // Excel object is no longer valid - recreate instance
+                    DisposePooledInstance(pooledInstance, normalizedPath);
+
+                    // Retry with fresh instance
+                    var newInstance = CreatePooledInstance(filePath);
+                    _instances[normalizedPath] = newInstance;
+
+                    lock (newInstance.Lock)
                     {
-                        pooledInstance.Workbook.Close(false);
-                        Marshal.ReleaseComObject(pooledInstance.Workbook);
-                        pooledInstance.Workbook = null;
-                    }
-                    catch (Exception)
-                    {
-                        // Ignore cleanup errors
+                        newInstance.Workbook = OpenWorkbook(newInstance.Excel, filePath);
+                        T result = action(newInstance.Excel, newInstance.Workbook);
+
+                        if (save && newInstance.Workbook != null)
+                        {
+                            newInstance.Workbook.Save();
+                        }
+
+                        return result;
                     }
                 }
-                throw;
+                catch
+                {
+                    // On error, close workbook but keep Excel instance alive for retry
+                    if (pooledInstance.Workbook != null)
+                    {
+                        try
+                        {
+                            pooledInstance.Workbook.Close(false);
+                            Marshal.ReleaseComObject(pooledInstance.Workbook);
+                            pooledInstance.Workbook = null;
+                        }
+                        catch (Exception)
+                        {
+                            // Ignore cleanup errors
+                        }
+                    }
+                    throw;
+                }
+            }
+        }
+        finally
+        {
+            // Only release semaphore if we acquired it (i.e., created new instance)
+            if (semaphoreAcquired)
+            {
+                _instanceSemaphore.Release();
             }
         }
     }
@@ -163,6 +230,7 @@ public sealed class ExcelInstancePool : IDisposable
         if (_instances.TryRemove(normalizedPath, out var pooledInstance))
         {
             DisposePooledInstance(pooledInstance, normalizedPath);
+            // Note: Semaphore was already released when instance was created
         }
     }
 
@@ -235,25 +303,24 @@ public sealed class ExcelInstancePool : IDisposable
         if (_disposed) return;
 
         var now = DateTime.UtcNow;
-        var keysToRemove = new List<string>();
 
-        foreach (var kvp in _instances)
+        // Snapshot keys to avoid modification during enumeration (prevents race condition)
+        var keysSnapshot = _instances.Keys.ToList();
+
+        foreach (var key in keysSnapshot)
         {
-            var pooledInstance = kvp.Value;
-
-            // Check if instance has been idle too long
-            if (now - pooledInstance.LastUsed > _idleTimeout)
+            if (_instances.TryGetValue(key, out var instance))
             {
-                keysToRemove.Add(kvp.Key);
-            }
-        }
-
-        // Remove and dispose idle instances
-        foreach (var key in keysToRemove)
-        {
-            if (_instances.TryRemove(key, out var pooledInstance))
-            {
-                DisposePooledInstance(pooledInstance, key);
+                // Check if instance has been idle too long
+                if (now - instance.LastUsed > _idleTimeout)
+                {
+                    // Try to remove and dispose
+                    if (_instances.TryRemove(key, out var removedInstance))
+                    {
+                        DisposePooledInstance(removedInstance, key);
+                        // Note: Semaphore was already released when instance was created
+                    }
+                }
             }
         }
     }
@@ -322,6 +389,9 @@ public sealed class ExcelInstancePool : IDisposable
         }
 
         _instances.Clear();
+
+        // Dispose semaphore
+        _instanceSemaphore?.Dispose();
     }
 
     private class PooledExcelInstance

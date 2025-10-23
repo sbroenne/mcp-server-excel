@@ -194,7 +194,7 @@ dnx Sbroenne.ExcelMcp.McpServer --yes
 
 ## 7️⃣ MCP Tools Overview
 
-The MCP server provides 7 focused resource-based tools for AI assistants:
+The MCP server provides 8 focused resource-based tools for AI assistants:
 
 - **excel_file** - Excel file creation (1 action: create-empty) 🎯 *Only Excel-specific operations*
 - **excel_powerquery** - Power Query M code management (11 actions: list, view, import, export, update, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config)
@@ -203,6 +203,7 @@ The MCP server provides 7 focused resource-based tools for AI assistants:
 - **excel_parameter** - Named ranges as configuration parameters (5 actions: list, get, set, create, delete)
 - **excel_cell** - Individual cell precision operations (4 actions: get-value, set-value, get-formula, set-formula)
 - **excel_vba** - VBA macro management and execution (6 actions: list, export, import, update, run, delete)
+- **excel_version** - Check for updates on NuGet.org (1 action: check) ⚡ *Automatic startup check*
 
 > 🧠 **[Complete MCP Server Guide →](src/ExcelMcp.McpServer/README.md)** - Detailed MCP integration and AI examples
 
