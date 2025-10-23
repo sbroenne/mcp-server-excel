@@ -48,8 +48,8 @@ public class Program
                     Console.Error.WriteLine($"⚠️  WARNING: ExcelMcp update available!");
                     Console.Error.WriteLine($"   Current version: {result.CurrentVersion}");
                     Console.Error.WriteLine($"   Latest version:  {result.LatestVersion}");
-                    Console.Error.WriteLine($"   Update with: dotnet tool update -g {result.PackageId}");
-                    Console.Error.WriteLine($"   Restart VS Code after updating to use the new version.");
+                    Console.Error.WriteLine($"   The dnx command automatically downloads the latest version.");
+                    Console.Error.WriteLine($"   Restart VS Code to update to the new version.");
                 }
             }
             catch

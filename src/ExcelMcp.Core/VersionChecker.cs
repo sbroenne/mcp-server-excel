@@ -150,7 +150,7 @@ public class VersionCheckResult
         if (IsOutdated)
         {
             return $"Warning: A newer version ({LatestVersion}) is available. You are running version {CurrentVersion}. " +
-                   $"Update with: dotnet tool update -g {PackageId}";
+                   $"Restart VS Code to update (dnx automatically downloads the latest version).";
         }
 
         return $"You are running the latest version ({CurrentVersion}).";

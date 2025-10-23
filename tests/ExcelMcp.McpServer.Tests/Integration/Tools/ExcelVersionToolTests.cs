@@ -80,11 +80,11 @@ public class ExcelVersionToolTests
         if (json.RootElement.GetProperty("success").GetBoolean() &&
             json.RootElement.GetProperty("isOutdated").GetBoolean())
         {
-            Assert.True(json.RootElement.TryGetProperty("updateCommand", out var updateCommand));
-            var cmd = updateCommand.GetString();
-            Assert.NotNull(cmd);
-            Assert.Contains("dotnet tool update", cmd);
-            Assert.Contains("Sbroenne.ExcelMcp.McpServer", cmd);
+            Assert.True(json.RootElement.TryGetProperty("updateInstructions", out var updateInstructions));
+            var instructions = updateInstructions.GetString();
+            Assert.NotNull(instructions);
+            Assert.Contains("dnx", instructions);
+            Assert.Contains("automatically", instructions);
         }
     }
 

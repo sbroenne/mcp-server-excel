@@ -84,14 +84,14 @@ public static class ExcelVersionTool
                 latestVersion = result.LatestVersion,
                 packageId = result.PackageId,
                 message = $"A newer version ({result.LatestVersion}) is available. You are running version {result.CurrentVersion}.",
-                updateCommand = $"dotnet tool update -g {result.PackageId}",
+                updateInstructions = "The dnx command automatically downloads the latest version from NuGet.",
                 suggestedNextActions = new[]
                 {
-                    $"Update with: dotnet tool update -g {result.PackageId}",
-                    "Restart VS Code after updating (this will restart the MCP server)",
-                    "Verify update with excel_version check action"
+                    "Restart VS Code to update to the latest version",
+                    "The dnx command will automatically download and use the new version",
+                    "Verify update with excel_version check action after restart"
                 },
-                workflowHint = "Update available. Run the update command and restart VS Code to use the latest version."
+                workflowHint = "Update available. Simply restart VS Code - dnx automatically downloads the latest version from NuGet."
             }, ExcelToolsBase.JsonOptions);
         }
 

@@ -94,7 +94,7 @@ public class VersionCheckerTests
         Assert.Contains("Warning", message);
         Assert.Contains("2.0.0", message);
         Assert.Contains("1.0.0", message);
-        Assert.Contains("dotnet tool update", message);
+        Assert.Contains("Restart VS Code", message);
     }
 
     [Fact]

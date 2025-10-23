@@ -407,11 +407,10 @@ Copilot: Let me check for updates:
 Result: A newer version (1.2.0) is available. You are running version 1.0.0.
 
 Update instructions:
-1. Run: dotnet tool update -g Sbroenne.ExcelMcp.McpServer
-2. Restart VS Code (this will restart the MCP server)
-3. Verify update with another version check
+The dnx command automatically downloads the latest version from NuGet.
+Simply restart VS Code to update - the MCP server will use the new version automatically.
 
-Would you like me to guide you through the update process?
+Would you like me to verify the update after you restart?
 ```
 
 **Power Query Code Review and Optimization:**
