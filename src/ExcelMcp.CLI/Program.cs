@@ -91,6 +91,7 @@ class Program
                 "param-list" => param.List(args),
                 "param-set" => param.Set(args),
                 "param-get" => param.Get(args),
+                "param-update" => param.Update(args),
                 "param-create" => param.Create(args),
                 "param-delete" => param.Delete(args),
 
@@ -115,6 +116,7 @@ class Program
 
                 // Script commands
                 "script-list" => script.List(args),
+                "script-view" => script.View(args),
                 "script-export" => script.Export(args),
                 "script-import" => await script.Import(args),
                 "script-update" => await script.Update(args),
@@ -288,6 +290,7 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]param-list[/] file.xlsx                        List all named ranges");
         AnsiConsole.MarkupLine("  [cyan]param-get[/] file.xlsx param-name             Get named range value");
         AnsiConsole.MarkupLine("  [cyan]param-set[/] file.xlsx param-name value        Set named range value");
+        AnsiConsole.MarkupLine("  [cyan]param-update[/] file.xlsx param-name ref       Update named range reference");
         AnsiConsole.MarkupLine("  [cyan]param-create[/] file.xlsx param-name ref       Create named range");
         AnsiConsole.MarkupLine("  [cyan]param-delete[/] file.xlsx param-name           Delete named range");
         AnsiConsole.WriteLine();
@@ -315,6 +318,7 @@ class Program
 
         AnsiConsole.MarkupLine("[bold yellow]Script Commands:[/]");
         AnsiConsole.MarkupLine("  [cyan]script-list[/] file.xlsm                       List all VBA scripts");
+        AnsiConsole.MarkupLine("  [cyan]script-view[/] file.xlsm module-name           View VBA module code");
         AnsiConsole.MarkupLine("  [cyan]script-export[/] file.xlsm script (file)       Export VBA script");
         AnsiConsole.MarkupLine("  [cyan]script-import[/] file.xlsm module-name vba.txt Import VBA script");
         AnsiConsole.MarkupLine("  [cyan]script-update[/] file.xlsm module-name vba.txt Update VBA script");
