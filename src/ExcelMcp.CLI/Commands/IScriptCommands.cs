@@ -6,6 +6,7 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 public interface IScriptCommands
 {
     int List(string[] args);
+    int View(string[] args);
     int Export(string[] args);
     Task<int> Import(string[] args);
     Task<int> Update(string[] args);

@@ -180,6 +180,20 @@ excelcli param-get <file.xlsx> <param-name>
 excelcli param-set <file.xlsx> <param-name> <value>
 ```
 
+**param-update** - Update named range cell reference ✨ **NEW**
+
+```powershell
+excelcli param-update <file.xlsx> <param-name> <new-reference>
+```
+
+Updates the cell reference of a named range. Use `param-set` to change the value, or `param-update` to change which cell the parameter points to.
+
+Example:
+```powershell
+# Change StartDate parameter from Sheet1!A1 to Config!B5
+excelcli param-update Sales.xlsx StartDate Config!B5
+```
+
 **param-create** - Create named range
 
 ```powershell
@@ -314,6 +328,20 @@ Manage VBA scripts and macros in macro-enabled Excel workbooks.
 
 ```powershell
 excelcli script-list <file.xlsm>
+```
+
+**script-view** - View VBA module code ✨ **NEW**
+
+```powershell
+excelcli script-view <file.xlsm> <module-name>
+```
+
+Displays the complete VBA code for a module without exporting to a file. Shows module type, line count, procedures, and full source code.
+
+Example:
+```powershell
+# View the DataProcessor module code
+excelcli script-view Report.xlsm DataProcessor
 ```
 
 **script-export** - Export VBA module to file

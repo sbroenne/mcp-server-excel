@@ -249,6 +249,152 @@ public class ScriptCommands : IScriptCommands
         return result;
     }
 
+    /// <inheritdoc />
+    public ScriptViewResult View(string filePath, string moduleName)
+    {
+        var result = new ScriptViewResult { FilePath = filePath, ModuleName = moduleName };
+
+        if (!File.Exists(filePath))
+        {
+            result.Success = false;
+            result.ErrorMessage = $"File not found: {filePath}";
+            return result;
+        }
+
+        var (isValid, validationError) = ValidateVbaFile(filePath);
+        if (!isValid)
+        {
+            result.Success = false;
+            result.ErrorMessage = validationError;
+            return result;
+        }
+
+        if (string.IsNullOrWhiteSpace(moduleName))
+        {
+            result.Success = false;
+            result.ErrorMessage = "Module name cannot be empty";
+            return result;
+        }
+
+        // Check VBA trust BEFORE attempting operation
+        if (!IsVbaTrustEnabled())
+        {
+            var trustGuidance = CreateVbaTrustGuidance();
+            result.Success = false;
+            result.ErrorMessage = trustGuidance.ErrorMessage;
+            return result;
+        }
+
+        WithExcel(filePath, false, (excel, workbook) =>
+        {
+            dynamic? vbaProject = null;
+            dynamic? vbComponents = null;
+            dynamic? component = null;
+            dynamic? codeModule = null;
+            try
+            {
+                vbaProject = workbook.VBProject;
+                vbComponents = vbaProject.VBComponents;
+
+                // Find the specified module
+                bool found = false;
+                for (int i = 1; i <= vbComponents.Count; i++)
+                {
+                    component = vbComponents.Item(i);
+                    string name = component.Name;
+
+                    if (name.Equals(moduleName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        found = true;
+                        int type = component.Type;
+                        result.ModuleType = type switch
+                        {
+                            1 => "Module",
+                            2 => "Class",
+                            3 => "Form",
+                            100 => "Document",
+                            _ => $"Type{type}"
+                        };
+
+                        codeModule = component.CodeModule;
+                        result.LineCount = codeModule.CountOfLines;
+
+                        // Read all code lines
+                        if (result.LineCount > 0)
+                        {
+                            result.Code = codeModule.Lines[1, result.LineCount];
+                        }
+
+                        // Parse procedures
+                        for (int line = 1; line <= result.LineCount; line++)
+                        {
+                            string codeLine = codeModule.Lines[line, 1];
+                            if (codeLine.TrimStart().StartsWith("Sub ") ||
+                                codeLine.TrimStart().StartsWith("Function ") ||
+                                codeLine.TrimStart().StartsWith("Public Sub ") ||
+                                codeLine.TrimStart().StartsWith("Public Function ") ||
+                                codeLine.TrimStart().StartsWith("Private Sub ") ||
+                                codeLine.TrimStart().StartsWith("Private Function "))
+                            {
+                                string procName = ExtractProcedureName(codeLine);
+                                if (!string.IsNullOrEmpty(procName))
+                                {
+                                    result.Procedures.Add(procName);
+                                }
+                            }
+                        }
+
+                        break;
+                    }
+
+                    ReleaseComObject(ref component);
+                    component = null;
+                }
+
+                if (!found)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Module '{moduleName}' not found in workbook";
+                    return 1;
+                }
+
+                result.Success = true;
+                result.SuggestedNextActions = new List<string>
+                {
+                    $"Module has {result.LineCount} lines and {result.Procedures.Count} procedure(s)",
+                    "Use 'script-update' to modify the code",
+                    "Use 'script-run' to execute procedures",
+                    "Use 'script-export' to save code to file"
+                };
+                result.WorkflowHint = "VBA code viewed. Next, update or run procedures.";
+
+                return 0;
+            }
+            catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
+                                             comEx.ErrorCode == unchecked((int)0x800A03EC))
+            {
+                result.Success = false;
+                result.ErrorMessage = "VBA trust access is not enabled";
+                return 1;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Error viewing script: {ex.Message}";
+                return 1;
+            }
+            finally
+            {
+                ReleaseComObject(ref codeModule);
+                ReleaseComObject(ref component);
+                ReleaseComObject(ref vbComponents);
+                ReleaseComObject(ref vbaProject);
+            }
+        });
+
+        return result;
+    }
+
     private static string ExtractProcedureName(string codeLine)
     {
         var parts = codeLine.Trim().Split(new[] { ' ', '(' }, StringSplitOptions.RemoveEmptyEntries);
