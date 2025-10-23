@@ -78,21 +78,29 @@ public sealed class ExcelInstancePool : IDisposable
         // Normalize path for pooling (case-insensitive on Windows)
         string normalizedPath = Path.GetFullPath(filePath).ToLowerInvariant();
 
-        // Wait for available slot with timeout (prevents indefinite blocking)
-        // Timeout of 5 seconds is reasonable - if pool is full, LLM should know quickly
-        if (!_instanceSemaphore.Wait(TimeSpan.FromSeconds(5)))
-        {
-            // Pool is at capacity - provide actionable guidance to LLM
-            throw new ExcelPoolCapacityException(ActiveInstances, _maxInstances, _idleTimeout);
-        }
+        // Check if instance already exists
+        bool isExistingInstance = _instances.ContainsKey(normalizedPath);
+        bool semaphoreAcquired = false;
 
         try
         {
+            // Only wait for semaphore slot if creating NEW instance
+            if (!isExistingInstance)
+            {
+                // Wait for available slot with timeout (prevents indefinite blocking)
+                // Timeout of 5 seconds is reasonable - if pool is full, LLM should know quickly
+                if (!_instanceSemaphore.Wait(TimeSpan.FromSeconds(5)))
+                {
+                    // Pool is at capacity - provide actionable guidance to LLM
+                    throw new ExcelPoolCapacityException(ActiveInstances, _maxInstances, _idleTimeout);
+                }
+                semaphoreAcquired = true;
+            }
+
             // Get or create pooled instance
-            bool isExistingInstance = _instances.ContainsKey(normalizedPath);
             var pooledInstance = _instances.GetOrAdd(normalizedPath, _ => CreatePooledInstance(filePath));
 
-            // Track cache hit
+            // Track cache hit (if instance was reused)
             if (isExistingInstance)
             {
                 Interlocked.Increment(ref _totalHits);
@@ -166,8 +174,11 @@ public sealed class ExcelInstancePool : IDisposable
         }
         finally
         {
-            // Always release semaphore slot
-            _instanceSemaphore.Release();
+            // Only release semaphore if we acquired it (i.e., created new instance)
+            if (semaphoreAcquired)
+            {
+                _instanceSemaphore.Release();
+            }
         }
     }
 
@@ -219,9 +230,7 @@ public sealed class ExcelInstancePool : IDisposable
         if (_instances.TryRemove(normalizedPath, out var pooledInstance))
         {
             DisposePooledInstance(pooledInstance, normalizedPath);
-
-            // Release semaphore slot for evicted instance
-            _instanceSemaphore.Release();
+            // Note: Semaphore was already released when instance was created
         }
     }
 
@@ -309,9 +318,7 @@ public sealed class ExcelInstancePool : IDisposable
                     if (_instances.TryRemove(key, out var removedInstance))
                     {
                         DisposePooledInstance(removedInstance, key);
-
-                        // Release semaphore slot for removed instance
-                        _instanceSemaphore.Release();
+                        // Note: Semaphore was already released when instance was created
                     }
                 }
             }
