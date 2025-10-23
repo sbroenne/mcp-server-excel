@@ -22,6 +22,10 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Use "create-relationship" to define table relationships (TOM API)
 /// - Use "update-relationship" to modify relationships (TOM API)
 /// - Use "create-column" to add calculated columns (TOM API)
+/// - Use "list-columns" to view all calculated columns (TOM API)
+/// - Use "view-column" to see calculated column details (TOM API)
+/// - Use "update-column" to modify calculated columns (TOM API)
+/// - Use "delete-column" to remove calculated columns (TOM API)
 /// - Use "validate-dax" to check DAX syntax (TOM API)
 ///
 /// Phase 1 Scope (COM API):
@@ -43,11 +47,11 @@ public static class ExcelDataModelTool
     /// Manage Excel Data Model (Power Pivot) - tables, measures, relationships
     /// </summary>
     [McpServerTool(Name = "excel_datamodel")]
-    [Description("Manage Excel Data Model operations. Supports: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, create-measure, update-measure, create-relationship, update-relationship, create-column, validate-dax.")]
+    [Description("Manage Excel Data Model operations. Supports: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, create-measure, update-measure, create-relationship, update-relationship, create-column, list-columns, view-column, update-column, delete-column, validate-dax.")]
     public static async Task<string> ExcelDataModel(
         [Required]
-        [RegularExpression("^(list-tables|list-measures|view-measure|export-measure|list-relationships|refresh|delete-measure|delete-relationship|create-measure|update-measure|create-relationship|update-relationship|create-column|validate-dax)$")]
-        [Description("Action: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, create-measure, update-measure, create-relationship, update-relationship, create-column, validate-dax")]
+        [RegularExpression("^(list-tables|list-measures|view-measure|export-measure|list-relationships|refresh|delete-measure|delete-relationship|create-measure|update-measure|create-relationship|update-relationship|create-column|list-columns|view-column|update-column|delete-column|validate-dax)$")]
+        [Description("Action: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, create-measure, update-measure, create-relationship, update-relationship, create-column, list-columns, view-column, update-column, delete-column, validate-dax")]
         string action,
 
         [Required]
@@ -64,15 +68,15 @@ public static class ExcelDataModelTool
         string? outputPath = null,
 
         [StringLength(255, MinimumLength = 1)]
-        [Description("Table name (for create-measure, create-column)")]
+        [Description("Table name (for create-measure, create-column, list-columns, view-column, update-column, delete-column)")]
         string? tableName = null,
 
         [StringLength(8000, MinimumLength = 1)]
-        [Description("DAX formula (for create-measure, update-measure, create-column, validate-dax)")]
+        [Description("DAX formula (for create-measure, update-measure, create-column, update-column, validate-dax)")]
         string? daxFormula = null,
 
         [StringLength(1000)]
-        [Description("Description (for create-measure, update-measure, create-column)")]
+        [Description("Description (for create-measure, update-measure, create-column, update-column)")]
         string? description = null,
 
         [StringLength(255)]
@@ -103,11 +107,11 @@ public static class ExcelDataModelTool
         string? crossFilterDirection = null,
 
         [StringLength(255, MinimumLength = 1)]
-        [Description("Column name (for create-column)")]
+        [Description("Column name (for create-column, view-column, update-column, delete-column)")]
         string? columnName = null,
 
         [RegularExpression("^(String|Integer|Double|Boolean|DateTime)$")]
-        [Description("Data type (for create-column): String, Integer, Double, Boolean, DateTime")]
+        [Description("Data type (for create-column, update-column): String, Integer, Double, Boolean, DateTime")]
         string? dataType = null)
     {
         try
@@ -133,10 +137,14 @@ public static class ExcelDataModelTool
                 "create-relationship" => CreateRelationship(tomCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, crossFilterDirection),
                 "update-relationship" => UpdateRelationship(tomCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, crossFilterDirection),
                 "create-column" => CreateCalculatedColumn(tomCommands, excelPath, tableName, columnName, daxFormula, description, dataType),
+                "list-columns" => ListCalculatedColumns(tomCommands, excelPath, tableName),
+                "view-column" => ViewCalculatedColumn(tomCommands, excelPath, tableName, columnName),
+                "update-column" => UpdateCalculatedColumn(tomCommands, excelPath, tableName, columnName, daxFormula, description, dataType),
+                "delete-column" => DeleteCalculatedColumn(tomCommands, excelPath, tableName, columnName),
                 "validate-dax" => ValidateDax(tomCommands, excelPath, daxFormula),
 
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, create-measure, update-measure, create-relationship, update-relationship, create-column, validate-dax")
+                    $"Unknown action '{action}'. Supported: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, create-measure, update-measure, create-relationship, update-relationship, create-column, list-columns, view-column, update-column, delete-column, validate-dax")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -679,6 +687,145 @@ public static class ExcelDataModelTool
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
             throw new ModelContextProtocol.McpException($"validate-dax failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string ListCalculatedColumns(
+        DataModelTomCommands commands,
+        string filePath,
+        string? tableName)
+    {
+        var result = commands.ListCalculatedColumns(filePath, tableName);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+            {
+                result.SuggestedNextActions = new List<string>
+                {
+                    "Verify file has Data Model enabled",
+                    "Use 'list-tables' to see available tables",
+                    "Ensure TOM API connection is available"
+                };
+            }
+            throw new ModelContextProtocol.McpException($"list-columns failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string ViewCalculatedColumn(
+        DataModelTomCommands commands,
+        string filePath,
+        string? tableName,
+        string? columnName)
+    {
+        if (string.IsNullOrWhiteSpace(tableName))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for view-column action");
+        }
+
+        if (string.IsNullOrWhiteSpace(columnName))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'columnName' is required for view-column action");
+        }
+
+        var result = commands.ViewCalculatedColumn(filePath, tableName, columnName);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+            {
+                result.SuggestedNextActions = new List<string>
+                {
+                    $"Use 'list-columns' to see columns in table '{tableName}'",
+                    "Check column name spelling",
+                    "Verify table exists in Data Model"
+                };
+            }
+            throw new ModelContextProtocol.McpException($"view-column failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string UpdateCalculatedColumn(
+        DataModelTomCommands commands,
+        string filePath,
+        string? tableName,
+        string? columnName,
+        string? daxFormula,
+        string? description,
+        string? dataType)
+    {
+        if (string.IsNullOrWhiteSpace(tableName))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for update-column action");
+        }
+
+        if (string.IsNullOrWhiteSpace(columnName))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'columnName' is required for update-column action");
+        }
+
+        var result = commands.UpdateCalculatedColumn(
+            filePath,
+            tableName,
+            columnName,
+            daxFormula,
+            description,
+            dataType
+        );
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+            {
+                result.SuggestedNextActions = new List<string>
+                {
+                    $"Use 'list-columns' to see columns in table '{tableName}'",
+                    "Verify column exists",
+                    "Check DAX formula syntax if updating formula"
+                };
+            }
+            throw new ModelContextProtocol.McpException($"update-column failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string DeleteCalculatedColumn(
+        DataModelTomCommands commands,
+        string filePath,
+        string? tableName,
+        string? columnName)
+    {
+        if (string.IsNullOrWhiteSpace(tableName))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for delete-column action");
+        }
+
+        if (string.IsNullOrWhiteSpace(columnName))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'columnName' is required for delete-column action");
+        }
+
+        var result = commands.DeleteCalculatedColumn(filePath, tableName, columnName);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+            {
+                result.SuggestedNextActions = new List<string>
+                {
+                    $"Use 'list-columns' to see columns in table '{tableName}'",
+                    "Verify column exists",
+                    "Check that column is not referenced by other objects"
+                };
+            }
+            throw new ModelContextProtocol.McpException($"delete-column failed for '{filePath}': {result.ErrorMessage}");
         }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);

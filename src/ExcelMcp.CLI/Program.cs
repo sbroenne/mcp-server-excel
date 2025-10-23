@@ -136,6 +136,10 @@ class Program
                 "dm-create-relationship" => dataModelTom.CreateRelationship(args),
                 "dm-update-relationship" => dataModelTom.UpdateRelationship(args),
                 "dm-create-column" => dataModelTom.CreateCalculatedColumn(args),
+                "dm-list-columns" => dataModelTom.ListCalculatedColumns(args),
+                "dm-view-column" => dataModelTom.ViewCalculatedColumn(args),
+                "dm-update-column" => dataModelTom.UpdateCalculatedColumn(args),
+                "dm-delete-column" => dataModelTom.DeleteCalculatedColumn(args),
                 "dm-validate-dax" => dataModelTom.ValidateDax(args),
 
                 "--help" or "-h" => ShowHelp(),
@@ -334,6 +338,10 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]dm-create-relationship[/] file.xlsx from to        Create table relationship");
         AnsiConsole.MarkupLine("  [cyan]dm-update-relationship[/] file.xlsx from to [opts] Update relationship");
         AnsiConsole.MarkupLine("  [cyan]dm-create-column[/] file.xlsx table name formula   Create calculated column");
+        AnsiConsole.MarkupLine("  [cyan]dm-list-columns[/] file.xlsx [table]               List calculated columns");
+        AnsiConsole.MarkupLine("  [cyan]dm-view-column[/] file.xlsx table column           View column details");
+        AnsiConsole.MarkupLine("  [cyan]dm-update-column[/] file.xlsx table column [opts]  Update calculated column");
+        AnsiConsole.MarkupLine("  [cyan]dm-delete-column[/] file.xlsx table column         Delete calculated column");
         AnsiConsole.MarkupLine("  [cyan]dm-validate-dax[/] file.xlsx formula               Validate DAX syntax");
         AnsiConsole.WriteLine();
 

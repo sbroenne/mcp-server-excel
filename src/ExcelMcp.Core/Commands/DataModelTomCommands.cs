@@ -736,4 +736,410 @@ public class DataModelTomCommands : IDataModelTomCommands
             return result;
         }
     }
+
+    /// <inheritdoc />
+    public DataModelCalculatedColumnListResult ListCalculatedColumns(string filePath, string? tableName = null)
+    {
+        var result = new DataModelCalculatedColumnListResult
+        {
+            FilePath = filePath
+        };
+
+        if (!File.Exists(filePath))
+        {
+            result.Success = false;
+            result.ErrorMessage = $"File not found: {filePath}";
+            return result;
+        }
+
+        try
+        {
+            return TomHelper.WithTomServer(filePath, (server, model) =>
+            {
+                // If table name provided, filter to that table
+                var tablesToSearch = string.IsNullOrWhiteSpace(tableName)
+                    ? model.Tables.ToList()
+                    : new List<Microsoft.AnalysisServices.Tabular.Table> 
+                    { 
+                        TomHelper.FindTable(model, tableName) ?? throw new InvalidOperationException($"Table '{tableName}' not found")
+                    };
+
+                foreach (var table in tablesToSearch)
+                {
+                    foreach (var column in table.Columns.OfType<Microsoft.AnalysisServices.Tabular.CalculatedColumn>())
+                    {
+                        var columnInfo = new DataModelCalculatedColumnInfo
+                        {
+                            Name = column.Name,
+                            Table = table.Name,
+                            FormulaPreview = column.Expression?.Length > 60 
+                                ? column.Expression[..57] + "..." 
+                                : column.Expression ?? "",
+                            DataType = column.DataType.ToString(),
+                            Description = column.Description
+                        };
+
+                        result.CalculatedColumns.Add(columnInfo);
+                    }
+                }
+
+                result.Success = true;
+                result.SuggestedNextActions = new List<string>
+                {
+                    $"Found {result.CalculatedColumns.Count} calculated column(s)",
+                    "Use 'view-column' to see full DAX formula",
+                    "Use 'update-column' to modify column properties",
+                    "Use 'delete-column' to remove columns"
+                };
+                result.WorkflowHint = "Calculated columns listed. Next, view or modify column formulas.";
+
+                return result;
+            }, saveChanges: false);
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Error listing calculated columns: {ex.Message}";
+            result.SuggestedNextActions = new List<string>
+            {
+                "Verify file has Data Model enabled",
+                "Ensure TOM API connection is available",
+                "Check file is not locked by Excel"
+            };
+            return result;
+        }
+    }
+
+    /// <inheritdoc />
+    public DataModelCalculatedColumnViewResult ViewCalculatedColumn(string filePath, string tableName, string columnName)
+    {
+        var result = new DataModelCalculatedColumnViewResult
+        {
+            FilePath = filePath,
+            TableName = tableName,
+            ColumnName = columnName
+        };
+
+        if (!File.Exists(filePath))
+        {
+            result.Success = false;
+            result.ErrorMessage = $"File not found: {filePath}";
+            return result;
+        }
+
+        if (string.IsNullOrWhiteSpace(tableName))
+        {
+            result.Success = false;
+            result.ErrorMessage = "Table name cannot be empty";
+            return result;
+        }
+
+        if (string.IsNullOrWhiteSpace(columnName))
+        {
+            result.Success = false;
+            result.ErrorMessage = "Column name cannot be empty";
+            return result;
+        }
+
+        try
+        {
+            return TomHelper.WithTomServer(filePath, (server, model) =>
+            {
+                // Find the table
+                var table = TomHelper.FindTable(model, tableName);
+                if (table == null)
+                {
+                    var tableNames = TomHelper.GetTableNames(model);
+                    result.Success = false;
+                    result.ErrorMessage = $"Table '{tableName}' not found in Data Model.";
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        $"Available tables: {string.Join(", ", tableNames)}",
+                        "Use 'list-tables' to see all tables"
+                    };
+                    return result;
+                }
+
+                // Find the calculated column
+                var column = table.Columns.OfType<Microsoft.AnalysisServices.Tabular.CalculatedColumn>()
+                    .FirstOrDefault(c => c.Name.Equals(columnName, StringComparison.OrdinalIgnoreCase));
+
+                if (column == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Calculated column '{columnName}' not found in table '{tableName}'.";
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        $"Use 'list-columns' to see columns in table '{tableName}'",
+                        "Check column name spelling and case"
+                    };
+                    return result;
+                }
+
+                // Populate result
+                result.DaxFormula = column.Expression ?? "";
+                result.Description = column.Description;
+                result.DataType = column.DataType.ToString();
+                result.CharacterCount = result.DaxFormula.Length;
+                result.Success = true;
+
+                result.SuggestedNextActions = new List<string>
+                {
+                    "Use 'update-column' to modify formula or properties",
+                    "Use 'delete-column' to remove column",
+                    "Use 'model-refresh' to recalculate values"
+                };
+                result.WorkflowHint = "Column details viewed. Next, update or analyze the DAX formula.";
+
+                return result;
+            }, saveChanges: false);
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Error viewing calculated column: {ex.Message}";
+            result.SuggestedNextActions = new List<string>
+            {
+                "Verify table and column names",
+                "Ensure file is not locked by Excel"
+            };
+            return result;
+        }
+    }
+
+    /// <inheritdoc />
+    public OperationResult UpdateCalculatedColumn(
+        string filePath,
+        string tableName,
+        string columnName,
+        string? daxFormula = null,
+        string? description = null,
+        string? dataType = null)
+    {
+        var result = new OperationResult
+        {
+            FilePath = filePath,
+            Action = "tom-update-calculated-column"
+        };
+
+        if (!File.Exists(filePath))
+        {
+            result.Success = false;
+            result.ErrorMessage = $"File not found: {filePath}";
+            return result;
+        }
+
+        if (string.IsNullOrWhiteSpace(tableName))
+        {
+            result.Success = false;
+            result.ErrorMessage = "Table name cannot be empty";
+            return result;
+        }
+
+        if (string.IsNullOrWhiteSpace(columnName))
+        {
+            result.Success = false;
+            result.ErrorMessage = "Column name cannot be empty";
+            return result;
+        }
+
+        // At least one update parameter must be provided
+        if (daxFormula == null && description == null && dataType == null)
+        {
+            result.Success = false;
+            result.ErrorMessage = "At least one property must be specified for update (daxFormula, description, or dataType)";
+            return result;
+        }
+
+        try
+        {
+            return TomHelper.WithTomServer(filePath, (server, model) =>
+            {
+                // Find the table
+                var table = TomHelper.FindTable(model, tableName);
+                if (table == null)
+                {
+                    var tableNames = TomHelper.GetTableNames(model);
+                    result.Success = false;
+                    result.ErrorMessage = $"Table '{tableName}' not found in Data Model.";
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        $"Available tables: {string.Join(", ", tableNames)}",
+                        "Use 'list-tables' to see all tables"
+                    };
+                    return result;
+                }
+
+                // Find the calculated column
+                var column = table.Columns.OfType<Microsoft.AnalysisServices.Tabular.CalculatedColumn>()
+                    .FirstOrDefault(c => c.Name.Equals(columnName, StringComparison.OrdinalIgnoreCase));
+
+                if (column == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Calculated column '{columnName}' not found in table '{tableName}'.";
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        $"Use 'list-columns' to see columns in table '{tableName}'",
+                        "Check column name spelling"
+                    };
+                    return result;
+                }
+
+                // Update properties
+                bool updated = false;
+
+                if (daxFormula != null && !string.IsNullOrWhiteSpace(daxFormula))
+                {
+                    column.Expression = daxFormula;
+                    updated = true;
+                }
+
+                if (description != null)
+                {
+                    column.Description = description;
+                    updated = true;
+                }
+
+                if (dataType != null && !string.IsNullOrWhiteSpace(dataType))
+                {
+                    var tomDataType = dataType.ToLowerInvariant() switch
+                    {
+                        "integer" or "int" => Microsoft.AnalysisServices.Tabular.DataType.Int64,
+                        "double" or "decimal" or "number" => Microsoft.AnalysisServices.Tabular.DataType.Double,
+                        "boolean" or "bool" => Microsoft.AnalysisServices.Tabular.DataType.Boolean,
+                        "datetime" or "date" => Microsoft.AnalysisServices.Tabular.DataType.DateTime,
+                        _ => Microsoft.AnalysisServices.Tabular.DataType.String
+                    };
+                    column.DataType = tomDataType;
+                    updated = true;
+                }
+
+                if (!updated)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = "No valid updates provided";
+                    return result;
+                }
+
+                result.Success = true;
+                result.SuggestedNextActions = new List<string>
+                {
+                    $"Calculated column '{columnName}' in table '{tableName}' updated successfully",
+                    "Use 'view-column' to verify changes",
+                    "Use 'model-refresh' to recalculate values",
+                    "Changes saved to workbook"
+                };
+                result.WorkflowHint = "Column updated. Next, refresh Data Model to recalculate values.";
+
+                return result;
+            }, saveChanges: true);
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Error updating calculated column: {ex.Message}";
+            result.SuggestedNextActions = new List<string>
+            {
+                "Verify DAX formula syntax is correct",
+                "Check that column exists in the table",
+                "Ensure file is not locked by Excel"
+            };
+            return result;
+        }
+    }
+
+    /// <inheritdoc />
+    public OperationResult DeleteCalculatedColumn(string filePath, string tableName, string columnName)
+    {
+        var result = new OperationResult
+        {
+            FilePath = filePath,
+            Action = "tom-delete-calculated-column"
+        };
+
+        if (!File.Exists(filePath))
+        {
+            result.Success = false;
+            result.ErrorMessage = $"File not found: {filePath}";
+            return result;
+        }
+
+        if (string.IsNullOrWhiteSpace(tableName))
+        {
+            result.Success = false;
+            result.ErrorMessage = "Table name cannot be empty";
+            return result;
+        }
+
+        if (string.IsNullOrWhiteSpace(columnName))
+        {
+            result.Success = false;
+            result.ErrorMessage = "Column name cannot be empty";
+            return result;
+        }
+
+        try
+        {
+            return TomHelper.WithTomServer(filePath, (server, model) =>
+            {
+                // Find the table
+                var table = TomHelper.FindTable(model, tableName);
+                if (table == null)
+                {
+                    var tableNames = TomHelper.GetTableNames(model);
+                    result.Success = false;
+                    result.ErrorMessage = $"Table '{tableName}' not found in Data Model.";
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        $"Available tables: {string.Join(", ", tableNames)}",
+                        "Use 'list-tables' to see all tables"
+                    };
+                    return result;
+                }
+
+                // Find the calculated column
+                var column = table.Columns.OfType<Microsoft.AnalysisServices.Tabular.CalculatedColumn>()
+                    .FirstOrDefault(c => c.Name.Equals(columnName, StringComparison.OrdinalIgnoreCase));
+
+                if (column == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Calculated column '{columnName}' not found in table '{tableName}'.";
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        $"Use 'list-columns' to see columns in table '{tableName}'",
+                        "Check column name spelling"
+                    };
+                    return result;
+                }
+
+                // Delete the column
+                table.Columns.Remove(column);
+
+                result.Success = true;
+                result.SuggestedNextActions = new List<string>
+                {
+                    $"Calculated column '{columnName}' deleted from table '{tableName}'",
+                    "Use 'list-columns' to verify deletion",
+                    "Changes saved to workbook"
+                };
+                result.WorkflowHint = "Column deleted. Next, verify remaining columns or refresh Data Model.";
+
+                return result;
+            }, saveChanges: true);
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Error deleting calculated column: {ex.Message}";
+            result.SuggestedNextActions = new List<string>
+            {
+                "Verify column exists in the table",
+                "Check that column is not referenced by measures or other columns",
+                "Ensure file is not locked by Excel"
+            };
+            return result;
+        }
+    }
 }

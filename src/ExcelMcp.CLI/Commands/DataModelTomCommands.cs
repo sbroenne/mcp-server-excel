@@ -540,4 +540,303 @@ public class DataModelTomCommands : IDataModelTomCommands
             return 1;
         }
     }
+
+    public int ListCalculatedColumns(string[] args)
+    {
+        if (args.Length < 2)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] dm-list-columns <file.xlsx> [table-name]");
+            AnsiConsole.MarkupLine("\n[bold]Examples:[/]");
+            AnsiConsole.MarkupLine("  dm-list-columns Sales.xlsx           # All calculated columns");
+            AnsiConsole.MarkupLine("  dm-list-columns Sales.xlsx Sales     # Columns in Sales table only");
+            return 1;
+        }
+
+        var filePath = args[1];
+        var tableName = args.Length > 2 ? args[2] : null;
+
+        AnsiConsole.Status()
+            .Start($"Loading calculated columns...", ctx =>
+            {
+                ctx.Spinner(Spinner.Known.Dots);
+                ctx.SpinnerStyle(Style.Parse("green"));
+                System.Threading.Thread.Sleep(100);
+            });
+
+        var result = _coreCommands.ListCalculatedColumns(filePath, tableName);
+
+        if (result.Success)
+        {
+            if (result.CalculatedColumns != null && result.CalculatedColumns.Count > 0)
+            {
+                var table = new Table();
+                table.AddColumn("[bold]Column Name[/]");
+                table.AddColumn("[bold]Table[/]");
+                table.AddColumn("[bold]Data Type[/]");
+                table.AddColumn("[bold]Formula Preview[/]");
+
+                foreach (var column in result.CalculatedColumns.OrderBy(c => c.Table).ThenBy(c => c.Name))
+                {
+                    table.AddRow(
+                        column.Name.EscapeMarkup(),
+                        column.Table.EscapeMarkup(),
+                        column.DataType.EscapeMarkup(),
+                        column.FormulaPreview.EscapeMarkup()
+                    );
+                }
+
+                AnsiConsole.Write(table);
+                AnsiConsole.MarkupLine($"\n[dim]Found {result.CalculatedColumns.Count} calculated column(s)[/]");
+            }
+            else
+            {
+                AnsiConsole.MarkupLine("[yellow]No calculated columns found in Data Model[/]");
+            }
+
+            // Display suggested next actions
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]✗ Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggestions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
+            return 1;
+        }
+    }
+
+    public int ViewCalculatedColumn(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] dm-view-column <file.xlsx> <table-name> <column-name>");
+            AnsiConsole.MarkupLine("\n[bold]Examples:[/]");
+            AnsiConsole.MarkupLine("  dm-view-column Sales.xlsx Sales TotalCost");
+            return 1;
+        }
+
+        var filePath = args[1];
+        var tableName = args[2];
+        var columnName = args[3];
+
+        AnsiConsole.Status()
+            .Start($"Loading column details...", ctx =>
+            {
+                ctx.Spinner(Spinner.Known.Dots);
+                ctx.SpinnerStyle(Style.Parse("green"));
+                System.Threading.Thread.Sleep(100);
+            });
+
+        var result = _coreCommands.ViewCalculatedColumn(filePath, tableName, columnName);
+
+        if (result.Success)
+        {
+            var panel = new Panel($"[bold]Table:[/] {result.TableName.EscapeMarkup()}\n" +
+                                 $"[bold]Column:[/] {result.ColumnName.EscapeMarkup()}\n" +
+                                 $"[bold]Data Type:[/] {result.DataType.EscapeMarkup()}\n" +
+                                 $"[bold]Characters:[/] {result.CharacterCount}\n\n" +
+                                 $"[bold]DAX Formula:[/]\n{result.DaxFormula.EscapeMarkup()}")
+            {
+                Header = new PanelHeader("Calculated Column Details"),
+                Border = BoxBorder.Rounded
+            };
+            AnsiConsole.Write(panel);
+
+            if (!string.IsNullOrEmpty(result.Description))
+            {
+                AnsiConsole.MarkupLine($"\n[bold]Description:[/] {result.Description.EscapeMarkup()}");
+            }
+
+            // Display suggested next actions
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]✗ Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggestions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
+            return 1;
+        }
+    }
+
+    public int UpdateCalculatedColumn(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] dm-update-column <file.xlsx> <table-name> <column-name> [--formula <dax-formula>] [--desc <description>] [--type <data-type>]");
+            AnsiConsole.MarkupLine("\n[bold]Data Types:[/] String, Integer, Double, Boolean, DateTime");
+            AnsiConsole.MarkupLine("\n[bold]Examples:[/]");
+            AnsiConsole.MarkupLine("  dm-update-column Sales.xlsx Sales TotalCost --formula \"[Price] * [Quantity] * 1.1\"");
+            AnsiConsole.MarkupLine("  dm-update-column Sales.xlsx Sales IsHighValue --desc \"Updated criteria\" --type Boolean");
+            return 1;
+        }
+
+        var filePath = args[1];
+        var tableName = args[2];
+        var columnName = args[3];
+
+        // Parse optional parameters
+        string? daxFormula = null;
+        string? description = null;
+        string? dataType = null;
+
+        for (int i = 4; i < args.Length; i++)
+        {
+            if (args[i] == "--formula" && i + 1 < args.Length)
+            {
+                daxFormula = args[i + 1];
+                i++;
+            }
+            else if (args[i] == "--desc" && i + 1 < args.Length)
+            {
+                description = args[i + 1];
+                i++;
+            }
+            else if (args[i] == "--type" && i + 1 < args.Length)
+            {
+                dataType = args[i + 1];
+                i++;
+            }
+        }
+
+        AnsiConsole.Status()
+            .Start($"Updating column [bold]{columnName.EscapeMarkup()}[/]...", ctx =>
+            {
+                ctx.Spinner(Spinner.Known.Dots);
+                ctx.SpinnerStyle(Style.Parse("green"));
+                System.Threading.Thread.Sleep(100);
+            });
+
+        var result = _coreCommands.UpdateCalculatedColumn(
+            filePath,
+            tableName,
+            columnName,
+            daxFormula,
+            description,
+            dataType
+        );
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Calculated column [bold]{columnName.EscapeMarkup()}[/] updated successfully");
+
+            // Display suggested next actions
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]✗ Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggestions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
+            return 1;
+        }
+    }
+
+    public int DeleteCalculatedColumn(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] dm-delete-column <file.xlsx> <table-name> <column-name>");
+            AnsiConsole.MarkupLine("\n[bold]Examples:[/]");
+            AnsiConsole.MarkupLine("  dm-delete-column Sales.xlsx Sales TotalCost");
+            return 1;
+        }
+
+        var filePath = args[1];
+        var tableName = args[2];
+        var columnName = args[3];
+
+        AnsiConsole.Status()
+            .Start($"Deleting column [bold]{columnName.EscapeMarkup()}[/]...", ctx =>
+            {
+                ctx.Spinner(Spinner.Known.Dots);
+                ctx.SpinnerStyle(Style.Parse("green"));
+                System.Threading.Thread.Sleep(100);
+            });
+
+        var result = _coreCommands.DeleteCalculatedColumn(filePath, tableName, columnName);
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Calculated column [bold]{columnName.EscapeMarkup()}[/] deleted successfully");
+
+            // Display suggested next actions
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]✗ Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggestions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
+            return 1;
+        }
+    }
 }

@@ -31,6 +31,26 @@ public interface IDataModelTomCommands
     int CreateCalculatedColumn(string[] args);
 
     /// <summary>
+    /// Lists all calculated columns in the Data Model
+    /// </summary>
+    int ListCalculatedColumns(string[] args);
+
+    /// <summary>
+    /// Views details of a specific calculated column
+    /// </summary>
+    int ViewCalculatedColumn(string[] args);
+
+    /// <summary>
+    /// Updates an existing calculated column
+    /// </summary>
+    int UpdateCalculatedColumn(string[] args);
+
+    /// <summary>
+    /// Deletes a calculated column from a table
+    /// </summary>
+    int DeleteCalculatedColumn(string[] args);
+
+    /// <summary>
     /// Validates a DAX formula without creating/updating objects
     /// </summary>
     int ValidateDax(string[] args);

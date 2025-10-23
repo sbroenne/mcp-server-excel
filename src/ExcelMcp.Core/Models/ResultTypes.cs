@@ -880,5 +880,83 @@ public class DataModelValidationResult : ResultBase
     public string DaxFormula { get; set; } = "";
 }
 
+/// <summary>
+/// Result for listing calculated columns
+/// </summary>
+public class DataModelCalculatedColumnListResult : ResultBase
+{
+    /// <summary>
+    /// List of calculated columns in the model
+    /// </summary>
+    public List<DataModelCalculatedColumnInfo> CalculatedColumns { get; set; } = new();
+}
+
+/// <summary>
+/// Information about a calculated column
+/// </summary>
+public class DataModelCalculatedColumnInfo
+{
+    /// <summary>
+    /// Column name
+    /// </summary>
+    public string Name { get; init; } = "";
+
+    /// <summary>
+    /// Table name where column is defined
+    /// </summary>
+    public string Table { get; init; } = "";
+
+    /// <summary>
+    /// DAX formula preview (truncated for display)
+    /// </summary>
+    public string FormulaPreview { get; init; } = "";
+
+    /// <summary>
+    /// Data type of the column
+    /// </summary>
+    public string DataType { get; init; } = "";
+
+    /// <summary>
+    /// Column description (if available)
+    /// </summary>
+    public string? Description { get; init; }
+}
+
+/// <summary>
+/// Result for viewing calculated column details
+/// </summary>
+public class DataModelCalculatedColumnViewResult : ResultBase
+{
+    /// <summary>
+    /// Column name
+    /// </summary>
+    public string ColumnName { get; set; } = "";
+
+    /// <summary>
+    /// Table name where column is defined
+    /// </summary>
+    public string TableName { get; set; } = "";
+
+    /// <summary>
+    /// Complete DAX formula
+    /// </summary>
+    public string DaxFormula { get; set; } = "";
+
+    /// <summary>
+    /// Column description
+    /// </summary>
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// Data type of the column
+    /// </summary>
+    public string DataType { get; set; } = "";
+
+    /// <summary>
+    /// Number of characters in DAX formula
+    /// </summary>
+    public int CharacterCount { get; set; }
+}
+
 #endregion
 
