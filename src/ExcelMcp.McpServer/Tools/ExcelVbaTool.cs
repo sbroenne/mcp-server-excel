@@ -153,12 +153,12 @@ public static class ExcelVbaTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ExportVbaScript(ScriptCommands commands, string filePath, string? moduleName, string? vbaFilePath)
+    private static string ExportVbaScript(ScriptCommands commands, string filePath, string? moduleName, string? targetPath)
     {
-        if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(vbaFilePath))
-            throw new ModelContextProtocol.McpException("moduleName and vbaFilePath are required for export action");
+        if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(targetPath))
+            throw new ModelContextProtocol.McpException("moduleName and targetPath are required for export action");
 
-        var result = commands.Export(filePath, moduleName, vbaFilePath).GetAwaiter().GetResult();
+        var result = commands.Export(filePath, moduleName, targetPath).GetAwaiter().GetResult();
 
         // If export failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -184,12 +184,12 @@ public static class ExcelVbaTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ImportVbaScript(ScriptCommands commands, string filePath, string? moduleName, string? vbaFilePath)
+    private static string ImportVbaScript(ScriptCommands commands, string filePath, string? moduleName, string? sourcePath)
     {
-        if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(vbaFilePath))
-            throw new ModelContextProtocol.McpException("moduleName and vbaFilePath are required for import action");
+        if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(sourcePath))
+            throw new ModelContextProtocol.McpException("moduleName and sourcePath are required for import action");
 
-        var result = commands.Import(filePath, moduleName, vbaFilePath).GetAwaiter().GetResult();
+        var result = commands.Import(filePath, moduleName, sourcePath).GetAwaiter().GetResult();
 
         // If import failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -215,12 +215,12 @@ public static class ExcelVbaTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string UpdateVbaScript(ScriptCommands commands, string filePath, string? moduleName, string? vbaFilePath)
+    private static string UpdateVbaScript(ScriptCommands commands, string filePath, string? moduleName, string? sourcePath)
     {
-        if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(vbaFilePath))
-            throw new ModelContextProtocol.McpException("moduleName and vbaFilePath are required for update action");
+        if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(sourcePath))
+            throw new ModelContextProtocol.McpException("moduleName and sourcePath are required for update action");
 
-        var result = commands.Update(filePath, moduleName, vbaFilePath).GetAwaiter().GetResult();
+        var result = commands.Update(filePath, moduleName, sourcePath).GetAwaiter().GetResult();
 
         // If update failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))

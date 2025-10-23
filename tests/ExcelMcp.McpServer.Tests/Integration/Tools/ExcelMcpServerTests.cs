@@ -139,12 +139,10 @@ in
 
         var importJson = JsonDocument.Parse(importResult);
 
-        // Check if it's an error response
+        // Check if it's an error response - test should fail, not skip
         if (importJson.RootElement.TryGetProperty("error", out var importErrorProperty))
         {
-            System.Console.WriteLine($"Import operation failed with error: {importErrorProperty.GetString()}");
-            // Skip the rest of the test if import failed
-            return;
+            Assert.Fail($"Import operation failed with error: {importErrorProperty.GetString()}");
         }
 
         Assert.True(importJson.RootElement.GetProperty("Success").GetBoolean());

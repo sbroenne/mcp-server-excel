@@ -341,21 +341,13 @@ public class CoreDataModelCommandsTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Data Model test helper requires specific Excel version/configuration. May fail on some environments due to Data Model availability.")]
     public void DeleteMeasure_WithValidMeasure_ReturnsSuccessResult()
     {
         // Arrange - Create a test measure first
         var measureName = "TestMeasure_" + Guid.NewGuid().ToString("N")[..8];
 
-        try
-        {
-            DataModelTestHelper.CreateTestMeasure(_testExcelFile, measureName, "SUM(Sales[Amount])");
-        }
-        catch (InvalidOperationException)
-        {
-            // Data Model creation may fail on some Excel versions - skip test
-            return;
-        }
+        DataModelTestHelper.CreateTestMeasure(_testExcelFile, measureName, "SUM(Sales[Amount])");
 
         // Act
         var result = _dataModelCommands.DeleteMeasure(_testExcelFile, measureName);
@@ -394,18 +386,15 @@ public class CoreDataModelCommandsTests : IDisposable
         Assert.Contains("File not found", result.ErrorMessage);
     }
 
-    [Fact]
+    [Fact(Skip = "Data Model test helper requires specific Excel version/configuration. May fail on some environments due to Data Model availability.")]
     public void DeleteRelationship_WithValidRelationship_ReturnsSuccessResult()
     {
-        // Arrange - Create a test relationship first (if Data Model has tables)
-        // This test may be skipped if Data Model creation failed
+        // Arrange - Requires Data Model with relationships
         var listResult = _dataModelCommands.ListRelationships(_testExcelFile);
 
-        if (!listResult.Success || listResult.Relationships == null || listResult.Relationships.Count == 0)
-        {
-            // Skip test if no Data Model or no relationships available
-            return;
-        }
+        Assert.True(listResult.Success, "ListRelationships should succeed");
+        Assert.NotNull(listResult.Relationships);
+        Assert.True(listResult.Relationships.Count > 0, "Data Model should have relationships for this test");
 
         // Use the first relationship for testing
         var rel = listResult.Relationships[0];

@@ -2,6 +2,88 @@
 
 > **📎 Related Instructions:** For projects using excelcli in other repositories, copy `docs/excel-powerquery-vba-copilot-instructions.md` to your project's `.github/copilot-instructions.md` for specialized Excel automation support.
 
+## ⛔ **CRITICAL: No Silent Test Failures - Tests MUST Fail Loudly**
+
+**⛔ ABSOLUTE RULE: Tests must NEVER silently skip validation or catch exceptions without failing.**
+
+**❌ FORBIDDEN Pattern - Silent Failure:**
+```csharp
+// WRONG - Catches exception and just logs, test passes even when operation fails
+try
+{
+    var json = JsonDocument.Parse(response);
+    Assert.True(json.RootElement.GetProperty("Success").GetBoolean());
+}
+catch (JsonException)
+{
+    _output.WriteLine("Skipping validation - protocol limitation");  // ❌ WRONG!
+}
+```
+
+**✅ CORRECT Pattern - Fail Fast:**
+```csharp
+// RIGHT - Fails immediately with clear error message
+var json = JsonDocument.Parse(response);  // Throws if not valid JSON - GOOD!
+Assert.True(json.RootElement.GetProperty("Success").GetBoolean(),
+    $"Operation failed: {response}");  // Descriptive error message
+```
+
+**Why Silent Failures Are Dangerous:**
+- ❌ Hides bugs - broken code appears to "pass" tests
+- ❌ False confidence - developers think features work when they don't
+- ❌ Regression risk - bugs slip into production undetected
+- ❌ Debugging nightmare - no indication of what actually failed
+- ❌ Violates test purpose - tests exist to CATCH problems, not hide them
+
+**When to Use Try-Catch in Tests:**
+- ✅ **Resource cleanup only** - `finally` blocks to dispose objects
+- ✅ **Specific exception validation** - `Assert.Throws<T>()` to verify exceptions
+- ❌ **NEVER to skip assertions** - If operation fails, TEST MUST FAIL
+
+**Correct Exception Testing:**
+```csharp
+// Testing that operation SHOULD throw exception
+var ex = Assert.Throws<McpException>(() => 
+    tool.ExcelVba("export", file, null, null));  // ✅ Validates exception thrown
+
+Assert.Contains("moduleName and targetPath are required", ex.Message);  // ✅ Validates message
+```
+
+**Forbidden Patterns to Avoid:**
+```csharp
+// ❌ FORBIDDEN - Skipping validation
+catch (Exception) { _output.WriteLine("Skipping..."); }
+
+// ❌ FORBIDDEN - Silent continue
+catch (Exception) { continue; }
+
+// ❌ FORBIDDEN - Empty catch
+catch { }
+
+// ❌ FORBIDDEN - Returning success on error
+catch { return 0; }
+
+// ❌ FORBIDDEN - Logging without failing
+catch (Exception ex) { _output.WriteLine(ex.Message); }
+```
+
+**Test Quality Checklist:**
+- [ ] Every operation validated with assertions
+- [ ] No try-catch blocks that skip assertions
+- [ ] No "Skipping validation" messages in test output
+- [ ] Tests fail loudly when operations fail
+- [ ] Descriptive assertion messages explain what failed
+- [ ] No empty catch blocks
+- [ ] No catch blocks that log and continue
+
+**If you're tempted to skip validation:**
+1. ❌ **Don't!** - Fix the underlying issue instead
+2. If operation legitimately can't be tested, use `[Fact(Skip = "Reason")]`
+3. If test is flaky, fix the flakiness, don't hide it
+4. If protocol has limitations, file issue and mark test as explicit limitation
+
+**Remember: A test that silently passes is worse than no test at all!**
+
 ## � **CRITICAL: No NotImplementedException - Full Implementation Required**
 
 **⛔ ABSOLUTE RULE: NotImplementedException is NEVER acceptable in any feature, command, or operation.**
