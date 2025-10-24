@@ -991,3 +991,80 @@ public class DataModelCalculatedColumnViewResult : ResultBase
 
 #endregion
 
+#region Table Results
+
+/// <summary>
+/// Result for listing Excel Tables
+/// </summary>
+public class TableListResult : ResultBase
+{
+    /// <summary>
+    /// List of Excel Tables in the workbook
+    /// </summary>
+    public List<TableInfo> Tables { get; set; } = new();
+}
+
+/// <summary>
+/// Result for getting detailed information about an Excel Table
+/// </summary>
+public class TableInfoResult : ResultBase
+{
+    /// <summary>
+    /// Detailed information about the Excel Table
+    /// </summary>
+    public TableInfo? Table { get; set; }
+}
+
+/// <summary>
+/// Information about an Excel Table (ListObject)
+/// </summary>
+public class TableInfo
+{
+    /// <summary>
+    /// Name of the table
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Worksheet containing the table
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range address of the table (e.g., "A1:D10")
+    /// </summary>
+    public string Range { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the table has headers
+    /// </summary>
+    public bool HasHeaders { get; set; } = true;
+
+    /// <summary>
+    /// Table style name (e.g., "TableStyleMedium2")
+    /// </summary>
+    public string? TableStyle { get; set; }
+
+    /// <summary>
+    /// Number of rows (excluding header)
+    /// </summary>
+    public int RowCount { get; set; }
+
+    /// <summary>
+    /// Number of columns
+    /// </summary>
+    public int ColumnCount { get; set; }
+
+    /// <summary>
+    /// Column names (if table has headers)
+    /// </summary>
+    public List<string> Columns { get; set; } = new();
+
+    /// <summary>
+    /// Whether the table has a total row
+    /// </summary>
+    public bool ShowTotals { get; set; }
+}
+
+#endregion
+

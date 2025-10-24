@@ -46,6 +46,7 @@ class Program
             var connection = new ConnectionCommands();
             var dataModel = new DataModelCommands();
             var dataModelTom = new DataModelTomCommands();
+            var table = new TableCommands();
 
             return args[0].ToLower() switch
             {
@@ -86,6 +87,13 @@ class Program
                 "sheet-rename" => sheet.Rename(args),
                 "sheet-clear" => sheet.Clear(args),
                 "sheet-append" => sheet.Append(args),
+
+                // Table commands
+                "table-list" => table.List(args),
+                "table-create" => table.Create(args),
+                "table-rename" => table.Rename(args),
+                "table-delete" => table.Delete(args),
+                "table-info" => table.Info(args),
 
                 // Parameter commands
                 "param-list" => param.List(args),
@@ -284,6 +292,15 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]sheet-rename[/] file.xlsx old-name new-name     Rename worksheet");
         AnsiConsole.MarkupLine("  [cyan]sheet-clear[/] file.xlsx sheet-name (range)     Clear worksheet data");
         AnsiConsole.MarkupLine("  [cyan]sheet-append[/] file.xlsx sheet-name data.csv   Append CSV data to worksheet");
+        AnsiConsole.WriteLine();
+
+        AnsiConsole.MarkupLine("[bold yellow]Table Commands:[/]");
+        AnsiConsole.MarkupLine("  [cyan]table-list[/] file.xlsx                         List all Excel Tables");
+        AnsiConsole.MarkupLine("  [cyan]table-create[/] file.xlsx sheet name range      Create Excel Table");
+        AnsiConsole.MarkupLine("    Options: [dim][hasHeaders] [tableStyle][/]");
+        AnsiConsole.MarkupLine("  [cyan]table-info[/] file.xlsx table-name             Get table details");
+        AnsiConsole.MarkupLine("  [cyan]table-rename[/] file.xlsx old-name new-name     Rename Excel Table");
+        AnsiConsole.MarkupLine("  [cyan]table-delete[/] file.xlsx table-name            Delete Excel Table");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Parameter Commands:[/]");
