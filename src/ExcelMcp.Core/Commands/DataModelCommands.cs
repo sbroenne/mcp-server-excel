@@ -1,6 +1,8 @@
+using Sbroenne.ExcelMcp.Core.ComInterop;
+using Sbroenne.ExcelMcp.Core.DataModel;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Security;
-using static Sbroenne.ExcelMcp.Core.ExcelHelper;
+using Sbroenne.ExcelMcp.Core.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -22,13 +24,13 @@ public class DataModelCommands : IDataModelCommands
             return result;
         }
 
-        return WithExcel(filePath, save: false, (excel, workbook) =>
+        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
         {
             dynamic? model = null;
             try
             {
                 // Check if workbook has Data Model
-                if (!HasDataModel(workbook))
+                if (!DataModelHelpers.HasDataModel(workbook))
                 {
                     result.Success = false;
                     result.ErrorMessage = "This workbook does not contain a Data Model. Load data to Data Model first using Power Query or external data sources.";
@@ -77,7 +79,7 @@ public class DataModelCommands : IDataModelCommands
                         }
                         finally
                         {
-                            ReleaseComObject(ref table);
+                            ComUtilities.Release(ref table);
                         }
                     }
 
@@ -85,7 +87,7 @@ public class DataModelCommands : IDataModelCommands
                 }
                 finally
                 {
-                    ReleaseComObject(ref modelTables);
+                    ComUtilities.Release(ref modelTables);
                 }
             }
             catch (Exception ex)
@@ -95,7 +97,7 @@ public class DataModelCommands : IDataModelCommands
             }
             finally
             {
-                ReleaseComObject(ref model);
+                ComUtilities.Release(ref model);
             }
 
             return result;
@@ -114,13 +116,13 @@ public class DataModelCommands : IDataModelCommands
             return result;
         }
 
-        return WithExcel(filePath, save: false, (excel, workbook) =>
+        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
         {
             dynamic? model = null;
             try
             {
                 // Check if workbook has Data Model
-                if (!HasDataModel(workbook))
+                if (!DataModelHelpers.HasDataModel(workbook))
                 {
                     result.Success = false;
                     result.ErrorMessage = "This workbook does not contain a Data Model.";
@@ -171,14 +173,14 @@ public class DataModelCommands : IDataModelCommands
                                 }
                                 finally
                                 {
-                                    ReleaseComObject(ref measure);
+                                    ComUtilities.Release(ref measure);
                                 }
                             }
                         }
                         finally
                         {
-                            ReleaseComObject(ref measures);
-                            ReleaseComObject(ref table);
+                            ComUtilities.Release(ref measures);
+                            ComUtilities.Release(ref table);
                         }
                     }
 
@@ -194,7 +196,7 @@ public class DataModelCommands : IDataModelCommands
                 }
                 finally
                 {
-                    ReleaseComObject(ref modelTables);
+                    ComUtilities.Release(ref modelTables);
                 }
             }
             catch (Exception ex)
@@ -204,7 +206,7 @@ public class DataModelCommands : IDataModelCommands
             }
             finally
             {
-                ReleaseComObject(ref model);
+                ComUtilities.Release(ref model);
             }
 
             return result;
@@ -227,14 +229,14 @@ public class DataModelCommands : IDataModelCommands
             return result;
         }
 
-        return WithExcel(filePath, save: false, (excel, workbook) =>
+        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
         {
             dynamic? model = null;
             dynamic? measure = null;
             try
             {
                 // Check if workbook has Data Model
-                if (!HasDataModel(workbook))
+                if (!DataModelHelpers.HasDataModel(workbook))
                 {
                     result.Success = false;
                     result.ErrorMessage = "This workbook does not contain a Data Model.";
@@ -244,10 +246,10 @@ public class DataModelCommands : IDataModelCommands
                 model = workbook.Model;
 
                 // Find the measure
-                measure = FindModelMeasure(model, measureName);
+                measure = ComUtilities.FindModelMeasure(model, measureName);
                 if (measure == null)
                 {
-                    var measureNames = GetModelMeasureNames(model);
+                    var measureNames = DataModelHelpers.GetModelMeasureNames(model);
                     result.Success = false;
                     result.ErrorMessage = $"Measure '{measureName}' not found in Data Model.";
 
@@ -274,7 +276,7 @@ public class DataModelCommands : IDataModelCommands
                 result.DaxFormula = measure.Formula?.ToString() ?? "";
                 result.Description = measure.Description?.ToString();
                 result.CharacterCount = result.DaxFormula.Length;
-                result.TableName = GetMeasureTableName(model, measureName) ?? "";
+                result.TableName = DataModelHelpers.GetMeasureTableName(model, measureName) ?? "";
 
                 // Try to get format information
                 try
@@ -289,7 +291,7 @@ public class DataModelCommands : IDataModelCommands
                         catch { /* FormatString may not be accessible */ }
                         finally
                         {
-                            ReleaseComObject(ref formatInfo);
+                            ComUtilities.Release(ref formatInfo);
                         }
                     }
                 }
@@ -304,8 +306,8 @@ public class DataModelCommands : IDataModelCommands
             }
             finally
             {
-                ReleaseComObject(ref measure);
-                ReleaseComObject(ref model);
+                ComUtilities.Release(ref measure);
+                ComUtilities.Release(ref model);
             }
 
             return result;
@@ -340,14 +342,14 @@ public class DataModelCommands : IDataModelCommands
             return result;
         }
 
-        WithExcel(filePath, save: false, (excel, workbook) =>
+        ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
         {
             dynamic? model = null;
             dynamic? measure = null;
             try
             {
                 // Check if workbook has Data Model
-                if (!HasDataModel(workbook))
+                if (!DataModelHelpers.HasDataModel(workbook))
                 {
                     result.Success = false;
                     result.ErrorMessage = "This workbook does not contain a Data Model.";
@@ -357,7 +359,7 @@ public class DataModelCommands : IDataModelCommands
                 model = workbook.Model;
 
                 // Find the measure
-                measure = FindModelMeasure(model, measureName);
+                measure = ComUtilities.FindModelMeasure(model, measureName);
                 if (measure == null)
                 {
                     result.Success = false;
@@ -368,7 +370,7 @@ public class DataModelCommands : IDataModelCommands
                 // Get measure details
                 string daxFormula = measure.Formula?.ToString() ?? "";
                 string? description = measure.Description?.ToString();
-                string tableName = GetMeasureTableName(model, measureName) ?? "";
+                string tableName = DataModelHelpers.GetMeasureTableName(model, measureName) ?? "";
                 string? formatString = null;
 
                 // Try to get format information
@@ -383,7 +385,7 @@ public class DataModelCommands : IDataModelCommands
                         }
                         finally
                         {
-                            ReleaseComObject(ref formatInfo);
+                            ComUtilities.Release(ref formatInfo);
                         }
                     }
                 }
@@ -419,8 +421,8 @@ public class DataModelCommands : IDataModelCommands
             }
             finally
             {
-                ReleaseComObject(ref measure);
-                ReleaseComObject(ref model);
+                ComUtilities.Release(ref measure);
+                ComUtilities.Release(ref model);
             }
         });
 
@@ -439,13 +441,13 @@ public class DataModelCommands : IDataModelCommands
             return result;
         }
 
-        return WithExcel(filePath, save: false, (excel, workbook) =>
+        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
         {
             dynamic? model = null;
             try
             {
                 // Check if workbook has Data Model
-                if (!HasDataModel(workbook))
+                if (!DataModelHelpers.HasDataModel(workbook))
                 {
                     result.Success = false;
                     result.ErrorMessage = "This workbook does not contain a Data Model.";
@@ -498,11 +500,11 @@ public class DataModelCommands : IDataModelCommands
                         }
                         finally
                         {
-                            ReleaseComObject(ref pkTable);
-                            ReleaseComObject(ref fkTable);
-                            ReleaseComObject(ref pkColumn);
-                            ReleaseComObject(ref fkColumn);
-                            ReleaseComObject(ref relationship);
+                            ComUtilities.Release(ref pkTable);
+                            ComUtilities.Release(ref fkTable);
+                            ComUtilities.Release(ref pkColumn);
+                            ComUtilities.Release(ref fkColumn);
+                            ComUtilities.Release(ref relationship);
                         }
                     }
 
@@ -510,7 +512,7 @@ public class DataModelCommands : IDataModelCommands
                 }
                 finally
                 {
-                    ReleaseComObject(ref relationships);
+                    ComUtilities.Release(ref relationships);
                 }
             }
             catch (Exception ex)
@@ -520,7 +522,7 @@ public class DataModelCommands : IDataModelCommands
             }
             finally
             {
-                ReleaseComObject(ref model);
+                ComUtilities.Release(ref model);
             }
 
             return result;
@@ -543,13 +545,13 @@ public class DataModelCommands : IDataModelCommands
             return result;
         }
 
-        return WithExcel(filePath, save: true, (excel, workbook) =>
+        return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
         {
             dynamic? model = null;
             try
             {
                 // Check if workbook has Data Model
-                if (!HasDataModel(workbook))
+                if (!DataModelHelpers.HasDataModel(workbook))
                 {
                     result.Success = false;
                     result.ErrorMessage = "This workbook does not contain a Data Model.";
@@ -561,7 +563,7 @@ public class DataModelCommands : IDataModelCommands
                 if (tableName != null)
                 {
                     // Refresh specific table
-                    dynamic? table = FindModelTable(model, tableName);
+                    dynamic? table = ComUtilities.FindModelTable(model, tableName);
                     if (table == null)
                     {
                         result.Success = false;
@@ -581,7 +583,7 @@ public class DataModelCommands : IDataModelCommands
                     }
                     finally
                     {
-                        ReleaseComObject(ref table);
+                        ComUtilities.Release(ref table);
                     }
                 }
                 else
@@ -613,7 +615,7 @@ public class DataModelCommands : IDataModelCommands
             }
             finally
             {
-                ReleaseComObject(ref model);
+                ComUtilities.Release(ref model);
             }
 
             return result;
@@ -636,14 +638,14 @@ public class DataModelCommands : IDataModelCommands
             return result;
         }
 
-        return WithExcel(filePath, save: true, (excel, workbook) =>
+        return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
         {
             dynamic? model = null;
             dynamic? measure = null;
             try
             {
                 // Check if workbook has Data Model
-                if (!HasDataModel(workbook))
+                if (!DataModelHelpers.HasDataModel(workbook))
                 {
                     result.Success = false;
                     result.ErrorMessage = "This workbook does not contain a Data Model.";
@@ -653,10 +655,10 @@ public class DataModelCommands : IDataModelCommands
                 model = workbook.Model;
 
                 // Find the measure
-                measure = FindModelMeasure(model, measureName);
+                measure = ComUtilities.FindModelMeasure(model, measureName);
                 if (measure == null)
                 {
-                    var measureNames = GetModelMeasureNames(model);
+                    var measureNames = DataModelHelpers.GetModelMeasureNames(model);
                     result.Success = false;
                     result.ErrorMessage = $"Measure '{measureName}' not found in Data Model.";
 
@@ -698,8 +700,8 @@ public class DataModelCommands : IDataModelCommands
             }
             finally
             {
-                ReleaseComObject(ref measure);
-                ReleaseComObject(ref model);
+                ComUtilities.Release(ref measure);
+                ComUtilities.Release(ref model);
             }
 
             return result;
@@ -722,7 +724,7 @@ public class DataModelCommands : IDataModelCommands
             return result;
         }
 
-        return WithExcel(filePath, save: true, (excel, workbook) =>
+        return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
         {
             dynamic? model = null;
             dynamic? modelRelationships = null;
@@ -730,7 +732,7 @@ public class DataModelCommands : IDataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!HasDataModel(workbook))
+                if (!DataModelHelpers.HasDataModel(workbook))
                 {
                     result.Success = false;
                     result.ErrorMessage = "This workbook does not contain a Data Model.";
@@ -761,8 +763,8 @@ public class DataModelCommands : IDataModelCommands
                             string currentToTable = pkTable?.Name?.ToString() ?? "";
                             string currentToColumn = pkColumn?.Name?.ToString() ?? "";
 
-                            ReleaseComObject(ref fkTable);
-                            ReleaseComObject(ref pkTable);
+                            ComUtilities.Release(ref fkTable);
+                            ComUtilities.Release(ref pkTable);
 
                             if (currentFromTable.Equals(fromTable, StringComparison.OrdinalIgnoreCase) &&
                                 currentFromColumn.Equals(fromColumn, StringComparison.OrdinalIgnoreCase) &&
@@ -777,15 +779,15 @@ public class DataModelCommands : IDataModelCommands
                         }
                         finally
                         {
-                            ReleaseComObject(ref fkColumn);
-                            ReleaseComObject(ref pkColumn);
+                            ComUtilities.Release(ref fkColumn);
+                            ComUtilities.Release(ref pkColumn);
                         }
                     }
                     finally
                     {
                         if (!found || i < modelRelationships.Count)
                         {
-                            ReleaseComObject(ref relationship);
+                            ComUtilities.Release(ref relationship);
                         }
                     }
                 }
@@ -819,9 +821,9 @@ public class DataModelCommands : IDataModelCommands
             }
             finally
             {
-                ReleaseComObject(ref relationship);
-                ReleaseComObject(ref modelRelationships);
-                ReleaseComObject(ref model);
+                ComUtilities.Release(ref relationship);
+                ComUtilities.Release(ref modelRelationships);
+                ComUtilities.Release(ref model);
             }
 
             return result;

@@ -1,5 +1,6 @@
+using Sbroenne.ExcelMcp.Core.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
-using static Sbroenne.ExcelMcp.Core.ExcelHelper;
+using Sbroenne.ExcelMcp.Core.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -23,7 +24,7 @@ public class ParameterCommands : IParameterCommands
 
         var result = new ParameterListResult { FilePath = filePath };
 
-        WithExcel(filePath, false, (excel, workbook) =>
+        ExcelSession.Execute(filePath, false, (excel, workbook) =>
         {
             dynamic? namesCollection = null;
             try
@@ -74,8 +75,8 @@ public class ParameterCommands : IParameterCommands
                     catch { }
                     finally
                     {
-                        ReleaseComObject(ref refersToRange);
-                        ReleaseComObject(ref nameObj);
+                        ComUtilities.Release(ref refersToRange);
+                        ComUtilities.Release(ref nameObj);
                     }
                 }
 
@@ -90,7 +91,7 @@ public class ParameterCommands : IParameterCommands
             }
             finally
             {
-                ReleaseComObject(ref namesCollection);
+                ComUtilities.Release(ref namesCollection);
             }
         });
 
@@ -113,13 +114,13 @@ public class ParameterCommands : IParameterCommands
 
         var result = new OperationResult { FilePath = filePath, Action = "set-parameter" };
 
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? nameObj = null;
             dynamic? refersToRange = null;
             try
             {
-                nameObj = FindName(workbook, paramName);
+                nameObj = ComUtilities.FindName(workbook, paramName);
                 if (nameObj == null)
                 {
                     result.Success = false;
@@ -155,8 +156,8 @@ public class ParameterCommands : IParameterCommands
             }
             finally
             {
-                ReleaseComObject(ref refersToRange);
-                ReleaseComObject(ref nameObj);
+                ComUtilities.Release(ref refersToRange);
+                ComUtilities.Release(ref nameObj);
             }
         });
 
@@ -179,13 +180,13 @@ public class ParameterCommands : IParameterCommands
 
         var result = new ParameterValueResult { FilePath = filePath, ParameterName = paramName };
 
-        WithExcel(filePath, false, (excel, workbook) =>
+        ExcelSession.Execute(filePath, false, (excel, workbook) =>
         {
             dynamic? nameObj = null;
             dynamic? refersToRange = null;
             try
             {
-                nameObj = FindName(workbook, paramName);
+                nameObj = ComUtilities.FindName(workbook, paramName);
                 if (nameObj == null)
                 {
                     result.Success = false;
@@ -208,8 +209,8 @@ public class ParameterCommands : IParameterCommands
             }
             finally
             {
-                ReleaseComObject(ref refersToRange);
-                ReleaseComObject(ref nameObj);
+                ComUtilities.Release(ref refersToRange);
+                ComUtilities.Release(ref nameObj);
             }
         });
 
@@ -232,7 +233,7 @@ public class ParameterCommands : IParameterCommands
 
         var result = new OperationResult { FilePath = filePath, Action = "create-parameter" };
 
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? existing = null;
             dynamic? namesCollection = null;
@@ -265,8 +266,8 @@ public class ParameterCommands : IParameterCommands
             }
             finally
             {
-                ReleaseComObject(ref namesCollection);
-                ReleaseComObject(ref existing);
+                ComUtilities.Release(ref namesCollection);
+                ComUtilities.Release(ref existing);
             }
         });
 
@@ -289,12 +290,12 @@ public class ParameterCommands : IParameterCommands
 
         var result = new OperationResult { FilePath = filePath, Action = "update-parameter" };
 
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? nameObj = null;
             try
             {
-                nameObj = FindName(workbook, paramName);
+                nameObj = ComUtilities.FindName(workbook, paramName);
                 if (nameObj == null)
                 {
                     result.Success = false;
@@ -309,10 +310,10 @@ public class ParameterCommands : IParameterCommands
 
                 // Ensure reference is properly formatted with = prefix
                 string formattedReference = reference.StartsWith("=") ? reference : $"={reference}";
-                
+
                 // Update the reference
                 nameObj.RefersTo = formattedReference;
-                
+
                 result.Success = true;
                 result.SuggestedNextActions = new List<string>
                 {
@@ -321,7 +322,7 @@ public class ParameterCommands : IParameterCommands
                     "Use 'param-set' to change the value"
                 };
                 result.WorkflowHint = "Parameter reference updated. Next, verify or modify the value.";
-                
+
                 return 0;
             }
             catch (Exception ex)
@@ -337,7 +338,7 @@ public class ParameterCommands : IParameterCommands
             }
             finally
             {
-                ReleaseComObject(ref nameObj);
+                ComUtilities.Release(ref nameObj);
             }
         });
 
@@ -360,12 +361,12 @@ public class ParameterCommands : IParameterCommands
 
         var result = new OperationResult { FilePath = filePath, Action = "delete-parameter" };
 
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? nameObj = null;
             try
             {
-                nameObj = FindName(workbook, paramName);
+                nameObj = ComUtilities.FindName(workbook, paramName);
                 if (nameObj == null)
                 {
                     result.Success = false;
@@ -386,7 +387,7 @@ public class ParameterCommands : IParameterCommands
             }
             finally
             {
-                ReleaseComObject(ref nameObj);
+                ComUtilities.Release(ref nameObj);
             }
         });
 

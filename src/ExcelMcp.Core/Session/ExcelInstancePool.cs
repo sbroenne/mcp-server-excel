@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
-namespace Sbroenne.ExcelMcp.Core;
+namespace Sbroenne.ExcelMcp.Core.Session;
 
 /// <summary>
 /// Manages a pool of Excel COM instances for reuse across multiple operations.

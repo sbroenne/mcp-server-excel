@@ -1,5 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Models;
-using static Sbroenne.ExcelMcp.Core.ExcelHelper;
+using Sbroenne.ExcelMcp.Core.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -63,7 +63,7 @@ public class FileCommands : IFileCommands
             // Create Excel workbook using proper resource management
             bool isMacroEnabled = extension == ".xlsm";
 
-            return WithNewExcel(filePath, isMacroEnabled, (excel, workbook) =>
+            return ExcelSession.CreateNew(filePath, isMacroEnabled, (excel, workbook) =>
             {
                 // Set up a basic structure
                 dynamic sheet = workbook.Worksheets.Item(1);

@@ -6,9 +6,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 /// <summary>
 /// Unit tests for Core FileCommands - testing data layer without UI
 /// These tests verify that Core returns correct Result objects
-/// Uses Excel instance pooling for improved test performance.
 /// </summary>
-[Collection(nameof(ExcelPooledTestCollection))]
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
 [Trait("Feature", "Files")]

@@ -1,5 +1,6 @@
+using Sbroenne.ExcelMcp.Core.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
-using static Sbroenne.ExcelMcp.Core.ExcelHelper;
+using Sbroenne.ExcelMcp.Core.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -28,13 +29,13 @@ public class CellCommands : ICellCommands
             CellAddress = $"{sheetName}!{cellAddress}"
         };
 
-        WithExcel(filePath, false, (excel, workbook) =>
+        ExcelSession.Execute(filePath, false, (excel, workbook) =>
         {
             dynamic? sheet = null;
             dynamic? cell = null;
             try
             {
-                sheet = FindSheet(workbook, sheetName);
+                sheet = ComUtilities.FindSheet(workbook, sheetName);
                 if (sheet == null)
                 {
                     result.Success = false;
@@ -57,8 +58,8 @@ public class CellCommands : ICellCommands
             }
             finally
             {
-                ReleaseComObject(ref cell);
-                ReleaseComObject(ref sheet);
+                ComUtilities.Release(ref cell);
+                ComUtilities.Release(ref sheet);
             }
         });
 
@@ -85,13 +86,13 @@ public class CellCommands : ICellCommands
             Action = "set-value"
         };
 
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? sheet = null;
             dynamic? cell = null;
             try
             {
-                sheet = FindSheet(workbook, sheetName);
+                sheet = ComUtilities.FindSheet(workbook, sheetName);
                 if (sheet == null)
                 {
                     result.Success = false;
@@ -127,8 +128,8 @@ public class CellCommands : ICellCommands
             }
             finally
             {
-                ReleaseComObject(ref cell);
-                ReleaseComObject(ref sheet);
+                ComUtilities.Release(ref cell);
+                ComUtilities.Release(ref sheet);
             }
         });
 
@@ -155,13 +156,13 @@ public class CellCommands : ICellCommands
             CellAddress = $"{sheetName}!{cellAddress}"
         };
 
-        WithExcel(filePath, false, (excel, workbook) =>
+        ExcelSession.Execute(filePath, false, (excel, workbook) =>
         {
             dynamic? sheet = null;
             dynamic? cell = null;
             try
             {
-                sheet = FindSheet(workbook, sheetName);
+                sheet = ComUtilities.FindSheet(workbook, sheetName);
                 if (sheet == null)
                 {
                     result.Success = false;
@@ -184,8 +185,8 @@ public class CellCommands : ICellCommands
             }
             finally
             {
-                ReleaseComObject(ref cell);
-                ReleaseComObject(ref sheet);
+                ComUtilities.Release(ref cell);
+                ComUtilities.Release(ref sheet);
             }
         });
 
@@ -218,13 +219,13 @@ public class CellCommands : ICellCommands
             Action = "set-formula"
         };
 
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? sheet = null;
             dynamic? cell = null;
             try
             {
-                sheet = FindSheet(workbook, sheetName);
+                sheet = ComUtilities.FindSheet(workbook, sheetName);
                 if (sheet == null)
                 {
                     result.Success = false;
@@ -247,8 +248,8 @@ public class CellCommands : ICellCommands
             }
             finally
             {
-                ReleaseComObject(ref cell);
-                ReleaseComObject(ref sheet);
+                ComUtilities.Release(ref cell);
+                ComUtilities.Release(ref sheet);
             }
         });
 

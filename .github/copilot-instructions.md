@@ -78,6 +78,30 @@ dotnet test --filter "RunType=OnDemand"
 
 After completing significant tasks, update these instructions with lessons learned. See [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) Rule 4.
 
+**Lesson Learned (2025-10-24 - Bulk Refactoring):** When performing bulk refactoring with many find/replace operations:
+1. **Preferred:** Use `replace_string_in_file` tool for targeted, unambiguous edits with context
+2. **Batch Operations:** Use `grep_search` to find patterns, then use `replace_string_in_file` in parallel for independent changes
+3. **Avoid:** PowerShell scripts or terminal commands for code changes - they lack precision and are prone to encoding/parsing issues
+4. For large-scale refactorings (100+ replacements), break into smaller batches and test incrementally
+
+**Available Internal Tools (2025-10-24):**
+- `replace_string_in_file` - Precise code edits with 3-5 lines of context (use for all code changes)
+- `create_file` - Create new files with content (use instead of terminal file creation)
+- `read_file` - Read specific line ranges (always check current state before editing)
+- `grep_search` - Find patterns across workspace (use to locate code to change)
+- `semantic_search` - Find relevant code by intent (use for discovering related code)
+- `file_search` - Find files by glob pattern (use to locate files by name/extension)
+- `list_dir` - List directory contents (use instead of terminal `ls` or `dir`)
+- `get_errors` - Get compile/lint errors (use instead of terminal `dotnet build` for error checking)
+- `run_in_terminal` - Execute commands (ONLY for operations with no alternative: dotnet build, dotnet test, git commands)
+
+**Tool Selection Priority:**
+1. Code changes → `replace_string_in_file` (always)
+2. File creation → `create_file` (always)
+3. Find code → `grep_search` or `semantic_search` (always)
+4. Check errors → `get_errors` (preferred over terminal build)
+5. Build/test/git → `run_in_terminal` (only when no alternative)
+
 ---
 
 ## 📚 How Path-Specific Instructions Work

@@ -1,4 +1,4 @@
-namespace Sbroenne.ExcelMcp.Core;
+namespace Sbroenne.ExcelMcp.Core.Session;
 
 /// <summary>
 /// Exception thrown when the Excel instance pool is at maximum capacity.

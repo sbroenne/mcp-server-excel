@@ -115,7 +115,7 @@ public class McpClientIntegrationTests : IDisposable
         var json = JsonDocument.Parse(response);
         var tools = json.RootElement.GetProperty("result").GetProperty("tools");
 
-        Assert.Equal(7, tools.GetArrayLength());
+        Assert.Equal(9, tools.GetArrayLength());
 
         var toolNames = tools.EnumerateArray()
             .Select(t => t.GetProperty("name").GetString())
@@ -125,9 +125,11 @@ public class McpClientIntegrationTests : IDisposable
         Assert.Equal(new[] {
             "excel_cell",
             "excel_connection",
+            "excel_datamodel",
             "excel_file",
             "excel_parameter",
             "excel_powerquery",
+            "excel_version",
             "excel_vba",
             "excel_worksheet"
         }, toolNames);

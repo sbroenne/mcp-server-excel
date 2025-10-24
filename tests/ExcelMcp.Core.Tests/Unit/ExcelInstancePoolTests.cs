@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core;
+using Sbroenne.ExcelMcp.Core.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Unit;

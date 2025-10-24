@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core;
+using Sbroenne.ExcelMcp.Core.Session;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -79,6 +80,6 @@ public static class ExcelToolsPoolManager
         // Use pooled instance for better performance if available; otherwise, fall back to single-instance pattern.
         return pool != null
             ? pool.WithPooledExcel(filePath, save, action)
-            : ExcelHelper.WithExcel(filePath, save, action);
+            : ExcelSession.ExecuteSingleInstance(filePath, save, action);
     }
 }

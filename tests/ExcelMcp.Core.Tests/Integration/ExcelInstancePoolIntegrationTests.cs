@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Sbroenne.ExcelMcp.Core;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Session;
 using Xunit;
 using Xunit.Abstractions;
 

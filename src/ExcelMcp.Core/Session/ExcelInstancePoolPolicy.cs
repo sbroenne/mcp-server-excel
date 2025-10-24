@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.ObjectPool;
 
-namespace Sbroenne.ExcelMcp.Core;
+namespace Sbroenne.ExcelMcp.Core.Session;
 
 /// <summary>
 /// Pooling policy for Excel COM instances. Defines how to create, reset, and destroy pooled Excel instances.

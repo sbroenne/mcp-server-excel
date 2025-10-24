@@ -1,4 +1,5 @@
-using Sbroenne.ExcelMcp.Core;
+using Sbroenne.ExcelMcp.Core.ComInterop;
+using Sbroenne.ExcelMcp.Core.Session;
 using System.Runtime.InteropServices;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -18,7 +19,7 @@ public static class DataModelTestHelper
         // Add small delay to prevent Excel from getting overwhelmed during parallel test execution
         System.Threading.Thread.Sleep(100);
 
-        ExcelHelper.WithExcel(filePath, save: true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
         {
             try
             {
@@ -102,15 +103,15 @@ public static class DataModelTestHelper
             }
             finally
             {
-                ExcelHelper.ReleaseComObject(ref listObject);
+                ComUtilities.Release(ref listObject);
             }
 
-            ExcelHelper.ReleaseComObject(ref range);
+            ComUtilities.Release(ref range);
         }
         finally
         {
-            ExcelHelper.ReleaseComObject(ref range);
-            ExcelHelper.ReleaseComObject(ref sheet);
+            ComUtilities.Release(ref range);
+            ComUtilities.Release(ref sheet);
         }
     }
 
@@ -160,15 +161,15 @@ public static class DataModelTestHelper
             }
             finally
             {
-                ExcelHelper.ReleaseComObject(ref listObject);
+                ComUtilities.Release(ref listObject);
             }
 
-            ExcelHelper.ReleaseComObject(ref range);
+            ComUtilities.Release(ref range);
         }
         finally
         {
-            ExcelHelper.ReleaseComObject(ref range);
-            ExcelHelper.ReleaseComObject(ref sheet);
+            ComUtilities.Release(ref range);
+            ComUtilities.Release(ref sheet);
         }
     }
 
@@ -218,15 +219,15 @@ public static class DataModelTestHelper
             }
             finally
             {
-                ExcelHelper.ReleaseComObject(ref listObject);
+                ComUtilities.Release(ref listObject);
             }
 
-            ExcelHelper.ReleaseComObject(ref range);
+            ComUtilities.Release(ref range);
         }
         finally
         {
-            ExcelHelper.ReleaseComObject(ref range);
-            ExcelHelper.ReleaseComObject(ref sheet);
+            ComUtilities.Release(ref range);
+            ComUtilities.Release(ref sheet);
         }
     }
 
@@ -250,7 +251,7 @@ public static class DataModelTestHelper
         }
         finally
         {
-            ExcelHelper.ReleaseComObject(ref model);
+            ComUtilities.Release(ref model);
         }
     }
 
@@ -284,7 +285,7 @@ public static class DataModelTestHelper
                 Formula: "SUM(Sales[Amount])",
                 FormatInformation: null
             );
-            ExcelHelper.ReleaseComObject(ref measure);
+            ComUtilities.Release(ref measure);
 
             // Create Average Sale measure
             measure = measures.Add(
@@ -293,7 +294,7 @@ public static class DataModelTestHelper
                 Formula: "AVERAGE(Sales[Amount])",
                 FormatInformation: null
             );
-            ExcelHelper.ReleaseComObject(ref measure);
+            ComUtilities.Release(ref measure);
 
             // Create Total Customers measure
             measure = measures.Add(
@@ -302,7 +303,7 @@ public static class DataModelTestHelper
                 Formula: "DISTINCTCOUNT(Sales[CustomerID])",
                 FormatInformation: null
             );
-            ExcelHelper.ReleaseComObject(ref measure);
+            ComUtilities.Release(ref measure);
         }
         catch (COMException ex)
         {
@@ -311,11 +312,11 @@ public static class DataModelTestHelper
         }
         finally
         {
-            ExcelHelper.ReleaseComObject(ref measure);
-            ExcelHelper.ReleaseComObject(ref measures);
-            ExcelHelper.ReleaseComObject(ref salesTable);
-            ExcelHelper.ReleaseComObject(ref modelTables);
-            ExcelHelper.ReleaseComObject(ref model);
+            ComUtilities.Release(ref measure);
+            ComUtilities.Release(ref measures);
+            ComUtilities.Release(ref salesTable);
+            ComUtilities.Release(ref modelTables);
+            ComUtilities.Release(ref model);
         }
     }
 
@@ -363,11 +364,11 @@ public static class DataModelTestHelper
                     PrimaryKeyColumn: customersIdColumn
                 );
                 relationship.Active = true;
-                ExcelHelper.ReleaseComObject(ref relationship);
+                ComUtilities.Release(ref relationship);
             }
 
-            ExcelHelper.ReleaseComObject(ref customerIdColumn);
-            ExcelHelper.ReleaseComObject(ref customersIdColumn);
+            ComUtilities.Release(ref customerIdColumn);
+            ComUtilities.Release(ref customersIdColumn);
 
             // Create Sales -> Products relationship
             productsColumns = productsTable.ModelTableColumns;
@@ -382,11 +383,11 @@ public static class DataModelTestHelper
                     PrimaryKeyColumn: productsIdColumn
                 );
                 relationship.Active = true;
-                ExcelHelper.ReleaseComObject(ref relationship);
+                ComUtilities.Release(ref relationship);
             }
 
-            ExcelHelper.ReleaseComObject(ref productIdColumn);
-            ExcelHelper.ReleaseComObject(ref productsIdColumn);
+            ComUtilities.Release(ref productIdColumn);
+            ComUtilities.Release(ref productsIdColumn);
         }
         catch (COMException ex)
         {
@@ -395,16 +396,16 @@ public static class DataModelTestHelper
         }
         finally
         {
-            ExcelHelper.ReleaseComObject(ref productsColumns);
-            ExcelHelper.ReleaseComObject(ref customersColumns);
-            ExcelHelper.ReleaseComObject(ref salesColumns);
-            ExcelHelper.ReleaseComObject(ref productsTable);
-            ExcelHelper.ReleaseComObject(ref customersTable);
-            ExcelHelper.ReleaseComObject(ref salesTable);
-            ExcelHelper.ReleaseComObject(ref modelTables);
-            ExcelHelper.ReleaseComObject(ref relationship);
-            ExcelHelper.ReleaseComObject(ref modelRelationships);
-            ExcelHelper.ReleaseComObject(ref model);
+            ComUtilities.Release(ref productsColumns);
+            ComUtilities.Release(ref customersColumns);
+            ComUtilities.Release(ref salesColumns);
+            ComUtilities.Release(ref productsTable);
+            ComUtilities.Release(ref customersTable);
+            ComUtilities.Release(ref salesTable);
+            ComUtilities.Release(ref modelTables);
+            ComUtilities.Release(ref relationship);
+            ComUtilities.Release(ref modelRelationships);
+            ComUtilities.Release(ref model);
         }
     }
 
@@ -428,7 +429,7 @@ public static class DataModelTestHelper
                 {
                     if (table != null && table.Name != tableName)
                     {
-                        ExcelHelper.ReleaseComObject(ref table);
+                        ComUtilities.Release(ref table);
                     }
                 }
             }
@@ -462,7 +463,7 @@ public static class DataModelTestHelper
                 {
                     if (table != null && table.Name != tableName)
                     {
-                        ExcelHelper.ReleaseComObject(ref table);
+                        ComUtilities.Release(ref table);
                     }
                 }
             }
@@ -494,7 +495,7 @@ public static class DataModelTestHelper
                 {
                     if (column != null && column.Name != columnName)
                     {
-                        ExcelHelper.ReleaseComObject(ref column);
+                        ComUtilities.Release(ref column);
                     }
                 }
             }
@@ -513,7 +514,7 @@ public static class DataModelTestHelper
     /// </summary>
     public static void CreateTestMeasure(string filePath, string measureName, string formula)
     {
-        ExcelHelper.WithExcel(filePath, save: true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
         {
             dynamic? model = null;
             dynamic? modelTables = null;
@@ -550,11 +551,11 @@ public static class DataModelTestHelper
             }
             finally
             {
-                ExcelHelper.ReleaseComObject(ref measure);
-                ExcelHelper.ReleaseComObject(ref measures);
-                ExcelHelper.ReleaseComObject(ref salesTable);
-                ExcelHelper.ReleaseComObject(ref modelTables);
-                ExcelHelper.ReleaseComObject(ref model);
+                ComUtilities.Release(ref measure);
+                ComUtilities.Release(ref measures);
+                ComUtilities.Release(ref salesTable);
+                ComUtilities.Release(ref modelTables);
+                ComUtilities.Release(ref model);
             }
 
             return 0;

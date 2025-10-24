@@ -115,9 +115,10 @@ public static class ExcelFileTool
     private static string CloseWorkbook(string excelPath)
     {
         // Close workbook in pool (if pooling is enabled)
-        if (ExcelHelper.InstancePool != null)
+        var pool = ExcelToolsPoolManager.Pool;
+        if (pool != null)
         {
-            ExcelHelper.InstancePool.CloseWorkbook(excelPath);
+            pool.CloseWorkbook(excelPath);
 
             return JsonSerializer.Serialize(new
             {

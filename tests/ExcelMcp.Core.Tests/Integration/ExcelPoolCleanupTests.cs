@@ -1,6 +1,6 @@
 using System.Diagnostics;
-using Sbroenne.ExcelMcp.Core;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Session;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -30,9 +30,6 @@ public class ExcelPoolCleanupTests
     [Fact]
     public void PoolDisposal_WithMultipleInstances_ShouldCleanupAllExcelProcesses()
     {
-        // Save original pool to restore later (don't interfere with other tests)
-        var originalPool = ExcelHelper.InstancePool;
-
         // Get baseline Excel process count
         int initialExcelCount = GetExcelProcessCount();
         _output.WriteLine($"Initial Excel processes: {initialExcelCount}");
@@ -100,9 +97,6 @@ public class ExcelPoolCleanupTests
         }
         finally
         {
-            // Restore original pool (critical - don't break other tests!)
-            ExcelHelper.InstancePool = originalPool;
-
             // Cleanup test files
             foreach (var testFile in testFiles)
             {
@@ -124,9 +118,6 @@ public class ExcelPoolCleanupTests
     [Fact]
     public void PoolDisposal_WithEviction_ShouldCleanupImmediately()
     {
-        // Save original pool to restore later (don't interfere with other tests)
-        var originalPool = ExcelHelper.InstancePool;
-
         // Get baseline Excel process count
         int initialExcelCount = GetExcelProcessCount();
         _output.WriteLine($"Initial Excel processes: {initialExcelCount}");
@@ -184,9 +175,6 @@ public class ExcelPoolCleanupTests
         }
         finally
         {
-            // Restore original pool (critical - don't break other tests!)
-            ExcelHelper.InstancePool = originalPool;
-
             // Cleanup test file
             try
             {
@@ -203,37 +191,32 @@ public class ExcelPoolCleanupTests
     }
 
     [Fact]
-    public void FixtureDisposal_WithPooledTests_ShouldCleanupAllProcesses()
+    public void PoolDisposal_WithMultipleFilesUsed_ShouldCleanupAllProcesses()
     {
-        // Save original pool to restore later (don't interfere with other tests)
-        var originalPool = ExcelHelper.InstancePool;
-
         // Get baseline Excel process count
         int initialExcelCount = GetExcelProcessCount();
         _output.WriteLine($"Initial Excel processes: {initialExcelCount}");
-
-        // Simulate what the test fixture does
-        var pool = new ExcelInstancePool(
-            idleTimeout: TimeSpan.FromSeconds(30),
-            maxInstances: 10
-        );
-
-        ExcelHelper.InstancePool = pool;
 
         var fileCommands = new FileCommands();
         var testFiles = new List<string>();
 
         try
         {
+            // Create pool
+            var pool = new ExcelInstancePool(
+                idleTimeout: TimeSpan.FromSeconds(30),
+                maxInstances: 10
+            );
+
             // Create and use multiple test files
             for (int i = 0; i < 5; i++)
             {
-                var testFile = Path.Combine(Path.GetTempPath(), $"fixture_test_{i}_{Guid.NewGuid()}.xlsx");
+                var testFile = Path.Combine(Path.GetTempPath(), $"multi_file_test_{i}_{Guid.NewGuid()}.xlsx");
                 fileCommands.CreateEmpty(testFile, overwriteIfExists: true);
                 testFiles.Add(testFile);
 
-                // Use ExcelHelper (which uses the global pool)
-                ExcelHelper.WithExcel(testFile, save: false, (excel, workbook) =>
+                // Use pool for each file
+                pool.WithPooledExcel(testFile, save: false, (excel, workbook) =>
                 {
                     dynamic sheets = workbook.Worksheets;
                     return sheets.Count;
@@ -243,43 +226,6 @@ public class ExcelPoolCleanupTests
             int duringTestsCount = GetExcelProcessCount();
             _output.WriteLine($"Excel processes during tests: {duringTestsCount}");
             _output.WriteLine($"Active instances in pool: {pool.ActiveInstances}");
-
-            // Simulate fixture disposal
-            _output.WriteLine("=== Simulating Fixture Disposal ===");
-
-            // Disable pooling
-            ExcelHelper.InstancePool = null;
-            Thread.Sleep(500);
-
-            // Get all cached files and evict them
-            var cachedFiles = new List<string>();
-            var instancesField = typeof(ExcelInstancePool).GetField("_instances",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (instancesField != null)
-            {
-                var instances = instancesField.GetValue(pool) as System.Collections.Concurrent.ConcurrentDictionary<string, object>;
-                if (instances != null)
-                {
-                    cachedFiles.AddRange(instances.Keys);
-                    _output.WriteLine($"Cached files to evict: {cachedFiles.Count}");
-                }
-            }
-
-            // Evict all instances
-            foreach (var filePath in cachedFiles)
-            {
-                try
-                {
-                    _output.WriteLine($"Evicting: {Path.GetFileName(filePath)}");
-                    pool.EvictInstance(filePath);
-                }
-                catch (Exception ex)
-                {
-                    _output.WriteLine($"Eviction failed: {ex.Message}");
-                }
-            }
-
-            Thread.Sleep(500);
 
             // Dispose pool
             _output.WriteLine("Disposing pool...");
@@ -301,14 +247,11 @@ public class ExcelPoolCleanupTests
             int excelDifference = finalExcelCount - initialExcelCount;
             _output.WriteLine($"Excel process difference from baseline: {excelDifference}");
 
-            Assert.True(excelDifference <= 2,
+            Assert.True(excelDifference <= 1,
                 $"Expected Excel process count to return close to baseline. Initial: {initialExcelCount}, Final: {finalExcelCount}, Difference: {excelDifference}");
         }
         finally
         {
-            // Restore original pool (critical - don't break other tests!)
-            ExcelHelper.InstancePool = originalPool;
-
             // Cleanup test files
             foreach (var testFile in testFiles)
             {
@@ -330,21 +273,15 @@ public class ExcelPoolCleanupTests
     [Fact]
     public void StressTest_ParallelOperationsOnManyFiles_ShouldCleanupAllProcesses()
     {
-        // Save original pool to restore later (don't interfere with other tests)
-        var originalPool = ExcelHelper.InstancePool;
-
         // Get baseline Excel process count
         int initialExcelCount = GetExcelProcessCount();
         _output.WriteLine($"=== STRESS TEST: Parallel Operations ===");
         _output.WriteLine($"Initial Excel processes: {initialExcelCount}");
 
-        // Simulate what happens during full integration test suite
         var pool = new ExcelInstancePool(
             idleTimeout: TimeSpan.FromSeconds(30),
             maxInstances: 10
         );
-
-        ExcelHelper.InstancePool = pool;
 
         var fileCommands = new FileCommands();
         var testFiles = new List<string>();
@@ -375,8 +312,8 @@ public class ExcelPoolCleanupTests
                         // Pick a file (cycling through them)
                         var testFile = testFiles[fileIndex];
 
-                        // Perform operation
-                        ExcelHelper.WithExcel(testFile, save: false, (excel, workbook) =>
+                        // Perform operation using pool directly
+                        pool.WithPooledExcel(testFile, save: false, (excel, workbook) =>
                         {
                             dynamic sheets = workbook.Worksheets;
                             int count = sheets.Count;
@@ -412,11 +349,11 @@ public class ExcelPoolCleanupTests
             _output.WriteLine($"Total cache hits: {hitRate}");
             _output.WriteLine($"Hit rate: {pool.HitRate:P}");
 
-            // Now simulate some files being accessed again
+            // Access some files again to test reuse
             _output.WriteLine("Accessing files again to test reuse...");
             foreach (var testFile in testFiles.Take(5))
             {
-                ExcelHelper.WithExcel(testFile, save: false, (excel, workbook) =>
+                pool.WithPooledExcel(testFile, save: false, (excel, workbook) =>
                 {
                     dynamic sheets = workbook.Worksheets;
                     return sheets.Count;
@@ -425,43 +362,6 @@ public class ExcelPoolCleanupTests
 
             int afterReuseCount = GetExcelProcessCount();
             _output.WriteLine($"Excel processes after reuse: {afterReuseCount}");
-
-            // Simulate fixture disposal (what happens at end of test run)
-            _output.WriteLine("=== Simulating Full Fixture Disposal ===");
-
-            // Disable pooling
-            ExcelHelper.InstancePool = null;
-            Thread.Sleep(500);
-
-            // Get all cached files
-            var cachedFiles = new List<string>();
-            var instancesField = typeof(ExcelInstancePool).GetField("_instances",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (instancesField != null)
-            {
-                var instances = instancesField.GetValue(pool) as System.Collections.Concurrent.ConcurrentDictionary<string, object>;
-                if (instances != null)
-                {
-                    cachedFiles.AddRange(instances.Keys);
-                    _output.WriteLine($"Cached files in pool: {cachedFiles.Count}");
-                }
-            }
-
-            // Evict all instances
-            _output.WriteLine("Evicting all instances...");
-            foreach (var filePath in cachedFiles)
-            {
-                try
-                {
-                    pool.EvictInstance(filePath);
-                }
-                catch (Exception ex)
-                {
-                    _output.WriteLine($"Eviction failed for {Path.GetFileName(filePath)}: {ex.Message}");
-                }
-            }
-
-            Thread.Sleep(500);
 
             // Dispose pool
             _output.WriteLine("Disposing pool...");
@@ -486,14 +386,11 @@ public class ExcelPoolCleanupTests
             int excelDifference = finalExcelCount - initialExcelCount;
             _output.WriteLine($"Excel process difference from baseline: {excelDifference}");
 
-            Assert.True(excelDifference <= 3,
+            Assert.True(excelDifference <= 2,
                 $"Expected Excel process count to return close to baseline after stress test. Initial: {initialExcelCount}, Final: {finalExcelCount}, Difference: {excelDifference}");
         }
         finally
         {
-            // Restore original pool (critical - don't break other tests!)
-            ExcelHelper.InstancePool = originalPool;
-
             // Cleanup test files
             _output.WriteLine("Cleaning up test files...");
             foreach (var testFile in testFiles)
@@ -516,9 +413,6 @@ public class ExcelPoolCleanupTests
     [Fact]
     public void StressTest_RapidCreateAndDispose_ShouldNotLeakProcesses()
     {
-        // Save original pool to restore later (don't interfere with other tests)
-        var originalPool = ExcelHelper.InstancePool;
-
         // Get baseline Excel process count
         int initialExcelCount = GetExcelProcessCount();
         _output.WriteLine($"=== STRESS TEST: Rapid Create/Dispose ===");
@@ -539,8 +433,6 @@ public class ExcelPoolCleanupTests
                     maxInstances: 10
                 );
 
-                ExcelHelper.InstancePool = pool;
-
                 var testFiles = new List<string>();
 
                 // Create files
@@ -555,7 +447,7 @@ public class ExcelPoolCleanupTests
                 // Perform operations
                 foreach (var testFile in testFiles)
                 {
-                    ExcelHelper.WithExcel(testFile, save: false, (excel, workbook) =>
+                    pool.WithPooledExcel(testFile, save: false, (excel, workbook) =>
                     {
                         dynamic sheets = workbook.Worksheets;
                         return sheets.Count;
@@ -567,28 +459,6 @@ public class ExcelPoolCleanupTests
                 _output.WriteLine($"Active instances: {pool.ActiveInstances}");
 
                 // Dispose pool immediately (simulating test fixture disposal)
-                ExcelHelper.InstancePool = null;
-                Thread.Sleep(300);
-
-                // Evict all
-                var instancesField = typeof(ExcelInstancePool).GetField("_instances",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                if (instancesField != null)
-                {
-                    var instances = instancesField.GetValue(pool) as System.Collections.Concurrent.ConcurrentDictionary<string, object>;
-                    if (instances != null)
-                    {
-                        foreach (var filePath in instances.Keys.ToList())
-                        {
-                            try
-                            {
-                                pool.EvictInstance(filePath);
-                            }
-                            catch { }
-                        }
-                    }
-                }
-
                 Thread.Sleep(300);
                 pool.Dispose();
                 Thread.Sleep(1000);
@@ -619,14 +489,11 @@ public class ExcelPoolCleanupTests
             int excelDifference = finalExcelCount - initialExcelCount;
             _output.WriteLine($"Excel process difference from baseline: {excelDifference}");
 
-            Assert.True(excelDifference <= 3,
+            Assert.True(excelDifference <= 2,
                 $"Expected Excel process count to return close to baseline after rapid create/dispose. Initial: {initialExcelCount}, Final: {finalExcelCount}, Difference: {excelDifference}");
         }
         finally
         {
-            // Restore original pool (critical - don't break other tests!)
-            ExcelHelper.InstancePool = originalPool;
-
             // Cleanup all test files
             _output.WriteLine("Cleaning up all test files...");
             foreach (var testFile in allTestFiles)

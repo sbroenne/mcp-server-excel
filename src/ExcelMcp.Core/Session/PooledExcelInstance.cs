@@ -1,4 +1,4 @@
-namespace Sbroenne.ExcelMcp.Core;
+namespace Sbroenne.ExcelMcp.Core.Session;
 
 /// <summary>
 /// Represents a pooled Excel COM instance with its associated workbook and metadata.
