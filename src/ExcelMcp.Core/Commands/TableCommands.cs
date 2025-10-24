@@ -460,6 +460,649 @@ public class TableCommands : ITableCommands
         return result;
     }
 
+    /// <inheritdoc />
+    public OperationResult Resize(string filePath, string tableName, string newRange)
+    {
+        // Security: Validate file path
+        filePath = PathValidator.ValidateExistingFile(filePath, nameof(filePath));
+
+        // Security: Validate table name
+        ValidateTableName(tableName);
+
+        var result = new OperationResult { FilePath = filePath, Action = "resize" };
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        {
+            dynamic? table = null;
+            dynamic? sheet = null;
+            dynamic? newRangeObj = null;
+            try
+            {
+                table = FindTable(workbook, tableName);
+                if (table == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Table '{tableName}' not found";
+                    return 1;
+                }
+
+                sheet = table.Parent;
+                newRangeObj = sheet.Range[newRange];
+                
+                // Resize the table
+                table.Resize(newRangeObj);
+
+                result.Success = true;
+                result.SuggestedNextActions.Add($"Use 'table info {tableName}' to verify the new size");
+                result.SuggestedNextActions.Add("Use 'table read {tableName}' to read the updated data");
+                result.WorkflowHint = $"Table '{tableName}' resized to {newRange}.";
+                
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
+                return 1;
+            }
+            finally
+            {
+                ComUtilities.Release(ref newRangeObj);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref table);
+            }
+        });
+        return result;
+    }
+
+    /// <inheritdoc />
+    public OperationResult ToggleTotals(string filePath, string tableName, bool showTotals)
+    {
+        // Security: Validate file path
+        filePath = PathValidator.ValidateExistingFile(filePath, nameof(filePath));
+
+        // Security: Validate table name
+        ValidateTableName(tableName);
+
+        var result = new OperationResult { FilePath = filePath, Action = "toggle-totals" };
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        {
+            dynamic? table = null;
+            try
+            {
+                table = FindTable(workbook, tableName);
+                if (table == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Table '{tableName}' not found";
+                    return 1;
+                }
+
+                table.ShowTotals = showTotals;
+
+                result.Success = true;
+                result.SuggestedNextActions.Add(showTotals 
+                    ? $"Use 'table set-column-total {tableName} <column> <function>' to configure totals"
+                    : $"Use 'table toggle-totals {tableName} true' to re-enable totals");
+                result.WorkflowHint = $"Totals row {(showTotals ? "enabled" : "disabled")} for table '{tableName}'.";
+                
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
+                return 1;
+            }
+            finally
+            {
+                ComUtilities.Release(ref table);
+            }
+        });
+        return result;
+    }
+
+    /// <inheritdoc />
+    public OperationResult SetColumnTotal(string filePath, string tableName, string columnName, string totalFunction)
+    {
+        // Security: Validate file path
+        filePath = PathValidator.ValidateExistingFile(filePath, nameof(filePath));
+
+        // Security: Validate table name
+        ValidateTableName(tableName);
+
+        var result = new OperationResult { FilePath = filePath, Action = "set-column-total" };
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        {
+            dynamic? table = null;
+            dynamic? listColumns = null;
+            dynamic? column = null;
+            try
+            {
+                table = FindTable(workbook, tableName);
+                if (table == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Table '{tableName}' not found";
+                    return 1;
+                }
+
+                // Ensure totals row is shown
+                if (!table.ShowTotals)
+                {
+                    table.ShowTotals = true;
+                }
+
+                // Find the column
+                listColumns = table.ListColumns;
+                column = null;
+                for (int i = 1; i <= listColumns.Count; i++)
+                {
+                    dynamic? col = null;
+                    try
+                    {
+                        col = listColumns.Item(i);
+                        if (col.Name == columnName)
+                        {
+                            column = col;
+                            break;
+                        }
+                    }
+                    finally
+                    {
+                        if (col != null && col.Name != columnName)
+                        {
+                            ComUtilities.Release(ref col);
+                        }
+                    }
+                }
+
+                if (column == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Column '{columnName}' not found in table '{tableName}'";
+                    return 1;
+                }
+
+                // Map function name to Excel constant
+                // xlTotalsCalculationSum = 1, xlTotalsCalculationAverage = 2, xlTotalsCalculationCount = 3,
+                // xlTotalsCalculationCountNums = 4, xlTotalsCalculationMax = 5, xlTotalsCalculationMin = 6,
+                // xlTotalsCalculationStdDev = 7, xlTotalsCalculationVar = 9, xlTotalsCalculationNone = 0
+                int xlFunction = totalFunction.ToLowerInvariant() switch
+                {
+                    "sum" => 1,
+                    "average" or "avg" => 2,
+                    "count" => 3,
+                    "countnums" => 4,
+                    "max" => 5,
+                    "min" => 6,
+                    "stddev" => 7,
+                    "var" => 9,
+                    "none" => 0,
+                    _ => throw new ArgumentException($"Unknown total function '{totalFunction}'. Valid: sum, average, count, countnums, max, min, stddev, var, none")
+                };
+
+                column.TotalsCalculation = xlFunction;
+
+                result.Success = true;
+                result.SuggestedNextActions.Add($"Use 'table info {tableName}' to verify totals configuration");
+                result.SuggestedNextActions.Add($"Use 'table read {tableName}' to see calculated totals");
+                result.WorkflowHint = $"Column '{columnName}' total set to {totalFunction}.";
+                
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
+                return 1;
+            }
+            finally
+            {
+                ComUtilities.Release(ref column);
+                ComUtilities.Release(ref listColumns);
+                ComUtilities.Release(ref table);
+            }
+        });
+        return result;
+    }
+
+    /// <inheritdoc />
+    public TableDataResult ReadData(string filePath, string tableName)
+    {
+        // Security: Validate file path
+        filePath = PathValidator.ValidateExistingFile(filePath, nameof(filePath));
+
+        // Security: Validate table name
+        ValidateTableName(tableName);
+
+        var result = new TableDataResult { FilePath = filePath, TableName = tableName };
+        ExcelSession.Execute(filePath, false, (excel, workbook) =>
+        {
+            dynamic? table = null;
+            dynamic? dataBodyRange = null;
+            dynamic? headerRowRange = null;
+            dynamic? listColumns = null;
+            try
+            {
+                table = FindTable(workbook, tableName);
+                if (table == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Table '{tableName}' not found";
+                    return 1;
+                }
+
+                // Get headers
+                if (table.ShowHeaders)
+                {
+                    listColumns = table.ListColumns;
+                    for (int i = 1; i <= listColumns.Count; i++)
+                    {
+                        dynamic? column = null;
+                        try
+                        {
+                            column = listColumns.Item(i);
+                            result.Headers.Add(column.Name);
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref column);
+                        }
+                    }
+                }
+
+                result.ColumnCount = table.ListColumns.Count;
+
+                // Get data
+                dataBodyRange = table.DataBodyRange;
+                if (dataBodyRange != null)
+                {
+                    object[,] values = dataBodyRange.Value2;
+                    if (values != null)
+                    {
+                        int rows = values.GetLength(0);
+                        int cols = values.GetLength(1);
+                        result.RowCount = rows;
+
+                        for (int r = 1; r <= rows; r++)
+                        {
+                            var row = new List<object?>();
+                            for (int c = 1; c <= cols; c++)
+                            {
+                                row.Add(values[r, c]);
+                            }
+                            result.Data.Add(row);
+                        }
+                    }
+                }
+
+                result.Success = true;
+                result.SuggestedNextActions.Add("Use 'table append' to add more rows to this table");
+                result.SuggestedNextActions.Add("Use worksheet 'write' to update the underlying range data");
+                result.WorkflowHint = $"Read {result.RowCount} rows from table '{tableName}'.";
+                
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
+                return 1;
+            }
+            finally
+            {
+                ComUtilities.Release(ref listColumns);
+                ComUtilities.Release(ref headerRowRange);
+                ComUtilities.Release(ref dataBodyRange);
+                ComUtilities.Release(ref table);
+            }
+        });
+        return result;
+    }
+
+    /// <inheritdoc />
+    public OperationResult AppendRows(string filePath, string tableName, string csvData)
+    {
+        // Security: Validate file path
+        filePath = PathValidator.ValidateExistingFile(filePath, nameof(filePath));
+
+        // Security: Validate table name
+        ValidateTableName(tableName);
+
+        var result = new OperationResult { FilePath = filePath, Action = "append-rows" };
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        {
+            dynamic? table = null;
+            dynamic? sheet = null;
+            dynamic? dataBodyRange = null;
+            dynamic? newRange = null;
+            try
+            {
+                table = FindTable(workbook, tableName);
+                if (table == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Table '{tableName}' not found";
+                    return 1;
+                }
+
+                sheet = table.Parent;
+
+                // Parse CSV data
+                var lines = csvData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                if (lines.Length == 0)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = "No data to append";
+                    return 1;
+                }
+
+                // Get current table size
+                int currentRow;
+                dataBodyRange = table.DataBodyRange;
+                if (dataBodyRange != null)
+                {
+                    currentRow = dataBodyRange.Row + dataBodyRange.Rows.Count;
+                }
+                else
+                {
+                    // Table has only headers
+                    dynamic? headerRange = null;
+                    try
+                    {
+                        headerRange = table.HeaderRowRange;
+                        currentRow = headerRange.Row + 1;
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref headerRange);
+                    }
+                }
+
+                int columnCount = table.ListColumns.Count;
+                int rowsToAdd = lines.Length;
+
+                // Write data to cells below the table
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    var values = lines[i].Split(',');
+                    for (int j = 0; j < Math.Min(values.Length, columnCount); j++)
+                    {
+                        dynamic? cell = null;
+                        try
+                        {
+                            cell = sheet.Cells[currentRow + i, table.Range.Column + j];
+                            cell.Value2 = values[j].Trim().Trim('"');
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref cell);
+                        }
+                    }
+                }
+
+                // Resize table to include new rows
+                int newLastRow = currentRow + rowsToAdd - 1;
+                int newLastCol = table.Range.Column + columnCount - 1;
+                string newRangeAddress = $"{sheet.Cells[table.Range.Row, table.Range.Column].Address}:{sheet.Cells[newLastRow, newLastCol].Address}";
+                
+                dynamic? resizeRange = null;
+                try
+                {
+                    resizeRange = sheet.Range[newRangeAddress];
+                    table.Resize(resizeRange);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref resizeRange);
+                }
+
+                result.Success = true;
+                result.SuggestedNextActions.Add($"Use 'table read {tableName}' to verify appended data");
+                result.SuggestedNextActions.Add($"Use 'table info {tableName}' to see updated row count");
+                result.WorkflowHint = $"Appended {rowsToAdd} rows to table '{tableName}'. Table auto-expanded.";
+                
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
+                return 1;
+            }
+            finally
+            {
+                ComUtilities.Release(ref newRange);
+                ComUtilities.Release(ref dataBodyRange);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref table);
+            }
+        });
+        return result;
+    }
+
+    /// <inheritdoc />
+    public OperationResult SetStyle(string filePath, string tableName, string tableStyle)
+    {
+        // Security: Validate file path
+        filePath = PathValidator.ValidateExistingFile(filePath, nameof(filePath));
+
+        // Security: Validate table name
+        ValidateTableName(tableName);
+
+        var result = new OperationResult { FilePath = filePath, Action = "set-style" };
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        {
+            dynamic? table = null;
+            try
+            {
+                table = FindTable(workbook, tableName);
+                if (table == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Table '{tableName}' not found";
+                    return 1;
+                }
+
+                table.TableStyle = tableStyle;
+
+                result.Success = true;
+                result.SuggestedNextActions.Add($"Use 'table info {tableName}' to verify the style change");
+                result.SuggestedNextActions.Add("Common styles: TableStyleLight1-21, TableStyleMedium1-28, TableStyleDark1-11");
+                result.WorkflowHint = $"Table '{tableName}' style changed to '{tableStyle}'.";
+                
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
+                return 1;
+            }
+            finally
+            {
+                ComUtilities.Release(ref table);
+            }
+        });
+        return result;
+    }
+
+    /// <inheritdoc />
+    public OperationResult AddToDataModel(string filePath, string tableName)
+    {
+        // Security: Validate file path
+        filePath = PathValidator.ValidateExistingFile(filePath, nameof(filePath));
+
+        // Security: Validate table name
+        ValidateTableName(tableName);
+
+        var result = new OperationResult { FilePath = filePath, Action = "add-to-data-model" };
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        {
+            dynamic? table = null;
+            dynamic? modelTables = null;
+            dynamic? connections = null;
+            try
+            {
+                table = FindTable(workbook, tableName);
+                if (table == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Table '{tableName}' not found";
+                    return 1;
+                }
+
+                // Check if workbook has a Data Model (Model object)
+                dynamic? model = null;
+                try
+                {
+                    model = workbook.Model;
+                    if (model == null)
+                    {
+                        result.Success = false;
+                        result.ErrorMessage = "Workbook does not have a Data Model. Data Model is only available in Excel 2013+ with Power Pivot enabled.";
+                        return 1;
+                    }
+                }
+                catch
+                {
+                    result.Success = false;
+                    result.ErrorMessage = "Data Model not available. Ensure Excel has Power Pivot add-in enabled.";
+                    return 1;
+                }
+
+                // Check if table is already in the Data Model
+                try
+                {
+                    modelTables = model.ModelTables;
+                    for (int i = 1; i <= modelTables.Count; i++)
+                    {
+                        dynamic? modelTable = null;
+                        try
+                        {
+                            modelTable = modelTables.Item(i);
+                            string sourceTableName = modelTable.SourceName;
+                            if (sourceTableName == tableName || sourceTableName.EndsWith($"[{tableName}]"))
+                            {
+                                result.Success = false;
+                                result.ErrorMessage = $"Table '{tableName}' is already in the Data Model";
+                                return 1;
+                            }
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref modelTable);
+                        }
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref modelTables);
+                }
+
+                // Create a connection for the table
+                string connectionName = $"WorkbookConnection_{tableName}";
+                string connectionString = $"WORKSHEET;{workbook.FullName}";
+                string commandText = $"SELECT * FROM [{tableName}]";
+
+                // Check if connection already exists
+                connections = workbook.Connections;
+                bool connectionExists = false;
+                for (int i = 1; i <= connections.Count; i++)
+                {
+                    dynamic? conn = null;
+                    try
+                    {
+                        conn = connections.Item(i);
+                        if (conn.Name == connectionName)
+                        {
+                            connectionExists = true;
+                            break;
+                        }
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref conn);
+                    }
+                }
+
+                // Add table to Data Model
+                // Using numeric constant for xlConnectionTypeOLEDB = 3
+                if (!connectionExists)
+                {
+                    try
+                    {
+                        dynamic? newConnection = connections.Add2(
+                            connectionName,
+                            "Connection to Excel Table",
+                            connectionString,
+                            commandText,
+                            3, // xlConnectionTypeOLEDB
+                            true, // SSO (not used for local)
+                            false // AddToModel parameter
+                        );
+                        ComUtilities.Release(ref newConnection);
+                    }
+                    catch
+                    {
+                        // Connection might not be needed in some Excel versions
+                        // Continue anyway
+                    }
+                }
+
+                // Add the table to the model using ModelTables.Add
+                try
+                {
+                    modelTables = model.ModelTables;
+                    dynamic? newModelTable = modelTables.Add(
+                        connectionName,
+                        tableName
+                    );
+                    ComUtilities.Release(ref newModelTable);
+                    ComUtilities.Release(ref modelTables);
+                }
+                catch (Exception ex)
+                {
+                    // Try alternative approach: use Publish to Data Model
+                    try
+                    {
+                        // Some Excel versions support PublishToDataModel on ListObject
+                        table.Publish(null, false); // Publish to Data Model
+                    }
+                    catch
+                    {
+                        result.Success = false;
+                        result.ErrorMessage = $"Failed to add table to Data Model: {ex.Message}. Ensure Power Pivot is enabled.";
+                        return 1;
+                    }
+                }
+
+                ComUtilities.Release(ref model);
+
+                result.Success = true;
+                result.SuggestedNextActions.Add("Use 'dm-list-tables' to verify the table is in the Data Model");
+                result.SuggestedNextActions.Add($"Use 'dm-create-measure' to add DAX measures based on '{tableName}'");
+                result.SuggestedNextActions.Add("Use 'dm-refresh' to refresh the Data Model");
+                result.WorkflowHint = $"Table '{tableName}' added to Power Pivot Data Model.";
+                
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
+                return 1;
+            }
+            finally
+            {
+                ComUtilities.Release(ref connections);
+                ComUtilities.Release(ref modelTables);
+                ComUtilities.Release(ref table);
+            }
+        });
+        return result;
+    }
+
     #region Private Helper Methods
 
     /// <summary>

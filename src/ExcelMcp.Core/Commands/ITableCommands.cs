@@ -31,4 +31,39 @@ public interface ITableCommands
     /// Gets detailed information about an Excel Table
     /// </summary>
     TableInfoResult GetInfo(string filePath, string tableName);
+
+    /// <summary>
+    /// Resizes an Excel Table to a new range
+    /// </summary>
+    OperationResult Resize(string filePath, string tableName, string newRange);
+
+    /// <summary>
+    /// Toggles the totals row for an Excel Table
+    /// </summary>
+    OperationResult ToggleTotals(string filePath, string tableName, bool showTotals);
+
+    /// <summary>
+    /// Sets the totals function for a specific column in an Excel Table
+    /// </summary>
+    OperationResult SetColumnTotal(string filePath, string tableName, string columnName, string totalFunction);
+
+    /// <summary>
+    /// Reads data from an Excel Table
+    /// </summary>
+    TableDataResult ReadData(string filePath, string tableName);
+
+    /// <summary>
+    /// Appends rows to an Excel Table
+    /// </summary>
+    OperationResult AppendRows(string filePath, string tableName, string csvData);
+
+    /// <summary>
+    /// Changes the style of an Excel Table
+    /// </summary>
+    OperationResult SetStyle(string filePath, string tableName, string tableStyle);
+
+    /// <summary>
+    /// Adds an Excel Table to the Power Pivot Data Model
+    /// </summary>
+    OperationResult AddToDataModel(string filePath, string tableName);
 }

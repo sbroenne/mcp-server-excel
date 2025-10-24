@@ -1066,5 +1066,36 @@ public class TableInfo
     public bool ShowTotals { get; set; }
 }
 
+/// <summary>
+/// Result for reading Excel Table data
+/// </summary>
+public class TableDataResult : ResultBase
+{
+    /// <summary>
+    /// Name of the table
+    /// </summary>
+    public string TableName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Column headers
+    /// </summary>
+    public List<string> Headers { get; set; } = new();
+
+    /// <summary>
+    /// Data rows (each row is a list of cell values)
+    /// </summary>
+    public List<List<object?>> Data { get; set; } = new();
+
+    /// <summary>
+    /// Number of rows (excluding header)
+    /// </summary>
+    public int RowCount { get; set; }
+
+    /// <summary>
+    /// Number of columns
+    /// </summary>
+    public int ColumnCount { get; set; }
+}
+
 #endregion
 

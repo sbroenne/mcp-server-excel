@@ -94,6 +94,13 @@ class Program
                 "table-rename" => table.Rename(args),
                 "table-delete" => table.Delete(args),
                 "table-info" => table.Info(args),
+                "table-resize" => table.Resize(args),
+                "table-toggle-totals" => table.ToggleTotals(args),
+                "table-set-column-total" => table.SetColumnTotal(args),
+                "table-read" => table.ReadData(args),
+                "table-append" => table.AppendRows(args),
+                "table-set-style" => table.SetStyle(args),
+                "table-add-to-datamodel" => table.AddToDataModel(args),
 
                 // Parameter commands
                 "param-list" => param.List(args),
@@ -301,6 +308,13 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]table-info[/] file.xlsx table-name             Get table details");
         AnsiConsole.MarkupLine("  [cyan]table-rename[/] file.xlsx old-name new-name     Rename Excel Table");
         AnsiConsole.MarkupLine("  [cyan]table-delete[/] file.xlsx table-name            Delete Excel Table");
+        AnsiConsole.MarkupLine("  [cyan]table-resize[/] file.xlsx table-name new-range  Resize Excel Table");
+        AnsiConsole.MarkupLine("  [cyan]table-toggle-totals[/] file.xlsx table true/false  Enable/disable totals row");
+        AnsiConsole.MarkupLine("  [cyan]table-set-column-total[/] file.xlsx table col fn  Set column total (sum/avg/count/etc)");
+        AnsiConsole.MarkupLine("  [cyan]table-read[/] file.xlsx table-name             Read table data");
+        AnsiConsole.MarkupLine("  [cyan]table-append[/] file.xlsx table-name csv-data   Append rows to table");
+        AnsiConsole.MarkupLine("  [cyan]table-set-style[/] file.xlsx table-name style   Change table style");
+        AnsiConsole.MarkupLine("  [cyan]table-add-to-datamodel[/] file.xlsx table-name  Add to Power Pivot");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Parameter Commands:[/]");

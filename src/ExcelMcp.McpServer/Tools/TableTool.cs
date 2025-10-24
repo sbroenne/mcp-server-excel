@@ -27,14 +27,14 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 public static class TableTool
 {
     /// <summary>
-    /// Manage Excel Tables (ListObjects) - create, list, rename, delete, and get info
+    /// Manage Excel Tables (ListObjects) - comprehensive table management including Power Pivot integration
     /// </summary>
     [McpServerTool(Name = "table")]
-    [Description("Manage Excel Tables (ListObjects) for Power Query integration. Supports: list, create, info, rename, delete.")]
+    [Description("Manage Excel Tables (ListObjects) for Power Query integration. Supports: list, create, info, rename, delete, resize, toggle-totals, set-column-total, read, append, set-style, add-to-datamodel.")]
     public static string Table(
         [Required]
-        [RegularExpression("^(list|create|info|rename|delete)$")]
-        [Description("Action: list, create, info, rename, delete")]
+        [RegularExpression("^(list|create|info|rename|delete|resize|toggle-totals|set-column-total|read|append|set-style|add-to-datamodel)$")]
+        [Description("Action: list, create, info, rename, delete, resize, toggle-totals, set-column-total, read, append, set-style, add-to-datamodel")]
         string action,
 
         [Required]
@@ -44,7 +44,7 @@ public static class TableTool
 
         [StringLength(255, MinimumLength = 1)]
         [RegularExpression(@"^[a-zA-Z_][a-zA-Z0-9_]*$")]
-        [Description("Table name (required for create, info, rename, delete). Must start with letter/underscore, alphanumeric + underscore only")]
+        [Description("Table name (required for most actions). Must start with letter/underscore, alphanumeric + underscore only")]
         string? tableName = null,
 
         [StringLength(31, MinimumLength = 1)]
@@ -52,18 +52,18 @@ public static class TableTool
         [Description("Sheet name (required for create)")]
         string? sheetName = null,
 
-        [Description("Excel range (e.g., 'A1:D10') to convert to table (required for create)")]
+        [Description("Excel range (e.g., 'A1:D10') - required for create/resize")]
         string? range = null,
 
         [StringLength(255, MinimumLength = 1)]
         [RegularExpression(@"^[a-zA-Z_][a-zA-Z0-9_]*$")]
-        [Description("New table name (required for rename)")]
+        [Description("New table name (required for rename) or column name (required for set-column-total)")]
         string? newName = null,
 
-        [Description("Whether the range has headers (default: true for create)")]
+        [Description("Whether the range has headers (default: true for create) or show totals (for toggle-totals)")]
         bool hasHeaders = true,
 
-        [Description("Table style name (e.g., 'TableStyleMedium2') - optional for create")]
+        [Description("Table style name (e.g., 'TableStyleMedium2') for create/set-style, or total function (sum/avg/count) for set-column-total, or CSV data for append")]
         string? tableStyle = null)
     {
         try
@@ -77,8 +77,15 @@ public static class TableTool
                 "info" => GetTableInfo(tableCommands, excelPath, tableName),
                 "rename" => RenameTable(tableCommands, excelPath, tableName, newName),
                 "delete" => DeleteTable(tableCommands, excelPath, tableName),
+                "resize" => ResizeTable(tableCommands, excelPath, tableName, range),
+                "toggle-totals" => ToggleTotals(tableCommands, excelPath, tableName, hasHeaders),
+                "set-column-total" => SetColumnTotal(tableCommands, excelPath, tableName, newName, tableStyle),
+                "read" => ReadTableData(tableCommands, excelPath, tableName),
+                "append" => AppendRows(tableCommands, excelPath, tableName, tableStyle),
+                "set-style" => SetTableStyle(tableCommands, excelPath, tableName, tableStyle),
+                "add-to-datamodel" => AddToDataModel(tableCommands, excelPath, tableName),
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: list, create, info, rename, delete")
+                    $"Unknown action '{action}'. Supported: list, create, info, rename, delete, resize, toggle-totals, set-column-total, read, append, set-style, add-to-datamodel")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -275,6 +282,109 @@ public static class TableTool
         if (string.IsNullOrEmpty(result.WorkflowHint))
         {
             result.WorkflowHint = $"Table '{tableName}' deleted. Data converted back to regular range.";
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string ResizeTable(TableCommands commands, string filePath, string? tableName, string? newRange)
+    {
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "resize");
+        if (string.IsNullOrWhiteSpace(newRange)) ExcelToolsBase.ThrowMissingParameter(nameof(newRange), "resize");
+
+        var result = commands.Resize(filePath, tableName!, newRange!);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"resize failed for table '{tableName}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string ToggleTotals(TableCommands commands, string filePath, string? tableName, bool showTotals)
+    {
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "toggle-totals");
+
+        var result = commands.ToggleTotals(filePath, tableName!, showTotals);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"toggle-totals failed for table '{tableName}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string SetColumnTotal(TableCommands commands, string filePath, string? tableName, string? columnName, string? totalFunction)
+    {
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "set-column-total");
+        if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "set-column-total");
+        if (string.IsNullOrWhiteSpace(totalFunction)) ExcelToolsBase.ThrowMissingParameter(nameof(totalFunction), "set-column-total");
+
+        var result = commands.SetColumnTotal(filePath, tableName!, columnName!, totalFunction!);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-column-total failed for table '{tableName}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string ReadTableData(TableCommands commands, string filePath, string? tableName)
+    {
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "read");
+
+        var result = commands.ReadData(filePath, tableName!);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"read failed for table '{tableName}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string AppendRows(TableCommands commands, string filePath, string? tableName, string? csvData)
+    {
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "append");
+        if (string.IsNullOrWhiteSpace(csvData)) ExcelToolsBase.ThrowMissingParameter(nameof(csvData), "append");
+
+        var result = commands.AppendRows(filePath, tableName!, csvData!);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"append failed for table '{tableName}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string SetTableStyle(TableCommands commands, string filePath, string? tableName, string? tableStyle)
+    {
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "set-style");
+        if (string.IsNullOrWhiteSpace(tableStyle)) ExcelToolsBase.ThrowMissingParameter(nameof(tableStyle), "set-style");
+
+        var result = commands.SetStyle(filePath, tableName!, tableStyle!);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-style failed for table '{tableName}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string AddToDataModel(TableCommands commands, string filePath, string? tableName)
+    {
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "add-to-datamodel");
+
+        var result = commands.AddToDataModel(filePath, tableName!);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"add-to-datamodel failed for table '{tableName}': {result.ErrorMessage}");
         }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);

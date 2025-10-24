@@ -289,4 +289,251 @@ public class TableCommands : ITableCommands
             return 1;
         }
     }
+
+    public int Resize(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-resize <file.xlsx> <tableName> <newRange>");
+            AnsiConsole.MarkupLine("[dim]Example:[/] table-resize sales.xlsx SalesTable A1:E150");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+        string newRange = args[3];
+
+        var result = _coreCommands.Resize(filePath, tableName, newRange);
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Resized table: [cyan]{tableName}[/] to {newRange}");
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int ToggleTotals(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-toggle-totals <file.xlsx> <tableName> <true|false>");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+        bool showTotals = bool.Parse(args[3]);
+
+        var result = _coreCommands.ToggleTotals(filePath, tableName, showTotals);
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Totals row {(showTotals ? "enabled" : "disabled")} for: [cyan]{tableName}[/]");
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int SetColumnTotal(string[] args)
+    {
+        if (args.Length < 5)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-set-column-total <file.xlsx> <tableName> <columnName> <function>");
+            AnsiConsole.MarkupLine("[dim]Functions:[/] sum, average, count, countnums, max, min, stddev, var, none");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+        string columnName = args[3];
+        string totalFunction = args[4];
+
+        var result = _coreCommands.SetColumnTotal(filePath, tableName, columnName, totalFunction);
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Set [[cyan]{columnName}[/]] total to {totalFunction}");
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int ReadData(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-read <file.xlsx> <tableName>");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+
+        var result = _coreCommands.ReadData(filePath, tableName);
+
+        if (result.Success)
+        {
+            if (result.Data == null || !result.Data.Any())
+            {
+                AnsiConsole.MarkupLine("[yellow]Table is empty[/]");
+                return 0;
+            }
+
+            var table = new Table();
+            
+            // Add headers
+            foreach (var header in result.Headers)
+            {
+                table.AddColumn(header);
+            }
+
+            // Add data rows
+            foreach (var row in result.Data)
+            {
+                table.AddRow(row.Select(cell => cell?.ToString() ?? "").ToArray());
+            }
+
+            AnsiConsole.Write(table);
+            AnsiConsole.MarkupLine($"\n[dim]{result.RowCount} rows, {result.ColumnCount} columns[/]");
+
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int AppendRows(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-append <file.xlsx> <tableName> <csvData>");
+            AnsiConsole.MarkupLine("[dim]Example:[/] table-append sales.xlsx SalesTable \"Product1,100,5.99\\nProduct2,200,3.49\"");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+        string csvData = args[3];
+
+        var result = _coreCommands.AppendRows(filePath, tableName, csvData);
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Appended rows to table: [cyan]{tableName}[/]");
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int SetStyle(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-set-style <file.xlsx> <tableName> <style>");
+            AnsiConsole.MarkupLine("[dim]Example:[/] table-set-style sales.xlsx SalesTable TableStyleMedium2");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+        string tableStyle = args[3];
+
+        var result = _coreCommands.SetStyle(filePath, tableName, tableStyle);
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Changed style of [cyan]{tableName}[/] to {tableStyle}");
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int AddToDataModel(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-add-to-datamodel <file.xlsx> <tableName>");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+
+        var result = _coreCommands.AddToDataModel(filePath, tableName);
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Added [cyan]{tableName}[/] to Power Pivot Data Model");
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+            
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
 }

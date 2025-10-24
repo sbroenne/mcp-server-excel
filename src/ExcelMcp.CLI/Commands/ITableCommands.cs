@@ -29,4 +29,39 @@ public interface ITableCommands
     /// Gets detailed information about an Excel Table
     /// </summary>
     int Info(string[] args);
+
+    /// <summary>
+    /// Resizes an Excel Table
+    /// </summary>
+    int Resize(string[] args);
+
+    /// <summary>
+    /// Toggles the totals row
+    /// </summary>
+    int ToggleTotals(string[] args);
+
+    /// <summary>
+    /// Sets column total function
+    /// </summary>
+    int SetColumnTotal(string[] args);
+
+    /// <summary>
+    /// Reads data from a table
+    /// </summary>
+    int ReadData(string[] args);
+
+    /// <summary>
+    /// Appends rows to a table
+    /// </summary>
+    int AppendRows(string[] args);
+
+    /// <summary>
+    /// Changes table style
+    /// </summary>
+    int SetStyle(string[] args);
+
+    /// <summary>
+    /// Adds table to Power Pivot Data Model
+    /// </summary>
+    int AddToDataModel(string[] args);
 }
