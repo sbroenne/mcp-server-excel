@@ -17,6 +17,7 @@ public sealed class ExcelInstancePool : IDisposable
     private readonly Timer _cleanupTimer;
     private readonly SemaphoreSlim _instanceSemaphore;
     private readonly int _maxInstances;
+    private readonly object _instanceCreationLock = new object(); // Ensures atomic check + semaphore acquisition
     private bool _disposed;
 
     // Metrics
@@ -78,32 +79,40 @@ public sealed class ExcelInstancePool : IDisposable
         // Normalize path for pooling (case-insensitive on Windows)
         string normalizedPath = Path.GetFullPath(filePath).ToLowerInvariant();
 
-        // Check if instance already exists
-        bool isExistingInstance = _instances.ContainsKey(normalizedPath);
         bool semaphoreAcquired = false;
+        PooledExcelInstance pooledInstance;
 
         try
         {
-            // Only wait for semaphore slot if creating NEW instance
-            if (!isExistingInstance)
+            // CRITICAL: Lock to prevent race condition where multiple threads check ContainsKey()
+            // simultaneously, both acquire semaphore, but only one instance is created.
+            // This ensures ContainsKey + semaphore.Wait + GetOrAdd is atomic.
+            lock (_instanceCreationLock)
             {
-                // Wait for available slot with timeout (prevents indefinite blocking)
-                // Timeout of 5 seconds is reasonable - if pool is full, LLM should know quickly
-                if (!_instanceSemaphore.Wait(TimeSpan.FromSeconds(5)))
+                // Check if instance already exists
+                bool isExistingInstance = _instances.ContainsKey(normalizedPath);
+
+                // Only wait for semaphore slot if creating NEW instance
+                if (!isExistingInstance)
                 {
-                    // Pool is at capacity - provide actionable guidance to LLM
-                    throw new ExcelPoolCapacityException(ActiveInstances, _maxInstances, _idleTimeout);
+                    // Wait for available slot with timeout (prevents indefinite blocking)
+                    // Timeout of 5 seconds is reasonable - if pool is full, LLM should know quickly
+                    if (!_instanceSemaphore.Wait(TimeSpan.FromSeconds(5)))
+                    {
+                        // Pool is at capacity - provide actionable guidance to LLM
+                        throw new ExcelPoolCapacityException(ActiveInstances, _maxInstances, _idleTimeout);
+                    }
+                    semaphoreAcquired = true;
                 }
-                semaphoreAcquired = true;
-            }
 
-            // Get or create pooled instance
-            var pooledInstance = _instances.GetOrAdd(normalizedPath, _ => CreatePooledInstance(filePath));
+                // Get or create pooled instance (now atomic with check)
+                pooledInstance = _instances.GetOrAdd(normalizedPath, _ => CreatePooledInstance(filePath));
 
-            // Track cache hit (if instance was reused)
-            if (isExistingInstance)
-            {
-                Interlocked.Increment(ref _totalHits);
+                // Track cache hit (if instance was reused)
+                if (isExistingInstance)
+                {
+                    Interlocked.Increment(ref _totalHits);
+                }
             }
 
             lock (pooledInstance.Lock)
@@ -390,8 +399,11 @@ public sealed class ExcelInstancePool : IDisposable
         _disposed = true;
         _cleanupTimer?.Dispose();
 
+        // Get snapshot of all instances to dispose
+        var instancesToDispose = _instances.ToArray();
+
         // Dispose all pooled instances
-        foreach (var kvp in _instances)
+        foreach (var kvp in instancesToDispose)
         {
             DisposePooledInstance(kvp.Value, kvp.Key);
         }
@@ -403,7 +415,18 @@ public sealed class ExcelInstancePool : IDisposable
 
         // Wait for Excel COM processes to fully terminate
         // Excel processes can take 2-5 seconds to close after Quit() and GC
-        Thread.Sleep(500);
+        Thread.Sleep(1000);
+
+        // Force multiple GC cycles to clean up COM objects
+        for (int i = 0; i < 3; i++)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
+        GC.Collect();
+
+        // Final wait for processes to terminate
+        Thread.Sleep(1000);
     }
 
     private class PooledExcelInstance

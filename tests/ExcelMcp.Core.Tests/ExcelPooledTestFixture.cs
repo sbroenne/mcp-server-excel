@@ -125,8 +125,50 @@ public class ExcelPooledTestFixture : IDisposable
         // Excel COM operations can take time, especially during cleanup
         Thread.Sleep(500);
 
-        // Now safe to dispose pool and clean up all Excel instances
-        _pool?.Dispose();
+        // Force cleanup of all pooled instances before disposing
+        if (_pool != null)
+        {
+            // Get list of all cached file paths
+            var cachedFiles = new List<string>();
+            // Access internal state through reflection since we need to evict all instances
+            var instancesField = typeof(ExcelInstancePool).GetField("_instances",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (instancesField != null)
+            {
+                var instances = instancesField.GetValue(_pool) as System.Collections.Concurrent.ConcurrentDictionary<string, object>;
+                if (instances != null)
+                {
+                    cachedFiles.AddRange(instances.Keys);
+                }
+            }
+
+            // Evict all instances to force proper Excel cleanup
+            foreach (var filePath in cachedFiles)
+            {
+                try
+                {
+                    _pool.EvictInstance(filePath);
+                }
+                catch
+                {
+                    // Continue even if eviction fails
+                }
+            }
+
+            // Small delay for Excel processes to terminate
+            Thread.Sleep(500);
+
+            // Now safe to dispose pool
+            _pool.Dispose();
+        }
+
+        // Additional wait for Excel COM cleanup
+        Thread.Sleep(1000);
+
+        // Force GC to clean up any remaining COM references
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
 
         GC.SuppressFinalize(this);
     }
