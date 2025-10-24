@@ -784,7 +784,7 @@ public class ConnectionCommands : IConnectionCommands
                 var refreshDate = conn.OLEDBConnection?.RefreshDate;
                 if (refreshDate != null)
                 {
-                    return (DateTime)refreshDate;
+                    return refreshDate;
                 }
             }
             else if (connType == 2) // ODBC
@@ -792,7 +792,7 @@ public class ConnectionCommands : IConnectionCommands
                 var refreshDate = conn.ODBCConnection?.RefreshDate;
                 if (refreshDate != null)
                 {
-                    return (DateTime)refreshDate;
+                    return refreshDate;
                 }
             }
         }

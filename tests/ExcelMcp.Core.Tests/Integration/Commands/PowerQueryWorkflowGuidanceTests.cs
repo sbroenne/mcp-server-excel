@@ -141,7 +141,7 @@ in
         var queryFile = CreateBrokenQueryFile();
 
         // Import without loading to worksheet to avoid immediate failure
-        var importResult = await _powerQueryCommands.Import(excelFile, "BrokenQuery", queryFile, loadToWorksheet: false);
+        await _powerQueryCommands.Import(excelFile, "BrokenQuery", queryFile, loadToWorksheet: false);
 
         // Note: Excel may accept syntactically invalid M code and only fail at refresh/execution time
         // This test validates that IF refresh fails, error details are captured properly

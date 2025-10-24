@@ -384,6 +384,9 @@ public sealed class ExcelInstancePool : IDisposable
         }
 
         // Force GC to clean up COM objects
+        // NOTE: GC.Collect() is generally discouraged, but necessary for Excel COM interop
+        // to ensure Excel.exe processes terminate properly. Without this, Excel instances
+        // can remain in memory even after ReleaseComObject() calls.
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
@@ -418,6 +421,7 @@ public sealed class ExcelInstancePool : IDisposable
         Thread.Sleep(1000);
 
         // Force multiple GC cycles to clean up COM objects
+        // NOTE: GC.Collect() is necessary for Excel COM interop cleanup
         for (int i = 0; i < 3; i++)
         {
             GC.Collect();
