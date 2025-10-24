@@ -1,3 +1,7 @@
+---
+applyTo: "src/ExcelMcp.McpServer/**/*.cs"
+---
+
 # MCP Server Development Guide
 
 > **Model Context Protocol server for AI-assisted Excel development**

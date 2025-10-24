@@ -1,3 +1,7 @@
+---
+applyTo: "src/**/*.cs"
+---
+
 # Architecture Patterns
 
 > **Core patterns for ExcelMcp development**

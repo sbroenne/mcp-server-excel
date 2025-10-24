@@ -1,3 +1,7 @@
+---
+applyTo: ".github/workflows/**/*.yml,**/*.csproj,global.json"
+---
+
 # Development Workflow
 
 > **Required process for all contributions**

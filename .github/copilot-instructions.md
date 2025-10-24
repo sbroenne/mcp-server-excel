@@ -1,17 +1,17 @@
 # GitHub Copilot Instructions - ExcelMcp
 
-> **🎯 Optimized for AI Coding Agents** - Modular, focused instructions for efficient context loading
+> **🎯 Optimized for AI Coding Agents** - Modular, path-specific instructions following GitHub Copilot best practices
 
 ## 📋 Quick Navigation
 
-**Start here** → Read [CRITICAL-RULES.md](copilot/CRITICAL-RULES.md) first (5 mandatory rules)
+**Start here** → Read [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) first (5 mandatory rules)
 
-**Then reference as needed:**
-- 🧪 [Testing Strategy](copilot/testing-strategy.md) - Test architecture, OnDemand pattern, filtering
-- 📊 [Excel COM Interop](copilot/excel-com-interop.md) - COM patterns, cleanup, best practices
-- 🏗️ [Architecture Patterns](copilot/architecture-patterns.md) - Command pattern, pooling, resource management
-- 🧠 [MCP Server Guide](copilot/mcp-server-guide.md) - MCP tools, protocol, error handling
-- 🔄 [Development Workflow](copilot/development-workflow.md) - PR process, CI/CD, security, versioning
+**Path-Specific Instructions** (auto-applied based on file context):
+- 🧪 [Testing Strategy](instructions/testing-strategy.instructions.md) - Test architecture, OnDemand pattern, filtering
+- 📊 [Excel COM Interop](instructions/excel-com-interop.instructions.md) - COM patterns, cleanup, best practices
+- 🏗️ [Architecture Patterns](instructions/architecture-patterns.instructions.md) - Command pattern, pooling, resource management
+- 🧠 [MCP Server Guide](instructions/mcp-server-guide.instructions.md) - MCP tools, protocol, error handling
+- 🔄 [Development Workflow](instructions/development-workflow.instructions.md) - PR process, CI/CD, security, versioning
 
 ---
 
@@ -37,15 +37,15 @@
 ## 🎯 Development Quick Start
 
 ### Before You Start
-1. Read [CRITICAL-RULES.md](copilot/CRITICAL-RULES.md) - 5 mandatory rules
-2. Check [Testing Strategy](copilot/testing-strategy.md) for test execution patterns
+1. Read [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) - 5 mandatory rules
+2. Check [Testing Strategy](instructions/testing-strategy.instructions.md) for test execution patterns
 
 ### Common Tasks
-- **Add new command** → Follow patterns in [Architecture Patterns](copilot/architecture-patterns.md)
-- **Excel COM work** → Reference [Excel COM Interop](copilot/excel-com-interop.md)
-- **Modify pool code** → MUST run OnDemand tests (see [CRITICAL-RULES.md](copilot/CRITICAL-RULES.md))
-- **Add MCP tool** → Follow [MCP Server Guide](copilot/mcp-server-guide.md)
-- **Create PR** → Follow [Development Workflow](copilot/development-workflow.md)
+- **Add new command** → Follow patterns in [Architecture Patterns](instructions/architecture-patterns.instructions.md)
+- **Excel COM work** → Reference [Excel COM Interop](instructions/excel-com-interop.instructions.md)
+- **Modify pool code** → MUST run OnDemand tests (see [CRITICAL-RULES.md](instructions/critical-rules.instructions.md))
+- **Add MCP tool** → Follow [MCP Server Guide](instructions/mcp-server-guide.instructions.md)
+- **Create PR** → Follow [Development Workflow](instructions/development-workflow.instructions.md)
 
 ### Test Execution
 ```bash
@@ -76,5 +76,19 @@ dotnet test --filter "RunType=OnDemand"
 
 ## 🔄 Continuous Learning
 
-After completing significant tasks, update these instructions with lessons learned. See [CRITICAL-RULES.md](copilot/CRITICAL-RULES.md) Rule 4.
+After completing significant tasks, update these instructions with lessons learned. See [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) Rule 4.
+
+---
+
+## 📚 How Path-Specific Instructions Work
+
+GitHub Copilot automatically loads instructions based on the files you're working with:
+
+- Working in `tests/**/*.cs`? → [Testing Strategy](instructions/testing-strategy.instructions.md) auto-applies
+- Working in `src/ExcelMcp.Core/**/*.cs`? → [Excel COM Interop](instructions/excel-com-interop.instructions.md) auto-applies
+- Working in `src/ExcelMcp.McpServer/**/*.cs`? → [MCP Server Guide](instructions/mcp-server-guide.instructions.md) auto-applies
+- Working in `.github/workflows/**/*.yml`? → [Development Workflow](instructions/development-workflow.instructions.md) auto-applies
+- **All files** → [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) always applies
+
+This modular approach ensures you get relevant context without overwhelming the AI with unnecessary information.
 

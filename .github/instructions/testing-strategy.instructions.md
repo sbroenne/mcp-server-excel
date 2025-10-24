@@ -1,3 +1,7 @@
+---
+applyTo: "tests/**/*.cs"
+---
+
 # Testing Strategy
 
 > **Comprehensive guide to ExcelMcp's three-tier testing approach**

@@ -1,3 +1,7 @@
+---
+applyTo: "**"
+---
+
 # CRITICAL RULES - MUST FOLLOW
 
 > **⚠️ These are NON-NEGOTIABLE rules for all development work on ExcelMcp**

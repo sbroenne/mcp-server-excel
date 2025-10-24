@@ -1,3 +1,7 @@
+---
+applyTo: "src/ExcelMcp.Core/**/*.cs"
+---
+
 # Excel COM Interop Patterns
 
 > **Essential patterns for working with Excel COM automation**
