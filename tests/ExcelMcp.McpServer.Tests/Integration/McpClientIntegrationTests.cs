@@ -122,7 +122,9 @@ public class McpClientIntegrationTests : IDisposable
             .OrderBy(n => n)
             .ToArray();
 
-        Assert.Equal(new[] {
+        // Verify expected tools are present (order-independent)
+        var expectedTools = new HashSet<string>
+        {
             "excel_cell",
             "excel_connection",
             "excel_datamodel",
@@ -132,7 +134,13 @@ public class McpClientIntegrationTests : IDisposable
             "excel_version",
             "excel_vba",
             "excel_worksheet"
-        }, toolNames);
+        };
+
+        Assert.Equal(expectedTools.Count, toolNames.Length);
+        foreach (var expectedTool in expectedTools)
+        {
+            Assert.Contains(expectedTool, toolNames);
+        }
     }
 
     [Fact]

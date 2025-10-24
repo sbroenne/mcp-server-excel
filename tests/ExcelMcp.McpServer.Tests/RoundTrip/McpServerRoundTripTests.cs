@@ -602,11 +602,41 @@ End Sub";
             server?.Kill();
             server?.Dispose();
 
-            // Cleanup files
-            if (File.Exists(testFile)) File.Delete(testFile);
-            if (File.Exists(originalVbaFile)) File.Delete(originalVbaFile);
-            if (File.Exists(updatedVbaFile)) File.Delete(updatedVbaFile);
-            if (File.Exists(exportedVbaFile)) File.Delete(exportedVbaFile);
+            // Wait for Excel to release file handles
+            Thread.Sleep(1000);
+
+            // Cleanup files with retry logic to handle file locking
+            DeleteFileWithRetry(testFile);
+            DeleteFileWithRetry(originalVbaFile);
+            DeleteFileWithRetry(updatedVbaFile);
+            DeleteFileWithRetry(exportedVbaFile);
+        }
+    }
+
+    /// <summary>
+    /// Helper method to delete files with retry logic for file locking scenarios
+    /// </summary>
+    private void DeleteFileWithRetry(string filePath, int maxRetries = 3, int delayMs = 500)
+    {
+        if (!File.Exists(filePath)) return;
+
+        for (int i = 0; i < maxRetries; i++)
+        {
+            try
+            {
+                File.Delete(filePath);
+                return; // Success
+            }
+            catch (IOException) when (i < maxRetries - 1)
+            {
+                // File is locked, wait and retry
+                Thread.Sleep(delayMs);
+            }
+            catch
+            {
+                // Other errors or final retry failed - ignore
+                return;
+            }
         }
     }
 }
