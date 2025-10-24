@@ -279,7 +279,8 @@ ExcelMcp.McpServer
 |-------------|---------|
 | **Windows OS** | COM interop for Excel automation |
 | **Microsoft Excel** | Direct Excel application control |
-| **.NET 10 SDK** | Required for dnx command |
+| **.NET SDK** | Required for `dnx` command (any recent version) |
+| **.NET 8.0 Runtime** | MCP server targets .NET 8.0 |
 | **ExcelMcp.Core** | Shared Excel automation logic |
 
 ## 🔍 Protocol Details

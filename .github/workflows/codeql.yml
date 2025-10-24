@@ -41,7 +41,7 @@ jobs:
     name: Analyze Code with CodeQL
     runs-on: windows-latest
     timeout-minutes: 360
-    
+
     strategy:
       fail-fast: false
       matrix:
@@ -56,8 +56,8 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 9.0.x
-        
+        dotnet-version: 8.0.x
+
     # Initializes the CodeQL tools for scanning
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
@@ -75,7 +75,7 @@ jobs:
     # Build the solution for CodeQL analysis
     - name: Build solution
       run: dotnet build --no-restore --configuration Release
-      
+
     # Perform CodeQL Analysis
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
@@ -85,7 +85,7 @@ jobs:
         upload: true
         # Output SARIF results
         output: sarif-results
-        
+
     # Upload SARIF results as artifact for review
     - name: Upload CodeQL Results
       if: always()
@@ -94,7 +94,7 @@ jobs:
         name: codeql-sarif-results-${{ matrix.language }}
         path: sarif-results
         retention-days: 30
-        
+
     # Create issue if critical vulnerabilities found
     - name: Check for Critical Issues
       if: failure()

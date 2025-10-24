@@ -67,11 +67,13 @@ Download the Copilot instructions file:
 
 > **Note:** Keep the filename as-is to avoid overwriting any existing `copilot-instructions.md` you may have. GitHub Copilot will read all `.md` files in the `.github/` folder.
 
-#### Step 2: Install .NET 10 SDK
+#### Step 2: Install .NET SDK (for dnx command)
 
 ```powershell
 winget install Microsoft.DotNet.SDK.10
 ```
+
+> **Note:** The `dnx` (dotnet execute) command requires the .NET SDK to download and run NuGet tools. The MCP server itself targets .NET 8.0 runtime.
 
 #### Step 3: Configure GitHub Copilot MCP Server
 
@@ -188,7 +190,8 @@ dnx Sbroenne.ExcelMcp.McpServer --yes
 |-------------|---------|--------------|
 | **Windows OS** | Windows 10/11 or Server | COM interop is Windows-specific |
 | **Microsoft Excel** | Any recent version (2016+) | ExcelMcp controls the actual Excel application |
-| **.NET 10 SDK** | `winget install Microsoft.DotNet.SDK.10` | Required for `dnx` command execution |
+| **.NET SDK** | `winget install Microsoft.DotNet.SDK.10` | Required for `dnx` command to download/execute NuGet tools |
+| **.NET 8.0 Runtime** | Automatically installed with SDK or via `winget install Microsoft.DotNet.Runtime.8` | MCP server targets .NET 8.0 |
 
 > **🚨 Critical:** ExcelMcp controls the actual running Excel application through COM interop, not just Excel file formats. This provides access to Excel's full feature set (Power Query engine, VBA runtime, formula calculations, charts, pivot tables) but requires Excel to be installed and available for automation.
 

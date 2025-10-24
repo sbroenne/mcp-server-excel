@@ -28,22 +28,22 @@ jobs:
       pull-requests: write
       packages: write
       id-token: write  # Required for NuGet Trusted Publishing via OIDC
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 9.0.x
-        
+        dotnet-version: 8.0.x
+
     - name: Update MCP Server Version
       run: |
         $tagName = "${{ github.ref_name }}"
         $version = $tagName -replace '^mcp-v', ''
-        
+
         Write-Output "Updating MCP Server to version $version"
-        
+
         # Update MCP Server project version
         $mcpCsprojPath = "src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj"
         $mcpContent = Get-Content $mcpCsprojPath -Raw
@@ -51,80 +51,80 @@ jobs:
         $mcpContent = $mcpContent -replace '<AssemblyVersion>[\d\.]+\.[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
         $mcpContent = $mcpContent -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
         Set-Content $mcpCsprojPath $mcpContent
-        
+
         # Update MCP Server configuration
         $serverJsonPath = "src/ExcelMcp.McpServer/.mcp/server.json"
         $serverContent = Get-Content $serverJsonPath -Raw
-        
+
         # Update main version field (near top of file, not in _meta section)
         $serverContent = $serverContent -replace '(\s*"version":\s*)"[\d\.]+"(\s*,\s*\n\s*"title")' , "`$1`"$version`"`$2"
-        
+
         # Update package version in packages array (specifically after identifier field)
         $serverContent = $serverContent -replace '("identifier":\s*"Sbroenne\.ExcelMcp\.McpServer",\s*\n\s*"version":\s*)"[\d\.]+"', "`$1`"$version`""
-        
+
         Set-Content $serverJsonPath $serverContent
-        
+
         Write-Output "Updated MCP Server project version to $version"
         Write-Output "Updated MCP Server configuration version to $version"
-        
+
         # Set environment variable for later steps
         echo "PACKAGE_VERSION=$version" >> $env:GITHUB_ENV
       shell: pwsh
-        
+
     - name: Restore dependencies
       run: dotnet restore src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
-      
+
     - name: Build MCP Server
       run: dotnet build src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-restore
-      
+
     - name: Skip MCP Server Tests (requires Excel)
       run: |
         Write-Output "ℹ️ Note: MCP Server tests skipped in CI - they require Microsoft Excel"
         Write-Output "   All MCP Server tests are Integration tests that need Excel COM interop"
         Write-Output "   Run 'dotnet test tests/ExcelMcp.McpServer.Tests/' locally with Excel installed"
       shell: pwsh
-      
+
     - name: Pack NuGet Package
       run: dotnet pack src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-build --output ./nupkg
-      
+
     - name: NuGet login (OIDC → temp API key)
       uses: NuGet/login@v1
       id: nuget-login
       with:
         user: ${{ secrets.NUGET_USER }}  # Your nuget.org username (profile name), NOT email
-    
+
     - name: Publish to NuGet.org (Trusted Publishing)
       run: |
         $version = $env:PACKAGE_VERSION
         $packagePath = "nupkg/Sbroenne.ExcelMcp.McpServer.$version.nupkg"
-        
+
         Write-Output "Publishing $packagePath to NuGet.org using Trusted Publishing (OIDC)..."
-        
+
         dotnet nuget push $packagePath `
           --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} `
           --source https://api.nuget.org/v3/index.json `
           --skip-duplicate
-        
+
         Write-Output "🚀 Published Sbroenne.ExcelMcp.McpServer.$version to NuGet.org"
         Write-Output "🔗 Package will be available at: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer/$version"
       shell: pwsh
-      
+
     - name: Create MCP Server Release Package
       run: |
         $version = $env:PACKAGE_VERSION
-        
+
         # Create release directory structure
         New-Item -ItemType Directory -Path "release" -Force
         New-Item -ItemType Directory -Path "release/ExcelMcp-MCP-Server-$version" -Force
-        
+
         # Copy MCP Server files
         Copy-Item "src/ExcelMcp.McpServer/bin/Release/net9.0/*" "release/ExcelMcp-MCP-Server-$version/" -Recurse
-        
+
         # Copy documentation
         Copy-Item "README.md" "release/ExcelMcp-MCP-Server-$version/"
         Copy-Item "LICENSE" "release/ExcelMcp-MCP-Server-$version/"
         Copy-Item "src/ExcelMcp.McpServer/README.md" "release/ExcelMcp-MCP-Server-$version/MCP-SERVER-README.md"
-        
+
         # Create installation README with proper content
         $readmeContent = "# ExcelMcp MCP Server v$version`n`n"
         $readmeContent += "## Quick Start`n`n"
@@ -152,20 +152,20 @@ jobs:
         $readmeContent += "- Excel 2016+ (for COM interop)`n`n"
         $readmeContent += "## License`n`n"
         $readmeContent += "MIT License - see LICENSE file for details.`n"
-        
+
         Set-Content "release/ExcelMcp-MCP-Server-$version/README.md" $readmeContent
-        
+
         # Create ZIP
         Compress-Archive -Path "release/ExcelMcp-MCP-Server-$version/*" -DestinationPath "ExcelMcp-MCP-Server-$version-windows.zip"
-        
+
         Write-Output "Created ExcelMcp-MCP-Server-$version-windows.zip"
       shell: pwsh
-      
+
     - name: Create GitHub Release
       run: |
         $tagName = "${{ github.ref_name }}"
         $version = $env:PACKAGE_VERSION
-        
+
         # Create release notes
         $releaseNotes = "## ExcelMcp MCP Server $tagName`n`n"
         $releaseNotes += "### MCP Server for AI-Powered Excel Development`n`n"
@@ -200,7 +200,7 @@ jobs:
         $releaseNotes += "- Configuration Guide: See README.md in package`n"
         $releaseNotes += "- GitHub Repository: https://github.com/sbroenne/mcp-server-excel`n"
         $releaseNotes += "- MCP Server Details: src/ExcelMcp.McpServer/README.md`n"
-        
+
         # Create the release
         gh release create "$tagName" "ExcelMcp-MCP-Server-$version-windows.zip" --title "ExcelMcp MCP Server $tagName" --notes $releaseNotes
       env:

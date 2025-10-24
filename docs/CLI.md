@@ -87,7 +87,7 @@ dotnet test --filter "Category=Unit"
 |-------------|---------|--------------|
 | **Windows OS** | Windows 10/11 or Server | COM interop is Windows-specific |
 | **Microsoft Excel** | Any recent version (2016+) | ExcelMcp.CLI controls the actual Excel application |
-| **.NET 10 Runtime** | [Download here](https://dotnet.microsoft.com/download/dotnet/10.0) | ExcelMcp.CLI runtime dependency |
+| **.NET 8 Runtime** | [Download here](https://dotnet.microsoft.com/download/dotnet/8.0) | ExcelMcp.CLI runtime dependency |
 
 > **🚨 Critical:** ExcelMcp.CLI controls the actual running Excel application through COM interop, not just Excel file formats. This provides access to Excel's full feature set (Power Query engine, VBA runtime, formula calculations) but requires Excel to be installed and available for automation.
 

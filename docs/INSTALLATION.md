@@ -6,7 +6,7 @@ Complete installation guide for the ExcelMcp CLI tool for direct Excel automatio
 
 - **Windows OS** - Required for Excel COM interop
 - **Microsoft Excel** - Must be installed on the machine (2016+)
-- **.NET 10 Runtime** - Install via: `winget install Microsoft.DotNet.Runtime.10`
+- **.NET 8 Runtime** - Install via: `winget install Microsoft.DotNet.Runtime.8`
 
 > **Note:** For the MCP Server (AI assistant integration), see the [main README](../README.md).
 
@@ -68,7 +68,7 @@ excelcli.exe script-list "macros.xlsm"
 ### Prerequisites
 
 - Windows OS with Excel installed
-- .NET 10 SDK ([Download](https://dotnet.microsoft.com/download/dotnet/10.0))
+- .NET 8 SDK ([Download](https://dotnet.microsoft.com/download/dotnet/8.0))
 - Git (for cloning the repository)
 
 ### Build Steps
@@ -197,7 +197,7 @@ Without this setting, commands will prompt for privacy level when needed, provid
 
 **".NET runtime not found" error:**
 
-- Install .NET 10 Runtime: `winget install Microsoft.DotNet.Runtime.10`
+- Install .NET 8 Runtime: `winget install Microsoft.DotNet.Runtime.8`
 - Verify installation: `dotnet --version`
 
 **VBA access denied:**

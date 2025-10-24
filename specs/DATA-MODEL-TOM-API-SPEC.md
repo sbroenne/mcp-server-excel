@@ -41,10 +41,10 @@ Phase 1 implemented Read and Delete operations using Excel COM API:
 **Package**: `Microsoft.AnalysisServices.NetCore.retail.amd64`  
 **Latest Version**: 19.84.1 (as of October 2025)  
 **Target Framework**: .NET Core / .NET 5+  
-**Compatibility**: ✅ Compatible with .NET 9.0 (tested and verified)  
+**Compatibility**: ✅ Compatible with .NET 8.0 (tested and verified)  
 **Documentation**: https://docs.microsoft.com/en-us/analysis-services/tom/introduction-to-the-tabular-object-model-tom-in-analysis-services-amo
 
-**Key Discovery**: The original `Microsoft.AnalysisServices.Tabular` package only supports .NET Framework. The modern alternative `Microsoft.AnalysisServices.NetCore.retail.amd64` provides full .NET Core/.NET 9 support with zero compatibility warnings.
+**Key Discovery**: The original `Microsoft.AnalysisServices.Tabular` package only supports .NET Framework. The modern alternative `Microsoft.AnalysisServices.NetCore.retail.amd64` provides full .NET Core/.NET 8 support with zero compatibility warnings.
 
 ### TOM API Architecture
 
@@ -98,11 +98,11 @@ server.Disconnect();
 - [x] Create comprehensive specification
 - [x] Research TOM API version compatibility with Excel versions
   - ✅ Discovered `Microsoft.AnalysisServices.NetCore.retail.amd64` package
-  - ✅ Version 19.84.1 is .NET 9.0 compatible
+  - ✅ Version 19.84.1 is .NET 8.0 compatible
   - ✅ Added package to ExcelMcp.Core project successfully
 - [x] Create prototype for measure creation
   - ✅ Created `TomPrototype.CanCreateMeasure()` method
-  - ✅ Compiles successfully with .NET 9.0
+  - ✅ Compiles successfully with .NET 8.0
 - [x] Create prototype for relationship creation
   - ✅ Created `TomPrototype.CanCreateRelationship()` method
   - ✅ Supports cardinality and active/inactive settings
