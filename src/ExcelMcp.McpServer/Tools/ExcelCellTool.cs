@@ -25,9 +25,9 @@ public static class ExcelCellTool
     /// <summary>
     /// Manage individual Excel cells - values and formulas for precise control
     /// </summary>
-    [McpServerTool(Name = "excel_cell")]
+    [McpServerTool(Name = "cell")]
     [Description("Manage individual Excel cell values and formulas. Supports: get-value, set-value, get-formula, set-formula.")]
-    public static string ExcelCell(
+    public static string Cell(
         [Required]
         [RegularExpression("^(get-value|set-value|get-formula|set-formula)$")]
         [Description("Action: get-value, set-value, get-formula, set-formula")]

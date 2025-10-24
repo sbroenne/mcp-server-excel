@@ -20,9 +20,9 @@ public static class ExcelFileTool
     /// <summary>
     /// Create new Excel files for automation workflows
     /// </summary>
-    [McpServerTool(Name = "excel_file")]
+    [McpServerTool(Name = "file")]
     [Description("Manage Excel files. Supports: create-empty, close-workbook.")]
-    public static string ExcelFile(
+    public static string File(
         [Description("Action to perform: create-empty, close-workbook")]
         string action,
 
@@ -128,7 +128,7 @@ public static class ExcelFileTool
                 suggestedNextActions = new[]
                 {
                     "Pool capacity restored - you can now open other files",
-                    "Use 'excel_file' with action 'create-empty' to create new files",
+                    "Use 'file' with action 'create-empty' to create new files",
                     "Use other excel_* tools to work with different files"
                 },
                 workflowHint = "Workbook closed. Pool instance slot is now available for other files."

@@ -21,9 +21,9 @@ public static class ExcelVersionTool
     /// <summary>
     /// Check for available updates on NuGet.org
     /// </summary>
-    [McpServerTool(Name = "excel_version")]
+    [McpServerTool(Name = "version")]
     [Description("Check for ExcelMcp updates on NuGet.org. Supports: check.")]
-    public static async Task<string> ExcelVersion(
+    public static async Task<string> Version(
         [Description("Action to perform: check")]
         string action)
     {

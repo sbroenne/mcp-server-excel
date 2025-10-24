@@ -29,9 +29,9 @@ public static class ExcelVbaTool
     /// <summary>
     /// Manage Excel VBA scripts - modules, procedures, and macro execution (requires .xlsm files)
     /// </summary>
-    [McpServerTool(Name = "excel_vba")]
+    [McpServerTool(Name = "vba")]
     [Description("Manage Excel VBA scripts and macros (requires .xlsm files). Supports: list, view, export, import, update, run, delete.")]
-    public static string ExcelVba(
+    public static string Vba(
         [Required]
         [RegularExpression("^(list|view|export|import|update|run|delete)$")]
         [Description("Action: list, view, export, import, update, run, delete")]

@@ -49,7 +49,7 @@ public class ExcelFileDirectoryTests : IDisposable
         _output.WriteLine($"Directory exists before: {Directory.Exists(Path.GetDirectoryName(testFile))}");
 
         // Act - Call the tool directly
-        var result = ExcelFileTool.ExcelFile("create-empty", testFile);
+        var result = ExcelFileTool.File("create-empty", testFile);
 
         _output.WriteLine($"Tool result: {result}");
 
@@ -81,7 +81,7 @@ public class ExcelFileDirectoryTests : IDisposable
         _output.WriteLine($"Path: {testFile}");
 
         // Act - Call the tool directly
-        var result = ExcelFileTool.ExcelFile("create-empty", testFile);
+        var result = ExcelFileTool.File("create-empty", testFile);
 
         _output.WriteLine($"Tool result: {result}");
 

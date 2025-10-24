@@ -36,9 +36,9 @@ public static class ExcelPowerQueryTool
     /// <summary>
     /// Manage Power Query operations - M code, data loading, and query lifecycle
     /// </summary>
-    [McpServerTool(Name = "excel_powerquery")]
+    [McpServerTool(Name = "powerquery")]
     [Description("Manage Power Query M code and data loading. Supports: list, view, import, export, update, refresh, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config.")]
-    public static string ExcelPowerQuery(
+    public static string PowerQuery(
         [Required]
         [RegularExpression("^(list|view|import|export|update|refresh|delete|set-load-to-table|set-load-to-data-model|set-load-to-both|set-connection-only|get-load-config)$")]
         [Description("Action: list, view, import, export, update, refresh, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config")]

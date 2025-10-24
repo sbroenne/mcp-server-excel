@@ -46,9 +46,9 @@ public static class ExcelDataModelTool
     /// <summary>
     /// Manage Excel Data Model (Power Pivot) - tables, measures, relationships
     /// </summary>
-    [McpServerTool(Name = "excel_datamodel")]
+    [McpServerTool(Name = "datamodel")]
     [Description("Manage Excel Data Model operations. Supports: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, create-measure, update-measure, create-relationship, update-relationship, create-column, list-columns, view-column, update-column, delete-column, validate-dax.")]
-    public static async Task<string> ExcelDataModel(
+    public static async Task<string> DataModel(
         [Required]
         [RegularExpression("^(list-tables|list-measures|view-measure|export-measure|list-relationships|refresh|delete-measure|delete-relationship|create-measure|update-measure|create-relationship|update-relationship|create-column|list-columns|view-column|update-column|delete-column|validate-dax)$")]
         [Description("Action: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, create-measure, update-measure, create-relationship, update-relationship, create-column, list-columns, view-column, update-column, delete-column, validate-dax")]

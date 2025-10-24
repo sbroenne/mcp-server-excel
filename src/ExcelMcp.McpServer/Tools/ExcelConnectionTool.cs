@@ -32,9 +32,9 @@ public static class ExcelConnectionTool
     /// <summary>
     /// Manage Excel data connections - OLEDB, ODBC, Text, Web, and other connection types
     /// </summary>
-    [McpServerTool(Name = "excel_connection")]
+    [McpServerTool(Name = "connection")]
     [Description("Manage Excel data connections. Supports: list, view, import, export, update, refresh, delete, loadto, properties, set-properties, test.")]
-    public static string ExcelConnection(
+    public static string Connection(
         [Required]
         [RegularExpression("^(list|view|import|export|update|refresh|delete|loadto|properties|set-properties|test)$")]
         [Description("Action: list, view, import, export, update, refresh, delete, loadto, properties, set-properties, test")] 

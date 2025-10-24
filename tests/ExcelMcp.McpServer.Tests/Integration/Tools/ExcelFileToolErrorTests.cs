@@ -48,7 +48,7 @@ public class ExcelFileToolErrorTests : IDisposable
         _output.WriteLine($"Testing file creation at: {testFile}");
 
         // Act - Call the tool directly
-        var result = ExcelFileTool.ExcelFile("create-empty", testFile);
+        var result = ExcelFileTool.File("create-empty", testFile);
 
         _output.WriteLine($"Tool result: {result}");
 
@@ -69,7 +69,7 @@ public class ExcelFileToolErrorTests : IDisposable
 
         // Act & Assert - Should throw McpException for invalid action
         var exception = Assert.Throws<ModelContextProtocol.McpException>(() =>
-            ExcelFileTool.ExcelFile("invalid-action", testFile));
+            ExcelFileTool.File("invalid-action", testFile));
 
         _output.WriteLine($"Exception message for invalid action: {exception.Message}");
 

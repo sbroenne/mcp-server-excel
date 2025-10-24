@@ -27,9 +27,9 @@ public static class ExcelWorksheetTool
     /// <summary>
     /// Manage Excel worksheets - data operations, sheet management, and content manipulation
     /// </summary>
-    [McpServerTool(Name = "excel_worksheet")]
+    [McpServerTool(Name = "worksheet")]
     [Description("Manage Excel worksheets and data. Supports: list, read, write, create, rename, copy, delete, clear, append.")]
-    public static string ExcelWorksheet(
+    public static string Worksheet(
         [Required]
         [RegularExpression("^(list|read|write|create|rename|copy|delete|clear|append)$")]
         [Description("Action: list, read, write, create, rename, copy, delete, clear, append")]
