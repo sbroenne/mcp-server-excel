@@ -15,10 +15,19 @@ ExcelMcp includes several security measures:
 
 ### Input Validation
 
-- **Path Traversal Protection**: All file paths are validated with `Path.GetFullPath()`
-- **File Size Limits**: 1GB maximum file size to prevent DoS attacks
+- **Path Traversal Protection**: All file paths are validated with `PathValidator.ValidateExistingFile()`
+  - Resolves paths with `Path.GetFullPath()` to prevent traversal attacks
+  - Validates file existence and accessibility
+  - Enforces maximum path length (32,767 characters on Windows)
+- **File Size Limits**: 100MB maximum file size to prevent DoS attacks
 - **Extension Validation**: Only `.xlsx` and `.xlsm` files are accepted
-- **Path Length Validation**: Maximum 32,767 characters (Windows limit)
+- **Table Name Validation**: Comprehensive validation using `TableNameValidator`
+  - Prevents formula injection and name-based attacks
+  - Enforces Excel naming rules (max 255 chars, no spaces, valid characters only)
+  - Blocks reserved names and cell reference patterns
+- **Range Validation**: DoS prevention using `RangeValidator`
+  - Maximum 1,000,000 cells per range operation (configurable)
+  - Prevents integer overflow in range calculations
 
 ### Code Analysis
 
@@ -32,12 +41,18 @@ ExcelMcp includes several security measures:
 - **Controlled Excel Automation**: Excel.Application runs with `Visible=false` and `DisplayAlerts=false`
 - **Resource Cleanup**: Comprehensive COM object disposal and garbage collection
 - **No Remote Connections**: Only local Excel automation supported
+- **Null Safety**: All COM object accesses use null-conditional operators
+- **Memory Leak Prevention**: Explicit COM object release after operations like `Unlist()`
 
 ### Dependency Management
 
 - **Dependabot**: Automated dependency updates and security patches
 - **Dependency Review**: Pull request scanning for vulnerable dependencies
 - **Central Package Management**: Consistent versioning across all projects
+
+### Security Implementation Guides
+
+- **[Excel Tables Security Guide](docs/EXCEL-TABLES-SECURITY-GUIDE.md)**: Comprehensive guide for implementing Excel Tables (ListObjects) functionality with critical security and robustness requirements
 
 ## Reporting a Vulnerability
 
