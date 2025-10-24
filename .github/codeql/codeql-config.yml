@@ -11,7 +11,7 @@ queries:
   # Built-in security queries
   - uses: security-and-quality
   - uses: security-extended
-  
+
 # Paths to exclude from analysis
 paths-ignore:
   - '**/bin/**'
@@ -34,21 +34,66 @@ paths:
 query-filters:
   # Exclude specific queries that may be false positives
   # Uncomment and adjust as needed
-  
+
   # COM interop may trigger weak crypto warnings for Excel automation
   - exclude:
       id: cs/weak-crypto
       reason: "Excel COM interop uses Windows crypto APIs"
-  
+
   # Dynamic typing is required for COM interop
   - exclude:
       id: cs/call-to-unmanaged-code
       reason: "Required for Excel COM interop automation"
-      
+
   # External libraries may use reflection
   - exclude:
       id: cs/reflection
-      reason: "Required for COM late binding"
+      reason: "External libraries may use reflection"
+
+  # Test-specific exclusions (note-severity only)
+  # Tests often use patterns that are acceptable in test context
+
+  # Generic catch clauses are acceptable in test cleanup/teardown
+  - exclude:
+      id: cs/catch-of-all-exceptions
+      reason: "Test cleanup code often needs to catch all exceptions"
+      paths:
+        - 'tests/**'
+
+  # Empty catch blocks in tests are used for cleanup that may fail
+  - exclude:
+      id: cs/empty-catch-block
+      reason: "Test cleanup may intentionally ignore failures"
+      paths:
+        - 'tests/**'
+
+  # Path.Combine usage in tests for creating test files
+  - exclude:
+      id: cs/path-combine
+      reason: "Tests create temporary files with controlled paths"
+      paths:
+        - 'tests/**'
+
+  # LINQ suggestions in tests are optional
+  - exclude:
+      id: cs/linq/missed-where
+      reason: "Test code readability over performance"
+      paths:
+        - 'tests/**'
+
+  # Ternary operator suggestions in tests
+  - exclude:
+      id: cs/missed-ternary-operator
+      reason: "Test code clarity over brevity"
+      paths:
+        - 'tests/**'
+
+  # Useless assignments in tests may be intentional for clarity
+  - exclude:
+      id: cs/useless-assignment-to-local
+      reason: "Test code may assign for debugging/clarity"
+      paths:
+        - 'tests/**'
 
 # External data sources (for taint tracking)
 # external-repository-token: ${{ secrets.GITHUB_TOKEN }}
@@ -72,9 +117,9 @@ packs:
 security-policy:
   # Severity levels to report
   minimum-severity: medium
-  
+
   # Report on security findings
   fail-on-severity: high
-  
+
   # License compliance
   check-licenses: true

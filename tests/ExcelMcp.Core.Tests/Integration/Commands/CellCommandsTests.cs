@@ -6,9 +6,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 /// <summary>
 /// Integration tests for Cell Core operations using Excel COM automation.
 /// Tests Core layer directly (not through CLI wrapper).
-/// Uses Excel instance pooling for improved test performance.
 /// </summary>
-[Collection(nameof(ExcelPooledTestCollection))]
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
 [Trait("Speed", "Fast")]

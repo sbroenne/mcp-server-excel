@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sbroenne.ExcelMcp.Core;
+using Sbroenne.ExcelMcp.Core.Session;
 using Sbroenne.ExcelMcp.McpServer.Tools;
 
 namespace Sbroenne.ExcelMcp.McpServer;
@@ -15,6 +16,7 @@ namespace Sbroenne.ExcelMcp.McpServer;
 /// - excel_parameter: Manage named ranges as parameters
 /// - excel_cell: Individual cell operations (get/set values/formulas)
 /// - excel_vba: VBA script management and execution
+/// - excel_version: Check for updates on NuGet.org
 ///
 /// Performance Optimization:
 /// Uses ExcelInstancePool for conversational workflows - reuses Excel instances
@@ -33,6 +35,30 @@ public class Program
             consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
         });
 
+        // Check for updates on startup (non-blocking)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var checker = new VersionChecker();
+                var result = await checker.CheckForUpdatesAsync("Sbroenne.ExcelMcp.McpServer");
+
+                if (result.Success && result.IsOutdated)
+                {
+                    // Log warning to stderr for MCP protocol compliance
+                    Console.Error.WriteLine($"⚠️  WARNING: ExcelMcp update available!");
+                    Console.Error.WriteLine($"   Current version: {result.CurrentVersion}");
+                    Console.Error.WriteLine($"   Latest version:  {result.LatestVersion}");
+                    Console.Error.WriteLine($"   The dnx command automatically downloads the latest version.");
+                    Console.Error.WriteLine($"   Restart VS Code to update to the new version.");
+                }
+            }
+            catch
+            {
+                // Silently ignore version check failures on startup
+            }
+        });
+
         // Register Excel instance pool as singleton for reuse across tool calls
         // Idle instances are automatically cleaned up after 60 seconds
         builder.Services.AddSingleton<ExcelInstancePool>(sp =>
@@ -40,9 +66,6 @@ public class Program
 
         // Initialize the pool for use by Core commands and MCP tools
         var pool = new ExcelInstancePool(idleTimeout: TimeSpan.FromSeconds(60));
-
-        // Configure Core layer to use pooling (zero-change integration)
-        ExcelHelper.InstancePool = pool;
 
         // Configure MCP tools layer to use pooling (for static access)
         ExcelToolsPoolManager.Initialize(pool);
@@ -60,7 +83,6 @@ public class Program
         lifetime.ApplicationStopping.Register(() =>
         {
             // Clear pool references
-            ExcelHelper.InstancePool = null;
             ExcelToolsPoolManager.Shutdown();
 
             // Dispose pool instance

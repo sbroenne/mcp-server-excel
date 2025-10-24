@@ -1,6 +1,7 @@
 using Microsoft.Win32;
+using Sbroenne.ExcelMcp.Core.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
-using static Sbroenne.ExcelMcp.Core.ExcelHelper;
+using Sbroenne.ExcelMcp.Core.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -166,7 +167,7 @@ public class SetupCommands : ISetupCommands
         {
             var result = new VbaTrustResult { FilePath = testFilePath };
 
-            int exitCode = WithExcel(testFilePath, false, (excel, workbook) =>
+            int exitCode = ExcelSession.Execute(testFilePath, false, (excel, workbook) =>
             {
                 dynamic? vbProject = null;
                 dynamic? vbComponents = null;
@@ -189,8 +190,8 @@ public class SetupCommands : ISetupCommands
                 }
                 finally
                 {
-                    ReleaseComObject(ref vbComponents);
-                    ReleaseComObject(ref vbProject);
+                    ComUtilities.Release(ref vbComponents);
+                    ComUtilities.Release(ref vbProject);
                 }
             });
 

@@ -14,6 +14,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 ///
 /// LLM Usage Patterns:
 /// - Use "list" to see all VBA modules and procedures
+/// - Use "view" to inspect VBA code without exporting
 /// - Use "export" to backup VBA code to .vba files
 /// - Use "import" to load VBA modules from files
 /// - Use "update" to modify existing VBA modules
@@ -29,11 +30,11 @@ public static class ExcelVbaTool
     /// Manage Excel VBA scripts - modules, procedures, and macro execution (requires .xlsm files)
     /// </summary>
     [McpServerTool(Name = "excel_vba")]
-    [Description("Manage Excel VBA scripts and macros (requires .xlsm files). Supports: list, export, import, update, run, delete.")]
+    [Description("Manage Excel VBA scripts and macros (requires .xlsm files). Supports: list, view, export, import, update, run, delete.")]
     public static string ExcelVba(
         [Required]
-        [RegularExpression("^(list|export|import|update|run|delete)$")]
-        [Description("Action: list, export, import, update, run, delete")]
+        [RegularExpression("^(list|view|export|import|update|run|delete)$")]
+        [Description("Action: list, view, export, import, update, run, delete")]
         string action,
 
         [Required]
@@ -64,6 +65,8 @@ public static class ExcelVbaTool
             {
                 case "list":
                     return ListVbaScripts(scriptCommands, excelPath);
+                case "view":
+                    return ViewVbaScript(scriptCommands, excelPath, moduleName);
                 case "export":
                     return ExportVbaScript(scriptCommands, excelPath, moduleName, targetPath);
                 case "import":
@@ -75,7 +78,7 @@ public static class ExcelVbaTool
                 case "delete":
                     return DeleteVbaScript(scriptCommands, excelPath, moduleName);
                 default:
-                    ExcelToolsBase.ThrowUnknownAction(action, "list", "export", "import", "update", "run", "delete");
+                    ExcelToolsBase.ThrowUnknownAction(action, "list", "view", "export", "import", "update", "run", "delete");
                     throw new InvalidOperationException(); // Never reached
             }
         }
@@ -118,12 +121,44 @@ public static class ExcelVbaTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ExportVbaScript(ScriptCommands commands, string filePath, string? moduleName, string? vbaFilePath)
+    private static string ViewVbaScript(ScriptCommands commands, string filePath, string? moduleName)
     {
-        if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(vbaFilePath))
-            throw new ModelContextProtocol.McpException("moduleName and vbaFilePath are required for export action");
+        if (string.IsNullOrEmpty(moduleName))
+            throw new ModelContextProtocol.McpException("moduleName is required for view action");
 
-        var result = commands.Export(filePath, moduleName, vbaFilePath).GetAwaiter().GetResult();
+        var result = commands.View(filePath, moduleName);
+
+        // If view failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            result.SuggestedNextActions = new List<string>
+            {
+                "Check that the module name exists",
+                "Use 'list' to see available modules",
+                "Verify VBA trust is enabled"
+            };
+            result.WorkflowHint = "View failed. Ensure the module exists and VBA trust is enabled.";
+            throw new ModelContextProtocol.McpException($"view failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        result.SuggestedNextActions = new List<string>
+        {
+            $"Module has {result.LineCount} lines and {result.Procedures.Count} procedure(s)",
+            "Use 'update' to modify the code",
+            "Use 'run' to execute procedures",
+            "Use 'export' to save code to file"
+        };
+        result.WorkflowHint = "VBA code viewed. Next, update, run, or export as needed.";
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string ExportVbaScript(ScriptCommands commands, string filePath, string? moduleName, string? targetPath)
+    {
+        if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(targetPath))
+            throw new ModelContextProtocol.McpException("moduleName and targetPath are required for export action");
+
+        var result = commands.Export(filePath, moduleName, targetPath).GetAwaiter().GetResult();
 
         // If export failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -149,12 +184,12 @@ public static class ExcelVbaTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ImportVbaScript(ScriptCommands commands, string filePath, string? moduleName, string? vbaFilePath)
+    private static string ImportVbaScript(ScriptCommands commands, string filePath, string? moduleName, string? sourcePath)
     {
-        if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(vbaFilePath))
-            throw new ModelContextProtocol.McpException("moduleName and vbaFilePath are required for import action");
+        if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(sourcePath))
+            throw new ModelContextProtocol.McpException("moduleName and sourcePath are required for import action");
 
-        var result = commands.Import(filePath, moduleName, vbaFilePath).GetAwaiter().GetResult();
+        var result = commands.Import(filePath, moduleName, sourcePath).GetAwaiter().GetResult();
 
         // If import failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -180,12 +215,12 @@ public static class ExcelVbaTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string UpdateVbaScript(ScriptCommands commands, string filePath, string? moduleName, string? vbaFilePath)
+    private static string UpdateVbaScript(ScriptCommands commands, string filePath, string? moduleName, string? sourcePath)
     {
-        if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(vbaFilePath))
-            throw new ModelContextProtocol.McpException("moduleName and vbaFilePath are required for update action");
+        if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(sourcePath))
+            throw new ModelContextProtocol.McpException("moduleName and sourcePath are required for update action");
 
-        var result = commands.Update(filePath, moduleName, vbaFilePath).GetAwaiter().GetResult();
+        var result = commands.Update(filePath, moduleName, sourcePath).GetAwaiter().GetResult();
 
         // If update failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))

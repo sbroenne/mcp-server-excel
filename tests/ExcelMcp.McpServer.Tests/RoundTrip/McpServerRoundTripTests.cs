@@ -391,20 +391,20 @@ in
 
 Public Sub GenerateTestData()
     Dim ws As Worksheet
-    
+
     ' Create new worksheet
     Set ws = ActiveWorkbook.Worksheets.Add
     ws.Name = ""VBATestSheet""
-    
+
     ' Fill with basic data
     ws.Cells(1, 1).Value = ""ID""
     ws.Cells(1, 2).Value = ""Name""
     ws.Cells(1, 3).Value = ""Value""
-    
+
     ws.Cells(2, 1).Value = 1
     ws.Cells(2, 2).Value = ""Original""
     ws.Cells(2, 3).Value = 100
-    
+
     ws.Cells(3, 1).Value = 2
     ws.Cells(3, 2).Value = ""Data""
     ws.Cells(3, 3).Value = 200
@@ -416,24 +416,24 @@ End Sub";
 Public Sub GenerateTestData()
     Dim ws As Worksheet
     Dim i As Integer
-    
+
     ' Create new worksheet (delete if exists)
     On Error Resume Next
     Application.DisplayAlerts = False
     ActiveWorkbook.Worksheets(""VBATestSheet"").Delete
     On Error GoTo 0
     Application.DisplayAlerts = True
-    
+
     Set ws = ActiveWorkbook.Worksheets.Add
     ws.Name = ""VBATestSheet""
-    
+
     ' Enhanced headers
     ws.Cells(1, 1).Value = ""ID""
     ws.Cells(1, 2).Value = ""Name""
     ws.Cells(1, 3).Value = ""Value""
     ws.Cells(1, 4).Value = ""Status""
     ws.Cells(1, 5).Value = ""Generated""
-    
+
     ' Generate multiple rows of enhanced data
     For i = 2 To 6
         ws.Cells(i, 1).Value = i - 1
@@ -467,7 +467,7 @@ End Sub";
             var importJson = JsonDocument.Parse(importResponse);
             Assert.True(importJson.RootElement.GetProperty("Success").GetBoolean());
 
-            // Step 3: Run original VBA to create initial sheet and data  
+            // Step 3: Run original VBA to create initial sheet and data
             _output.WriteLine("Step 3: Running original VBA to create initial data...");
             var runResponse = await CallExcelTool(server, "excel_vba", new
             {
@@ -476,25 +476,11 @@ End Sub";
                 moduleName = $"{moduleName}.GenerateTestData"
             });
 
-            // VBA run may return non-JSON responses in some cases - verify it's valid JSON
-            JsonDocument? runJson = null;
-            try
-            {
-                runJson = JsonDocument.Parse(runResponse);
-                Assert.True(runJson.RootElement.GetProperty("Success").GetBoolean());
-                _output.WriteLine("VBA execution completed successfully");
-            }
-            catch (JsonException)
-            {
-                _output.WriteLine($"VBA run returned non-JSON response: {runResponse}");
-                // If response is not JSON, it might be an error message - skip VBA data validation
-                // NOTE: Core tests verify VBA execution works. MCP Server tests focus on protocol.
-                _output.WriteLine("Skipping VBA result validation - this is a known MCP protocol limitation");
-            }
-            finally
-            {
-                runJson?.Dispose();
-            }
+            // VBA run MUST return valid JSON - if not, test should FAIL
+            var runJson = JsonDocument.Parse(runResponse);
+            Assert.True(runJson.RootElement.GetProperty("Success").GetBoolean(),
+                $"VBA run failed: {runResponse}");
+            _output.WriteLine("VBA execution completed successfully");
 
             // Step 4: Verify sheet operations still work (protocol check)
             _output.WriteLine("Step 4: Verifying worksheet list operation...");
@@ -525,27 +511,16 @@ End Sub";
                 action = "export",
                 excelPath = testFile,
                 moduleName = moduleName,
-                outputPath = exportedVbaFile
+                targetPath = exportedVbaFile
             });
 
-            // Try to parse as JSON, but handle non-JSON responses gracefully
-            JsonDocument? exportJson = null;
-            try
-            {
-                exportJson = JsonDocument.Parse(exportResponse);
-                Assert.True(exportJson.RootElement.GetProperty("Success").GetBoolean());
-                Assert.True(File.Exists(exportedVbaFile));
-                _output.WriteLine("VBA module exported successfully");
-            }
-            catch (JsonException)
-            {
-                _output.WriteLine($"Export returned non-JSON response: {exportResponse}");
-                _output.WriteLine("Skipping export validation - MCP protocol limitation");
-            }
-            finally
-            {
-                exportJson?.Dispose();
-            }
+            // Export MUST return valid JSON - if not, test should FAIL
+            var exportJson = JsonDocument.Parse(exportResponse);
+            Assert.True(exportJson.RootElement.GetProperty("Success").GetBoolean(),
+                $"VBA export failed: {exportResponse}");
+            Assert.True(File.Exists(exportedVbaFile),
+                $"Exported VBA file not found at: {exportedVbaFile}");
+            _output.WriteLine("VBA module exported successfully");
 
             // Step 6: Update VBA module with enhanced code
             _output.WriteLine("Step 6: Updating VBA module with enhanced code...");
@@ -557,23 +532,11 @@ End Sub";
                 sourcePath = updatedVbaFile
             });
 
-            // Try to parse as JSON, but handle non-JSON responses gracefully
-            JsonDocument? updateJson = null;
-            try
-            {
-                updateJson = JsonDocument.Parse(updateResponse);
-                Assert.True(updateJson.RootElement.GetProperty("Success").GetBoolean());
-                _output.WriteLine("VBA module updated successfully");
-            }
-            catch (JsonException)
-            {
-                _output.WriteLine($"Update returned non-JSON response: {updateResponse}");
-                _output.WriteLine("Skipping update validation - MCP protocol limitation");
-            }
-            finally
-            {
-                updateJson?.Dispose();
-            }
+            // Update MUST return valid JSON - if not, test should FAIL
+            var updateJson = JsonDocument.Parse(updateResponse);
+            Assert.True(updateJson.RootElement.GetProperty("Success").GetBoolean(),
+                $"VBA update failed: {updateResponse}");
+            _output.WriteLine("VBA module updated successfully");
 
             // Step 7: List VBA modules to verify it still exists
             _output.WriteLine("Step 7: Listing VBA modules to verify integrity...");
@@ -583,34 +546,19 @@ End Sub";
                 excelPath = testFile
             });
 
-            // Try to parse as JSON, but handle non-JSON responses gracefully
-            JsonDocument? listModulesJson = null;
-            try
-            {
-                listModulesJson = JsonDocument.Parse(listModulesResponse);
-                Assert.True(listModulesJson.RootElement.GetProperty("Success").GetBoolean());
-                if (listModulesJson.RootElement.TryGetProperty("Scripts", out var scriptsElement))
-                {
-                    var scripts = scriptsElement.EnumerateArray()
-                        .Select(s => s.GetProperty("Name").GetString())
-                        .ToArray();
-                    Assert.Contains(moduleName, scripts);
-                    _output.WriteLine($"Verified module '{moduleName}' still exists after update");
-                }
-                else
-                {
-                    _output.WriteLine("Module list successful - Scripts property structure varies");
-                }
-            }
-            catch (JsonException)
-            {
-                _output.WriteLine($"List modules returned non-JSON response: {listModulesResponse}");
-                _output.WriteLine("Skipping module list validation - MCP protocol limitation");
-            }
-            finally
-            {
-                listModulesJson?.Dispose();
-            }
+            // List MUST return valid JSON - if not, test should FAIL
+            var listModulesJson = JsonDocument.Parse(listModulesResponse);
+            Assert.True(listModulesJson.RootElement.GetProperty("Success").GetBoolean(),
+                $"VBA list failed: {listModulesResponse}");
+
+            Assert.True(listModulesJson.RootElement.TryGetProperty("Scripts", out var scriptsElement),
+                "Response missing 'Scripts' property");
+
+            var scripts = scriptsElement.EnumerateArray()
+                .Select(s => s.GetProperty("Name").GetString())
+                .ToArray();
+            Assert.Contains(moduleName, scripts);
+            _output.WriteLine($"Verified module '{moduleName}' still exists after update");
 
             _output.WriteLine("✅ VBA Round Trip Test Completed - MCP Protocol Working Correctly");
             _output.WriteLine("NOTE: VBA execution and data validation are tested in Core layer.");
@@ -618,14 +566,77 @@ End Sub";
         }
         finally
         {
+            // Close workbook in pool before cleanup
+            if (server != null && !server.HasExited)
+            {
+                try
+                {
+                    var closeRequest = new
+                    {
+                        jsonrpc = "2.0",
+                        method = "tools/call",
+                        @params = new
+                        {
+                            name = "excel_file",
+                            arguments = new
+                            {
+                                action = "close-workbook",
+                                excelPath = testFile
+                            }
+                        },
+                        id = 999
+                    };
+                    var json = JsonSerializer.Serialize(closeRequest);
+                    server.StandardInput.WriteLine(json);
+                    _output.WriteLine("Workbook close request sent");
+
+                    // Give it a moment to close
+                    Thread.Sleep(500);
+                }
+                catch
+                {
+                    // Ignore errors during cleanup
+                }
+            }
+
             server?.Kill();
             server?.Dispose();
 
-            // Cleanup files
-            if (File.Exists(testFile)) File.Delete(testFile);
-            if (File.Exists(originalVbaFile)) File.Delete(originalVbaFile);
-            if (File.Exists(updatedVbaFile)) File.Delete(updatedVbaFile);
-            if (File.Exists(exportedVbaFile)) File.Delete(exportedVbaFile);
+            // Wait for Excel to release file handles
+            Thread.Sleep(1000);
+
+            // Cleanup files with retry logic to handle file locking
+            DeleteFileWithRetry(testFile);
+            DeleteFileWithRetry(originalVbaFile);
+            DeleteFileWithRetry(updatedVbaFile);
+            DeleteFileWithRetry(exportedVbaFile);
+        }
+    }
+
+    /// <summary>
+    /// Helper method to delete files with retry logic for file locking scenarios
+    /// </summary>
+    private void DeleteFileWithRetry(string filePath, int maxRetries = 3, int delayMs = 500)
+    {
+        if (!File.Exists(filePath)) return;
+
+        for (int i = 0; i < maxRetries; i++)
+        {
+            try
+            {
+                File.Delete(filePath);
+                return; // Success
+            }
+            catch (IOException) when (i < maxRetries - 1)
+            {
+                // File is locked, wait and retry
+                Thread.Sleep(delayMs);
+            }
+            catch
+            {
+                // Other errors or final retry failed - ignore
+                return;
+            }
         }
     }
 }

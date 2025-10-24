@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    
+
     <!-- Assembly and Namespace Configuration -->
     <AssemblyName>Sbroenne.ExcelMcp.CLI.Tests</AssemblyName>
     <RootNamespace>Sbroenne.ExcelMcp.CLI.Tests</RootNamespace>
@@ -29,6 +29,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj" />
     <ProjectReference Include="..\..\src\ExcelMcp.Core\ExcelMcp.Core.csproj" />
+    <ProjectReference Include="..\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj" />
   </ItemGroup>
 
 </Project>

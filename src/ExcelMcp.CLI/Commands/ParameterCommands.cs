@@ -123,6 +123,61 @@ public class ParameterCommands : IParameterCommands
         }
     }
 
+    public int Update(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] param-update <file.xlsx> <param-name> <new-reference>");
+            AnsiConsole.MarkupLine("[yellow]Example:[/] param-update data.xlsx MyParam Config!B5");
+            AnsiConsole.MarkupLine("\n[dim]Note: This updates the cell reference, not the value.[/]");
+            AnsiConsole.MarkupLine("[dim]Use 'param-set' to change the value.[/]");
+            return 1;
+        }
+
+        var filePath = args[1];
+        var paramName = args[2];
+        var reference = args[3];
+
+        var result = _coreCommands.Update(filePath, paramName, reference);
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Updated parameter '{paramName.EscapeMarkup()}' reference to {reference.EscapeMarkup()}");
+
+            // Display workflow hints if available
+            if (!string.IsNullOrEmpty(result.WorkflowHint))
+            {
+                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
+            }
+
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggestions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
+            
+            return 1;
+        }
+    }
+
     public int Create(string[] args)
     {
         if (args.Length < 4)

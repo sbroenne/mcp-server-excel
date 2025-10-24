@@ -1,5 +1,6 @@
+using Sbroenne.ExcelMcp.Core.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
-using static Sbroenne.ExcelMcp.Core.ExcelHelper;
+using Sbroenne.ExcelMcp.Core.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -15,7 +16,7 @@ public class SheetCommands : ISheetCommands
             return new WorksheetListResult { Success = false, ErrorMessage = $"File not found: {filePath}", FilePath = filePath };
 
         var result = new WorksheetListResult { FilePath = filePath };
-        WithExcel(filePath, false, (excel, workbook) =>
+        ExcelSession.Execute(filePath, false, (excel, workbook) =>
         {
             dynamic? sheets = null;
             try
@@ -31,7 +32,7 @@ public class SheetCommands : ISheetCommands
                     }
                     finally
                     {
-                        ReleaseComObject(ref sheet);
+                        ComUtilities.Release(ref sheet);
                     }
                 }
                 result.Success = true;
@@ -40,7 +41,7 @@ public class SheetCommands : ISheetCommands
             catch (Exception ex) { result.Success = false; result.ErrorMessage = ex.Message; return 1; }
             finally
             {
-                ReleaseComObject(ref sheets);
+                ComUtilities.Release(ref sheets);
             }
         });
         return result;
@@ -53,13 +54,13 @@ public class SheetCommands : ISheetCommands
             return new WorksheetDataResult { Success = false, ErrorMessage = $"File not found: {filePath}", FilePath = filePath };
 
         var result = new WorksheetDataResult { FilePath = filePath, SheetName = sheetName, Range = range };
-        WithExcel(filePath, false, (excel, workbook) =>
+        ExcelSession.Execute(filePath, false, (excel, workbook) =>
         {
             dynamic? sheet = null;
             dynamic? rangeObj = null;
             try
             {
-                sheet = FindSheet(workbook, sheetName);
+                sheet = ComUtilities.FindSheet(workbook, sheetName);
                 if (sheet == null) { result.Success = false; result.ErrorMessage = $"Sheet '{sheetName}' not found"; return 1; }
 
                 rangeObj = sheet.Range[range];
@@ -80,8 +81,8 @@ public class SheetCommands : ISheetCommands
             catch (Exception ex) { result.Success = false; result.ErrorMessage = ex.Message; return 1; }
             finally
             {
-                ReleaseComObject(ref rangeObj);
-                ReleaseComObject(ref sheet);
+                ComUtilities.Release(ref rangeObj);
+                ComUtilities.Release(ref sheet);
             }
         });
         return result;
@@ -94,7 +95,7 @@ public class SheetCommands : ISheetCommands
             return new OperationResult { Success = false, ErrorMessage = $"File not found: {filePath}", FilePath = filePath, Action = "write" };
 
         var result = new OperationResult { FilePath = filePath, Action = "write" };
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? sheet = null;
             dynamic? cell1 = null;
@@ -102,7 +103,7 @@ public class SheetCommands : ISheetCommands
             dynamic? range = null;
             try
             {
-                sheet = FindSheet(workbook, sheetName);
+                sheet = ComUtilities.FindSheet(workbook, sheetName);
                 if (sheet == null) { result.Success = false; result.ErrorMessage = $"Sheet '{sheetName}' not found"; return 1; }
 
                 var data = ParseCsv(csvData);
@@ -125,10 +126,10 @@ public class SheetCommands : ISheetCommands
             catch (Exception ex) { result.Success = false; result.ErrorMessage = ex.Message; return 1; }
             finally
             {
-                ReleaseComObject(ref range);
-                ReleaseComObject(ref cell2);
-                ReleaseComObject(ref cell1);
-                ReleaseComObject(ref sheet);
+                ComUtilities.Release(ref range);
+                ComUtilities.Release(ref cell2);
+                ComUtilities.Release(ref cell1);
+                ComUtilities.Release(ref sheet);
             }
         });
         return result;
@@ -141,7 +142,7 @@ public class SheetCommands : ISheetCommands
             return new OperationResult { Success = false, ErrorMessage = $"File not found: {filePath}", FilePath = filePath, Action = "create-sheet" };
 
         var result = new OperationResult { FilePath = filePath, Action = "create-sheet" };
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? sheets = null;
             dynamic? newSheet = null;
@@ -157,8 +158,8 @@ public class SheetCommands : ISheetCommands
             catch (Exception ex) { result.Success = false; result.ErrorMessage = ex.Message; return 1; }
             finally
             {
-                ReleaseComObject(ref newSheet);
-                ReleaseComObject(ref sheets);
+                ComUtilities.Release(ref newSheet);
+                ComUtilities.Release(ref sheets);
             }
         });
         return result;
@@ -171,12 +172,12 @@ public class SheetCommands : ISheetCommands
             return new OperationResult { Success = false, ErrorMessage = $"File not found: {filePath}", FilePath = filePath, Action = "rename-sheet" };
 
         var result = new OperationResult { FilePath = filePath, Action = "rename-sheet" };
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? sheet = null;
             try
             {
-                sheet = FindSheet(workbook, oldName);
+                sheet = ComUtilities.FindSheet(workbook, oldName);
                 if (sheet == null) { result.Success = false; result.ErrorMessage = $"Sheet '{oldName}' not found"; return 1; }
                 sheet.Name = newName;
                 workbook.Save();
@@ -186,7 +187,7 @@ public class SheetCommands : ISheetCommands
             catch (Exception ex) { result.Success = false; result.ErrorMessage = ex.Message; return 1; }
             finally
             {
-                ReleaseComObject(ref sheet);
+                ComUtilities.Release(ref sheet);
             }
         });
         return result;
@@ -199,7 +200,7 @@ public class SheetCommands : ISheetCommands
             return new OperationResult { Success = false, ErrorMessage = $"File not found: {filePath}", FilePath = filePath, Action = "copy-sheet" };
 
         var result = new OperationResult { FilePath = filePath, Action = "copy-sheet" };
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? sourceSheet = null;
             dynamic? sheets = null;
@@ -207,7 +208,7 @@ public class SheetCommands : ISheetCommands
             dynamic? copiedSheet = null;
             try
             {
-                sourceSheet = FindSheet(workbook, sourceName);
+                sourceSheet = ComUtilities.FindSheet(workbook, sourceName);
                 if (sourceSheet == null) { result.Success = false; result.ErrorMessage = $"Sheet '{sourceName}' not found"; return 1; }
                 sheets = workbook.Worksheets;
                 lastSheet = sheets.Item(sheets.Count);
@@ -221,10 +222,10 @@ public class SheetCommands : ISheetCommands
             catch (Exception ex) { result.Success = false; result.ErrorMessage = ex.Message; return 1; }
             finally
             {
-                ReleaseComObject(ref copiedSheet);
-                ReleaseComObject(ref lastSheet);
-                ReleaseComObject(ref sheets);
-                ReleaseComObject(ref sourceSheet);
+                ComUtilities.Release(ref copiedSheet);
+                ComUtilities.Release(ref lastSheet);
+                ComUtilities.Release(ref sheets);
+                ComUtilities.Release(ref sourceSheet);
             }
         });
         return result;
@@ -237,12 +238,12 @@ public class SheetCommands : ISheetCommands
             return new OperationResult { Success = false, ErrorMessage = $"File not found: {filePath}", FilePath = filePath, Action = "delete-sheet" };
 
         var result = new OperationResult { FilePath = filePath, Action = "delete-sheet" };
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? sheet = null;
             try
             {
-                sheet = FindSheet(workbook, sheetName);
+                sheet = ComUtilities.FindSheet(workbook, sheetName);
                 if (sheet == null) { result.Success = false; result.ErrorMessage = $"Sheet '{sheetName}' not found"; return 1; }
                 sheet.Delete();
                 workbook.Save();
@@ -252,7 +253,7 @@ public class SheetCommands : ISheetCommands
             catch (Exception ex) { result.Success = false; result.ErrorMessage = ex.Message; return 1; }
             finally
             {
-                ReleaseComObject(ref sheet);
+                ComUtilities.Release(ref sheet);
             }
         });
         return result;
@@ -265,13 +266,13 @@ public class SheetCommands : ISheetCommands
             return new OperationResult { Success = false, ErrorMessage = $"File not found: {filePath}", FilePath = filePath, Action = "clear" };
 
         var result = new OperationResult { FilePath = filePath, Action = "clear" };
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? sheet = null;
             dynamic? rangeObj = null;
             try
             {
-                sheet = FindSheet(workbook, sheetName);
+                sheet = ComUtilities.FindSheet(workbook, sheetName);
                 if (sheet == null) { result.Success = false; result.ErrorMessage = $"Sheet '{sheetName}' not found"; return 1; }
                 rangeObj = sheet.Range[range];
                 rangeObj.Clear();
@@ -282,8 +283,8 @@ public class SheetCommands : ISheetCommands
             catch (Exception ex) { result.Success = false; result.ErrorMessage = ex.Message; return 1; }
             finally
             {
-                ReleaseComObject(ref rangeObj);
-                ReleaseComObject(ref sheet);
+                ComUtilities.Release(ref rangeObj);
+                ComUtilities.Release(ref sheet);
             }
         });
         return result;
@@ -296,7 +297,7 @@ public class SheetCommands : ISheetCommands
             return new OperationResult { Success = false, ErrorMessage = $"File not found: {filePath}", FilePath = filePath, Action = "append" };
 
         var result = new OperationResult { FilePath = filePath, Action = "append" };
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? sheet = null;
             dynamic? usedRange = null;
@@ -306,7 +307,7 @@ public class SheetCommands : ISheetCommands
             dynamic? range = null;
             try
             {
-                sheet = FindSheet(workbook, sheetName);
+                sheet = ComUtilities.FindSheet(workbook, sheetName);
                 if (sheet == null) { result.Success = false; result.ErrorMessage = $"Sheet '{sheetName}' not found"; return 1; }
 
                 usedRange = sheet.UsedRange;
@@ -333,12 +334,12 @@ public class SheetCommands : ISheetCommands
             catch (Exception ex) { result.Success = false; result.ErrorMessage = ex.Message; return 1; }
             finally
             {
-                ReleaseComObject(ref range);
-                ReleaseComObject(ref cell2);
-                ReleaseComObject(ref cell1);
-                ReleaseComObject(ref rows);
-                ReleaseComObject(ref usedRange);
-                ReleaseComObject(ref sheet);
+                ComUtilities.Release(ref range);
+                ComUtilities.Release(ref cell2);
+                ComUtilities.Release(ref cell1);
+                ComUtilities.Release(ref rows);
+                ComUtilities.Release(ref usedRange);
+                ComUtilities.Release(ref sheet);
             }
         });
         return result;

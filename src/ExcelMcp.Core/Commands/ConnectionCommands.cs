@@ -1,7 +1,10 @@
-using Sbroenne.ExcelMcp.Core.Models;
-using static Sbroenne.ExcelMcp.Core.ExcelHelper;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using Sbroenne.ExcelMcp.Core.ComInterop;
+using Sbroenne.ExcelMcp.Core.Connections;
+using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.PowerQuery;
+using Sbroenne.ExcelMcp.Core.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -18,7 +21,7 @@ public class ConnectionCommands : IConnectionCommands
     {
         var result = new ConnectionListResult { FilePath = filePath };
 
-        return WithExcel(filePath, save: false, (excel, workbook) =>
+        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
         {
             try
             {
@@ -34,8 +37,8 @@ public class ConnectionCommands : IConnectionCommands
                         {
                             Name = conn.Name?.ToString() ?? "",
                             Description = conn.Description?.ToString() ?? "",
-                            Type = GetConnectionTypeName(conn.Type),
-                            IsPowerQuery = IsPowerQueryConnection(conn),
+                            Type = ConnectionHelpers.GetConnectionTypeName(conn.Type),
+                            IsPowerQuery = PowerQueryHelpers.IsPowerQueryConnection(conn),
                             BackgroundQuery = GetBackgroundQuerySetting(conn),
                             RefreshOnFileOpen = GetRefreshOnFileOpenSetting(conn),
                             LastRefresh = GetLastRefreshDate(conn)
@@ -73,11 +76,11 @@ public class ConnectionCommands : IConnectionCommands
             ConnectionName = connectionName
         };
 
-        return WithExcel(filePath, save: false, (excel, workbook) =>
+        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
         {
             try
             {
-                dynamic? conn = FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
 
                 if (conn == null)
                 {
@@ -86,12 +89,12 @@ public class ConnectionCommands : IConnectionCommands
                     return result;
                 }
 
-                result.Type = GetConnectionTypeName(conn.Type);
-                result.IsPowerQuery = IsPowerQueryConnection(conn);
+                result.Type = ConnectionHelpers.GetConnectionTypeName(conn.Type);
+                result.IsPowerQuery = PowerQueryHelpers.IsPowerQueryConnection(conn);
 
                 // Get connection string (sanitized for security)
                 string? rawConnectionString = GetConnectionString(conn);
-                result.ConnectionString = SanitizeConnectionString(rawConnectionString);
+                result.ConnectionString = ConnectionHelpers.SanitizeConnectionString(rawConnectionString);
 
                 // Get command text and type
                 result.CommandText = GetCommandText(conn);
@@ -158,12 +161,12 @@ public class ConnectionCommands : IConnectionCommands
                 return result;
             }
 
-            return WithExcel(filePath, save: true, (excel, workbook) =>
+            return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
             {
                 try
                 {
                     // Check if connection already exists
-                    dynamic? existing = FindConnection(workbook, connectionName);
+                    dynamic? existing = ComUtilities.FindConnection(workbook, connectionName);
                     if (existing != null)
                     {
                         result.Success = false;
@@ -204,11 +207,11 @@ public class ConnectionCommands : IConnectionCommands
             Action = "export"
         };
 
-        return WithExcel(filePath, save: false, (excel, workbook) =>
+        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
         {
             try
             {
-                dynamic? conn = FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
 
                 if (conn == null)
                 {
@@ -218,7 +221,7 @@ public class ConnectionCommands : IConnectionCommands
                 }
 
                 // Check if this is a Power Query connection
-                if (IsPowerQueryConnection(conn))
+                if (PowerQueryHelpers.IsPowerQueryConnection(conn))
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Use 'pq-export' command instead.";
@@ -230,8 +233,8 @@ public class ConnectionCommands : IConnectionCommands
                 {
                     Name = connectionName,
                     Description = conn.Description?.ToString() ?? "",
-                    Type = GetConnectionTypeName(conn.Type),
-                    ConnectionString = SanitizeConnectionString(GetConnectionString(conn)),
+                    Type = ConnectionHelpers.GetConnectionTypeName(conn.Type),
+                    ConnectionString = ConnectionHelpers.SanitizeConnectionString(GetConnectionString(conn)),
                     CommandText = GetCommandText(conn),
                     CommandType = GetCommandType(conn),
                     BackgroundQuery = GetBackgroundQuerySetting(conn),
@@ -292,11 +295,11 @@ public class ConnectionCommands : IConnectionCommands
                 return result;
             }
 
-            return WithExcel(filePath, save: true, (excel, workbook) =>
+            return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
             {
                 try
                 {
-                    dynamic? conn = FindConnection(workbook, connectionName);
+                    dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
 
                     if (conn == null)
                     {
@@ -306,7 +309,7 @@ public class ConnectionCommands : IConnectionCommands
                     }
 
                     // Check if this is a Power Query connection
-                    if (IsPowerQueryConnection(conn))
+                    if (PowerQueryHelpers.IsPowerQueryConnection(conn))
                     {
                         result.Success = false;
                         result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Use 'pq-update' command instead.";
@@ -346,11 +349,11 @@ public class ConnectionCommands : IConnectionCommands
             Action = "refresh"
         };
 
-        return WithExcel(filePath, save: true, (excel, workbook) =>
+        return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
         {
             try
             {
-                dynamic? conn = FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
 
                 if (conn == null)
                 {
@@ -385,11 +388,11 @@ public class ConnectionCommands : IConnectionCommands
             Action = "delete"
         };
 
-        return WithExcel(filePath, save: true, (excel, workbook) =>
+        return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
         {
             try
             {
-                dynamic? conn = FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
 
                 if (conn == null)
                 {
@@ -399,7 +402,7 @@ public class ConnectionCommands : IConnectionCommands
                 }
 
                 // Check if this is a Power Query connection
-                if (IsPowerQueryConnection(conn))
+                if (PowerQueryHelpers.IsPowerQueryConnection(conn))
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Use 'pq-delete' command instead.";
@@ -407,7 +410,7 @@ public class ConnectionCommands : IConnectionCommands
                 }
 
                 // Remove associated QueryTables first
-                RemoveQueryTables(workbook, connectionName);
+                PowerQueryHelpers.RemoveQueryTables(workbook, connectionName);
 
                 // Delete the connection
                 conn.Delete();
@@ -435,11 +438,11 @@ public class ConnectionCommands : IConnectionCommands
             Action = "loadto"
         };
 
-        return WithExcel(filePath, save: true, (excel, workbook) =>
+        return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
         {
             try
             {
-                dynamic? conn = FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
 
                 if (conn == null)
                 {
@@ -449,7 +452,7 @@ public class ConnectionCommands : IConnectionCommands
                 }
 
                 // Check if this is a Power Query connection
-                if (IsPowerQueryConnection(conn))
+                if (PowerQueryHelpers.IsPowerQueryConnection(conn))
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Use 'pq-loadto' command instead.";
@@ -477,10 +480,10 @@ public class ConnectionCommands : IConnectionCommands
                 }
 
                 // Remove existing QueryTables first
-                RemoveQueryTables(workbook, connectionName);
+                PowerQueryHelpers.RemoveQueryTables(workbook, connectionName);
 
                 // Create QueryTable to load data
-                var options = new QueryTableOptions
+                var options = new PowerQueryHelpers.QueryTableOptions
                 {
                     Name = connectionName,
                     RefreshImmediately = true
@@ -511,11 +514,11 @@ public class ConnectionCommands : IConnectionCommands
             ConnectionName = connectionName
         };
 
-        return WithExcel(filePath, save: false, (excel, workbook) =>
+        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
         {
             try
             {
-                dynamic? conn = FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
 
                 if (conn == null)
                 {
@@ -554,11 +557,11 @@ public class ConnectionCommands : IConnectionCommands
             Action = "set-properties"
         };
 
-        return WithExcel(filePath, save: true, (excel, workbook) =>
+        return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
         {
             try
             {
-                dynamic? conn = FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
 
                 if (conn == null)
                 {
@@ -568,7 +571,7 @@ public class ConnectionCommands : IConnectionCommands
                 }
 
                 // Check if this is a Power Query connection
-                if (IsPowerQueryConnection(conn))
+                if (PowerQueryHelpers.IsPowerQueryConnection(conn))
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Power Query properties cannot be modified directly.";
@@ -604,11 +607,11 @@ public class ConnectionCommands : IConnectionCommands
             Action = "test"
         };
 
-        return WithExcel(filePath, save: false, (excel, workbook) =>
+        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
         {
             try
             {
-                dynamic? conn = FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
 
                 if (conn == null)
                 {
@@ -619,7 +622,7 @@ public class ConnectionCommands : IConnectionCommands
 
                 // Get connection type
                 int connType = conn.Type;
-                string typeName = GetConnectionTypeName(connType);
+                string typeName = ConnectionHelpers.GetConnectionTypeName(connType);
 
                 // For Text (4) and Web (5) connections, connection string might not be accessible
                 // until a QueryTable is created. Just verify the connection object exists.
@@ -781,7 +784,7 @@ public class ConnectionCommands : IConnectionCommands
                 var refreshDate = conn.OLEDBConnection?.RefreshDate;
                 if (refreshDate != null)
                 {
-                    return (DateTime)refreshDate;
+                    return refreshDate;
                 }
             }
             else if (connType == 2) // ODBC
@@ -789,7 +792,7 @@ public class ConnectionCommands : IConnectionCommands
                 var refreshDate = conn.ODBCConnection?.RefreshDate;
                 if (refreshDate != null)
                 {
-                    return (DateTime)refreshDate;
+                    return refreshDate;
                 }
             }
         }
@@ -1187,7 +1190,7 @@ public class ConnectionCommands : IConnectionCommands
     }
 
     private static void CreateQueryTableForConnection(dynamic targetSheet, string connectionName,
-        dynamic conn, QueryTableOptions options)
+        dynamic conn, PowerQueryHelpers.QueryTableOptions options)
     {
         // For regular connections (not Power Query), we need connection string
         string? connectionString = GetConnectionString(conn);

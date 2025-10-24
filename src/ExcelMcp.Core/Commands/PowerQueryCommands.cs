@@ -1,7 +1,10 @@
 using System.Runtime.InteropServices;
+using Sbroenne.ExcelMcp.Core.ComInterop;
+using Sbroenne.ExcelMcp.Core.Connections;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.PowerQuery;
 using Sbroenne.ExcelMcp.Core.Security;
-using static Sbroenne.ExcelMcp.Core.ExcelHelper;
+using Sbroenne.ExcelMcp.Core.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -115,14 +118,14 @@ public class PowerQueryCommands : IPowerQueryCommands
                 catch { /* Skip queries that can't be read */ }
                 finally
                 {
-                    ExcelHelper.ReleaseComObject(ref query);
+                    ComUtilities.Release(ref query);
                 }
             }
         }
         catch { /* If we can't read queries, just proceed with empty list */ }
         finally
         {
-            ExcelHelper.ReleaseComObject(ref queries);
+            ComUtilities.Release(ref queries);
         }
 
         var recommended = DetermineRecommendedPrivacyLevel(privacyLevels);
@@ -176,7 +179,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                     }
                     finally
                     {
-                        ExcelHelper.ReleaseComObject(ref prop);
+                        ComUtilities.Release(ref prop);
                     }
                 }
 
@@ -189,7 +192,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             catch { /* Property approach not supported in this Excel version */ }
             finally
             {
-                ExcelHelper.ReleaseComObject(ref customProps);
+                ComUtilities.Release(ref customProps);
             }
 
             // The key approach: Set Fast Data Load to false when using privacy levels
@@ -207,7 +210,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             catch { /* Application settings not accessible */ }
             finally
             {
-                ExcelHelper.ReleaseComObject(ref application);
+                ComUtilities.Release(ref application);
             }
         }
         catch (Exception)
@@ -341,21 +344,21 @@ public class PowerQueryCommands : IPowerQueryCommands
                         }
                         finally
                         {
-                            ExcelHelper.ReleaseComObject(ref queryTable);
+                            ComUtilities.Release(ref queryTable);
                         }
                     }
                 }
                 finally
                 {
-                    ExcelHelper.ReleaseComObject(ref queryTables);
-                    ExcelHelper.ReleaseComObject(ref worksheet);
+                    ComUtilities.Release(ref queryTables);
+                    ComUtilities.Release(ref worksheet);
                 }
             }
         }
         catch { }
         finally
         {
-            ExcelHelper.ReleaseComObject(ref worksheets);
+            ComUtilities.Release(ref worksheets);
         }
 
         return null;
@@ -373,7 +376,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             return result;
         }
 
-        WithExcel(filePath, false, (excel, workbook) =>
+        ExcelSession.Execute(filePath, false, (excel, workbook) =>
         {
             dynamic? queriesCollection = null;
             try
@@ -414,14 +417,14 @@ public class PowerQueryCommands : IPowerQueryCommands
                                 }
                                 finally
                                 {
-                                    ExcelHelper.ReleaseComObject(ref conn);
+                                    ComUtilities.Release(ref conn);
                                 }
                             }
                         }
                         catch { }
                         finally
                         {
-                            ExcelHelper.ReleaseComObject(ref connections);
+                            ComUtilities.Release(ref connections);
                         }
 
                         result.Queries.Add(new PowerQueryInfo
@@ -444,7 +447,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                     }
                     finally
                     {
-                        ExcelHelper.ReleaseComObject(ref query);
+                        ComUtilities.Release(ref query);
                     }
                 }
 
@@ -466,7 +469,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             }
             finally
             {
-                ExcelHelper.ReleaseComObject(ref queriesCollection);
+                ComUtilities.Release(ref queriesCollection);
             }
         });
 
@@ -489,12 +492,12 @@ public class PowerQueryCommands : IPowerQueryCommands
             return result;
         }
 
-        WithExcel(filePath, false, (excel, workbook) =>
+        ExcelSession.Execute(filePath, false, (excel, workbook) =>
         {
             dynamic? query = null;
             try
             {
-                query = FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     var queryNames = GetQueryNames(workbook);
@@ -535,14 +538,14 @@ public class PowerQueryCommands : IPowerQueryCommands
                         }
                         finally
                         {
-                            ExcelHelper.ReleaseComObject(ref conn);
+                            ComUtilities.Release(ref conn);
                         }
                     }
                 }
                 catch { }
                 finally
                 {
-                    ExcelHelper.ReleaseComObject(ref connections);
+                    ComUtilities.Release(ref connections);
                 }
 
                 result.IsConnectionOnly = isConnectionOnly;
@@ -557,7 +560,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             }
             finally
             {
-                ExcelHelper.ReleaseComObject(ref query);
+                ComUtilities.Release(ref query);
             }
         });
 
@@ -597,7 +600,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         // STEP 1: Capture current load configuration BEFORE update
         var loadConfigBefore = GetLoadConfig(filePath, queryName);
 
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? query = null;
             try
@@ -608,7 +611,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                     ApplyPrivacyLevel(workbook, privacyLevel.Value);
                 }
 
-                query = FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     var queryNames = GetQueryNames(workbook);
@@ -647,7 +650,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             }
             finally
             {
-                ExcelHelper.ReleaseComObject(ref query);
+                ComUtilities.Release(ref query);
             }
         });
 
@@ -753,12 +756,12 @@ public class PowerQueryCommands : IPowerQueryCommands
             return result;
         }
 
-        WithExcel(filePath, false, (excel, workbook) =>
+        ExcelSession.Execute(filePath, false, (excel, workbook) =>
         {
             dynamic? query = null;
             try
             {
-                query = FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     var queryNames = GetQueryNames(workbook);
@@ -787,7 +790,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             }
             finally
             {
-                ExcelHelper.ReleaseComObject(ref query);
+                ComUtilities.Release(ref query);
             }
         });
 
@@ -824,7 +827,7 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         string mCode = await File.ReadAllTextAsync(mCodeFile);
 
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? existingQuery = null;
             dynamic? queriesCollection = null;
@@ -838,7 +841,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
 
                 // Check if query already exists
-                existingQuery = FindQuery(workbook, queryName);
+                existingQuery = ComUtilities.FindQuery(workbook, queryName);
                 if (existingQuery != null)
                 {
                     result.Success = false;
@@ -871,9 +874,9 @@ public class PowerQueryCommands : IPowerQueryCommands
             }
             finally
             {
-                ExcelHelper.ReleaseComObject(ref newQuery);
-                ExcelHelper.ReleaseComObject(ref queriesCollection);
-                ExcelHelper.ReleaseComObject(ref existingQuery);
+                ComUtilities.Release(ref newQuery);
+                ComUtilities.Release(ref queriesCollection);
+                ComUtilities.Release(ref existingQuery);
             }
         });
 
@@ -950,12 +953,12 @@ public class PowerQueryCommands : IPowerQueryCommands
             return result;
         }
 
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? query = null;
             try
             {
-                query = FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     var queryNames = GetQueryNames(workbook);
@@ -993,14 +996,14 @@ public class PowerQueryCommands : IPowerQueryCommands
                         }
                         finally
                         {
-                            ReleaseComObject(ref conn);
+                            ComUtilities.Release(ref conn);
                         }
                     }
                 }
                 catch { }
                 finally
                 {
-                    ReleaseComObject(ref connections);
+                    ComUtilities.Release(ref connections);
                 }
 
                 if (targetConnection != null)
@@ -1035,13 +1038,13 @@ public class PowerQueryCommands : IPowerQueryCommands
                     }
                     finally
                     {
-                        ReleaseComObject(ref targetConnection);
+                        ComUtilities.Release(ref targetConnection);
                     }
                 }
                 else
                 {
                     // Connection-only query
-                    ReleaseComObject(ref query);
+                    ComUtilities.Release(ref query);
                     result.Success = true;
                     result.IsConnectionOnly = true;
                     result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterRefresh(
@@ -1085,12 +1088,12 @@ public class PowerQueryCommands : IPowerQueryCommands
             return result;
         }
 
-        WithExcel(filePath, false, (excel, workbook) =>
+        ExcelSession.Execute(filePath, false, (excel, workbook) =>
         {
             dynamic? query = null;
             try
             {
-                query = FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -1121,14 +1124,14 @@ public class PowerQueryCommands : IPowerQueryCommands
                         }
                         finally
                         {
-                            ReleaseComObject(ref conn);
+                            ComUtilities.Release(ref conn);
                         }
                     }
                 }
                 catch { }
                 finally
                 {
-                    ReleaseComObject(ref connections);
+                    ComUtilities.Release(ref connections);
                 }
 
                 result.MCode = "Query is connection-only - no error information available";
@@ -1143,7 +1146,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             }
             finally
             {
-                ReleaseComObject(ref query);
+                ComUtilities.Release(ref query);
             }
         });
 
@@ -1166,12 +1169,12 @@ public class PowerQueryCommands : IPowerQueryCommands
             return result;
         }
 
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? query = null;
             try
             {
-                query = FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -1201,7 +1204,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                         }
                         finally
                         {
-                            ReleaseComObject(ref sheet);
+                            ComUtilities.Release(ref sheet);
                         }
                     }
 
@@ -1213,7 +1216,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
                 finally
                 {
-                    ReleaseComObject(ref sheets);
+                    ComUtilities.Release(ref sheets);
                 }
 
                 // Get the workbook connections to find our query
@@ -1241,13 +1244,13 @@ public class PowerQueryCommands : IPowerQueryCommands
                         }
                         finally
                         {
-                            ReleaseComObject(ref conn);
+                            ComUtilities.Release(ref conn);
                         }
                     }
                 }
                 finally
                 {
-                    ReleaseComObject(ref connections);
+                    ComUtilities.Release(ref connections);
                 }
 
                 // If no connection exists, we need to create one by loading the query to table
@@ -1278,7 +1281,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                             }
                             finally
                             {
-                                ReleaseComObject(ref q);
+                                ComUtilities.Release(ref q);
                             }
                         }
 
@@ -1310,11 +1313,11 @@ public class PowerQueryCommands : IPowerQueryCommands
                     }
                     finally
                     {
-                        ReleaseComObject(ref rangeObj);
-                        ReleaseComObject(ref queryTable);
-                        ReleaseComObject(ref queryTables);
-                        ReleaseComObject(ref targetQuery);
-                        ReleaseComObject(ref queries);
+                        ComUtilities.Release(ref rangeObj);
+                        ComUtilities.Release(ref queryTable);
+                        ComUtilities.Release(ref queryTables);
+                        ComUtilities.Release(ref targetQuery);
+                        ComUtilities.Release(ref queries);
                     }
                 }
                 else
@@ -1343,7 +1346,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                                 }
                                 finally
                                 {
-                                    ReleaseComObject(ref qt);
+                                    ComUtilities.Release(ref qt);
                                 }
                             }
                         }
@@ -1367,15 +1370,15 @@ public class PowerQueryCommands : IPowerQueryCommands
                     }
                     finally
                     {
-                        ReleaseComObject(ref rangeObj);
-                        ReleaseComObject(ref queryTable);
-                        ReleaseComObject(ref queryTables);
-                        ReleaseComObject(ref targetConnection);
+                        ComUtilities.Release(ref rangeObj);
+                        ComUtilities.Release(ref queryTable);
+                        ComUtilities.Release(ref queryTables);
+                        ComUtilities.Release(ref targetConnection);
                     }
                 }
 
-                ReleaseComObject(ref targetSheet);
-                ReleaseComObject(ref query);
+                ComUtilities.Release(ref targetSheet);
+                ComUtilities.Release(ref query);
                 result.Success = true;
                 return 0;
             }
@@ -1406,13 +1409,13 @@ public class PowerQueryCommands : IPowerQueryCommands
             return result;
         }
 
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? query = null;
             dynamic? queriesCollection = null;
             try
             {
-                query = FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -1434,8 +1437,8 @@ public class PowerQueryCommands : IPowerQueryCommands
             }
             finally
             {
-                ReleaseComObject(ref queriesCollection);
-                ReleaseComObject(ref query);
+                ComUtilities.Release(ref queriesCollection);
+                ComUtilities.Release(ref query);
             }
         });
 
@@ -1462,14 +1465,14 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
                 finally
                 {
-                    ExcelHelper.ReleaseComObject(ref query);
+                    ComUtilities.Release(ref query);
                 }
             }
         }
         catch { }
         finally
         {
-            ExcelHelper.ReleaseComObject(ref queriesCollection);
+            ComUtilities.Release(ref queriesCollection);
         }
         return names;
     }
@@ -1486,7 +1489,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             return result;
         }
 
-        WithExcel(filePath, false, (excel, workbook) =>
+        ExcelSession.Execute(filePath, false, (excel, workbook) =>
         {
             dynamic? worksheets = null;
             dynamic? names = null;
@@ -1519,14 +1522,14 @@ public class PowerQueryCommands : IPowerQueryCommands
                             }
                             finally
                             {
-                                ReleaseComObject(ref table);
+                                ComUtilities.Release(ref table);
                             }
                         }
                     }
                     finally
                     {
-                        ReleaseComObject(ref tables);
-                        ReleaseComObject(ref worksheet);
+                        ComUtilities.Release(ref tables);
+                        ComUtilities.Release(ref worksheet);
                     }
                 }
 
@@ -1552,7 +1555,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                     }
                     finally
                     {
-                        ReleaseComObject(ref name);
+                        ComUtilities.Release(ref name);
                     }
                 }
 
@@ -1567,8 +1570,8 @@ public class PowerQueryCommands : IPowerQueryCommands
             }
             finally
             {
-                ReleaseComObject(ref names);
-                ReleaseComObject(ref worksheets);
+                ComUtilities.Release(ref names);
+                ComUtilities.Release(ref worksheets);
             }
         });
 
@@ -1591,7 +1594,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             return result;
         }
 
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? queriesCollection = null;
             dynamic? tempQuery = null;
@@ -1635,8 +1638,8 @@ in
             }
             finally
             {
-                ReleaseComObject(ref tempQuery);
-                ReleaseComObject(ref queriesCollection);
+                ComUtilities.Release(ref tempQuery);
+                ComUtilities.Release(ref queriesCollection);
             }
         });
 
@@ -1659,7 +1662,7 @@ in
             return result;
         }
 
-        WithExcel(filePath, false, (excel, workbook) =>
+        ExcelSession.Execute(filePath, false, (excel, workbook) =>
         {
             dynamic? names = null;
             dynamic? worksheets = null;
@@ -1695,7 +1698,7 @@ in
                     }
                     finally
                     {
-                        ReleaseComObject(ref name);
+                        ComUtilities.Release(ref name);
                     }
                 }
 
@@ -1733,7 +1736,7 @@ in
                                         }
                                         finally
                                         {
-                                            ReleaseComObject(ref listCol);
+                                            ComUtilities.Release(ref listCol);
                                         }
                                     }
 
@@ -1743,15 +1746,15 @@ in
                             }
                             finally
                             {
-                                ReleaseComObject(ref listCols);
-                                ReleaseComObject(ref table);
+                                ComUtilities.Release(ref listCols);
+                                ComUtilities.Release(ref table);
                             }
                         }
                     }
                     finally
                     {
-                        ReleaseComObject(ref tables);
-                        ReleaseComObject(ref worksheet);
+                        ComUtilities.Release(ref tables);
+                        ComUtilities.Release(ref worksheet);
                     }
                 }
 
@@ -1767,8 +1770,8 @@ in
             }
             finally
             {
-                ReleaseComObject(ref worksheets);
-                ReleaseComObject(ref names);
+                ComUtilities.Release(ref worksheets);
+                ComUtilities.Release(ref names);
             }
         });
 
@@ -1791,7 +1794,7 @@ in
             return result;
         }
 
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? queriesCollection = null;
             dynamic? tempQuery = null;
@@ -1836,8 +1839,8 @@ in
             }
             finally
             {
-                ReleaseComObject(ref tempQuery);
-                ReleaseComObject(ref queriesCollection);
+                ComUtilities.Release(ref tempQuery);
+                ComUtilities.Release(ref queriesCollection);
             }
         });
 
@@ -1860,12 +1863,12 @@ in
             return result;
         }
 
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? query = null;
             try
             {
-                query = FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -1874,8 +1877,8 @@ in
                 }
 
                 // Remove any existing connections and QueryTables for this query
-                RemoveConnections(workbook, queryName);
-                RemoveQueryTables(workbook, queryName);
+                ConnectionHelpers.RemoveConnections(workbook, queryName);
+                PowerQueryHelpers.RemoveQueryTables(workbook, queryName);
 
                 result.Success = true;
                 return 0;
@@ -1888,7 +1891,7 @@ in
             }
             finally
             {
-                ReleaseComObject(ref query);
+                ComUtilities.Release(ref query);
             }
         });
 
@@ -1911,7 +1914,7 @@ in
             return result;
         }
 
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? query = null;
             dynamic? sheets = null;
@@ -1924,7 +1927,7 @@ in
                     ApplyPrivacyLevel(workbook, privacyLevel.Value);
                 }
 
-                query = FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -1952,7 +1955,7 @@ in
                     {
                         if (sheet != null)
                         {
-                            ReleaseComObject(ref sheet);
+                            ComUtilities.Release(ref sheet);
                         }
                     }
                 }
@@ -1964,16 +1967,16 @@ in
                 }
 
                 // Remove existing connections first
-                RemoveConnections(workbook, queryName);
-                RemoveQueryTables(workbook, queryName);
+                ConnectionHelpers.RemoveConnections(workbook, queryName);
+                PowerQueryHelpers.RemoveQueryTables(workbook, queryName);
 
                 // Create new QueryTable connection that loads data to table
-                var queryTableOptions = new QueryTableOptions
+                var queryTableOptions = new PowerQueryHelpers.QueryTableOptions
                 {
                     Name = queryName,
                     RefreshImmediately = true
                 };
-                CreateQueryTable(targetSheet, queryName, queryTableOptions);
+                PowerQueryHelpers.CreateQueryTable(targetSheet, queryName, queryTableOptions);
 
                 result.Success = true;
                 return 0;
@@ -1996,9 +1999,9 @@ in
             }
             finally
             {
-                ReleaseComObject(ref targetSheet);
-                ReleaseComObject(ref sheets);
-                ReleaseComObject(ref query);
+                ComUtilities.Release(ref targetSheet);
+                ComUtilities.Release(ref sheets);
+                ComUtilities.Release(ref query);
             }
         });
 
@@ -2021,7 +2024,7 @@ in
             return result;
         }
 
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? query = null;
             try
@@ -2032,7 +2035,7 @@ in
                     ApplyPrivacyLevel(workbook, privacyLevel.Value);
                 }
 
-                query = FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -2041,8 +2044,8 @@ in
                 }
 
                 // Remove existing table connections first
-                RemoveConnections(workbook, queryName);
-                RemoveQueryTables(workbook, queryName);
+                ConnectionHelpers.RemoveConnections(workbook, queryName);
+                PowerQueryHelpers.RemoveQueryTables(workbook, queryName);
 
                 // Load to data model - check if Power Pivot/Data Model is available
                 try
@@ -2093,7 +2096,7 @@ in
                                 }
                                 finally
                                 {
-                                    ReleaseComObject(ref existingName);
+                                    ComUtilities.Release(ref existingName);
                                 }
                             }
 
@@ -2109,7 +2112,7 @@ in
                                 }
                                 finally
                                 {
-                                    ReleaseComObject(ref worksheets);
+                                    ComUtilities.Release(ref worksheets);
                                 }
                             }
 
@@ -2123,8 +2126,8 @@ in
                         }
                         finally
                         {
-                            ReleaseComObject(ref firstSheet);
-                            ReleaseComObject(ref names);
+                            ComUtilities.Release(ref firstSheet);
+                            ComUtilities.Release(ref names);
                         }
                     }
                 }
@@ -2154,7 +2157,7 @@ in
             }
             finally
             {
-                ReleaseComObject(ref query);
+                ComUtilities.Release(ref query);
             }
         });
 
@@ -2177,7 +2180,7 @@ in
             return result;
         }
 
-        WithExcel(filePath, true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
         {
             dynamic? query = null;
             try
@@ -2188,7 +2191,7 @@ in
                     ApplyPrivacyLevel(workbook, privacyLevel.Value);
                 }
 
-                query = FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -2221,7 +2224,7 @@ in
                         {
                             if (sheet != null)
                             {
-                                ReleaseComObject(ref sheet);
+                                ComUtilities.Release(ref sheet);
                             }
                         }
                     }
@@ -2233,16 +2236,16 @@ in
                     }
 
                     // Remove existing connections first
-                    RemoveConnections(workbook, queryName);
-                    RemoveQueryTables(workbook, queryName);
+                    ConnectionHelpers.RemoveConnections(workbook, queryName);
+                    PowerQueryHelpers.RemoveQueryTables(workbook, queryName);
 
                     // Create new QueryTable connection that loads data to table
-                    var queryTableOptions = new QueryTableOptions
+                    var queryTableOptions = new PowerQueryHelpers.QueryTableOptions
                     {
                         Name = queryName,
                         RefreshImmediately = true
                     };
-                    CreateQueryTable(targetSheet, queryName, queryTableOptions);
+                    PowerQueryHelpers.CreateQueryTable(targetSheet, queryName, queryTableOptions);
                 }
                 catch (Exception ex)
                 {
@@ -2252,8 +2255,8 @@ in
                 }
                 finally
                 {
-                    ReleaseComObject(ref targetSheet);
-                    ReleaseComObject(ref sheets);
+                    ComUtilities.Release(ref targetSheet);
+                    ComUtilities.Release(ref sheets);
                 }
 
                 // Then add data model loading marker
@@ -2291,7 +2294,7 @@ in
                             }
                             finally
                             {
-                                ReleaseComObject(ref existingName);
+                                ComUtilities.Release(ref existingName);
                             }
                         }
 
@@ -2312,13 +2315,22 @@ in
                 }
                 finally
                 {
-                    ReleaseComObject(ref worksheets2);
-                    ReleaseComObject(ref firstSheet);
-                    ReleaseComObject(ref names);
+                    ComUtilities.Release(ref worksheets2);
+                    ComUtilities.Release(ref firstSheet);
+                    ComUtilities.Release(ref names);
                 }
 
                 result.Success = true;
                 return 0;
+            }
+            catch (COMException comEx) when (comEx.HResult == unchecked((int)0x8001010A))
+            {
+                // Excel is busy (RPC_E_SERVERCALL_RETRYLATER)
+                // Retry after a short delay
+                System.Threading.Thread.Sleep(500);
+                result.Success = false;
+                result.ErrorMessage = "Excel is busy. Please close any dialogs and try again.";
+                return 1;
             }
             catch (COMException comEx) when (comEx.Message.Contains("Information is needed in order to combine data") ||
                                              comEx.Message.Contains("privacy level", StringComparison.OrdinalIgnoreCase))
@@ -2338,7 +2350,7 @@ in
             }
             finally
             {
-                ReleaseComObject(ref query);
+                ComUtilities.Release(ref query);
             }
         });
 
@@ -2361,11 +2373,11 @@ in
             return result;
         }
 
-        WithExcel(filePath, false, (excel, workbook) =>
+        ExcelSession.Execute(filePath, false, (excel, workbook) =>
         {
             try
             {
-                dynamic query = FindQuery(workbook, queryName);
+                dynamic query = ComUtilities.FindQuery(workbook, queryName);
                 if (query == null)
                 {
                     result.Success = false;
@@ -2535,7 +2547,7 @@ in
                 }
                 finally
                 {
-                    ExcelHelper.ReleaseComObject(ref conn);
+                    ComUtilities.Release(ref conn);
                 }
             }
 
@@ -2563,14 +2575,14 @@ in
                         }
                         finally
                         {
-                            ExcelHelper.ReleaseComObject(ref queryTable);
+                            ComUtilities.Release(ref queryTable);
                         }
                     }
                 }
                 finally
                 {
-                    ExcelHelper.ReleaseComObject(ref queryTables);
-                    ExcelHelper.ReleaseComObject(ref worksheet);
+                    ComUtilities.Release(ref queryTables);
+                    ComUtilities.Release(ref worksheet);
                 }
             }
         }
@@ -2580,8 +2592,8 @@ in
         }
         finally
         {
-            ExcelHelper.ReleaseComObject(ref worksheets);
-            ExcelHelper.ReleaseComObject(ref connections);
+            ComUtilities.Release(ref worksheets);
+            ComUtilities.Release(ref connections);
         }
     }
 
@@ -2593,7 +2605,7 @@ in
         try
         {
             // Ensure the query exists and is accessible
-            dynamic query = FindQuery(workbook, queryName);
+            dynamic query = ComUtilities.FindQuery(workbook, queryName);
             if (query == null)
             {
                 throw new InvalidOperationException($"Query '{queryName}' not found");

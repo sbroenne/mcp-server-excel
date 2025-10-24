@@ -12,22 +12,22 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 9.0.x
-        
+        dotnet-version: 8.0.x
+
     - name: Update CLI Version
       run: |
         $tagName = "${{ github.ref_name }}"
         $version = $tagName -replace '^cli-v', ''
-        
+
         Write-Output "Updating CLI to version $version"
-        
+
         # Update CLI project version
         $cliCsprojPath = "src/ExcelMcp.CLI/ExcelMcp.CLI.csproj"
         $cliContent = Get-Content $cliCsprojPath -Raw
@@ -35,42 +35,42 @@ jobs:
         $cliContent = $cliContent -replace '<AssemblyVersion>[\d\.]+\.[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
         $cliContent = $cliContent -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
         Set-Content $cliCsprojPath $cliContent
-        
+
         Write-Output "Updated CLI version to $version"
-        
+
         # Set environment variable for later steps
         echo "PACKAGE_VERSION=$version" >> $env:GITHUB_ENV
       shell: pwsh
-        
+
     - name: Restore dependencies
       run: dotnet restore src/ExcelMcp.CLI/ExcelMcp.CLI.csproj
-      
+
     - name: Build CLI
       run: dotnet build src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-restore
-      
-    - name: Run CLI Tests (Unit only - no Excel required)
-      run: dotnet test tests/ExcelMcp.CLI.Tests --filter "Category=Unit" --configuration Release --no-build
-      
+
+    - name: Run CLI Tests (Unit only - no Excel or OnDemand tests)
+      run: dotnet test tests/ExcelMcp.CLI.Tests --filter "Category=Unit&RunType!=OnDemand" --configuration Release --no-build
+
     - name: Create CLI Release Package
       run: |
         $version = $env:PACKAGE_VERSION
-        
+
         # Create release directory structure
         New-Item -ItemType Directory -Path "release" -Force
         New-Item -ItemType Directory -Path "release/ExcelMcp-CLI-$version" -Force
-        
+
         # Copy CLI files
         Copy-Item "src/ExcelMcp.CLI/bin/Release/net9.0/excelcli.exe" "release/ExcelMcp-CLI-$version/"
         Copy-Item "src/ExcelMcp.CLI/bin/Release/net9.0/excelcli.dll" "release/ExcelMcp-CLI-$version/"
         Copy-Item "src/ExcelMcp.CLI/bin/Release/net9.0/Sbroenne.ExcelMcp.Core.dll" "release/ExcelMcp-CLI-$version/"
         Copy-Item "src/ExcelMcp.CLI/bin/Release/net9.0/excelcli.runtimeconfig.json" "release/ExcelMcp-CLI-$version/"
         Copy-Item "src/ExcelMcp.CLI/bin/Release/net9.0/*.dll" "release/ExcelMcp-CLI-$version/" -Exclude "excelcli.dll", "Sbroenne.ExcelMcp.Core.dll"
-        
+
         # Copy documentation
         Copy-Item "docs/CLI.md" "release/ExcelMcp-CLI-$version/README.md"
         Copy-Item "LICENSE" "release/ExcelMcp-CLI-$version/"
         Copy-Item "docs/COMMANDS.md" "release/ExcelMcp-CLI-$version/"
-        
+
         # Create quick start guide
         $quickStartContent = "# ExcelMcp CLI v$version`n`n"
         $quickStartContent += "## Quick Start`n`n"
@@ -111,20 +111,20 @@ jobs:
         $quickStartContent += "- Individual cell operations`n`n"
         $quickStartContent += "## License`n`n"
         $quickStartContent += "MIT License - see LICENSE file for details.`n"
-        
+
         Set-Content "release/ExcelMcp-CLI-$version/QUICK-START.md" $quickStartContent
-        
+
         # Create ZIP
         Compress-Archive -Path "release/ExcelMcp-CLI-$version/*" -DestinationPath "ExcelMcp-CLI-$version-windows.zip"
-        
+
         Write-Output "Created ExcelMcp-CLI-$version-windows.zip"
       shell: pwsh
-      
+
     - name: Create GitHub Release
       run: |
         $tagName = "${{ github.ref_name }}"
         $version = $env:PACKAGE_VERSION
-        
+
         # Create release notes
         $releaseNotes = "## ExcelMcp CLI $tagName`n`n"
         $releaseNotes += "### Command-Line Interface for Excel Automation`n`n"
@@ -171,7 +171,7 @@ jobs:
         $releaseNotes += "### Related Tools`n"
         $releaseNotes += "- ExcelMcp MCP Server: For AI assistant integration`n"
         $releaseNotes += "- GitHub Copilot Integration: AI-assisted development workflows`n"
-        
+
         # Create the release
         gh release create "$tagName" "ExcelMcp-CLI-$version-windows.zip" --title "ExcelMcp CLI $tagName" --notes $releaseNotes
       env:

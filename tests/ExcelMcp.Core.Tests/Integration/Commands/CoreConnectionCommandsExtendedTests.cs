@@ -9,9 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Commands;
 /// Extended integration tests for Connection Core operations.
 /// These tests cover additional scenarios, edge cases, and validation logic.
 /// Tests use Core commands directly (not through CLI wrapper).
-/// Uses Excel instance pooling for improved test performance.
 /// </summary>
-[Collection(nameof(ExcelPooledTestCollection))]
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]

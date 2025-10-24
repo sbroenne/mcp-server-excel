@@ -180,6 +180,20 @@ excelcli param-get <file.xlsx> <param-name>
 excelcli param-set <file.xlsx> <param-name> <value>
 ```
 
+**param-update** - Update named range cell reference ✨ **NEW**
+
+```powershell
+excelcli param-update <file.xlsx> <param-name> <new-reference>
+```
+
+Updates the cell reference of a named range. Use `param-set` to change the value, or `param-update` to change which cell the parameter points to.
+
+Example:
+```powershell
+# Change StartDate parameter from Sheet1!A1 to Config!B5
+excelcli param-update Sales.xlsx StartDate Config!B5
+```
+
 **param-create** - Create named range
 
 ```powershell
@@ -316,6 +330,20 @@ Manage VBA scripts and macros in macro-enabled Excel workbooks.
 excelcli script-list <file.xlsm>
 ```
 
+**script-view** - View VBA module code ✨ **NEW**
+
+```powershell
+excelcli script-view <file.xlsm> <module-name>
+```
+
+Displays the complete VBA code for a module without exporting to a file. Shows module type, line count, procedures, and full source code.
+
+Example:
+```powershell
+# View the DataProcessor module code
+excelcli script-view Report.xlsm DataProcessor
+```
+
 **script-export** - Export VBA module to file
 
 ```powershell
@@ -349,6 +377,114 @@ excelcli script-run "Analysis.xlsm" "CalculateTotal" "Sheet1" "A1:C10"
 ```powershell
 excelcli script-delete <file.xlsm> <module-name>
 ```
+
+## Data Model Commands (`dm-*`)
+
+Manage Excel Data Model (Power Pivot) - tables, DAX measures, and relationships. The Data Model provides enterprise-grade data analysis capabilities built into Excel.
+
+### Overview
+
+The Data Model is Excel's in-memory analytical database (formerly known as Power Pivot). It supports:
+- Large datasets (millions of rows)
+- Relationships between tables
+- DAX (Data Analysis Expressions) calculated measures
+- Advanced analytics and aggregations
+
+**Note:** CREATE and UPDATE operations for measures and relationships require the Analysis Services Tabular Object Model (TOM) API, which is planned for a future phase. Current operations support READ and DELETE via Excel COM API.
+
+### Commands
+
+**dm-list-tables** - List all Data Model tables
+
+```powershell
+excelcli dm-list-tables <file.xlsx>
+```
+
+Displays all tables loaded into the Data Model with record counts and source information.
+
+**dm-list-measures** - List all DAX measures
+
+```powershell
+excelcli dm-list-measures <file.xlsx>
+```
+
+Shows all calculated measures with their DAX formulas and associated tables.
+
+**dm-view-measure** - View specific measure formula
+
+```powershell
+excelcli dm-view-measure <file.xlsx> <measure-name>
+```
+
+Displays the complete DAX formula for a specific measure.
+
+**dm-export-measure** - Export measure to DAX file
+
+```powershell
+excelcli dm-export-measure <file.xlsx> <measure-name> <output.dax>
+```
+
+Exports a measure's DAX formula to a file for version control or documentation.
+
+**dm-list-relationships** - List all table relationships
+
+```powershell
+excelcli dm-list-relationships <file.xlsx>
+```
+
+Shows all relationships between Data Model tables, including direction and active status.
+
+**dm-refresh** - Refresh all Data Model tables
+
+```powershell
+excelcli dm-refresh <file.xlsx>
+```
+
+Refreshes all tables in the Data Model, loading latest data from source connections.
+
+**dm-delete-measure** - Delete a DAX measure
+
+```powershell
+excelcli dm-delete-measure <file.xlsx> <measure-name>
+```
+
+Permanently removes a measure from the Data Model. Changes are saved to the workbook.
+
+**dm-delete-relationship** - Delete a table relationship
+
+```powershell
+excelcli dm-delete-relationship <file.xlsx> <from-table> <from-column> <to-table> <to-column>
+```
+
+Removes a relationship between two tables in the Data Model. Changes are saved to the workbook.
+
+### Usage Examples
+
+```powershell
+# View Data Model structure
+excelcli dm-list-tables "sales-analysis.xlsx"
+excelcli dm-list-measures "sales-analysis.xlsx"
+excelcli dm-list-relationships "sales-analysis.xlsx"
+
+# Export measure for version control
+excelcli dm-export-measure "sales-analysis.xlsx" "Total Sales" "measures/total-sales.dax"
+
+# Refresh data
+excelcli dm-refresh "sales-analysis.xlsx"
+
+# Delete operations
+excelcli dm-delete-measure "sales-analysis.xlsx" "Old Measure"
+excelcli dm-delete-relationship "sales-analysis.xlsx" "Sales" "CustomerID" "Customers" "ID"
+```
+
+### CRUD Operations Status
+
+| Operation | Status | Technology |
+|-----------|--------|------------|
+| **CREATE** | Phase 4 (Future) | Requires TOM API |
+| **READ** | ✅ Available | Excel COM API |
+| **UPDATE** | Phase 4 (Future) | Requires TOM API |
+| **DELETE** | ✅ Available | Excel COM API |
 
 ## VBA Trust Configuration
 

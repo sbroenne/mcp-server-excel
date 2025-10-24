@@ -54,7 +54,7 @@ public class CorePowerQueryCommandsTests : IDisposable
         // This avoids dependency on existing worksheets
         string mCode = @"let
     Source = #table(
-        {""Column1"", ""Column2"", ""Column3""}, 
+        {""Column1"", ""Column2"", ""Column3""},
         {
             {""Value1"", ""Value2"", ""Value3""},
             {""A"", ""B"", ""C""},

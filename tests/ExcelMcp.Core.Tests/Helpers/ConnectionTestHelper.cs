@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Session;
 using System.Runtime.InteropServices;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -15,7 +16,7 @@ public static class ConnectionTestHelper
     /// </summary>
     public static void CreateOleDbConnection(string filePath, string connectionName, string connectionString)
     {
-        ExcelHelper.WithExcel(filePath, save: true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
         {
             try
             {
@@ -57,7 +58,7 @@ public static class ConnectionTestHelper
     /// </summary>
     public static void CreateOdbcConnection(string filePath, string connectionName, string connectionString)
     {
-        ExcelHelper.WithExcel(filePath, save: true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
         {
             try
             {
@@ -86,7 +87,7 @@ public static class ConnectionTestHelper
     /// </summary>
     public static void CreateTextFileConnection(string filePath, string connectionName, string textFilePath)
     {
-        ExcelHelper.WithExcel(filePath, save: true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
         {
             try
             {
@@ -128,7 +129,7 @@ public static class ConnectionTestHelper
     /// </summary>
     public static void CreateWebConnection(string filePath, string connectionName, string url)
     {
-        ExcelHelper.WithExcel(filePath, save: true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
         {
             try
             {
@@ -163,7 +164,7 @@ public static class ConnectionTestHelper
     /// </summary>
     public static void CreateMultipleConnections(string filePath, params (string name, string type, string connectionString)[] connections)
     {
-        ExcelHelper.WithExcel(filePath, save: true, (excel, workbook) =>
+        ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
         {
             try
             {

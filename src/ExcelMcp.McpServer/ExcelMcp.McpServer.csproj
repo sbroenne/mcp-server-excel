@@ -2,19 +2,19 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    
+
     <!-- Assembly and Namespace Configuration -->
     <AssemblyName>Sbroenne.ExcelMcp.McpServer</AssemblyName>
     <RootNamespace>Sbroenne.ExcelMcp.McpServer</RootNamespace>
-    
+
     <!-- Version Information -->
     <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
-    
+
     <!-- NuGet MCP Server Configuration -->
     <PackageId>Sbroenne.ExcelMcp.McpServer</PackageId>
     <PackageType>McpServer</PackageType>
@@ -24,16 +24,16 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>See https://github.com/sbroenne/mcp-server-excel/releases for release notes</PackageReleaseNotes>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    
+
     <!-- .NET Tool Configuration -->
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>mcp-excel</ToolCommandName>
-    
+
     <!-- Multi-Architecture Support for Windows x64 and ARM64 -->
     <PublishSelfContained>false</PublishSelfContained>
     <PublishTrimmed>false</PublishTrimmed>
     <!-- RuntimeIdentifier removed for portable deployment -->
-    
+
     <!-- Package Validation -->
     <EnablePackageValidation>true</EnablePackageValidation>
   </PropertyGroup>
@@ -59,7 +59,7 @@
       <Pack>true</Pack>
       <PackagePath>.mcp/server.json</PackagePath>
     </Content>
-    
+
     <!-- Include README and LICENSE in package -->
     <None Include="README.md" Pack="true" PackagePath="\" />
     <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />

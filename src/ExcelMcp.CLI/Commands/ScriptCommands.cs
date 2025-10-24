@@ -116,6 +116,76 @@ public class ScriptCommands : IScriptCommands
     }
 
     /// <inheritdoc />
+    public int View(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] script-view <file.xlsm> <module-name>");
+            AnsiConsole.MarkupLine("\n[bold]Examples:[/]");
+            AnsiConsole.MarkupLine("  script-view Report.xlsm DataProcessor");
+            return 1;
+        }
+
+        string filePath = args[1];
+        string moduleName = args[2];
+
+        var result = _coreCommands.View(filePath, moduleName);
+
+        if (!result.Success)
+        {
+            // Check if it's a VBA trust issue
+            if (result.ErrorMessage?.Contains("VBA trust access is not enabled") == true)
+            {
+                var trustError = new VbaTrustRequiredResult
+                {
+                    Success = false,
+                    ErrorMessage = result.ErrorMessage,
+                    IsTrustEnabled = false,
+                    Explanation = "VBA operations require 'Trust access to the VBA project object model' to be enabled in Excel settings."
+                };
+                DisplayVbaTrustGuidance(trustError);
+                return 1;
+            }
+            
+            AnsiConsole.MarkupLine($"[red]✗ Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+
+        // Display module information
+        var panel = new Panel($"[bold]Module:[/] {result.ModuleName.EscapeMarkup()}\n" +
+                             $"[bold]Type:[/] {result.ModuleType.EscapeMarkup()}\n" +
+                             $"[bold]Lines:[/] {result.LineCount}\n" +
+                             $"[bold]Procedures:[/] {result.Procedures.Count}\n\n" +
+                             $"[bold]Code:[/]\n{result.Code.EscapeMarkup()}")
+        {
+            Header = new PanelHeader("VBA Module Code"),
+            Border = BoxBorder.Rounded
+        };
+        AnsiConsole.Write(panel);
+
+        if (result.Procedures.Any())
+        {
+            AnsiConsole.MarkupLine("\n[bold]Procedures Found:[/]");
+            foreach (var proc in result.Procedures)
+            {
+                AnsiConsole.MarkupLine($"  • {proc.EscapeMarkup()}");
+            }
+        }
+
+        // Display suggested next actions
+        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+        {
+            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
+            foreach (var suggestion in result.SuggestedNextActions)
+            {
+                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+            }
+        }
+
+        return 0;
+    }
+
+    /// <inheritdoc />
     public int Export(string[] args)
     {
         if (args.Length < 3)

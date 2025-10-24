@@ -67,11 +67,13 @@ Download the Copilot instructions file:
 
 > **Note:** Keep the filename as-is to avoid overwriting any existing `copilot-instructions.md` you may have. GitHub Copilot will read all `.md` files in the `.github/` folder.
 
-#### Step 2: Install .NET 10 SDK
+#### Step 2: Install .NET SDK (for dnx command)
 
 ```powershell
 winget install Microsoft.DotNet.SDK.10
 ```
+
+> **Note:** The `dnx` (dotnet execute) command requires the .NET SDK to download and run NuGet tools. The MCP server itself targets .NET 8.0 runtime.
 
 #### Step 3: Configure GitHub Copilot MCP Server
 
@@ -160,6 +162,14 @@ dnx Sbroenne.ExcelMcp.McpServer --yes
 - **Code Review** - Analyze M code for best practices and improvements
 - **Version Control** - Export/import Power Query code for Git workflows
 
+### **Data Model & DAX Development**
+
+- **Measure Management** - View, export, and delete DAX measures
+- **Relationship Analysis** - List and manage table relationships
+- **Data Model Inspection** - Explore tables, record counts, and structure
+- **Code Review** - Analyze DAX formulas for performance and best practices
+- **Version Control** - Export DAX measures to files for Git workflows
+
 ### **VBA Development & Enhancement**
 
 - **Error Handling** - Add comprehensive try-catch patterns to VBA modules
@@ -180,13 +190,14 @@ dnx Sbroenne.ExcelMcp.McpServer --yes
 |-------------|---------|--------------|
 | **Windows OS** | Windows 10/11 or Server | COM interop is Windows-specific |
 | **Microsoft Excel** | Any recent version (2016+) | ExcelMcp controls the actual Excel application |
-| **.NET 10 SDK** | `winget install Microsoft.DotNet.SDK.10` | Required for `dnx` command execution |
+| **.NET SDK** | `winget install Microsoft.DotNet.SDK.10` | Required for `dnx` command to download/execute NuGet tools |
+| **.NET 8.0 Runtime** | Automatically installed with SDK or via `winget install Microsoft.DotNet.Runtime.8` | MCP server targets .NET 8.0 |
 
 > **🚨 Critical:** ExcelMcp controls the actual running Excel application through COM interop, not just Excel file formats. This provides access to Excel's full feature set (Power Query engine, VBA runtime, formula calculations, charts, pivot tables) but requires Excel to be installed and available for automation.
 
 ## 7️⃣ MCP Tools Overview
 
-The MCP server provides 7 focused resource-based tools for AI assistants:
+The MCP server provides 8 focused resource-based tools for AI assistants:
 
 - **excel_file** - Excel file creation (1 action: create-empty) 🎯 *Only Excel-specific operations*
 - **excel_powerquery** - Power Query M code management (11 actions: list, view, import, export, update, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config)
@@ -195,6 +206,7 @@ The MCP server provides 7 focused resource-based tools for AI assistants:
 - **excel_parameter** - Named ranges as configuration parameters (5 actions: list, get, set, create, delete)
 - **excel_cell** - Individual cell precision operations (4 actions: get-value, set-value, get-formula, set-formula)
 - **excel_vba** - VBA macro management and execution (6 actions: list, export, import, update, run, delete)
+- **excel_version** - Check for updates on NuGet.org (1 action: check) ⚡ *Automatic startup check*
 
 > 🧠 **[Complete MCP Server Guide →](src/ExcelMcp.McpServer/README.md)** - Detailed MCP integration and AI examples
 

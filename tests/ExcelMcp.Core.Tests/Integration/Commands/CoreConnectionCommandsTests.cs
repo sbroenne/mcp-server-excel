@@ -7,9 +7,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Commands;
 /// <summary>
 /// Integration tests for ConnectionCommands - Core layer
 /// Tests real Excel COM operations with actual Excel files
-/// Uses Excel instance pooling for improved test performance.
 /// </summary>
-[Collection(nameof(ExcelPooledTestCollection))]
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
 [Trait("Layer", "Core")]

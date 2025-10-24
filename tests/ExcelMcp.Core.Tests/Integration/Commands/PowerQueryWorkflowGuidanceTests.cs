@@ -8,12 +8,10 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 /// Integration tests for Power Query Workflow Guidance features.
 /// Tests validate error capture, config preservation, and workflow suggestions.
 /// These tests require Excel installation and validate the complete workflow guidance system.
-/// Uses Excel instance pooling for improved test performance.
 ///
 /// Note: autoRefresh parameter was removed in issue #19 as redundant -
 /// validation happens via loadToWorksheet (default: true) during Import/Update operations.
 /// </summary>
-[Collection(nameof(ExcelPooledTestCollection))]
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
@@ -143,7 +141,7 @@ in
         var queryFile = CreateBrokenQueryFile();
 
         // Import without loading to worksheet to avoid immediate failure
-        var importResult = await _powerQueryCommands.Import(excelFile, "BrokenQuery", queryFile, loadToWorksheet: false);
+        await _powerQueryCommands.Import(excelFile, "BrokenQuery", queryFile, loadToWorksheet: false);
 
         // Note: Excel may accept syntactically invalid M code and only fail at refresh/execution time
         // This test validates that IF refresh fails, error details are captured properly

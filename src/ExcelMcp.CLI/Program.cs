@@ -44,6 +44,8 @@ class Program
             var script = new ScriptCommands();
             var file = new FileCommands();
             var connection = new ConnectionCommands();
+            var dataModel = new DataModelCommands();
+            var dataModelTom = new DataModelTomCommands();
 
             return args[0].ToLower() switch
             {
@@ -89,6 +91,7 @@ class Program
                 "param-list" => param.List(args),
                 "param-set" => param.Set(args),
                 "param-get" => param.Get(args),
+                "param-update" => param.Update(args),
                 "param-create" => param.Create(args),
                 "param-delete" => param.Delete(args),
 
@@ -113,10 +116,33 @@ class Program
 
                 // Script commands
                 "script-list" => script.List(args),
+                "script-view" => script.View(args),
                 "script-export" => script.Export(args),
                 "script-import" => await script.Import(args),
                 "script-update" => await script.Update(args),
                 "script-run" => script.Run(args),
+
+                // Data Model commands
+                "dm-list-tables" => dataModel.ListTables(args),
+                "dm-list-measures" => dataModel.ListMeasures(args),
+                "dm-view-measure" => dataModel.ViewMeasure(args),
+                "dm-export-measure" => await dataModel.ExportMeasure(args),
+                "dm-list-relationships" => dataModel.ListRelationships(args),
+                "dm-refresh" => dataModel.Refresh(args),
+                "dm-delete-measure" => dataModel.DeleteMeasure(args),
+                "dm-delete-relationship" => dataModel.DeleteRelationship(args),
+
+                // Data Model TOM (Tabular Object Model) commands - CRUD operations
+                "dm-create-measure" => dataModelTom.CreateMeasure(args),
+                "dm-update-measure" => dataModelTom.UpdateMeasure(args),
+                "dm-create-relationship" => dataModelTom.CreateRelationship(args),
+                "dm-update-relationship" => dataModelTom.UpdateRelationship(args),
+                "dm-create-column" => dataModelTom.CreateCalculatedColumn(args),
+                "dm-list-columns" => dataModelTom.ListCalculatedColumns(args),
+                "dm-view-column" => dataModelTom.ViewCalculatedColumn(args),
+                "dm-update-column" => dataModelTom.UpdateCalculatedColumn(args),
+                "dm-delete-column" => dataModelTom.DeleteCalculatedColumn(args),
+                "dm-validate-dax" => dataModelTom.ValidateDax(args),
 
                 "--help" or "-h" => ShowHelp(),
                 _ => ShowHelp()
@@ -264,6 +290,7 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]param-list[/] file.xlsx                        List all named ranges");
         AnsiConsole.MarkupLine("  [cyan]param-get[/] file.xlsx param-name             Get named range value");
         AnsiConsole.MarkupLine("  [cyan]param-set[/] file.xlsx param-name value        Set named range value");
+        AnsiConsole.MarkupLine("  [cyan]param-update[/] file.xlsx param-name ref       Update named range reference");
         AnsiConsole.MarkupLine("  [cyan]param-create[/] file.xlsx param-name ref       Create named range");
         AnsiConsole.MarkupLine("  [cyan]param-delete[/] file.xlsx param-name           Delete named range");
         AnsiConsole.WriteLine();
@@ -291,10 +318,35 @@ class Program
 
         AnsiConsole.MarkupLine("[bold yellow]Script Commands:[/]");
         AnsiConsole.MarkupLine("  [cyan]script-list[/] file.xlsm                       List all VBA scripts");
+        AnsiConsole.MarkupLine("  [cyan]script-view[/] file.xlsm module-name           View VBA module code");
         AnsiConsole.MarkupLine("  [cyan]script-export[/] file.xlsm script (file)       Export VBA script");
         AnsiConsole.MarkupLine("  [cyan]script-import[/] file.xlsm module-name vba.txt Import VBA script");
         AnsiConsole.MarkupLine("  [cyan]script-update[/] file.xlsm module-name vba.txt Update VBA script");
         AnsiConsole.MarkupLine("  [cyan]script-run[/] file.xlsm macro-name (params)    Run VBA macro");
+        AnsiConsole.WriteLine();
+
+        AnsiConsole.MarkupLine("[bold yellow]Data Model Commands:[/]");
+        AnsiConsole.MarkupLine("  [cyan]dm-list-tables[/] file.xlsx                    List all Data Model tables");
+        AnsiConsole.MarkupLine("  [cyan]dm-list-measures[/] file.xlsx                  List all DAX measures");
+        AnsiConsole.MarkupLine("  [cyan]dm-view-measure[/] file.xlsx measure-name     View DAX measure formula");
+        AnsiConsole.MarkupLine("  [cyan]dm-export-measure[/] file.xlsx measure out.dax Export DAX measure to file");
+        AnsiConsole.MarkupLine("  [cyan]dm-list-relationships[/] file.xlsx            List Data Model relationships");
+        AnsiConsole.MarkupLine("  [cyan]dm-refresh[/] file.xlsx                        Refresh Data Model");
+        AnsiConsole.MarkupLine("  [cyan]dm-delete-measure[/] file.xlsx measure-name   Delete DAX measure");
+        AnsiConsole.MarkupLine("  [cyan]dm-delete-relationship[/] file.xlsx from-tbl from-col to-tbl to-col  Delete relationship");
+        AnsiConsole.WriteLine();
+
+        AnsiConsole.MarkupLine("[bold yellow]Data Model TOM Commands (Advanced CRUD):[/]");
+        AnsiConsole.MarkupLine("  [cyan]dm-create-measure[/] file.xlsx table name formula  Create DAX measure");
+        AnsiConsole.MarkupLine("  [cyan]dm-update-measure[/] file.xlsx name [[options]]      Update DAX measure");
+        AnsiConsole.MarkupLine("  [cyan]dm-create-relationship[/] file.xlsx from to        Create table relationship");
+        AnsiConsole.MarkupLine("  [cyan]dm-update-relationship[/] file.xlsx from to [[opts]] Update relationship");
+        AnsiConsole.MarkupLine("  [cyan]dm-create-column[/] file.xlsx table name formula   Create calculated column");
+        AnsiConsole.MarkupLine("  [cyan]dm-list-columns[/] file.xlsx [[table]]               List calculated columns");
+        AnsiConsole.MarkupLine("  [cyan]dm-view-column[/] file.xlsx table column           View column details");
+        AnsiConsole.MarkupLine("  [cyan]dm-update-column[/] file.xlsx table column [[opts]]  Update calculated column");
+        AnsiConsole.MarkupLine("  [cyan]dm-delete-column[/] file.xlsx table column         Delete calculated column");
+        AnsiConsole.MarkupLine("  [cyan]dm-validate-dax[/] file.xlsx formula               Validate DAX syntax");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold green]Examples:[/]");
