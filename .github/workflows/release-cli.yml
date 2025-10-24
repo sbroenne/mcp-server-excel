@@ -60,11 +60,11 @@ jobs:
         New-Item -ItemType Directory -Path "release/ExcelMcp-CLI-$version" -Force
 
         # Copy CLI files
-        Copy-Item "src/ExcelMcp.CLI/bin/Release/net9.0/excelcli.exe" "release/ExcelMcp-CLI-$version/"
-        Copy-Item "src/ExcelMcp.CLI/bin/Release/net9.0/excelcli.dll" "release/ExcelMcp-CLI-$version/"
-        Copy-Item "src/ExcelMcp.CLI/bin/Release/net9.0/Sbroenne.ExcelMcp.Core.dll" "release/ExcelMcp-CLI-$version/"
-        Copy-Item "src/ExcelMcp.CLI/bin/Release/net9.0/excelcli.runtimeconfig.json" "release/ExcelMcp-CLI-$version/"
-        Copy-Item "src/ExcelMcp.CLI/bin/Release/net9.0/*.dll" "release/ExcelMcp-CLI-$version/" -Exclude "excelcli.dll", "Sbroenne.ExcelMcp.Core.dll"
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/excelcli.exe" "release/ExcelMcp-CLI-$version/"
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/excelcli.dll" "release/ExcelMcp-CLI-$version/"
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/Sbroenne.ExcelMcp.Core.dll" "release/ExcelMcp-CLI-$version/"
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/excelcli.runtimeconfig.json" "release/ExcelMcp-CLI-$version/"
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/*.dll" "release/ExcelMcp-CLI-$version/" -Exclude "excelcli.dll", "Sbroenne.ExcelMcp.Core.dll"
 
         # Copy documentation
         Copy-Item "docs/CLI.md" "release/ExcelMcp-CLI-$version/README.md"
@@ -100,7 +100,7 @@ jobs:
         $quickStartContent += "- **GitHub**: https://github.com/sbroenne/mcp-server-excel`n`n"
         $quickStartContent += "## Requirements`n`n"
         $quickStartContent += "- Windows OS with Microsoft Excel installed`n"
-        $quickStartContent += "- .NET 9.0 runtime`n"
+        $quickStartContent += "- .NET 8.0 runtime`n"
         $quickStartContent += "- Excel 2016+ (for COM interop)`n`n"
         $quickStartContent += "## Features`n`n"
         $quickStartContent += "- 40+ Excel automation commands`n"
@@ -162,7 +162,7 @@ jobs:
         $releaseNotes += "``````n`n"
         $releaseNotes += "### Requirements`n"
         $releaseNotes += "- Windows OS with Microsoft Excel installed`n"
-        $releaseNotes += "- .NET 9.0 runtime`n"
+        $releaseNotes += "- .NET 8.0 runtime`n"
         $releaseNotes += "- Excel 2016+ (for COM interop)`n`n"
         $releaseNotes += "### Documentation`n"
         $releaseNotes += "- Complete Command Reference: COMMANDS.md in package`n"

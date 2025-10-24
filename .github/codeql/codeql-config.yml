@@ -1,7 +1,8 @@
 # CodeQL Configuration for ExcelMcp
 # Defines security scanning rules and exclusions
+# Version: 2.0 - Updated 2025-10-24 to clear stale alerts
 
-name: "ExcelMcp CodeQL Configuration"
+name: "ExcelMcp CodeQL Configuration v2.0"
 
 # Disable default query suite and use custom ones
 disable-default-queries: false
