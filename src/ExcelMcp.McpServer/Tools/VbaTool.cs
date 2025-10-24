@@ -24,7 +24,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// Setup Required: Run setup-vba-trust command once before using VBA operations.
 /// </summary>
 [McpServerToolType]
-public static class ExcelVbaTool
+public static class VbaTool
 {
     /// <summary>
     /// Manage Excel VBA scripts - modules, procedures, and macro execution (requires .xlsm files)

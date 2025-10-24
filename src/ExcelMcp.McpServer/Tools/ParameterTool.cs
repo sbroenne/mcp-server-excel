@@ -22,7 +22,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// referenced in formulas and Power Query. They're ideal for configuration values.
 /// </summary>
 [McpServerToolType]
-public static class ExcelParameterTool
+public static class ParameterTool
 {
     /// <summary>
     /// Manage Excel parameters (named ranges) - configuration values and reusable references

@@ -36,7 +36,7 @@ public class ExcelFileMcpErrorReproTests
             _output.WriteLine($"Directory exists: {Directory.Exists(tempDir)}");
 
             // Act - Call the tool with exact parameters from MCP test
-            var result = ExcelFileTool.File("create-empty", testFile);
+            var result = FileTool.File("create-empty", testFile);
 
             _output.WriteLine($"Tool result: {result}");
 

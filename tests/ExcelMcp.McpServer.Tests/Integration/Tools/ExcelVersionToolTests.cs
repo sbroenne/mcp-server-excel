@@ -17,7 +17,7 @@ public class ExcelVersionToolTests
     public async Task ExcelVersion_Check_ShouldReturnSuccessJson()
     {
         // Act
-        var result = await ExcelVersionTool.Version("check");
+        var result = await VersionTool.Version("check");
 
         // Assert
         Assert.NotNull(result);
@@ -47,7 +47,7 @@ public class ExcelVersionToolTests
     {
         // Act & Assert - Should throw McpException for unknown action
         var exception = await Assert.ThrowsAsync<ModelContextProtocol.McpException>(async () =>
-            await ExcelVersionTool.Version("unknown"));
+            await VersionTool.Version("unknown"));
 
         Assert.Contains("Unknown action 'unknown'", exception.Message);
     }
@@ -56,7 +56,7 @@ public class ExcelVersionToolTests
     public async Task ExcelVersion_Check_ShouldIncludePackageId()
     {
         // Act
-        var result = await ExcelVersionTool.Version("check");
+        var result = await VersionTool.Version("check");
 
         // Assert
         var json = JsonDocument.Parse(result);
@@ -72,7 +72,7 @@ public class ExcelVersionToolTests
     public async Task ExcelVersion_Check_ShouldProvideUpdateCommandWhenOutdated()
     {
         // Act
-        var result = await ExcelVersionTool.Version("check");
+        var result = await VersionTool.Version("check");
 
         // Assert
         var json = JsonDocument.Parse(result);
@@ -92,7 +92,7 @@ public class ExcelVersionToolTests
     public async Task ExcelVersion_Check_ShouldProvideWorkflowHint()
     {
         // Act
-        var result = await ExcelVersionTool.Version("check");
+        var result = await VersionTool.Version("check");
 
         // Assert
         var json = JsonDocument.Parse(result);

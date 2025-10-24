@@ -54,7 +54,7 @@ public class DetailedErrorMessageTests : IDisposable
 
         // Act & Assert - Should throw McpException with detailed error message
         var exception = Assert.Throws<McpException>(() =>
-            ExcelWorksheetTool.Worksheet("list", nonExistentFile));
+            WorksheetTool.Worksheet("list", nonExistentFile));
 
         // Verify detailed error message components
         _output.WriteLine($"Error message: {exception.Message}");
@@ -79,7 +79,7 @@ public class DetailedErrorMessageTests : IDisposable
 
         // Act & Assert
         var exception = Assert.Throws<McpException>(() =>
-            ExcelCellTool.Cell("get-value", nonExistentFile, "Sheet1", "A1"));
+            CellTool.Cell("get-value", nonExistentFile, "Sheet1", "A1"));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -99,7 +99,7 @@ public class DetailedErrorMessageTests : IDisposable
 
         // Act & Assert
         var exception = Assert.Throws<McpException>(() =>
-            ExcelParameterTool.Parameter("list", nonExistentFile));
+            ParameterTool.Parameter("list", nonExistentFile));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -119,7 +119,7 @@ public class DetailedErrorMessageTests : IDisposable
 
         // Act & Assert
         var exception = Assert.Throws<McpException>(() =>
-            ExcelPowerQueryTool.PowerQuery("list", nonExistentFile));
+            PowerQueryTool.PowerQuery("list", nonExistentFile));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -135,11 +135,11 @@ public class DetailedErrorMessageTests : IDisposable
     public void ExcelVba_WithNonMacroEnabledFile_ShouldThrowDetailedError()
     {
         // Arrange - Create .xlsx file (not macro-enabled)
-        ExcelFileTool.File("create-empty", _testExcelFile);
+        FileTool.File("create-empty", _testExcelFile);
 
         // Act & Assert - VBA operations require .xlsm
         var exception = Assert.Throws<McpException>(() =>
-            ExcelVbaTool.Vba("list", _testExcelFile));
+            VbaTool.Vba("list", _testExcelFile));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -157,11 +157,11 @@ public class DetailedErrorMessageTests : IDisposable
     {
         // Arrange - Create macro-enabled file
         string xlsmFile = Path.Combine(_tempDir, "test-vba.xlsm");
-        ExcelFileTool.File("create-empty", xlsmFile);
+        FileTool.File("create-empty", xlsmFile);
 
         // Act & Assert - Run requires moduleName
         var exception = Assert.Throws<McpException>(() =>
-            ExcelVbaTool.Vba("run", xlsmFile, moduleName: null));
+            VbaTool.Vba("run", xlsmFile, moduleName: null));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -178,7 +178,7 @@ public class DetailedErrorMessageTests : IDisposable
     {
         // Act & Assert
         var exception = Assert.Throws<McpException>(() =>
-            ExcelFileTool.File("invalid-action", _testExcelFile));
+            FileTool.File("invalid-action", _testExcelFile));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -196,7 +196,7 @@ public class DetailedErrorMessageTests : IDisposable
     {
         // Act & Assert
         var exception = Assert.Throws<McpException>(() =>
-            ExcelWorksheetTool.Worksheet("invalid-action", _testExcelFile));
+            WorksheetTool.Worksheet("invalid-action", _testExcelFile));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -214,11 +214,11 @@ public class DetailedErrorMessageTests : IDisposable
     public void ExcelPowerQuery_Import_WithMissingParameters_ShouldThrowDetailedError()
     {
         // Arrange
-        ExcelFileTool.File("create-empty", _testExcelFile);
+        FileTool.File("create-empty", _testExcelFile);
 
         // Act & Assert - Import requires queryName and sourcePath
         var exception = Assert.Throws<McpException>(() =>
-            ExcelPowerQueryTool.PowerQuery("import", _testExcelFile, queryName: null, sourcePath: null));
+            PowerQueryTool.PowerQuery("import", _testExcelFile, queryName: null, sourcePath: null));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -235,11 +235,11 @@ public class DetailedErrorMessageTests : IDisposable
     public void ExcelCell_SetValue_WithMissingValue_ShouldThrowDetailedError()
     {
         // Arrange
-        ExcelFileTool.File("create-empty", _testExcelFile);
+        FileTool.File("create-empty", _testExcelFile);
 
         // Act & Assert - set-value requires value parameter
         var exception = Assert.Throws<McpException>(() =>
-            ExcelCellTool.Cell("set-value", _testExcelFile, "Sheet1", "A1", value: null));
+            CellTool.Cell("set-value", _testExcelFile, "Sheet1", "A1", value: null));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -254,11 +254,11 @@ public class DetailedErrorMessageTests : IDisposable
     public void ExcelParameter_Create_WithMissingParameters_ShouldThrowDetailedError()
     {
         // Arrange
-        ExcelFileTool.File("create-empty", _testExcelFile);
+        FileTool.File("create-empty", _testExcelFile);
 
         // Act & Assert - create requires parameterName and reference
         var exception = Assert.Throws<McpException>(() =>
-            ExcelParameterTool.Parameter("create", _testExcelFile, parameterName: null));
+            ParameterTool.Parameter("create", _testExcelFile, parameterName: null));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -274,11 +274,11 @@ public class DetailedErrorMessageTests : IDisposable
     public void ExcelWorksheet_Read_WithMissingSheetName_ShouldThrowDetailedError()
     {
         // Arrange
-        ExcelFileTool.File("create-empty", _testExcelFile);
+        FileTool.File("create-empty", _testExcelFile);
 
         // Act & Assert - read requires sheetName and rangeAddress
         var exception = Assert.Throws<McpException>(() =>
-            ExcelWorksheetTool.Worksheet("read", _testExcelFile, sheetName: null));
+            WorksheetTool.Worksheet("read", _testExcelFile, sheetName: null));
 
         _output.WriteLine($"Error message: {exception.Message}");
 

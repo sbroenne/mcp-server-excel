@@ -14,7 +14,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Inform users about available updates and how to upgrade
 /// </summary>
 [McpServerToolType]
-public static class ExcelVersionTool
+public static class VersionTool
 {
     private const string PackageId = "Sbroenne.ExcelMcp.McpServer";
 

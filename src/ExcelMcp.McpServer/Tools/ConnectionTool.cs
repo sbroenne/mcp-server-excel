@@ -27,7 +27,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// Password sanitization is applied automatically for security.
 /// </summary>
 [McpServerToolType]
-public static class ExcelConnectionTool
+public static class ConnectionTool
 {
     /// <summary>
     /// Manage Excel data connections - OLEDB, ODBC, Text, Web, and other connection types

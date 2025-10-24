@@ -31,7 +31,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Connection-only queries are NOT validated until first execution via set-load-to-table or refresh
 /// </summary>
 [McpServerToolType]
-public static class ExcelPowerQueryTool
+public static class PowerQueryTool
 {
     /// <summary>
     /// Manage Power Query operations - M code, data loading, and query lifecycle

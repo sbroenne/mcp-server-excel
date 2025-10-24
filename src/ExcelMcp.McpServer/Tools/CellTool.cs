@@ -20,7 +20,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// This tool is optimized for precise, single-cell operations.
 /// </summary>
 [McpServerToolType]
-public static class ExcelCellTool
+public static class CellTool
 {
     /// <summary>
     /// Manage individual Excel cells - values and formulas for precise control

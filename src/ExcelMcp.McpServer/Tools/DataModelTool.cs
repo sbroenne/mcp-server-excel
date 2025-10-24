@@ -41,7 +41,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - DAX Validation: Syntax checking before creation
 /// </summary>
 [McpServerToolType]
-public static class ExcelDataModelTool
+public static class DataModelTool
 {
     /// <summary>
     /// Manage Excel Data Model (Power Pivot) - tables, measures, relationships

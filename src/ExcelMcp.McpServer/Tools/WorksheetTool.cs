@@ -22,7 +22,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Use "append" to add data to existing worksheet content
 /// </summary>
 [McpServerToolType]
-public static class ExcelWorksheetTool
+public static class WorksheetTool
 {
     /// <summary>
     /// Manage Excel worksheets - data operations, sheet management, and content manipulation

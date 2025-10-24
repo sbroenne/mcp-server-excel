@@ -24,7 +24,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Deleting a table converts it back to a range but preserves data
 /// </summary>
 [McpServerToolType]
-public static class ExcelTableTool
+public static class TableTool
 {
     /// <summary>
     /// Manage Excel Tables (ListObjects) - create, list, rename, delete, and get info

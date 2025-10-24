@@ -15,7 +15,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - File validation and existence checks can be done with standard file system operations
 /// </summary>
 [McpServerToolType]
-public static class ExcelFileTool
+public static class FileTool
 {
     /// <summary>
     /// Create new Excel files for automation workflows
