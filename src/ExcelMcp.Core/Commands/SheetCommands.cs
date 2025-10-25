@@ -359,4 +359,207 @@ public class SheetCommands : ISheetCommands
         }
         return result;
     }
+
+    /// <inheritdoc />
+    public OperationResult Protect(string filePath, string sheetName, string? password = null, 
+        bool allowFormatCells = false, bool allowFormatColumns = false, bool allowFormatRows = false,
+        bool allowInsertColumns = false, bool allowInsertRows = false, bool allowDeleteColumns = false,
+        bool allowDeleteRows = false, bool allowSort = false, bool allowFilter = false)
+    {
+        if (!File.Exists(filePath))
+        {
+            return new OperationResult
+            {
+                Success = false,
+                ErrorMessage = $"File not found: {filePath}",
+                FilePath = filePath,
+                Action = "protect"
+            };
+        }
+
+        var result = new OperationResult
+        {
+            FilePath = filePath,
+            Action = "protect"
+        };
+
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        {
+            dynamic? sheet = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(workbook, sheetName);
+                if (sheet == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
+                    return 1;
+                }
+
+                // Protect the sheet with specified permissions
+                sheet.Protect(
+                    Password: password,
+                    DrawingObjects: true,
+                    Contents: true,
+                    Scenarios: true,
+                    AllowFormattingCells: allowFormatCells,
+                    AllowFormattingColumns: allowFormatColumns,
+                    AllowFormattingRows: allowFormatRows,
+                    AllowInsertingColumns: allowInsertColumns,
+                    AllowInsertingRows: allowInsertRows,
+                    AllowDeletingColumns: allowDeleteColumns,
+                    AllowDeletingRows: allowDeleteRows,
+                    AllowSorting: allowSort,
+                    AllowFiltering: allowFilter
+                );
+
+                result.Success = true;
+                result.WorkflowHint = $"Sheet '{sheetName}' protected" + (password != null ? " with password" : "");
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
+                return 1;
+            }
+            finally
+            {
+                ComUtilities.Release(ref sheet);
+            }
+        });
+
+        return result;
+    }
+
+    /// <inheritdoc />
+    public OperationResult Unprotect(string filePath, string sheetName, string? password = null)
+    {
+        if (!File.Exists(filePath))
+        {
+            return new OperationResult
+            {
+                Success = false,
+                ErrorMessage = $"File not found: {filePath}",
+                FilePath = filePath,
+                Action = "unprotect"
+            };
+        }
+
+        var result = new OperationResult
+        {
+            FilePath = filePath,
+            Action = "unprotect"
+        };
+
+        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        {
+            dynamic? sheet = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(workbook, sheetName);
+                if (sheet == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
+                    return 1;
+                }
+
+                // Unprotect the sheet
+                if (password != null)
+                {
+                    sheet.Unprotect(password);
+                }
+                else
+                {
+                    sheet.Unprotect();
+                }
+
+                result.Success = true;
+                result.WorkflowHint = $"Sheet '{sheetName}' unprotected";
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
+                return 1;
+            }
+            finally
+            {
+                ComUtilities.Release(ref sheet);
+            }
+        });
+
+        return result;
+    }
+
+    /// <inheritdoc />
+    public SheetProtectionResult GetProtectionStatus(string filePath, string sheetName)
+    {
+        if (!File.Exists(filePath))
+        {
+            return new SheetProtectionResult
+            {
+                Success = false,
+                ErrorMessage = $"File not found: {filePath}",
+                FilePath = filePath,
+                SheetName = sheetName
+            };
+        }
+
+        var result = new SheetProtectionResult
+        {
+            FilePath = filePath,
+            SheetName = sheetName
+        };
+
+        ExcelSession.Execute(filePath, false, (excel, workbook) =>
+        {
+            dynamic? sheet = null;
+            dynamic? protection = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(workbook, sheetName);
+                if (sheet == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
+                    return 1;
+                }
+
+                result.IsProtected = sheet.ProtectContents;
+                
+                if (result.IsProtected)
+                {
+                    protection = sheet.Protection;
+                    result.AllowFormatCells = protection.AllowFormattingCells;
+                    result.AllowFormatColumns = protection.AllowFormattingColumns;
+                    result.AllowFormatRows = protection.AllowFormattingRows;
+                    result.AllowInsertColumns = protection.AllowInsertingColumns;
+                    result.AllowInsertRows = protection.AllowInsertingRows;
+                    result.AllowDeleteColumns = protection.AllowDeletingColumns;
+                    result.AllowDeleteRows = protection.AllowDeletingRows;
+                    result.AllowSort = protection.AllowSorting;
+                    result.AllowFilter = protection.AllowFiltering;
+                }
+
+                result.Success = true;
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
+                return 1;
+            }
+            finally
+            {
+                ComUtilities.Release(ref protection);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+
+        return result;
+    }
 }

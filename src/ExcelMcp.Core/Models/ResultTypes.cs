@@ -1097,5 +1097,66 @@ public class TableDataResult : ResultBase
     public int ColumnCount { get; set; }
 }
 
+/// <summary>
+/// Result for sheet protection status operations
+/// </summary>
+public class SheetProtectionResult : ResultBase
+{
+    /// <summary>
+    /// Whether the sheet is protected
+    /// </summary>
+    public bool IsProtected { get; set; }
+
+    /// <summary>
+    /// Whether format cells is allowed
+    /// </summary>
+    public bool AllowFormatCells { get; set; }
+
+    /// <summary>
+    /// Whether format columns is allowed
+    /// </summary>
+    public bool AllowFormatColumns { get; set; }
+
+    /// <summary>
+    /// Whether format rows is allowed
+    /// </summary>
+    public bool AllowFormatRows { get; set; }
+
+    /// <summary>
+    /// Whether insert columns is allowed
+    /// </summary>
+    public bool AllowInsertColumns { get; set; }
+
+    /// <summary>
+    /// Whether insert rows is allowed
+    /// </summary>
+    public bool AllowInsertRows { get; set; }
+
+    /// <summary>
+    /// Whether delete columns is allowed
+    /// </summary>
+    public bool AllowDeleteColumns { get; set; }
+
+    /// <summary>
+    /// Whether delete rows is allowed
+    /// </summary>
+    public bool AllowDeleteRows { get; set; }
+
+    /// <summary>
+    /// Whether sort is allowed
+    /// </summary>
+    public bool AllowSort { get; set; }
+
+    /// <summary>
+    /// Whether filter is allowed
+    /// </summary>
+    public bool AllowFilter { get; set; }
+
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+}
+
 #endregion
 
