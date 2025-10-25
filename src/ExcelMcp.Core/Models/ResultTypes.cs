@@ -1175,3 +1175,90 @@ public class SheetProtectionResult : ResultBase
 
 #endregion
 
+#region Hyperlink Results
+
+/// <summary>
+/// Information about a hyperlink
+/// </summary>
+public class HyperlinkInfo
+{
+    /// <summary>
+    /// Cell address containing the hyperlink
+    /// </summary>
+    public string CellAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Hyperlink URL or file path
+    /// </summary>
+    public string Address { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Sub-address within the target (e.g., sheet reference)
+    /// </summary>
+    public string? SubAddress { get; set; }
+
+    /// <summary>
+    /// Display text (visible text in cell)
+    /// </summary>
+    public string DisplayText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Tooltip/ScreenTip text
+    /// </summary>
+    public string? ScreenTip { get; set; }
+
+    /// <summary>
+    /// Whether the hyperlink points to another location in the workbook
+    /// </summary>
+    public bool IsInternal { get; set; }
+}
+
+/// <summary>
+/// Result for listing hyperlinks in a worksheet
+/// </summary>
+public class HyperlinkListResult : ResultBase
+{
+    /// <summary>
+    /// List of hyperlinks in the worksheet
+    /// </summary>
+    public List<HyperlinkInfo> Hyperlinks { get; set; } = new();
+
+    /// <summary>
+    /// Total count of hyperlinks
+    /// </summary>
+    public int Count { get; set; }
+
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Result for getting hyperlink information from a specific cell
+/// </summary>
+public class HyperlinkInfoResult : ResultBase
+{
+    /// <summary>
+    /// Hyperlink information (null if no hyperlink exists)
+    /// </summary>
+    public HyperlinkInfo? Hyperlink { get; set; }
+
+    /// <summary>
+    /// Whether a hyperlink exists at the specified cell
+    /// </summary>
+    public bool HasHyperlink { get; set; }
+
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Cell address
+    /// </summary>
+    public string CellAddress { get; set; } = string.Empty;
+}
+
+#endregion
+
