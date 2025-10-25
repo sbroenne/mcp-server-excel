@@ -14,16 +14,16 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Inform users about available updates and how to upgrade
 /// </summary>
 [McpServerToolType]
-public static class ExcelVersionTool
+public static class VersionTool
 {
     private const string PackageId = "Sbroenne.ExcelMcp.McpServer";
 
     /// <summary>
     /// Check for available updates on NuGet.org
     /// </summary>
-    [McpServerTool(Name = "excel_version")]
+    [McpServerTool(Name = "version")]
     [Description("Check for ExcelMcp updates on NuGet.org. Supports: check.")]
-    public static async Task<string> ExcelVersion(
+    public static async Task<string> Version(
         [Description("Action to perform: check")]
         string action)
     {

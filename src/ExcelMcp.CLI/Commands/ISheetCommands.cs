@@ -14,4 +14,7 @@ public interface ISheetCommands
     int Rename(string[] args);
     int Clear(string[] args);
     int Append(string[] args);
+    int Protect(string[] args);
+    int Unprotect(string[] args);
+    int GetProtectionStatus(string[] args);
 }

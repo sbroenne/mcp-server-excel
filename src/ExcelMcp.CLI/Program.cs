@@ -46,6 +46,7 @@ class Program
             var connection = new ConnectionCommands();
             var dataModel = new DataModelCommands();
             var dataModelTom = new DataModelTomCommands();
+            var table = new TableCommands();
 
             return args[0].ToLower() switch
             {
@@ -86,6 +87,23 @@ class Program
                 "sheet-rename" => sheet.Rename(args),
                 "sheet-clear" => sheet.Clear(args),
                 "sheet-append" => sheet.Append(args),
+                "sheet-protect" => sheet.Protect(args),
+                "sheet-unprotect" => sheet.Unprotect(args),
+                "sheet-get-protection-status" => sheet.GetProtectionStatus(args),
+
+                // Table commands
+                "table-list" => table.List(args),
+                "table-create" => table.Create(args),
+                "table-rename" => table.Rename(args),
+                "table-delete" => table.Delete(args),
+                "table-info" => table.Info(args),
+                "table-resize" => table.Resize(args),
+                "table-toggle-totals" => table.ToggleTotals(args),
+                "table-set-column-total" => table.SetColumnTotal(args),
+                "table-read" => table.ReadData(args),
+                "table-append" => table.AppendRows(args),
+                "table-set-style" => table.SetStyle(args),
+                "table-add-to-datamodel" => table.AddToDataModel(args),
 
                 // Parameter commands
                 "param-list" => param.List(args),
@@ -100,6 +118,13 @@ class Program
                 "cell-set-value" => cell.SetValue(args),
                 "cell-get-formula" => cell.GetFormula(args),
                 "cell-set-formula" => cell.SetFormula(args),
+                "cell-set-background-color" => cell.SetBackgroundColor(args),
+                "cell-set-font-color" => cell.SetFontColor(args),
+                "cell-set-font" => cell.SetFont(args),
+                "cell-set-border" => cell.SetBorder(args),
+                "cell-set-number-format" => cell.SetNumberFormat(args),
+                "cell-set-alignment" => cell.SetAlignment(args),
+                "cell-clear-formatting" => cell.ClearFormatting(args),
 
                 // Connection commands
                 "conn-list" => connection.List(args),
@@ -284,6 +309,25 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]sheet-rename[/] file.xlsx old-name new-name     Rename worksheet");
         AnsiConsole.MarkupLine("  [cyan]sheet-clear[/] file.xlsx sheet-name (range)     Clear worksheet data");
         AnsiConsole.MarkupLine("  [cyan]sheet-append[/] file.xlsx sheet-name data.csv   Append CSV data to worksheet");
+        AnsiConsole.MarkupLine("  [cyan]sheet-protect[/] file.xlsx sheet [pwd] [opts]   Protect worksheet");
+        AnsiConsole.MarkupLine("  [cyan]sheet-unprotect[/] file.xlsx sheet [password]   Unprotect worksheet");
+        AnsiConsole.MarkupLine("  [cyan]sheet-get-protection-status[/] file.xlsx sheet  Query protection status");
+        AnsiConsole.WriteLine();
+
+        AnsiConsole.MarkupLine("[bold yellow]Table Commands:[/]");
+        AnsiConsole.MarkupLine("  [cyan]table-list[/] file.xlsx                         List all Excel Tables");
+        AnsiConsole.MarkupLine("  [cyan]table-create[/] file.xlsx sheet name range      Create Excel Table");
+        AnsiConsole.MarkupLine("    Options: [dim][hasHeaders] [tableStyle][/]");
+        AnsiConsole.MarkupLine("  [cyan]table-info[/] file.xlsx table-name             Get table details");
+        AnsiConsole.MarkupLine("  [cyan]table-rename[/] file.xlsx old-name new-name     Rename Excel Table");
+        AnsiConsole.MarkupLine("  [cyan]table-delete[/] file.xlsx table-name            Delete Excel Table");
+        AnsiConsole.MarkupLine("  [cyan]table-resize[/] file.xlsx table-name new-range  Resize Excel Table");
+        AnsiConsole.MarkupLine("  [cyan]table-toggle-totals[/] file.xlsx table true/false  Enable/disable totals row");
+        AnsiConsole.MarkupLine("  [cyan]table-set-column-total[/] file.xlsx table col fn  Set column total (sum/avg/count/etc)");
+        AnsiConsole.MarkupLine("  [cyan]table-read[/] file.xlsx table-name             Read table data");
+        AnsiConsole.MarkupLine("  [cyan]table-append[/] file.xlsx table-name csv-data   Append rows to table");
+        AnsiConsole.MarkupLine("  [cyan]table-set-style[/] file.xlsx table-name style   Change table style");
+        AnsiConsole.MarkupLine("  [cyan]table-add-to-datamodel[/] file.xlsx table-name  Add to Power Pivot");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Parameter Commands:[/]");
@@ -300,6 +344,13 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]cell-set-value[/] file.xlsx sheet cell value   Set cell value");
         AnsiConsole.MarkupLine("  [cyan]cell-get-formula[/] file.xlsx sheet cell       Get cell formula");
         AnsiConsole.MarkupLine("  [cyan]cell-set-formula[/] file.xlsx sheet cell form  Set cell formula");
+        AnsiConsole.MarkupLine("  [cyan]cell-set-background-color[/] file.xlsx sheet cell color   Set background color");
+        AnsiConsole.MarkupLine("  [cyan]cell-set-font-color[/] file.xlsx sheet cell color         Set font color");
+        AnsiConsole.MarkupLine("  [cyan]cell-set-font[/] file.xlsx sheet cell [options]            Set font properties");
+        AnsiConsole.MarkupLine("  [cyan]cell-set-border[/] file.xlsx sheet cell style [color]      Set border");
+        AnsiConsole.MarkupLine("  [cyan]cell-set-number-format[/] file.xlsx sheet cell format      Set number format");
+        AnsiConsole.MarkupLine("  [cyan]cell-set-alignment[/] file.xlsx sheet cell [options]       Set alignment");
+        AnsiConsole.MarkupLine("  [cyan]cell-clear-formatting[/] file.xlsx sheet cell              Clear formatting");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Connection Commands:[/]");

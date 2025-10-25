@@ -51,4 +51,19 @@ public interface ISheetCommands
     /// Appends CSV data to a worksheet
     /// </summary>
     OperationResult Append(string filePath, string sheetName, string csvData);
+
+    /// <summary>
+    /// Protects a worksheet with optional password
+    /// </summary>
+    OperationResult Protect(string filePath, string sheetName, string? password = null, bool allowFormatCells = false, bool allowFormatColumns = false, bool allowFormatRows = false, bool allowInsertColumns = false, bool allowInsertRows = false, bool allowDeleteColumns = false, bool allowDeleteRows = false, bool allowSort = false, bool allowFilter = false);
+
+    /// <summary>
+    /// Unprotects a worksheet with optional password
+    /// </summary>
+    OperationResult Unprotect(string filePath, string sheetName, string? password = null);
+
+    /// <summary>
+    /// Gets protection status of a worksheet
+    /// </summary>
+    SheetProtectionResult GetProtectionStatus(string filePath, string sheetName);
 }
