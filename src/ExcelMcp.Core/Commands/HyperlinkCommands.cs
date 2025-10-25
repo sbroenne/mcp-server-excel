@@ -1,23 +1,35 @@
-using ExcelMcp.Core.Models;
-using ExcelMcp.Core.Utils;
+using Sbroenne.ExcelMcp.Core.ComInterop;
+using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Security;
+using Sbroenne.ExcelMcp.Core.Session;
 using System.Runtime.InteropServices;
 
-namespace ExcelMcp.Core.Commands;
+namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
 /// Implementation of hyperlink-related commands using Excel COM interop.
 /// </summary>
 public class HyperlinkCommands : IHyperlinkCommands
 {
-    public Result AddHyperlink(string excelPath, string sheetName, string cellAddress, string url, string? displayText = null, string? tooltip = null)
+    /// <summary>
+    /// Adds a hyperlink to a cell or range in an Excel worksheet.
+    /// </summary>
+    /// <param name="excelPath">Path to the Excel file</param>
+    /// <param name="sheetName">Name of the worksheet</param>
+    /// <param name="cellAddress">Cell or range address (e.g., "A1" or "A1:B2")</param>
+    /// <param name="url">The URL or file path to link to</param>
+    /// <param name="displayText">Optional display text for the hyperlink</param>
+    /// <param name="tooltip">Optional tooltip text</param>
+    /// <returns>Operation result with success status and details</returns>
+    public OperationResult AddHyperlink(string excelPath, string sheetName, string cellAddress, string url, string? displayText = null, string? tooltip = null)
     {
-        var result = new Result();
+        var result = new OperationResult();
 
         try
         {
-            PathValidator.ValidateFilePath(excelPath, allowCreate: false);
+            PathValidator.ValidateExistingFile(excelPath);
 
-            return ExcelHelper.WithExcel(excelPath, save: true, (excel, workbook) =>
+            ExcelSession.Execute(excelPath, save: true, (excel, workbook) =>
             {
                 dynamic? sheet = null;
                 dynamic? range = null;
@@ -59,12 +71,18 @@ public class HyperlinkCommands : IHyperlinkCommands
 
                     return 0;
                 }
+                catch (Exception ex)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = ex.Message;
+                    return 1;
+                }
                 finally
                 {
-                    ExcelHelper.ReleaseComObject(ref hyperlink);
-                    ExcelHelper.ReleaseComObject(ref hyperlinks);
-                    ExcelHelper.ReleaseComObject(ref range);
-                    ExcelHelper.ReleaseComObject(ref sheet);
+                    ComUtilities.Release(ref hyperlink);
+                    ComUtilities.Release(ref hyperlinks);
+                    ComUtilities.Release(ref range);
+                    ComUtilities.Release(ref sheet);
                 }
             });
         }
@@ -78,15 +96,22 @@ public class HyperlinkCommands : IHyperlinkCommands
         return result;
     }
 
-    public Result RemoveHyperlink(string excelPath, string sheetName, string cellAddress)
+    /// <summary>
+    /// Removes all hyperlinks from a cell or range in an Excel worksheet.
+    /// </summary>
+    /// <param name="excelPath">Path to the Excel file</param>
+    /// <param name="sheetName">Name of the worksheet</param>
+    /// <param name="cellAddress">Cell or range address (e.g., "A1" or "A1:B2")</param>
+    /// <returns>Operation result with success status and details</returns>
+    public OperationResult RemoveHyperlink(string excelPath, string sheetName, string cellAddress)
     {
-        var result = new Result();
+        var result = new OperationResult();
 
         try
         {
-            PathValidator.ValidateFilePath(excelPath, allowCreate: false);
+            PathValidator.ValidateExistingFile(excelPath);
 
-            return ExcelHelper.WithExcel(excelPath, save: true, (excel, workbook) =>
+            ExcelSession.Execute(excelPath, save: true, (excel, workbook) =>
             {
                 dynamic? sheet = null;
                 dynamic? range = null;
@@ -112,7 +137,7 @@ public class HyperlinkCommands : IHyperlinkCommands
                             }
                             finally
                             {
-                                ExcelHelper.ReleaseComObject(ref hl);
+                                ComUtilities.Release(ref hl);
                             }
                         }
 
@@ -129,11 +154,17 @@ public class HyperlinkCommands : IHyperlinkCommands
 
                     return 0;
                 }
+                catch (Exception ex)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = ex.Message;
+                    return 1;
+                }
                 finally
                 {
-                    ExcelHelper.ReleaseComObject(ref hyperlinks);
-                    ExcelHelper.ReleaseComObject(ref range);
-                    ExcelHelper.ReleaseComObject(ref sheet);
+                    ComUtilities.Release(ref hyperlinks);
+                    ComUtilities.Release(ref range);
+                    ComUtilities.Release(ref sheet);
                 }
             });
         }
@@ -147,6 +178,12 @@ public class HyperlinkCommands : IHyperlinkCommands
         return result;
     }
 
+    /// <summary>
+    /// Lists all hyperlinks in a worksheet with their addresses and target URLs.
+    /// </summary>
+    /// <param name="excelPath">Path to the Excel file</param>
+    /// <param name="sheetName">Name of the worksheet</param>
+    /// <returns>Hyperlink list result with details of all hyperlinks in the sheet</returns>
     public HyperlinkListResult ListHyperlinks(string excelPath, string sheetName)
     {
         var result = new HyperlinkListResult
@@ -157,9 +194,9 @@ public class HyperlinkCommands : IHyperlinkCommands
 
         try
         {
-            PathValidator.ValidateFilePath(excelPath, allowCreate: false);
+            PathValidator.ValidateExistingFile(excelPath);
 
-            ExcelHelper.WithExcel(excelPath, save: false, (excel, workbook) =>
+            ExcelSession.Execute(excelPath, save: false, (excel, workbook) =>
             {
                 dynamic? sheet = null;
                 dynamic? hyperlinks = null;
@@ -196,8 +233,8 @@ public class HyperlinkCommands : IHyperlinkCommands
                         }
                         finally
                         {
-                            ExcelHelper.ReleaseComObject(ref range);
-                            ExcelHelper.ReleaseComObject(ref hyperlink);
+                            ComUtilities.Release(ref range);
+                            ComUtilities.Release(ref hyperlink);
                         }
                     }
 
@@ -220,8 +257,8 @@ public class HyperlinkCommands : IHyperlinkCommands
                 }
                 finally
                 {
-                    ExcelHelper.ReleaseComObject(ref hyperlinks);
-                    ExcelHelper.ReleaseComObject(ref sheet);
+                    ComUtilities.Release(ref hyperlinks);
+                    ComUtilities.Release(ref sheet);
                 }
             });
         }
@@ -234,6 +271,13 @@ public class HyperlinkCommands : IHyperlinkCommands
         return result;
     }
 
+    /// <summary>
+    /// Gets hyperlink information from a specific cell.
+    /// </summary>
+    /// <param name="excelPath">Path to the Excel file</param>
+    /// <param name="sheetName">Name of the worksheet</param>
+    /// <param name="cellAddress">Cell address (e.g., "A1")</param>
+    /// <returns>Hyperlink info result with details of the hyperlink at the specified cell</returns>
     public HyperlinkInfoResult GetHyperlink(string excelPath, string sheetName, string cellAddress)
     {
         var result = new HyperlinkInfoResult
@@ -245,9 +289,9 @@ public class HyperlinkCommands : IHyperlinkCommands
 
         try
         {
-            PathValidator.ValidateFilePath(excelPath, allowCreate: false);
+            PathValidator.ValidateExistingFile(excelPath);
 
-            ExcelHelper.WithExcel(excelPath, save: false, (excel, workbook) =>
+            ExcelSession.Execute(excelPath, save: false, (excel, workbook) =>
             {
                 dynamic? sheet = null;
                 dynamic? range = null;
@@ -284,7 +328,7 @@ public class HyperlinkCommands : IHyperlinkCommands
                         }
                         finally
                         {
-                            ExcelHelper.ReleaseComObject(ref hyperlink);
+                            ComUtilities.Release(ref hyperlink);
                         }
                     }
                     else
@@ -297,9 +341,9 @@ public class HyperlinkCommands : IHyperlinkCommands
                 }
                 finally
                 {
-                    ExcelHelper.ReleaseComObject(ref hyperlinks);
-                    ExcelHelper.ReleaseComObject(ref range);
-                    ExcelHelper.ReleaseComObject(ref sheet);
+                    ComUtilities.Release(ref hyperlinks);
+                    ComUtilities.Release(ref range);
+                    ComUtilities.Release(ref sheet);
                 }
             });
         }

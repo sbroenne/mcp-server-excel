@@ -1,6 +1,6 @@
-using ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Models;
 
-namespace ExcelMcp.Core.Commands;
+namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
 /// Interface for hyperlink-related commands in Excel workbooks.
@@ -17,7 +17,7 @@ public interface IHyperlinkCommands
     /// <param name="displayText">Optional display text (defaults to cell value or URL)</param>
     /// <param name="tooltip">Optional tooltip/screen tip text</param>
     /// <returns>Result indicating success or failure</returns>
-    Result AddHyperlink(string excelPath, string sheetName, string cellAddress, string url, string? displayText = null, string? tooltip = null);
+    OperationResult AddHyperlink(string excelPath, string sheetName, string cellAddress, string url, string? displayText = null, string? tooltip = null);
 
     /// <summary>
     /// Removes a hyperlink from a cell or range in a worksheet.
@@ -26,7 +26,7 @@ public interface IHyperlinkCommands
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="cellAddress">Cell address (e.g., "A1") or range</param>
     /// <returns>Result indicating success or failure</returns>
-    Result RemoveHyperlink(string excelPath, string sheetName, string cellAddress);
+    OperationResult RemoveHyperlink(string excelPath, string sheetName, string cellAddress);
 
     /// <summary>
     /// Lists all hyperlinks in a worksheet.
