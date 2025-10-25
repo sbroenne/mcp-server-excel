@@ -1108,49 +1108,64 @@ public class SheetProtectionResult : ResultBase
     public bool IsProtected { get; set; }
 
     /// <summary>
-    /// Whether format cells is allowed
+    /// Whether the sheet has a password
     /// </summary>
-    public bool AllowFormatCells { get; set; }
+    public bool HasPassword { get; set; }
 
     /// <summary>
-    /// Whether format columns is allowed
+    /// Whether formatting cells is allowed
     /// </summary>
-    public bool AllowFormatColumns { get; set; }
+    public bool AllowFormattingCells { get; set; }
 
     /// <summary>
-    /// Whether format rows is allowed
+    /// Whether formatting columns is allowed
     /// </summary>
-    public bool AllowFormatRows { get; set; }
+    public bool AllowFormattingColumns { get; set; }
 
     /// <summary>
-    /// Whether insert columns is allowed
+    /// Whether formatting rows is allowed
     /// </summary>
-    public bool AllowInsertColumns { get; set; }
+    public bool AllowFormattingRows { get; set; }
 
     /// <summary>
-    /// Whether insert rows is allowed
+    /// Whether inserting columns is allowed
     /// </summary>
-    public bool AllowInsertRows { get; set; }
+    public bool AllowInsertingColumns { get; set; }
 
     /// <summary>
-    /// Whether delete columns is allowed
+    /// Whether inserting rows is allowed
     /// </summary>
-    public bool AllowDeleteColumns { get; set; }
+    public bool AllowInsertingRows { get; set; }
 
     /// <summary>
-    /// Whether delete rows is allowed
+    /// Whether inserting hyperlinks is allowed
     /// </summary>
-    public bool AllowDeleteRows { get; set; }
+    public bool AllowInsertingHyperlinks { get; set; }
 
     /// <summary>
-    /// Whether sort is allowed
+    /// Whether deleting columns is allowed
     /// </summary>
-    public bool AllowSort { get; set; }
+    public bool AllowDeletingColumns { get; set; }
 
     /// <summary>
-    /// Whether filter is allowed
+    /// Whether deleting rows is allowed
     /// </summary>
-    public bool AllowFilter { get; set; }
+    public bool AllowDeletingRows { get; set; }
+
+    /// <summary>
+    /// Whether sorting is allowed
+    /// </summary>
+    public bool AllowSorting { get; set; }
+
+    /// <summary>
+    /// Whether filtering is allowed
+    /// </summary>
+    public bool AllowFiltering { get; set; }
+
+    /// <summary>
+    /// Whether using PivotTables is allowed
+    /// </summary>
+    public bool AllowUsingPivotTables { get; set; }
 
     /// <summary>
     /// Sheet name

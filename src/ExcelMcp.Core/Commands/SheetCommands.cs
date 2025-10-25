@@ -533,15 +533,18 @@ public class SheetCommands : ISheetCommands
                 if (result.IsProtected)
                 {
                     protection = sheet.Protection;
-                    result.AllowFormatCells = protection.AllowFormattingCells;
-                    result.AllowFormatColumns = protection.AllowFormattingColumns;
-                    result.AllowFormatRows = protection.AllowFormattingRows;
-                    result.AllowInsertColumns = protection.AllowInsertingColumns;
-                    result.AllowInsertRows = protection.AllowInsertingRows;
-                    result.AllowDeleteColumns = protection.AllowDeletingColumns;
-                    result.AllowDeleteRows = protection.AllowDeletingRows;
-                    result.AllowSort = protection.AllowSorting;
-                    result.AllowFilter = protection.AllowFiltering;
+                    result.AllowFormattingCells = protection.AllowFormattingCells;
+                    result.AllowFormattingColumns = protection.AllowFormattingColumns;
+                    result.AllowFormattingRows = protection.AllowFormattingRows;
+                    result.AllowInsertingColumns = protection.AllowInsertingColumns;
+                    result.AllowInsertingRows = protection.AllowInsertingRows;
+                    result.AllowInsertingHyperlinks = protection.AllowInsertingHyperlinks;
+                    result.AllowDeletingColumns = protection.AllowDeletingColumns;
+                    result.AllowDeletingRows = protection.AllowDeletingRows;
+                    result.AllowSorting = protection.AllowSorting;
+                    result.AllowFiltering = protection.AllowFiltering;
+                    result.AllowUsingPivotTables = protection.AllowUsingPivotTables;
+                    result.HasPassword = !string.IsNullOrEmpty(sheet.ProtectContents.ToString());  // Best approximation available
                 }
 
                 result.Success = true;

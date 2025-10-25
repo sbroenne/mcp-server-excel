@@ -20,6 +20,9 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Use "delete" to remove worksheets
 /// - Use "clear" to empty worksheet ranges
 /// - Use "append" to add data to existing worksheet content
+/// - Use "protect" to protect worksheets with optional password and permissions
+/// - Use "unprotect" to remove worksheet protection
+/// - Use "get-protection-status" to query protection state
 /// </summary>
 [McpServerToolType]
 public static class WorksheetTool
@@ -28,11 +31,11 @@ public static class WorksheetTool
     /// Manage Excel worksheets - data operations, sheet management, and content manipulation
     /// </summary>
     [McpServerTool(Name = "worksheet")]
-    [Description("Manage Excel worksheets and data. Supports: list, read, write, create, rename, copy, delete, clear, append.")]
+    [Description("Manage Excel worksheets and data. Supports: list, read, write, create, rename, copy, delete, clear, append, protect, unprotect, get-protection-status.")]
     public static string Worksheet(
         [Required]
-        [RegularExpression("^(list|read|write|create|rename|copy|delete|clear|append)$")]
-        [Description("Action: list, read, write, create, rename, copy, delete, clear, append")]
+        [RegularExpression("^(list|read|write|create|rename|copy|delete|clear|append|protect|unprotect|get-protection-status)$")]
+        [Description("Action: list, read, write, create, rename, copy, delete, clear, append, protect, unprotect, get-protection-status")]
         string action,
 
         [Required]
@@ -51,7 +54,43 @@ public static class WorksheetTool
         [StringLength(31, MinimumLength = 1)]
         [RegularExpression(@"^[^[\]/*?\\:]+$")]
         [Description("New sheet name (for rename) or source sheet name (for copy)")]
-        string? targetName = null)
+        string? targetName = null,
+        
+        [Description("Password for sheet protection (optional)")]
+        string? password = null,
+        
+        [Description("Allow formatting cells when protected")]
+        bool? allowFormattingCells = null,
+        
+        [Description("Allow formatting columns when protected")]
+        bool? allowFormattingColumns = null,
+        
+        [Description("Allow formatting rows when protected")]
+        bool? allowFormattingRows = null,
+        
+        [Description("Allow inserting columns when protected")]
+        bool? allowInsertingColumns = null,
+        
+        [Description("Allow inserting rows when protected")]
+        bool? allowInsertingRows = null,
+        
+        [Description("Allow inserting hyperlinks when protected")]
+        bool? allowInsertingHyperlinks = null,
+        
+        [Description("Allow deleting columns when protected")]
+        bool? allowDeletingColumns = null,
+        
+        [Description("Allow deleting rows when protected")]
+        bool? allowDeletingRows = null,
+        
+        [Description("Allow sorting when protected")]
+        bool? allowSorting = null,
+        
+        [Description("Allow filtering when protected")]
+        bool? allowFiltering = null,
+        
+        [Description("Allow using PivotTables when protected")]
+        bool? allowUsingPivotTables = null)
     {
         try
         {
@@ -68,8 +107,15 @@ public static class WorksheetTool
                 "delete" => DeleteWorksheet(sheetCommands, excelPath, sheetName),
                 "clear" => ClearWorksheet(sheetCommands, excelPath, sheetName, range),
                 "append" => AppendWorksheet(sheetCommands, excelPath, sheetName, range),
+                "protect" => ProtectWorksheet(sheetCommands, excelPath, sheetName, password,
+                    allowFormattingCells, allowFormattingColumns, allowFormattingRows,
+                    allowInsertingColumns, allowInsertingRows, allowInsertingHyperlinks,
+                    allowDeletingColumns, allowDeletingRows, allowSorting, allowFiltering,
+                    allowUsingPivotTables),
+                "unprotect" => UnprotectWorksheet(sheetCommands, excelPath, sheetName, password),
+                "get-protection-status" => GetProtectionStatus(sheetCommands, excelPath, sheetName),
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: list, read, write, create, rename, copy, delete, clear, append")
+                    $"Unknown action '{action}'. Supported: list, read, write, create, rename, copy, delete, clear, append, protect, unprotect, get-protection-status")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -337,6 +383,94 @@ public static class WorksheetTool
             "Use PowerQuery to reload data"
         };
         result.WorkflowHint = "Range cleared successfully. Next, populate with new data.";
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string ProtectWorksheet(
+        SheetCommands sheetCommands,
+        string excelPath,
+        string? sheetName,
+        string? password,
+        bool? allowFormattingCells,
+        bool? allowFormattingColumns,
+        bool? allowFormattingRows,
+        bool? allowInsertingColumns,
+        bool? allowInsertingRows,
+        bool? allowInsertingHyperlinks,
+        bool? allowDeletingColumns,
+        bool? allowDeletingRows,
+        bool? allowSorting,
+        bool? allowFiltering,
+        bool? allowUsingPivotTables)
+    {
+        if (string.IsNullOrWhiteSpace(sheetName))
+        {
+            ExcelToolsBase.ThrowMissingParameter("sheetName", "protect");
+        }
+
+        var result = sheetCommands.Protect(
+            excelPath,
+            sheetName!,
+            password,
+            allowFormattingCells ?? false,
+            allowFormattingColumns ?? false,
+            allowFormattingRows ?? false,
+            allowInsertingColumns ?? false,
+            allowInsertingRows ?? false,
+            allowDeletingColumns ?? false,
+            allowDeletingRows ?? false,
+            allowSorting ?? false,
+            allowFiltering ?? false);
+
+        if (!result.Success)
+        {
+            throw new ModelContextProtocol.McpException(
+                $"protect failed for worksheet '{sheetName}' in '{excelPath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string UnprotectWorksheet(
+        SheetCommands sheetCommands,
+        string excelPath,
+        string? sheetName,
+        string? password)
+    {
+        if (string.IsNullOrWhiteSpace(sheetName))
+        {
+            ExcelToolsBase.ThrowMissingParameter("sheetName", "unprotect");
+        }
+
+        var result = sheetCommands.Unprotect(excelPath, sheetName!, password);
+
+        if (!result.Success)
+        {
+            throw new ModelContextProtocol.McpException(
+                $"unprotect failed for worksheet '{sheetName}' in '{excelPath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string GetProtectionStatus(
+        SheetCommands sheetCommands,
+        string excelPath,
+        string? sheetName)
+    {
+        if (string.IsNullOrWhiteSpace(sheetName))
+        {
+            ExcelToolsBase.ThrowMissingParameter("sheetName", "get-protection-status");
+        }
+
+        var result = sheetCommands.GetProtectionStatus(excelPath, sheetName!);
+
+        if (!result.Success)
+        {
+            throw new ModelContextProtocol.McpException(
+                $"get-protection-status failed for worksheet '{sheetName}' in '{excelPath}': {result.ErrorMessage}");
+        }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }

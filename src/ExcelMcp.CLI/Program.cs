@@ -87,6 +87,9 @@ class Program
                 "sheet-rename" => sheet.Rename(args),
                 "sheet-clear" => sheet.Clear(args),
                 "sheet-append" => sheet.Append(args),
+                "sheet-protect" => sheet.Protect(args),
+                "sheet-unprotect" => sheet.Unprotect(args),
+                "sheet-get-protection-status" => sheet.GetProtectionStatus(args),
 
                 // Table commands
                 "table-list" => table.List(args),
@@ -306,6 +309,9 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]sheet-rename[/] file.xlsx old-name new-name     Rename worksheet");
         AnsiConsole.MarkupLine("  [cyan]sheet-clear[/] file.xlsx sheet-name (range)     Clear worksheet data");
         AnsiConsole.MarkupLine("  [cyan]sheet-append[/] file.xlsx sheet-name data.csv   Append CSV data to worksheet");
+        AnsiConsole.MarkupLine("  [cyan]sheet-protect[/] file.xlsx sheet [pwd] [opts]   Protect worksheet");
+        AnsiConsole.MarkupLine("  [cyan]sheet-unprotect[/] file.xlsx sheet [password]   Unprotect worksheet");
+        AnsiConsole.MarkupLine("  [cyan]sheet-get-protection-status[/] file.xlsx sheet  Query protection status");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Table Commands:[/]");
