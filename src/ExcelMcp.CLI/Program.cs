@@ -115,6 +115,13 @@ class Program
                 "cell-set-value" => cell.SetValue(args),
                 "cell-get-formula" => cell.GetFormula(args),
                 "cell-set-formula" => cell.SetFormula(args),
+                "cell-set-background-color" => cell.SetBackgroundColor(args),
+                "cell-set-font-color" => cell.SetFontColor(args),
+                "cell-set-font" => cell.SetFont(args),
+                "cell-set-border" => cell.SetBorder(args),
+                "cell-set-number-format" => cell.SetNumberFormat(args),
+                "cell-set-alignment" => cell.SetAlignment(args),
+                "cell-clear-formatting" => cell.ClearFormatting(args),
 
                 // Connection commands
                 "conn-list" => connection.List(args),
@@ -331,6 +338,13 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]cell-set-value[/] file.xlsx sheet cell value   Set cell value");
         AnsiConsole.MarkupLine("  [cyan]cell-get-formula[/] file.xlsx sheet cell       Get cell formula");
         AnsiConsole.MarkupLine("  [cyan]cell-set-formula[/] file.xlsx sheet cell form  Set cell formula");
+        AnsiConsole.MarkupLine("  [cyan]cell-set-background-color[/] file.xlsx sheet cell color   Set background color");
+        AnsiConsole.MarkupLine("  [cyan]cell-set-font-color[/] file.xlsx sheet cell color         Set font color");
+        AnsiConsole.MarkupLine("  [cyan]cell-set-font[/] file.xlsx sheet cell [options]            Set font properties");
+        AnsiConsole.MarkupLine("  [cyan]cell-set-border[/] file.xlsx sheet cell style [color]      Set border");
+        AnsiConsole.MarkupLine("  [cyan]cell-set-number-format[/] file.xlsx sheet cell format      Set number format");
+        AnsiConsole.MarkupLine("  [cyan]cell-set-alignment[/] file.xlsx sheet cell [options]       Set alignment");
+        AnsiConsole.MarkupLine("  [cyan]cell-clear-formatting[/] file.xlsx sheet cell              Clear formatting");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Connection Commands:[/]");

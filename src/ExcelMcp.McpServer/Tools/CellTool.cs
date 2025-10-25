@@ -8,13 +8,20 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
 /// Excel cell manipulation tool for MCP server.
-/// Handles individual cell operations for precise data control.
+/// Handles individual cell operations and formatting for precise control.
 ///
 /// LLM Usage Patterns:
 /// - Use "get-value" to read individual cell contents
 /// - Use "set-value" to write data to specific cells
 /// - Use "get-formula" to examine cell formulas
 /// - Use "set-formula" to create calculated cells
+/// - Use "set-background-color" to apply background colors
+/// - Use "set-font-color" to change text colors
+/// - Use "set-font" to configure font properties
+/// - Use "set-border" to add borders
+/// - Use "set-number-format" to format numbers/dates
+/// - Use "set-alignment" to align cell content
+/// - Use "clear-formatting" to remove all formatting
 ///
 /// Note: For bulk operations, use ExcelWorksheetTool instead.
 /// This tool is optimized for precise, single-cell operations.
@@ -23,14 +30,14 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 public static class CellTool
 {
     /// <summary>
-    /// Manage individual Excel cells - values and formulas for precise control
+    /// Manage individual Excel cells - values, formulas, and formatting for precise control
     /// </summary>
     [McpServerTool(Name = "cell")]
-    [Description("Manage individual Excel cell values and formulas. Supports: get-value, set-value, get-formula, set-formula.")]
+    [Description("Manage individual Excel cell values, formulas, and formatting. Supports: get-value, set-value, get-formula, set-formula, set-background-color, set-font-color, set-font, set-border, set-number-format, set-alignment, clear-formatting.")]
     public static string Cell(
         [Required]
-        [RegularExpression("^(get-value|set-value|get-formula|set-formula)$")]
-        [Description("Action: get-value, set-value, get-formula, set-formula")]
+        [RegularExpression("^(get-value|set-value|get-formula|set-formula|set-background-color|set-font-color|set-font|set-border|set-number-format|set-alignment|clear-formatting)$")]
+        [Description("Action: get-value, set-value, get-formula, set-formula, set-background-color, set-font-color, set-font, set-border, set-number-format, set-alignment, clear-formatting")]
         string action,
 
         [Required]
@@ -45,32 +52,76 @@ public static class CellTool
         string sheetName,
 
         [Required]
-        [RegularExpression(@"^[A-Z]+[0-9]+$")]
-        [Description("Cell address (e.g., 'A1', 'B5')")]
+        [Description("Cell address or range (e.g., 'A1', 'B5', 'A1:D10')")]
         string cellAddress,
 
         [StringLength(32767)]
         [Description("Value or formula to set (for set-value/set-formula actions)")]
-        string? value = null)
+        string? value = null,
+
+        [StringLength(255)]
+        [Description("Color in hex (#RRGGBB), RGB (r,g,b), or color number (for color actions)")]
+        string? color = null,
+
+        [StringLength(255)]
+        [Description("Font name (for set-font action)")]
+        string? fontName = null,
+
+        [Range(1, 409)]
+        [Description("Font size (for set-font action)")]
+        int? fontSize = null,
+
+        [Description("Bold (for set-font action)")]
+        bool? bold = null,
+
+        [Description("Italic (for set-font action)")]
+        bool? italic = null,
+
+        [Description("Underline (for set-font action)")]
+        bool? underline = null,
+
+        [StringLength(50)]
+        [Description("Border style: thin, dash, dot, double, none (for set-border action)")]
+        string? borderStyle = null,
+
+        [StringLength(255)]
+        [Description("Border color (for set-border action)")]
+        string? borderColor = null,
+
+        [StringLength(255)]
+        [Description("Number format string (for set-number-format action)")]
+        string? format = null,
+
+        [StringLength(50)]
+        [Description("Horizontal alignment: left, center, right, justify (for set-alignment action)")]
+        string? horizontal = null,
+
+        [StringLength(50)]
+        [Description("Vertical alignment: top, center, bottom (for set-alignment action)")]
+        string? vertical = null,
+
+        [Description("Wrap text (for set-alignment action)")]
+        bool? wrapText = null)
     {
         try
         {
             var cellCommands = new CellCommands();
 
-            switch (action.ToLowerInvariant())
+            return action.ToLowerInvariant() switch
             {
-                case "get-value":
-                    return GetCellValue(cellCommands, excelPath, sheetName, cellAddress);
-                case "set-value":
-                    return SetCellValue(cellCommands, excelPath, sheetName, cellAddress, value);
-                case "get-formula":
-                    return GetCellFormula(cellCommands, excelPath, sheetName, cellAddress);
-                case "set-formula":
-                    return SetCellFormula(cellCommands, excelPath, sheetName, cellAddress, value);
-                default:
-                    ExcelToolsBase.ThrowUnknownAction(action, "get-value", "set-value", "get-formula", "set-formula");
-                    throw new InvalidOperationException(); // Never reached
-            }
+                "get-value" => GetCellValue(cellCommands, excelPath, sheetName, cellAddress),
+                "set-value" => SetCellValue(cellCommands, excelPath, sheetName, cellAddress, value),
+                "get-formula" => GetCellFormula(cellCommands, excelPath, sheetName, cellAddress),
+                "set-formula" => SetCellFormula(cellCommands, excelPath, sheetName, cellAddress, value),
+                "set-background-color" => SetBackgroundColor(cellCommands, excelPath, sheetName, cellAddress, color),
+                "set-font-color" => SetFontColor(cellCommands, excelPath, sheetName, cellAddress, color),
+                "set-font" => SetFont(cellCommands, excelPath, sheetName, cellAddress, fontName, fontSize, bold, italic, underline),
+                "set-border" => SetBorder(cellCommands, excelPath, sheetName, cellAddress, borderStyle, borderColor),
+                "set-number-format" => SetNumberFormat(cellCommands, excelPath, sheetName, cellAddress, format),
+                "set-alignment" => SetAlignment(cellCommands, excelPath, sheetName, cellAddress, horizontal, vertical, wrapText),
+                "clear-formatting" => ClearFormatting(cellCommands, excelPath, sheetName, cellAddress),
+                _ => throw new InvalidOperationException($"Unknown action: {action}")
+            };
         }
         catch (ModelContextProtocol.McpException)
         {
@@ -87,26 +138,10 @@ public static class CellTool
     {
         var result = commands.GetValue(excelPath, sheetName, cellAddress);
 
-        // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
-                "Check that the worksheet and cell address are correct",
-                "Use worksheet 'list' to verify worksheet exists",
-                "Verify the cell address format (e.g., 'A1', 'B5')"
-            };
-            result.WorkflowHint = "Get-value failed. Ensure the worksheet and cell exist.";
             throw new ModelContextProtocol.McpException($"get-value failed for '{excelPath}': {result.ErrorMessage}");
         }
-
-        result.SuggestedNextActions = new List<string>
-        {
-            "Use 'set-value' to update the cell",
-            "Use 'get-formula' to check if cell has a formula",
-            "Use worksheet 'read' for multiple cells"
-        };
-        result.WorkflowHint = "Cell value retrieved. Next, update or inspect formula.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -118,26 +153,10 @@ public static class CellTool
 
         var result = commands.SetValue(excelPath, sheetName, cellAddress, value);
 
-        // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
-                "Check that the worksheet and cell address are correct",
-                "Verify the value format is appropriate",
-                "Use worksheet 'write' for bulk data updates"
-            };
-            result.WorkflowHint = "Set-value failed. Ensure the worksheet and cell are valid.";
             throw new ModelContextProtocol.McpException($"set-value failed for '{excelPath}': {result.ErrorMessage}");
         }
-
-        result.SuggestedNextActions = new List<string>
-        {
-            "Use 'get-value' to verify the update",
-            "Use 'set-formula' to add calculations",
-            "Use worksheet 'read' to view surrounding cells"
-        };
-        result.WorkflowHint = "Cell value set. Next, verify or add formulas.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -146,26 +165,10 @@ public static class CellTool
     {
         var result = commands.GetFormula(excelPath, sheetName, cellAddress);
 
-        // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
-                "Check that the worksheet and cell address are correct",
-                "Use 'get-value' to retrieve the cell value instead",
-                "Verify the cell address format (e.g., 'A1', 'B5')"
-            };
-            result.WorkflowHint = "Get-formula failed. Ensure the worksheet and cell exist.";
             throw new ModelContextProtocol.McpException($"get-formula failed for '{excelPath}': {result.ErrorMessage}");
         }
-
-        result.SuggestedNextActions = new List<string>
-        {
-            "Use 'set-formula' to update the formula",
-            "Use 'get-value' to see the calculated result",
-            "Analyze the formula for optimization"
-        };
-        result.WorkflowHint = "Cell formula retrieved. Next, update or analyze.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -177,26 +180,109 @@ public static class CellTool
 
         var result = commands.SetFormula(excelPath, sheetName, cellAddress, value);
 
-        // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
-                "Check that the formula syntax is correct",
-                "Verify all cell references in the formula exist",
-                "Use 'get-value' to see if formula calculated correctly"
-            };
-            result.WorkflowHint = "Set-formula failed. Ensure the formula syntax is valid.";
             throw new ModelContextProtocol.McpException($"set-formula failed for '{excelPath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions = new List<string>
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string SetBackgroundColor(CellCommands commands, string excelPath, string sheetName, string cellAddress, string? color)
+    {
+        if (string.IsNullOrEmpty(color))
+            throw new ModelContextProtocol.McpException("color is required for set-background-color action");
+
+        var result = commands.SetBackgroundColor(excelPath, sheetName, cellAddress, color);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            "Use 'get-value' to verify the calculated result",
-            "Use 'get-formula' to confirm the formula was set",
-            "Test the formula with different input values"
-        };
-        result.WorkflowHint = "Formula set. Next, verify calculation and test.";
+            throw new ModelContextProtocol.McpException($"set-background-color failed for '{excelPath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string SetFontColor(CellCommands commands, string excelPath, string sheetName, string cellAddress, string? color)
+    {
+        if (string.IsNullOrEmpty(color))
+            throw new ModelContextProtocol.McpException("color is required for set-font-color action");
+
+        var result = commands.SetFontColor(excelPath, sheetName, cellAddress, color);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-font-color failed for '{excelPath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string SetFont(CellCommands commands, string excelPath, string sheetName, string cellAddress, 
+        string? fontName, int? fontSize, bool? bold, bool? italic, bool? underline)
+    {
+        var result = commands.SetFont(excelPath, sheetName, cellAddress, fontName, fontSize, bold, italic, underline);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-font failed for '{excelPath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string SetBorder(CellCommands commands, string excelPath, string sheetName, string cellAddress, 
+        string? borderStyle, string? borderColor)
+    {
+        if (string.IsNullOrEmpty(borderStyle))
+            throw new ModelContextProtocol.McpException("borderStyle is required for set-border action");
+
+        var result = commands.SetBorder(excelPath, sheetName, cellAddress, borderStyle, borderColor);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-border failed for '{excelPath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string SetNumberFormat(CellCommands commands, string excelPath, string sheetName, string cellAddress, string? format)
+    {
+        if (string.IsNullOrEmpty(format))
+            throw new ModelContextProtocol.McpException("format is required for set-number-format action");
+
+        var result = commands.SetNumberFormat(excelPath, sheetName, cellAddress, format);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-number-format failed for '{excelPath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string SetAlignment(CellCommands commands, string excelPath, string sheetName, string cellAddress, 
+        string? horizontal, string? vertical, bool? wrapText)
+    {
+        var result = commands.SetAlignment(excelPath, sheetName, cellAddress, horizontal, vertical, wrapText);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-alignment failed for '{excelPath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string ClearFormatting(CellCommands commands, string excelPath, string sheetName, string cellAddress)
+    {
+        var result = commands.ClearFormatting(excelPath, sheetName, cellAddress);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"clear-formatting failed for '{excelPath}': {result.ErrorMessage}");
+        }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
