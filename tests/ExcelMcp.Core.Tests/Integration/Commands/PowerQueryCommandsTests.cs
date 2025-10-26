@@ -284,9 +284,10 @@ in
             var result = await _powerQueryCommands.SetLoadToTableAsync(batch, "TestLoadToTable", "TestSheet");
             await batch.SaveAsync();
 
-        // Assert
-        Assert.True(result.Success, $"SetLoadToTable failed: {result.ErrorMessage}");
-        Assert.Equal("pq-set-load-to-table", result.Action);
+            // Assert
+            Assert.True(result.Success, $"SetLoadToTable failed: {result.ErrorMessage}");
+            Assert.Equal("pq-set-load-to-table", result.Action);
+        }
     }
 
     [Fact]
