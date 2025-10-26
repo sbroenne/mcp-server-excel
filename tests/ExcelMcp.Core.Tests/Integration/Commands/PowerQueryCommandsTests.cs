@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
@@ -41,7 +42,7 @@ public class CorePowerQueryCommandsTests : IDisposable
 
     private void CreateTestExcelFile()
     {
-        var result = _fileCommands.CreateEmpty(_testExcelFile, overwriteIfExists: false);
+        var result = _fileCommands.CreateEmptyAsync(_testExcelFile, overwriteIfExists: false).GetAwaiter().GetResult();
         if (!result.Success)
         {
             throw new InvalidOperationException($"Failed to create test Excel file: {result.ErrorMessage}. Excel may not be installed.");
@@ -68,10 +69,11 @@ in
     }
 
     [Fact]
-    public void List_WithValidFile_ReturnsSuccessResult()
+    public async Task List_WithValidFile_ReturnsSuccessResult()
     {
         // Act
-        var result = _powerQueryCommands.List(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _powerQueryCommands.ListAsync(batch);
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
@@ -83,7 +85,9 @@ in
     public async Task Import_WithValidMCode_ReturnsSuccessResult()
     {
         // Act
-        var result = await _powerQueryCommands.Import(_testExcelFile, "TestQuery", _testQueryFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _powerQueryCommands.ImportAsync(batch, "TestQuery", _testQueryFile);
+        await batch.SaveAsync();
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
@@ -93,81 +97,119 @@ in
     public async Task List_AfterImport_ShowsNewQuery()
     {
         // Arrange
-        await _powerQueryCommands.Import(_testExcelFile, "TestQuery", _testQueryFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _powerQueryCommands.ImportAsync(batch, "TestQuery", _testQueryFile);
+            await batch.SaveAsync();
+        }
 
         // Act
-        var result = _powerQueryCommands.List(_testExcelFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _powerQueryCommands.ListAsync(batch);
 
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Queries);
         Assert.Single(result.Queries);
         Assert.Equal("TestQuery", result.Queries[0].Name);
+        }
     }
 
     [Fact]
     public async Task View_WithExistingQuery_ReturnsMCode()
     {
         // Arrange
-        await _powerQueryCommands.Import(_testExcelFile, "TestQuery", _testQueryFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _powerQueryCommands.ImportAsync(batch, "TestQuery", _testQueryFile);
+            await batch.SaveAsync();
+        }
 
         // Act
-        var result = _powerQueryCommands.View(_testExcelFile, "TestQuery");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _powerQueryCommands.ViewAsync(batch, "TestQuery");
 
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.MCode);
         Assert.Contains("Source", result.MCode);
+        }
     }
 
     [Fact]
     public async Task Export_WithExistingQuery_CreatesFile()
     {
         // Arrange
-        await _powerQueryCommands.Import(_testExcelFile, "TestQuery", _testQueryFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _powerQueryCommands.ImportAsync(batch, "TestQuery", _testQueryFile);
+            await batch.SaveAsync();
+        }
         var exportPath = Path.Combine(_tempDir, "exported.pq");
 
         // Act
-        var result = await _powerQueryCommands.Export(_testExcelFile, "TestQuery", exportPath);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _powerQueryCommands.ExportAsync(batch, "TestQuery", exportPath);
 
         // Assert
         Assert.True(result.Success);
         Assert.True(File.Exists(exportPath));
+        }
     }
 
     [Fact]
     public async Task Update_WithValidMCode_ReturnsSuccessResult()
     {
         // Arrange
-        await _powerQueryCommands.Import(_testExcelFile, "TestQuery", _testQueryFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _powerQueryCommands.ImportAsync(batch, "TestQuery", _testQueryFile);
+            await batch.SaveAsync();
+        }
         var updateFile = Path.Combine(_tempDir, "updated.pq");
         File.WriteAllText(updateFile, "let\n    UpdatedSource = 1\nin\n    UpdatedSource");
 
         // Act
-        var result = await _powerQueryCommands.Update(_testExcelFile, "TestQuery", updateFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _powerQueryCommands.UpdateAsync(batch, "TestQuery", updateFile);
+            await batch.SaveAsync();
 
         // Assert
         Assert.True(result.Success);
+        }
     }
 
     [Fact]
     public async Task Delete_WithExistingQuery_ReturnsSuccessResult()
     {
         // Arrange
-        await _powerQueryCommands.Import(_testExcelFile, "TestQuery", _testQueryFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _powerQueryCommands.ImportAsync(batch, "TestQuery", _testQueryFile);
+            await batch.SaveAsync();
+        }
 
         // Act
-        var result = _powerQueryCommands.Delete(_testExcelFile, "TestQuery");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _powerQueryCommands.DeleteAsync(batch, "TestQuery");
+            await batch.SaveAsync();
 
         // Assert
         Assert.True(result.Success);
+        }
     }
 
     [Fact]
-    public void View_WithNonExistentQuery_ReturnsErrorResult()
+    public async Task View_WithNonExistentQuery_ReturnsErrorResult()
     {
         // Act
-        var result = _powerQueryCommands.View(_testExcelFile, "NonExistentQuery");
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _powerQueryCommands.ViewAsync(batch, "NonExistentQuery");
 
         // Assert
         Assert.False(result.Success);
@@ -177,42 +219,70 @@ in
     [Fact]
     public async Task Import_ThenDelete_ThenList_ShowsEmpty()
     {
-        // Arrange
-        await _powerQueryCommands.Import(_testExcelFile, "TestQuery", _testQueryFile);
-        _powerQueryCommands.Delete(_testExcelFile, "TestQuery");
+        // Arrange & Act - Import
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _powerQueryCommands.ImportAsync(batch, "TestQuery", _testQueryFile);
+            await batch.SaveAsync();
+        }
 
-        // Act
-        var result = _powerQueryCommands.List(_testExcelFile);
+        // Act - Delete
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _powerQueryCommands.DeleteAsync(batch, "TestQuery");
+            await batch.SaveAsync();
+        }
+
+        // Act - List
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _powerQueryCommands.ListAsync(batch);
 
         // Assert
         Assert.True(result.Success);
         Assert.Empty(result.Queries);
+        }
     }
 
     [Fact]
     public async Task SetConnectionOnly_WithExistingQuery_ReturnsSuccessResult()
     {
         // Arrange - Import a query first
-        var importResult = await _powerQueryCommands.Import(_testExcelFile, "TestConnectionOnly", _testQueryFile);
-        Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "TestConnectionOnly", _testQueryFile);
+            await batch.SaveAsync();
+            Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+        }
 
         // Act
-        var result = _powerQueryCommands.SetConnectionOnly(_testExcelFile, "TestConnectionOnly");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _powerQueryCommands.SetConnectionOnlyAsync(batch, "TestConnectionOnly");
+            await batch.SaveAsync();
 
         // Assert
         Assert.True(result.Success, $"SetConnectionOnly failed: {result.ErrorMessage}");
         Assert.Equal("pq-set-connection-only", result.Action);
+        }
     }
 
     [Fact]
     public async Task SetLoadToTable_WithExistingQuery_ReturnsSuccessResult()
     {
         // Arrange - Import a query first
-        var importResult = await _powerQueryCommands.Import(_testExcelFile, "TestLoadToTable", _testQueryFile);
-        Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "TestLoadToTable", _testQueryFile);
+            await batch.SaveAsync();
+            Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+        }
 
         // Act
-        var result = _powerQueryCommands.SetLoadToTable(_testExcelFile, "TestLoadToTable", "TestSheet");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _powerQueryCommands.SetLoadToTableAsync(batch, "TestLoadToTable", "TestSheet");
+            await batch.SaveAsync();
 
         // Assert
         Assert.True(result.Success, $"SetLoadToTable failed: {result.ErrorMessage}");
