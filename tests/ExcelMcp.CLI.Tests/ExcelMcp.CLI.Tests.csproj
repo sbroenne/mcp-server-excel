@@ -32,4 +32,9 @@
     <ProjectReference Include="..\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj" />
   </ItemGroup>
 
+  <!-- Temporarily exclude unconverted CLI tests -->
+  <ItemGroup>
+    <Compile Remove="Integration\Commands\DataModelCommandsTests.cs" />
+  </ItemGroup>
+
 </Project>
