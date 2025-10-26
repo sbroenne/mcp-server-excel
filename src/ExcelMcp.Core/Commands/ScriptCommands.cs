@@ -5,6 +5,8 @@ using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Security;
 using Sbroenne.ExcelMcp.Core.Session;
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
+
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
@@ -63,54 +65,6 @@ public class ScriptCommands : IScriptCommands
     }
 
     /// <summary>
-    /// Check if VBA project access is trusted and available
-    /// </summary>
-    private static (bool IsTrusted, string? ErrorMessage) CheckVbaAccessTrust(string filePath)
-    {
-        try
-        {
-            bool isTrusted = false;
-            string? errorMessage = null;
-
-            ExcelSession.Execute(filePath, false, (excel, workbook) =>
-            {
-                try
-                {
-                    dynamic vbProject = workbook.VBProject;
-                    int componentCount = vbProject.VBComponents.Count;
-                    isTrusted = true;
-                    return 0;
-                }
-                catch (COMException comEx)
-                {
-                    if (comEx.ErrorCode == unchecked((int)0x800A03EC))
-                    {
-                        errorMessage = "Programmatic access to VBA project is not trusted. Run setup-vba-trust command.";
-                    }
-                    else
-                    {
-                        errorMessage = $"VBA COM Error: 0x{comEx.ErrorCode:X8} - {comEx.Message}";
-                    }
-                    return 1;
-                }
-                catch (Exception ex)
-                {
-                    errorMessage = $"VBA Access Error: {ex.Message}";
-                    return 1;
-                }
-            });
-
-            return (isTrusted, errorMessage);
-        }
-        catch (Exception ex)
-        {
-            return (false, $"Error checking VBA access: {ex.Message}");
-        }
-    }
-
-
-
-    /// <summary>
     /// Validate that file is macro-enabled (.xlsm) for VBA operations
     /// </summary>
     private static (bool IsValid, string? ErrorMessage) ValidateVbaFile(string filePath)
@@ -124,18 +78,11 @@ public class ScriptCommands : IScriptCommands
     }
 
     /// <inheritdoc />
-    public ScriptListResult List(string filePath)
+    public async Task<ScriptListResult> ListAsync(IExcelBatch batch)
     {
-        var result = new ScriptListResult { FilePath = filePath };
+        var result = new ScriptListResult { FilePath = batch.WorkbookPath };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        var (isValid, validationError) = ValidateVbaFile(filePath);
+        var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
             result.Success = false;
@@ -152,13 +99,13 @@ public class ScriptCommands : IScriptCommands
             return result;
         }
 
-        ExcelSession.Execute(filePath, false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
             try
             {
-                vbaProject = workbook.VBProject;
+                vbaProject = ctx.Book.VBProject;
                 vbComponents = vbaProject.VBComponents;
 
                 for (int i = 1; i <= vbComponents.Count; i++)
@@ -224,7 +171,7 @@ public class ScriptCommands : IScriptCommands
                 }
 
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))
@@ -232,13 +179,13 @@ public class ScriptCommands : IScriptCommands
                 // Trust was disabled during operation
                 result.Success = false;
                 result.ErrorMessage = "VBA trust access is not enabled";
-                return 1;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error listing scripts: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
@@ -246,23 +193,14 @@ public class ScriptCommands : IScriptCommands
                 ComUtilities.Release(ref vbaProject);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public ScriptViewResult View(string filePath, string moduleName)
+    public async Task<ScriptViewResult> ViewAsync(IExcelBatch batch, string moduleName)
     {
-        var result = new ScriptViewResult { FilePath = filePath, ModuleName = moduleName };
+        var result = new ScriptViewResult { FilePath = batch.WorkbookPath, ModuleName = moduleName };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        var (isValid, validationError) = ValidateVbaFile(filePath);
+        var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
             result.Success = false;
@@ -286,7 +224,7 @@ public class ScriptCommands : IScriptCommands
             return result;
         }
 
-        ExcelSession.Execute(filePath, false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -294,7 +232,7 @@ public class ScriptCommands : IScriptCommands
             dynamic? codeModule = null;
             try
             {
-                vbaProject = workbook.VBProject;
+                vbaProject = ctx.Book.VBProject;
                 vbComponents = vbaProject.VBComponents;
 
                 // Find the specified module
@@ -356,7 +294,7 @@ public class ScriptCommands : IScriptCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Module '{moduleName}' not found in workbook";
-                    return 1;
+                    return result;
                 }
 
                 result.Success = true;
@@ -369,20 +307,20 @@ public class ScriptCommands : IScriptCommands
                 };
                 result.WorkflowHint = "VBA code viewed. Next, update or run procedures.";
 
-                return 0;
+                return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))
             {
                 result.Success = false;
                 result.ErrorMessage = "VBA trust access is not enabled";
-                return 1;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error viewing script: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
@@ -392,8 +330,6 @@ public class ScriptCommands : IScriptCommands
                 ComUtilities.Release(ref vbaProject);
             }
         });
-
-        return result;
     }
 
     private static string ExtractProcedureName(string codeLine)
@@ -413,20 +349,13 @@ public class ScriptCommands : IScriptCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> Export(string filePath, string moduleName, string outputFile)
+    public async Task<OperationResult> ExportAsync(IExcelBatch batch, string moduleName, string outputFile)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "script-export"
         };
-
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
 
         // Validate and normalize the output file path to prevent path traversal attacks
         try
@@ -440,7 +369,7 @@ public class ScriptCommands : IScriptCommands
             return result;
         }
 
-        var (isValid, validationError) = ValidateVbaFile(filePath);
+        var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
             result.Success = false;
@@ -454,7 +383,7 @@ public class ScriptCommands : IScriptCommands
             return CreateVbaTrustGuidance();
         }
 
-        ExcelSession.Execute(filePath, false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -462,7 +391,7 @@ public class ScriptCommands : IScriptCommands
             dynamic? codeModule = null;
             try
             {
-                vbaProject = workbook.VBProject;
+                vbaProject = ctx.Book.VBProject;
                 vbComponents = vbaProject.VBComponents;
 
                 for (int i = 1; i <= vbComponents.Count; i++)
@@ -491,7 +420,7 @@ public class ScriptCommands : IScriptCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Script module '{moduleName}' not found";
-                    return 1;
+                    return result;
                 }
 
                 codeModule = targetComponent.CodeModule;
@@ -501,14 +430,14 @@ public class ScriptCommands : IScriptCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Module '{moduleName}' is empty";
-                    return 1;
+                    return result;
                 }
 
                 string code = codeModule.Lines[1, lineCount];
-                File.WriteAllText(outputFile, code);
+                await File.WriteAllTextAsync(outputFile, code, ct);
 
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))
@@ -516,13 +445,13 @@ public class ScriptCommands : IScriptCommands
                 // Trust was disabled during operation
                 result.Success = false;
                 result.ErrorMessage = "VBA trust access is not enabled";
-                return 1;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error exporting script: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
@@ -532,25 +461,16 @@ public class ScriptCommands : IScriptCommands
                 ComUtilities.Release(ref vbaProject);
             }
         });
-
-        return await Task.FromResult(result);
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> Import(string filePath, string moduleName, string vbaFile)
+    public async Task<OperationResult> ImportAsync(IExcelBatch batch, string moduleName, string vbaFile)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "script-import"
         };
-
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
 
         // Validate and normalize the VBA file path to prevent path traversal attacks
         try
@@ -564,7 +484,7 @@ public class ScriptCommands : IScriptCommands
             return result;
         }
 
-        var (isValid, validationError) = ValidateVbaFile(filePath);
+        var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
             result.Success = false;
@@ -580,7 +500,7 @@ public class ScriptCommands : IScriptCommands
 
         string vbaCode = await File.ReadAllTextAsync(vbaFile);
 
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -588,7 +508,7 @@ public class ScriptCommands : IScriptCommands
             dynamic? codeModule = null;
             try
             {
-                vbaProject = workbook.VBProject;
+                vbaProject = ctx.Book.VBProject;
                 vbComponents = vbaProject.VBComponents;
 
                 // Check if module already exists
@@ -602,7 +522,7 @@ public class ScriptCommands : IScriptCommands
                         {
                             result.Success = false;
                             result.ErrorMessage = $"Module '{moduleName}' already exists. Use script-update to modify it.";
-                            return 1;
+                            return result;
                         }
                     }
                     finally
@@ -619,21 +539,21 @@ public class ScriptCommands : IScriptCommands
                 codeModule.AddFromString(vbaCode);
 
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))
             {
                 // Trust was disabled during operation
                 result = CreateVbaTrustGuidance();
-                result.FilePath = filePath;
-                return 1;
+                result.FilePath = batch.WorkbookPath;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error importing script: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
@@ -643,25 +563,16 @@ public class ScriptCommands : IScriptCommands
                 ComUtilities.Release(ref vbaProject);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> Update(string filePath, string moduleName, string vbaFile)
+    public async Task<OperationResult> UpdateAsync(IExcelBatch batch, string moduleName, string vbaFile)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "script-update"
         };
-
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
 
         // Validate and normalize the VBA file path to prevent path traversal attacks
         try
@@ -675,7 +586,7 @@ public class ScriptCommands : IScriptCommands
             return result;
         }
 
-        var (isValid, validationError) = ValidateVbaFile(filePath);
+        var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
             result.Success = false;
@@ -691,7 +602,7 @@ public class ScriptCommands : IScriptCommands
 
         string vbaCode = await File.ReadAllTextAsync(vbaFile);
 
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -699,7 +610,7 @@ public class ScriptCommands : IScriptCommands
             dynamic? codeModule = null;
             try
             {
-                vbaProject = workbook.VBProject;
+                vbaProject = ctx.Book.VBProject;
                 vbComponents = vbaProject.VBComponents;
 
                 for (int i = 1; i <= vbComponents.Count; i++)
@@ -728,7 +639,7 @@ public class ScriptCommands : IScriptCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Module '{moduleName}' not found. Use script-import to create it.";
-                    return 1;
+                    return result;
                 }
 
                 codeModule = targetComponent.CodeModule;
@@ -742,21 +653,21 @@ public class ScriptCommands : IScriptCommands
                 codeModule.AddFromString(vbaCode);
 
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))
             {
                 // Trust was disabled during operation
                 result = CreateVbaTrustGuidance();
-                result.FilePath = filePath;
-                return 1;
+                result.FilePath = batch.WorkbookPath;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error updating script: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
@@ -766,27 +677,18 @@ public class ScriptCommands : IScriptCommands
                 ComUtilities.Release(ref vbaProject);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public OperationResult Run(string filePath, string procedureName, params string[] parameters)
+    public async Task<OperationResult> RunAsync(IExcelBatch batch, string procedureName, params string[] parameters)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "script-run"
         };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        var (isValid, validationError) = ValidateVbaFile(filePath);
+        var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
             result.Success = false;
@@ -800,59 +702,50 @@ public class ScriptCommands : IScriptCommands
             return CreateVbaTrustGuidance();
         }
 
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
                 if (parameters.Length == 0)
                 {
-                    excel.Run(procedureName);
+                    ctx.App.Run(procedureName);
                 }
                 else
                 {
                     object[] paramObjects = parameters.Cast<object>().ToArray();
-                    excel.Run(procedureName, paramObjects);
+                    ctx.App.Run(procedureName, paramObjects);
                 }
 
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))
             {
                 // Trust was disabled during operation
                 result = CreateVbaTrustGuidance();
-                result.FilePath = filePath;
-                return 1;
+                result.FilePath = batch.WorkbookPath;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error running procedure '{procedureName}': {ex.Message}";
-                return 1;
+                return result;
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public OperationResult Delete(string filePath, string moduleName)
+    public async Task<OperationResult> DeleteAsync(IExcelBatch batch, string moduleName)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "script-delete"
         };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        var (isValid, validationError) = ValidateVbaFile(filePath);
+        var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
             result.Success = false;
@@ -866,14 +759,14 @@ public class ScriptCommands : IScriptCommands
             return CreateVbaTrustGuidance();
         }
 
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
             dynamic? targetComponent = null;
             try
             {
-                vbaProject = workbook.VBProject;
+                vbaProject = ctx.Book.VBProject;
                 vbComponents = vbaProject.VBComponents;
 
                 for (int i = 1; i <= vbComponents.Count; i++)
@@ -902,27 +795,27 @@ public class ScriptCommands : IScriptCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Module '{moduleName}' not found";
-                    return 1;
+                    return result;
                 }
 
                 vbComponents.Remove(targetComponent);
 
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))
             {
                 // Trust was disabled during operation
                 result = CreateVbaTrustGuidance();
-                result.FilePath = filePath;
-                return 1;
+                result.FilePath = batch.WorkbookPath;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error deleting module: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
@@ -931,7 +824,5 @@ public class ScriptCommands : IScriptCommands
                 ComUtilities.Release(ref vbaProject);
             }
         });
-
-        return result;
     }
 }

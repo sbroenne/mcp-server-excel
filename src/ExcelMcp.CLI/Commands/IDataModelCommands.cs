@@ -27,7 +27,7 @@ public interface IDataModelCommands
     /// Exports a DAX measure to a file
     /// Usage: dm-export-measure <file.xlsx> <measure-name> <output.dax>
     /// </summary>
-    Task<int> ExportMeasure(string[] args);
+    int ExportMeasure(string[] args);
 
     /// <summary>
     /// Lists all relationships in the Data Model

@@ -28,20 +28,57 @@ public static class ExcelToolsBase
     };
 
     /// <summary>
-    /// Executes an action with Excel, using pooled instance if available for better performance.
-    /// This method provides automatic fallback to single-instance pattern if pooling is not enabled.
-    ///
-    /// Performance: Pooled instances reduce Excel startup overhead from ~2-5 seconds to near-instantaneous
-    /// for cached workbooks in conversational MCP workflows.
+    /// Executes an async Core command with batch session management.
+    /// If batchId is provided, uses existing batch session. Otherwise, creates batch-of-one.
+    /// 
+    /// This is the standard pattern for all MCP tools to support both:
+    /// - LLM-controlled batch sessions (pass batchId for multi-operation workflows)
+    /// - Single operations (no batchId = automatic batch-of-one for backward compat)
     /// </summary>
-    /// <typeparam name="T">Return type of the action</typeparam>
-    /// <param name="filePath">Path to the Excel file</param>
-    /// <param name="save">Whether to save changes to the file</param>
-    /// <param name="action">Action to execute with Excel application and workbook</param>
-    /// <returns>Result of the action</returns>
-    public static T WithExcel<T>(string filePath, bool save, Func<dynamic, dynamic, T> action)
+    /// <typeparam name="T">Return type of the command</typeparam>
+    /// <param name="batchId">Optional batch session ID from begin_excel_batch</param>
+    /// <param name="filePath">Path to the Excel file (required if no batchId)</param>
+    /// <param name="save">Whether to save changes (only used for batch-of-one)</param>
+    /// <param name="action">Async action that takes IExcelBatch and returns Task&lt;T&gt;</param>
+    /// <returns>Result of the command</returns>
+    public static async Task<T> WithBatchAsync<T>(
+        string? batchId,
+        string filePath,
+        bool save,
+        Func<IExcelBatch, Task<T>> action)
     {
-        return ExcelToolsPoolManager.WithExcel(filePath, save, action);
+        if (!string.IsNullOrEmpty(batchId))
+        {
+            // Use existing batch session (LLM-controlled lifecycle)
+            var batch = BatchSessionTool.GetBatch(batchId);
+            if (batch == null)
+            {
+                throw new ModelContextProtocol.McpException(
+                    $"Batch session '{batchId}' not found. It may have already been committed or never existed.");
+            }
+            
+            // Verify file path matches batch
+            if (!string.Equals(batch.WorkbookPath, Path.GetFullPath(filePath), StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ModelContextProtocol.McpException(
+                    $"File path mismatch. Batch session is for '{batch.WorkbookPath}' but operation requested '{filePath}'.");
+            }
+            
+            return await action(batch);
+        }
+        else
+        {
+            // Batch-of-one (backward compatibility for single operations)
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await action(batch);
+            
+            if (save)
+            {
+                await batch.SaveAsync();
+            }
+            
+            return result;
+        }
     }
 
     /// <summary>
@@ -74,7 +111,6 @@ public static class ExcelToolsBase
     /// Wraps exceptions in MCP exceptions for better error reporting.
     /// SDK Pattern: Wrap business logic exceptions in McpException with context.
     /// LLM-Optimized: Include full exception details including stack trace context for debugging.
-    /// Special handling for ExcelPoolCapacityException to provide actionable guidance.
     /// </summary>
     /// <param name="ex">The exception that occurred</param>
     /// <param name="action">The action that was being attempted</param>
@@ -82,18 +118,6 @@ public static class ExcelToolsBase
     /// <exception cref="McpException">Always throws with contextual error message</exception>
     public static void ThrowInternalError(Exception ex, string action, string? filePath = null)
     {
-        // Special handling for pool capacity exception - provide LLM with actionable guidance
-        if (ex is ExcelPoolCapacityException poolEx)
-        {
-            var message = $"{action} failed: Excel instance pool is at maximum capacity " +
-                         $"({poolEx.ActiveInstances}/{poolEx.MaxInstances} instances active). " +
-                         $"Idle instances are automatically cleaned up after {poolEx.IdleTimeout.TotalSeconds:F0} seconds. " +
-                         $"\n\nSUGGESTED ACTIONS:\n" +
-                         string.Join("\n", poolEx.SuggestedActions.Select((a, i) => $"{i + 1}. {a}"));
-
-            throw new McpException(message, ex);
-        }
-
         // Build comprehensive error message for LLM debugging
         var errorMessage = filePath != null
             ? $"{action} failed for '{filePath}': {ex.Message}"

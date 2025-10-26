@@ -1,87 +1,159 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
+using Sbroenne.ExcelMcp.Core.ComInterop;
 
 namespace Sbroenne.ExcelMcp.Core.Session;
 
 /// <summary>
-/// Manages Excel COM automation sessions with automatic pooling for performance.
-/// Pool is a private implementation detail - callers just use Execute() and get automatic optimization.
+/// Main entry point for Excel COM interop operations using async/await pattern.
+/// Provides single-instance execution for atomic operations and batch mode for workflows.
 /// </summary>
 public static class ExcelSession
 {
-    // Private pool - automatic optimization, no configuration needed
-    private static readonly Lazy<ExcelInstancePool> _defaultPool = new(() =>
-        new ExcelInstancePool(
-            idleTimeout: TimeSpan.FromSeconds(60),
-            maxInstances: 10
-        )
-    );
+    static ExcelSession()
+    {
+        // OleMessageFilter registration removed - not essential for this version
+        // Can be re-added later if needed for better COM error handling
+    }
 
     /// <summary>
-    /// Executes an action with an Excel workbook using automatic pooling for performance.
-    /// Pool is managed internally - callers don't need to configure or manage it.
+    /// Executes an async operation on an Excel workbook.
+    /// Opens Excel, executes one operation, optionally saves, then closes immediately.
     /// </summary>
-    /// <typeparam name="T">Return type of the action</typeparam>
+    /// <typeparam name="T">Return type of the operation</typeparam>
     /// <param name="filePath">Path to the Excel file</param>
     /// <param name="save">Whether to save changes to the file</param>
-    /// <param name="action">Action to execute with Excel application and workbook</param>
-    /// <returns>Result of the action</returns>
-    [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
-    public static T Execute<T>(string filePath, bool save, Func<dynamic, dynamic, T> action)
+    /// <param name="operation">Async operation to execute with ExcelContext</param>
+    /// <param name="timeout">Optional timeout for the operation (ignored for now, reserved for future use)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Result of the operation</returns>
+    /// <remarks>
+    /// This is the standard method for CLI atomic operations and single MCP operations.
+    /// For multiple operations on the same workbook, use BeginBatchAsync() instead.
+    /// </remarks>
+    public static async Task<T> ExecuteAsync<T>(
+        string filePath,
+        bool save,
+        Func<ExcelContext, CancellationToken, ValueTask<T>> operation,
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default)
     {
-        try
+        // Validate file exists
+        if (!File.Exists(filePath))
         {
-            return _defaultPool.Value.WithPooledExcel(filePath, save, action);
+            throw new FileNotFoundException($"Excel file not found: {filePath}", filePath);
         }
-        catch (ObjectDisposedException)
-        {
-            // Pool was disposed (shouldn't happen in production) - fall back to single instance
-            return ExecuteSingleInstance(filePath, save, action);
-        }
+
+        return await ExecuteSingleInstanceAsync(filePath, save, operation, timeout, cancellationToken);
     }
 
     /// <summary>
-    /// Creates a new Excel workbook and executes an action.
+    /// Begins a batch of Excel operations against a single workbook instance.
+    /// The Excel instance remains open until the batch is disposed, enabling multiple operations
+    /// without incurring Excel startup/shutdown overhead.
     /// </summary>
-    /// <typeparam name="T">Return type of the action</typeparam>
-    /// <param name="filePath">Path where to save the new Excel file</param>
-    /// <param name="isMacroEnabled">Whether to create a macro-enabled workbook (.xlsm)</param>
-    /// <param name="action">Action to execute with Excel application and new workbook</param>
-    /// <returns>Result of the action</returns>
+    /// <param name="filePath">Path to the Excel file</param>
+    /// <param name="cancellationToken">Optional cancellation token</param>
+    /// <returns>IExcelBatch for executing multiple operations</returns>
+    /// <remarks>
+    /// Use this for MCP Server multi-operation workflows where you need to execute multiple
+    /// commands against the same workbook efficiently. For single operations (CLI, standalone
+    /// MCP operations), use ExecuteAsync() instead.
+    ///
+    /// <para><b>Example:</b></para>
+    /// <code>
+    /// await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+    ///
+    /// // Operation 1
+    /// await batch.ExecuteAsync(async (ctx, ct) => {
+    ///     ctx.Book.Worksheets.Add("Sales");
+    ///     return 0;
+    /// });
+    ///
+    /// // Operation 2
+    /// await batch.ExecuteAsync(async (ctx, ct) => {
+    ///     ctx.Book.Worksheets.Add("Expenses");
+    ///     return 0;
+    /// });
+    ///
+    /// // Explicit save
+    /// await batch.SaveAsync();
+    ///
+    /// // Dispose closes workbook and quits Excel
+    /// </code>
+    /// </remarks>
     [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
-    public static T CreateNew<T>(string filePath, bool isMacroEnabled, Func<dynamic, dynamic, T> action)
+    public static async Task<IExcelBatch> BeginBatchAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
     {
-        dynamic? excel = null;
-        dynamic? workbook = null;
-        string operation = $"CreateNew({Path.GetFileName(filePath)}, macroEnabled={isMacroEnabled})";
+        string fullPath = Path.GetFullPath(filePath);
 
-        try
+        // Validate file exists
+        if (!File.Exists(fullPath))
         {
-            // Validate file path first - prevent path traversal attacks
-            string fullPath = Path.GetFullPath(filePath);
+            throw new FileNotFoundException($"Excel file not found: {fullPath}", fullPath);
+        }
 
-            // Validate file size limits for security (prevent DoS)
-            string? directory = Path.GetDirectoryName(fullPath);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
+        // Security: Validate file extension
+        string extension = Path.GetExtension(fullPath).ToLowerInvariant();
+        if (extension is not (".xlsx" or ".xlsm" or ".xls"))
+        {
+            throw new ArgumentException($"Invalid file extension '{extension}'. Only Excel files (.xlsx, .xlsm, .xls) are supported.");
+        }
 
-            // Get Excel COM type
+        // Create batch - it will create Excel/workbook on its own STA thread
+        return await Task.FromResult<IExcelBatch>(new ExcelBatch(fullPath));
+    }
+
+    /// <summary>
+    /// Executes operation using a single Excel instance (atomic operation pattern).
+    /// Opens Excel, executes one operation, optionally saves, then closes and quits.
+    /// CRITICAL: All COM operations execute on a dedicated STA thread with OLE message filter.
+    /// </summary>
+    private static async Task<T> ExecuteSingleInstanceAsync<T>(
+        string filePath,
+        bool save,
+        Func<ExcelContext, CancellationToken, ValueTask<T>> operation,
+        TimeSpan? timeout,
+        CancellationToken cancellationToken)
+    {
+        string fullPath = Path.GetFullPath(filePath);
+
+        // Validate file exists
+        if (!File.Exists(fullPath))
+        {
+            throw new FileNotFoundException($"Excel file not found: {fullPath}", fullPath);
+        }
+
+        // Security: Validate file extension
+        string extension = Path.GetExtension(fullPath).ToLowerInvariant();
+        if (extension is not (".xlsx" or ".xlsm" or ".xls"))
+        {
+            throw new ArgumentException($"Invalid file extension '{extension}'. Only Excel files (.xlsx, .xlsm, .xls) are supported.");
+        }
+
+        // CRITICAL: Execute all COM operations on STA thread with OLE message filter
+        return await ExcelStaExecutor.ExecuteOnStaThreadAsync(async () =>
+        {
+            dynamic? excel = null;
+            dynamic? workbook = null;
+
+            try
+        {
             var excelType = Type.GetTypeFromProgID("Excel.Application");
             if (excelType == null)
             {
-                throw new InvalidOperationException("Excel is not installed or not properly registered. " +
-                    "Please verify Microsoft Excel is installed and COM registration is intact.");
+                throw new InvalidOperationException("Excel is not installed or not properly registered.");
             }
 
-#pragma warning disable IL2072 // COM interop is not AOT compatible but is required for Excel automation
+#pragma warning disable IL2072
             excel = Activator.CreateInstance(excelType);
 #pragma warning restore IL2072
+
             if (excel == null)
             {
-                throw new InvalidOperationException("Failed to create Excel COM instance. " +
-                    "Excel may be corrupted or COM subsystem unavailable.");
+                throw new InvalidOperationException("Failed to create Excel COM instance.");
             }
 
             // Configure Excel for automation
@@ -90,160 +162,7 @@ public static class ExcelSession
             excel.ScreenUpdating = false;
             excel.Interactive = false;
 
-            // Create new workbook
-            workbook = excel.Workbooks.Add();
-
-            // Execute the user action
-            var result = action(excel, workbook);
-
-            // Save the workbook with appropriate format
-            if (isMacroEnabled)
-            {
-                // Save as macro-enabled workbook (format 52)
-                workbook.SaveAs(fullPath, 52);
-            }
-            else
-            {
-                // Save as regular workbook (format 51)
-                workbook.SaveAs(fullPath, 51);
-            }
-
-            return result;
-        }
-        catch (COMException comEx)
-        {
-            throw new InvalidOperationException($"Excel COM operation failed during {operation}: {comEx.Message}", comEx);
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException($"Operation failed during {operation}: {ex.Message}", ex);
-        }
-        finally
-        {
-            // Enhanced COM cleanup to prevent process leaks
-
-            // Close workbook first
-            if (workbook != null)
-            {
-                try
-                {
-                    workbook.Close(false); // Don't save again, we already saved
-                }
-                catch (COMException)
-                {
-                    // Workbook might already be closed, ignore
-                }
-                catch
-                {
-                    // Any other exception during close, ignore to continue cleanup
-                }
-
-                try
-                {
-                    Marshal.ReleaseComObject(workbook);
-                }
-                catch
-                {
-                    // Release might fail, but continue cleanup
-                }
-
-                workbook = null;
-            }
-
-            // Quit Excel application
-            if (excel != null)
-            {
-                try
-                {
-                    excel.Quit();
-                }
-                catch (COMException)
-                {
-                    // Excel might already be closing, ignore
-                }
-                catch
-                {
-                    // Any other exception during quit, ignore to continue cleanup
-                }
-
-                try
-                {
-                    Marshal.ReleaseComObject(excel);
-                }
-                catch
-                {
-                    // Release might fail, but continue cleanup
-                }
-
-                excel = null;
-            }
-
-            // Recommended COM cleanup pattern:
-            // Two GC cycles are sufficient - one to collect, one to finalize
-            // Microsoft recommends against excessive GC.Collect() calls
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect(); // Final collect to clean up objects queued during finalization
-        }
-    }
-
-    /// <summary>
-    /// Single-instance Excel execution pattern - creates new Excel instance for each operation.
-    /// Internal for testing only - allows pool tests to bypass pooling to test pool behavior in isolation.
-    /// </summary>
-    [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
-    internal static T ExecuteSingleInstance<T>(string filePath, bool save, Func<dynamic, dynamic, T> action)
-    {
-        dynamic? excel = null;
-        dynamic? workbook = null;
-        string operation = $"ExecuteSingleInstance({Path.GetFileName(filePath)}, save={save})";
-
-        try
-        {
-            // Validate file path first - prevent path traversal attacks
-            string fullPath = Path.GetFullPath(filePath);
-
-            // Additional security: ensure the file is within reasonable bounds
-            if (fullPath.Length > 32767)
-            {
-                throw new ArgumentException($"File path too long: {fullPath.Length} characters (Windows limit: 32767)");
-            }
-
-            // Security: Validate file extension to prevent executing arbitrary files
-            string extension = Path.GetExtension(fullPath).ToLowerInvariant();
-            if (extension is not (".xlsx" or ".xlsm" or ".xls"))
-            {
-                throw new ArgumentException($"Invalid file extension '{extension}'. Only Excel files (.xlsx, .xlsm, .xls) are supported.");
-            }
-
-            if (!File.Exists(fullPath))
-            {
-                throw new FileNotFoundException($"Excel file not found: {fullPath}", fullPath);
-            }
-
-            var excelType = Type.GetTypeFromProgID("Excel.Application");
-            if (excelType == null)
-            {
-                throw new InvalidOperationException("Excel is not installed or not properly registered. " +
-                    "Please verify Microsoft Excel is installed and COM registration is intact.");
-            }
-
-#pragma warning disable IL2072 // COM interop is not AOT compatible but is required for Excel automation
-            excel = Activator.CreateInstance(excelType);
-#pragma warning restore IL2072
-            if (excel == null)
-            {
-                throw new InvalidOperationException("Failed to create Excel COM instance. " +
-                    "Excel may be corrupted or COM subsystem unavailable.");
-            }
-
-            // Configure Excel for automation
-            excel.Visible = false;
-            excel.DisplayAlerts = false;
-            excel.ScreenUpdating = false;
-            excel.Interactive = false;
-
-            // Open workbook with detailed error context
+            // Open workbook
             try
             {
                 workbook = excel.Workbooks.Open(fullPath);
@@ -261,71 +180,45 @@ public static class ExcelSession
                     $"File '{Path.GetFileName(fullPath)}' is locked by another process. " +
                     "Close Excel and any other applications using this file.", comEx);
             }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException(
-                    $"Failed to open workbook '{Path.GetFileName(fullPath)}'. " +
-                    "File may be corrupted, password-protected, or incompatible.", ex);
-            }
 
             if (workbook == null)
             {
                 throw new InvalidOperationException($"Failed to open workbook: {Path.GetFileName(fullPath)}");
             }
 
-            // Execute the user action with error context and retry logic for transient errors
-            T result;
-            int retryCount = 0;
-            const int maxRetries = 3;
-
-            while (true)
-            {
-                try
-                {
-                    result = action(excel, workbook);
-                    break; // Success - exit retry loop
-                }
-                catch (COMException comEx) when (comEx.HResult == unchecked((int)0x8001010A) && retryCount < maxRetries)
-                {
-                    // Excel is busy (RPC_E_SERVERCALL_RETRYLATER)
-                    // This can happen during parallel operations or when Excel is processing
-                    retryCount++;
-                    System.Threading.Thread.Sleep(500 * retryCount); // Exponential backoff: 500ms, 1s, 1.5s
-
-                    if (retryCount >= maxRetries)
-                    {
-                        throw new InvalidOperationException(
-                            "Excel is busy. Please close any dialogs and try again.", comEx);
-                    }
-                    // Continue retry loop
-                }
-                catch
-                {
-                    // Propagate all other exceptions with original context
-                    throw;
-                }
-            }
+            // Execute operation with context
+            var context = new ExcelContext(fullPath, excel, workbook);
+            var result = await operation(context, cancellationToken);
 
             // Save if requested
-            if (save && workbook != null)
+            if (save)
             {
                 try
                 {
                     workbook.Save();
                 }
-                catch
+                catch (COMException ex)
                 {
-                    // Propagate save exceptions
-                    throw;
+                    // Common error codes:
+                    // 0x800A03EC = VBA Error 1004 (general save error, often "read-only")
+                    // 0x800AC472 = The file is locked for editing
+
+                    if (ex.Message.Contains("read-only") ||
+                        ex.HResult == unchecked((int)0x800A03EC) ||
+                        ex.HResult == unchecked((int)0x800AC472))
+                    {
+                        // Try SaveAs as a workaround
+                        int fileFormat = extension == ".xlsm" ? 52 : 51;
+                        workbook.SaveAs(fullPath, fileFormat);
+                    }
+                    else
+                    {
+                        throw;
+                    }
                 }
             }
 
             return result;
-        }
-        catch
-        {
-            // Propagate exceptions to caller
-            throw;
         }
         finally
         {
@@ -336,20 +229,16 @@ public static class ExcelSession
             {
                 try
                 {
-                    workbook.Close(save);
-                }
-                catch (COMException)
-                {
-                    // Workbook might already be closed, ignore
+                    workbook.Close(false); // Don't save on close - save was explicit above
                 }
                 catch
                 {
-                    // Any other exception during close, ignore to continue cleanup
+                    // Workbook might already be closed, ignore to continue cleanup
                 }
 
                 try
                 {
-                    Marshal.ReleaseComObject(workbook);
+                    Marshal.FinalReleaseComObject(workbook);
                 }
                 catch
                 {
@@ -366,18 +255,14 @@ public static class ExcelSession
                 {
                     excel.Quit();
                 }
-                catch (COMException)
-                {
-                    // Excel might already be closing, ignore
-                }
                 catch
                 {
-                    // Any other exception during quit, ignore to continue cleanup
+                    // Excel might already be closing, ignore to continue cleanup
                 }
 
                 try
                 {
-                    Marshal.ReleaseComObject(excel);
+                    Marshal.FinalReleaseComObject(excel);
                 }
                 catch
                 {
@@ -389,10 +274,100 @@ public static class ExcelSession
 
             // Recommended COM cleanup pattern:
             // Two GC cycles are sufficient - one to collect, one to finalize
-            // Microsoft recommends against excessive GC.Collect() calls
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect(); // Final collect to clean up objects queued during finalization
+            }
+        }, cancellationToken); // Close ExcelStaExecutor.ExecuteOnStaThreadAsync
+    }
+
+    /// <summary>
+    /// Creates a new Excel workbook and executes an async operation.
+    /// </summary>
+    /// <typeparam name="T">Return type of the operation</typeparam>
+    /// <param name="filePath">Path where to save the new Excel file</param>
+    /// <param name="isMacroEnabled">Whether to create a macro-enabled workbook (.xlsm)</param>
+    /// <param name="operation">Async operation to execute with ExcelContext</param>
+    /// <param name="timeout">Optional timeout for the operation (ignored for now, reserved for future use)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Result of the operation</returns>
+    [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
+    public static async Task<T> CreateNewAsync<T>(
+        string filePath,
+        bool isMacroEnabled,
+        Func<ExcelContext, CancellationToken, ValueTask<T>> operation,
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default)
+    {
+        string fullPath = Path.GetFullPath(filePath);
+        string? directory = Path.GetDirectoryName(fullPath);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
         }
+
+        // CRITICAL: Execute all COM operations on STA thread with OLE message filter
+        return await ExcelStaExecutor.ExecuteOnStaThreadAsync(async () =>
+        {
+            dynamic? excel = null;
+            dynamic? workbook = null;
+
+            try
+            {
+                var excelType = Type.GetTypeFromProgID("Excel.Application");
+                if (excelType == null)
+                {
+                    throw new InvalidOperationException("Excel is not installed or not properly registered.");
+                }
+
+#pragma warning disable IL2072
+                excel = Activator.CreateInstance(excelType);
+#pragma warning restore IL2072
+
+                if (excel == null)
+                {
+                    throw new InvalidOperationException("Failed to create Excel COM instance.");
+                }
+
+                excel.Visible = false;
+                excel.DisplayAlerts = false;
+                excel.ScreenUpdating = false;
+                excel.Interactive = false;
+
+                workbook = excel.Workbooks.Add();
+
+                var context = new ExcelContext(fullPath, excel, workbook);
+                var result = await operation(context, cancellationToken);
+
+                if (isMacroEnabled)
+                {
+                    workbook.SaveAs(fullPath, 52);
+                }
+                else
+                {
+                    workbook.SaveAs(fullPath, 51);
+                }
+
+                return result;
+            }
+            finally
+            {
+                if (workbook != null)
+                {
+                    try { workbook.Close(false); } catch { }
+                    try { Marshal.FinalReleaseComObject(workbook); } catch { }
+                }
+
+                if (excel != null)
+                {
+                    try { excel.Quit(); } catch { }
+                    try { Marshal.FinalReleaseComObject(excel); } catch { }
+                }
+
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+            }
+        }, cancellationToken); // Close ExcelStaExecutor.ExecuteOnStaThreadAsync
     }
 }

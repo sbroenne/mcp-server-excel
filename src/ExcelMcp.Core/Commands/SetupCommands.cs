@@ -3,6 +3,8 @@ using Sbroenne.ExcelMcp.Core.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Session;
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
+
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
@@ -139,73 +141,36 @@ public class SetupCommands : ISetupCommands
     }
 
     /// <inheritdoc />
-    public VbaTrustResult CheckVbaTrust(string testFilePath)
+    public async Task<VbaTrustResult> CheckVbaTrustAsync(IExcelBatch batch)
     {
-        if (string.IsNullOrEmpty(testFilePath))
-        {
-            return new VbaTrustResult
-            {
-                Success = false,
-                IsTrusted = false,
-                ErrorMessage = "Test file path is required",
-                FilePath = testFilePath
-            };
-        }
+        var result = new VbaTrustResult { FilePath = batch.WorkbookPath };
 
-        if (!File.Exists(testFilePath))
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
-            return new VbaTrustResult
+            dynamic? vbProject = null;
+            dynamic? vbComponents = null;
+            try
             {
-                Success = false,
-                IsTrusted = false,
-                ErrorMessage = $"Test file not found: {testFilePath}",
-                FilePath = testFilePath
-            };
-        }
-
-        try
-        {
-            var result = new VbaTrustResult { FilePath = testFilePath };
-
-            int exitCode = ExcelSession.Execute(testFilePath, false, (excel, workbook) =>
+                vbProject = ctx.Book.VBProject;
+                vbComponents = vbProject.VBComponents;
+                result.ComponentCount = vbComponents.Count;
+                result.IsTrusted = true;
+                result.Success = true;
+                return result;
+            }
+            catch (Exception ex)
             {
-                dynamic? vbProject = null;
-                dynamic? vbComponents = null;
-                try
-                {
-                    vbProject = workbook.VBProject;
-                    vbComponents = vbProject.VBComponents;
-                    result.ComponentCount = vbComponents.Count;
-                    result.IsTrusted = true;
-                    result.Success = true;
-                    return 0;
-                }
-                catch (Exception ex)
-                {
-                    result.IsTrusted = false;
-                    result.Success = false;
-                    result.ErrorMessage = ex.Message;
-                    result.ManualInstructions = "Run 'setup-vba-trust' or manually: File → Options → Trust Center → Trust Center Settings → Macro Settings\nCheck 'Trust access to the VBA project object model'";
-                    return 1;
-                }
-                finally
-                {
-                    ComUtilities.Release(ref vbComponents);
-                    ComUtilities.Release(ref vbProject);
-                }
-            });
-
-            return result;
-        }
-        catch (Exception ex)
-        {
-            return new VbaTrustResult
+                result.IsTrusted = false;
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
+                result.ManualInstructions = "Run 'setup-vba-trust' or manually: File → Options → Trust Center → Trust Center Settings → Macro Settings\nCheck 'Trust access to the VBA project object model'";
+                return result;
+            }
+            finally
             {
-                Success = false,
-                IsTrusted = false,
-                ErrorMessage = $"Error testing VBA access: {ex.Message}",
-                FilePath = testFilePath
-            };
-        }
+                ComUtilities.Release(ref vbComponents);
+                ComUtilities.Release(ref vbProject);
+            }
+        });
     }
 }

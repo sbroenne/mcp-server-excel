@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -10,30 +11,30 @@ public interface IParameterCommands
     /// <summary>
     /// Lists all named ranges in the workbook
     /// </summary>
-    ParameterListResult List(string filePath);
+    Task<ParameterListResult> ListAsync(IExcelBatch batch);
 
     /// <summary>
     /// Sets the value of a named range
     /// </summary>
-    OperationResult Set(string filePath, string paramName, string value);
+    Task<OperationResult> SetAsync(IExcelBatch batch, string paramName, string value);
 
     /// <summary>
     /// Gets the value of a named range
     /// </summary>
-    ParameterValueResult Get(string filePath, string paramName);
+    Task<ParameterValueResult> GetAsync(IExcelBatch batch, string paramName);
 
     /// <summary>
     /// Updates a named range reference
     /// </summary>
-    OperationResult Update(string filePath, string paramName, string reference);
+    Task<OperationResult> UpdateAsync(IExcelBatch batch, string paramName, string reference);
 
     /// <summary>
     /// Creates a new named range
     /// </summary>
-    OperationResult Create(string filePath, string paramName, string reference);
+    Task<OperationResult> CreateAsync(IExcelBatch batch, string paramName, string reference);
 
     /// <summary>
     /// Deletes a named range
     /// </summary>
-    OperationResult Delete(string filePath, string paramName);
+    Task<OperationResult> DeleteAsync(IExcelBatch batch, string paramName);
 }

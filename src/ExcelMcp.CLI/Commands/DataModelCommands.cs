@@ -1,4 +1,5 @@
 using Spectre.Console;
+using Sbroenne.ExcelMcp.Core.Session;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -20,7 +21,12 @@ public class DataModelCommands : IDataModelCommands
         var filePath = args[1];
         AnsiConsole.MarkupLine($"[bold]Data Model Tables in:[/] {Path.GetFileName(filePath)}\n");
 
-        var result = _coreCommands.ListTables(filePath);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.ListTablesAsync(batch);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -83,7 +89,12 @@ public class DataModelCommands : IDataModelCommands
         var filePath = args[1];
         AnsiConsole.MarkupLine($"[bold]DAX Measures in:[/] {Path.GetFileName(filePath)}\n");
 
-        var result = _coreCommands.ListMeasures(filePath);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.ListMeasuresAsync(batch);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -150,7 +161,12 @@ public class DataModelCommands : IDataModelCommands
         var filePath = args[1];
         var measureName = args[2];
 
-        var result = _coreCommands.ViewMeasure(filePath, measureName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.ViewMeasureAsync(batch, measureName);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -187,7 +203,7 @@ public class DataModelCommands : IDataModelCommands
         }
     }
 
-    public async Task<int> ExportMeasure(string[] args)
+    public int ExportMeasure(string[] args)
     {
         if (args.Length < 4)
         {
@@ -199,7 +215,12 @@ public class DataModelCommands : IDataModelCommands
         var measureName = args[2];
         var outputPath = args[3];
 
-        var result = await _coreCommands.ExportMeasure(filePath, measureName, outputPath);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.ExportMeasureAsync(batch, measureName, outputPath);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -241,7 +262,12 @@ public class DataModelCommands : IDataModelCommands
         var filePath = args[1];
         AnsiConsole.MarkupLine($"[bold]Data Model Relationships in:[/] {Path.GetFileName(filePath)}\n");
 
-        var result = _coreCommands.ListRelationships(filePath);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.ListRelationshipsAsync(batch);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -321,7 +347,14 @@ public class DataModelCommands : IDataModelCommands
                 System.Threading.Thread.Sleep(100);
             });
 
-        var result = _coreCommands.Refresh(filePath);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.RefreshAsync(batch);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -364,7 +397,14 @@ public class DataModelCommands : IDataModelCommands
 
         AnsiConsole.MarkupLine($"[bold]Deleting measure:[/] {measureName.EscapeMarkup()} from {Path.GetFileName(filePath)}");
 
-        var result = _coreCommands.DeleteMeasure(filePath, measureName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.DeleteMeasureAsync(batch, measureName);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -420,7 +460,14 @@ public class DataModelCommands : IDataModelCommands
 
         AnsiConsole.MarkupLine($"[bold]Deleting relationship:[/] {fromTable.EscapeMarkup()}.{fromColumn.EscapeMarkup()} → {toTable.EscapeMarkup()}.{toColumn.EscapeMarkup()}");
 
-        var result = _coreCommands.DeleteRelationship(filePath, fromTable, fromColumn, toTable, toColumn);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.DeleteRelationshipAsync(batch, fromTable, fromColumn, toTable, toColumn);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {

@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Session;
 using Spectre.Console;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
@@ -89,7 +90,12 @@ public class PowerQueryCommands : IPowerQueryCommands
         string filePath = args[1];
         AnsiConsole.MarkupLine($"[bold]Power Queries in:[/] {Path.GetFileName(filePath)}\n");
 
-        var result = _coreCommands.List(filePath);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.ListAsync(batch);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (!result.Success)
         {
@@ -158,7 +164,12 @@ public class PowerQueryCommands : IPowerQueryCommands
         string filePath = args[1];
         string queryName = args[2];
 
-        var result = _coreCommands.View(filePath, queryName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.ViewAsync(batch, queryName);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (!result.Success)
         {
@@ -209,7 +220,9 @@ public class PowerQueryCommands : IPowerQueryCommands
         string mCodeFile = args[3];
         var privacyLevel = ParsePrivacyLevel(args);
 
-        var result = await _coreCommands.Update(filePath, queryName, mCodeFile, privacyLevel);
+        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+        var result = await _coreCommands.UpdateAsync(batch, queryName, mCodeFile, privacyLevel);
+        await batch.SaveAsync();
 
         // Handle privacy error result
         if (result is PowerQueryPrivacyErrorResult privacyError)
@@ -258,7 +271,8 @@ public class PowerQueryCommands : IPowerQueryCommands
         string queryName = args[2];
         string outputFile = args.Length > 3 ? args[3] : $"{queryName}.pq";
 
-        var result = await _coreCommands.Export(filePath, queryName, outputFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+        var result = await _coreCommands.ExportAsync(batch, queryName, outputFile);
 
         if (!result.Success)
         {
@@ -292,7 +306,9 @@ public class PowerQueryCommands : IPowerQueryCommands
         var privacyLevel = ParsePrivacyLevel(args);
         bool loadToWorksheet = !args.Any(a => a.Equals("--connection-only", StringComparison.OrdinalIgnoreCase));
 
-        var result = await _coreCommands.Import(filePath, queryName, mCodeFile, privacyLevel, loadToWorksheet: loadToWorksheet);
+        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+        var result = await _coreCommands.ImportAsync(batch, queryName, mCodeFile, privacyLevel, loadToWorksheet: loadToWorksheet);
+        await batch.SaveAsync();
 
         // Handle privacy error result
         if (result is PowerQueryPrivacyErrorResult privacyError)
@@ -348,7 +364,14 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         AnsiConsole.MarkupLine($"[bold]Refreshing:[/] [cyan]{queryName}[/]...");
 
-        var result = _coreCommands.Refresh(filePath, queryName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var refreshResult = await _coreCommands.RefreshAsync(batch, queryName);
+            await batch.SaveAsync();
+            return refreshResult;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (!result.Success)
         {
@@ -395,7 +418,12 @@ public class PowerQueryCommands : IPowerQueryCommands
         string filePath = args[1];
         string queryName = args[2];
 
-        var result = _coreCommands.Errors(filePath, queryName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.ErrorsAsync(batch, queryName);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (!result.Success)
         {
@@ -422,7 +450,14 @@ public class PowerQueryCommands : IPowerQueryCommands
         string queryName = args[2];
         string sheetName = args[3];
 
-        var result = _coreCommands.LoadTo(filePath, queryName, sheetName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var loadResult = await _coreCommands.LoadToAsync(batch, queryName, sheetName);
+            await batch.SaveAsync();
+            return loadResult;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (!result.Success)
         {
@@ -452,7 +487,14 @@ public class PowerQueryCommands : IPowerQueryCommands
             return 1;
         }
 
-        var result = _coreCommands.Delete(filePath, queryName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var deleteResult = await _coreCommands.DeleteAsync(batch, queryName);
+            await batch.SaveAsync();
+            return deleteResult;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (!result.Success)
         {
@@ -493,7 +535,12 @@ public class PowerQueryCommands : IPowerQueryCommands
         AnsiConsole.MarkupLine($"[bold]Excel.CurrentWorkbook() sources in:[/] {Path.GetFileName(filePath)}\n");
         AnsiConsole.MarkupLine("[dim]This shows what tables/ranges Power Query can see[/]\n");
 
-        var result = _coreCommands.Sources(filePath);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.SourcesAsync(batch);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (!result.Success)
         {
@@ -546,7 +593,12 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         AnsiConsole.MarkupLine($"[bold]Testing source:[/] [cyan]{sourceName}[/]\n");
 
-        var result = _coreCommands.Test(filePath, sourceName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.TestAsync(batch, sourceName);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (!result.Success)
         {
@@ -592,7 +644,12 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         AnsiConsole.MarkupLine($"[bold]Preview of:[/] [cyan]{sourceName}[/]\n");
 
-        var result = _coreCommands.Peek(filePath, sourceName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.PeekAsync(batch, sourceName);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (!result.Success)
         {
@@ -643,7 +700,12 @@ public class PowerQueryCommands : IPowerQueryCommands
         AnsiConsole.MarkupLine($"[bold]Evaluating M expression:[/]\n");
         AnsiConsole.MarkupLine($"[dim]{mExpression.EscapeMarkup()}[/]\n");
 
-        var result = _coreCommands.Eval(filePath, mExpression);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.EvalAsync(batch, mExpression);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (!result.Success)
         {
@@ -680,7 +742,14 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Connection Only mode...[/]");
 
-        var result = _coreCommands.SetConnectionOnly(filePath, queryName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.SetConnectionOnlyAsync(batch, queryName);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (!result.Success)
         {
@@ -726,7 +795,14 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Load to Table mode (sheet: {sheetName})...[/]");
 
-        var result = _coreCommands.SetLoadToTable(filePath, queryName, sheetName, privacyLevel);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.SetLoadToTableAsync(batch, queryName, sheetName, privacyLevel);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         // Handle privacy error result
         if (result is PowerQueryPrivacyErrorResult privacyError)
@@ -778,7 +854,14 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Load to Data Model mode...[/]");
 
-        var result = _coreCommands.SetLoadToDataModel(filePath, queryName, privacyLevel);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.SetLoadToDataModelAsync(batch, queryName, privacyLevel);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         // Handle privacy error result
         if (result is PowerQueryPrivacyErrorResult privacyError)
@@ -831,7 +914,14 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Load to Both modes (table + data model, sheet: {sheetName})...[/]");
 
-        var result = _coreCommands.SetLoadToBoth(filePath, queryName, sheetName, privacyLevel);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.SetLoadToBothAsync(batch, queryName, sheetName, privacyLevel);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         // Handle privacy error result
         if (result is PowerQueryPrivacyErrorResult privacyError)
@@ -882,7 +972,12 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         AnsiConsole.MarkupLine($"[bold]Getting load configuration for '{queryName}'...[/]\n");
 
-        var result = _coreCommands.GetLoadConfig(filePath, queryName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.GetLoadConfigAsync(batch, queryName);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (!result.Success)
         {

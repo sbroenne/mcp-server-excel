@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -10,57 +11,57 @@ public interface IConnectionCommands
     /// <summary>
     /// Lists all connections in a workbook
     /// </summary>
-    ConnectionListResult List(string filePath);
+    Task<ConnectionListResult> ListAsync(IExcelBatch batch);
 
     /// <summary>
     /// Views detailed connection information
     /// </summary>
-    ConnectionViewResult View(string filePath, string connectionName);
+    Task<ConnectionViewResult> ViewAsync(IExcelBatch batch, string connectionName);
 
     /// <summary>
     /// Imports connection from JSON file
     /// </summary>
-    OperationResult Import(string filePath, string connectionName, string jsonFilePath);
+    Task<OperationResult> ImportAsync(IExcelBatch batch, string connectionName, string jsonFilePath);
 
     /// <summary>
     /// Exports connection to JSON file
     /// </summary>
-    OperationResult Export(string filePath, string connectionName, string jsonFilePath);
+    Task<OperationResult> ExportAsync(IExcelBatch batch, string connectionName, string jsonFilePath);
 
     /// <summary>
     /// Updates existing connection from JSON file
     /// </summary>
-    OperationResult Update(string filePath, string connectionName, string jsonFilePath);
+    Task<OperationResult> UpdateAsync(IExcelBatch batch, string connectionName, string jsonFilePath);
 
     /// <summary>
     /// Refreshes connection data
     /// </summary>
-    OperationResult Refresh(string filePath, string connectionName);
+    Task<OperationResult> RefreshAsync(IExcelBatch batch, string connectionName);
 
     /// <summary>
     /// Deletes a connection
     /// </summary>
-    OperationResult Delete(string filePath, string connectionName);
+    Task<OperationResult> DeleteAsync(IExcelBatch batch, string connectionName);
 
     /// <summary>
     /// Loads connection data to a worksheet
     /// </summary>
-    OperationResult LoadTo(string filePath, string connectionName, string sheetName);
+    Task<OperationResult> LoadToAsync(IExcelBatch batch, string connectionName, string sheetName);
 
     /// <summary>
     /// Gets connection properties
     /// </summary>
-    ConnectionPropertiesResult GetProperties(string filePath, string connectionName);
+    Task<ConnectionPropertiesResult> GetPropertiesAsync(IExcelBatch batch, string connectionName);
 
     /// <summary>
     /// Sets connection properties
     /// </summary>
-    OperationResult SetProperties(string filePath, string connectionName, 
+    Task<OperationResult> SetPropertiesAsync(IExcelBatch batch, string connectionName, 
         bool? backgroundQuery = null, bool? refreshOnFileOpen = null, 
         bool? savePassword = null, int? refreshPeriod = null);
 
     /// <summary>
     /// Tests connection without refreshing data
     /// </summary>
-    OperationResult Test(string filePath, string connectionName);
+    Task<OperationResult> TestAsync(IExcelBatch batch, string connectionName);
 }

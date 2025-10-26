@@ -6,6 +6,8 @@ using Sbroenne.ExcelMcp.Core.PowerQuery;
 using Sbroenne.ExcelMcp.Core.Security;
 using Sbroenne.ExcelMcp.Core.Session;
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
+
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
@@ -365,23 +367,16 @@ public class PowerQueryCommands : IPowerQueryCommands
     }
 
     /// <inheritdoc />
-    public PowerQueryListResult List(string filePath)
+    public async Task<PowerQueryListResult> ListAsync(IExcelBatch batch)
     {
-        var result = new PowerQueryListResult { FilePath = filePath };
+        var result = new PowerQueryListResult { FilePath = batch.WorkbookPath };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        ExcelSession.Execute(filePath, false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? queriesCollection = null;
             try
             {
-                queriesCollection = workbook.Queries;
+                queriesCollection = ctx.Book.Queries;
                 int count = queriesCollection.Count;
 
                 for (int i = 1; i <= count; i++)
@@ -400,7 +395,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                         dynamic? connections = null;
                         try
                         {
-                            connections = workbook.Connections;
+                            connections = ctx.Book.Connections;
                             for (int c = 1; c <= connections.Count; c++)
                             {
                                 dynamic? conn = null;
@@ -452,55 +447,46 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
 
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error accessing Power Queries: {ex.Message}";
 
-                string extension = Path.GetExtension(filePath).ToLowerInvariant();
+                string extension = Path.GetExtension(batch.WorkbookPath).ToLowerInvariant();
                 if (extension == ".xls")
                 {
                     result.ErrorMessage += " (.xls files don't support Power Query)";
                 }
 
-                return 1;
+                return result;
             }
             finally
             {
                 ComUtilities.Release(ref queriesCollection);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public PowerQueryViewResult View(string filePath, string queryName)
+    public async Task<PowerQueryViewResult> ViewAsync(IExcelBatch batch, string queryName)
     {
         var result = new PowerQueryViewResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             QueryName = queryName
         };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        ExcelSession.Execute(filePath, false, (excel, workbook) =>
+        return await batch.ExecuteAsync<PowerQueryViewResult>(async (ctx, ct) =>
         {
             dynamic? query = null;
             try
             {
-                query = ComUtilities.FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
-                    var queryNames = GetQueryNames(workbook);
+                    var queryNames = GetQueryNames(ctx.Book);
                     string? suggestion = FindClosestMatch(queryName, queryNames);
 
                     result.Success = false;
@@ -509,7 +495,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                     {
                         result.ErrorMessage += $". Did you mean '{suggestion}'?";
                     }
-                    return 1;
+                    return result;
                 }
 
                 string mCode = query.Formula;
@@ -521,7 +507,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                 dynamic? connections = null;
                 try
                 {
-                    connections = workbook.Connections;
+                    connections = ctx.Book.Connections;
                     for (int c = 1; c <= connections.Count; c++)
                     {
                         dynamic? conn = null;
@@ -550,38 +536,29 @@ public class PowerQueryCommands : IPowerQueryCommands
 
                 result.IsConnectionOnly = isConnectionOnly;
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error viewing query: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
                 ComUtilities.Release(ref query);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> Update(string filePath, string queryName, string mCodeFile, PowerQueryPrivacyLevel? privacyLevel = null)
+    public async Task<OperationResult> UpdateAsync(IExcelBatch batch, string queryName, string mCodeFile, PowerQueryPrivacyLevel? privacyLevel = null)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "pq-update"
         };
-
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
 
         // Validate and normalize the M code file path to prevent path traversal attacks
         try
@@ -598,9 +575,9 @@ public class PowerQueryCommands : IPowerQueryCommands
         string mCode = await File.ReadAllTextAsync(mCodeFile);
 
         // STEP 1: Capture current load configuration BEFORE update
-        var loadConfigBefore = GetLoadConfig(filePath, queryName);
+        var loadConfigBefore = await GetLoadConfigAsync(batch, queryName);
 
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -608,13 +585,13 @@ public class PowerQueryCommands : IPowerQueryCommands
                 // Apply privacy level if specified
                 if (privacyLevel.HasValue)
                 {
-                    ApplyPrivacyLevel(workbook, privacyLevel.Value);
+                    ApplyPrivacyLevel(ctx.Book, privacyLevel.Value);
                 }
 
-                query = ComUtilities.FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
-                    var queryNames = GetQueryNames(workbook);
+                    var queryNames = GetQueryNames(ctx.Book);
                     string? suggestion = FindClosestMatch(queryName, queryNames);
 
                     result.Success = false;
@@ -623,126 +600,45 @@ public class PowerQueryCommands : IPowerQueryCommands
                     {
                         result.ErrorMessage += $". Did you mean '{suggestion}'?";
                     }
-                    return 1;
+                    return result;
                 }
 
                 // STEP 2: Update M code
                 query.Formula = mCode;
                 result.Success = true;
 
-                return 0;
+                return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("Information is needed in order to combine data") ||
                                              comEx.Message.Contains("privacy level", StringComparison.OrdinalIgnoreCase))
             {
                 // Privacy error detected - return detailed error result for user consent
-                var privacyError = DetectPrivacyLevelsAndRecommend(workbook, comEx.Message);
-                privacyError.FilePath = filePath;
+                var privacyError = DetectPrivacyLevelsAndRecommend(ctx.Book, comEx.Message);
+                privacyError.FilePath = batch.WorkbookPath;
                 privacyError.Action = "pq-update";
-                result = privacyError;
-                return 1;
+                return privacyError;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error updating query: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
                 ComUtilities.Release(ref query);
             }
         });
-
-        // STEP 3: Restore load configuration AFTER update (if update succeeded)
-        bool configRestored = false;
-        if (result.Success && loadConfigBefore.Success &&
-            loadConfigBefore.LoadMode != PowerQueryLoadMode.ConnectionOnly)
-        {
-            try
-            {
-                switch (loadConfigBefore.LoadMode)
-                {
-                    case PowerQueryLoadMode.LoadToTable:
-                        SetLoadToTable(filePath, queryName, loadConfigBefore.TargetSheet!, privacyLevel);
-                        break;
-                    case PowerQueryLoadMode.LoadToDataModel:
-                        SetLoadToDataModel(filePath, queryName, privacyLevel);
-                        break;
-                    case PowerQueryLoadMode.LoadToBoth:
-                        SetLoadToBoth(filePath, queryName, loadConfigBefore.TargetSheet!, privacyLevel);
-                        break;
-                }
-                configRestored = true;
-            }
-            catch (Exception ex)
-            {
-                // Log warning but don't fail the update
-                result.SuggestedNextActions = new List<string>
-                {
-                    "Query updated but load configuration could not be restored",
-                    $"Original configuration was: {loadConfigBefore.LoadMode}",
-                    "Use 'set-load-to-table' or 'set-load-to-data-model' to reconfigure"
-                };
-                result.WorkflowHint = $"Query updated successfully, but load configuration reset. Error: {ex.Message}";
-                return result;
-            }
-        }
-
-        // STEP 4: Provide guidance based on validation status
-        if (result.Success)
-        {
-            if (configRestored)
-            {
-                // Config restored means query was reloaded and validated via SetLoadToTable/DataModel/Both
-                result.SuggestedNextActions = new List<string>
-                {
-                    "Query updated and reloaded successfully (validated via reload)",
-                    "Data refreshed during load configuration restoration",
-                    "Use 'refresh' explicitly if you need latest data from source",
-                    "Use 'view' to verify M code changes"
-                };
-                result.WorkflowHint = $"Query updated and validated via reload. Load configuration preserved ({loadConfigBefore.LoadMode} to {loadConfigBefore.TargetSheet ?? "Data Model"}).";
-            }
-            else
-            {
-                // Connection-only query - M code updated but NOT validated
-                result.SuggestedNextActions = new List<string>
-                {
-                    "Query M code updated (connection-only - NOT validated yet)",
-                    "⚠️ Use 'set-load-to-table' to validate and load data",
-                    "Or use 'refresh' after loading (refresh only works with loaded queries)",
-                    "Or use 'view' to review M code changes"
-                };
-                result.WorkflowHint = "Query updated as connection-only (M code not executed or validated).";
-            }
-        }
-        else
-        {
-            result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterUpdate(
-                configPreserved: false,
-                hasErrors: true);
-            result.WorkflowHint = PowerQueryWorkflowGuidance.GetWorkflowHint("pq-update", false);
-        }
-
-        return result;
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> Export(string filePath, string queryName, string outputFile)
+    public async Task<OperationResult> ExportAsync(IExcelBatch batch, string queryName, string outputFile)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "pq-export"
         };
-
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
 
         // Validate and normalize the output file path to prevent path traversal attacks
         try
@@ -756,15 +652,15 @@ public class PowerQueryCommands : IPowerQueryCommands
             return result;
         }
 
-        ExcelSession.Execute(filePath, false, (excel, workbook) =>
+        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
         {
             dynamic? query = null;
             try
             {
-                query = ComUtilities.FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
-                    var queryNames = GetQueryNames(workbook);
+                    var queryNames = GetQueryNames(ctx.Book);
                     string? suggestion = FindClosestMatch(queryName, queryNames);
 
                     result.Success = false;
@@ -773,45 +669,36 @@ public class PowerQueryCommands : IPowerQueryCommands
                     {
                         result.ErrorMessage += $". Did you mean '{suggestion}'?";
                     }
-                    return 1;
+                    return result;
                 }
 
                 string mCode = query.Formula;
-                File.WriteAllText(outputFile, mCode);
+                await File.WriteAllTextAsync(outputFile, mCode, ct);
 
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error exporting query: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
                 ComUtilities.Release(ref query);
             }
         });
-
-        return await Task.FromResult(result);
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> Import(string filePath, string queryName, string mCodeFile, PowerQueryPrivacyLevel? privacyLevel = null, bool loadToWorksheet = true, string? worksheetName = null)
+    public async Task<OperationResult> ImportAsync(IExcelBatch batch, string queryName, string mCodeFile, PowerQueryPrivacyLevel? privacyLevel = null, bool loadToWorksheet = true, string? worksheetName = null)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "pq-import"
         };
-
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
 
         // Validate and normalize the M code file path to prevent path traversal attacks
         try
@@ -827,7 +714,7 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         string mCode = await File.ReadAllTextAsync(mCodeFile);
 
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        result = await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
         {
             dynamic? existingQuery = null;
             dynamic? queriesCollection = null;
@@ -837,40 +724,39 @@ public class PowerQueryCommands : IPowerQueryCommands
                 // Apply privacy level if specified
                 if (privacyLevel.HasValue)
                 {
-                    ApplyPrivacyLevel(workbook, privacyLevel.Value);
+                    ApplyPrivacyLevel(ctx.Book, privacyLevel.Value);
                 }
 
                 // Check if query already exists
-                existingQuery = ComUtilities.FindQuery(workbook, queryName);
+                existingQuery = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (existingQuery != null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Query '{queryName}' already exists. Use pq-update to modify it.";
-                    return 1;
+                    return result;
                 }
 
                 // Add new query
-                queriesCollection = workbook.Queries;
+                queriesCollection = ctx.Book.Queries;
                 newQuery = queriesCollection.Add(queryName, mCode);
 
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("Information is needed in order to combine data") ||
                                              comEx.Message.Contains("privacy level", StringComparison.OrdinalIgnoreCase))
             {
                 // Privacy error detected - return detailed error result for user consent
-                var privacyError = DetectPrivacyLevelsAndRecommend(workbook, comEx.Message);
-                privacyError.FilePath = filePath;
+                var privacyError = DetectPrivacyLevelsAndRecommend(ctx.Book, comEx.Message);
+                privacyError.FilePath = batch.WorkbookPath;
                 privacyError.Action = "pq-import";
-                result = privacyError;
-                return 1;
+                return privacyError;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error importing query: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
@@ -881,10 +767,12 @@ public class PowerQueryCommands : IPowerQueryCommands
         });
 
         // Auto-load to worksheet if requested (default behavior)
+        // TODO: SetLoadToTable needs batch API conversion
+        /*
         if (result.Success && loadToWorksheet)
         {
             string targetSheet = worksheetName ?? queryName;
-            var loadResult = SetLoadToTable(filePath, queryName, targetSheet, privacyLevel);
+            var loadResult = SetLoadToTable(batch.WorkbookPath, queryName, targetSheet, privacyLevel);
 
             if (!loadResult.Success)
             {
@@ -901,6 +789,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                 return result;
             }
         }
+        */
 
         // Provide guidance based on validation status
         if (result.Success)
@@ -910,13 +799,11 @@ public class PowerQueryCommands : IPowerQueryCommands
                 // Query was loaded to worksheet, validated via SetLoadToTable execution
                 result.SuggestedNextActions = new List<string>
                 {
-                    "Query imported and data loaded to worksheet (validated via initial load)",
-                    "Data is current as of import time",
-                    "Use 'refresh' to update data when source changes",
-                    "Use 'get-load-config' to check configuration",
+                    "Query imported (validation via load pending - TODO)",
+                    "Use 'set-load-to-table' to validate and load data",
                     "Use 'view' to inspect M code"
                 };
-                result.WorkflowHint = "Query imported and validated successfully. Data loaded to worksheet.";
+                result.WorkflowHint = "Query imported. Use set-load-to-table to validate.";
             }
             else
             {
@@ -937,31 +824,24 @@ public class PowerQueryCommands : IPowerQueryCommands
     }
 
     /// <inheritdoc />
-    public PowerQueryRefreshResult Refresh(string filePath, string queryName)
+    public async Task<PowerQueryRefreshResult> RefreshAsync(IExcelBatch batch, string queryName)
     {
         var result = new PowerQueryRefreshResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             QueryName = queryName,
             RefreshTime = DateTime.Now
         };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync<PowerQueryRefreshResult>(async (ctx, ct) =>
         {
             dynamic? query = null;
             try
             {
-                query = ComUtilities.FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
-                    var queryNames = GetQueryNames(workbook);
+                    var queryNames = GetQueryNames(ctx.Book);
                     string? suggestion = FindClosestMatch(queryName, queryNames);
 
                     result.Success = false;
@@ -970,7 +850,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                     {
                         result.ErrorMessage += $". Did you mean '{suggestion}'?";
                     }
-                    return 1;
+                    return result;
                 }
 
                 // Check if query has a connection to refresh
@@ -978,7 +858,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                 dynamic? connections = null;
                 try
                 {
-                    connections = workbook.Connections;
+                    connections = ctx.Book.Connections;
                     for (int i = 1; i <= connections.Count; i++)
                     {
                         dynamic? conn = null;
@@ -1016,7 +896,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                         // Check for errors after refresh
                         result.HasErrors = false;
                         result.Success = true;
-                        result.LoadedToSheet = DetermineLoadedSheet(workbook, queryName);
+                        result.LoadedToSheet = DetermineLoadedSheet(ctx.Book, queryName);
 
                         // Add workflow guidance
                         result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterRefresh(
@@ -1053,7 +933,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                     result.WorkflowHint = "Query is connection-only. Use set-load-to-table to load data.";
                 }
 
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
@@ -1065,47 +945,38 @@ public class PowerQueryCommands : IPowerQueryCommands
                     "Check that Excel file is not corrupted",
                     "Verify query exists and is accessible"
                 };
-                return 1;
+                return result;
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public PowerQueryViewResult Errors(string filePath, string queryName)
+    public async Task<PowerQueryViewResult> ErrorsAsync(IExcelBatch batch, string queryName)
     {
         var result = new PowerQueryViewResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             QueryName = queryName
         };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        ExcelSession.Execute(filePath, false, (excel, workbook) =>
+        return await batch.ExecuteAsync<PowerQueryViewResult>(async (ctx, ct) =>
         {
             dynamic? query = null;
             try
             {
-                query = ComUtilities.FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Query '{queryName}' not found";
-                    return 1;
+                    return result;
                 }
 
                 // Try to get error information if available
                 dynamic? connections = null;
                 try
                 {
-                    connections = workbook.Connections;
+                    connections = ctx.Book.Connections;
                     for (int i = 1; i <= connections.Count; i++)
                     {
                         dynamic? conn = null;
@@ -1119,7 +990,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                                 // Connection found - query has been loaded
                                 result.MCode = "No error information available through Excel COM interface";
                                 result.Success = true;
-                                return 0;
+                                return result;
                             }
                         }
                         finally
@@ -1136,50 +1007,41 @@ public class PowerQueryCommands : IPowerQueryCommands
 
                 result.MCode = "Query is connection-only - no error information available";
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error checking query errors: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
                 ComUtilities.Release(ref query);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public OperationResult LoadTo(string filePath, string queryName, string sheetName)
+    public async Task<OperationResult> LoadToAsync(IExcelBatch batch, string queryName, string sheetName)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "pq-loadto"
         };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
         {
             dynamic? query = null;
             try
             {
-                query = ComUtilities.FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Query '{queryName}' not found";
-                    return 1;
+                    return result;
                 }
 
                 // Find or create target sheet
@@ -1187,7 +1049,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                 dynamic? targetSheet = null;
                 try
                 {
-                    sheets = workbook.Worksheets;
+                    sheets = ctx.Book.Worksheets;
 
                     for (int i = 1; i <= sheets.Count; i++)
                     {
@@ -1224,7 +1086,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                 dynamic? targetConnection = null;
                 try
                 {
-                    connections = workbook.Connections;
+                    connections = ctx.Book.Connections;
 
                     // Look for existing connection for this query
                     for (int i = 1; i <= connections.Count; i++)
@@ -1264,7 +1126,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                     dynamic? rangeObj = null;
                     try
                     {
-                        queries = workbook.Queries;
+                        queries = ctx.Book.Queries;
 
                         for (int i = 1; i <= queries.Count; i++)
                         {
@@ -1289,7 +1151,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                         {
                             result.Success = false;
                             result.ErrorMessage = $"Query '{queryName}' not found in queries collection";
-                            return 1;
+                            return result;
                         }
 
                         // Create a QueryTable using the Mashup provider
@@ -1380,60 +1242,51 @@ public class PowerQueryCommands : IPowerQueryCommands
                 ComUtilities.Release(ref targetSheet);
                 ComUtilities.Release(ref query);
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error loading query to worksheet: {ex.Message}";
-                return 1;
+                return result;
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public OperationResult Delete(string filePath, string queryName)
+    public async Task<OperationResult> DeleteAsync(IExcelBatch batch, string queryName)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "pq-delete"
         };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
         {
             dynamic? query = null;
             dynamic? queriesCollection = null;
             try
             {
-                query = ComUtilities.FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Query '{queryName}' not found";
-                    return 1;
+                    return result;
                 }
 
-                queriesCollection = workbook.Queries;
+                queriesCollection = ctx.Book.Queries;
                 queriesCollection.Item(queryName).Delete();
 
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error deleting query: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
@@ -1441,8 +1294,6 @@ public class PowerQueryCommands : IPowerQueryCommands
                 ComUtilities.Release(ref query);
             }
         });
-
-        return result;
     }
 
     /// <summary>
@@ -1478,25 +1329,18 @@ public class PowerQueryCommands : IPowerQueryCommands
     }
 
     /// <inheritdoc />
-    public WorksheetListResult Sources(string filePath)
+    public async Task<WorksheetListResult> SourcesAsync(IExcelBatch batch)
     {
-        var result = new WorksheetListResult { FilePath = filePath };
+        var result = new WorksheetListResult { FilePath = batch.WorkbookPath };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        ExcelSession.Execute(filePath, false, (excel, workbook) =>
+        return await batch.ExecuteAsync<WorksheetListResult>(async (ctx, ct) =>
         {
             dynamic? worksheets = null;
             dynamic? names = null;
             try
             {
                 // Get all tables from all worksheets
-                worksheets = workbook.Worksheets;
+                worksheets = ctx.Book.Worksheets;
                 for (int ws = 1; ws <= worksheets.Count; ws++)
                 {
                     dynamic? worksheet = null;
@@ -1534,7 +1378,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
 
                 // Get all named ranges
-                names = workbook.Names;
+                names = ctx.Book.Names;
                 int namedRangeIndex = result.Worksheets.Count + 1;
                 for (int i = 1; i <= names.Count; i++)
                 {
@@ -1560,13 +1404,13 @@ public class PowerQueryCommands : IPowerQueryCommands
                 }
 
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error listing sources: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
@@ -1574,27 +1418,18 @@ public class PowerQueryCommands : IPowerQueryCommands
                 ComUtilities.Release(ref worksheets);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public OperationResult Test(string filePath, string sourceName)
+    public async Task<OperationResult> TestAsync(IExcelBatch batch, string sourceName)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "pq-test"
         };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
         {
             dynamic? queriesCollection = null;
             dynamic? tempQuery = null;
@@ -1607,7 +1442,7 @@ let
 in
     Source";
 
-                queriesCollection = workbook.Queries;
+                queriesCollection = ctx.Book.Queries;
                 tempQuery = queriesCollection.Add("_TestQuery", testQuery);
 
                 // Try to refresh
@@ -1628,13 +1463,13 @@ in
                     result.ErrorMessage = "Source exists but could not refresh (may need data source configuration)";
                 }
 
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Source '{sourceName}' not found or cannot be loaded: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
@@ -1642,34 +1477,25 @@ in
                 ComUtilities.Release(ref queriesCollection);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public WorksheetDataResult Peek(string filePath, string sourceName)
+    public async Task<WorksheetDataResult> PeekAsync(IExcelBatch batch, string sourceName)
     {
         var result = new WorksheetDataResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             SheetName = sourceName
         };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        ExcelSession.Execute(filePath, false, (excel, workbook) =>
+        return await batch.ExecuteAsync<WorksheetDataResult>(async (ctx, ct) =>
         {
             dynamic? names = null;
             dynamic? worksheets = null;
             try
             {
                 // Check if it's a named range (single value)
-                names = workbook.Names;
+                names = ctx.Book.Names;
                 for (int i = 1; i <= names.Count; i++)
                 {
                     dynamic? name = null;
@@ -1686,13 +1512,13 @@ in
                                 result.RowCount = 1;
                                 result.ColumnCount = 1;
                                 result.Success = true;
-                                return 0;
+                                return result;
                             }
                             catch
                             {
                                 result.Success = false;
                                 result.ErrorMessage = "Named range found but value cannot be read (may be #REF!)";
-                                return 1;
+                                return result;
                             }
                         }
                     }
@@ -1703,7 +1529,7 @@ in
                 }
 
                 // Check if it's a table
-                worksheets = workbook.Worksheets;
+                worksheets = ctx.Book.Worksheets;
                 for (int ws = 1; ws <= worksheets.Count; ws++)
                 {
                     dynamic? worksheet = null;
@@ -1741,7 +1567,7 @@ in
                                     }
 
                                     result.Success = true;
-                                    return 0;
+                                    return result;
                                 }
                             }
                             finally
@@ -1760,13 +1586,13 @@ in
 
                 result.Success = false;
                 result.ErrorMessage = $"Source '{sourceName}' not found";
-                return 1;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error peeking source: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
@@ -1774,27 +1600,18 @@ in
                 ComUtilities.Release(ref names);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public PowerQueryViewResult Eval(string filePath, string mExpression)
+    public async Task<PowerQueryViewResult> EvalAsync(IExcelBatch batch, string mExpression)
     {
         var result = new PowerQueryViewResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             QueryName = "_EvalExpression"
         };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync<PowerQueryViewResult>(async (ctx, ct) =>
         {
             dynamic? queriesCollection = null;
             dynamic? tempQuery = null;
@@ -1807,7 +1624,7 @@ let
 in
     Result";
 
-                queriesCollection = workbook.Queries;
+                queriesCollection = ctx.Book.Queries;
                 tempQuery = queriesCollection.Add("_EvalQuery", evalQuery);
 
                 result.MCode = evalQuery;
@@ -1829,13 +1646,13 @@ in
                 // Clean up
                 tempQuery.Delete();
 
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Expression evaluation failed: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
@@ -1843,78 +1660,60 @@ in
                 ComUtilities.Release(ref queriesCollection);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public OperationResult SetConnectionOnly(string filePath, string queryName)
+    public async Task<OperationResult> SetConnectionOnlyAsync(IExcelBatch batch, string queryName)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "pq-set-connection-only"
         };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
         {
             dynamic? query = null;
             try
             {
-                query = ComUtilities.FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Query '{queryName}' not found";
-                    return 1;
+                    return result;
                 }
 
                 // Remove any existing connections and QueryTables for this query
-                ConnectionHelpers.RemoveConnections(workbook, queryName);
-                PowerQueryHelpers.RemoveQueryTables(workbook, queryName);
+                ConnectionHelpers.RemoveConnections(ctx.Book, queryName);
+                PowerQueryHelpers.RemoveQueryTables(ctx.Book, queryName);
 
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error setting connection only: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
                 ComUtilities.Release(ref query);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public OperationResult SetLoadToTable(string filePath, string queryName, string sheetName, PowerQueryPrivacyLevel? privacyLevel = null)
+    public async Task<OperationResult> SetLoadToTableAsync(IExcelBatch batch, string queryName, string sheetName, PowerQueryPrivacyLevel? privacyLevel = null)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "pq-set-load-to-table"
         };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
         {
             dynamic? query = null;
             dynamic? sheets = null;
@@ -1924,19 +1723,19 @@ in
                 // Apply privacy level if specified
                 if (privacyLevel.HasValue)
                 {
-                    ApplyPrivacyLevel(workbook, privacyLevel.Value);
+                    ApplyPrivacyLevel(ctx.Book, privacyLevel.Value);
                 }
 
-                query = ComUtilities.FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Query '{queryName}' not found";
-                    return 1;
+                    return result;
                 }
 
                 // Find or create target sheet
-                sheets = workbook.Worksheets;
+                sheets = ctx.Book.Worksheets;
 
                 for (int i = 1; i <= sheets.Count; i++)
                 {
@@ -1967,8 +1766,8 @@ in
                 }
 
                 // Remove existing connections first
-                ConnectionHelpers.RemoveConnections(workbook, queryName);
-                PowerQueryHelpers.RemoveQueryTables(workbook, queryName);
+                ConnectionHelpers.RemoveConnections(ctx.Book, queryName);
+                PowerQueryHelpers.RemoveQueryTables(ctx.Book, queryName);
 
                 // Create new QueryTable connection that loads data to table
                 var queryTableOptions = new PowerQueryHelpers.QueryTableOptions
@@ -1979,23 +1778,23 @@ in
                 PowerQueryHelpers.CreateQueryTable(targetSheet, queryName, queryTableOptions);
 
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("Information is needed in order to combine data") ||
                                              comEx.Message.Contains("privacy level", StringComparison.OrdinalIgnoreCase))
             {
                 // Privacy error detected - return detailed error result for user consent
-                var privacyError = DetectPrivacyLevelsAndRecommend(workbook, comEx.Message);
-                privacyError.FilePath = filePath;
+                var privacyError = DetectPrivacyLevelsAndRecommend(ctx.Book, comEx.Message);
+                privacyError.FilePath = batch.WorkbookPath;
                 privacyError.Action = "pq-set-load-to-table";
                 result = privacyError;
-                return 1;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error setting load to table: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
@@ -2004,27 +1803,18 @@ in
                 ComUtilities.Release(ref query);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public OperationResult SetLoadToDataModel(string filePath, string queryName, PowerQueryPrivacyLevel? privacyLevel = null)
+    public async Task<OperationResult> SetLoadToDataModelAsync(IExcelBatch batch, string queryName, PowerQueryPrivacyLevel? privacyLevel = null)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "pq-set-load-to-data-model"
         };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -2032,32 +1822,32 @@ in
                 // Apply privacy level if specified
                 if (privacyLevel.HasValue)
                 {
-                    ApplyPrivacyLevel(workbook, privacyLevel.Value);
+                    ApplyPrivacyLevel(ctx.Book, privacyLevel.Value);
                 }
 
-                query = ComUtilities.FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Query '{queryName}' not found";
-                    return 1;
+                    return result;
                 }
 
                 // Remove existing table connections first
-                ConnectionHelpers.RemoveConnections(workbook, queryName);
-                PowerQueryHelpers.RemoveQueryTables(workbook, queryName);
+                ConnectionHelpers.RemoveConnections(ctx.Book, queryName);
+                PowerQueryHelpers.RemoveQueryTables(ctx.Book, queryName);
 
                 // Load to data model - check if Power Pivot/Data Model is available
                 try
                 {
                     // First, check if the workbook has Data Model capability
-                    bool dataModelAvailable = CheckDataModelAvailability(workbook);
+                    bool dataModelAvailable = CheckDataModelAvailability(ctx.Book);
 
                     if (!dataModelAvailable)
                     {
                         result.Success = false;
                         result.ErrorMessage = "Data Model loading requires Excel with Power Pivot or Data Model features enabled";
-                        return 1;
+                        return result;
                     }
 
                     // Method 1: Try to set the query to load to data model directly
@@ -2073,7 +1863,7 @@ in
                         dynamic? firstSheet = null;
                         try
                         {
-                            names = workbook.Names;
+                            names = ctx.Book.Names;
                             string markerName = $"DataModel_Query_{queryName}";
 
                             // Check if marker already exists
@@ -2106,7 +1896,7 @@ in
                                 dynamic? worksheets = null;
                                 try
                                 {
-                                    worksheets = workbook.Worksheets;
+                                    worksheets = ctx.Book.Worksheets;
                                     firstSheet = worksheets.Item(1);
                                     names.Add(markerName, $"={firstSheet.Name}!$A$1");
                                 }
@@ -2137,50 +1927,41 @@ in
                     result.ErrorMessage = $"Data Model loading may not be available: {ex.Message}";
                 }
 
-                return result.Success ? 0 : 1;
+                return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("Information is needed in order to combine data") ||
                                              comEx.Message.Contains("privacy level", StringComparison.OrdinalIgnoreCase))
             {
                 // Privacy error detected - return detailed error result for user consent
-                var privacyError = DetectPrivacyLevelsAndRecommend(workbook, comEx.Message);
-                privacyError.FilePath = filePath;
+                var privacyError = DetectPrivacyLevelsAndRecommend(ctx.Book, comEx.Message);
+                privacyError.FilePath = batch.WorkbookPath;
                 privacyError.Action = "pq-set-load-to-data-model";
                 result = privacyError;
-                return 1;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error setting load to data model: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
                 ComUtilities.Release(ref query);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public OperationResult SetLoadToBoth(string filePath, string queryName, string sheetName, PowerQueryPrivacyLevel? privacyLevel = null)
+    public async Task<OperationResult> SetLoadToBothAsync(IExcelBatch batch, string queryName, string sheetName, PowerQueryPrivacyLevel? privacyLevel = null)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "pq-set-load-to-both"
         };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -2188,15 +1969,15 @@ in
                 // Apply privacy level if specified
                 if (privacyLevel.HasValue)
                 {
-                    ApplyPrivacyLevel(workbook, privacyLevel.Value);
+                    ApplyPrivacyLevel(ctx.Book, privacyLevel.Value);
                 }
 
-                query = ComUtilities.FindQuery(workbook, queryName);
+                query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Query '{queryName}' not found";
-                    return 1;
+                    return result;
                 }
 
                 // First set up table loading
@@ -2205,7 +1986,7 @@ in
                 try
                 {
                     // Find or create target sheet
-                    sheets = workbook.Worksheets;
+                    sheets = ctx.Book.Worksheets;
 
                     for (int i = 1; i <= sheets.Count; i++)
                     {
@@ -2236,8 +2017,8 @@ in
                     }
 
                     // Remove existing connections first
-                    ConnectionHelpers.RemoveConnections(workbook, queryName);
-                    PowerQueryHelpers.RemoveQueryTables(workbook, queryName);
+                    ConnectionHelpers.RemoveConnections(ctx.Book, queryName);
+                    PowerQueryHelpers.RemoveQueryTables(ctx.Book, queryName);
 
                     // Create new QueryTable connection that loads data to table
                     var queryTableOptions = new PowerQueryHelpers.QueryTableOptions
@@ -2251,7 +2032,7 @@ in
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Failed to set up table loading: {ex.Message}";
-                    return 1;
+                    return result;
                 }
                 finally
                 {
@@ -2266,12 +2047,12 @@ in
                 try
                 {
                     // Check if Data Model is available
-                    bool dataModelAvailable = CheckDataModelAvailability(workbook);
+                    bool dataModelAvailable = CheckDataModelAvailability(ctx.Book);
 
                     if (dataModelAvailable)
                     {
                         // Create data model marker
-                        names = workbook.Names;
+                        names = ctx.Book.Names;
                         string markerName = $"DataModel_Query_{queryName}";
 
                         // Check if marker already exists
@@ -2301,7 +2082,7 @@ in
                         if (!markerExists)
                         {
                             // Create a named range marker that points to cell A1 on first sheet
-                            worksheets2 = workbook.Worksheets;
+                            worksheets2 = ctx.Book.Worksheets;
                             firstSheet = worksheets2.Item(1);
                             names.Add(markerName, $"={firstSheet.Name}!$A$1");
                         }
@@ -2311,7 +2092,7 @@ in
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Table loading succeeded but data model setup failed: {ex.Message}";
-                    return 1;
+                    return result;
                 }
                 finally
                 {
@@ -2321,7 +2102,7 @@ in
                 }
 
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (COMException comEx) when (comEx.HResult == unchecked((int)0x8001010A))
             {
@@ -2330,59 +2111,50 @@ in
                 System.Threading.Thread.Sleep(500);
                 result.Success = false;
                 result.ErrorMessage = "Excel is busy. Please close any dialogs and try again.";
-                return 1;
+                return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("Information is needed in order to combine data") ||
                                              comEx.Message.Contains("privacy level", StringComparison.OrdinalIgnoreCase))
             {
                 // Privacy error detected - return detailed error result for user consent
-                var privacyError = DetectPrivacyLevelsAndRecommend(workbook, comEx.Message);
-                privacyError.FilePath = filePath;
+                var privacyError = DetectPrivacyLevelsAndRecommend(ctx.Book, comEx.Message);
+                privacyError.FilePath = batch.WorkbookPath;
                 privacyError.Action = "pq-set-load-to-both";
                 result = privacyError;
-                return 1;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error setting load to both: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
                 ComUtilities.Release(ref query);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public PowerQueryLoadConfigResult GetLoadConfig(string filePath, string queryName)
+    public async Task<PowerQueryLoadConfigResult> GetLoadConfigAsync(IExcelBatch batch, string queryName)
     {
         var result = new PowerQueryLoadConfigResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             QueryName = queryName
         };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        ExcelSession.Execute(filePath, false, (excel, workbook) =>
+        return await batch.ExecuteAsync<PowerQueryLoadConfigResult>(async (ctx, ct) =>
         {
             try
             {
-                dynamic query = ComUtilities.FindQuery(workbook, queryName);
+                dynamic query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Query '{queryName}' not found";
-                    return 1;
+                    return result;
                 }
 
                 // Check for QueryTables first (table loading)
@@ -2390,7 +2162,7 @@ in
                 bool hasDataModelConnection = false;
                 string? targetSheet = null;
 
-                dynamic worksheets = workbook.Worksheets;
+                dynamic worksheets = ctx.Book.Worksheets;
                 for (int ws = 1; ws <= worksheets.Count; ws++)
                 {
                     dynamic worksheet = worksheets.Item(ws);
@@ -2422,7 +2194,7 @@ in
                 }
 
                 // Check for connections (for data model or other types)
-                dynamic connections = workbook.Connections;
+                dynamic connections = ctx.Book.Connections;
                 for (int i = 1; i <= connections.Count; i++)
                 {
                     dynamic conn = connections.Item(i);
@@ -2455,7 +2227,7 @@ in
                     // Check for our data model marker
                     try
                     {
-                        dynamic names = workbook.Names;
+                        dynamic names = ctx.Book.Names;
                         string markerName = $"DataModel_Query_{queryName}";
 
                         for (int i = 1; i <= names.Count; i++)
@@ -2483,7 +2255,7 @@ in
                     // Fallback: Check if the query has data model indicators
                     if (!hasDataModelConnection)
                     {
-                        hasDataModelConnection = CheckQueryDataModelConfiguration(query, workbook);
+                        hasDataModelConnection = CheckQueryDataModelConfiguration(query, ctx.Book);
                     }
                 }
 
@@ -2508,17 +2280,15 @@ in
                 result.TargetSheet = targetSheet;
                 result.IsLoadedToDataModel = hasDataModelConnection;
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error getting load config: {ex.Message}";
-                return 1;
+                return result;
             }
         });
-
-        return result;
     }
 
     /// <summary>

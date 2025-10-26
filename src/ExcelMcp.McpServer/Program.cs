@@ -59,18 +59,12 @@ public class Program
             }
         });
 
-        // Register Excel instance pool as singleton for reuse across tool calls
-        // Idle instances are automatically cleaned up after 60 seconds
-        builder.Services.AddSingleton<ExcelInstancePool>(sp =>
-            new ExcelInstancePool(idleTimeout: TimeSpan.FromSeconds(60)));
+        // MCP Server architecture:
+        // - Batch session management: LLM controls workbook lifecycle via begin/commit tools
+        // - Single operations: Backward-compatible with automatic batch-of-one (when no batchId)
+        // - MCP Prompts: Educate LLMs about batch workflows via [McpServerPrompt] attributes
 
-        // Initialize the pool for use by Core commands and MCP tools
-        var pool = new ExcelInstancePool(idleTimeout: TimeSpan.FromSeconds(60));
-
-        // Configure MCP tools layer to use pooling (for static access)
-        ExcelToolsPoolManager.Initialize(pool);
-
-        // Add MCP server with Excel tools
+        // Add MCP server with Excel tools (auto-discovers tools and prompts via attributes)
         builder.Services
             .AddMcpServer()
             .WithStdioServerTransport()
@@ -78,15 +72,11 @@ public class Program
 
         var host = builder.Build();
 
-        // Ensure pool is disposed on shutdown
+        // Register cleanup handler for batch sessions
         var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
         lifetime.ApplicationStopping.Register(() =>
         {
-            // Clear pool references
-            ExcelToolsPoolManager.Shutdown();
-
-            // Dispose pool instance
-            pool.Dispose();
+            BatchSessionTool.CleanupAllBatches().GetAwaiter().GetResult();
         });
 
         await host.RunAsync();

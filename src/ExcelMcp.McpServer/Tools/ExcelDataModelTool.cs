@@ -112,7 +112,10 @@ public static class ExcelDataModelTool
 
         [RegularExpression("^(String|Integer|Double|Boolean|DateTime)$")]
         [Description("Data type (for create-column, update-column): String, Integer, Double, Boolean, DateTime")]
-        string? dataType = null)
+        string? dataType = null,
+        
+        [Description("Optional batch ID for grouping operations")]
+        string? batchId = null)
     {
         try
         {
@@ -122,26 +125,26 @@ public static class ExcelDataModelTool
             return action.ToLowerInvariant() switch
             {
                 // COM API operations (Phase 1)
-                "list-tables" => ListTables(dataModelCommands, excelPath),
-                "list-measures" => ListMeasures(dataModelCommands, excelPath),
-                "view-measure" => ViewMeasure(dataModelCommands, excelPath, measureName),
-                "export-measure" => await ExportMeasure(dataModelCommands, excelPath, measureName, outputPath),
-                "list-relationships" => ListRelationships(dataModelCommands, excelPath),
-                "refresh" => Refresh(dataModelCommands, excelPath),
-                "delete-measure" => DeleteMeasure(dataModelCommands, excelPath, measureName),
-                "delete-relationship" => DeleteRelationship(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn),
+                "list-tables" => await ListTablesAsync(dataModelCommands, excelPath, batchId),
+                "list-measures" => await ListMeasuresAsync(dataModelCommands, excelPath, batchId),
+                "view-measure" => await ViewMeasureAsync(dataModelCommands, excelPath, measureName, batchId),
+                "export-measure" => await ExportMeasureAsync(dataModelCommands, excelPath, measureName, outputPath, batchId),
+                "list-relationships" => await ListRelationshipsAsync(dataModelCommands, excelPath, batchId),
+                "refresh" => await RefreshAsync(dataModelCommands, excelPath, batchId),
+                "delete-measure" => await DeleteMeasureAsync(dataModelCommands, excelPath, measureName, batchId),
+                "delete-relationship" => await DeleteRelationshipAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, batchId),
 
                 // TOM API operations (Phase 4)
-                "create-measure" => CreateMeasure(tomCommands, excelPath, tableName, measureName, daxFormula, description, formatString),
-                "update-measure" => UpdateMeasure(tomCommands, excelPath, measureName, daxFormula, description, formatString),
-                "create-relationship" => CreateRelationship(tomCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, crossFilterDirection),
-                "update-relationship" => UpdateRelationship(tomCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, crossFilterDirection),
-                "create-column" => CreateCalculatedColumn(tomCommands, excelPath, tableName, columnName, daxFormula, description, dataType),
-                "list-columns" => ListCalculatedColumns(tomCommands, excelPath, tableName),
-                "view-column" => ViewCalculatedColumn(tomCommands, excelPath, tableName, columnName),
-                "update-column" => UpdateCalculatedColumn(tomCommands, excelPath, tableName, columnName, daxFormula, description, dataType),
-                "delete-column" => DeleteCalculatedColumn(tomCommands, excelPath, tableName, columnName),
-                "validate-dax" => ValidateDax(tomCommands, excelPath, daxFormula),
+                "create-measure" => await CreateMeasureAsync(tomCommands, excelPath, tableName, measureName, daxFormula, description, formatString, batchId),
+                "update-measure" => await UpdateMeasureAsync(tomCommands, excelPath, measureName, daxFormula, description, formatString, batchId),
+                "create-relationship" => await CreateRelationshipAsync(tomCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, crossFilterDirection, batchId),
+                "update-relationship" => await UpdateRelationshipAsync(tomCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, crossFilterDirection, batchId),
+                "create-column" => await CreateCalculatedColumnAsync(tomCommands, excelPath, tableName, columnName, daxFormula, description, dataType, batchId),
+                "list-columns" => await ListCalculatedColumnsAsync(tomCommands, excelPath, tableName, batchId),
+                "view-column" => await ViewCalculatedColumnAsync(tomCommands, excelPath, tableName, columnName, batchId),
+                "update-column" => await UpdateCalculatedColumnAsync(tomCommands, excelPath, tableName, columnName, daxFormula, description, dataType, batchId),
+                "delete-column" => await DeleteCalculatedColumnAsync(tomCommands, excelPath, tableName, columnName, batchId),
+                "validate-dax" => await ValidateDaxAsync(tomCommands, excelPath, daxFormula, batchId),
 
                 _ => throw new ModelContextProtocol.McpException(
                     $"Unknown action '{action}'. Supported: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, create-measure, update-measure, create-relationship, update-relationship, create-column, list-columns, view-column, update-column, delete-column, validate-dax")
@@ -158,9 +161,13 @@ public static class ExcelDataModelTool
         }
     }
 
-    private static string ListTables(DataModelCommands commands, string filePath)
+    private static async Task<string> ListTablesAsync(DataModelCommands commands, string filePath, string? batchId)
     {
-        var result = commands.ListTables(filePath);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.ListTablesAsync(batch));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -186,9 +193,13 @@ public static class ExcelDataModelTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ListMeasures(DataModelCommands commands, string filePath)
+    private static async Task<string> ListMeasuresAsync(DataModelCommands commands, string filePath, string? batchId)
     {
-        var result = commands.ListMeasures(filePath);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.ListMeasuresAsync(batch));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -214,12 +225,16 @@ public static class ExcelDataModelTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ViewMeasure(DataModelCommands commands, string filePath, string? measureName)
+    private static async Task<string> ViewMeasureAsync(DataModelCommands commands, string filePath, string? measureName, string? batchId)
     {
         if (string.IsNullOrEmpty(measureName))
             throw new ModelContextProtocol.McpException("measureName is required for view-measure action");
 
-        var result = commands.ViewMeasure(filePath, measureName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.ViewMeasureAsync(batch, measureName));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -245,7 +260,7 @@ public static class ExcelDataModelTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ExportMeasure(DataModelCommands commands, string filePath, string? measureName, string? outputPath)
+    private static async Task<string> ExportMeasureAsync(DataModelCommands commands, string filePath, string? measureName, string? outputPath, string? batchId)
     {
         if (string.IsNullOrEmpty(measureName))
             throw new ModelContextProtocol.McpException("measureName is required for export-measure action");
@@ -253,7 +268,11 @@ public static class ExcelDataModelTool
         if (string.IsNullOrEmpty(outputPath))
             throw new ModelContextProtocol.McpException("outputPath is required for export-measure action");
 
-        var result = await commands.ExportMeasure(filePath, measureName, outputPath);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.ExportMeasureAsync(batch, measureName, outputPath));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -279,9 +298,13 @@ public static class ExcelDataModelTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ListRelationships(DataModelCommands commands, string filePath)
+    private static async Task<string> ListRelationshipsAsync(DataModelCommands commands, string filePath, string? batchId)
     {
-        var result = commands.ListRelationships(filePath);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.ListRelationshipsAsync(batch));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -307,9 +330,13 @@ public static class ExcelDataModelTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string Refresh(DataModelCommands commands, string filePath)
+    private static async Task<string> RefreshAsync(DataModelCommands commands, string filePath, string? batchId)
     {
-        var result = commands.Refresh(filePath);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.RefreshAsync(batch));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -335,14 +362,18 @@ public static class ExcelDataModelTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string DeleteMeasure(DataModelCommands commands, string filePath, string? measureName)
+    private static async Task<string> DeleteMeasureAsync(DataModelCommands commands, string filePath, string? measureName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(measureName))
         {
             throw new ModelContextProtocol.McpException("Parameter 'measureName' is required for delete-measure action");
         }
 
-        var result = commands.DeleteMeasure(filePath, measureName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.DeleteMeasureAsync(batch, measureName));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -375,8 +406,8 @@ public static class ExcelDataModelTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string DeleteRelationship(DataModelCommands commands, string filePath,
-        string? fromTable, string? fromColumn, string? toTable, string? toColumn)
+    private static async Task<string> DeleteRelationshipAsync(DataModelCommands commands, string filePath,
+        string? fromTable, string? fromColumn, string? toTable, string? toColumn, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(fromTable))
         {
@@ -398,7 +429,11 @@ public static class ExcelDataModelTool
             throw new ModelContextProtocol.McpException("Parameter 'toColumn' is required for delete-relationship action");
         }
 
-        var result = commands.DeleteRelationship(filePath, fromTable, fromColumn, toTable, toColumn);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.DeleteRelationshipAsync(batch, fromTable, fromColumn, toTable, toColumn));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -433,14 +468,15 @@ public static class ExcelDataModelTool
 
     // TOM API Action Handlers (Phase 4)
 
-    private static string CreateMeasure(
+    private static async Task<string> CreateMeasureAsync(
         DataModelTomCommands commands,
         string filePath,
         string? tableName,
         string? measureName,
         string? daxFormula,
         string? description,
-        string? formatString)
+        string? formatString,
+        string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName))
         {
@@ -457,7 +493,8 @@ public static class ExcelDataModelTool
             throw new ModelContextProtocol.McpException("Parameter 'daxFormula' is required for create-measure action");
         }
 
-        var result = commands.CreateMeasure(filePath, tableName, measureName, daxFormula, description, formatString);
+        // TOM API doesn't use Excel COM batching - it uses its own Analysis Services connection
+        var result = await Task.Run(() => commands.CreateMeasure(filePath, tableName, measureName, daxFormula, description, formatString));
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -476,20 +513,22 @@ public static class ExcelDataModelTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string UpdateMeasure(
+    private static async Task<string> UpdateMeasureAsync(
         DataModelTomCommands commands,
         string filePath,
         string? measureName,
         string? daxFormula,
         string? description,
-        string? formatString)
+        string? formatString,
+        string? batchId)
     {
         if (string.IsNullOrWhiteSpace(measureName))
         {
             throw new ModelContextProtocol.McpException("Parameter 'measureName' is required for update-measure action");
         }
 
-        var result = commands.UpdateMeasure(filePath, measureName, daxFormula, description, formatString);
+        // TOM API doesn't use Excel COM batching - it uses its own Analysis Services connection
+        var result = await Task.Run(() => commands.UpdateMeasure(filePath, measureName, daxFormula, description, formatString));
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -508,7 +547,7 @@ public static class ExcelDataModelTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string CreateRelationship(
+    private static async Task<string> CreateRelationshipAsync(
         DataModelTomCommands commands,
         string filePath,
         string? fromTable,
@@ -516,7 +555,8 @@ public static class ExcelDataModelTool
         string? toTable,
         string? toColumn,
         bool? isActive,
-        string? crossFilterDirection)
+        string? crossFilterDirection,
+        string? batchId)
     {
         if (string.IsNullOrWhiteSpace(fromTable))
         {
@@ -538,7 +578,8 @@ public static class ExcelDataModelTool
             throw new ModelContextProtocol.McpException("Parameter 'toColumn' is required for create-relationship action");
         }
 
-        var result = commands.CreateRelationship(
+        // TOM API doesn't use Excel COM batching - it uses its own Analysis Services connection
+        var result = await Task.Run(() => commands.CreateRelationship(
             filePath,
             fromTable,
             fromColumn,
@@ -546,7 +587,7 @@ public static class ExcelDataModelTool
             toColumn,
             isActive ?? true,
             crossFilterDirection ?? "Single"
-        );
+        ));
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -565,7 +606,7 @@ public static class ExcelDataModelTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string UpdateRelationship(
+    private static async Task<string> UpdateRelationshipAsync(
         DataModelTomCommands commands,
         string filePath,
         string? fromTable,
@@ -573,7 +614,8 @@ public static class ExcelDataModelTool
         string? toTable,
         string? toColumn,
         bool? isActive,
-        string? crossFilterDirection)
+        string? crossFilterDirection,
+        string? batchId)
     {
         if (string.IsNullOrWhiteSpace(fromTable))
         {
@@ -595,7 +637,8 @@ public static class ExcelDataModelTool
             throw new ModelContextProtocol.McpException("Parameter 'toColumn' is required for update-relationship action");
         }
 
-        var result = commands.UpdateRelationship(
+        // TOM API doesn't use Excel COM batching - it uses its own Analysis Services connection
+        var result = await Task.Run(() => commands.UpdateRelationship(
             filePath,
             fromTable,
             fromColumn,
@@ -603,7 +646,7 @@ public static class ExcelDataModelTool
             toColumn,
             isActive,
             crossFilterDirection
-        );
+        ));
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -622,14 +665,15 @@ public static class ExcelDataModelTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string CreateCalculatedColumn(
+    private static async Task<string> CreateCalculatedColumnAsync(
         DataModelTomCommands commands,
         string filePath,
         string? tableName,
         string? columnName,
         string? daxFormula,
         string? description,
-        string? dataType)
+        string? dataType,
+        string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName))
         {
@@ -646,14 +690,15 @@ public static class ExcelDataModelTool
             throw new ModelContextProtocol.McpException("Parameter 'daxFormula' is required for create-column action");
         }
 
-        var result = commands.CreateCalculatedColumn(
+        // TOM API doesn't use Excel COM batching - it uses its own Analysis Services connection
+        var result = await Task.Run(() => commands.CreateCalculatedColumn(
             filePath,
             tableName,
             columnName,
             daxFormula,
             description,
             dataType ?? "String"
-        );
+        ));
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -672,17 +717,19 @@ public static class ExcelDataModelTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ValidateDax(
+    private static async Task<string> ValidateDaxAsync(
         DataModelTomCommands commands,
         string filePath,
-        string? daxFormula)
+        string? daxFormula,
+        string? batchId)
     {
         if (string.IsNullOrWhiteSpace(daxFormula))
         {
             throw new ModelContextProtocol.McpException("Parameter 'daxFormula' is required for validate-dax action");
         }
 
-        var result = commands.ValidateDax(filePath, daxFormula);
+        // TOM API doesn't use Excel COM batching - it uses its own Analysis Services connection
+        var result = await Task.Run(() => commands.ValidateDax(filePath, daxFormula));
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -692,12 +739,14 @@ public static class ExcelDataModelTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ListCalculatedColumns(
+    private static async Task<string> ListCalculatedColumnsAsync(
         DataModelTomCommands commands,
         string filePath,
-        string? tableName)
+        string? tableName,
+        string? batchId)
     {
-        var result = commands.ListCalculatedColumns(filePath, tableName);
+        // TOM API doesn't use Excel COM batching - it uses its own Analysis Services connection
+        var result = await Task.Run(() => commands.ListCalculatedColumns(filePath, tableName));
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -716,11 +765,12 @@ public static class ExcelDataModelTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ViewCalculatedColumn(
+    private static async Task<string> ViewCalculatedColumnAsync(
         DataModelTomCommands commands,
         string filePath,
         string? tableName,
-        string? columnName)
+        string? columnName,
+        string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName))
         {
@@ -732,7 +782,8 @@ public static class ExcelDataModelTool
             throw new ModelContextProtocol.McpException("Parameter 'columnName' is required for view-column action");
         }
 
-        var result = commands.ViewCalculatedColumn(filePath, tableName, columnName);
+        // TOM API doesn't use Excel COM batching - it uses its own Analysis Services connection
+        var result = await Task.Run(() => commands.ViewCalculatedColumn(filePath, tableName, columnName));
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -751,14 +802,15 @@ public static class ExcelDataModelTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string UpdateCalculatedColumn(
+    private static async Task<string> UpdateCalculatedColumnAsync(
         DataModelTomCommands commands,
         string filePath,
         string? tableName,
         string? columnName,
         string? daxFormula,
         string? description,
-        string? dataType)
+        string? dataType,
+        string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName))
         {
@@ -770,14 +822,15 @@ public static class ExcelDataModelTool
             throw new ModelContextProtocol.McpException("Parameter 'columnName' is required for update-column action");
         }
 
-        var result = commands.UpdateCalculatedColumn(
+        // TOM API doesn't use Excel COM batching - it uses its own Analysis Services connection
+        var result = await Task.Run(() => commands.UpdateCalculatedColumn(
             filePath,
             tableName,
             columnName,
             daxFormula,
             description,
             dataType
-        );
+        ));
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -796,11 +849,12 @@ public static class ExcelDataModelTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string DeleteCalculatedColumn(
+    private static async Task<string> DeleteCalculatedColumnAsync(
         DataModelTomCommands commands,
         string filePath,
         string? tableName,
-        string? columnName)
+        string? columnName,
+        string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName))
         {
@@ -812,7 +866,8 @@ public static class ExcelDataModelTool
             throw new ModelContextProtocol.McpException("Parameter 'columnName' is required for delete-column action");
         }
 
-        var result = commands.DeleteCalculatedColumn(filePath, tableName, columnName);
+        // TOM API doesn't use Excel COM batching - it uses its own Analysis Services connection
+        var result = await Task.Run(() => commands.DeleteCalculatedColumn(filePath, tableName, columnName));
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {

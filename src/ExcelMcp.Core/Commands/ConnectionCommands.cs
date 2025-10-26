@@ -6,6 +6,8 @@ using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
 using Sbroenne.ExcelMcp.Core.Session;
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
+
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
@@ -17,15 +19,15 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Lists all connections in a workbook
     /// </summary>
-    public ConnectionListResult List(string filePath)
+    public async Task<ConnectionListResult> ListAsync(IExcelBatch batch)
     {
-        var result = new ConnectionListResult { FilePath = filePath };
+        var result = new ConnectionListResult { FilePath = batch.WorkbookPath };
 
-        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
-                dynamic connections = workbook.Connections;
+                dynamic connections = ctx.Book.Connections;
 
                 for (int i = 1; i <= connections.Count; i++)
                 {
@@ -68,19 +70,19 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Views detailed connection information
     /// </summary>
-    public ConnectionViewResult View(string filePath, string connectionName)
+    public async Task<ConnectionViewResult> ViewAsync(IExcelBatch batch, string connectionName)
     {
         var result = new ConnectionViewResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             ConnectionName = connectionName
         };
 
-        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
-                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
                 if (conn == null)
                 {
@@ -133,11 +135,11 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Imports connection from JSON file
     /// </summary>
-    public OperationResult Import(string filePath, string connectionName, string jsonFilePath)
+    public async Task<OperationResult> ImportAsync(IExcelBatch batch, string connectionName, string jsonFilePath)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "import"
         };
 
@@ -161,12 +163,12 @@ public class ConnectionCommands : IConnectionCommands
                 return result;
             }
 
-            return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+            return await batch.ExecuteAsync(async (ctx, ct) =>
             {
                 try
                 {
                     // Check if connection already exists
-                    dynamic? existing = ComUtilities.FindConnection(workbook, connectionName);
+                    dynamic? existing = ComUtilities.FindConnection(ctx.Book, connectionName);
                     if (existing != null)
                     {
                         result.Success = false;
@@ -175,7 +177,7 @@ public class ConnectionCommands : IConnectionCommands
                     }
 
                     // Create new connection based on type
-                    CreateConnection(workbook, connectionName, definition);
+                    CreateConnection(ctx.Book, connectionName, definition);
 
                     result.Success = true;
                     return result;
@@ -199,19 +201,19 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Exports connection to JSON file
     /// </summary>
-    public OperationResult Export(string filePath, string connectionName, string jsonFilePath)
+    public async Task<OperationResult> ExportAsync(IExcelBatch batch, string connectionName, string jsonFilePath)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "export"
         };
 
-        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
-                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
                 if (conn == null)
                 {
@@ -267,11 +269,11 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Updates existing connection from JSON file
     /// </summary>
-    public OperationResult Update(string filePath, string connectionName, string jsonFilePath)
+    public async Task<OperationResult> UpdateAsync(IExcelBatch batch, string connectionName, string jsonFilePath)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "update"
         };
 
@@ -295,11 +297,11 @@ public class ConnectionCommands : IConnectionCommands
                 return result;
             }
 
-            return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+            return await batch.ExecuteAsync(async (ctx, ct) =>
             {
                 try
                 {
-                    dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
+                    dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
                     if (conn == null)
                     {
@@ -341,19 +343,19 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Refreshes connection data
     /// </summary>
-    public OperationResult Refresh(string filePath, string connectionName)
+    public async Task<OperationResult> RefreshAsync(IExcelBatch batch, string connectionName)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "refresh"
         };
 
-        return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
-                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
                 if (conn == null)
                 {
@@ -380,19 +382,19 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Deletes a connection
     /// </summary>
-    public OperationResult Delete(string filePath, string connectionName)
+    public async Task<OperationResult> DeleteAsync(IExcelBatch batch, string connectionName)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "delete"
         };
 
-        return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
-                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
                 if (conn == null)
                 {
@@ -410,7 +412,7 @@ public class ConnectionCommands : IConnectionCommands
                 }
 
                 // Remove associated QueryTables first
-                PowerQueryHelpers.RemoveQueryTables(workbook, connectionName);
+                PowerQueryHelpers.RemoveQueryTables(ctx.Book, connectionName);
 
                 // Delete the connection
                 conn.Delete();
@@ -430,19 +432,19 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Loads connection data to a worksheet
     /// </summary>
-    public OperationResult LoadTo(string filePath, string connectionName, string sheetName)
+    public async Task<OperationResult> LoadToAsync(IExcelBatch batch, string connectionName, string sheetName)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "loadto"
         };
 
-        return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
-                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
                 if (conn == null)
                 {
@@ -460,7 +462,7 @@ public class ConnectionCommands : IConnectionCommands
                 }
 
                 // Find or create target sheet
-                dynamic sheets = workbook.Worksheets;
+                dynamic sheets = ctx.Book.Worksheets;
                 dynamic? targetSheet = null;
 
                 for (int i = 1; i <= sheets.Count; i++)
@@ -480,7 +482,7 @@ public class ConnectionCommands : IConnectionCommands
                 }
 
                 // Remove existing QueryTables first
-                PowerQueryHelpers.RemoveQueryTables(workbook, connectionName);
+                PowerQueryHelpers.RemoveQueryTables(ctx.Book, connectionName);
 
                 // Create QueryTable to load data
                 var options = new PowerQueryHelpers.QueryTableOptions
@@ -506,19 +508,19 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Gets connection properties
     /// </summary>
-    public ConnectionPropertiesResult GetProperties(string filePath, string connectionName)
+    public async Task<ConnectionPropertiesResult> GetPropertiesAsync(IExcelBatch batch, string connectionName)
     {
         var result = new ConnectionPropertiesResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             ConnectionName = connectionName
         };
 
-        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
-                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
                 if (conn == null)
                 {
@@ -547,21 +549,21 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Sets connection properties
     /// </summary>
-    public OperationResult SetProperties(string filePath, string connectionName,
+    public async Task<OperationResult> SetPropertiesAsync(IExcelBatch batch, string connectionName,
         bool? backgroundQuery = null, bool? refreshOnFileOpen = null,
         bool? savePassword = null, int? refreshPeriod = null)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "set-properties"
         };
 
-        return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
-                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
                 if (conn == null)
                 {
@@ -599,19 +601,19 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Tests connection without refreshing data
     /// </summary>
-    public OperationResult Test(string filePath, string connectionName)
+    public async Task<OperationResult> TestAsync(IExcelBatch batch, string connectionName)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "test"
         };
 
-        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
-                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
                 if (conn == null)
                 {

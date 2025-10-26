@@ -34,7 +34,7 @@ public static class ExcelConnectionTool
     /// </summary>
     [McpServerTool(Name = "excel_connection")]
     [Description("Manage Excel data connections. Supports: list, view, import, export, update, refresh, delete, loadto, properties, set-properties, test.")]
-    public static string ExcelConnection(
+    public static async Task<string> ExcelConnection(
         [Required]
         [RegularExpression("^(list|view|import|export|update|refresh|delete|loadto|properties|set-properties|test)$")]
         [Description("Action: list, view, import, export, update, refresh, delete, loadto, properties, set-properties, test")] 
@@ -62,7 +62,10 @@ public static class ExcelConnectionTool
         bool? savePassword = null,
         
         [Description("Refresh period in minutes (for set-properties)")] 
-        int? refreshPeriod = null)
+        int? refreshPeriod = null,
+        
+        [Description("Optional batch ID for grouping operations")] 
+        string? batchId = null)
     {
         try
         {
@@ -70,18 +73,18 @@ public static class ExcelConnectionTool
 
             return action.ToLowerInvariant() switch
             {
-                "list" => ListConnections(connectionCommands, excelPath),
-                "view" => ViewConnection(connectionCommands, excelPath, connectionName),
-                "import" => ImportConnection(connectionCommands, excelPath, connectionName, targetPath),
-                "export" => ExportConnection(connectionCommands, excelPath, connectionName, targetPath),
-                "update" => UpdateConnection(connectionCommands, excelPath, connectionName, targetPath),
-                "refresh" => RefreshConnection(connectionCommands, excelPath, connectionName),
-                "delete" => DeleteConnection(connectionCommands, excelPath, connectionName),
-                "loadto" => LoadToWorksheet(connectionCommands, excelPath, connectionName, targetPath),
-                "properties" => GetProperties(connectionCommands, excelPath, connectionName),
-                "set-properties" => SetProperties(connectionCommands, excelPath, connectionName, 
-                    backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod),
-                "test" => TestConnection(connectionCommands, excelPath, connectionName),
+                "list" => await ListConnectionsAsync(connectionCommands, excelPath, batchId),
+                "view" => await ViewConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
+                "import" => await ImportConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
+                "export" => await ExportConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
+                "update" => await UpdateConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
+                "refresh" => await RefreshConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
+                "delete" => await DeleteConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
+                "loadto" => await LoadToWorksheetAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
+                "properties" => await GetPropertiesAsync(connectionCommands, excelPath, connectionName, batchId),
+                "set-properties" => await SetPropertiesAsync(connectionCommands, excelPath, connectionName, 
+                    backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod, batchId),
+                "test" => await TestConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
                 _ => throw new ModelContextProtocol.McpException(
                     $"Unknown action '{action}'. Supported: list, view, import, export, update, refresh, delete, loadto, properties, set-properties, test")
             };
@@ -97,9 +100,13 @@ public static class ExcelConnectionTool
         }
     }
 
-    private static string ListConnections(ConnectionCommands commands, string filePath)
+    private static async Task<string> ListConnectionsAsync(ConnectionCommands commands, string filePath, string? batchId)
     {
-        var result = commands.List(filePath);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.ListAsync(batch));
         
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -109,12 +116,16 @@ public static class ExcelConnectionTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ViewConnection(ConnectionCommands commands, string filePath, string? connectionName)
+    private static async Task<string> ViewConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? batchId)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ModelContextProtocol.McpException("connectionName is required for view action");
 
-        var result = commands.View(filePath, connectionName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.ViewAsync(batch, connectionName));
         
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -124,7 +135,7 @@ public static class ExcelConnectionTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ImportConnection(ConnectionCommands commands, string filePath, string? connectionName, string? jsonPath)
+    private static async Task<string> ImportConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? jsonPath, string? batchId)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ModelContextProtocol.McpException("connectionName is required for import action");
@@ -132,7 +143,11 @@ public static class ExcelConnectionTool
         if (string.IsNullOrEmpty(jsonPath))
             throw new ModelContextProtocol.McpException("targetPath (JSON file path) is required for import action");
 
-        var result = commands.Import(filePath, connectionName, jsonPath);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.ImportAsync(batch, connectionName, jsonPath));
         
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -142,7 +157,7 @@ public static class ExcelConnectionTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ExportConnection(ConnectionCommands commands, string filePath, string? connectionName, string? jsonPath)
+    private static async Task<string> ExportConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? jsonPath, string? batchId)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ModelContextProtocol.McpException("connectionName is required for export action");
@@ -150,7 +165,11 @@ public static class ExcelConnectionTool
         if (string.IsNullOrEmpty(jsonPath))
             throw new ModelContextProtocol.McpException("targetPath (JSON file path) is required for export action");
 
-        var result = commands.Export(filePath, connectionName, jsonPath);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.ExportAsync(batch, connectionName, jsonPath));
         
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -160,7 +179,7 @@ public static class ExcelConnectionTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string UpdateConnection(ConnectionCommands commands, string filePath, string? connectionName, string? jsonPath)
+    private static async Task<string> UpdateConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? jsonPath, string? batchId)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ModelContextProtocol.McpException("connectionName is required for update action");
@@ -168,7 +187,11 @@ public static class ExcelConnectionTool
         if (string.IsNullOrEmpty(jsonPath))
             throw new ModelContextProtocol.McpException("targetPath (JSON file path) is required for update action");
 
-        var result = commands.Update(filePath, connectionName, jsonPath);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.UpdateAsync(batch, connectionName, jsonPath));
         
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -178,12 +201,16 @@ public static class ExcelConnectionTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string RefreshConnection(ConnectionCommands commands, string filePath, string? connectionName)
+    private static async Task<string> RefreshConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? batchId)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ModelContextProtocol.McpException("connectionName is required for refresh action");
 
-        var result = commands.Refresh(filePath, connectionName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.RefreshAsync(batch, connectionName));
         
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -193,12 +220,16 @@ public static class ExcelConnectionTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string DeleteConnection(ConnectionCommands commands, string filePath, string? connectionName)
+    private static async Task<string> DeleteConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? batchId)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ModelContextProtocol.McpException("connectionName is required for delete action");
 
-        var result = commands.Delete(filePath, connectionName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.DeleteAsync(batch, connectionName));
         
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -208,7 +239,7 @@ public static class ExcelConnectionTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string LoadToWorksheet(ConnectionCommands commands, string filePath, string? connectionName, string? sheetName)
+    private static async Task<string> LoadToWorksheetAsync(ConnectionCommands commands, string filePath, string? connectionName, string? sheetName, string? batchId)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ModelContextProtocol.McpException("connectionName is required for loadto action");
@@ -216,7 +247,11 @@ public static class ExcelConnectionTool
         if (string.IsNullOrEmpty(sheetName))
             throw new ModelContextProtocol.McpException("targetPath (sheet name) is required for loadto action");
 
-        var result = commands.LoadTo(filePath, connectionName, sheetName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.LoadToAsync(batch, connectionName, sheetName));
         
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -226,12 +261,16 @@ public static class ExcelConnectionTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string GetProperties(ConnectionCommands commands, string filePath, string? connectionName)
+    private static async Task<string> GetPropertiesAsync(ConnectionCommands commands, string filePath, string? connectionName, string? batchId)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ModelContextProtocol.McpException("connectionName is required for properties action");
 
-        var result = commands.GetProperties(filePath, connectionName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.GetPropertiesAsync(batch, connectionName));
         
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -241,13 +280,17 @@ public static class ExcelConnectionTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string SetProperties(ConnectionCommands commands, string filePath, string? connectionName,
-        bool? backgroundQuery, bool? refreshOnFileOpen, bool? savePassword, int? refreshPeriod)
+    private static async Task<string> SetPropertiesAsync(ConnectionCommands commands, string filePath, string? connectionName,
+        bool? backgroundQuery, bool? refreshOnFileOpen, bool? savePassword, int? refreshPeriod, string? batchId)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ModelContextProtocol.McpException("connectionName is required for set-properties action");
 
-        var result = commands.SetProperties(filePath, connectionName, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.SetPropertiesAsync(batch, connectionName, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod));
         
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -257,12 +300,16 @@ public static class ExcelConnectionTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string TestConnection(ConnectionCommands commands, string filePath, string? connectionName)
+    private static async Task<string> TestConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? batchId)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ModelContextProtocol.McpException("connectionName is required for test action");
 
-        var result = commands.Test(filePath, connectionName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.TestAsync(batch, connectionName));
         
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {

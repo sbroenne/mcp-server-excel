@@ -989,5 +989,200 @@ public class DataModelCalculatedColumnViewResult : ResultBase
     public int CharacterCount { get; set; }
 }
 
+#region Table (ListObject) Results
+
+/// <summary>
+/// Result for listing Excel Tables
+/// </summary>
+public class TableListResult : ResultBase
+{
+    /// <summary>
+    /// List of Excel Tables in the workbook
+    /// </summary>
+    public List<TableInfo> Tables { get; set; } = new();
+}
+
+/// <summary>
+/// Result for getting detailed information about an Excel Table
+/// </summary>
+public class TableInfoResult : ResultBase
+{
+    /// <summary>
+    /// Detailed information about the Excel Table
+    /// </summary>
+    public TableInfo? Table { get; set; }
+}
+
+/// <summary>
+/// Information about an Excel Table (ListObject)
+/// </summary>
+public class TableInfo
+{
+    /// <summary>
+    /// Name of the table
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Worksheet containing the table
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range address of the table (e.g., "A1:D10")
+    /// </summary>
+    public string Range { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the table has headers
+    /// </summary>
+    public bool HasHeaders { get; set; } = true;
+
+    /// <summary>
+    /// Table style name (e.g., "TableStyleMedium2")
+    /// </summary>
+    public string? TableStyle { get; set; }
+
+    /// <summary>
+    /// Number of rows (excluding header)
+    /// </summary>
+    public int RowCount { get; set; }
+
+    /// <summary>
+    /// Number of columns
+    /// </summary>
+    public int ColumnCount { get; set; }
+
+    /// <summary>
+    /// Column names (if table has headers)
+    /// </summary>
+    public List<string> Columns { get; set; } = new();
+
+    /// <summary>
+    /// Whether the table has a total row
+    /// </summary>
+    public bool ShowTotals { get; set; }
+}
+
+/// <summary>
+/// Result for reading Excel Table data
+/// </summary>
+public class TableDataResult : ResultBase
+{
+    /// <summary>
+    /// Name of the table
+    /// </summary>
+    public string TableName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Column headers
+    /// </summary>
+    public List<string> Headers { get; set; } = new();
+
+    /// <summary>
+    /// Data rows (each row is a list of cell values)
+    /// </summary>
+    public List<List<object?>> Data { get; set; } = new();
+
+    /// <summary>
+    /// Number of rows (excluding header)
+    /// </summary>
+    public int RowCount { get; set; }
+
+    /// <summary>
+    /// Number of columns
+    /// </summary>
+    public int ColumnCount { get; set; }
+}
+
+#endregion
+
+#region Hyperlink Results
+
+/// <summary>
+/// Information about a hyperlink in an Excel cell
+/// </summary>
+public class HyperlinkInfo
+{
+    /// <summary>
+    /// Cell address containing the hyperlink
+    /// </summary>
+    public string CellAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Hyperlink URL or file path
+    /// </summary>
+    public string Address { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Sub-address within the target (e.g., sheet reference)
+    /// </summary>
+    public string? SubAddress { get; set; }
+
+    /// <summary>
+    /// Display text (visible text in cell)
+    /// </summary>
+    public string DisplayText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Tooltip/ScreenTip text
+    /// </summary>
+    public string? ScreenTip { get; set; }
+
+    /// <summary>
+    /// Whether the hyperlink points to another location in the workbook
+    /// </summary>
+    public bool IsInternal { get; set; }
+}
+
+/// <summary>
+/// Result for listing hyperlinks in a worksheet
+/// </summary>
+public class HyperlinkListResult : ResultBase
+{
+    /// <summary>
+    /// List of hyperlinks in the worksheet
+    /// </summary>
+    public List<HyperlinkInfo> Hyperlinks { get; set; } = new();
+
+    /// <summary>
+    /// Total count of hyperlinks
+    /// </summary>
+    public int Count { get; set; }
+
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Result for getting hyperlink information from a specific cell
+/// </summary>
+public class HyperlinkInfoResult : ResultBase
+{
+    /// <summary>
+    /// Hyperlink information (null if no hyperlink exists)
+    /// </summary>
+    public HyperlinkInfo? Hyperlink { get; set; }
+
+    /// <summary>
+    /// Whether a hyperlink exists at the specified cell
+    /// </summary>
+    public bool HasHyperlink { get; set; }
+
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Cell address
+    /// </summary>
+    public string CellAddress { get; set; } = string.Empty;
+}
+
+#endregion
+
 #endregion
 

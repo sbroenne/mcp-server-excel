@@ -2,6 +2,8 @@ using Sbroenne.ExcelMcp.Core.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Session;
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
+
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
@@ -10,37 +12,26 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public class CellCommands : ICellCommands
 {
     /// <inheritdoc />
-    public CellValueResult GetValue(string filePath, string sheetName, string cellAddress)
+    public async Task<CellValueResult> GetValueAsync(IExcelBatch batch, string sheetName, string cellAddress)
     {
-        if (!File.Exists(filePath))
-        {
-            return new CellValueResult
-            {
-                Success = false,
-                ErrorMessage = $"File not found: {filePath}",
-                FilePath = filePath,
-                CellAddress = cellAddress
-            };
-        }
-
         var result = new CellValueResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             CellAddress = $"{sheetName}!{cellAddress}"
         };
 
-        ExcelSession.Execute(filePath, false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? cell = null;
             try
             {
-                sheet = ComUtilities.FindSheet(workbook, sheetName);
+                sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Sheet '{sheetName}' not found";
-                    return 1;
+                    return result;
                 }
 
                 cell = sheet.Range[cellAddress];
@@ -48,13 +39,13 @@ public class CellCommands : ICellCommands
                 result.ValueType = result.Value?.GetType().Name ?? "null";
                 result.Formula = cell.Formula;
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = ex.Message;
-                return 1;
+                return result;
             }
             finally
             {
@@ -62,42 +53,29 @@ public class CellCommands : ICellCommands
                 ComUtilities.Release(ref sheet);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public OperationResult SetValue(string filePath, string sheetName, string cellAddress, string value)
+    public async Task<OperationResult> SetValueAsync(IExcelBatch batch, string sheetName, string cellAddress, string value)
     {
-        if (!File.Exists(filePath))
-        {
-            return new OperationResult
-            {
-                Success = false,
-                ErrorMessage = $"File not found: {filePath}",
-                FilePath = filePath,
-                Action = "set-value"
-            };
-        }
-
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "set-value"
         };
 
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? cell = null;
             try
             {
-                sheet = ComUtilities.FindSheet(workbook, sheetName);
+                sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Sheet '{sheetName}' not found";
-                    return 1;
+                    return result;
                 }
 
                 cell = sheet.Range[cellAddress];
@@ -116,15 +94,14 @@ public class CellCommands : ICellCommands
                     cell.Value2 = value;
                 }
 
-                workbook.Save();
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = ex.Message;
-                return 1;
+                return result;
             }
             finally
             {
@@ -132,42 +109,29 @@ public class CellCommands : ICellCommands
                 ComUtilities.Release(ref sheet);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public CellValueResult GetFormula(string filePath, string sheetName, string cellAddress)
+    public async Task<CellValueResult> GetFormulaAsync(IExcelBatch batch, string sheetName, string cellAddress)
     {
-        if (!File.Exists(filePath))
-        {
-            return new CellValueResult
-            {
-                Success = false,
-                ErrorMessage = $"File not found: {filePath}",
-                FilePath = filePath,
-                CellAddress = cellAddress
-            };
-        }
-
         var result = new CellValueResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             CellAddress = $"{sheetName}!{cellAddress}"
         };
 
-        ExcelSession.Execute(filePath, false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? cell = null;
             try
             {
-                sheet = ComUtilities.FindSheet(workbook, sheetName);
+                sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Sheet '{sheetName}' not found";
-                    return 1;
+                    return result;
                 }
 
                 cell = sheet.Range[cellAddress];
@@ -175,13 +139,13 @@ public class CellCommands : ICellCommands
                 result.Value = cell.Value2;
                 result.ValueType = result.Value?.GetType().Name ?? "null";
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = ex.Message;
-                return 1;
+                return result;
             }
             finally
             {
@@ -189,24 +153,11 @@ public class CellCommands : ICellCommands
                 ComUtilities.Release(ref sheet);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public OperationResult SetFormula(string filePath, string sheetName, string cellAddress, string formula)
+    public async Task<OperationResult> SetFormulaAsync(IExcelBatch batch, string sheetName, string cellAddress, string formula)
     {
-        if (!File.Exists(filePath))
-        {
-            return new OperationResult
-            {
-                Success = false,
-                ErrorMessage = $"File not found: {filePath}",
-                FilePath = filePath,
-                Action = "set-formula"
-            };
-        }
-
         // Ensure formula starts with =
         if (!formula.StartsWith("="))
         {
@@ -215,36 +166,35 @@ public class CellCommands : ICellCommands
 
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "set-formula"
         };
 
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? cell = null;
             try
             {
-                sheet = ComUtilities.FindSheet(workbook, sheetName);
+                sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Sheet '{sheetName}' not found";
-                    return 1;
+                    return result;
                 }
 
                 cell = sheet.Range[cellAddress];
                 cell.Formula = formula;
 
-                workbook.Save();
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = ex.Message;
-                return 1;
+                return result;
             }
             finally
             {
@@ -252,7 +202,5 @@ public class CellCommands : ICellCommands
                 ComUtilities.Release(ref sheet);
             }
         });
-
-        return result;
     }
 }

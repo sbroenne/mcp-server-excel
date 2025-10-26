@@ -26,8 +26,8 @@ public static class ExcelCellTool
     /// Manage individual Excel cells - values and formulas for precise control
     /// </summary>
     [McpServerTool(Name = "excel_cell")]
-    [Description("Manage individual Excel cell values and formulas. Supports: get-value, set-value, get-formula, set-formula.")]
-    public static string ExcelCell(
+    [Description("Manage individual Excel cell values and formulas. Supports: get-value, set-value, get-formula, set-formula. Optional batchId for batch sessions.")]
+    public static async Task<string> ExcelCell(
         [Required]
         [RegularExpression("^(get-value|set-value|get-formula|set-formula)$")]
         [Description("Action: get-value, set-value, get-formula, set-formula")]
@@ -51,7 +51,10 @@ public static class ExcelCellTool
 
         [StringLength(32767)]
         [Description("Value or formula to set (for set-value/set-formula actions)")]
-        string? value = null)
+        string? value = null,
+        
+        [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
+        string? batchId = null)
     {
         try
         {
@@ -60,13 +63,13 @@ public static class ExcelCellTool
             switch (action.ToLowerInvariant())
             {
                 case "get-value":
-                    return GetCellValue(cellCommands, excelPath, sheetName, cellAddress);
+                    return await GetCellValueAsync(cellCommands, excelPath, sheetName, cellAddress, batchId);
                 case "set-value":
-                    return SetCellValue(cellCommands, excelPath, sheetName, cellAddress, value);
+                    return await SetCellValueAsync(cellCommands, excelPath, sheetName, cellAddress, value, batchId);
                 case "get-formula":
-                    return GetCellFormula(cellCommands, excelPath, sheetName, cellAddress);
+                    return await GetCellFormulaAsync(cellCommands, excelPath, sheetName, cellAddress, batchId);
                 case "set-formula":
-                    return SetCellFormula(cellCommands, excelPath, sheetName, cellAddress, value);
+                    return await SetCellFormulaAsync(cellCommands, excelPath, sheetName, cellAddress, value, batchId);
                 default:
                     ExcelToolsBase.ThrowUnknownAction(action, "get-value", "set-value", "get-formula", "set-formula");
                     throw new InvalidOperationException(); // Never reached
@@ -83,9 +86,13 @@ public static class ExcelCellTool
         }
     }
 
-    private static string GetCellValue(CellCommands commands, string excelPath, string sheetName, string cellAddress)
+    private static async Task<string> GetCellValueAsync(CellCommands commands, string excelPath, string sheetName, string cellAddress, string? batchId)
     {
-        var result = commands.GetValue(excelPath, sheetName, cellAddress);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: false,
+            async (batch) => await commands.GetValueAsync(batch, sheetName, cellAddress));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -111,12 +118,16 @@ public static class ExcelCellTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string SetCellValue(CellCommands commands, string excelPath, string sheetName, string cellAddress, string? value)
+    private static async Task<string> SetCellValueAsync(CellCommands commands, string excelPath, string sheetName, string cellAddress, string? value, string? batchId)
     {
         if (value == null)
             throw new ModelContextProtocol.McpException("value is required for set-value action");
 
-        var result = commands.SetValue(excelPath, sheetName, cellAddress, value);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: true,
+            async (batch) => await commands.SetValueAsync(batch, sheetName, cellAddress, value));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -142,9 +153,13 @@ public static class ExcelCellTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string GetCellFormula(CellCommands commands, string excelPath, string sheetName, string cellAddress)
+    private static async Task<string> GetCellFormulaAsync(CellCommands commands, string excelPath, string sheetName, string cellAddress, string? batchId)
     {
-        var result = commands.GetFormula(excelPath, sheetName, cellAddress);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: false,
+            async (batch) => await commands.GetFormulaAsync(batch, sheetName, cellAddress));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -170,12 +185,16 @@ public static class ExcelCellTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string SetCellFormula(CellCommands commands, string excelPath, string sheetName, string cellAddress, string? value)
+    private static async Task<string> SetCellFormulaAsync(CellCommands commands, string excelPath, string sheetName, string cellAddress, string? value, string? batchId)
     {
         if (string.IsNullOrEmpty(value))
             throw new ModelContextProtocol.McpException("value (formula) is required for set-formula action");
 
-        var result = commands.SetFormula(excelPath, sheetName, cellAddress, value);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: true,
+            async (batch) => await commands.SetFormulaAsync(batch, sheetName, cellAddress, value));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))

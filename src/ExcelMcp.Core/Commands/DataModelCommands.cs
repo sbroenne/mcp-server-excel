@@ -4,6 +4,8 @@ using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Security;
 using Sbroenne.ExcelMcp.Core.Session;
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
+
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
@@ -13,31 +15,24 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public class DataModelCommands : IDataModelCommands
 {
     /// <inheritdoc />
-    public DataModelTableListResult ListTables(string filePath)
+    public async Task<DataModelTableListResult> ListTablesAsync(IExcelBatch batch)
     {
-        var result = new DataModelTableListResult { FilePath = filePath };
+        var result = new DataModelTableListResult { FilePath = batch.WorkbookPath };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? model = null;
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(workbook))
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
                 {
                     result.Success = false;
                     result.ErrorMessage = "This workbook does not contain a Data Model. Load data to Data Model first using Power Query or external data sources.";
                     return result;
                 }
 
-                model = workbook.Model;
+                model = ctx.Book.Model;
                 dynamic? modelTables = null;
                 try
                 {
@@ -105,31 +100,24 @@ public class DataModelCommands : IDataModelCommands
     }
 
     /// <inheritdoc />
-    public DataModelMeasureListResult ListMeasures(string filePath, string? tableName = null)
+    public async Task<DataModelMeasureListResult> ListMeasuresAsync(IExcelBatch batch, string? tableName = null)
     {
-        var result = new DataModelMeasureListResult { FilePath = filePath };
+        var result = new DataModelMeasureListResult { FilePath = batch.WorkbookPath };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? model = null;
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(workbook))
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
                 {
                     result.Success = false;
                     result.ErrorMessage = "This workbook does not contain a Data Model.";
                     return result;
                 }
 
-                model = workbook.Model;
+                model = ctx.Book.Model;
                 dynamic? modelTables = null;
                 try
                 {
@@ -214,36 +202,29 @@ public class DataModelCommands : IDataModelCommands
     }
 
     /// <inheritdoc />
-    public DataModelMeasureViewResult ViewMeasure(string filePath, string measureName)
+    public async Task<DataModelMeasureViewResult> ViewMeasureAsync(IExcelBatch batch, string measureName)
     {
         var result = new DataModelMeasureViewResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             MeasureName = measureName
         };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? measure = null;
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(workbook))
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
                 {
                     result.Success = false;
                     result.ErrorMessage = "This workbook does not contain a Data Model.";
                     return result;
                 }
 
-                model = workbook.Model;
+                model = ctx.Book.Model;
 
                 // Find the measure
                 measure = ComUtilities.FindModelMeasure(model, measureName);
@@ -315,20 +296,13 @@ public class DataModelCommands : IDataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> ExportMeasure(string filePath, string measureName, string outputFile)
+    public async Task<OperationResult> ExportMeasureAsync(IExcelBatch batch, string measureName, string outputFile)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "model-export-measure"
         };
-
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
 
         // Validate and normalize output file path
         try
@@ -342,21 +316,21 @@ public class DataModelCommands : IDataModelCommands
             return result;
         }
 
-        ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? measure = null;
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(workbook))
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
                 {
                     result.Success = false;
                     result.ErrorMessage = "This workbook does not contain a Data Model.";
-                    return 1;
+                    return result;
                 }
 
-                model = workbook.Model;
+                model = ctx.Book.Model;
 
                 // Find the measure
                 measure = ComUtilities.FindModelMeasure(model, measureName);
@@ -364,7 +338,7 @@ public class DataModelCommands : IDataModelCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Measure '{measureName}' not found in Data Model.";
-                    return 1;
+                    return result;
                 }
 
                 // Get measure details
@@ -411,13 +385,13 @@ public class DataModelCommands : IDataModelCommands
                 File.WriteAllText(outputFile, daxContent.ToString());
 
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error exporting measure: {ex.Message}";
-                return 1;
+                return result;
             }
             finally
             {
@@ -425,36 +399,27 @@ public class DataModelCommands : IDataModelCommands
                 ComUtilities.Release(ref model);
             }
         });
-
-        return await Task.FromResult(result);
     }
 
     /// <inheritdoc />
-    public DataModelRelationshipListResult ListRelationships(string filePath)
+    public async Task<DataModelRelationshipListResult> ListRelationshipsAsync(IExcelBatch batch)
     {
-        var result = new DataModelRelationshipListResult { FilePath = filePath };
+        var result = new DataModelRelationshipListResult { FilePath = batch.WorkbookPath };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? model = null;
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(workbook))
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
                 {
                     result.Success = false;
                     result.ErrorMessage = "This workbook does not contain a Data Model.";
                     return result;
                 }
 
-                model = workbook.Model;
+                model = ctx.Book.Model;
                 dynamic? relationships = null;
                 try
                 {
@@ -530,35 +495,28 @@ public class DataModelCommands : IDataModelCommands
     }
 
     /// <inheritdoc />
-    public OperationResult Refresh(string filePath, string? tableName = null)
+    public async Task<OperationResult> RefreshAsync(IExcelBatch batch, string? tableName = null)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = tableName != null ? $"model-refresh-table:{tableName}" : "model-refresh"
         };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? model = null;
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(workbook))
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
                 {
                     result.Success = false;
                     result.ErrorMessage = "This workbook does not contain a Data Model.";
                     return result;
                 }
 
-                model = workbook.Model;
+                model = ctx.Book.Model;
 
                 if (tableName != null)
                 {
@@ -623,36 +581,29 @@ public class DataModelCommands : IDataModelCommands
     }
 
     /// <inheritdoc />
-    public OperationResult DeleteMeasure(string filePath, string measureName)
+    public async Task<OperationResult> DeleteMeasureAsync(IExcelBatch batch, string measureName)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "model-delete-measure"
         };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? measure = null;
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(workbook))
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
                 {
                     result.Success = false;
                     result.ErrorMessage = "This workbook does not contain a Data Model.";
                     return result;
                 }
 
-                model = workbook.Model;
+                model = ctx.Book.Model;
 
                 // Find the measure
                 measure = ComUtilities.FindModelMeasure(model, measureName);
@@ -709,22 +660,15 @@ public class DataModelCommands : IDataModelCommands
     }
 
     /// <inheritdoc />
-    public OperationResult DeleteRelationship(string filePath, string fromTable, string fromColumn, string toTable, string toColumn)
+    public async Task<OperationResult> DeleteRelationshipAsync(IExcelBatch batch, string fromTable, string fromColumn, string toTable, string toColumn)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "model-delete-relationship"
         };
 
-        if (!File.Exists(filePath))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"File not found: {filePath}";
-            return result;
-        }
-
-        return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? modelRelationships = null;
@@ -732,14 +676,14 @@ public class DataModelCommands : IDataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(workbook))
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
                 {
                     result.Success = false;
                     result.ErrorMessage = "This workbook does not contain a Data Model.";
                     return result;
                 }
 
-                model = workbook.Model;
+                model = ctx.Book.Model;
                 modelRelationships = model.ModelRelationships;
 
                 // Find the relationship

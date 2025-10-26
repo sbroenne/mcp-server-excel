@@ -46,6 +46,8 @@ class Program
             var connection = new ConnectionCommands();
             var dataModel = new DataModelCommands();
             var dataModelTom = new DataModelTomCommands();
+            var table = new TableCommands();
+            var hyperlink = new HyperlinkCommands();
 
             return args[0].ToLower() switch
             {
@@ -101,6 +103,26 @@ class Program
                 "cell-get-formula" => cell.GetFormula(args),
                 "cell-set-formula" => cell.SetFormula(args),
 
+                // Table commands
+                "table-list" => table.List(args),
+                "table-create" => table.Create(args),
+                "table-rename" => table.Rename(args),
+                "table-delete" => table.Delete(args),
+                "table-info" => table.Info(args),
+                "table-resize" => table.Resize(args),
+                "table-toggle-totals" => table.ToggleTotals(args),
+                "table-set-column-total" => table.SetColumnTotal(args),
+                "table-read" => table.ReadData(args),
+                "table-append" => table.AppendRows(args),
+                "table-set-style" => table.SetStyle(args),
+                "table-add-to-datamodel" => table.AddToDataModel(args),
+
+                // Hyperlink commands
+                "hyperlink-add" => hyperlink.AddHyperlink(args),
+                "hyperlink-remove" => hyperlink.RemoveHyperlink(args),
+                "hyperlink-list" => hyperlink.ListHyperlinks(args),
+                "hyperlink-get" => hyperlink.GetHyperlink(args),
+
                 // Connection commands
                 "conn-list" => connection.List(args),
                 "conn-view" => connection.View(args),
@@ -126,7 +148,7 @@ class Program
                 "dm-list-tables" => dataModel.ListTables(args),
                 "dm-list-measures" => dataModel.ListMeasures(args),
                 "dm-view-measure" => dataModel.ViewMeasure(args),
-                "dm-export-measure" => await dataModel.ExportMeasure(args),
+                "dm-export-measure" => dataModel.ExportMeasure(args),
                 "dm-list-relationships" => dataModel.ListRelationships(args),
                 "dm-refresh" => dataModel.Refresh(args),
                 "dm-delete-measure" => dataModel.DeleteMeasure(args),

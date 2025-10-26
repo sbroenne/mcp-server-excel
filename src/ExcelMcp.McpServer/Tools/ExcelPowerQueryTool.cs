@@ -37,8 +37,8 @@ public static class ExcelPowerQueryTool
     /// Manage Power Query operations - M code, data loading, and query lifecycle
     /// </summary>
     [McpServerTool(Name = "excel_powerquery")]
-    [Description("Manage Power Query M code and data loading. Supports: list, view, import, export, update, refresh, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config.")]
-    public static string ExcelPowerQuery(
+    [Description("Manage Power Query M code and data loading. Supports: list, view, import, export, update, refresh, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config. Optional batchId for batch sessions.")]
+    public static async Task<string> ExcelPowerQuery(
         [Required]
         [RegularExpression("^(list|view|import|export|update|refresh|delete|set-load-to-table|set-load-to-data-model|set-load-to-both|set-connection-only|get-load-config)$")]
         [Description("Action: list, view, import, export, update, refresh, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config")]
@@ -68,7 +68,10 @@ public static class ExcelPowerQueryTool
 
         [RegularExpression("^(None|Private|Organizational|Public)$")]
         [Description("Privacy level for Power Query data combining (optional). If not specified and privacy error occurs, LLM must ask user to choose: None (least secure), Private (most secure), Organizational (internal data), or Public (public data)")]
-        string? privacyLevel = null)
+        string? privacyLevel = null,
+        
+        [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
+        string? batchId = null)
     {
         try
         {
@@ -86,18 +89,18 @@ public static class ExcelPowerQueryTool
 
             return action.ToLowerInvariant() switch
             {
-                "list" => ListPowerQueries(powerQueryCommands, excelPath),
-                "view" => ViewPowerQuery(powerQueryCommands, excelPath, queryName),
-                "import" => ImportPowerQuery(powerQueryCommands, excelPath, queryName, sourcePath, parsedPrivacyLevel),
-                "export" => ExportPowerQuery(powerQueryCommands, excelPath, queryName, targetPath),
-                "update" => UpdatePowerQuery(powerQueryCommands, excelPath, queryName, sourcePath, parsedPrivacyLevel),
-                "refresh" => RefreshPowerQuery(powerQueryCommands, excelPath, queryName),
-                "delete" => DeletePowerQuery(powerQueryCommands, excelPath, queryName),
-                "set-load-to-table" => SetLoadToTable(powerQueryCommands, excelPath, queryName, targetSheet, parsedPrivacyLevel),
-                "set-load-to-data-model" => SetLoadToDataModel(powerQueryCommands, excelPath, queryName, parsedPrivacyLevel),
-                "set-load-to-both" => SetLoadToBoth(powerQueryCommands, excelPath, queryName, targetSheet, parsedPrivacyLevel),
-                "set-connection-only" => SetConnectionOnly(powerQueryCommands, excelPath, queryName),
-                "get-load-config" => GetLoadConfig(powerQueryCommands, excelPath, queryName),
+                "list" => await ListPowerQueriesAsync(powerQueryCommands, excelPath, batchId),
+                "view" => await ViewPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
+                "import" => await ImportPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, parsedPrivacyLevel, batchId),
+                "export" => await ExportPowerQueryAsync(powerQueryCommands, excelPath, queryName, targetPath, batchId),
+                "update" => await UpdatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, parsedPrivacyLevel, batchId),
+                "refresh" => await RefreshPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
+                "delete" => await DeletePowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
+                "set-load-to-table" => await SetLoadToTableAsync(powerQueryCommands, excelPath, queryName, targetSheet, parsedPrivacyLevel, batchId),
+                "set-load-to-data-model" => await SetLoadToDataModelAsync(powerQueryCommands, excelPath, queryName, parsedPrivacyLevel, batchId),
+                "set-load-to-both" => await SetLoadToBothAsync(powerQueryCommands, excelPath, queryName, targetSheet, parsedPrivacyLevel, batchId),
+                "set-connection-only" => await SetConnectionOnlyAsync(powerQueryCommands, excelPath, queryName, batchId),
+                "get-load-config" => await GetLoadConfigAsync(powerQueryCommands, excelPath, queryName, batchId),
                 _ => throw new ModelContextProtocol.McpException(
                     $"Unknown action '{action}'. Supported: list, view, import, export, update, refresh, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config")
             };
@@ -113,9 +116,13 @@ public static class ExcelPowerQueryTool
         }
     }
 
-    private static string ListPowerQueries(PowerQueryCommands commands, string excelPath)
+    private static async Task<string> ListPowerQueriesAsync(PowerQueryCommands commands, string excelPath, string? batchId)
     {
-        var result = commands.List(excelPath);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: false,
+            async (batch) => await commands.ListAsync(batch));
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
             result.SuggestedNextActions = new List<string>
@@ -139,12 +146,16 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ViewPowerQuery(PowerQueryCommands commands, string excelPath, string? queryName)
+    private static async Task<string> ViewPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for view action");
 
-        var result = commands.View(excelPath, queryName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: false,
+            async (batch) => await commands.ViewAsync(batch, queryName));
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
             result.SuggestedNextActions = new List<string>
@@ -168,12 +179,16 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ImportPowerQuery(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, PowerQueryPrivacyLevel? privacyLevel)
+    private static async Task<string> ImportPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, PowerQueryPrivacyLevel? privacyLevel, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(sourcePath))
             throw new ModelContextProtocol.McpException("queryName and sourcePath are required for import action");
 
-        var result = commands.Import(excelPath, queryName, sourcePath, privacyLevel).GetAwaiter().GetResult();
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: true,
+            async (batch) => await commands.ImportAsync(batch, queryName, sourcePath, privacyLevel));
 
         // Always provide actionable next steps and workflow hint for LLM guidance
         if (result.Success)
@@ -200,12 +215,16 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ExportPowerQuery(PowerQueryCommands commands, string excelPath, string? queryName, string? targetPath)
+    private static async Task<string> ExportPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? targetPath, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(targetPath))
             throw new ModelContextProtocol.McpException("queryName and targetPath are required for export action");
 
-        var result = commands.Export(excelPath, queryName, targetPath).GetAwaiter().GetResult();
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: false,
+            async (batch) => await commands.ExportAsync(batch, queryName, targetPath));
         if (result.Success)
         {
             result.SuggestedNextActions = new List<string>
@@ -228,12 +247,16 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string UpdatePowerQuery(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, PowerQueryPrivacyLevel? privacyLevel)
+    private static async Task<string> UpdatePowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, PowerQueryPrivacyLevel? privacyLevel, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(sourcePath))
             throw new ModelContextProtocol.McpException("queryName and sourcePath are required for update action");
 
-        var result = commands.Update(excelPath, queryName, sourcePath, privacyLevel).GetAwaiter().GetResult();
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: true,
+            async (batch) => await commands.UpdateAsync(batch, queryName, sourcePath, privacyLevel));
         if (result.Success)
         {
             result.SuggestedNextActions = new List<string>
@@ -256,12 +279,16 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string RefreshPowerQuery(PowerQueryCommands commands, string excelPath, string? queryName)
+    private static async Task<string> RefreshPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for refresh action");
 
-        var result = commands.Refresh(excelPath, queryName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: true,
+            async (batch) => await commands.RefreshAsync(batch, queryName));
         if (result.Success)
         {
             result.SuggestedNextActions = new List<string>
@@ -285,12 +312,16 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string DeletePowerQuery(PowerQueryCommands commands, string excelPath, string? queryName)
+    private static async Task<string> DeletePowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for delete action");
 
-        var result = commands.Delete(excelPath, queryName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: true,
+            async (batch) => await commands.DeleteAsync(batch, queryName));
         if (result.Success)
         {
             result.SuggestedNextActions = new List<string>
@@ -314,12 +345,16 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string SetLoadToTable(PowerQueryCommands commands, string excelPath, string? queryName, string? targetSheet, PowerQueryPrivacyLevel? privacyLevel)
+    private static async Task<string> SetLoadToTableAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? targetSheet, PowerQueryPrivacyLevel? privacyLevel, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for set-load-to-table action");
 
-        var result = commands.SetLoadToTable(excelPath, queryName, targetSheet ?? "", privacyLevel);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: true,
+            async (batch) => await commands.SetLoadToTableAsync(batch, queryName, targetSheet ?? "", privacyLevel));
         if (result.Success)
         {
             result.SuggestedNextActions = new List<string>
@@ -345,12 +380,16 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string SetLoadToDataModel(PowerQueryCommands commands, string excelPath, string? queryName, PowerQueryPrivacyLevel? privacyLevel)
+    private static async Task<string> SetLoadToDataModelAsync(PowerQueryCommands commands, string excelPath, string? queryName, PowerQueryPrivacyLevel? privacyLevel, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for set-load-to-data-model action");
 
-        var result = commands.SetLoadToDataModel(excelPath, queryName, privacyLevel);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: true,
+            async (batch) => await commands.SetLoadToDataModelAsync(batch, queryName, privacyLevel));
         if (result.Success)
         {
             result.SuggestedNextActions = new List<string>
@@ -376,12 +415,16 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string SetLoadToBoth(PowerQueryCommands commands, string excelPath, string? queryName, string? targetSheet, PowerQueryPrivacyLevel? privacyLevel)
+    private static async Task<string> SetLoadToBothAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? targetSheet, PowerQueryPrivacyLevel? privacyLevel, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for set-load-to-both action");
 
-        var result = commands.SetLoadToBoth(excelPath, queryName, targetSheet ?? "", privacyLevel);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: true,
+            async (batch) => await commands.SetLoadToBothAsync(batch, queryName, targetSheet ?? "", privacyLevel));
         if (result.Success)
         {
             result.SuggestedNextActions = new List<string>
@@ -407,12 +450,16 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string SetConnectionOnly(PowerQueryCommands commands, string excelPath, string? queryName)
+    private static async Task<string> SetConnectionOnlyAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for set-connection-only action");
 
-        var result = commands.SetConnectionOnly(excelPath, queryName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: true,
+            async (batch) => await commands.SetConnectionOnlyAsync(batch, queryName));
         if (result.Success)
         {
             result.SuggestedNextActions = new List<string>
@@ -435,12 +482,16 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string GetLoadConfig(PowerQueryCommands commands, string excelPath, string? queryName)
+    private static async Task<string> GetLoadConfigAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for get-load-config action");
 
-        var result = commands.GetLoadConfig(excelPath, queryName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: false,
+            async (batch) => await commands.GetLoadConfigAsync(batch, queryName));
         if (result.Success)
         {
             result.SuggestedNextActions = new List<string>

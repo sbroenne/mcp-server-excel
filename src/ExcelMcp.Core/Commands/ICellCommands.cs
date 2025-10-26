@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -10,20 +11,20 @@ public interface ICellCommands
     /// <summary>
     /// Gets the value of a specific cell
     /// </summary>
-    CellValueResult GetValue(string filePath, string sheetName, string cellAddress);
+    Task<CellValueResult> GetValueAsync(IExcelBatch batch, string sheetName, string cellAddress);
 
     /// <summary>
     /// Sets the value of a specific cell
     /// </summary>
-    OperationResult SetValue(string filePath, string sheetName, string cellAddress, string value);
+    Task<OperationResult> SetValueAsync(IExcelBatch batch, string sheetName, string cellAddress, string value);
 
     /// <summary>
     /// Gets the formula of a specific cell
     /// </summary>
-    CellValueResult GetFormula(string filePath, string sheetName, string cellAddress);
+    Task<CellValueResult> GetFormulaAsync(IExcelBatch batch, string sheetName, string cellAddress);
 
     /// <summary>
     /// Sets the formula of a specific cell
     /// </summary>
-    OperationResult SetFormula(string filePath, string sheetName, string cellAddress, string formula);
+    Task<OperationResult> SetFormulaAsync(IExcelBatch batch, string sheetName, string cellAddress, string formula);
 }

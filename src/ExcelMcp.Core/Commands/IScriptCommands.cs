@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -10,35 +11,35 @@ public interface IScriptCommands
     /// <summary>
     /// Lists all VBA modules and procedures in the workbook
     /// </summary>
-    ScriptListResult List(string filePath);
+    Task<ScriptListResult> ListAsync(IExcelBatch batch);
 
     /// <summary>
     /// Views VBA module code without exporting to file
     /// </summary>
-    ScriptViewResult View(string filePath, string moduleName);
+    Task<ScriptViewResult> ViewAsync(IExcelBatch batch, string moduleName);
 
     /// <summary>
     /// Exports VBA module code to a file
     /// </summary>
-    Task<OperationResult> Export(string filePath, string moduleName, string outputFile);
+    Task<OperationResult> ExportAsync(IExcelBatch batch, string moduleName, string outputFile);
 
     /// <summary>
     /// Imports VBA code from a file to create a new module
     /// </summary>
-    Task<OperationResult> Import(string filePath, string moduleName, string vbaFile);
+    Task<OperationResult> ImportAsync(IExcelBatch batch, string moduleName, string vbaFile);
 
     /// <summary>
     /// Updates an existing VBA module with new code
     /// </summary>
-    Task<OperationResult> Update(string filePath, string moduleName, string vbaFile);
+    Task<OperationResult> UpdateAsync(IExcelBatch batch, string moduleName, string vbaFile);
 
     /// <summary>
     /// Runs a VBA procedure with optional parameters
     /// </summary>
-    OperationResult Run(string filePath, string procedureName, params string[] parameters);
+    Task<OperationResult> RunAsync(IExcelBatch batch, string procedureName, params string[] parameters);
 
     /// <summary>
     /// Deletes a VBA module
     /// </summary>
-    OperationResult Delete(string filePath, string moduleName);
+    Task<OperationResult> DeleteAsync(IExcelBatch batch, string moduleName);
 }

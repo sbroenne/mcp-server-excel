@@ -2,6 +2,8 @@ using Sbroenne.ExcelMcp.Core.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Session;
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
+
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
@@ -10,26 +12,16 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public class ParameterCommands : IParameterCommands
 {
     /// <inheritdoc />
-    public ParameterListResult List(string filePath)
+    public async Task<ParameterListResult> ListAsync(IExcelBatch batch)
     {
-        if (!File.Exists(filePath))
-        {
-            return new ParameterListResult
-            {
-                Success = false,
-                ErrorMessage = $"File not found: {filePath}",
-                FilePath = filePath
-            };
-        }
+        var result = new ParameterListResult { FilePath = batch.WorkbookPath };
 
-        var result = new ParameterListResult { FilePath = filePath };
-
-        ExcelSession.Execute(filePath, false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? namesCollection = null;
             try
             {
-                namesCollection = workbook.Names;
+                namesCollection = ctx.Book.Names;
                 int count = namesCollection.Count;
 
                 for (int i = 1; i <= count; i++)
@@ -81,51 +73,38 @@ public class ParameterCommands : IParameterCommands
                 }
 
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = ex.Message;
-                return 1;
+                return result;
             }
             finally
             {
                 ComUtilities.Release(ref namesCollection);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public OperationResult Set(string filePath, string paramName, string value)
+    public async Task<OperationResult> SetAsync(IExcelBatch batch, string paramName, string value)
     {
-        if (!File.Exists(filePath))
-        {
-            return new OperationResult
-            {
-                Success = false,
-                ErrorMessage = $"File not found: {filePath}",
-                FilePath = filePath,
-                Action = "set-parameter"
-            };
-        }
+        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-parameter" };
 
-        var result = new OperationResult { FilePath = filePath, Action = "set-parameter" };
-
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? nameObj = null;
             dynamic? refersToRange = null;
             try
             {
-                nameObj = ComUtilities.FindName(workbook, paramName);
+                nameObj = ComUtilities.FindName(ctx.Book, paramName);
                 if (nameObj == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Parameter '{paramName}' not found";
-                    return 1;
+                    return result;
                 }
 
                 refersToRange = nameObj.RefersToRange;
@@ -144,15 +123,14 @@ public class ParameterCommands : IParameterCommands
                     refersToRange.Value2 = value;
                 }
 
-                workbook.Save();
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = ex.Message;
-                return 1;
+                return result;
             }
             finally
             {
@@ -160,38 +138,25 @@ public class ParameterCommands : IParameterCommands
                 ComUtilities.Release(ref nameObj);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public ParameterValueResult Get(string filePath, string paramName)
+    public async Task<ParameterValueResult> GetAsync(IExcelBatch batch, string paramName)
     {
-        if (!File.Exists(filePath))
-        {
-            return new ParameterValueResult
-            {
-                Success = false,
-                ErrorMessage = $"File not found: {filePath}",
-                FilePath = filePath,
-                ParameterName = paramName
-            };
-        }
+        var result = new ParameterValueResult { FilePath = batch.WorkbookPath, ParameterName = paramName };
 
-        var result = new ParameterValueResult { FilePath = filePath, ParameterName = paramName };
-
-        ExcelSession.Execute(filePath, false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? nameObj = null;
             dynamic? refersToRange = null;
             try
             {
-                nameObj = ComUtilities.FindName(workbook, paramName);
+                nameObj = ComUtilities.FindName(ctx.Book, paramName);
                 if (nameObj == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Parameter '{paramName}' not found";
-                    return 1;
+                    return result;
                 }
 
                 result.RefersTo = nameObj.RefersTo ?? "";
@@ -199,13 +164,13 @@ public class ParameterCommands : IParameterCommands
                 result.Value = refersToRange?.Value2;
                 result.ValueType = result.Value?.GetType().Name ?? "null";
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = ex.Message;
-                return 1;
+                return result;
             }
             finally
             {
@@ -213,56 +178,42 @@ public class ParameterCommands : IParameterCommands
                 ComUtilities.Release(ref nameObj);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public OperationResult Create(string filePath, string paramName, string reference)
+    public async Task<OperationResult> CreateAsync(IExcelBatch batch, string paramName, string reference)
     {
-        if (!File.Exists(filePath))
-        {
-            return new OperationResult
-            {
-                Success = false,
-                ErrorMessage = $"File not found: {filePath}",
-                FilePath = filePath,
-                Action = "create-parameter"
-            };
-        }
+        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "create-parameter" };
 
-        var result = new OperationResult { FilePath = filePath, Action = "create-parameter" };
-
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? existing = null;
             dynamic? namesCollection = null;
             try
             {
                 // Check if parameter already exists
-                existing = FindNamedRange(workbook, paramName);
+                existing = FindNamedRange(ctx.Book, paramName);
                 if (existing != null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Parameter '{paramName}' already exists";
-                    return 1;
+                    return result;
                 }
 
                 // Create new named range
-                namesCollection = workbook.Names;
+                namesCollection = ctx.Book.Names;
                 // Ensure reference is properly formatted for Excel COM
                 string formattedReference = reference.StartsWith("=") ? reference : $"={reference}";
                 namesCollection.Add(paramName, formattedReference);
 
-                workbook.Save();
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = ex.Message;
-                return 1;
+                return result;
             }
             finally
             {
@@ -270,32 +221,19 @@ public class ParameterCommands : IParameterCommands
                 ComUtilities.Release(ref existing);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public OperationResult Update(string filePath, string paramName, string reference)
+    public async Task<OperationResult> UpdateAsync(IExcelBatch batch, string paramName, string reference)
     {
-        if (!File.Exists(filePath))
-        {
-            return new OperationResult
-            {
-                Success = false,
-                ErrorMessage = $"File not found: {filePath}",
-                FilePath = filePath,
-                Action = "update-parameter"
-            };
-        }
+        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "update-parameter" };
 
-        var result = new OperationResult { FilePath = filePath, Action = "update-parameter" };
-
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? nameObj = null;
             try
             {
-                nameObj = ComUtilities.FindName(workbook, paramName);
+                nameObj = ComUtilities.FindName(ctx.Book, paramName);
                 if (nameObj == null)
                 {
                     result.Success = false;
@@ -305,7 +243,7 @@ public class ParameterCommands : IParameterCommands
                         "Use 'param-list' to see available parameters",
                         "Use 'param-create' to create a new named range"
                     };
-                    return 1;
+                    return result;
                 }
 
                 // Ensure reference is properly formatted with = prefix
@@ -323,7 +261,7 @@ public class ParameterCommands : IParameterCommands
                 };
                 result.WorkflowHint = "Parameter reference updated. Next, verify or modify the value.";
 
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
@@ -334,64 +272,48 @@ public class ParameterCommands : IParameterCommands
                     "Check that reference is valid (e.g., 'Sheet1!A1' or '=Sheet1!A1')",
                     "Ensure referenced sheet and cells exist"
                 };
-                return 1;
+                return result;
             }
             finally
             {
                 ComUtilities.Release(ref nameObj);
             }
         });
-
-        return result;
     }
 
     /// <inheritdoc />
-    public OperationResult Delete(string filePath, string paramName)
+    public async Task<OperationResult> DeleteAsync(IExcelBatch batch, string paramName)
     {
-        if (!File.Exists(filePath))
-        {
-            return new OperationResult
-            {
-                Success = false,
-                ErrorMessage = $"File not found: {filePath}",
-                FilePath = filePath,
-                Action = "delete-parameter"
-            };
-        }
+        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "delete-parameter" };
 
-        var result = new OperationResult { FilePath = filePath, Action = "delete-parameter" };
-
-        ExcelSession.Execute(filePath, true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? nameObj = null;
             try
             {
-                nameObj = ComUtilities.FindName(workbook, paramName);
+                nameObj = ComUtilities.FindName(ctx.Book, paramName);
                 if (nameObj == null)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Parameter '{paramName}' not found";
-                    return 1;
+                    return result;
                 }
 
                 nameObj.Delete();
-                workbook.Save();
                 result.Success = true;
-                return 0;
+                return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = ex.Message;
-                return 1;
+                return result;
             }
             finally
             {
                 ComUtilities.Release(ref nameObj);
             }
         });
-
-        return result;
     }
 
     private static dynamic? FindNamedRange(dynamic workbook, string name)

@@ -1,5 +1,6 @@
 using Spectre.Console;
 using Sbroenne.ExcelMcp.Core.Security;
+using Sbroenne.ExcelMcp.Core.Session;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -21,7 +22,13 @@ public class SheetCommands : ISheetCommands
         var filePath = args[1];
         AnsiConsole.MarkupLine($"[bold]Worksheets in:[/] {Path.GetFileName(filePath)}\n");
 
-        var result = _coreCommands.List(filePath);
+        // Use batch-of-one pattern for Core async API
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.ListAsync(batch);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -64,7 +71,13 @@ public class SheetCommands : ISheetCommands
         var sheetName = args[2];
         var range = args[3];
 
-        var result = _coreCommands.Read(filePath, sheetName, range);
+        // Use batch-of-one pattern for Core async API
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.ReadAsync(batch, sheetName, range);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -112,7 +125,16 @@ public class SheetCommands : ISheetCommands
         }
 
         var csvData = await File.ReadAllTextAsync(csvFile);
-        var result = _coreCommands.Write(filePath, sheetName, csvData);
+        
+        // Use batch-of-one pattern for Core async API
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var writeResult = await _coreCommands.WriteAsync(batch, sheetName, csvData);
+            await batch.SaveAsync(); // Save changes
+            return writeResult;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -137,7 +159,14 @@ public class SheetCommands : ISheetCommands
         var filePath = args[1];
         var sheetName = args[2];
 
-        var result = _coreCommands.Create(filePath, sheetName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var createResult = await _coreCommands.CreateAsync(batch, sheetName);
+            await batch.SaveAsync();
+            return createResult;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -179,7 +208,14 @@ public class SheetCommands : ISheetCommands
         var oldName = args[2];
         var newName = args[3];
 
-        var result = _coreCommands.Rename(filePath, oldName, newName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var renameResult = await _coreCommands.RenameAsync(batch, oldName, newName);
+            await batch.SaveAsync();
+            return renameResult;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -221,7 +257,14 @@ public class SheetCommands : ISheetCommands
         var sourceName = args[2];
         var targetName = args[3];
 
-        var result = _coreCommands.Copy(filePath, sourceName, targetName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var copyResult = await _coreCommands.CopyAsync(batch, sourceName, targetName);
+            await batch.SaveAsync();
+            return copyResult;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -262,7 +305,14 @@ public class SheetCommands : ISheetCommands
         var filePath = args[1];
         var sheetName = args[2];
 
-        var result = _coreCommands.Delete(filePath, sheetName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var deleteResult = await _coreCommands.DeleteAsync(batch, sheetName);
+            await batch.SaveAsync();
+            return deleteResult;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -304,7 +354,14 @@ public class SheetCommands : ISheetCommands
         var sheetName = args[2];
         var range = args[3];
 
-        var result = _coreCommands.Clear(filePath, sheetName, range);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var clearResult = await _coreCommands.ClearAsync(batch, sheetName, range);
+            await batch.SaveAsync();
+            return clearResult;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -364,7 +421,14 @@ public class SheetCommands : ISheetCommands
         }
 
         var csvData = File.ReadAllText(csvFile);
-        var result = _coreCommands.Append(filePath, sheetName, csvData);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var appendResult = await _coreCommands.AppendAsync(batch, sheetName, csvData);
+            await batch.SaveAsync();
+            return appendResult;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {

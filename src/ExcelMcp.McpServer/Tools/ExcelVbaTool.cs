@@ -30,8 +30,8 @@ public static class ExcelVbaTool
     /// Manage Excel VBA scripts - modules, procedures, and macro execution (requires .xlsm files)
     /// </summary>
     [McpServerTool(Name = "excel_vba")]
-    [Description("Manage Excel VBA scripts and macros (requires .xlsm files). Supports: list, view, export, import, update, run, delete.")]
-    public static string ExcelVba(
+    [Description("Manage Excel VBA scripts and macros (requires .xlsm files). Supports: list, view, export, import, update, run, delete. Optional batchId for batch sessions.")]
+    public static async Task<string> ExcelVba(
         [Required]
         [RegularExpression("^(list|view|export|import|update|run|delete)$")]
         [Description("Action: list, view, export, import, update, run, delete")]
@@ -55,7 +55,10 @@ public static class ExcelVbaTool
         string? targetPath = null,
 
         [Description("Parameters for VBA procedure execution (comma-separated)")]
-        string? parameters = null)
+        string? parameters = null,
+        
+        [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
+        string? batchId = null)
     {
         try
         {
@@ -64,19 +67,19 @@ public static class ExcelVbaTool
             switch (action.ToLowerInvariant())
             {
                 case "list":
-                    return ListVbaScripts(scriptCommands, excelPath);
+                    return await ListVbaScriptsAsync(scriptCommands, excelPath, batchId);
                 case "view":
-                    return ViewVbaScript(scriptCommands, excelPath, moduleName);
+                    return await ViewVbaScriptAsync(scriptCommands, excelPath, moduleName, batchId);
                 case "export":
-                    return ExportVbaScript(scriptCommands, excelPath, moduleName, targetPath);
+                    return await ExportVbaScriptAsync(scriptCommands, excelPath, moduleName, targetPath, batchId);
                 case "import":
-                    return ImportVbaScript(scriptCommands, excelPath, moduleName, sourcePath);
+                    return await ImportVbaScriptAsync(scriptCommands, excelPath, moduleName, sourcePath, batchId);
                 case "update":
-                    return UpdateVbaScript(scriptCommands, excelPath, moduleName, sourcePath);
+                    return await UpdateVbaScriptAsync(scriptCommands, excelPath, moduleName, sourcePath, batchId);
                 case "run":
-                    return RunVbaScript(scriptCommands, excelPath, moduleName, parameters);
+                    return await RunVbaScriptAsync(scriptCommands, excelPath, moduleName, parameters, batchId);
                 case "delete":
-                    return DeleteVbaScript(scriptCommands, excelPath, moduleName);
+                    return await DeleteVbaScriptAsync(scriptCommands, excelPath, moduleName, batchId);
                 default:
                     ExcelToolsBase.ThrowUnknownAction(action, "list", "view", "export", "import", "update", "run", "delete");
                     throw new InvalidOperationException(); // Never reached
@@ -93,9 +96,13 @@ public static class ExcelVbaTool
         }
     }
 
-    private static string ListVbaScripts(ScriptCommands commands, string filePath)
+    private static async Task<string> ListVbaScriptsAsync(ScriptCommands commands, string filePath, string? batchId)
     {
-        var result = commands.List(filePath);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.ListAsync(batch));
 
         // If listing failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -121,12 +128,16 @@ public static class ExcelVbaTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ViewVbaScript(ScriptCommands commands, string filePath, string? moduleName)
+    private static async Task<string> ViewVbaScriptAsync(ScriptCommands commands, string filePath, string? moduleName, string? batchId)
     {
         if (string.IsNullOrEmpty(moduleName))
             throw new ModelContextProtocol.McpException("moduleName is required for view action");
 
-        var result = commands.View(filePath, moduleName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.ViewAsync(batch, moduleName));
 
         // If view failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -153,12 +164,16 @@ public static class ExcelVbaTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ExportVbaScript(ScriptCommands commands, string filePath, string? moduleName, string? targetPath)
+    private static async Task<string> ExportVbaScriptAsync(ScriptCommands commands, string filePath, string? moduleName, string? targetPath, string? batchId)
     {
         if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(targetPath))
             throw new ModelContextProtocol.McpException("moduleName and targetPath are required for export action");
 
-        var result = commands.Export(filePath, moduleName, targetPath).GetAwaiter().GetResult();
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.ExportAsync(batch, moduleName, targetPath));
 
         // If export failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -184,12 +199,16 @@ public static class ExcelVbaTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ImportVbaScript(ScriptCommands commands, string filePath, string? moduleName, string? sourcePath)
+    private static async Task<string> ImportVbaScriptAsync(ScriptCommands commands, string filePath, string? moduleName, string? sourcePath, string? batchId)
     {
         if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(sourcePath))
             throw new ModelContextProtocol.McpException("moduleName and sourcePath are required for import action");
 
-        var result = commands.Import(filePath, moduleName, sourcePath).GetAwaiter().GetResult();
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.ImportAsync(batch, moduleName, sourcePath));
 
         // If import failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -215,12 +234,16 @@ public static class ExcelVbaTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string UpdateVbaScript(ScriptCommands commands, string filePath, string? moduleName, string? sourcePath)
+    private static async Task<string> UpdateVbaScriptAsync(ScriptCommands commands, string filePath, string? moduleName, string? sourcePath, string? batchId)
     {
         if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(sourcePath))
             throw new ModelContextProtocol.McpException("moduleName and sourcePath are required for update action");
 
-        var result = commands.Update(filePath, moduleName, sourcePath).GetAwaiter().GetResult();
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.UpdateAsync(batch, moduleName, sourcePath));
 
         // If update failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -246,7 +269,7 @@ public static class ExcelVbaTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string RunVbaScript(ScriptCommands commands, string filePath, string? moduleName, string? parameters)
+    private static async Task<string> RunVbaScriptAsync(ScriptCommands commands, string filePath, string? moduleName, string? parameters, string? batchId)
     {
         if (string.IsNullOrEmpty(moduleName))
             throw new ModelContextProtocol.McpException("moduleName (format: 'Module.Procedure') is required for run action");
@@ -258,7 +281,11 @@ public static class ExcelVbaTool
                        .Select(p => p.Trim())
                        .ToArray();
 
-        var result = commands.Run(filePath, moduleName, paramArray);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false, // VBA execution doesn't save unless VBA code does
+            async (batch) => await commands.RunAsync(batch, moduleName, paramArray));
 
         // If VBA execution failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -285,12 +312,16 @@ public static class ExcelVbaTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string DeleteVbaScript(ScriptCommands commands, string filePath, string? moduleName)
+    private static async Task<string> DeleteVbaScriptAsync(ScriptCommands commands, string filePath, string? moduleName, string? batchId)
     {
         if (string.IsNullOrEmpty(moduleName))
             throw new ModelContextProtocol.McpException("moduleName is required for delete action");
 
-        var result = commands.Delete(filePath, moduleName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.DeleteAsync(batch, moduleName));
 
         // If delete failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))

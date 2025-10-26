@@ -1,5 +1,6 @@
 using Spectre.Console;
 using System.Text.Json;
+using Sbroenne.ExcelMcp.Core.Session;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -21,7 +22,12 @@ public class ConnectionCommands : IConnectionCommands
         var filePath = args[1];
         AnsiConsole.MarkupLine($"[bold]Connections in:[/] {Path.GetFileName(filePath)}\n");
 
-        var result = _coreCommands.List(filePath);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.ListAsync(batch);
+        });
+        var result = task.GetAwaiter().GetResult();
         
         if (result.Success)
         {
@@ -76,7 +82,12 @@ public class ConnectionCommands : IConnectionCommands
         var filePath = args[1];
         var connectionName = args[2];
 
-        var result = _coreCommands.View(filePath, connectionName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.ViewAsync(batch, connectionName);
+        });
+        var result = task.GetAwaiter().GetResult();
         
         if (result.Success)
         {
@@ -126,7 +137,14 @@ public class ConnectionCommands : IConnectionCommands
         var connectionName = args[2];
         var jsonPath = args[3];
 
-        var result = _coreCommands.Import(filePath, connectionName, jsonPath);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.ImportAsync(batch, connectionName, jsonPath);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
         
         if (result.Success)
         {
@@ -152,7 +170,12 @@ public class ConnectionCommands : IConnectionCommands
         var connectionName = args[2];
         var jsonPath = args[3];
 
-        var result = _coreCommands.Export(filePath, connectionName, jsonPath);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.ExportAsync(batch, connectionName, jsonPath);
+        });
+        var result = task.GetAwaiter().GetResult();
         
         if (result.Success)
         {
@@ -179,7 +202,14 @@ public class ConnectionCommands : IConnectionCommands
         var connectionName = args[2];
         var jsonPath = args[3];
 
-        var result = _coreCommands.Update(filePath, connectionName, jsonPath);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.UpdateAsync(batch, connectionName, jsonPath);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
         
         if (result.Success)
         {
@@ -210,7 +240,14 @@ public class ConnectionCommands : IConnectionCommands
                 ctx.Spinner(Spinner.Known.Dots);
                 ctx.SpinnerStyle(Style.Parse("green"));
                 
-                var result = _coreCommands.Refresh(filePath, connectionName);
+                var task = Task.Run(async () =>
+                {
+                    await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                    var result = await _coreCommands.RefreshAsync(batch, connectionName);
+                    await batch.SaveAsync();
+                    return result;
+                });
+                var result = task.GetAwaiter().GetResult();
                 
                 if (result.Success)
                 {
@@ -218,7 +255,14 @@ public class ConnectionCommands : IConnectionCommands
                 }
             });
 
-        var finalResult = _coreCommands.Refresh(filePath, connectionName);
+        var finalTask = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.RefreshAsync(batch, connectionName);
+            await batch.SaveAsync();
+            return result;
+        });
+        var finalResult = finalTask.GetAwaiter().GetResult();
         
         if (finalResult.Success)
         {
@@ -250,7 +294,14 @@ public class ConnectionCommands : IConnectionCommands
             return 0;
         }
 
-        var result = _coreCommands.Delete(filePath, connectionName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.DeleteAsync(batch, connectionName);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
         
         if (result.Success)
         {
@@ -276,7 +327,14 @@ public class ConnectionCommands : IConnectionCommands
         var connectionName = args[2];
         var sheetName = args[3];
 
-        var result = _coreCommands.LoadTo(filePath, connectionName, sheetName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.LoadToAsync(batch, connectionName, sheetName);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
         
         if (result.Success)
         {
@@ -301,7 +359,12 @@ public class ConnectionCommands : IConnectionCommands
         var filePath = args[1];
         var connectionName = args[2];
 
-        var result = _coreCommands.GetProperties(filePath, connectionName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.GetPropertiesAsync(batch, connectionName);
+        });
+        var result = task.GetAwaiter().GetResult();
         
         if (result.Success)
         {
@@ -372,7 +435,14 @@ public class ConnectionCommands : IConnectionCommands
             }
         }
 
-        var result = _coreCommands.SetProperties(filePath, connectionName, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.SetPropertiesAsync(batch, connectionName, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
         
         if (result.Success)
         {
@@ -397,7 +467,12 @@ public class ConnectionCommands : IConnectionCommands
         var filePath = args[1];
         var connectionName = args[2];
 
-        var result = _coreCommands.Test(filePath, connectionName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.TestAsync(batch, connectionName);
+        });
+        var result = task.GetAwaiter().GetResult();
         
         if (result.Success)
         {

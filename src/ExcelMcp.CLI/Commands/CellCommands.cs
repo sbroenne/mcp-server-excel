@@ -1,4 +1,5 @@
 using Spectre.Console;
+using Sbroenne.ExcelMcp.Core.Session;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -21,7 +22,12 @@ public class CellCommands : ICellCommands
         var sheetName = args[2];
         var cellAddress = args[3];
 
-        var result = _coreCommands.GetValue(filePath, sheetName, cellAddress);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.GetValueAsync(batch, sheetName, cellAddress);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -49,7 +55,14 @@ public class CellCommands : ICellCommands
         var cellAddress = args[3];
         var value = args[4];
 
-        var result = _coreCommands.SetValue(filePath, sheetName, cellAddress, value);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var setResult = await _coreCommands.SetValueAsync(batch, sheetName, cellAddress, value);
+            await batch.SaveAsync();
+            return setResult;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -91,7 +104,12 @@ public class CellCommands : ICellCommands
         var sheetName = args[2];
         var cellAddress = args[3];
 
-        var result = _coreCommands.GetFormula(filePath, sheetName, cellAddress);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.GetFormulaAsync(batch, sheetName, cellAddress);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -128,12 +146,24 @@ public class CellCommands : ICellCommands
         var cellAddress = args[3];
         var formula = args[4];
 
-        var result = _coreCommands.SetFormula(filePath, sheetName, cellAddress, formula);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var setResult = await _coreCommands.SetFormulaAsync(batch, sheetName, cellAddress, formula);
+            await batch.SaveAsync();
+            return setResult;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
-            // Need to get the result value by calling GetValue
-            var valueResult = _coreCommands.GetValue(filePath, sheetName, cellAddress);
+            // Need to get the result value by calling GetValue (separate batch)
+            var valueTask = Task.Run(async () =>
+            {
+                await using var valueBatch = await ExcelSession.BeginBatchAsync(filePath);
+                return await _coreCommands.GetValueAsync(valueBatch, sheetName, cellAddress);
+            });
+            var valueResult = valueTask.GetAwaiter().GetResult();
             string displayResult = valueResult.Value?.ToString() ?? "[null]";
 
             AnsiConsole.MarkupLine($"[green]✓[/] Set {sheetName}!{cellAddress} = {formula.EscapeMarkup()}");

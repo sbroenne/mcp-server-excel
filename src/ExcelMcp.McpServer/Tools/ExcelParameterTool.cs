@@ -28,8 +28,8 @@ public static class ExcelParameterTool
     /// Manage Excel parameters (named ranges) - configuration values and reusable references
     /// </summary>
     [McpServerTool(Name = "excel_parameter")]
-    [Description("Manage Excel named ranges as parameters. Supports: list, get, set, update, create, delete.")]
-    public static string ExcelParameter(
+    [Description("Manage Excel named ranges as parameters. Supports: list, get, set, update, create, delete. Optional batchId for batch sessions.")]
+    public static async Task<string> ExcelParameter(
         [Required]
         [RegularExpression("^(list|get|set|update|create|delete)$")]
         [Description("Action: list, get, set, update, create, delete")]
@@ -45,7 +45,10 @@ public static class ExcelParameterTool
         string? parameterName = null,
 
         [Description("Parameter value (for set) or cell reference (for create/update, e.g., 'Sheet1!A1')")]
-        string? value = null)
+        string? value = null,
+        
+        [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
+        string? batchId = null)
     {
         try
         {
@@ -53,12 +56,12 @@ public static class ExcelParameterTool
 
             return action.ToLowerInvariant() switch
             {
-                "list" => ListParameters(parameterCommands, excelPath),
-                "get" => GetParameter(parameterCommands, excelPath, parameterName),
-                "set" => SetParameter(parameterCommands, excelPath, parameterName, value),
-                "update" => UpdateParameter(parameterCommands, excelPath, parameterName, value),
-                "create" => CreateParameter(parameterCommands, excelPath, parameterName, value),
-                "delete" => DeleteParameter(parameterCommands, excelPath, parameterName),
+                "list" => await ListParametersAsync(parameterCommands, excelPath, batchId),
+                "get" => await GetParameterAsync(parameterCommands, excelPath, parameterName, batchId),
+                "set" => await SetParameterAsync(parameterCommands, excelPath, parameterName, value, batchId),
+                "update" => await UpdateParameterAsync(parameterCommands, excelPath, parameterName, value, batchId),
+                "create" => await CreateParameterAsync(parameterCommands, excelPath, parameterName, value, batchId),
+                "delete" => await DeleteParameterAsync(parameterCommands, excelPath, parameterName, batchId),
                 _ => throw new ModelContextProtocol.McpException(
                     $"Unknown action '{action}'. Supported: list, get, set, update, create, delete")
             };
@@ -74,9 +77,13 @@ public static class ExcelParameterTool
         }
     }
 
-    private static string ListParameters(ParameterCommands commands, string filePath)
+    private static async Task<string> ListParametersAsync(ParameterCommands commands, string filePath, string? batchId)
     {
-        var result = commands.List(filePath);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.ListAsync(batch));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -101,12 +108,16 @@ public static class ExcelParameterTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string GetParameter(ParameterCommands commands, string filePath, string? parameterName)
+    private static async Task<string> GetParameterAsync(ParameterCommands commands, string filePath, string? parameterName, string? batchId)
     {
         if (string.IsNullOrEmpty(parameterName))
             throw new ModelContextProtocol.McpException("parameterName is required for get action");
 
-        var result = commands.Get(filePath, parameterName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.GetAsync(batch, parameterName));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -132,12 +143,16 @@ public static class ExcelParameterTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string SetParameter(ParameterCommands commands, string filePath, string? parameterName, string? value)
+    private static async Task<string> SetParameterAsync(ParameterCommands commands, string filePath, string? parameterName, string? value, string? batchId)
     {
         if (string.IsNullOrEmpty(parameterName) || value == null)
             throw new ModelContextProtocol.McpException("parameterName and value are required for set action");
 
-        var result = commands.Set(filePath, parameterName, value);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.SetAsync(batch, parameterName, value));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -163,12 +178,16 @@ public static class ExcelParameterTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string UpdateParameter(ParameterCommands commands, string filePath, string? parameterName, string? value)
+    private static async Task<string> UpdateParameterAsync(ParameterCommands commands, string filePath, string? parameterName, string? value, string? batchId)
     {
         if (string.IsNullOrEmpty(parameterName) || string.IsNullOrEmpty(value))
             throw new ModelContextProtocol.McpException("parameterName and value (cell reference) are required for update action");
 
-        var result = commands.Update(filePath, parameterName, value);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.UpdateAsync(batch, parameterName, value));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -194,12 +213,16 @@ public static class ExcelParameterTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string CreateParameter(ParameterCommands commands, string filePath, string? parameterName, string? value)
+    private static async Task<string> CreateParameterAsync(ParameterCommands commands, string filePath, string? parameterName, string? value, string? batchId)
     {
         if (string.IsNullOrEmpty(parameterName) || string.IsNullOrEmpty(value))
             throw new ModelContextProtocol.McpException("parameterName and value (cell reference) are required for create action");
 
-        var result = commands.Create(filePath, parameterName, value);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.CreateAsync(batch, parameterName, value));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -225,12 +248,16 @@ public static class ExcelParameterTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string DeleteParameter(ParameterCommands commands, string filePath, string? parameterName)
+    private static async Task<string> DeleteParameterAsync(ParameterCommands commands, string filePath, string? parameterName, string? batchId)
     {
         if (string.IsNullOrEmpty(parameterName))
             throw new ModelContextProtocol.McpException("parameterName is required for delete action");
 
-        var result = commands.Delete(filePath, parameterName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.DeleteAsync(batch, parameterName));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))

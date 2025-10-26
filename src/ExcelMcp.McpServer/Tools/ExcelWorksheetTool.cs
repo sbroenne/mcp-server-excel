@@ -28,8 +28,8 @@ public static class ExcelWorksheetTool
     /// Manage Excel worksheets - data operations, sheet management, and content manipulation
     /// </summary>
     [McpServerTool(Name = "excel_worksheet")]
-    [Description("Manage Excel worksheets and data. Supports: list, read, write, create, rename, copy, delete, clear, append.")]
-    public static string ExcelWorksheet(
+    [Description("Manage Excel worksheets and data. Supports: list, read, write, create, rename, copy, delete, clear, append. Optional batchId for batch sessions.")]
+    public static async Task<string> ExcelWorksheet(
         [Required]
         [RegularExpression("^(list|read|write|create|rename|copy|delete|clear|append)$")]
         [Description("Action: list, read, write, create, rename, copy, delete, clear, append")]
@@ -51,7 +51,10 @@ public static class ExcelWorksheetTool
         [StringLength(31, MinimumLength = 1)]
         [RegularExpression(@"^[^[\]/*?\\:]+$")]
         [Description("New sheet name (for rename) or source sheet name (for copy)")]
-        string? targetName = null)
+        string? targetName = null,
+        
+        [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
+        string? batchId = null)
     {
         try
         {
@@ -59,15 +62,15 @@ public static class ExcelWorksheetTool
 
             return action.ToLowerInvariant() switch
             {
-                "list" => ListWorksheets(sheetCommands, excelPath),
-                "read" => ReadWorksheet(sheetCommands, excelPath, sheetName, range),
-                "write" => WriteWorksheet(sheetCommands, excelPath, sheetName, range),
-                "create" => CreateWorksheet(sheetCommands, excelPath, sheetName),
-                "rename" => RenameWorksheet(sheetCommands, excelPath, sheetName, targetName),
-                "copy" => CopyWorksheet(sheetCommands, excelPath, sheetName, targetName),
-                "delete" => DeleteWorksheet(sheetCommands, excelPath, sheetName),
-                "clear" => ClearWorksheet(sheetCommands, excelPath, sheetName, range),
-                "append" => AppendWorksheet(sheetCommands, excelPath, sheetName, range),
+                "list" => await ListWorksheetsAsync(sheetCommands, excelPath, batchId),
+                "read" => await ReadWorksheetAsync(sheetCommands, excelPath, sheetName, range, batchId),
+                "write" => await WriteWorksheetAsync(sheetCommands, excelPath, sheetName, range, batchId),
+                "create" => await CreateWorksheetAsync(sheetCommands, excelPath, sheetName, batchId),
+                "rename" => await RenameWorksheetAsync(sheetCommands, excelPath, sheetName, targetName, batchId),
+                "copy" => await CopyWorksheetAsync(sheetCommands, excelPath, sheetName, targetName, batchId),
+                "delete" => await DeleteWorksheetAsync(sheetCommands, excelPath, sheetName, batchId),
+                "clear" => await ClearWorksheetAsync(sheetCommands, excelPath, sheetName, range, batchId),
+                "append" => await AppendWorksheetAsync(sheetCommands, excelPath, sheetName, range, batchId),
                 _ => throw new ModelContextProtocol.McpException(
                     $"Unknown action '{action}'. Supported: list, read, write, create, rename, copy, delete, clear, append")
             };
@@ -83,9 +86,13 @@ public static class ExcelWorksheetTool
         }
     }
 
-    private static string ListWorksheets(SheetCommands commands, string filePath)
+    private static async Task<string> ListWorksheetsAsync(SheetCommands commands, string filePath, string? batchId)
     {
-        var result = commands.List(filePath);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.ListAsync(batch));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -110,12 +117,16 @@ public static class ExcelWorksheetTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ReadWorksheet(SheetCommands commands, string filePath, string? sheetName, string? range)
+    private static async Task<string> ReadWorksheetAsync(SheetCommands commands, string filePath, string? sheetName, string? range, string? batchId)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ModelContextProtocol.McpException("sheetName is required for read action");
 
-        var result = commands.Read(filePath, sheetName, range ?? "");
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.ReadAsync(batch, sheetName, range ?? ""));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -141,7 +152,7 @@ public static class ExcelWorksheetTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string WriteWorksheet(SheetCommands commands, string filePath, string? sheetName, string? dataPath)
+    private static async Task<string> WriteWorksheetAsync(SheetCommands commands, string filePath, string? sheetName, string? dataPath, string? batchId)
     {
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(dataPath))
             throw new ModelContextProtocol.McpException("sheetName and range (CSV file path) are required for write action");
@@ -160,7 +171,11 @@ public static class ExcelWorksheetTool
             throw new ModelContextProtocol.McpException($"Failed to read CSV file '{dataPath}': {ex.Message}");
         }
 
-        var result = commands.Write(filePath, sheetName, csvContent);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.WriteAsync(batch, sheetName, csvContent));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -186,12 +201,16 @@ public static class ExcelWorksheetTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string CreateWorksheet(SheetCommands commands, string filePath, string? sheetName)
+    private static async Task<string> CreateWorksheetAsync(SheetCommands commands, string filePath, string? sheetName, string? batchId)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ModelContextProtocol.McpException("sheetName is required for create action");
 
-        var result = commands.Create(filePath, sheetName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.CreateAsync(batch, sheetName));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -217,12 +236,16 @@ public static class ExcelWorksheetTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string RenameWorksheet(SheetCommands commands, string filePath, string? sheetName, string? targetName)
+    private static async Task<string> RenameWorksheetAsync(SheetCommands commands, string filePath, string? sheetName, string? targetName, string? batchId)
     {
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
             throw new ModelContextProtocol.McpException("sheetName and targetName are required for rename action");
 
-        var result = commands.Rename(filePath, sheetName, targetName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.RenameAsync(batch, sheetName, targetName));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -248,12 +271,16 @@ public static class ExcelWorksheetTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string CopyWorksheet(SheetCommands commands, string filePath, string? sheetName, string? targetName)
+    private static async Task<string> CopyWorksheetAsync(SheetCommands commands, string filePath, string? sheetName, string? targetName, string? batchId)
     {
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
             throw new ModelContextProtocol.McpException("sheetName and targetName are required for copy action");
 
-        var result = commands.Copy(filePath, sheetName, targetName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.CopyAsync(batch, sheetName, targetName));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -279,12 +306,16 @@ public static class ExcelWorksheetTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string DeleteWorksheet(SheetCommands commands, string filePath, string? sheetName)
+    private static async Task<string> DeleteWorksheetAsync(SheetCommands commands, string filePath, string? sheetName, string? batchId)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ModelContextProtocol.McpException("sheetName is required for delete action");
 
-        var result = commands.Delete(filePath, sheetName);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.DeleteAsync(batch, sheetName));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -310,12 +341,16 @@ public static class ExcelWorksheetTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ClearWorksheet(SheetCommands commands, string filePath, string? sheetName, string? range)
+    private static async Task<string> ClearWorksheetAsync(SheetCommands commands, string filePath, string? sheetName, string? range, string? batchId)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ModelContextProtocol.McpException("sheetName is required for clear action");
 
-        var result = commands.Clear(filePath, sheetName, range ?? "");
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.ClearAsync(batch, sheetName, range ?? ""));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -341,7 +376,7 @@ public static class ExcelWorksheetTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string AppendWorksheet(SheetCommands commands, string filePath, string? sheetName, string? dataPath)
+    private static async Task<string> AppendWorksheetAsync(SheetCommands commands, string filePath, string? sheetName, string? dataPath, string? batchId)
     {
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(dataPath))
             throw new ModelContextProtocol.McpException("sheetName and range (CSV file path) are required for append action");
@@ -360,7 +395,11 @@ public static class ExcelWorksheetTool
             throw new ModelContextProtocol.McpException($"Failed to read CSV file '{dataPath}': {ex.Message}");
         }
 
-        var result = commands.Append(filePath, sheetName, csvContent);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.AppendAsync(batch, sheetName, csvContent));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))

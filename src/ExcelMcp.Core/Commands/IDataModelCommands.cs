@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -11,66 +12,66 @@ public interface IDataModelCommands
     /// <summary>
     /// Lists all tables in the Data Model
     /// </summary>
-    /// <param name="filePath">Path to Excel file with Data Model</param>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <returns>Result containing list of tables with metadata</returns>
-    DataModelTableListResult ListTables(string filePath);
+    Task<DataModelTableListResult> ListTablesAsync(IExcelBatch batch);
 
     /// <summary>
     /// Lists all DAX measures in the model
     /// </summary>
-    /// <param name="filePath">Path to Excel file with Data Model</param>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Optional: Filter measures by table name</param>
     /// <returns>Result containing list of measures with formulas</returns>
-    DataModelMeasureListResult ListMeasures(string filePath, string? tableName = null);
+    Task<DataModelMeasureListResult> ListMeasuresAsync(IExcelBatch batch, string? tableName = null);
 
     /// <summary>
     /// Views complete measure details and DAX formula
     /// </summary>
-    /// <param name="filePath">Path to Excel file with Data Model</param>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="measureName">Name of the measure to view</param>
     /// <returns>Result containing complete measure information</returns>
-    DataModelMeasureViewResult ViewMeasure(string filePath, string measureName);
+    Task<DataModelMeasureViewResult> ViewMeasureAsync(IExcelBatch batch, string measureName);
 
     /// <summary>
     /// Exports measure DAX formula to file with metadata
     /// </summary>
-    /// <param name="filePath">Path to Excel file with Data Model</param>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="measureName">Name of the measure to export</param>
     /// <param name="outputFile">Path to output DAX file</param>
     /// <returns>Result indicating success or failure</returns>
-    Task<OperationResult> ExportMeasure(string filePath, string measureName, string outputFile);
+    Task<OperationResult> ExportMeasureAsync(IExcelBatch batch, string measureName, string outputFile);
 
     /// <summary>
     /// Lists all table relationships in the model
     /// </summary>
-    /// <param name="filePath">Path to Excel file with Data Model</param>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <returns>Result containing list of relationships</returns>
-    DataModelRelationshipListResult ListRelationships(string filePath);
+    Task<DataModelRelationshipListResult> ListRelationshipsAsync(IExcelBatch batch);
 
     /// <summary>
     /// Deletes a DAX measure from the Data Model
     /// </summary>
-    /// <param name="filePath">Path to Excel file with Data Model</param>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="measureName">Name of the measure to delete</param>
     /// <returns>Result indicating success or failure</returns>
-    OperationResult DeleteMeasure(string filePath, string measureName);
+    Task<OperationResult> DeleteMeasureAsync(IExcelBatch batch, string measureName);
 
     /// <summary>
     /// Deletes a relationship from the Data Model
     /// </summary>
-    /// <param name="filePath">Path to Excel file with Data Model</param>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="fromTable">Source table name</param>
     /// <param name="fromColumn">Source column name</param>
     /// <param name="toTable">Target table name</param>
     /// <param name="toColumn">Target column name</param>
     /// <returns>Result indicating success or failure</returns>
-    OperationResult DeleteRelationship(string filePath, string fromTable, string fromColumn, string toTable, string toColumn);
+    Task<OperationResult> DeleteRelationshipAsync(IExcelBatch batch, string fromTable, string fromColumn, string toTable, string toColumn);
 
     /// <summary>
     /// Refreshes entire Data Model or specific table
     /// </summary>
-    /// <param name="filePath">Path to Excel file with Data Model</param>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Optional: Specific table to refresh (if null, refreshes entire model)</param>
     /// <returns>Result indicating success or failure</returns>
-    OperationResult Refresh(string filePath, string? tableName = null);
+    Task<OperationResult> RefreshAsync(IExcelBatch batch, string? tableName = null);
 }
