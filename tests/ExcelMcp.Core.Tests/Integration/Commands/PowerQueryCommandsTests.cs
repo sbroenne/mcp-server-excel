@@ -294,44 +294,70 @@ in
     public async Task SetLoadToDataModel_WithExistingQuery_ReturnsSuccessResult()
     {
         // Arrange - Import a query first
-        var importResult = await _powerQueryCommands.Import(_testExcelFile, "TestLoadToDataModel", _testQueryFile);
-        Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "TestLoadToDataModel", _testQueryFile);
+            await batch.SaveAsync();
+            Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+        }
 
         // Act
-        var result = _powerQueryCommands.SetLoadToDataModel(_testExcelFile, "TestLoadToDataModel");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _powerQueryCommands.SetLoadToDataModelAsync(batch, "TestLoadToDataModel");
+            await batch.SaveAsync();
 
-        // Assert
-        Assert.True(result.Success, $"SetLoadToDataModel failed: {result.ErrorMessage}");
-        Assert.Equal("pq-set-load-to-data-model", result.Action);
+            // Assert
+            Assert.True(result.Success, $"SetLoadToDataModel failed: {result.ErrorMessage}");
+            Assert.Equal("pq-set-load-to-data-model", result.Action);
+        }
     }
 
     [Fact]
     public async Task SetLoadToBoth_WithExistingQuery_ReturnsSuccessResult()
     {
         // Arrange - Import a query first
-        var importResult = await _powerQueryCommands.Import(_testExcelFile, "TestLoadToBoth", _testQueryFile);
-        Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "TestLoadToBoth", _testQueryFile);
+            await batch.SaveAsync();
+            Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+        }
 
         // Act
-        var result = _powerQueryCommands.SetLoadToBoth(_testExcelFile, "TestLoadToBoth", "TestSheet");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _powerQueryCommands.SetLoadToBothAsync(batch, "TestLoadToBoth", "TestSheet");
+            await batch.SaveAsync();
 
-        // Assert
-        Assert.True(result.Success, $"SetLoadToBoth failed: {result.ErrorMessage}");
-        Assert.Equal("pq-set-load-to-both", result.Action);
+            // Assert
+            Assert.True(result.Success, $"SetLoadToBoth failed: {result.ErrorMessage}");
+            Assert.Equal("pq-set-load-to-both", result.Action);
+        }
     }
 
     [Fact]
     public async Task GetLoadConfig_WithConnectionOnlyQuery_ReturnsConnectionOnlyMode()
     {
         // Arrange - Import and set to connection only
-        var importResult = await _powerQueryCommands.Import(_testExcelFile, "TestConnectionOnlyConfig", _testQueryFile);
-        Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "TestConnectionOnlyConfig", _testQueryFile);
+            await batch.SaveAsync();
+            Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+        }
 
-        var setResult = _powerQueryCommands.SetConnectionOnly(_testExcelFile, "TestConnectionOnlyConfig");
-        Assert.True(setResult.Success, $"Failed to set connection only: {setResult.ErrorMessage}");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var setResult = await _powerQueryCommands.SetConnectionOnlyAsync(batch, "TestConnectionOnlyConfig");
+            await batch.SaveAsync();
+            Assert.True(setResult.Success, $"Failed to set connection only: {setResult.ErrorMessage}");
+        }
 
         // Act
-        var result = _powerQueryCommands.GetLoadConfig(_testExcelFile, "TestConnectionOnlyConfig");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _powerQueryCommands.GetLoadConfigAsync(batch, "TestConnectionOnlyConfig");
 
         // Assert
         Assert.True(result.Success, $"GetLoadConfig failed: {result.ErrorMessage}");
@@ -339,20 +365,31 @@ in
         Assert.Equal(PowerQueryLoadMode.ConnectionOnly, result.LoadMode);
         Assert.Null(result.TargetSheet);
         Assert.False(result.IsLoadedToDataModel);
+        }
     }
 
     [Fact]
     public async Task GetLoadConfig_WithLoadToTableQuery_ReturnsLoadToTableMode()
     {
         // Arrange - Import and set to load to table
-        var importResult = await _powerQueryCommands.Import(_testExcelFile, "TestLoadToTableConfig", _testQueryFile);
-        Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "TestLoadToTableConfig", _testQueryFile);
+            await batch.SaveAsync();
+            Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+        }
 
-        var setResult = _powerQueryCommands.SetLoadToTable(_testExcelFile, "TestLoadToTableConfig", "ConfigTestSheet");
-        Assert.True(setResult.Success, $"Failed to set load to table: {setResult.ErrorMessage}");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var setResult = await _powerQueryCommands.SetLoadToTableAsync(batch, "TestLoadToTableConfig", "ConfigTestSheet");
+            await batch.SaveAsync();
+            Assert.True(setResult.Success, $"Failed to set load to table: {setResult.ErrorMessage}");
+        }
 
         // Act
-        var result = _powerQueryCommands.GetLoadConfig(_testExcelFile, "TestLoadToTableConfig");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _powerQueryCommands.GetLoadConfigAsync(batch, "TestLoadToTableConfig");
 
         // Assert
         Assert.True(result.Success, $"GetLoadConfig failed: {result.ErrorMessage}");
@@ -360,26 +397,37 @@ in
         Assert.Equal(PowerQueryLoadMode.LoadToTable, result.LoadMode);
         Assert.Equal("ConfigTestSheet", result.TargetSheet);
         Assert.False(result.IsLoadedToDataModel);
+        }
     }
 
     [Fact]
     public async Task GetLoadConfig_WithLoadToDataModelQuery_ReturnsLoadToDataModelMode()
     {
         // Arrange - Import and set to load to data model
-        var importResult = await _powerQueryCommands.Import(_testExcelFile, "TestLoadToDataModelConfig", _testQueryFile);
-        Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
-
-        var setResult = _powerQueryCommands.SetLoadToDataModel(_testExcelFile, "TestLoadToDataModelConfig");
-        Assert.True(setResult.Success, $"Failed to set load to data model: {setResult.ErrorMessage}");
-
-        // Debug output
-        if (!string.IsNullOrEmpty(setResult.ErrorMessage))
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
         {
-            System.Console.WriteLine($"SetLoadToDataModel message: {setResult.ErrorMessage}");
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "TestLoadToDataModelConfig", _testQueryFile);
+            await batch.SaveAsync();
+            Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+        }
+
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var setResult = await _powerQueryCommands.SetLoadToDataModelAsync(batch, "TestLoadToDataModelConfig");
+            await batch.SaveAsync();
+            Assert.True(setResult.Success, $"Failed to set load to data model: {setResult.ErrorMessage}");
+
+            // Debug output
+            if (!string.IsNullOrEmpty(setResult.ErrorMessage))
+            {
+                System.Console.WriteLine($"SetLoadToDataModel message: {setResult.ErrorMessage}");
+            }
         }
 
         // Act
-        var result = _powerQueryCommands.GetLoadConfig(_testExcelFile, "TestLoadToDataModelConfig");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _powerQueryCommands.GetLoadConfigAsync(batch, "TestLoadToDataModelConfig");
 
         // Assert
         Assert.True(result.Success, $"GetLoadConfig failed: {result.ErrorMessage}");
@@ -387,20 +435,31 @@ in
         Assert.Equal(PowerQueryLoadMode.LoadToDataModel, result.LoadMode);
         Assert.Null(result.TargetSheet);
         Assert.True(result.IsLoadedToDataModel);
+        }
     }
 
     [Fact]
     public async Task GetLoadConfig_WithLoadToBothQuery_ReturnsLoadToBothMode()
     {
         // Arrange - Import and set to load to both
-        var importResult = await _powerQueryCommands.Import(_testExcelFile, "TestLoadToBothConfig", _testQueryFile);
-        Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "TestLoadToBothConfig", _testQueryFile);
+            await batch.SaveAsync();
+            Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+        }
 
-        var setResult = _powerQueryCommands.SetLoadToBoth(_testExcelFile, "TestLoadToBothConfig", "BothTestSheet");
-        Assert.True(setResult.Success, $"Failed to set load to both: {setResult.ErrorMessage}");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var setResult = await _powerQueryCommands.SetLoadToBothAsync(batch, "TestLoadToBothConfig", "BothTestSheet");
+            await batch.SaveAsync();
+            Assert.True(setResult.Success, $"Failed to set load to both: {setResult.ErrorMessage}");
+        }
 
         // Act
-        var result = _powerQueryCommands.GetLoadConfig(_testExcelFile, "TestLoadToBothConfig");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _powerQueryCommands.GetLoadConfigAsync(batch, "TestLoadToBothConfig");
 
         // Assert
         Assert.True(result.Success, $"GetLoadConfig failed: {result.ErrorMessage}");
@@ -408,59 +467,93 @@ in
         Assert.Equal(PowerQueryLoadMode.LoadToBoth, result.LoadMode);
         Assert.Equal("BothTestSheet", result.TargetSheet);
         Assert.True(result.IsLoadedToDataModel);
+        }
     }
 
     [Fact]
     public async Task LoadConfigurationWorkflow_SwitchingModes_UpdatesCorrectly()
     {
         // Arrange - Import a query
-        var importResult = await _powerQueryCommands.Import(_testExcelFile, "TestWorkflowQuery", _testQueryFile);
-        Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "TestWorkflowQuery", _testQueryFile);
+            await batch.SaveAsync();
+            Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+        }
 
         // Act & Assert - Test switching between different load modes
 
         // 1. Set to Connection Only
-        var setConnectionOnlyResult = _powerQueryCommands.SetConnectionOnly(_testExcelFile, "TestWorkflowQuery");
-        Assert.True(setConnectionOnlyResult.Success, $"SetConnectionOnly failed: {setConnectionOnlyResult.ErrorMessage}");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var setConnectionOnlyResult = await _powerQueryCommands.SetConnectionOnlyAsync(batch, "TestWorkflowQuery");
+            await batch.SaveAsync();
+            Assert.True(setConnectionOnlyResult.Success, $"SetConnectionOnly failed: {setConnectionOnlyResult.ErrorMessage}");
+        }
 
-        var getConnectionOnlyResult = _powerQueryCommands.GetLoadConfig(_testExcelFile, "TestWorkflowQuery");
-        Assert.True(getConnectionOnlyResult.Success, $"GetLoadConfig after SetConnectionOnly failed: {getConnectionOnlyResult.ErrorMessage}");
-        Assert.Equal(PowerQueryLoadMode.ConnectionOnly, getConnectionOnlyResult.LoadMode);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var getConnectionOnlyResult = await _powerQueryCommands.GetLoadConfigAsync(batch, "TestWorkflowQuery");
+            Assert.True(getConnectionOnlyResult.Success, $"GetLoadConfig after SetConnectionOnly failed: {getConnectionOnlyResult.ErrorMessage}");
+            Assert.Equal(PowerQueryLoadMode.ConnectionOnly, getConnectionOnlyResult.LoadMode);
+        }
 
         // 2. Switch to Load to Table
-        var setLoadToTableResult = _powerQueryCommands.SetLoadToTable(_testExcelFile, "TestWorkflowQuery", "WorkflowSheet");
-        Assert.True(setLoadToTableResult.Success, $"SetLoadToTable failed: {setLoadToTableResult.ErrorMessage}");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var setLoadToTableResult = await _powerQueryCommands.SetLoadToTableAsync(batch, "TestWorkflowQuery", "WorkflowSheet");
+            await batch.SaveAsync();
+            Assert.True(setLoadToTableResult.Success, $"SetLoadToTable failed: {setLoadToTableResult.ErrorMessage}");
+        }
 
-        var getLoadToTableResult = _powerQueryCommands.GetLoadConfig(_testExcelFile, "TestWorkflowQuery");
-        Assert.True(getLoadToTableResult.Success, $"GetLoadConfig after SetLoadToTable failed: {getLoadToTableResult.ErrorMessage}");
-        Assert.Equal(PowerQueryLoadMode.LoadToTable, getLoadToTableResult.LoadMode);
-        Assert.Equal("WorkflowSheet", getLoadToTableResult.TargetSheet);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var getLoadToTableResult = await _powerQueryCommands.GetLoadConfigAsync(batch, "TestWorkflowQuery");
+            Assert.True(getLoadToTableResult.Success, $"GetLoadConfig after SetLoadToTable failed: {getLoadToTableResult.ErrorMessage}");
+            Assert.Equal(PowerQueryLoadMode.LoadToTable, getLoadToTableResult.LoadMode);
+            Assert.Equal("WorkflowSheet", getLoadToTableResult.TargetSheet);
+        }
 
         // 3. Switch to Load to Data Model
-        var setLoadToDataModelResult = _powerQueryCommands.SetLoadToDataModel(_testExcelFile, "TestWorkflowQuery");
-        Assert.True(setLoadToDataModelResult.Success, $"SetLoadToDataModel failed: {setLoadToDataModelResult.ErrorMessage}");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var setLoadToDataModelResult = await _powerQueryCommands.SetLoadToDataModelAsync(batch, "TestWorkflowQuery");
+            await batch.SaveAsync();
+            Assert.True(setLoadToDataModelResult.Success, $"SetLoadToDataModel failed: {setLoadToDataModelResult.ErrorMessage}");
+        }
 
-        var getLoadToDataModelResult = _powerQueryCommands.GetLoadConfig(_testExcelFile, "TestWorkflowQuery");
-        Assert.True(getLoadToDataModelResult.Success, $"GetLoadConfig after SetLoadToDataModel failed: {getLoadToDataModelResult.ErrorMessage}");
-        Assert.Equal(PowerQueryLoadMode.LoadToDataModel, getLoadToDataModelResult.LoadMode);
-        Assert.True(getLoadToDataModelResult.IsLoadedToDataModel);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var getLoadToDataModelResult = await _powerQueryCommands.GetLoadConfigAsync(batch, "TestWorkflowQuery");
+            Assert.True(getLoadToDataModelResult.Success, $"GetLoadConfig after SetLoadToDataModel failed: {getLoadToDataModelResult.ErrorMessage}");
+            Assert.Equal(PowerQueryLoadMode.LoadToDataModel, getLoadToDataModelResult.LoadMode);
+            Assert.True(getLoadToDataModelResult.IsLoadedToDataModel);
+        }
 
         // 4. Switch to Load to Both
-        var setLoadToBothResult = _powerQueryCommands.SetLoadToBoth(_testExcelFile, "TestWorkflowQuery", "BothWorkflowSheet");
-        Assert.True(setLoadToBothResult.Success, $"SetLoadToBoth failed: {setLoadToBothResult.ErrorMessage}");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var setLoadToBothResult = await _powerQueryCommands.SetLoadToBothAsync(batch, "TestWorkflowQuery", "BothWorkflowSheet");
+            await batch.SaveAsync();
+            Assert.True(setLoadToBothResult.Success, $"SetLoadToBoth failed: {setLoadToBothResult.ErrorMessage}");
+        }
 
-        var getLoadToBothResult = _powerQueryCommands.GetLoadConfig(_testExcelFile, "TestWorkflowQuery");
-        Assert.True(getLoadToBothResult.Success, $"GetLoadConfig after SetLoadToBoth failed: {getLoadToBothResult.ErrorMessage}");
-        Assert.Equal(PowerQueryLoadMode.LoadToBoth, getLoadToBothResult.LoadMode);
-        Assert.Equal("BothWorkflowSheet", getLoadToBothResult.TargetSheet);
-        Assert.True(getLoadToBothResult.IsLoadedToDataModel);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var getLoadToBothResult = await _powerQueryCommands.GetLoadConfigAsync(batch, "TestWorkflowQuery");
+            Assert.True(getLoadToBothResult.Success, $"GetLoadConfig after SetLoadToBoth failed: {getLoadToBothResult.ErrorMessage}");
+            Assert.Equal(PowerQueryLoadMode.LoadToBoth, getLoadToBothResult.LoadMode);
+            Assert.Equal("BothWorkflowSheet", getLoadToBothResult.TargetSheet);
+            Assert.True(getLoadToBothResult.IsLoadedToDataModel);
+        }
     }
 
     [Fact]
-    public void GetLoadConfig_WithNonExistentQuery_ReturnsErrorResult()
+    public async Task GetLoadConfig_WithNonExistentQuery_ReturnsErrorResult()
     {
         // Act
-        var result = _powerQueryCommands.GetLoadConfig(_testExcelFile, "NonExistentQuery");
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _powerQueryCommands.GetLoadConfigAsync(batch, "NonExistentQuery");
 
         // Assert
         Assert.False(result.Success);
@@ -469,10 +562,11 @@ in
     }
 
     [Fact]
-    public void SetLoadToTable_WithNonExistentQuery_ReturnsErrorResult()
+    public async Task SetLoadToTable_WithNonExistentQuery_ReturnsErrorResult()
     {
         // Act
-        var result = _powerQueryCommands.SetLoadToTable(_testExcelFile, "NonExistentQuery", "TestSheet");
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _powerQueryCommands.SetLoadToTableAsync(batch, "NonExistentQuery", "TestSheet");
 
         // Assert
         Assert.False(result.Success);
@@ -480,10 +574,11 @@ in
     }
 
     [Fact]
-    public void SetLoadToDataModel_WithNonExistentQuery_ReturnsErrorResult()
+    public async Task SetLoadToDataModel_WithNonExistentQuery_ReturnsErrorResult()
     {
         // Act
-        var result = _powerQueryCommands.SetLoadToDataModel(_testExcelFile, "NonExistentQuery");
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _powerQueryCommands.SetLoadToDataModelAsync(batch, "NonExistentQuery");
 
         // Assert
         Assert.False(result.Success);
@@ -491,10 +586,11 @@ in
     }
 
     [Fact]
-    public void SetLoadToBoth_WithNonExistentQuery_ReturnsErrorResult()
+    public async Task SetLoadToBoth_WithNonExistentQuery_ReturnsErrorResult()
     {
         // Act
-        var result = _powerQueryCommands.SetLoadToBoth(_testExcelFile, "NonExistentQuery", "TestSheet");
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _powerQueryCommands.SetLoadToBothAsync(batch, "NonExistentQuery", "TestSheet");
 
         // Assert
         Assert.False(result.Success);
@@ -502,10 +598,11 @@ in
     }
 
     [Fact]
-    public void SetConnectionOnly_WithNonExistentQuery_ReturnsErrorResult()
+    public async Task SetConnectionOnly_WithNonExistentQuery_ReturnsErrorResult()
     {
         // Act
-        var result = _powerQueryCommands.SetConnectionOnly(_testExcelFile, "NonExistentQuery");
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _powerQueryCommands.SetConnectionOnlyAsync(batch, "NonExistentQuery");
 
         // Assert
         Assert.False(result.Success);
