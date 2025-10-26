@@ -31,7 +31,8 @@ public class CoreCellCommandsTests : IDisposable
         _testExcelFile = Path.Combine(_tempDir, "TestWorkbook.xlsx");
 
         // Create test Excel file
-        var result = _fileCommands.CreateEmpty(_testExcelFile);
+        var result = _fileCommands.CreateEmptyAsync(_testExcelFile).GetAwaiter().GetResult();
+        
         if (!result.Success)
         {
             throw new InvalidOperationException($"Failed to create test Excel file: {result.ErrorMessage}");
@@ -39,10 +40,11 @@ public class CoreCellCommandsTests : IDisposable
     }
 
     [Fact]
-    public void GetValue_WithValidCell_ReturnsSuccess()
+    public async Task GetValue_WithValidCell_ReturnsSuccess()
     {
         // Act
-        var result = _cellCommands.GetValue(_testExcelFile, "Sheet1", "A1");
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _cellCommands.GetValueAsync(batch, "Sheet1", "A1");
 
         // Assert
         Assert.True(result.Success);
@@ -51,10 +53,12 @@ public class CoreCellCommandsTests : IDisposable
     }
 
     [Fact]
-    public void SetValue_WithValidCell_ReturnsSuccess()
+    public async Task SetValue_WithValidCell_ReturnsSuccess()
     {
         // Act
-        var result = _cellCommands.SetValue(_testExcelFile, "Sheet1", "A1", "Test Value");
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _cellCommands.SetValueAsync(batch, "Sheet1", "A1", "Test Value");
+        await batch.SaveAsync();
 
         // Assert
         Assert.True(result.Success);
@@ -62,80 +66,97 @@ public class CoreCellCommandsTests : IDisposable
     }
 
     [Fact]
-    public void SetValue_ThenGetValue_ReturnsSetValue()
+    public async Task SetValue_ThenGetValue_ReturnsSetValue()
     {
         // Arrange
         string testValue = "Integration Test";
 
         // Act
-        var setResult = _cellCommands.SetValue(_testExcelFile, "Sheet1", "B2", testValue);
-        var getResult = _cellCommands.GetValue(_testExcelFile, "Sheet1", "B2");
-
-        // Assert
-        Assert.True(setResult.Success);
-        Assert.True(getResult.Success);
-        Assert.Equal(testValue, getResult.Value?.ToString());
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var setResult = await _cellCommands.SetValueAsync(batch, "Sheet1", "B2", testValue);
+            Assert.True(setResult.Success);
+            await batch.SaveAsync();
+        }
+        
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var getResult = await _cellCommands.GetValueAsync(batch, "Sheet1", "B2");
+            
+            // Assert
+            Assert.True(getResult.Success);
+            Assert.Equal(testValue, getResult.Value?.ToString());
+        }
     }
 
     [Fact]
-    public void GetFormula_WithValidCell_ReturnsSuccess()
+    public async Task GetFormula_WithValidCell_ReturnsSuccess()
     {
         // Act
-        var result = _cellCommands.GetFormula(_testExcelFile, "Sheet1", "C1");
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _cellCommands.GetFormulaAsync(batch, "Sheet1", "C1");
 
         // Assert
         Assert.True(result.Success);
     }
 
     [Fact]
-    public void SetFormula_WithValidFormula_ReturnsSuccess()
+    public async Task SetFormula_WithValidFormula_ReturnsSuccess()
     {
         // Arrange
         string formula = "=1+1";
 
         // Act
-        var result = _cellCommands.SetFormula(_testExcelFile, "Sheet1", "D1", formula);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _cellCommands.SetFormulaAsync(batch, "Sheet1", "D1", formula);
+        await batch.SaveAsync();
 
         // Assert
         Assert.True(result.Success);
     }
 
     [Fact]
-    public void SetFormula_ThenGetFormula_ReturnsSetFormula()
+    public async Task SetFormula_ThenGetFormula_ReturnsSetFormula()
     {
         // Arrange
         string formula = "=SUM(A1:A10)";
 
         // Act
-        var setResult = _cellCommands.SetFormula(_testExcelFile, "Sheet1", "E1", formula);
-        var getResult = _cellCommands.GetFormula(_testExcelFile, "Sheet1", "E1");
-
-        // Assert
-        Assert.True(setResult.Success);
-        Assert.True(getResult.Success);
-        Assert.Equal(formula, getResult.Formula);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var setResult = await _cellCommands.SetFormulaAsync(batch, "Sheet1", "E1", formula);
+            Assert.True(setResult.Success);
+            await batch.SaveAsync();
+        }
+        
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var getResult = await _cellCommands.GetFormulaAsync(batch, "Sheet1", "E1");
+            
+            // Assert
+            Assert.True(getResult.Success);
+            Assert.Equal(formula, getResult.Formula);
+        }
     }
 
     [Fact]
-    public void GetValue_WithNonExistentFile_ReturnsError()
+    public async Task GetValue_WithNonExistentFile_ReturnsError()
     {
-        // Act
-        var result = _cellCommands.GetValue("nonexistent.xlsx", "Sheet1", "A1");
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.NotNull(result.ErrorMessage);
+        // Act & Assert - Should throw when trying to open non-existent file
+        await Assert.ThrowsAsync<FileNotFoundException>(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync("nonexistent.xlsx");
+        });
     }
 
     [Fact]
-    public void SetValue_WithNonExistentFile_ReturnsError()
+    public async Task SetValue_WithNonExistentFile_ReturnsError()
     {
-        // Act
-        var result = _cellCommands.SetValue("nonexistent.xlsx", "Sheet1", "A1", "Value");
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.NotNull(result.ErrorMessage);
+        // Act & Assert - Should throw when trying to open non-existent file
+        await Assert.ThrowsAsync<FileNotFoundException>(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync("nonexistent.xlsx");
+        });
     }
 
     public void Dispose()
