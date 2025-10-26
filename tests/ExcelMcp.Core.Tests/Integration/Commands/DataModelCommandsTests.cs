@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -42,7 +43,7 @@ public class CoreDataModelCommandsTests : IDisposable
     private void CreateTestDataModelFile()
     {
         // Create an empty workbook first
-        var result = _fileCommands.CreateEmpty(_testExcelFile, overwriteIfExists: false);
+        var result = _fileCommands.CreateEmptyAsync(_testExcelFile, overwriteIfExists: false).GetAwaiter().GetResult();
         if (!result.Success)
         {
             throw new InvalidOperationException($"Failed to create test Excel file: {result.ErrorMessage}. Excel may not be installed.");
@@ -62,10 +63,11 @@ public class CoreDataModelCommandsTests : IDisposable
     }
 
     [Fact]
-    public void ListTables_WithValidFile_ReturnsSuccessResult()
+    public async Task ListTables_WithValidFile_ReturnsSuccessResult()
     {
         // Act
-        var result = _dataModelCommands.ListTables(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.ListTablesAsync(batch);
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
@@ -80,10 +82,11 @@ public class CoreDataModelCommandsTests : IDisposable
     }
 
     [Fact]
-    public void ListMeasures_WithValidFile_ReturnsSuccessResult()
+    public async Task ListMeasures_WithValidFile_ReturnsSuccessResult()
     {
         // Act
-        var result = _dataModelCommands.ListMeasures(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.ListMeasuresAsync(batch);
 
         // Assert
         Assert.True(result.Success || result.ErrorMessage?.Contains("does not contain a Data Model") == true,
@@ -96,10 +99,11 @@ public class CoreDataModelCommandsTests : IDisposable
     }
 
     [Fact]
-    public void ViewMeasure_WithNonExistentMeasure_ReturnsErrorResult()
+    public async Task ViewMeasure_WithNonExistentMeasure_ReturnsErrorResult()
     {
         // Act
-        var result = _dataModelCommands.ViewMeasure(_testExcelFile, "NonExistentMeasure");
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.ViewMeasureAsync(batch, "NonExistentMeasure");
 
         // Assert
         // Should fail with either "no Data Model" or "measure not found"
@@ -124,10 +128,11 @@ public class CoreDataModelCommandsTests : IDisposable
     }
 
     [Fact]
-    public void ListRelationships_WithValidFile_ReturnsSuccessResult()
+    public async Task ListRelationships_WithValidFile_ReturnsSuccessResult()
     {
         // Act
-        var result = _dataModelCommands.ListRelationships(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.ListRelationshipsAsync(batch);
 
         // Assert
         Assert.True(result.Success || result.ErrorMessage?.Contains("does not contain a Data Model") == true,
@@ -140,10 +145,12 @@ public class CoreDataModelCommandsTests : IDisposable
     }
 
     [Fact]
-    public void Refresh_WithValidFile_ReturnsSuccessResult()
+    public async Task Refresh_WithValidFile_ReturnsSuccessResult()
     {
         // Act
-        var result = _dataModelCommands.Refresh(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.RefreshAsync(batch);
+        await batch.SaveAsync();
 
         // Assert
         // Refresh should either succeed or indicate no Data Model
@@ -166,10 +173,11 @@ public class CoreDataModelCommandsTests : IDisposable
     }
 
     [Fact]
-    public void ListTables_WithRealisticDataModel_ReturnsTablesWithData()
+    public async Task ListTables_WithRealisticDataModel_ReturnsTablesWithData()
     {
         // Act
-        var result = _dataModelCommands.ListTables(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.ListTablesAsync(batch);
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
@@ -196,10 +204,11 @@ public class CoreDataModelCommandsTests : IDisposable
     }
 
     [Fact]
-    public void ListMeasures_WithRealisticDataModel_ReturnsMeasuresWithFormulas()
+    public async Task ListMeasures_WithRealisticDataModel_ReturnsMeasuresWithFormulas()
     {
         // Act
-        var result = _dataModelCommands.ListMeasures(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.ListMeasuresAsync(batch);
 
         // Assert
         Assert.True(result.Success || result.ErrorMessage?.Contains("does not contain a Data Model") == true,
@@ -228,10 +237,11 @@ public class CoreDataModelCommandsTests : IDisposable
     }
 
     [Fact]
-    public void ListRelationships_WithRealisticDataModel_ReturnsRelationshipsWithTables()
+    public async Task ListRelationships_WithRealisticDataModel_ReturnsRelationshipsWithTables()
     {
         // Act
-        var result = _dataModelCommands.ListRelationships(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.ListRelationshipsAsync(batch);
 
         // Assert
         Assert.True(result.Success || result.ErrorMessage?.Contains("does not contain a Data Model") == true,
@@ -268,10 +278,11 @@ public class CoreDataModelCommandsTests : IDisposable
     }
 
     [Fact]
-    public void ViewMeasure_WithRealisticDataModel_ReturnsValidDAXFormula()
+    public async Task ViewMeasure_WithRealisticDataModel_ReturnsValidDAXFormula()
     {
         // Act
-        var result = _dataModelCommands.ViewMeasure(_testExcelFile, "Total Sales");
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.ViewMeasureAsync(batch, "Total Sales");
 
         // Assert - Should either succeed with valid DAX or indicate no Data Model
         if (result.Success)
@@ -300,7 +311,8 @@ public class CoreDataModelCommandsTests : IDisposable
         var exportPath = Path.Combine(_tempDir, "TotalSales.dax");
 
         // Act
-        var result = await _dataModelCommands.ExportMeasure(_testExcelFile, "Total Sales", exportPath);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.ExportMeasureAsync(batch, "Total Sales", exportPath);
 
         // Assert - Should either succeed or indicate no Data Model
         if (result.Success)
@@ -324,10 +336,12 @@ public class CoreDataModelCommandsTests : IDisposable
     }
 
     [Fact]
-    public void Refresh_WithRealisticDataModel_SucceedsOrIndicatesNoModel()
+    public async Task Refresh_WithRealisticDataModel_SucceedsOrIndicatesNoModel()
     {
         // Act
-        var result = _dataModelCommands.Refresh(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.RefreshAsync(batch);
+        await batch.SaveAsync();
 
         // Assert
         Assert.True(result.Success || result.ErrorMessage?.Contains("does not contain a Data Model") == true,
@@ -359,10 +373,11 @@ public class CoreDataModelCommandsTests : IDisposable
     }
 
     [Fact]
-    public void DeleteMeasure_WithNonExistentMeasure_ReturnsErrorResult()
+    public async Task DeleteMeasure_WithNonExistentMeasure_ReturnsErrorResult()
     {
         // Act
-        var result = _dataModelCommands.DeleteMeasure(_testExcelFile, "NonExistentMeasure");
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.DeleteMeasureAsync(batch, "NonExistentMeasure");
 
         // Assert
         Assert.False(result.Success);
