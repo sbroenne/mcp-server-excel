@@ -6,7 +6,17 @@ using Xunit.Abstractions;
 namespace Sbroenne.ExcelMcp.Core.Tests.Unit.Session;
 
 /// <summary>
-/// Tests for STA threading and batching - verifies COM cleanup and no process leaks.
+/// Tests for STA threading and Excel COM cleanup - verifies no process leaks
+/// 
+/// LAYER RESPONSIBILITY:
+/// - ✅ Test that Excel COM objects are properly cleaned up
+/// - ✅ Test that Excel.exe processes terminate after disposal
+/// - ✅ Test STA thread management
+/// - ✅ USE GC.Collect() - This is CORRECT here because we're explicitly testing COM cleanup behavior
+/// - ❌ DO NOT test business logic (that's tested in other Core tests)
+/// 
+/// NOTE: GC.Collect() calls in these tests are INTENTIONAL and CORRECT - they're part of the test
+/// assertions to verify that COM cleanup works properly.
 /// </summary>
 [Trait("Category", "Unit")]
 [Trait("Speed", "Medium")]
