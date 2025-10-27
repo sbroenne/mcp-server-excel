@@ -282,28 +282,31 @@ in
         var queryFile = CreateBrokenQueryFile();
 
         // Act - loadToWorksheet defaults to true, should catch error IF Excel detects it during execution
-        var importResult = await _powerQueryCommands.Import(excelFile, "BrokenQuery", queryFile);
-
-        // Assert - Excel's M engine may accept invalid code, only failing at data execution time
-        // This test validates that execution captures errors when they DO occur
-        if (!importResult.Success)
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
         {
-            // Verify error details captured
-            Assert.NotNull(importResult.ErrorMessage);
-            Assert.NotEmpty(importResult.ErrorMessage);
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "BrokenQuery", queryFile);
 
-            // Verify error recovery guidance provided
-            Assert.NotNull(importResult.SuggestedNextActions);
-            var hasErrorGuidance = importResult.SuggestedNextActions
-                .Any(s => s.Contains("error", StringComparison.OrdinalIgnoreCase) ||
-                          s.Contains("fix", StringComparison.OrdinalIgnoreCase));
-            Assert.True(hasErrorGuidance, "Expected error recovery guidance");
-        }
-        else
-        {
-            // Excel accepted the query - validate workflow guidance still provided
-            Assert.NotNull(importResult.SuggestedNextActions);
-            Assert.NotNull(importResult.WorkflowHint);
+            // Assert - Excel's M engine may accept invalid code, only failing at data execution time
+            // This test validates that execution captures errors when they DO occur
+            if (!importResult.Success)
+            {
+                // Verify error details captured
+                Assert.NotNull(importResult.ErrorMessage);
+                Assert.NotEmpty(importResult.ErrorMessage);
+
+                // Verify error recovery guidance provided
+                Assert.NotNull(importResult.SuggestedNextActions);
+                var hasErrorGuidance = importResult.SuggestedNextActions
+                    .Any(s => s.Contains("error", StringComparison.OrdinalIgnoreCase) ||
+                              s.Contains("fix", StringComparison.OrdinalIgnoreCase));
+                Assert.True(hasErrorGuidance, "Expected error recovery guidance");
+            }
+            else
+            {
+                // Excel accepted the query - validate workflow guidance still provided
+                Assert.NotNull(importResult.SuggestedNextActions);
+                Assert.NotNull(importResult.WorkflowHint);
+            }
         }
     }
 
@@ -315,24 +318,27 @@ in
         var queryFile = CreateValidQueryFile();
 
         // Act
-        var importResult = await _powerQueryCommands.Import(excelFile, "GuidanceTest", queryFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "GuidanceTest", queryFile);
 
-        // Assert
-        Assert.True(importResult.Success);
-        Assert.NotNull(importResult.SuggestedNextActions);
-        Assert.NotEmpty(importResult.SuggestedNextActions);
+            // Assert
+            Assert.True(importResult.Success);
+            Assert.NotNull(importResult.SuggestedNextActions);
+            Assert.NotEmpty(importResult.SuggestedNextActions);
 
-        // Should have 5 suggestions after autoRefresh removal:
-        // 1. Status message (imported + validated)
-        // 2. Data currency info
-        // 3. Refresh guidance
-        // 4. Get-load-config suggestion
-        // 5. View M code suggestion
-        Assert.Equal(5, importResult.SuggestedNextActions.Count);
+            // Should have 5 suggestions after autoRefresh removal:
+            // 1. Status message (imported + validated)
+            // 2. Data currency info
+            // 3. Refresh guidance
+            // 4. Get-load-config suggestion
+            // 5. View M code suggestion
+            Assert.Equal(5, importResult.SuggestedNextActions.Count);
 
-        // Verify workflow hint quality
-        Assert.NotNull(importResult.WorkflowHint);
-        Assert.True(importResult.WorkflowHint.Length > 10, "Workflow hint should be descriptive");
+            // Verify workflow hint quality
+            Assert.NotNull(importResult.WorkflowHint);
+            Assert.True(importResult.WorkflowHint.Length > 10, "Workflow hint should be descriptive");
+        }
     }
 
     #endregion
@@ -348,31 +354,49 @@ in
         var updateFile = CreateValidQueryFile("UpdatedQuery.pq");
 
         // Import query and load to table
-        var importResult = await _powerQueryCommands.Import(excelFile, "ConfigTest", queryFile);
-        Assert.True(importResult.Success);
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "ConfigTest", queryFile);
+            Assert.True(importResult.Success);
+            await batch.SaveAsync();
+        }
 
         // Configure to load to table
-        _powerQueryCommands.SetLoadToTable(excelFile, "ConfigTest", "Sheet1");
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            await _powerQueryCommands.SetLoadToTableAsync(batch, "ConfigTest", "Sheet1");
+            await batch.SaveAsync();
+        }
 
         // Verify config before update
-        var configBefore = _powerQueryCommands.GetLoadConfig(excelFile, "ConfigTest");
-        Assert.Equal(PowerQueryLoadMode.LoadToTable, configBefore.LoadMode);
-        Assert.Equal("Sheet1", configBefore.TargetSheet);
+        PowerQueryLoadConfigResult configBefore;
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            configBefore = await _powerQueryCommands.GetLoadConfigAsync(batch, "ConfigTest");
+            Assert.Equal(PowerQueryLoadMode.LoadToTable, configBefore.LoadMode);
+            Assert.Equal("Sheet1", configBefore.TargetSheet);
+        }
 
         // Act - Update query (should preserve config)
-        var updateResult = await _powerQueryCommands.Update(excelFile, "ConfigTest", updateFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            var updateResult = await _powerQueryCommands.UpdateAsync(batch, "ConfigTest", updateFile);
 
-        // Assert
-        Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
+            // Assert
+            Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
+
+            // Verify workflow hint indicates preservation
+            Assert.NotNull(updateResult.WorkflowHint);
+            Assert.Contains("preserved", updateResult.WorkflowHint, StringComparison.OrdinalIgnoreCase);
+        }
 
         // Verify config after update
-        var configAfter = _powerQueryCommands.GetLoadConfig(excelFile, "ConfigTest");
-        Assert.Equal(PowerQueryLoadMode.LoadToTable, configAfter.LoadMode);
-        Assert.Equal("Sheet1", configAfter.TargetSheet);
-
-        // Verify workflow hint indicates preservation
-        Assert.NotNull(updateResult.WorkflowHint);
-        Assert.Contains("preserved", updateResult.WorkflowHint, StringComparison.OrdinalIgnoreCase);
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            var configAfter = await _powerQueryCommands.GetLoadConfigAsync(batch, "ConfigTest");
+            Assert.Equal(PowerQueryLoadMode.LoadToTable, configAfter.LoadMode);
+            Assert.Equal("Sheet1", configAfter.TargetSheet);
+        }
     }
 
     [Fact]
@@ -384,20 +408,34 @@ in
         var updateFile = CreateValidQueryFile("UpdatedQuery.pq");
 
         // Import as connection-only (explicitly disable load to worksheet)
-        var importResult = await _powerQueryCommands.Import(excelFile, "ConnectionOnlyUpdate", queryFile, loadToWorksheet: false);
-        Assert.True(importResult.Success);
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "ConnectionOnlyUpdate", queryFile, loadToWorksheet: false);
+            Assert.True(importResult.Success);
+            await batch.SaveAsync();
+        }
 
-        var configBefore = _powerQueryCommands.GetLoadConfig(excelFile, "ConnectionOnlyUpdate");
-        Assert.Equal(PowerQueryLoadMode.ConnectionOnly, configBefore.LoadMode);
+        PowerQueryLoadConfigResult configBefore;
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            configBefore = await _powerQueryCommands.GetLoadConfigAsync(batch, "ConnectionOnlyUpdate");
+            Assert.Equal(PowerQueryLoadMode.ConnectionOnly, configBefore.LoadMode);
+        }
 
         // Act - Update query
-        var updateResult = await _powerQueryCommands.Update(excelFile, "ConnectionOnlyUpdate", updateFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            var updateResult = await _powerQueryCommands.UpdateAsync(batch, "ConnectionOnlyUpdate", updateFile);
 
-        // Assert
-        Assert.True(updateResult.Success);
+            // Assert
+            Assert.True(updateResult.Success);
+        }
 
-        var configAfter = _powerQueryCommands.GetLoadConfig(excelFile, "ConnectionOnlyUpdate");
-        Assert.Equal(PowerQueryLoadMode.ConnectionOnly, configAfter.LoadMode);
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            var configAfter = await _powerQueryCommands.GetLoadConfigAsync(batch, "ConnectionOnlyUpdate");
+            Assert.Equal(PowerQueryLoadMode.ConnectionOnly, configAfter.LoadMode);
+        }
     }
 
     [Fact]
@@ -414,40 +452,55 @@ in
         var updatedQueryFile = CreateQueryFileWithData("UpdatedData.pq", "Updated1", "Updated2", "Updated3");
 
         // Step 1: Import query with initial data (default loadToWorksheet=true)
-        var importResult = await _powerQueryCommands.Import(excelFile, "DataUpdateTest", initialQueryFile);
-        Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "DataUpdateTest", initialQueryFile);
+            Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
+            await batch.SaveAsync();
+        }
 
         // Verify initial data is in worksheet
         var sheetCommands = new SheetCommands();
-        var initialData = sheetCommands.Read(excelFile, "DataUpdateTest", "A1:A4"); // Header + 3 rows
-        Assert.True(initialData.Success, $"Initial read failed: {initialData.ErrorMessage}");
-        Assert.NotNull(initialData.Data);
-        Assert.Equal(4, initialData.Data.Count); // 4 rows (header + 3 data rows)
+        SheetReadResult initialData;
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            initialData = await sheetCommands.ReadAsync(batch, "DataUpdateTest", "A1:A4"); // Header + 3 rows
+            Assert.True(initialData.Success, $"Initial read failed: {initialData.ErrorMessage}");
+            Assert.NotNull(initialData.Data);
+            Assert.Equal(4, initialData.Data.Count); // 4 rows (header + 3 data rows)
 
-        // Verify initial values are present (Data is List<List<object?>>, so row[0] is first column)
-        Assert.Equal("Original1", initialData.Data[1][0]?.ToString()); // Row 2 (index 1), Column 1 (index 0)
-        Assert.Equal("Original2", initialData.Data[2][0]?.ToString()); // Row 3, Column 1
-        Assert.Equal("Original3", initialData.Data[3][0]?.ToString()); // Row 4, Column 1
+            // Verify initial values are present (Data is List<List<object?>>, so row[0] is first column)
+            Assert.Equal("Original1", initialData.Data[1][0]?.ToString()); // Row 2 (index 1), Column 1 (index 0)
+            Assert.Equal("Original2", initialData.Data[2][0]?.ToString()); // Row 3, Column 1
+            Assert.Equal("Original3", initialData.Data[3][0]?.ToString()); // Row 4, Column 1
+        }
 
         // Step 2: Update query with different data
-        var updateResult = await _powerQueryCommands.Update(excelFile, "DataUpdateTest", updatedQueryFile);
-        Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            var updateResult = await _powerQueryCommands.UpdateAsync(batch, "DataUpdateTest", updatedQueryFile);
+            Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
+            await batch.SaveAsync();
+        }
 
         // Step 3: Verify worksheet now contains UPDATED data, not original data
-        var updatedData = sheetCommands.Read(excelFile, "DataUpdateTest", "A1:A4");
-        Assert.True(updatedData.Success, $"Updated read failed: {updatedData.ErrorMessage}");
-        Assert.NotNull(updatedData.Data);
-        Assert.Equal(4, updatedData.Data.Count);
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            var updatedData = await sheetCommands.ReadAsync(batch, "DataUpdateTest", "A1:A4");
+            Assert.True(updatedData.Success, $"Updated read failed: {updatedData.ErrorMessage}");
+            Assert.NotNull(updatedData.Data);
+            Assert.Equal(4, updatedData.Data.Count);
 
-        // Critical assertions: Data should be DIFFERENT from original
-        Assert.Equal("Updated1", updatedData.Data[1][0]?.ToString());
-        Assert.Equal("Updated2", updatedData.Data[2][0]?.ToString());
-        Assert.Equal("Updated3", updatedData.Data[3][0]?.ToString());
+            // Critical assertions: Data should be DIFFERENT from original
+            Assert.Equal("Updated1", updatedData.Data[1][0]?.ToString());
+            Assert.Equal("Updated2", updatedData.Data[2][0]?.ToString());
+            Assert.Equal("Updated3", updatedData.Data[3][0]?.ToString());
 
-        // Ensure old data is NOT present
-        Assert.NotEqual("Original1", updatedData.Data[1][0]?.ToString());
-        Assert.NotEqual("Original2", updatedData.Data[2][0]?.ToString());
-        Assert.NotEqual("Original3", updatedData.Data[3][0]?.ToString());
+            // Ensure old data is NOT present
+            Assert.NotEqual("Original1", updatedData.Data[1][0]?.ToString());
+            Assert.NotEqual("Original2", updatedData.Data[2][0]?.ToString());
+            Assert.NotEqual("Original3", updatedData.Data[3][0]?.ToString());
+        }
     }
 
     #endregion
