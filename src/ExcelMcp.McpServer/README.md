@@ -243,39 +243,27 @@ AI Assistant uses: excel_parameter(action="set", filePath="config.xlsx", paramNa
 Result: {"success": true, "action": "set", "filePath": "config.xlsx"}
 ```
 
-## 📚 Educational Prompts
+## 📚 Reference Prompts
 
-The MCP server provides **11 educational prompts** to help AI assistants understand Excel automation patterns and best practices. These prompts are automatically discovered via the MCP protocol and educate LLMs without requiring external documentation.
+The MCP server provides **1 reference prompt** to help AI assistants understand Excel connection types and COM API limitations:
 
-### Batch Session Management
-- **`excel_batch_guide`** - Comprehensive guide on Excel batch session management for high-performance multi-operation workflows
-- **`excel_batch_reference`** - Quick reference for batch session tool parameters and best practices
+### Connection Type Reference
+- **`excel_connection_reference`** - Quick reference for Excel's 9 connection types, which ones work via COM API, and critical limitations
 
-### Connection Management
-- **`excel_connection_types_guide`** - Complete reference for Excel connection types, COM API limitations, supported operations, and testing strategies
-- **`excel_connection_workflow_examples`** - Common connection management workflows and example usage patterns
+**Why This Prompt Exists:**
+- Excel connection types and COM API quirks are **niche domain knowledge** not in standard LLM training
+- Prevents incorrect answers (e.g., telling users to create OLEDB connections via COM API, which fails)
+- Explains known issues like Type 3/4 confusion when users encounter them
 
-### Power Query Development
-- **`excel_powerquery_mcode_reference`** - M language reference with common Power Query patterns and functions
-- **`excel_powerquery_connections`** - Power Query connection management and refresh configuration
-- **`excel_powerquery_workflows`** - Step-by-step workflows for common Power Query development scenarios
+**Usage:** AI assistants can invoke this prompt when users ask about connection types, connection failures, or data source management.
 
-### VBA Development
-- **`excel_vba_guide`** - VBA development patterns, error handling, and automation best practices
-- **`excel_vba_integration`** - Integrate VBA with Power Query, worksheets, and parameters
-
-### Troubleshooting & Performance
-- **`excel_error_guide`** - Common Excel automation errors, causes, and solutions
-- **`excel_performance_guide`** - Performance optimization tips for Excel automation workflows
-
-**Usage:** AI assistants can invoke these prompts to learn context-specific patterns for Excel automation, reducing the need for external documentation and enabling smarter suggestions.
-
-**Example Invocations:**
+**Example Invocation:**
 ```text
-AI needs connection type info → Get prompt: excel_connection_types_guide
-AI needs workflow examples → Get prompt: excel_connection_workflow_examples
-AI needs M language syntax → Get prompt: excel_powerquery_mcode_reference
-AI encounters errors → Get prompt: excel_error_guide
+User: "Why won't my SQL Server connection work?"
+AI: Get prompt excel_connection_reference
+AI: "Excel COM API cannot create OLEDB connections via Connections.Add(). 
+     Create the connection in Excel UI (Data → Get Data → From Database), 
+     then use excel_connection to manage it."
 ```
 
 ## 🏗️ Architecture
@@ -287,11 +275,7 @@ ExcelMcp.McpServer/
 ├── Tools/
 │   └── ExcelTools.cs        # 9 resource-based MCP tools  
 ├── Prompts/
-│   ├── ExcelBatchPrompts.cs         # Batch session education
-│   ├── ExcelConnectionPrompts.cs    # Connection type reference
-│   ├── ExcelPowerQueryPrompts.cs    # Power Query patterns
-│   ├── ExcelVbaPrompts.cs           # VBA development
-│   └── ExcelTroubleshootingPrompts.cs # Error handling & performance
+│   └── ExcelConnectionPrompts.cs    # Connection type reference
 ├── Program.cs               # Official MCP SDK hosting
 └── ExcelMcp.McpServer.csproj
 ```
@@ -311,7 +295,7 @@ ExcelMcp.McpServer
 - **Resource-Based Architecture** - 9 tools instead of 56+ granular operations  
 - **Action Pattern** - Each tool supports multiple actions (REST-like design)
 - **Attribute-Based Registration** - `[McpServerTool]`, `[McpServerPrompt]` attributes for auto-discovery
-- **Educational Prompts** - 9 prompts teach AI assistants Excel automation patterns
+- **Reference Prompt** - 1 prompt provides Excel connection type reference for AI assistants
 - **JSON Serialization** - Proper `JsonSerializer.Serialize()` for all responses
 - **COM Lifecycle Management** - Leverages ExcelMcp.Core's proven Excel automation
 
