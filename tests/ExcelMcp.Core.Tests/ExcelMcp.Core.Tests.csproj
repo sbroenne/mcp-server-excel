@@ -34,7 +34,6 @@
   <ItemGroup>
     <Compile Remove="Integration\Commands\CellCommandsTests.cs" />
     <Compile Remove="Integration\Commands\ParameterCommandsTests.cs" />
-    <Compile Remove="Integration\Commands\FileCommandsTests.cs" />
     <Compile Remove="Integration\Commands\DataModelTomCommandsTests.cs" />
     <Compile Remove="Integration\Commands\DataModelCommandsTests.cs" />
     <Compile Remove="Integration\Commands\ScriptCommandsTests.cs" />
@@ -47,8 +46,6 @@
     <Compile Remove="Integration\Commands\PowerQueryPrivacyLevelTests.cs" />
     <Compile Remove="RoundTrip\**" />
     <Compile Remove="Unit\**" />
-    <Compile Remove="Helpers\ConnectionTestHelper.cs" />
-    <Compile Remove="Helpers\DataModelTestHelper.cs" />
   </ItemGroup>
 
 </Project>

@@ -20,7 +20,7 @@ public static class DataModelTestHelper
         await Task.Delay(100);
 
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        await batch.ExecuteAsync<int>(async (ctx, ct) =>
+        await batch.ExecuteAsync<int>((ctx, ct) =>
         {
             try
             {
@@ -517,7 +517,7 @@ public static class DataModelTestHelper
     public static async Task CreateTestMeasureAsync(string filePath, string measureName, string formula)
     {
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        await batch.ExecuteAsync<int>(async (ctx, ct) =>
+        await batch.ExecuteAsync<int>((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? modelTables = null;
