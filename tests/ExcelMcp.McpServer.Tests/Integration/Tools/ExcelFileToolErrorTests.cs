@@ -40,7 +40,7 @@ public class ExcelFileToolErrorTests : IDisposable
     }
 
     [Fact]
-    public void ExcelFile_CreateEmpty_ShouldWork()
+    public async Task ExcelFile_CreateEmpty_ShouldWork()
     {
         // Arrange
         var testFile = Path.Combine(_tempDir, "test-file.xlsx");
@@ -48,7 +48,7 @@ public class ExcelFileToolErrorTests : IDisposable
         _output.WriteLine($"Testing file creation at: {testFile}");
 
         // Act - Call the tool directly
-        var result = ExcelFileTool.ExcelFile("create-empty", testFile);
+        var result = await ExcelFileTool.ExcelFile("create-empty", testFile);
 
         _output.WriteLine($"Tool result: {result}");
 
@@ -62,14 +62,14 @@ public class ExcelFileToolErrorTests : IDisposable
     }
 
     [Fact]
-    public void ExcelFile_WithInvalidAction_ShouldReturnError()
+    public async Task ExcelFile_WithInvalidAction_ShouldReturnError()
     {
         // Arrange
         var testFile = Path.Combine(_tempDir, "test-file.xlsx");
 
         // Act & Assert - Should throw McpException for invalid action
-        var exception = Assert.Throws<ModelContextProtocol.McpException>(() =>
-            ExcelFileTool.ExcelFile("invalid-action", testFile));
+        var exception = await Assert.ThrowsAsync<ModelContextProtocol.McpException>(async () =>
+            await ExcelFileTool.ExcelFile("invalid-action", testFile));
 
         _output.WriteLine($"Exception message for invalid action: {exception.Message}");
 

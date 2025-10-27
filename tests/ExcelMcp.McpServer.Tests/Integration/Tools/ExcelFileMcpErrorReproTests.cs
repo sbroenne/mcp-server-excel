@@ -21,7 +21,7 @@ public class ExcelFileMcpErrorReproTests
     }
 
     [Fact]
-    public void ExcelFile_ExactMcpTestScenario_ShouldWork()
+    public async Task ExcelFile_ExactMcpTestScenario_ShouldWork()
     {
         // Arrange - Use exact path pattern from failing test
         var tempDir = Path.Combine(Path.GetTempPath(), $"MCPClient_Tests_{Guid.NewGuid():N}");
@@ -36,7 +36,7 @@ public class ExcelFileMcpErrorReproTests
             _output.WriteLine($"Directory exists: {Directory.Exists(tempDir)}");
 
             // Act - Call the tool with exact parameters from MCP test
-            var result = ExcelFileTool.ExcelFile("create-empty", testFile);
+            var result = await ExcelFileTool.ExcelFile("create-empty", testFile);
 
             _output.WriteLine($"Tool result: {result}");
 

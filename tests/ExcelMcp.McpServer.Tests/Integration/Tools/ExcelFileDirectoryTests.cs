@@ -40,7 +40,7 @@ public class ExcelFileDirectoryTests : IDisposable
     }
 
     [Fact]
-    public void ExcelFile_CreateInNonExistentDirectory_ShouldWork()
+    public async Task ExcelFile_CreateInNonExistentDirectory_ShouldWork()
     {
         // Arrange
         var testFile = Path.Combine(_tempDir, "subdir", "test-file.xlsx");
@@ -49,7 +49,7 @@ public class ExcelFileDirectoryTests : IDisposable
         _output.WriteLine($"Directory exists before: {Directory.Exists(Path.GetDirectoryName(testFile))}");
 
         // Act - Call the tool directly
-        var result = ExcelFileTool.ExcelFile("create-empty", testFile);
+        var result = await ExcelFileTool.ExcelFile("create-empty", testFile);
 
         _output.WriteLine($"Tool result: {result}");
 
@@ -71,7 +71,7 @@ public class ExcelFileDirectoryTests : IDisposable
     }
 
     [Fact]
-    public void ExcelFile_WithVeryLongPath_ShouldHandleGracefully()
+    public async Task ExcelFile_WithVeryLongPath_ShouldHandleGracefully()
     {
         // Arrange - Create a path that might be too long
         var longPath = string.Join("", Enumerable.Repeat("verylongdirectoryname", 20));
@@ -81,7 +81,7 @@ public class ExcelFileDirectoryTests : IDisposable
         _output.WriteLine($"Path: {testFile}");
 
         // Act - Call the tool directly
-        var result = ExcelFileTool.ExcelFile("create-empty", testFile);
+        var result = await ExcelFileTool.ExcelFile("create-empty", testFile);
 
         _output.WriteLine($"Tool result: {result}");
 
