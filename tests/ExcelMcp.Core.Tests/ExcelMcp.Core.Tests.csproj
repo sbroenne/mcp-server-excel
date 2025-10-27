@@ -37,7 +37,6 @@
     <Compile Remove="Integration\Commands\CoreConnectionCommandsExtendedTests.cs" />
     <Compile Remove="Integration\Commands\DataModelTomCommandsTests.cs" />
     <Compile Remove="Integration\Commands\VbaTrustDetectionTests.cs" />
-    <Compile Remove="Integration\Commands\SetupCommandsTests.cs" />
     <Compile Remove="Integration\Commands\PowerQueryWorkflowGuidanceTests.cs" />
     <Compile Remove="Integration\Commands\PowerQueryPrivacyLevelTests.cs" />
     <Compile Remove="RoundTrip\**" />
