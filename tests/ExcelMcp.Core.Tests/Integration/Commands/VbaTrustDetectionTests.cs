@@ -133,7 +133,8 @@ End Sub";
         // Act & Assert - VBA operations should work inside the scope
         using (var _ = new TestVbaTrustScope())
         {
-            var importResult = await _scriptCommands.Import(_testExcelFile, "TestModule", vbaFile);
+            await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+            var importResult = await _scriptCommands.ImportAsync(batch, "TestModule", vbaFile);
 
             // Should succeed when VBA trust is enabled
             if (!importResult.Success)
@@ -153,7 +154,8 @@ End Sub";
         // Act - Test with VBA trust enabled
         using (var _ = new TestVbaTrustScope())
         {
-            var result = await _scriptCommands.Export(_testExcelFile, "ThisWorkbook", exportFile);
+            await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+            var result = await _scriptCommands.ExportAsync(batch, "ThisWorkbook", exportFile);
 
             // Assert
             Assert.NotNull(result);
@@ -179,7 +181,8 @@ End Sub";
         // Act - Test with VBA trust enabled
         using (var _ = new TestVbaTrustScope())
         {
-            var result = await _scriptCommands.Import(_testExcelFile, "ImportTestModule", vbaFile);
+            await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+            var result = await _scriptCommands.ImportAsync(batch, "ImportTestModule", vbaFile);
 
             // Assert
             Assert.NotNull(result);
@@ -203,7 +206,11 @@ End Sub";
         using (var _ = new TestVbaTrustScope())
         {
             // First import
-            await _scriptCommands.Import(_testExcelFile, "UpdateTestModule", vbaFile);
+            await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+            {
+                await _scriptCommands.ImportAsync(batch, "UpdateTestModule", vbaFile);
+                await batch.SaveAsync();
+            }
 
             // Update the VBA code
             string vbaCode2 = @"Sub UpdateTest2()
@@ -212,10 +219,13 @@ End Sub";
             File.WriteAllText(vbaFile, vbaCode2);
 
             // Act - Update the module
-            var result = await _scriptCommands.Update(_testExcelFile, "UpdateTestModule", vbaFile);
+            await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+            {
+                var result = await _scriptCommands.UpdateAsync(batch, "UpdateTestModule", vbaFile);
 
-            // Assert
-            Assert.NotNull(result);
+                // Assert
+                Assert.NotNull(result);
+            }
         }
     }
 
@@ -231,13 +241,20 @@ End Sub";
         using (var _ = new TestVbaTrustScope())
         {
             // First import a module
-            await _scriptCommands.Import(_testExcelFile, "DeleteTestModule", vbaFile);
+            await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+            {
+                await _scriptCommands.ImportAsync(batch, "DeleteTestModule", vbaFile);
+                await batch.SaveAsync();
+            }
 
             // Act - Delete the module
-            var result = _scriptCommands.Delete(_testExcelFile, "DeleteTestModule");
+            await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+            {
+                var result = await _scriptCommands.DeleteAsync(batch, "DeleteTestModule");
 
-            // Assert
-            Assert.NotNull(result);
+                // Assert
+                Assert.NotNull(result);
+            }
         }
     }
 
@@ -256,13 +273,20 @@ End Sub";
         using (var _ = new TestVbaTrustScope())
         {
             // First import a module
-            await _scriptCommands.Import(_testExcelFile, "RunTestModule", vbaFile);
+            await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+            {
+                await _scriptCommands.ImportAsync(batch, "RunTestModule", vbaFile);
+                await batch.SaveAsync();
+            }
 
             // Act - Run the procedure
-            var result = _scriptCommands.Run(_testExcelFile, "RunTestModule.RunTest");
+            await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+            {
+                var result = await _scriptCommands.RunAsync(batch, "RunTestModule.RunTest");
 
-            // Assert
-            Assert.NotNull(result);
+                // Assert
+                Assert.NotNull(result);
+            }
         }
     }
 

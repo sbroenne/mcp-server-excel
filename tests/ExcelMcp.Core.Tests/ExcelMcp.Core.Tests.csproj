@@ -35,7 +35,6 @@
     <!-- Tests that need batch pattern conversion -->
     <Compile Remove="Integration\Commands\CoreConnectionCommandsTests.cs" />
     <Compile Remove="Integration\Commands\CoreConnectionCommandsExtendedTests.cs" />
-    <Compile Remove="Integration\Commands\VbaTrustDetectionTests.cs" />
     <Compile Remove="Integration\Commands\PowerQueryWorkflowGuidanceTests.cs" />
     <Compile Remove="RoundTrip\**" />
     <Compile Remove="Unit\**" />
