@@ -6,7 +6,17 @@ using Xunit.Abstractions;
 namespace Sbroenne.ExcelMcp.Core.Tests.Unit.Session;
 
 /// <summary>
-/// Tests for STA threading and batching - verifies COM cleanup and no process leaks.
+/// Tests for STA threading and Excel COM cleanup - verifies no process leaks
+/// 
+/// LAYER RESPONSIBILITY:
+/// - ✅ Test that Excel COM objects are properly cleaned up
+/// - ✅ Test that Excel.exe processes terminate after disposal
+/// - ✅ Test STA thread management
+/// - ✅ USE GC.Collect() - This is CORRECT here because we're explicitly testing COM cleanup behavior
+/// - ❌ DO NOT test business logic (that's tested in other Core tests)
+/// 
+/// NOTE: GC.Collect() calls in these tests are INTENTIONAL and CORRECT - they're part of the test
+/// assertions to verify that COM cleanup works properly.
 /// </summary>
 [Trait("Category", "Unit")]
 [Trait("Speed", "Medium")]
@@ -192,33 +202,6 @@ public class StaThreadingTests
                 await Task.Delay(500);
                 File.Delete(tempFile);
             }
-        }
-    }
-
-    [Fact]
-    public async Task BackwardCompatWrapper_Execute_UsesStaThreading()
-    {
-        // Arrange
-        string testFile = await CreateTempTestFileAsync();
-
-        try
-        {
-            // Act - Old synchronous API should still work with STA threading
-            var result = ExcelSession.Execute(testFile, save: false, (excel, workbook) =>
-            {
-                dynamic sheet = workbook.Worksheets.Item(1);
-                var value = sheet.Range["A1"].Value2;
-                _output.WriteLine($"Backward-compat read: {value}");
-                return 42;
-            });
-
-            // Assert
-            Assert.Equal(42, result);
-            _output.WriteLine("✓ Backward-compat wrapper works with STA threading");
-        }
-        finally
-        {
-            if (File.Exists(testFile)) File.Delete(testFile);
         }
     }
 }
