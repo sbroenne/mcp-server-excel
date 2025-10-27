@@ -192,7 +192,7 @@ public class ParameterCommands : IParameterCommands
             try
             {
                 // Check if parameter already exists
-                existing = FindNamedRange(ctx.Book, paramName);
+                existing = ComUtilities.FindName(ctx.Book, paramName);
                 if (existing != null)
                 {
                     result.Success = false;
@@ -202,8 +202,10 @@ public class ParameterCommands : IParameterCommands
 
                 // Create new named range
                 namesCollection = ctx.Book.Names;
-                // Ensure reference is properly formatted for Excel COM
-                string formattedReference = reference.StartsWith("=") ? reference : $"={reference}";
+                // Remove any existing = prefix to avoid double ==
+                string formattedReference = reference.TrimStart('=');
+                // Add exactly one = prefix (required by Excel COM API)
+                formattedReference = $"={formattedReference}";
                 namesCollection.Add(paramName, formattedReference);
 
                 result.Success = true;
@@ -246,8 +248,10 @@ public class ParameterCommands : IParameterCommands
                     return result;
                 }
 
-                // Ensure reference is properly formatted with = prefix
-                string formattedReference = reference.StartsWith("=") ? reference : $"={reference}";
+                // Remove any existing = prefix to avoid double ==
+                string formattedReference = reference.TrimStart('=');
+                // Add exactly one = prefix (required by Excel COM API)
+                formattedReference = $"={formattedReference}";
 
                 // Update the reference
                 nameObj.RefersTo = formattedReference;
@@ -314,27 +318,6 @@ public class ParameterCommands : IParameterCommands
                 ComUtilities.Release(ref nameObj);
             }
         });
-    }
-
-    private static dynamic? FindNamedRange(dynamic workbook, string name)
-    {
-        try
-        {
-            dynamic namesCollection = workbook.Names;
-            int count = namesCollection.Count;
-
-            for (int i = 1; i <= count; i++)
-            {
-                dynamic nameObj = namesCollection.Item(i);
-                if (nameObj.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
-                {
-                    return nameObj;
-                }
-            }
-        }
-        catch { }
-
-        return null;
     }
 
     /// <summary>

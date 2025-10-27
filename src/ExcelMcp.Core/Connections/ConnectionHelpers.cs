@@ -68,18 +68,23 @@ public static class ConnectionHelpers
     /// <returns>Sanitized connection string with password masked</returns>
     public static string SanitizeConnectionString(string? connectionString)
     {
-        if (string.IsNullOrWhiteSpace(connectionString))
+        if (connectionString == null)
         {
-            return string.Empty;
+            return null!;
         }
 
-        // Regex pattern to match password in various formats:
-        // Password=value; Pwd=value; password=value; pwd=value;
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            return connectionString;
+        }
+
+        // Regex pattern to match sensitive fields in connection strings:
+        // Password, Pwd, AccessToken, AccountKey, AccessKey, ApiKey, etc.
         // Handles both semicolon-terminated and end-of-string cases
         return System.Text.RegularExpressions.Regex.Replace(
             connectionString,
-            @"(password|pwd)\s*=\s*[^;]*",
-            "$1=***",
+            @"(password|pwd|apikey|accesstoken|accountkey|accesskey)\s*=\s*[^;]*",
+            "$1=***REDACTED***",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase
         );
     }

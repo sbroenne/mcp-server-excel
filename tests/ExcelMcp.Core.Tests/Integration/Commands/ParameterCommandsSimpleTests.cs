@@ -66,6 +66,19 @@ public class ParameterCommandsSimpleTests : IDisposable
     {
         // Arrange
         const string paramName = "TestParam";
+        const string testValue = "TestValue123";
+
+        // Arrange - Put a value in A1 first
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testFile))
+        {
+            await batch.ExecuteAsync<int>((ctx, ct) =>
+            {
+                dynamic sheet = ctx.Book.Worksheets.Item(1);
+                sheet.Range["A1"].Value2 = testValue;
+                return ValueTask.FromResult(0);
+            });
+            await batch.SaveAsync();
+        }
 
         // Act - Create parameter
         await using (var batch = await ExcelSession.BeginBatchAsync(_testFile))
@@ -83,6 +96,7 @@ public class ParameterCommandsSimpleTests : IDisposable
             // Assert
             Assert.True(getResult.Success, $"Get failed: {getResult.ErrorMessage}");
             Assert.NotNull(getResult.Value);
+            Assert.Equal(testValue, getResult.Value?.ToString());
         }
     }
 
