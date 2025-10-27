@@ -47,14 +47,14 @@ public class DetailedErrorMessageTests : IDisposable
     }
 
     [Fact]
-    public void ExcelWorksheet_WithNonExistentFile_ShouldThrowDetailedError()
+    public async Task ExcelWorksheet_WithNonExistentFile_ShouldThrowDetailedError()
     {
         // Arrange
         string nonExistentFile = Path.Combine(_tempDir, "nonexistent.xlsx");
 
         // Act & Assert - Should throw McpException with detailed error message
-        var exception = Assert.Throws<McpException>(() =>
-            ExcelWorksheetTool.ExcelWorksheet("list", nonExistentFile));
+        var exception = await Assert.ThrowsAsync<McpException>(async () =>
+            await ExcelWorksheetTool.ExcelWorksheet("list", nonExistentFile));
 
         // Verify detailed error message components
         _output.WriteLine($"Error message: {exception.Message}");
@@ -72,14 +72,14 @@ public class DetailedErrorMessageTests : IDisposable
     }
 
     [Fact]
-    public void ExcelCell_WithNonExistentFile_ShouldThrowDetailedError()
+    public async Task ExcelCell_WithNonExistentFile_ShouldThrowDetailedError()
     {
         // Arrange
         string nonExistentFile = Path.Combine(_tempDir, "nonexistent-cell.xlsx");
 
         // Act & Assert
-        var exception = Assert.Throws<McpException>(() =>
-            ExcelCellTool.ExcelCell("get-value", nonExistentFile, "Sheet1", "A1"));
+        var exception = await Assert.ThrowsAsync<McpException>(async () =>
+            await ExcelCellTool.ExcelCell("get-value", nonExistentFile, "Sheet1", "A1"));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -92,14 +92,14 @@ public class DetailedErrorMessageTests : IDisposable
     }
 
     [Fact]
-    public void ExcelParameter_WithNonExistentFile_ShouldThrowDetailedError()
+    public async Task ExcelParameter_WithNonExistentFile_ShouldThrowDetailedError()
     {
         // Arrange
         string nonExistentFile = Path.Combine(_tempDir, "nonexistent-param.xlsx");
 
         // Act & Assert
-        var exception = Assert.Throws<McpException>(() =>
-            ExcelParameterTool.ExcelParameter("list", nonExistentFile));
+        var exception = await Assert.ThrowsAsync<McpException>(async () =>
+            await ExcelParameterTool.ExcelParameter("list", nonExistentFile));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -112,14 +112,14 @@ public class DetailedErrorMessageTests : IDisposable
     }
 
     [Fact]
-    public void ExcelPowerQuery_WithNonExistentFile_ShouldThrowDetailedError()
+    public async Task ExcelPowerQuery_WithNonExistentFile_ShouldThrowDetailedError()
     {
         // Arrange
         string nonExistentFile = Path.Combine(_tempDir, "nonexistent-pq.xlsx");
 
         // Act & Assert
-        var exception = Assert.Throws<McpException>(() =>
-            ExcelPowerQueryTool.ExcelPowerQuery("list", nonExistentFile));
+        var exception = await Assert.ThrowsAsync<McpException>(async () =>
+            await ExcelPowerQueryTool.ExcelPowerQuery("list", nonExistentFile));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -132,14 +132,14 @@ public class DetailedErrorMessageTests : IDisposable
     }
 
     [Fact]
-    public void ExcelVba_WithNonMacroEnabledFile_ShouldThrowDetailedError()
+    public async Task ExcelVba_WithNonMacroEnabledFile_ShouldThrowDetailedError()
     {
         // Arrange - Create .xlsx file (not macro-enabled)
-        ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
+        await ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
 
         // Act & Assert - VBA operations require .xlsm
-        var exception = Assert.Throws<McpException>(() =>
-            ExcelVbaTool.ExcelVba("list", _testExcelFile));
+        var exception = await Assert.ThrowsAsync<McpException>(async () =>
+            await ExcelVbaTool.ExcelVba("list", _testExcelFile));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -153,15 +153,15 @@ public class DetailedErrorMessageTests : IDisposable
     }
 
     [Fact]
-    public void ExcelVba_WithMissingModuleName_ShouldThrowDetailedError()
+    public async Task ExcelVba_WithMissingModuleName_ShouldThrowDetailedError()
     {
         // Arrange - Create macro-enabled file
         string xlsmFile = Path.Combine(_tempDir, "test-vba.xlsm");
-        ExcelFileTool.ExcelFile("create-empty", xlsmFile);
+        await ExcelFileTool.ExcelFile("create-empty", xlsmFile);
 
         // Act & Assert - Run requires moduleName
-        var exception = Assert.Throws<McpException>(() =>
-            ExcelVbaTool.ExcelVba("run", xlsmFile, moduleName: null));
+        var exception = await Assert.ThrowsAsync<McpException>(async () =>
+            await ExcelVbaTool.ExcelVba("run", xlsmFile, moduleName: null));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -174,11 +174,11 @@ public class DetailedErrorMessageTests : IDisposable
     }
 
     [Fact]
-    public void ExcelFileTool_WithUnknownAction_ShouldThrowDetailedError()
+    public async Task ExcelFileTool_WithUnknownAction_ShouldThrowDetailedError()
     {
         // Act & Assert
-        var exception = Assert.Throws<McpException>(() =>
-            ExcelFileTool.ExcelFile("invalid-action", _testExcelFile));
+        var exception = await Assert.ThrowsAsync<McpException>(async () =>
+            await ExcelFileTool.ExcelFile("invalid-action", _testExcelFile));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -192,11 +192,11 @@ public class DetailedErrorMessageTests : IDisposable
     }
 
     [Fact]
-    public void ExcelWorksheet_WithUnknownAction_ShouldThrowDetailedError()
+    public async Task ExcelWorksheet_WithUnknownAction_ShouldThrowDetailedError()
     {
         // Act & Assert
-        var exception = Assert.Throws<McpException>(() =>
-            ExcelWorksheetTool.ExcelWorksheet("invalid-action", _testExcelFile));
+        var exception = await Assert.ThrowsAsync<McpException>(async () =>
+            await ExcelWorksheetTool.ExcelWorksheet("invalid-action", _testExcelFile));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -211,14 +211,14 @@ public class DetailedErrorMessageTests : IDisposable
     }
 
     [Fact]
-    public void ExcelPowerQuery_Import_WithMissingParameters_ShouldThrowDetailedError()
+    public async Task ExcelPowerQuery_Import_WithMissingParameters_ShouldThrowDetailedError()
     {
         // Arrange
-        ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
+        await ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
 
         // Act & Assert - Import requires queryName and sourcePath
-        var exception = Assert.Throws<McpException>(() =>
-            ExcelPowerQueryTool.ExcelPowerQuery("import", _testExcelFile, queryName: null, sourcePath: null));
+        var exception = await Assert.ThrowsAsync<McpException>(async () =>
+            await ExcelPowerQueryTool.ExcelPowerQuery("import", _testExcelFile, queryName: null, sourcePath: null));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -232,14 +232,14 @@ public class DetailedErrorMessageTests : IDisposable
     }
 
     [Fact]
-    public void ExcelCell_SetValue_WithMissingValue_ShouldThrowDetailedError()
+    public async Task ExcelCell_SetValue_WithMissingValue_ShouldThrowDetailedError()
     {
         // Arrange
-        ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
+        await ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
 
         // Act & Assert - set-value requires value parameter
-        var exception = Assert.Throws<McpException>(() =>
-            ExcelCellTool.ExcelCell("set-value", _testExcelFile, "Sheet1", "A1", value: null));
+        var exception = await Assert.ThrowsAsync<McpException>(async () =>
+            await ExcelCellTool.ExcelCell("set-value", _testExcelFile, "Sheet1", "A1", value: null));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -251,14 +251,14 @@ public class DetailedErrorMessageTests : IDisposable
     }
 
     [Fact]
-    public void ExcelParameter_Create_WithMissingParameters_ShouldThrowDetailedError()
+    public async Task ExcelParameter_Create_WithMissingParameters_ShouldThrowDetailedError()
     {
         // Arrange
-        ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
+        await ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
 
         // Act & Assert - create requires parameterName and reference
-        var exception = Assert.Throws<McpException>(() =>
-            ExcelParameterTool.ExcelParameter("create", _testExcelFile, parameterName: null));
+        var exception = await Assert.ThrowsAsync<McpException>(async () =>
+            await ExcelParameterTool.ExcelParameter("create", _testExcelFile, parameterName: null));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -271,14 +271,14 @@ public class DetailedErrorMessageTests : IDisposable
     }
 
     [Fact]
-    public void ExcelWorksheet_Read_WithMissingSheetName_ShouldThrowDetailedError()
+    public async Task ExcelWorksheet_Read_WithMissingSheetName_ShouldThrowDetailedError()
     {
         // Arrange
-        ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
+        await ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
 
         // Act & Assert - read requires sheetName and rangeAddress
-        var exception = Assert.Throws<McpException>(() =>
-            ExcelWorksheetTool.ExcelWorksheet("read", _testExcelFile, sheetName: null));
+        var exception = await Assert.ThrowsAsync<McpException>(async () =>
+            await ExcelWorksheetTool.ExcelWorksheet("read", _testExcelFile, sheetName: null));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
