@@ -1,0 +1,91 @@
+name: Build Core
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'src/ExcelMcp.Core/**'
+      - 'src/ExcelMcp.ComInterop/**'
+      - 'tests/ExcelMcp.Core.Tests/**'
+      - 'tests/ExcelMcp.ComInterop.Tests/**'
+      - 'global.json'
+      - 'Directory.Build.props'
+      - 'Directory.Packages.props'
+      - '.github/workflows/build-core.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/ExcelMcp.Core/**'
+      - 'src/ExcelMcp.ComInterop/**'
+      - 'tests/ExcelMcp.Core.Tests/**'
+      - 'tests/ExcelMcp.ComInterop.Tests/**'
+      - 'global.json'
+      - 'Directory.Build.props'
+      - 'Directory.Packages.props'
+      - '.github/workflows/build-core.yml'
+
+jobs:
+  build-core:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Restore dependencies
+      run: |
+        dotnet restore src/ExcelMcp.ComInterop/ExcelMcp.ComInterop.csproj
+        dotnet restore src/ExcelMcp.Core/ExcelMcp.Core.csproj
+
+    - name: Build ComInterop
+      run: dotnet build src/ExcelMcp.ComInterop/ExcelMcp.ComInterop.csproj --no-restore --configuration Release
+
+    - name: Build Core
+      run: dotnet build src/ExcelMcp.Core/ExcelMcp.Core.csproj --no-restore --configuration Release
+
+    - name: Verify Core build
+      run: |
+        # Check ComInterop library
+        if (Test-Path "src/ExcelMcp.ComInterop/bin/Release/net8.0/Sbroenne.ExcelMcp.ComInterop.dll") {
+          Write-Output "✅ ComInterop library built successfully"
+          $version = (Get-Item "src/ExcelMcp.ComInterop/bin/Release/net8.0/Sbroenne.ExcelMcp.ComInterop.dll").VersionInfo.FileVersion
+          Write-Output "ComInterop Version: $version"
+        } else {
+          Write-Error "❌ Sbroenne.ExcelMcp.ComInterop.dll not found"
+          exit 1
+        }
+
+        # Check Core library
+        if (Test-Path "src/ExcelMcp.Core/bin/Release/net8.0/Sbroenne.ExcelMcp.Core.dll") {
+          Write-Output "✅ Core library built successfully"
+          $version = (Get-Item "src/ExcelMcp.Core/bin/Release/net8.0/Sbroenne.ExcelMcp.Core.dll").VersionInfo.FileVersion
+          Write-Output "Core Version: $version"
+        } else {
+          Write-Error "❌ Sbroenne.ExcelMcp.Core.dll not found"
+          exit 1
+        }
+
+        Write-Output "🔧 Core libraries ready for integration"
+      shell: pwsh
+
+    - name: Test Core (requires Excel)
+      run: |
+        Write-Output "ℹ️ Note: Core tests skipped in CI - they require Microsoft Excel"
+        Write-Output "   Run 'dotnet test tests/ExcelMcp.Core.Tests/' locally with Excel installed"
+        Write-Output "   Run 'dotnet test tests/ExcelMcp.ComInterop.Tests/' locally with Excel installed"
+      shell: pwsh
+
+    - name: Upload Core build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ExcelMcp-Core-${{ github.sha }}
+        path: |
+          src/ExcelMcp.ComInterop/bin/Release/net8.0/
+          src/ExcelMcp.Core/bin/Release/net8.0/
