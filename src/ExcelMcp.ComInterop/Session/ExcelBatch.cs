@@ -13,6 +13,7 @@ internal sealed class ExcelBatch : IExcelBatch
     private readonly string _workbookPath;
     private readonly Channel<Func<Task>> _workQueue;
     private readonly Thread _staThread;
+    private readonly CancellationTokenSource _shutdownCts;
     private bool _disposed;
 
     // COM state (STA thread only)
@@ -23,6 +24,7 @@ internal sealed class ExcelBatch : IExcelBatch
     public ExcelBatch(string workbookPath)
     {
         _workbookPath = workbookPath ?? throw new ArgumentNullException(nameof(workbookPath));
+        _shutdownCts = new CancellationTokenSource();
 
         // Create unbounded channel for work items
         _workQueue = Channel.CreateUnbounded<Func<Task>>(new UnboundedChannelOptions
@@ -61,12 +63,45 @@ internal sealed class ExcelBatch : IExcelBatch
 
                 started.SetResult();
 
-                // Message pump - process work queue until completion
-                while (_workQueue.Reader.WaitToReadAsync().AsTask().Result)
+                // Message pump - process work queue until completion or cancellation
+                // Use polling to avoid blocking indefinitely
+                while (!_shutdownCts.Token.IsCancellationRequested)
                 {
-                    while (_workQueue.Reader.TryRead(out var work))
+                    try
                     {
-                        work().GetAwaiter().GetResult();
+                        // Try to read work items, with short timeout
+                        if (_workQueue.Reader.TryRead(out var work))
+                        {
+                            try
+                            {
+                                work().GetAwaiter().GetResult();
+                            }
+                            catch
+                            {
+                                // Individual work items may fail, but keep processing queue
+                                // The exception is already captured in the TaskCompletionSource
+                            }
+                        }
+                        else
+                        {
+                            // No work available - check if channel is completed
+                            if (_workQueue.Reader.Completion.IsCompleted)
+                            {
+                                break;
+                            }
+
+                            // Sleep briefly to avoid busy-waiting
+                            Thread.Sleep(10);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Shutdown requested, exit gracefully
+                        break;
+                    }
+                    catch
+                    {
+                        // Unexpected error, but continue processing
                     }
                 }
             }
@@ -77,8 +112,10 @@ internal sealed class ExcelBatch : IExcelBatch
             finally
             {
                 // Cleanup on STA thread exit
+                System.Diagnostics.Debug.WriteLine($"[ExcelBatch] STA thread cleanup starting for {Path.GetFileName(_workbookPath)}");
                 CleanupComObjects();
                 OleMessageFilter.Revoke();
+                System.Diagnostics.Debug.WriteLine($"[ExcelBatch] STA thread cleanup completed for {Path.GetFileName(_workbookPath)}");
             }
         })
         {
@@ -215,6 +252,11 @@ internal sealed class ExcelBatch : IExcelBatch
             try
             {
                 _excel.Quit();
+
+                // CRITICAL: Give Excel time to fully terminate before GC
+                // Excel.Quit() returns immediately but process may take time to exit
+                // Without this delay, GC may run before Excel fully closes
+                Thread.Sleep(2000);
             }
             catch
             {
@@ -222,35 +264,21 @@ internal sealed class ExcelBatch : IExcelBatch
             }
         }
 
-        // Release COM objects
-        void Release(object? o)
-        {
-            if (o != null && Marshal.IsComObject(o))
-            {
-                try
-                {
-                    Marshal.FinalReleaseComObject(o);
-                }
-                catch
-                {
-                    // Release might fail, but continue cleanup
-                }
-            }
-        }
-
-        Release(_workbook);
+        // Null out references to allow GC to clean up
+        // DON'T use Marshal.ReleaseComObject - let GC handle it
+        // Microsoft recommends against using ReleaseComObject in most cases
         _workbook = null;
-        Release(_excel);
         _excel = null;
         _context = null;
 
-        // CRITICAL COM cleanup pattern:
-        // Two GC cycles ensure RCW (Runtime Callable Wrapper) cleanup
-        // Cycle 1: Collect unreferenced objects, queue RCWs for finalization
-        // Cycle 2: Finalize queued RCWs, release underlying COM objects
+        // CRITICAL COM cleanup pattern (Microsoft recommended):
+        // Call GC.Collect() and GC.WaitForPendingFinalizers() TWICE
+        // This ensures proper cleanup of Runtime Callable Wrappers (RCW)
+        // Source: https://stackoverflow.com/a/38111294
         GC.Collect();
         GC.WaitForPendingFinalizers();
-        GC.Collect(); // Second collect cleans up objects created during finalization
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
     }
 
     public async ValueTask DisposeAsync()
@@ -260,21 +288,60 @@ internal sealed class ExcelBatch : IExcelBatch
 
         _disposed = true;
 
+        System.Diagnostics.Debug.WriteLine($"[ExcelBatch] DisposeAsync starting for {Path.GetFileName(_workbookPath)}");
+
         // Complete the work queue to signal STA thread to exit
         _workQueue.Writer.Complete();
+
+        // Cancel the shutdown token to force message pump exit
+        _shutdownCts.Cancel();
+
+        System.Diagnostics.Debug.WriteLine($"[ExcelBatch] Waiting for STA thread to exit...");
 
         // Wait for STA thread to finish cleanup (with timeout)
         await Task.Run(() =>
         {
             if (_staThread != null && _staThread.IsAlive)
             {
-                // Give STA thread 5 seconds to cleanup gracefully
-                if (!_staThread.Join(TimeSpan.FromSeconds(5)))
+                // Give STA thread 15 seconds to cleanup gracefully
+                // (Includes time for Excel.Quit() + GC cycles)
+                if (!_staThread.Join(TimeSpan.FromSeconds(15)))
                 {
-                    // Thread didn't exit cleanly, but we can't force abort in .NET Core
-                    // Log warning in production scenarios
+                    System.Diagnostics.Debug.WriteLine($"[ExcelBatch] STA thread did not exit within 5s, attempting emergency cleanup");
+                    // CRITICAL: Thread didn't exit - force cleanup on this thread
+                    // This is a safety measure for leaked Excel processes
+                    try
+                    {
+                        // Attempt emergency cleanup from current thread
+                        // NOTE: This violates STA rules but prevents process leaks
+                        if (_excel != null)
+                        {
+                            try { _excel.Quit(); } catch { /* Ignore */ }
+                            try { Marshal.FinalReleaseComObject(_excel); } catch { /* Ignore */ }
+                        }
+                        if (_workbook != null)
+                        {
+                            try { Marshal.FinalReleaseComObject(_workbook); } catch { /* Ignore */ }
+                        }
+                    }
+                    catch
+                    {
+                        // Last resort failed, but at least we tried
+                    }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ExcelBatch] STA thread exited successfully");
                 }
             }
         });
+
+        // Force GC to clean up any remaining COM objects
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        // Dispose cancellation token source
+        _shutdownCts.Dispose();
     }
 }
