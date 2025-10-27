@@ -137,7 +137,7 @@ public class SheetCommandsTests : IDisposable
     public async Task Write_WithValidCsvData_ReturnsSuccessResult()
     {
         // Arrange
-        var csvPath = Path.Combine(_tempDir, "test.csv");
+        var csvPath = Path.Combine(_tempDir, "write-test.csv");
         File.WriteAllText(csvPath, "Name,Age\nJohn,30\nJane,25");
 
         // Act
@@ -153,7 +153,7 @@ public class SheetCommandsTests : IDisposable
     public async Task Read_AfterWrite_ReturnsData()
     {
         // Arrange
-        var csvPath = Path.Combine(_tempDir, "test.csv");
+        var csvPath = Path.Combine(_tempDir, "read-test.csv");
         File.WriteAllText(csvPath, "Name,Age\nJohn,30");
         await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
         {
@@ -177,7 +177,7 @@ public class SheetCommandsTests : IDisposable
     public async Task Clear_WithValidRange_ReturnsSuccessResult()
     {
         // Arrange
-        var csvPath = Path.Combine(_tempDir, "test.csv");
+        var csvPath = Path.Combine(_tempDir, "clear-test.csv");
         File.WriteAllText(csvPath, "Test,Data\n1,2");
         await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
         {
