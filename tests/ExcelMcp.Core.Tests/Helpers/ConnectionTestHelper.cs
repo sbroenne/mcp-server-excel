@@ -24,13 +24,13 @@ public static class ConnectionTestHelper
                 // Get connections collection
                 dynamic connections = ctx.Book.Connections;
 
-                // Create OLEDB connection using positional parameters
-                // Connections.Add(Name, Description, ConnectionString, CommandText)
+                // Create OLEDB connection using NAMED parameters (Excel COM requires this)
+                // Per Microsoft docs: https://learn.microsoft.com/en-us/office/vba/api/excel.connections.add
                 dynamic newConnection = connections.Add(
-                    connectionName,
-                    $"Test OLEDB connection created by {nameof(CreateOleDbConnectionAsync)}",
-                    connectionString,
-                    ""
+                    Name: connectionName,
+                    Description: $"Test OLEDB connection created by {nameof(CreateOleDbConnectionAsync)}",
+                    ConnectionString: connectionString,
+                    CommandText: ""
                 );
 
                 // Configure OLEDB connection properties
@@ -67,12 +67,12 @@ public static class ConnectionTestHelper
             {
                 dynamic connections = ctx.Book.Connections;
 
-                // Create ODBC connection using positional parameters
+                // Create ODBC connection using NAMED parameters (Excel COM requires this)
                 dynamic newConnection = connections.Add(
-                    connectionName,
-                    $"Test ODBC connection created by {nameof(CreateOdbcConnectionAsync)}",
-                    connectionString,
-                    ""
+                    Name: connectionName,
+                    Description: $"Test ODBC connection created by {nameof(CreateOdbcConnectionAsync)}",
+                    ConnectionString: connectionString,
+                    CommandText: ""
                 );
 
                 return ValueTask.FromResult(0); // Success
