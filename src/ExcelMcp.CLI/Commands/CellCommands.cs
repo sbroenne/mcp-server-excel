@@ -1,5 +1,6 @@
 using Spectre.Console;
 using Sbroenne.ExcelMcp.Core.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -22,12 +23,21 @@ public class CellCommands : ICellCommands
         var sheetName = args[2];
         var cellAddress = args[3];
 
-        var task = Task.Run(async () =>
+        CellValueResult result;
+        try
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.GetValueAsync(batch, sheetName, cellAddress);
-        });
-        var result = task.GetAwaiter().GetResult();
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                return await _coreCommands.GetValueAsync(batch, sheetName, cellAddress);
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
         if (result.Success)
         {
@@ -146,14 +156,23 @@ public class CellCommands : ICellCommands
         var cellAddress = args[3];
         var formula = args[4];
 
-        var task = Task.Run(async () =>
+        OperationResult result;
+        try
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var setResult = await _coreCommands.SetFormulaAsync(batch, sheetName, cellAddress, formula);
-            await batch.SaveAsync();
-            return setResult;
-        });
-        var result = task.GetAwaiter().GetResult();
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                var setResult = await _coreCommands.SetFormulaAsync(batch, sheetName, cellAddress, formula);
+                await batch.SaveAsync();
+                return setResult;
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
         if (result.Success)
         {

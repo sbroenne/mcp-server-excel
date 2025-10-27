@@ -1,5 +1,6 @@
 using Spectre.Console;
 using Sbroenne.ExcelMcp.Core.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -72,14 +73,23 @@ public class ParameterCommands : IParameterCommands
         var paramName = args[2];
         var value = args[3];
 
-        var task = Task.Run(async () =>
+        OperationResult result;
+        try
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var setResult = await _coreCommands.SetAsync(batch, paramName, value);
-            await batch.SaveAsync();
-            return setResult;
-        });
-        var result = task.GetAwaiter().GetResult();
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                var setResult = await _coreCommands.SetAsync(batch, paramName, value);
+                await batch.SaveAsync();
+                return setResult;
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
         if (result.Success)
         {
@@ -264,14 +274,23 @@ public class ParameterCommands : IParameterCommands
         var filePath = args[1];
         var paramName = args[2];
 
-        var task = Task.Run(async () =>
+        OperationResult result;
+        try
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var deleteResult = await _coreCommands.DeleteAsync(batch, paramName);
-            await batch.SaveAsync();
-            return deleteResult;
-        });
-        var result = task.GetAwaiter().GetResult();
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                var deleteResult = await _coreCommands.DeleteAsync(batch, paramName);
+                await batch.SaveAsync();
+                return deleteResult;
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
         if (result.Success)
         {

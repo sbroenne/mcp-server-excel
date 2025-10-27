@@ -1,6 +1,7 @@
 using Spectre.Console;
 using Sbroenne.ExcelMcp.Core.Security;
 using Sbroenne.ExcelMcp.Core.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -208,14 +209,23 @@ public class SheetCommands : ISheetCommands
         var oldName = args[2];
         var newName = args[3];
 
-        var task = Task.Run(async () =>
+        OperationResult result;
+        try
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var renameResult = await _coreCommands.RenameAsync(batch, oldName, newName);
-            await batch.SaveAsync();
-            return renameResult;
-        });
-        var result = task.GetAwaiter().GetResult();
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                var renameResult = await _coreCommands.RenameAsync(batch, oldName, newName);
+                await batch.SaveAsync();
+                return renameResult;
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
         if (result.Success)
         {
@@ -257,14 +267,23 @@ public class SheetCommands : ISheetCommands
         var sourceName = args[2];
         var targetName = args[3];
 
-        var task = Task.Run(async () =>
+        OperationResult result;
+        try
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var copyResult = await _coreCommands.CopyAsync(batch, sourceName, targetName);
-            await batch.SaveAsync();
-            return copyResult;
-        });
-        var result = task.GetAwaiter().GetResult();
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                var copyResult = await _coreCommands.CopyAsync(batch, sourceName, targetName);
+                await batch.SaveAsync();
+                return copyResult;
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
         if (result.Success)
         {
@@ -305,14 +324,23 @@ public class SheetCommands : ISheetCommands
         var filePath = args[1];
         var sheetName = args[2];
 
-        var task = Task.Run(async () =>
+        OperationResult result;
+        try
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var deleteResult = await _coreCommands.DeleteAsync(batch, sheetName);
-            await batch.SaveAsync();
-            return deleteResult;
-        });
-        var result = task.GetAwaiter().GetResult();
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                var deleteResult = await _coreCommands.DeleteAsync(batch, sheetName);
+                await batch.SaveAsync();
+                return deleteResult;
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
         if (result.Success)
         {

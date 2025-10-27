@@ -90,12 +90,21 @@ public class PowerQueryCommands : IPowerQueryCommands
         string filePath = args[1];
         AnsiConsole.MarkupLine($"[bold]Power Queries in:[/] {Path.GetFileName(filePath)}\n");
 
-        var task = Task.Run(async () =>
+        PowerQueryListResult result;
+        try
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ListAsync(batch);
-        });
-        var result = task.GetAwaiter().GetResult();
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                return await _coreCommands.ListAsync(batch);
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
         if (!result.Success)
         {
@@ -164,12 +173,21 @@ public class PowerQueryCommands : IPowerQueryCommands
         string filePath = args[1];
         string queryName = args[2];
 
-        var task = Task.Run(async () =>
+        PowerQueryViewResult result;
+        try
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ViewAsync(batch, queryName);
-        });
-        var result = task.GetAwaiter().GetResult();
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                return await _coreCommands.ViewAsync(batch, queryName);
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
         if (!result.Success)
         {
@@ -364,14 +382,23 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         AnsiConsole.MarkupLine($"[bold]Refreshing:[/] [cyan]{queryName}[/]...");
 
-        var task = Task.Run(async () =>
+        PowerQueryRefreshResult result;
+        try
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var refreshResult = await _coreCommands.RefreshAsync(batch, queryName);
-            await batch.SaveAsync();
-            return refreshResult;
-        });
-        var result = task.GetAwaiter().GetResult();
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                var refreshResult = await _coreCommands.RefreshAsync(batch, queryName);
+                await batch.SaveAsync();
+                return refreshResult;
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
         if (!result.Success)
         {

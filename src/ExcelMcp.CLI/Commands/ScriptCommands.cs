@@ -54,12 +54,21 @@ public class ScriptCommands : IScriptCommands
         string filePath = args[1];
         AnsiConsole.MarkupLine($"[bold]VBA Scripts in:[/] {Path.GetFileName(filePath)}\n");
 
-        var task = Task.Run(async () =>
+        ScriptListResult result;
+        try
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ListAsync(batch);
-        });
-        var result = task.GetAwaiter().GetResult();
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                return await _coreCommands.ListAsync(batch);
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
         if (!result.Success)
         {
@@ -209,12 +218,21 @@ public class ScriptCommands : IScriptCommands
         string moduleName = args[2];
         string outputFile = args.Length > 3 ? args[3] : $"{moduleName}.vba";
 
-        var task = Task.Run(async () =>
+        ResultBase result;
+        try
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ExportAsync(batch, moduleName, outputFile);
-        });
-        var result = task.GetAwaiter().GetResult();
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                return await _coreCommands.ExportAsync(batch, moduleName, outputFile);
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
         // Handle VBA trust guidance
         if (result is VbaTrustRequiredResult trustError)
@@ -315,9 +333,18 @@ public class ScriptCommands : IScriptCommands
         string moduleName = args[2];
         string vbaFile = args[3];
 
-        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        var result = await _coreCommands.UpdateAsync(batch, moduleName, vbaFile);
-        await batch.SaveAsync();
+        ResultBase result;
+        try
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            result = await _coreCommands.UpdateAsync(batch, moduleName, vbaFile);
+            await batch.SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
         // Handle VBA trust guidance
         if (result is VbaTrustRequiredResult trustError)
