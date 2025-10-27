@@ -245,11 +245,15 @@ Result: {"success": true, "action": "set", "filePath": "config.xlsx"}
 
 ## 📚 Educational Prompts
 
-The MCP server provides **9 educational prompts** to help AI assistants understand Excel automation patterns and best practices. These prompts are automatically discovered via the MCP protocol and educate LLMs without requiring external documentation.
+The MCP server provides **11 educational prompts** to help AI assistants understand Excel automation patterns and best practices. These prompts are automatically discovered via the MCP protocol and educate LLMs without requiring external documentation.
 
 ### Batch Session Management
 - **`excel_batch_guide`** - Comprehensive guide on Excel batch session management for high-performance multi-operation workflows
 - **`excel_batch_reference`** - Quick reference for batch session tool parameters and best practices
+
+### Connection Management
+- **`excel_connection_types_guide`** - Complete reference for Excel connection types, COM API limitations, supported operations, and testing strategies
+- **`excel_connection_workflow_examples`** - Common connection management workflows and example usage patterns
 
 ### Power Query Development
 - **`excel_powerquery_mcode_reference`** - M language reference with common Power Query patterns and functions
@@ -266,6 +270,14 @@ The MCP server provides **9 educational prompts** to help AI assistants understa
 
 **Usage:** AI assistants can invoke these prompts to learn context-specific patterns for Excel automation, reducing the need for external documentation and enabling smarter suggestions.
 
+**Example Invocations:**
+```text
+AI needs connection type info → Get prompt: excel_connection_types_guide
+AI needs workflow examples → Get prompt: excel_connection_workflow_examples
+AI needs M language syntax → Get prompt: excel_powerquery_mcode_reference
+AI encounters errors → Get prompt: excel_error_guide
+```
+
 ## 🏗️ Architecture
 
 ### Core Components
@@ -276,6 +288,7 @@ ExcelMcp.McpServer/
 │   └── ExcelTools.cs        # 9 resource-based MCP tools  
 ├── Prompts/
 │   ├── ExcelBatchPrompts.cs         # Batch session education
+│   ├── ExcelConnectionPrompts.cs    # Connection type reference
 │   ├── ExcelPowerQueryPrompts.cs    # Power Query patterns
 │   ├── ExcelVbaPrompts.cs           # VBA development
 │   └── ExcelTroubleshootingPrompts.cs # Error handling & performance

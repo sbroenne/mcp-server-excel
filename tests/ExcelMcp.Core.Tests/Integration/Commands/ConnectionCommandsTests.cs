@@ -73,12 +73,11 @@ public class ConnectionCommandsTests : IDisposable
     }
 
     [Fact]
-    public async Task List_WithOleDbConnection_ReturnsConnection()
+    public async Task List_WithTextConnection_ReturnsConnection()
     {
         // Arrange
-        string connName = "TestOleDb";
-        string connString = "Provider=SQLOLEDB;Data Source=localhost;Initial Catalog=TestDB";
-        await ConnectionTestHelper.CreateOleDbConnectionAsync(_testFile, connName, connString);
+        string connName = "TestText";
+        await ConnectionTestHelper.CreateTextFileConnectionAsync(_testFile, connName, _testCsvFile);
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(_testFile);
@@ -89,7 +88,7 @@ public class ConnectionCommandsTests : IDisposable
         Assert.NotEmpty(result.Connections);
         var conn = Assert.Single(result.Connections);
         Assert.Equal(connName, conn.Name);
-        Assert.Equal("OLEDB", conn.Type);
+        Assert.Equal("TEXT", conn.Type);
     }
 
     #endregion
@@ -101,8 +100,7 @@ public class ConnectionCommandsTests : IDisposable
     {
         // Arrange
         string connName = "TestConn";
-        string connString = "Provider=SQLOLEDB;Data Source=localhost";
-        await ConnectionTestHelper.CreateOleDbConnectionAsync(_testFile, connName, connString);
+        await ConnectionTestHelper.CreateTextFileConnectionAsync(_testFile, connName, _testCsvFile);
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(_testFile);
@@ -111,9 +109,9 @@ public class ConnectionCommandsTests : IDisposable
         // Assert
         Assert.True(result.Success, $"View failed: {result.ErrorMessage}");
         Assert.Equal(connName, result.ConnectionName);
-        Assert.Equal("OLEDB", result.Type);
+        Assert.Equal("TEXT", result.Type);
         Assert.NotNull(result.ConnectionString);
-        Assert.Contains("SQLOLEDB", result.ConnectionString);
+        Assert.Contains(_testCsvFile, result.ConnectionString);
         Assert.NotNull(result.DefinitionJson);
     }
 
@@ -151,9 +149,8 @@ public class ConnectionCommandsTests : IDisposable
     {
         // Arrange
         string connName = "ExportTest";
-        string connString = "Provider=SQLOLEDB;Data Source=localhost";
         string jsonPath = Path.Combine(_testDir, "export.json");
-        await ConnectionTestHelper.CreateOleDbConnectionAsync(_testFile, connName, connString);
+        await ConnectionTestHelper.CreateTextFileConnectionAsync(_testFile, connName, _testCsvFile);
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(_testFile);
@@ -197,13 +194,13 @@ public class ConnectionCommandsTests : IDisposable
         string connName = "ImportedConn";
         string jsonPath = Path.Combine(_testDir, "import.json");
 
-        // Create JSON definition
+        // Create JSON definition for TEXT connection
         var definition = new
         {
             Name = connName,
-            Type = "OLEDB",
-            Description = "Imported test connection",
-            ConnectionString = "Provider=SQLOLEDB;Data Source=localhost",
+            Type = "TEXT",
+            Description = "Imported test text connection",
+            ConnectionString = $"TEXT;{_testCsvFile}",
             Properties = new { BackgroundQuery = true, RefreshOnFileOpen = false }
         };
         File.WriteAllText(jsonPath, JsonSerializer.Serialize(definition, new JsonSerializerOptions { WriteIndented = true }));
@@ -247,19 +244,22 @@ public class ConnectionCommandsTests : IDisposable
     {
         // Arrange
         string connName = "UpdateTest";
-        string connString = "Provider=SQLOLEDB;Data Source=localhost;Initial Catalog=DB1";
         string jsonPath = Path.Combine(_testDir, "update.json");
 
-        // Create initial connection
-        await ConnectionTestHelper.CreateOleDbConnectionAsync(_testFile, connName, connString);
+        // Create a second CSV file for update test
+        string updatedCsvFile = Path.Combine(_testDir, "updated-data.csv");
+        File.WriteAllText(updatedCsvFile, "Name,Value\nUpdated1,300\nUpdated2,400");
 
-        // Create updated definition
+        // Create initial connection
+        await ConnectionTestHelper.CreateTextFileConnectionAsync(_testFile, connName, _testCsvFile);
+
+        // Create updated definition pointing to different file
         var updatedDefinition = new
         {
             Name = connName,
-            Type = "OLEDB",
+            Type = "TEXT",
             Description = "Updated description",
-            ConnectionString = "Provider=SQLOLEDB;Data Source=localhost;Initial Catalog=DB2",
+            ConnectionString = $"TEXT;{updatedCsvFile}",
             Properties = new { BackgroundQuery = false }
         };
         File.WriteAllText(jsonPath, JsonSerializer.Serialize(updatedDefinition, new JsonSerializerOptions { WriteIndented = true }));
@@ -275,7 +275,7 @@ public class ConnectionCommandsTests : IDisposable
         // Verify update
         await using var verifyBatch = await ExcelSession.BeginBatchAsync(_testFile);
         var viewResult = await _commands.ViewAsync(verifyBatch, connName);
-        Assert.Contains("DB2", viewResult.ConnectionString);
+        Assert.Contains(updatedCsvFile, viewResult.ConnectionString);
     }
 
     [Fact]
@@ -286,8 +286,8 @@ public class ConnectionCommandsTests : IDisposable
         var definition = new
         {
             Name = "NonExistent",
-            Type = "OLEDB",
-            ConnectionString = "Provider=SQLOLEDB;Data Source=localhost"
+            Type = "TEXT",
+            ConnectionString = $"TEXT;{_testCsvFile}"
         };
         File.WriteAllText(jsonPath, JsonSerializer.Serialize(definition));
 
@@ -309,8 +309,7 @@ public class ConnectionCommandsTests : IDisposable
     {
         // Arrange
         string connName = "DeleteTest";
-        string connString = "Provider=SQLOLEDB;Data Source=localhost";
-        await ConnectionTestHelper.CreateOleDbConnectionAsync(_testFile, connName, connString);
+        await ConnectionTestHelper.CreateTextFileConnectionAsync(_testFile, connName, _testCsvFile);
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(_testFile);
@@ -347,8 +346,7 @@ public class ConnectionCommandsTests : IDisposable
     {
         // Arrange
         string connName = "PropTest";
-        string connString = "Provider=SQLOLEDB;Data Source=localhost";
-        await ConnectionTestHelper.CreateOleDbConnectionAsync(_testFile, connName, connString);
+        await ConnectionTestHelper.CreateTextFileConnectionAsync(_testFile, connName, _testCsvFile);
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(_testFile);
@@ -381,8 +379,7 @@ public class ConnectionCommandsTests : IDisposable
     {
         // Arrange
         string connName = "SetPropTest";
-        string connString = "Provider=SQLOLEDB;Data Source=localhost";
-        await ConnectionTestHelper.CreateOleDbConnectionAsync(_testFile, connName, connString);
+        await ConnectionTestHelper.CreateTextFileConnectionAsync(_testFile, connName, _testCsvFile);
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(_testFile);
@@ -426,8 +423,7 @@ public class ConnectionCommandsTests : IDisposable
     {
         // Arrange
         string connName = "TestConnTest";
-        string connString = "Provider=SQLOLEDB;Data Source=localhost";
-        await ConnectionTestHelper.CreateOleDbConnectionAsync(_testFile, connName, connString);
+        await ConnectionTestHelper.CreateTextFileConnectionAsync(_testFile, connName, _testCsvFile);
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(_testFile);
@@ -435,7 +431,7 @@ public class ConnectionCommandsTests : IDisposable
 
         // Assert
         Assert.NotNull(result);
-        // Note: Test may fail or succeed depending on whether SQL Server is available
+        // Note: Test may fail or succeed depending on CSV file accessibility
         // We just verify the method executes without throwing
     }
 
@@ -492,8 +488,7 @@ public class ConnectionCommandsTests : IDisposable
     {
         // Step 1: Create connection
         string connName = "WorkflowTest";
-        string connString = "Provider=SQLOLEDB;Data Source=localhost;Initial Catalog=TestDB";
-        await ConnectionTestHelper.CreateOleDbConnectionAsync(_testFile, connName, connString);
+        await ConnectionTestHelper.CreateTextFileConnectionAsync(_testFile, connName, _testCsvFile);
 
         // Step 2: Export to JSON
         string jsonPath = Path.Combine(_testDir, "workflow.json");

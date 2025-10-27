@@ -19,13 +19,13 @@ public class ConnectionHelpersTests
     [Theory]
     [InlineData(1, "OLEDB")]
     [InlineData(2, "ODBC")]
-    [InlineData(3, "XML")]
-    [InlineData(4, "Text")]
-    [InlineData(5, "Web")]
-    [InlineData(6, "DataFeed")]
-    [InlineData(7, "Model")]
-    [InlineData(8, "Worksheet")]
-    [InlineData(9, "NoSource")]
+    [InlineData(3, "TEXT")]       // Fixed: Was "XML", now matches Microsoft XlConnectionType enum
+    [InlineData(4, "WEB")]        // Fixed: Was "Text", now matches Microsoft XlConnectionType enum
+    [InlineData(5, "XMLMAP")]     // Fixed: Was "Web", now matches Microsoft XlConnectionType enum
+    [InlineData(6, "DATAFEED")]   // Fixed: Was "DataFeed", now uppercase per Microsoft docs
+    [InlineData(7, "MODEL")]      // Fixed: Was "Model", now uppercase per Microsoft docs
+    [InlineData(8, "WORKSHEET")]  // Fixed: Was "Worksheet", now uppercase per Microsoft docs
+    [InlineData(9, "NOSOURCE")]   // Fixed: Was "NoSource", now uppercase per Microsoft docs
     public void GetConnectionTypeName_ValidTypes_ReturnsCorrectName(int typeValue, string expected)
     {
         // Act
