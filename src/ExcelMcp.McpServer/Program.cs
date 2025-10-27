@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using Sbroenne.ExcelMcp.Core;
 using Sbroenne.ExcelMcp.Core.Session;
 using Sbroenne.ExcelMcp.McpServer.Tools;
+using Sbroenne.ExcelMcp.McpServer.Completions;
+using System.Text.Json.Nodes;
 
 namespace Sbroenne.ExcelMcp.McpServer;
 
@@ -63,12 +65,17 @@ public class Program
         // - Batch session management: LLM controls workbook lifecycle via begin/commit tools
         // - Single operations: Backward-compatible with automatic batch-of-one (when no batchId)
         // - MCP Prompts: Educate LLMs about batch workflows via [McpServerPrompt] attributes
+        // - Completions: Available via ExcelCompletionHandler (manual JSON-RPC handling required)
 
         // Add MCP server with Excel tools (auto-discovers tools and prompts via attributes)
         builder.Services
             .AddMcpServer()
             .WithStdioServerTransport()
             .WithToolsFromAssembly();
+        
+        // Note: Completion support requires manual JSON-RPC method handling
+        // See ExcelCompletionHandler for completion logic implementation
+        // To enable: handle "completion/complete" method in custom transport layer
 
         var host = builder.Build();
 

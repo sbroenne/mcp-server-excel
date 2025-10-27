@@ -243,6 +243,29 @@ AI Assistant uses: excel_parameter(action="set", filePath="config.xlsx", paramNa
 Result: {"success": true, "action": "set", "filePath": "config.xlsx"}
 ```
 
+## 📚 Educational Prompts
+
+The MCP server provides **9 educational prompts** to help AI assistants understand Excel automation patterns and best practices. These prompts are automatically discovered via the MCP protocol and educate LLMs without requiring external documentation.
+
+### Batch Session Management
+- **`excel_batch_guide`** - Comprehensive guide on Excel batch session management for high-performance multi-operation workflows
+- **`excel_batch_reference`** - Quick reference for batch session tool parameters and best practices
+
+### Power Query Development
+- **`excel_powerquery_mcode_reference`** - M language reference with common Power Query patterns and functions
+- **`excel_powerquery_connections`** - Power Query connection management and refresh configuration
+- **`excel_powerquery_workflows`** - Step-by-step workflows for common Power Query development scenarios
+
+### VBA Development
+- **`excel_vba_guide`** - VBA development patterns, error handling, and automation best practices
+- **`excel_vba_integration`** - Integrate VBA with Power Query, worksheets, and parameters
+
+### Troubleshooting & Performance
+- **`excel_error_guide`** - Common Excel automation errors, causes, and solutions
+- **`excel_performance_guide`** - Performance optimization tips for Excel automation workflows
+
+**Usage:** AI assistants can invoke these prompts to learn context-specific patterns for Excel automation, reducing the need for external documentation and enabling smarter suggestions.
+
 ## 🏗️ Architecture
 
 ### Core Components
@@ -250,7 +273,12 @@ Result: {"success": true, "action": "set", "filePath": "config.xlsx"}
 ```text
 ExcelMcp.McpServer/
 ├── Tools/
-│   └── ExcelTools.cs        # 6 resource-based MCP tools  
+│   └── ExcelTools.cs        # 9 resource-based MCP tools  
+├── Prompts/
+│   ├── ExcelBatchPrompts.cs         # Batch session education
+│   ├── ExcelPowerQueryPrompts.cs    # Power Query patterns
+│   ├── ExcelVbaPrompts.cs           # VBA development
+│   └── ExcelTroubleshootingPrompts.cs # Error handling & performance
 ├── Program.cs               # Official MCP SDK hosting
 └── ExcelMcp.McpServer.csproj
 ```
@@ -267,9 +295,10 @@ ExcelMcp.McpServer
 ### Design Patterns
 
 - **Official MCP SDK** - Uses Microsoft's official ModelContextProtocol NuGet package
-- **Resource-Based Architecture** - 6 tools instead of 33+ granular operations  
+- **Resource-Based Architecture** - 9 tools instead of 56+ granular operations  
 - **Action Pattern** - Each tool supports multiple actions (REST-like design)
-- **Attribute-Based Registration** - `[McpServerTool]` and `[McpServerToolType]` attributes
+- **Attribute-Based Registration** - `[McpServerTool]`, `[McpServerPrompt]` attributes for auto-discovery
+- **Educational Prompts** - 9 prompts teach AI assistants Excel automation patterns
 - **JSON Serialization** - Proper `JsonSerializer.Serialize()` for all responses
 - **COM Lifecycle Management** - Leverages ExcelMcp.Core's proven Excel automation
 
