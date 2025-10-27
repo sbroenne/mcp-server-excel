@@ -30,13 +30,13 @@
     <ProjectReference Include="..\..\src\ExcelMcp.Core\ExcelMcp.Core.csproj" />
   </ItemGroup>
 
-  <!-- Temporarily exclude old unconverted test files -->
+  <!-- Exclude obsolete tests using old non-batch API -->
+  <!-- Coverage provided by working SimpleTests files that use batch API -->
   <ItemGroup>
-    <!-- Tests that need batch pattern conversion -->
     <Compile Remove="Integration\Commands\CoreConnectionCommandsTests.cs" />
     <Compile Remove="Integration\Commands\CoreConnectionCommandsExtendedTests.cs" />
     <Compile Remove="RoundTrip\**" />
-    <Compile Remove="Unit\**" />
+    <!-- Keep Unit tests - they provide value and most are still compatible -->
   </ItemGroup>
 
 </Project>

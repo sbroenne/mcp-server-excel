@@ -5,8 +5,17 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit.Serialization;
 
 /// <summary>
-/// Unit tests for JSON serialization of Result objects - no Excel required
-/// Tests verify proper serialization for MCP Server responses
+/// MCP Server-specific tests for JSON serialization of Result objects - Unit tests, no Excel required
+/// 
+/// LAYER RESPONSIBILITY:
+/// - ✅ Test JSON serialization of all Result types
+/// - ✅ Test property naming (camelCase for MCP protocol)
+/// - ✅ Test null value handling in JSON
+/// - ✅ Test deserialization roundtrip
+/// - ❌ DO NOT test Excel operations (that's Core's responsibility)
+/// - ❌ DO NOT test CLI output formatting (that's CLI's responsibility)
+/// 
+/// These tests verify that MCP Server correctly serializes Core Result objects to JSON for MCP protocol responses.
 /// </summary>
 [Trait("Category", "Unit")]
 [Trait("Speed", "Fast")]
