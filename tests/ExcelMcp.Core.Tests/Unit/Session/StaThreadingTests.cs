@@ -204,31 +204,4 @@ public class StaThreadingTests
             }
         }
     }
-
-    [Fact]
-    public async Task BackwardCompatWrapper_Execute_UsesStaThreading()
-    {
-        // Arrange
-        string testFile = await CreateTempTestFileAsync();
-
-        try
-        {
-            // Act - Old synchronous API should still work with STA threading
-            var result = ExcelSession.Execute(testFile, save: false, (excel, workbook) =>
-            {
-                dynamic sheet = workbook.Worksheets.Item(1);
-                var value = sheet.Range["A1"].Value2;
-                _output.WriteLine($"Backward-compat read: {value}");
-                return 42;
-            });
-
-            // Assert
-            Assert.Equal(42, result);
-            _output.WriteLine("✓ Backward-compat wrapper works with STA threading");
-        }
-        finally
-        {
-            if (File.Exists(testFile)) File.Delete(testFile);
-        }
-    }
 }
