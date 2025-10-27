@@ -33,7 +33,6 @@
   <!-- Temporarily exclude old unconverted test files -->
   <ItemGroup>
     <!-- Tests that need batch pattern conversion -->
-    <Compile Remove="Integration\Commands\ScriptCommandsTests.cs" />
     <Compile Remove="Integration\Commands\CoreConnectionCommandsTests.cs" />
     <Compile Remove="Integration\Commands\CoreConnectionCommandsExtendedTests.cs" />
     <Compile Remove="Integration\Commands\DataModelTomCommandsTests.cs" />
