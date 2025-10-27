@@ -32,10 +32,4 @@
     <ProjectReference Include="..\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj" />
   </ItemGroup>
 
-  <!-- Exclude DataModelCommandsTests - uses old API, needs migration -->
-  <!-- Coverage provided by other CLI tests that verify argument validation -->
-  <ItemGroup>
-    <Compile Remove="Integration\Commands\DataModelCommandsTests.cs" />
-  </ItemGroup>
-
 </Project>
