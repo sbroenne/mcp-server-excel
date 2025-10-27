@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -39,7 +40,7 @@ public class VbaTrustDetectionTests : IDisposable
     private void CreateTestExcelFile()
     {
         // Create macro-enabled file by using .xlsm extension
-        var result = _fileCommands.CreateEmpty(_testExcelFile, overwriteIfExists: false);
+        var result = _fileCommands.CreateEmptyAsync(_testExcelFile, overwriteIfExists: false).GetAwaiter().GetResult();
         if (!result.Success)
         {
             throw new InvalidOperationException($"Failed to create test Excel file: {result.ErrorMessage}. Excel may not be installed.");
@@ -80,13 +81,14 @@ public class VbaTrustDetectionTests : IDisposable
     }
 
     [Fact]
-    public void ScriptCommands_List_HandlesVbaTrustCorrectly()
+    public async Task ScriptCommands_List_HandlesVbaTrustCorrectly()
     {
         // Note: This test validates that List returns a ScriptListResult
         // and handles VBA trust issues appropriately
 
         // Act
-        var result = _scriptCommands.List(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _scriptCommands.ListAsync(batch);
 
         // Assert
         Assert.NotNull(result);
