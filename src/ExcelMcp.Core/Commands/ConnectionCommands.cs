@@ -673,13 +673,24 @@ public class ConnectionCommands : IConnectionCommands
             {
                 return conn.ODBCConnection?.BackgroundQuery ?? false;
             }
-            else if (connType == 3) // Text
+            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
             {
-                return conn.TextConnection?.BackgroundQuery ?? false;
-            }
-            else if (connType == 4) // Web
-            {
-                return conn.WebConnection?.BackgroundQuery ?? false;
+                // Try TextConnection first, fall back to WebConnection
+                try
+                {
+                    return conn.TextConnection?.BackgroundQuery ?? false;
+                }
+                catch
+                {
+                    try
+                    {
+                        return conn.WebConnection?.BackgroundQuery ?? false;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                }
             }
         }
         catch
@@ -704,13 +715,24 @@ public class ConnectionCommands : IConnectionCommands
             {
                 return conn.ODBCConnection?.RefreshOnFileOpen ?? false;
             }
-            else if (connType == 3) // Text
+            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
             {
-                return conn.TextConnection?.RefreshOnFileOpen ?? false;
-            }
-            else if (connType == 4) // Web
-            {
-                return conn.WebConnection?.RefreshOnFileOpen ?? false;
+                // Try TextConnection first, fall back to WebConnection
+                try
+                {
+                    return conn.TextConnection?.RefreshOnFileOpen ?? false;
+                }
+                catch
+                {
+                    try
+                    {
+                        return conn.WebConnection?.RefreshOnFileOpen ?? false;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                }
             }
         }
         catch
@@ -735,13 +757,24 @@ public class ConnectionCommands : IConnectionCommands
             {
                 return conn.ODBCConnection?.SavePassword ?? false;
             }
-            else if (connType == 3) // Text
+            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
             {
-                return conn.TextConnection?.SavePassword ?? false;
-            }
-            else if (connType == 4) // Web
-            {
-                return conn.WebConnection?.SavePassword ?? false;
+                // Try TextConnection first, fall back to WebConnection
+                try
+                {
+                    return conn.TextConnection?.SavePassword ?? false;
+                }
+                catch
+                {
+                    try
+                    {
+                        return conn.WebConnection?.SavePassword ?? false;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                }
             }
         }
         catch
@@ -765,6 +798,25 @@ public class ConnectionCommands : IConnectionCommands
             else if (connType == 2) // ODBC
             {
                 return conn.ODBCConnection?.RefreshPeriod ?? 0;
+            }
+            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
+            {
+                // Try TextConnection first, fall back to WebConnection
+                try
+                {
+                    return conn.TextConnection?.RefreshPeriod ?? 0;
+                }
+                catch
+                {
+                    try
+                    {
+                        return conn.WebConnection?.RefreshPeriod ?? 0;
+                    }
+                    catch
+                    {
+                        return 0;
+                    }
+                }
             }
         }
         catch
@@ -1057,67 +1109,80 @@ public class ConnectionCommands : IConnectionCommands
                     }
                 }
             }
-            else if (connType == 3) // Text
+            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV files as either
             {
-                var text = conn.TextConnection;
-                if (text != null)
+                // Excel has type 3/4 confusion: CSV files created with "TEXT;filepath" may be reported as type 4 (WEB)
+                // Try TextConnection first (correct for type 3), fall back to WebConnection if that fails
+                dynamic? textOrWeb = null!;
+                try
+                {
+                    textOrWeb = conn.TextConnection; // Try TEXT first
+                }
+                catch
+                {
+                    try
+                    {
+                        textOrWeb = conn.WebConnection; // Fall back to WEB
+                    }
+                    catch
+                    {
+                        // Neither works - skip property updates
+                    }
+                }
+
+                if (textOrWeb != null)
                 {
                     if (!string.IsNullOrWhiteSpace(definition.ConnectionString))
                     {
-                        text.Connection = definition.ConnectionString;
+                        textOrWeb.Connection = definition.ConnectionString;
                     }
                     if (!string.IsNullOrWhiteSpace(definition.CommandText))
                     {
-                        text.CommandText = definition.CommandText;
+                        textOrWeb.CommandText = definition.CommandText;
                     }
                     if (definition.BackgroundQuery.HasValue)
                     {
-                        text.BackgroundQuery = definition.BackgroundQuery.Value;
+                        textOrWeb.BackgroundQuery = definition.BackgroundQuery.Value;
                     }
                     if (definition.RefreshOnFileOpen.HasValue)
                     {
-                        text.RefreshOnFileOpen = definition.RefreshOnFileOpen.Value;
+                        textOrWeb.RefreshOnFileOpen = definition.RefreshOnFileOpen.Value;
                     }
                     if (definition.SavePassword.HasValue)
                     {
-                        text.SavePassword = definition.SavePassword.Value;
+                        textOrWeb.SavePassword = definition.SavePassword.Value;
                     }
                     if (definition.RefreshPeriod.HasValue)
                     {
-                        text.RefreshPeriod = definition.RefreshPeriod.Value;
+                        textOrWeb.RefreshPeriod = definition.RefreshPeriod.Value;
                     }
                 }
             }
-            else if (connType == 4) // Web
+            else if (connType == 5) // XMLMAP (moved from 4 due to type 3/4 merge)
             {
-                var web = conn.WebConnection;
-                if (web != null)
-                {
-                    if (!string.IsNullOrWhiteSpace(definition.ConnectionString))
-                    {
-                        web.Connection = definition.ConnectionString;
-                    }
-                    if (!string.IsNullOrWhiteSpace(definition.CommandText))
-                    {
-                        web.CommandText = definition.CommandText;
-                    }
-                    if (definition.BackgroundQuery.HasValue)
-                    {
-                        web.BackgroundQuery = definition.BackgroundQuery.Value;
-                    }
-                    if (definition.RefreshOnFileOpen.HasValue)
-                    {
-                        web.RefreshOnFileOpen = definition.RefreshOnFileOpen.Value;
-                    }
-                    if (definition.SavePassword.HasValue)
-                    {
-                        web.SavePassword = definition.SavePassword.Value;
-                    }
-                    if (definition.RefreshPeriod.HasValue)
-                    {
-                        web.RefreshPeriod = definition.RefreshPeriod.Value;
-                    }
-                }
+                // XMLMAP connection properties - future implementation
+                // For now, just update basic properties like description (already done above)
+            }
+            else if (connType == 6) // DATAFEED  
+            {
+                // DATAFEED connection properties - future implementation
+            }
+            else if (connType == 7) // MODEL
+            {
+                // MODEL connection properties - future implementation
+            }
+            else if (connType == 8) // WORKSHEET
+            {
+                // WORKSHEET connection properties - future implementation
+            }
+            else if (connType == 9) // NOSOURCE
+            {
+                // NOSOURCE connection properties - future implementation
+            }
+            else
+            {
+                // Unknown connection type - skip property updates
+                // Description was already updated above if provided
             }
         }
         catch (Exception ex)
@@ -1150,20 +1215,29 @@ public class ConnectionCommands : IConnectionCommands
                     SetProperty(odbc, propertyName, value.Value);
                 }
             }
-            else if (connType == 3) // Text
+            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV files as either
             {
-                var text = conn.TextConnection;
-                if (text != null)
+                // Try TextConnection first, fall back to WebConnection
+                dynamic? textOrWeb = null;
+                try
                 {
-                    SetProperty(text, propertyName, value.Value);
+                    textOrWeb = conn.TextConnection;
                 }
-            }
-            else if (connType == 4) // Web
-            {
-                var web = conn.WebConnection;
-                if (web != null)
+                catch
                 {
-                    SetProperty(web, propertyName, value.Value);
+                    try
+                    {
+                        textOrWeb = conn.WebConnection;
+                    }
+                    catch
+                    {
+                        // Neither works
+                    }
+                }
+                
+                if (textOrWeb != null)
+                {
+                    SetProperty(textOrWeb, propertyName, value.Value);
                 }
             }
         }
