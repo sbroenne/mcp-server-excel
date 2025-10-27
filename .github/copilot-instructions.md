@@ -27,12 +27,13 @@
 4. **MCP Server** (`src/ExcelMcp.McpServer`) - Model Context Protocol for AI assistants
 
 **Key Capabilities:**
+- **Range Operations** (Phase 1 implementation in progress) - Unified API for all range data operations (get/set values/formulas, clear variants, find/replace, sort, insert/delete, copy/paste, UsedRange, CurrentRegion, hyperlinks)
 - Power Query M code management (import, export, update, refresh)
 - VBA macro management (list, import, export, run)
-- Worksheet operations (read, write, create, delete)
-- Named range parameters (get, set, create)
-- Cell operations (values, formulas)
-- Excel instance pooling for MCP server performance
+- Worksheet lifecycle management (list, create, rename, copy, delete)
+- Named range parameters (create, delete, update, list, get/set single values)
+- Data Model operations (list tables/measures/relationships, export measures, refresh, delete)
+- Connection management (list, view, import/export, update, refresh, test, properties)
 
 ---
 
@@ -50,6 +51,7 @@
 - **Create PR** → Follow [Development Workflow](instructions/development-workflow.instructions.md)
 - **Migrate tests to batch API** → See BATCH-API-MIGRATION-PLAN.md for comprehensive guide
 - **Create simple tests** → Use ConnectionCommandsSimpleTests.cs or SetupCommandsSimpleTests.cs as template
+- **Range API implementation** → See [Range API Specification](../specs/RANGE-API-SPECIFICATION.md) for complete design (38 methods, MCP-first, breaking changes acceptable)
 
 ### Test Execution
 ```bash
@@ -117,9 +119,9 @@ public async Task TestMethod()
 
 **Project Documentation:**
 - [Commands Reference](../docs/COMMANDS.md)
-- [Architecture Overview](../docs/ARCHITECTURE-REFACTORING.md)
 - [Installation Guide](../docs/INSTALLATION.md)
-- [Security Improvements](../docs/SECURITY-IMPROVEMENTS.md)
+- [Range API Specification](../specs/RANGE-API-SPECIFICATION.md) - Comprehensive design for unified range operations (Phase 1 implementation)
+- [Range Refactoring Analysis](../specs/RANGE-REFACTORING-ANALYSIS.md) - LLM perspective on consolidating fragmented commands
 
 ---
 
@@ -173,6 +175,30 @@ After completing significant tasks, update these instructions with lessons learn
 6. **Prompt Purpose:** Help users invoke tools efficiently, not educate LLMs on general programming
 7. **Pattern Knowledge:** Don't document patterns LLMs understand (batching, transactions) - use tool descriptions instead
 8. **Validation:** If it reads like a tutorial or "how to code X", it's wrong for MCP prompts
+
+**Lesson Learned (2025-10-27 - Range API Design):** When designing unified APIs to replace fragmented commands:
+1. **Specification First:** Create comprehensive specification BEFORE implementation - iterate with validations from multiple perspectives (power user, AI agent, LLM usability)
+2. **LLM Perspective Analysis:** "As an LLM using the MCP server" reveals UX issues - separate methods for named ranges vs explicit addresses = unnecessary complexity
+3. **Single Cell = Range Principle:** Don't create separate cell API - single cell is just 1x1 range (consistent data format: always 2D arrays)
+4. **Separation of Concerns:** Lifecycle operations (create, delete, rename worksheet) ≠ Data operations (read, write, clear range) - split into separate tools/commands
+5. **Named Range Transparency:** Excel COM resolves named ranges natively (`Worksheet.Range("SalesData")` works like `Worksheet.Range("A1:D10")`) - API should reflect this (one rangeAddress parameter accepts both)
+6. **COM-Backed Only:** Don't implement data processing in server (transpose, statistics) - if Excel COM doesn't provide it, don't add it
+7. **Breaking Changes Strategy:** Clean architecture > backwards compatibility - delete fragmented commands entirely instead of deprecation (version 2.0.0)
+8. **MCP-First Implementation:** Implement MCP server before CLI - faster feedback loop, JSON simpler than CSV conversion
+9. **Comprehensive Refactoring Analysis:** Document what gets deleted, what gets refactored, what gets added - file-by-file impact analysis prevents surprises
+10. **Migration Examples:** Provide before/after examples for every breaking change - LLMs and users need clear migration path
+
+**Lesson Learned (2025-10-27 - Range API Refactoring Scope):** Analyzing existing commands for consolidation:
+1. **SheetCommands Data Operations:** `ReadAsync`, `WriteAsync`, `ClearAsync`, `AppendAsync` are range operations disguised as sheet operations - move to RangeCommands
+2. **CellCommands Redundancy:** All 4 methods (`GetValue`, `SetValue`, `GetFormula`, `SetFormula`) are 1x1 range operations - delete entire interface
+3. **Unified Interface Benefits:** From LLM perspective, one tool (`excel_range`) for all data operations eliminates "which tool to use?" confusion
+4. **Lifecycle vs Data Split:** SheetCommands reduced to 5 lifecycle-only methods (List, Create, Rename, Copy, Delete) - clearer responsibilities
+5. **Power User Operations:** Excel COM provides Find, Sort, Insert/Delete rows, UsedRange, CurrentRegion - expose all of them, don't cherry-pick
+6. **38 Methods Is Acceptable:** Large interface is fine if it's cohesive and well-organized (values, formulas, clear, copy, insert/delete, find/sort, discovery, hyperlinks)
+7. **CSV Conversion Layer:** Keep CSV handling in CLI layer only - Core uses `List<List<object?>>`, MCP uses JSON arrays, CLI converts CSV ↔ 2D arrays
+8. **Testing Deletion Strategy:** Don't try to migrate complex old tests - delete them and create NEW simple tests that prove unified API works
+9. **Impact Documentation:** 13 actions deleted (worksheet.read/write/clear/append + all cell actions), 38 actions added (all range operations) - net improvement in capabilities
+10. **Acceptable Timeline:** ~1-2 weeks for Phase 1 (Core + MCP + CLI minimal + CLI full) is reasonable for 38-method implementation
 
 **Lesson Learned (2025-10-24 - Bulk Refactoring):** When performing bulk refactoring with many find/replace operations:
 1. **Preferred:** Use `replace_string_in_file` tool for targeted, unambiguous edits with context

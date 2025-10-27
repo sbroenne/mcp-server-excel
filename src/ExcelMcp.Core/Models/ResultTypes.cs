@@ -419,6 +419,73 @@ public class CellValueResult : ResultBase
 }
 
 /// <summary>
+/// Result for Excel range value operations
+/// </summary>
+public class RangeValueResult : ResultBase
+{
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range address (e.g., A1:D10)
+    /// </summary>
+    public string RangeAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 2D array of cell values (row-major order)
+    /// </summary>
+    public List<List<object?>> Values { get; set; } = new();
+
+    /// <summary>
+    /// Number of rows in the range
+    /// </summary>
+    public int RowCount { get; set; }
+
+    /// <summary>
+    /// Number of columns in the range
+    /// </summary>
+    public int ColumnCount { get; set; }
+}
+
+/// <summary>
+/// Result for Excel range formula operations
+/// </summary>
+public class RangeFormulaResult : ResultBase
+{
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range address (e.g., A1:D10)
+    /// </summary>
+    public string RangeAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 2D array of cell formulas (row-major order, empty string if no formula)
+    /// </summary>
+    public List<List<string>> Formulas { get; set; } = new();
+
+    /// <summary>
+    /// 2D array of cell values (calculated results)
+    /// </summary>
+    public List<List<object?>> Values { get; set; } = new();
+
+    /// <summary>
+    /// Number of rows in the range
+    /// </summary>
+    public int RowCount { get; set; }
+
+    /// <summary>
+    /// Number of columns in the range
+    /// </summary>
+    public int ColumnCount { get; set; }
+}
+
+/// <summary>
 /// Result for VBA trust operations
 /// </summary>
 public class VbaTrustResult : ResultBase
