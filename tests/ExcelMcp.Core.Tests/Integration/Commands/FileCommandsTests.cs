@@ -4,8 +4,18 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 
 /// <summary>
-/// Unit tests for Core FileCommands - testing data layer without UI
-/// These tests verify that Core returns correct Result objects
+/// Core business logic tests for FileCommands - testing Excel operations and Result objects
+/// 
+/// LAYER RESPONSIBILITY:
+/// - ✅ Test all Excel COM file operations (create, validate, etc.)
+/// - ✅ Test Result object properties and error messages
+/// - ✅ Test edge cases and error scenarios
+/// - ✅ Test actual file system operations
+/// - ❌ DO NOT test CLI argument parsing or console output (that's CLI's responsibility)
+/// - ❌ DO NOT test JSON serialization (that's MCP Server's responsibility)
+/// 
+/// NOTE: Dispose() may include GC.Collect() because these tests perform actual Excel COM operations
+/// that may hold file locks. This is appropriate for integration tests that directly use Excel.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
@@ -227,6 +237,9 @@ public class CoreFileCommandsTests : IDisposable
     public void Dispose()
     {
         // Clean up test files
+        // NOTE: GC.Collect() IS appropriate here because these tests perform actual Excel COM operations
+        // that may hold file locks. The batch API handles COM cleanup internally, but test cleanup may
+        // need GC to ensure all COM references are released before attempting file deletion.
         try
         {
             // Wait a bit for Excel to fully release files

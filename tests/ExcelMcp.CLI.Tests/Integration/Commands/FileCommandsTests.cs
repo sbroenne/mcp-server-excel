@@ -4,9 +4,15 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 
 /// <summary>
-/// Tests for CLI FileCommands - verifying CLI-specific behavior (formatting, user interaction)
-/// These tests focus on the presentation layer, not the data layer
-/// Core data logic is tested in ExcelMcp.Core.Tests
+/// CLI-specific tests for FileCommands - verifying argument parsing, exit codes, and CLI behavior
+/// 
+/// LAYER RESPONSIBILITY:
+/// - ✅ Test argument validation (missing args, invalid args)
+/// - ✅ Test exit code mapping (0 for success, 1 for error)
+/// - ✅ Test user interaction (prompts, console output if applicable)
+/// - ❌ DO NOT test Excel operations or file creation logic (that's Core's responsibility)
+/// 
+/// These tests verify the CLI wrapper works correctly. Business logic is tested in ExcelMcp.Core.Tests.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
@@ -94,6 +100,7 @@ public class CliFileCommandsTests : IDisposable
     public void Dispose()
     {
         // Clean up test files
+        // Note: No GC.Collect() needed here - Core's batch API handles COM cleanup properly
         try
         {
             System.Threading.Thread.Sleep(500);
@@ -112,20 +119,13 @@ public class CliFileCommandsTests : IDisposable
 
             if (Directory.Exists(_tempDir))
             {
-                for (int i = 0; i < 3; i++)
+                try
                 {
-                    try
-                    {
-                        Directory.Delete(_tempDir, true);
-                        break;
-                    }
-                    catch (IOException)
-                    {
-                        if (i == 2) throw;
-                        System.Threading.Thread.Sleep(1000);
-                        GC.Collect();
-                        GC.WaitForPendingFinalizers();
-                    }
+                    Directory.Delete(_tempDir, true);
+                }
+                catch
+                {
+                    // Best effort cleanup - test cleanup failure is non-critical
                 }
             }
         }

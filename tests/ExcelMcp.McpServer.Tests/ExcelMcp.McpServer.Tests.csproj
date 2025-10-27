@@ -31,9 +31,11 @@
     <ProjectReference Include="..\..\src\ExcelMcp.Core\ExcelMcp.Core.csproj" />
   </ItemGroup>
 
-  <!-- Temporarily exclude all unconverted MCP Server tests -->
+  <!-- Temporarily exclude unconverted MCP Server integration and round trip tests -->
+  <!-- Unit tests (like ResultSerializationTests) are included by default -->
   <ItemGroup>
-    <Compile Remove="**\*.cs" />
+    <Compile Remove="Integration\**" />
+    <Compile Remove="RoundTrip\**" />
   </ItemGroup>
 
 </Project>

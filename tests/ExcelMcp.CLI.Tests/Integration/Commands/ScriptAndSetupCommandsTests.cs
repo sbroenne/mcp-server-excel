@@ -4,9 +4,15 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 
 /// <summary>
-/// Tests for CLI ScriptCommands - verifying CLI-specific behavior (argument parsing, exit codes)
-/// These tests focus on the presentation layer, not the business logic
-/// Core data logic is tested in ExcelMcp.Core.Tests
+/// CLI-specific tests for ScriptCommands - verifying argument parsing, exit codes, and CLI behavior
+/// 
+/// LAYER RESPONSIBILITY:
+/// - ✅ Test argument validation (missing args, invalid args)
+/// - ✅ Test exit code mapping (0 for success, 1 for error)
+/// - ✅ Test user interaction (prompts, console output if applicable)
+/// - ❌ DO NOT test VBA operations or Excel COM interop (that's Core's responsibility)
+/// 
+/// These tests verify the CLI wrapper works correctly. Business logic is tested in ExcelMcp.Core.Tests.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
