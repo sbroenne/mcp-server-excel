@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -42,7 +43,7 @@ public class CoreDataModelTomCommandsTests : IDisposable
     private void CreateTestDataModelFile()
     {
         // Create an empty workbook first
-        var result = _fileCommands.CreateEmpty(_testExcelFile, overwriteIfExists: false);
+        var result = _fileCommands.CreateEmptyAsync(_testExcelFile, overwriteIfExists: false).GetAwaiter().GetResult();
         if (!result.Success)
         {
             throw new InvalidOperationException($"Failed to create test Excel file: {result.ErrorMessage}. Excel may not be installed.");
@@ -51,7 +52,7 @@ public class CoreDataModelTomCommandsTests : IDisposable
         // Create realistic Data Model with sample data
         try
         {
-            DataModelTestHelper.CreateSampleDataModel(_testExcelFile);
+            DataModelTestHelper.CreateSampleDataModelAsync(_testExcelFile).GetAwaiter().GetResult();
         }
         catch (Exception ex)
         {
@@ -64,7 +65,7 @@ public class CoreDataModelTomCommandsTests : IDisposable
     #region CreateMeasure Tests
 
     [Fact]
-    public void CreateMeasure_WithValidParameters_ReturnsSuccess()
+    public async Task CreateMeasure_WithValidParameters_ReturnsSuccess()
     {
         // Arrange
         var measureName = "TestMeasure_" + Guid.NewGuid().ToString("N")[..8];
@@ -88,7 +89,8 @@ public class CoreDataModelTomCommandsTests : IDisposable
             Assert.Contains(result.SuggestedNextActions, s => s.Contains("created successfully"));
 
             // Verify the measure was actually created by listing measures
-            var listResult = _dataModelCommands.ListMeasures(_testExcelFile);
+            await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+            var listResult = await _dataModelCommands.ListMeasuresAsync(batch);
             if (listResult.Success)
             {
                 Assert.Contains(listResult.Measures, m => m.Name == measureName);
@@ -198,7 +200,7 @@ public class CoreDataModelTomCommandsTests : IDisposable
     #region UpdateMeasure Tests
 
     [Fact]
-    public void UpdateMeasure_WithValidParameters_ReturnsSuccess()
+    public async Task UpdateMeasure_WithValidParameters_ReturnsSuccess()
     {
         // Arrange - Create a measure first
         var measureName = "UpdateTest_" + Guid.NewGuid().ToString("N")[..8];
@@ -232,7 +234,8 @@ public class CoreDataModelTomCommandsTests : IDisposable
         Assert.Contains(updateResult.SuggestedNextActions, s => s.Contains("updated successfully"));
 
         // Verify the measure was updated
-        var viewResult = _dataModelCommands.ViewMeasure(_testExcelFile, measureName);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var viewResult = await _dataModelCommands.ViewMeasureAsync(batch, measureName);
         if (viewResult.Success)
         {
             Assert.Contains("AVERAGE", viewResult.DaxFormula);
@@ -279,7 +282,7 @@ public class CoreDataModelTomCommandsTests : IDisposable
     #region CreateRelationship Tests
 
     [Fact]
-    public void CreateRelationship_WithValidParameters_ReturnsSuccess()
+    public async Task CreateRelationship_WithValidParameters_ReturnsSuccess()
     {
         // Arrange - This test requires the Data Model to have Sales, Customers, Products tables
         // Skip if TOM connection fails
@@ -303,7 +306,8 @@ public class CoreDataModelTomCommandsTests : IDisposable
             Assert.Contains(result.SuggestedNextActions, s => s.Contains("created"));
 
             // Verify the relationship was created
-            var listResult = _dataModelCommands.ListRelationships(_testExcelFile);
+            await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+            var listResult = await _dataModelCommands.ListRelationshipsAsync(batch);
             if (listResult.Success)
             {
                 Assert.Contains(listResult.Relationships, r =>
@@ -367,10 +371,11 @@ public class CoreDataModelTomCommandsTests : IDisposable
     #region UpdateRelationship Tests
 
     [Fact]
-    public void UpdateRelationship_WithValidParameters_ReturnsSuccess()
+    public async Task UpdateRelationship_WithValidParameters_ReturnsSuccess()
     {
         // Arrange - First ensure a relationship exists
-        var listResult = _dataModelCommands.ListRelationships(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var listResult = await _dataModelCommands.ListRelationshipsAsync(batch);
 
         // Test should fail if no relationships exist, not skip
         if (!listResult.Success || listResult.Relationships == null || listResult.Relationships.Count == 0)
