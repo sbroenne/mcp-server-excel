@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
@@ -39,7 +40,7 @@ public class CorePowerQueryWorkflowGuidanceTests : IDisposable
     private string CreateTestExcelFile()
     {
         var filePath = Path.Combine(_tempDir, $"TestWorkbook_{Guid.NewGuid():N}.xlsx");
-        var result = _fileCommands.CreateEmpty(filePath, overwriteIfExists: false);
+        var result = _fileCommands.CreateEmptyAsync(filePath, overwriteIfExists: false).GetAwaiter().GetResult();
         if (!result.Success)
         {
             throw new InvalidOperationException($"Failed to create test Excel file: {result.ErrorMessage}");
@@ -118,19 +119,27 @@ in
         // Arrange
         var excelFile = CreateTestExcelFile();
         var queryFile = CreateValidQueryFile();
-        var importResult = await _powerQueryCommands.Import(excelFile, "ValidQuery", queryFile, loadToWorksheet: false);
-        Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
+        
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "ValidQuery", queryFile, loadToWorksheet: false);
+            Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
+            await batch.SaveAsync();
+        }
 
         // Act
-        var refreshResult = _powerQueryCommands.Refresh(excelFile, "ValidQuery");
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            var refreshResult = await _powerQueryCommands.RefreshAsync(batch, "ValidQuery");
 
-        // Assert
-        Assert.True(refreshResult.Success, $"Expected success but got error: {refreshResult.ErrorMessage}");
-        Assert.False(refreshResult.HasErrors, "Expected no errors");
-        Assert.Empty(refreshResult.ErrorMessages);
-        Assert.NotNull(refreshResult.SuggestedNextActions);
-        Assert.NotEmpty(refreshResult.SuggestedNextActions);
-        Assert.NotNull(refreshResult.WorkflowHint);
+            // Assert
+            Assert.True(refreshResult.Success, $"Expected success but got error: {refreshResult.ErrorMessage}");
+            Assert.False(refreshResult.HasErrors, "Expected no errors");
+            Assert.Empty(refreshResult.ErrorMessages);
+            Assert.NotNull(refreshResult.SuggestedNextActions);
+            Assert.NotEmpty(refreshResult.SuggestedNextActions);
+            Assert.NotNull(refreshResult.WorkflowHint);
+        }
     }
 
     [Fact]
