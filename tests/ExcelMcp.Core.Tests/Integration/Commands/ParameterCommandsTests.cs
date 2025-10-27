@@ -13,14 +13,14 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 [Trait("Speed", "Fast")]
 [Trait("Feature", "Parameters")]
 [Trait("RequiresExcel", "true")]
-public class CoreParameterCommandsTests : IDisposable
+public class ParameterCommandsTests : IDisposable
 {
     private readonly IParameterCommands _parameterCommands;
     private readonly IFileCommands _fileCommands;
     private readonly string _testExcelFile;
     private readonly string _tempDir;
 
-    public CoreParameterCommandsTests()
+    public ParameterCommandsTests()
     {
         _parameterCommands = new ParameterCommands();
         _fileCommands = new FileCommands();

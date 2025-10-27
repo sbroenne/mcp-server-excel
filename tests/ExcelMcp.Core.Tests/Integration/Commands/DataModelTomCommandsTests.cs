@@ -15,7 +15,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "DataModelTom")]
-public class CoreDataModelTomCommandsTests : IDisposable
+public class DataModelTomCommandsTests : IDisposable
 {
     private readonly IDataModelTomCommands _tomCommands;
     private readonly IDataModelCommands _dataModelCommands;
@@ -24,7 +24,7 @@ public class CoreDataModelTomCommandsTests : IDisposable
     private readonly string _tempDir;
     private bool _disposed;
 
-    public CoreDataModelTomCommandsTests()
+    public DataModelTomCommandsTests()
     {
         _tomCommands = new DataModelTomCommands();
         _dataModelCommands = new DataModelCommands();

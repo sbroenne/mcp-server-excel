@@ -14,7 +14,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "PowerQuery")]
-public class CorePowerQueryCommandsTests : IDisposable
+public class PowerQueryCommandsTests : IDisposable
 {
     private readonly IPowerQueryCommands _powerQueryCommands;
     private readonly IFileCommands _fileCommands;
@@ -23,7 +23,7 @@ public class CorePowerQueryCommandsTests : IDisposable
     private readonly string _tempDir;
     private bool _disposed;
 
-    public CorePowerQueryCommandsTests()
+    public PowerQueryCommandsTests()
     {
         _powerQueryCommands = new PowerQueryCommands();
         _fileCommands = new FileCommands();
