@@ -244,11 +244,13 @@ internal sealed class ExcelBatch : IExcelBatch
         _excel = null;
         _context = null;
 
-        // Force garbage collection to release COM references
-        // Two GC cycles are sufficient - one to collect, one to finalize
+        // CRITICAL COM cleanup pattern:
+        // Two GC cycles ensure RCW (Runtime Callable Wrapper) cleanup
+        // Cycle 1: Collect unreferenced objects, queue RCWs for finalization
+        // Cycle 2: Finalize queued RCWs, release underlying COM objects
         GC.Collect();
         GC.WaitForPendingFinalizers();
-        GC.Collect();
+        GC.Collect(); // Second collect cleans up objects created during finalization
     }
 
     public async ValueTask DisposeAsync()

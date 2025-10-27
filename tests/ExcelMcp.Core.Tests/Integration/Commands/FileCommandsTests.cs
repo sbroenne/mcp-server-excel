@@ -5,7 +5,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 
 /// <summary>
 /// Core business logic tests for FileCommands - testing Excel operations and Result objects
-/// 
+///
 /// LAYER RESPONSIBILITY:
 /// - ✅ Test all Excel COM file operations (create, validate, etc.)
 /// - ✅ Test Result object properties and error messages
@@ -13,9 +13,9 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 /// - ✅ Test actual file system operations
 /// - ❌ DO NOT test CLI argument parsing or console output (that's CLI's responsibility)
 /// - ❌ DO NOT test JSON serialization (that's MCP Server's responsibility)
-/// 
-/// NOTE: Dispose() may include GC.Collect() because these tests perform actual Excel COM operations
-/// that may hold file locks. This is appropriate for integration tests that directly use Excel.
+///
+/// NOTE: ExcelSession handles all COM cleanup automatically. Tests await async operations,
+/// so COM objects are fully released by the time tests complete.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
@@ -237,13 +237,12 @@ public class CoreFileCommandsTests : IDisposable
     public void Dispose()
     {
         // Clean up test files
-        // NOTE: GC.Collect() IS appropriate here because these tests perform actual Excel COM operations
-        // that may hold file locks. The batch API handles COM cleanup internally, but test cleanup may
-        // need GC to ensure all COM references are released before attempting file deletion.
+        // NOTE: ExcelSession handles all COM cleanup synchronously, so files are already released
+        // by the time tests complete. Just need basic file deletion.
         try
         {
-            // Wait a bit for Excel to fully release files
-            System.Threading.Thread.Sleep(500);
+            // Brief delay for any pending async operations
+            System.Threading.Thread.Sleep(200);
 
             // Delete individual files first
             foreach (string file in _createdFiles)
@@ -264,21 +263,13 @@ public class CoreFileCommandsTests : IDisposable
             // Then delete the temp directory
             if (Directory.Exists(_tempDir))
             {
-                // Try to delete directory multiple times if needed
-                for (int i = 0; i < 3; i++)
+                try
                 {
-                    try
-                    {
-                        Directory.Delete(_tempDir, true);
-                        break;
-                    }
-                    catch (IOException)
-                    {
-                        if (i == 2) throw; // Last attempt failed
-                        System.Threading.Thread.Sleep(1000);
-                        GC.Collect();
-                        GC.WaitForPendingFinalizers();
-                    }
+                    Directory.Delete(_tempDir, true);
+                }
+                catch
+                {
+                    // Best effort cleanup - don't fail tests if cleanup fails
                 }
             }
         }

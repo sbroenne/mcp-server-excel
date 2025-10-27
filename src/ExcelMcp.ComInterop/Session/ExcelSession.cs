@@ -272,11 +272,13 @@ public static class ExcelSession
                 excel = null;
             }
 
-            // Recommended COM cleanup pattern:
-            // Two GC cycles are sufficient - one to collect, one to finalize
+            // CRITICAL COM cleanup pattern:
+            // Two GC cycles ensure RCW (Runtime Callable Wrapper) cleanup
+            // Cycle 1: Collect unreferenced objects, queue RCWs for finalization
+            // Cycle 2: Finalize queued RCWs, release underlying COM objects
             GC.Collect();
             GC.WaitForPendingFinalizers();
-            GC.Collect(); // Final collect to clean up objects queued during finalization
+            GC.Collect(); // Second collect cleans up objects created during finalization
             }
         }, cancellationToken); // Close ExcelStaExecutor.ExecuteOnStaThreadAsync
     }
@@ -364,9 +366,11 @@ public static class ExcelSession
                     try { Marshal.FinalReleaseComObject(excel); } catch { }
                 }
 
+                // CRITICAL COM cleanup pattern:
+                // Two GC cycles ensure RCW (Runtime Callable Wrapper) cleanup
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
-                GC.Collect();
+                GC.Collect(); // Second collect cleans up objects created during finalization
             }
         }, cancellationToken); // Close ExcelStaExecutor.ExecuteOnStaThreadAsync
     }

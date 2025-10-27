@@ -53,6 +53,10 @@ public static class ComUtilities
     /// <param name="workbook">Excel workbook COM object</param>
     /// <param name="queryName">Name of the query to find</param>
     /// <returns>The query COM object if found, null otherwise</returns>
+    /// <remarks>
+    /// CRITICAL: Caller is responsible for releasing the returned COM object.
+    /// Use ComUtilities.Release(ref query) when done with the object.
+    /// </remarks>
     public static dynamic? FindQuery(dynamic workbook, string queryName)
     {
         dynamic? queriesCollection = null;
@@ -66,28 +70,37 @@ public static class ComUtilities
                 try
                 {
                     query = queriesCollection.Item(i);
-                    if (query.Name == queryName)
+                    string currentName = query.Name;
+
+                    if (currentName == queryName)
                     {
-                        // Return the query but don't release it - caller owns it
-                        return query;
+                        // Found match - return it (caller owns it now)
+                        var result = query;
+                        query = null; // Prevent cleanup in finally block
+                        return result;
                     }
                 }
                 finally
                 {
-                    // Only release if not returning
-                    if (query != null && query.Name != queryName)
+                    // Only release if not returning (query will be null if we're returning it)
+                    if (query != null)
                     {
                         Release(ref query);
                     }
                 }
             }
+
+            return null; // Not found
         }
-        catch { }
+        catch (Exception ex)
+        {
+            // Log or rethrow - don't silently swallow
+            throw new InvalidOperationException($"Failed to search for Power Query '{queryName}'.", ex);
+        }
         finally
         {
             Release(ref queriesCollection);
         }
-        return null;
     }
 
     /// <summary>
@@ -96,6 +109,10 @@ public static class ComUtilities
     /// <param name="workbook">Excel workbook COM object</param>
     /// <param name="name">Name of the named range to find</param>
     /// <returns>The named range COM object if found, null otherwise</returns>
+    /// <remarks>
+    /// CRITICAL: Caller is responsible for releasing the returned COM object.
+    /// Use ComUtilities.Release(ref nameObj) when done with the object.
+    /// </remarks>
     public static dynamic? FindName(dynamic workbook, string name)
     {
         dynamic? namesCollection = null;
@@ -109,27 +126,36 @@ public static class ComUtilities
                 try
                 {
                     nameObj = namesCollection.Item(i);
-                    if (nameObj.Name == name)
+                    string currentName = nameObj.Name;
+
+                    if (currentName == name)
                     {
-                        return nameObj; // Caller owns this object
+                        // Found match - return it (caller owns it now)
+                        var result = nameObj;
+                        nameObj = null; // Prevent cleanup in finally block
+                        return result;
                     }
                 }
                 finally
                 {
-                    // Only release non-matching names
-                    if (nameObj != null && nameObj.Name != name)
+                    // Only release if not returning
+                    if (nameObj != null)
                     {
                         Release(ref nameObj);
                     }
                 }
             }
+
+            return null; // Not found
         }
-        catch { }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to search for named range '{name}'.", ex);
+        }
         finally
         {
             Release(ref namesCollection);
         }
-        return null;
     }
 
     /// <summary>
@@ -138,6 +164,10 @@ public static class ComUtilities
     /// <param name="workbook">Excel workbook COM object</param>
     /// <param name="sheetName">Name of the worksheet to find</param>
     /// <returns>The worksheet COM object if found, null otherwise</returns>
+    /// <remarks>
+    /// CRITICAL: Caller is responsible for releasing the returned COM object.
+    /// Use ComUtilities.Release(ref sheet) when done with the object.
+    /// </remarks>
     public static dynamic? FindSheet(dynamic workbook, string sheetName)
     {
         dynamic? sheetsCollection = null;
@@ -151,27 +181,36 @@ public static class ComUtilities
                 try
                 {
                     sheet = sheetsCollection.Item(i);
-                    if (sheet.Name == sheetName)
+                    string currentName = sheet.Name;
+
+                    if (currentName == sheetName)
                     {
-                        return sheet; // Caller owns this object
+                        // Found match - return it (caller owns it now)
+                        var result = sheet;
+                        sheet = null; // Prevent cleanup in finally block
+                        return result;
                     }
                 }
                 finally
                 {
-                    // Only release non-matching sheets
-                    if (sheet != null && sheet.Name != sheetName)
+                    // Only release if not returning
+                    if (sheet != null)
                     {
                         Release(ref sheet);
                     }
                 }
             }
+
+            return null; // Not found
         }
-        catch { }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to search for worksheet '{sheetName}'.", ex);
+        }
         finally
         {
             Release(ref sheetsCollection);
         }
-        return null;
     }
 
     /// <summary>
@@ -180,30 +219,53 @@ public static class ComUtilities
     /// <param name="workbook">Excel workbook COM object</param>
     /// <param name="connectionName">Name of the connection to find</param>
     /// <returns>Connection object if found, null otherwise</returns>
+    /// <remarks>
+    /// CRITICAL: Caller is responsible for releasing the returned COM object.
+    /// Use ComUtilities.Release(ref connection) when done with the object.
+    /// </remarks>
     public static dynamic? FindConnection(dynamic workbook, string connectionName)
     {
+        dynamic? connections = null;
+        dynamic? conn = null;
+
         try
         {
-            dynamic connections = workbook.Connections;
+            connections = workbook.Connections;
+
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic conn = connections.Item(i);
+                conn = connections.Item(i);
                 string name = conn.Name?.ToString() ?? "";
 
                 // Match exact name or "Query - Name" pattern (Power Query connections)
                 if (name.Equals(connectionName, StringComparison.OrdinalIgnoreCase) ||
                     name.Equals($"Query - {connectionName}", StringComparison.OrdinalIgnoreCase))
                 {
-                    return conn;
+                    // Found match - return it (caller owns it now)
+                    var result = conn;
+                    conn = null; // Prevent cleanup in finally block
+                    return result;
                 }
-            }
-        }
-        catch
-        {
-            // Return null if any error occurs
-        }
 
-        return null;
+                // Not a match - release before next iteration
+                Release(ref conn);
+            }
+
+            return null; // Not found
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to search for connection '{connectionName}'.", ex);
+        }
+        finally
+        {
+            // Clean up any unreleased connection from last iteration
+            if (conn != null)
+            {
+                Release(ref conn);
+            }
+            Release(ref connections);
+        }
     }
 
     /// <summary>

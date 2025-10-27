@@ -19,6 +19,10 @@ internal static class ExcelStaExecutor
         CancellationToken cancellationToken = default)
     {
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        // Thread-safe flag to prevent double-cancellation
+        var operationStarted = new ManualResetEventSlim(false);
+
         var thread = new Thread(() =>
         {
             try
@@ -26,9 +30,12 @@ internal static class ExcelStaExecutor
                 // CRITICAL: Register OLE message filter for Excel busy handling
                 OleMessageFilter.Register();
 
+                // Signal that operation has started
+                operationStarted.Set();
+
                 // Execute operation on STA thread
                 var result = operation().GetAwaiter().GetResult();
-                tcs.SetResult(result);
+                tcs.TrySetResult(result);
             }
             catch (OperationCanceledException oce)
             {
@@ -41,6 +48,7 @@ internal static class ExcelStaExecutor
             finally
             {
                 OleMessageFilter.Revoke();
+                operationStarted.Dispose();
             }
         })
         {
@@ -52,8 +60,12 @@ internal static class ExcelStaExecutor
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
 
-        // Support cancellation
-        using var registration = cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken));
+        // Support cancellation - only cancel if operation hasn't completed
+        using var registration = cancellationToken.Register(() =>
+        {
+            // Only set cancellation if the operation hasn't already completed
+            tcs.TrySetCanceled(cancellationToken);
+        });
 
         return await tcs.Task;
     }
