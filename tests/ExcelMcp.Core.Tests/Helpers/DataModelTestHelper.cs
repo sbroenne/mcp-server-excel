@@ -14,30 +14,31 @@ public static class DataModelTestHelper
     /// Creates a realistic Data Model workbook with Sales, Customers, and Products tables.
     /// Includes sample measures and relationships as specified in DATA-MODEL-DAX-FEATURE-SPEC.md.
     /// </summary>
-    public static void CreateSampleDataModel(string filePath)
+    public static async Task CreateSampleDataModelAsync(string filePath)
     {
         // Add small delay to prevent Excel from getting overwhelmed during parallel test execution
-        System.Threading.Thread.Sleep(100);
+        await Task.Delay(100);
 
-        ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+        await batch.ExecuteAsync<int>(async (ctx, ct) =>
         {
             try
             {
                 // Create worksheets with sample data
-                CreateSalesWorksheet(workbook);
-                CreateCustomersWorksheet(workbook);
-                CreateProductsWorksheet(workbook);
+                CreateSalesWorksheet(ctx.Book);
+                CreateCustomersWorksheet(ctx.Book);
+                CreateProductsWorksheet(ctx.Book);
 
                 // Add tables to Data Model
-                AddTablesToDataModel(workbook);
+                AddTablesToDataModel(ctx.Book);
 
                 // Create sample measures
-                CreateSampleMeasures(workbook);
+                CreateSampleMeasures(ctx.Book);
 
                 // Create relationships
-                CreateRelationships(workbook);
+                CreateRelationships(ctx.Book);
 
-                return 0;
+                return ValueTask.FromResult(0);
             }
             catch (COMException ex) when (ex.HResult == unchecked((int)0x8001010A))
             {
@@ -45,9 +46,10 @@ public static class DataModelTestHelper
                 // This can happen during parallel test execution
                 // Just create basic worksheets without Data Model for this test
                 System.Diagnostics.Debug.WriteLine($"Excel busy during Data Model creation: {ex.Message}");
-                return 0;
+                return ValueTask.FromResult(0);
             }
         });
+        await batch.SaveAsync();
     }
 
     private static void CreateSalesWorksheet(dynamic workbook)
@@ -512,9 +514,10 @@ public static class DataModelTestHelper
     /// Creates a single test measure in the Data Model for testing delete operations.
     /// Throws InvalidOperationException if Sales table doesn't exist in Data Model.
     /// </summary>
-    public static void CreateTestMeasure(string filePath, string measureName, string formula)
+    public static async Task CreateTestMeasureAsync(string filePath, string measureName, string formula)
     {
-        ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+        await batch.ExecuteAsync<int>(async (ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? modelTables = null;
@@ -525,7 +528,7 @@ public static class DataModelTestHelper
             try
             {
                 // Get the Data Model
-                model = workbook.Model;
+                model = ctx.Book.Model;
                 modelTables = model.ModelTables;
 
                 // Find Sales table in Data Model (created by CreateSampleDataModel)
@@ -558,7 +561,8 @@ public static class DataModelTestHelper
                 ComUtilities.Release(ref model);
             }
 
-            return 0;
+            return ValueTask.FromResult(0);
         });
+        await batch.SaveAsync();
     }
 }
