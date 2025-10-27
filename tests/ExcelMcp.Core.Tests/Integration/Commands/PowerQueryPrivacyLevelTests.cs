@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
@@ -37,7 +38,7 @@ public class PowerQueryPrivacyLevelTests : IDisposable
 
     private void CreateTestExcelFile()
     {
-        var result = _fileCommands.CreateEmpty(_testExcelFile, overwriteIfExists: false);
+        var result = _fileCommands.CreateEmptyAsync(_testExcelFile, overwriteIfExists: false).GetAwaiter().GetResult();
         if (!result.Success)
         {
             throw new InvalidOperationException($"Failed to create test Excel file: {result.ErrorMessage}. Excel may not be installed.");
@@ -76,7 +77,8 @@ in
         File.WriteAllText(queryFile, mCode);
 
         // Act - Should not throw exception with valid privacy level
-        var result = await _powerQueryCommands.Import(_testExcelFile, $"TestQuery_{privacyLevel}", queryFile, privacyLevel);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _powerQueryCommands.ImportAsync(batch, $"TestQuery_{privacyLevel}", queryFile, privacyLevel);
 
         // Assert - Should succeed or provide clear error (not throw exception)
         Assert.NotNull(result);
@@ -102,7 +104,8 @@ in
         File.WriteAllText(queryFile, mCode);
 
         // Act - Import without privacy level (should work for simple queries)
-        var result = await _powerQueryCommands.Import(_testExcelFile, "SimpleQuery", queryFile, null);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _powerQueryCommands.ImportAsync(batch, "SimpleQuery", queryFile, null);
 
         // Assert - Should succeed for simple non-combining queries
         Assert.NotNull(result);
@@ -152,17 +155,25 @@ in
         string queryFile = Path.Combine(_tempDir, "UpdateTestQuery.pq");
         string mCode1 = @"let Source = ""Test1"" in Source";
         File.WriteAllText(queryFile, mCode1);
-        await _powerQueryCommands.Import(_testExcelFile, "UpdateTestQuery", queryFile);
+        
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _powerQueryCommands.ImportAsync(batch, "UpdateTestQuery", queryFile);
+            await batch.SaveAsync();
+        }
 
         // Update the query content
         string mCode2 = @"let Source = ""Test2"" in Source";
         File.WriteAllText(queryFile, mCode2);
 
         // Act - Update with privacy level
-        var result = await _powerQueryCommands.Update(_testExcelFile, "UpdateTestQuery", queryFile, PowerQueryPrivacyLevel.Private);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _powerQueryCommands.UpdateAsync(batch, "UpdateTestQuery", queryFile, PowerQueryPrivacyLevel.Private);
 
-        // Assert
-        Assert.NotNull(result);
+            // Assert
+            Assert.NotNull(result);
+        }
     }
 
     [Theory]
@@ -176,13 +187,21 @@ in
         string queryFile = Path.Combine(_tempDir, $"LoadToTableQuery_{privacyLevel}.pq");
         string mCode = @"let Source = #table({""Col1""}, {{""Val1""}}) in Source";
         File.WriteAllText(queryFile, mCode);
-        await _powerQueryCommands.Import(_testExcelFile, $"LoadToTableQuery_{privacyLevel}", queryFile);
+        
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _powerQueryCommands.ImportAsync(batch, $"LoadToTableQuery_{privacyLevel}", queryFile);
+            await batch.SaveAsync();
+        }
 
         // Act
-        var result = _powerQueryCommands.SetLoadToTable(_testExcelFile, $"LoadToTableQuery_{privacyLevel}", "Sheet1", privacyLevel);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _powerQueryCommands.SetLoadToTableAsync(batch, $"LoadToTableQuery_{privacyLevel}", "Sheet1", privacyLevel);
 
-        // Assert
-        Assert.NotNull(result);
+            // Assert
+            Assert.NotNull(result);
+        }
     }
 
     [Fact]
@@ -192,13 +211,21 @@ in
         string queryFile = Path.Combine(_tempDir, "LoadToDataModelQuery.pq");
         string mCode = @"let Source = #table({""Col1""}, {{""Val1""}}) in Source";
         File.WriteAllText(queryFile, mCode);
-        await _powerQueryCommands.Import(_testExcelFile, "LoadToDataModelQuery", queryFile);
+        
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _powerQueryCommands.ImportAsync(batch, "LoadToDataModelQuery", queryFile);
+            await batch.SaveAsync();
+        }
 
         // Act
-        var result = _powerQueryCommands.SetLoadToDataModel(_testExcelFile, "LoadToDataModelQuery", PowerQueryPrivacyLevel.Organizational);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _powerQueryCommands.SetLoadToDataModelAsync(batch, "LoadToDataModelQuery", PowerQueryPrivacyLevel.Organizational);
 
-        // Assert
-        Assert.NotNull(result);
+            // Assert
+            Assert.NotNull(result);
+        }
     }
 
     [Fact]
@@ -208,13 +235,21 @@ in
         string queryFile = Path.Combine(_tempDir, "LoadToBothQuery.pq");
         string mCode = @"let Source = #table({""Col1""}, {{""Val1""}}) in Source";
         File.WriteAllText(queryFile, mCode);
-        await _powerQueryCommands.Import(_testExcelFile, "LoadToBothQuery", queryFile);
+        
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _powerQueryCommands.ImportAsync(batch, "LoadToBothQuery", queryFile);
+            await batch.SaveAsync();
+        }
 
         // Act
-        var result = _powerQueryCommands.SetLoadToBoth(_testExcelFile, "LoadToBothQuery", "Sheet1", PowerQueryPrivacyLevel.Public);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _powerQueryCommands.SetLoadToBothAsync(batch, "LoadToBothQuery", "Sheet1", PowerQueryPrivacyLevel.Public);
 
-        // Assert
-        Assert.NotNull(result);
+            // Assert
+            Assert.NotNull(result);
+        }
     }
 
     public void Dispose()

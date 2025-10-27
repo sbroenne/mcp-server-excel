@@ -41,7 +41,7 @@ public class ScriptCommandsTests : IDisposable
         CreateTestVbaFile();
 
         // Check VBA trust
-        CheckVbaTrust();
+        CheckVbaTrustAsync().GetAwaiter().GetResult();
     }
 
     private void CreateTestExcelFile()
@@ -68,9 +68,10 @@ End Sub";
         File.WriteAllText(_testVbaFile, vbaCode);
     }
 
-    private void CheckVbaTrust()
+    private async Task CheckVbaTrustAsync()
     {
-        var trustResult = _setupCommands.CheckVbaTrust(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var trustResult = await _setupCommands.CheckVbaTrustAsync(batch);
         if (!trustResult.IsTrusted)
         {
             throw new InvalidOperationException("VBA trust is not enabled. Run 'excelcli setup-vba-trust' first.");
@@ -108,17 +109,24 @@ End Sub";
     public async Task List_AfterImport_ShowsNewModule()
     {
         // Arrange
-        await _scriptCommands.Import(_testExcelFile, "TestModule", _testVbaFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _scriptCommands.ImportAsync(batch, "TestModule", _testVbaFile);
+            await batch.SaveAsync();
+        }
 
         // Act
-        var result = _scriptCommands.List(_testExcelFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _scriptCommands.ListAsync(batch);
 
-        // Assert
-        Assert.True(result.Success);
-        Assert.NotNull(result.Scripts);
-        // Should contain the imported module plus default document modules (ThisWorkbook, Sheet1)
-        Assert.Contains(result.Scripts, s => s.Name == "TestModule");
-        Assert.True(result.Scripts.Count >= 3); // At least TestModule + default document modules
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(result.Scripts);
+            // Should contain the imported module plus default document modules (ThisWorkbook, Sheet1)
+            Assert.Contains(result.Scripts, s => s.Name == "TestModule");
+            Assert.True(result.Scripts.Count >= 3); // At least TestModule + default document modules
+        }
     }
 
     [Fact]
@@ -191,18 +199,30 @@ End Sub";
     public async Task Import_ThenDelete_ThenList_ShowsEmpty()
     {
         // Arrange
-        await _scriptCommands.Import(_testExcelFile, "TestModule", _testVbaFile);
-        _scriptCommands.Delete(_testExcelFile, "TestModule");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _scriptCommands.ImportAsync(batch, "TestModule", _testVbaFile);
+            await batch.SaveAsync();
+        }
+
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _scriptCommands.DeleteAsync(batch, "TestModule");
+            await batch.SaveAsync();
+        }
 
         // Act
-        var result = _scriptCommands.List(_testExcelFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _scriptCommands.ListAsync(batch);
 
-        // Assert
-        Assert.True(result.Success);
-        // After deleting imported module, should not contain TestModule
-        // but default document modules (ThisWorkbook, Sheet1) will still exist
-        Assert.DoesNotContain(result.Scripts, s => s.Name == "TestModule");
-        Assert.True(result.Scripts.Count >= 0); // Default modules may still exist
+            // Assert
+            Assert.True(result.Success);
+            // After deleting imported module, should not contain TestModule
+            // but default document modules (ThisWorkbook, Sheet1) will still exist
+            Assert.DoesNotContain(result.Scripts, s => s.Name == "TestModule");
+            Assert.True(result.Scripts.Count >= 0); // Default modules may still exist
+        }
     }
 
     [Fact]

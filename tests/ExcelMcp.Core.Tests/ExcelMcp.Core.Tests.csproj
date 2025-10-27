@@ -32,23 +32,11 @@
 
   <!-- Temporarily exclude old unconverted test files -->
   <ItemGroup>
-    <Compile Remove="Integration\Commands\CellCommandsTests.cs" />
-    <Compile Remove="Integration\Commands\ParameterCommandsTests.cs" />
-    <Compile Remove="Integration\Commands\FileCommandsTests.cs" />
-    <Compile Remove="Integration\Commands\DataModelTomCommandsTests.cs" />
-    <Compile Remove="Integration\Commands\DataModelCommandsTests.cs" />
-    <Compile Remove="Integration\Commands\ScriptCommandsTests.cs" />
+    <!-- Tests that need batch pattern conversion -->
     <Compile Remove="Integration\Commands\CoreConnectionCommandsTests.cs" />
     <Compile Remove="Integration\Commands\CoreConnectionCommandsExtendedTests.cs" />
-    <Compile Remove="Integration\Commands\VbaTrustDetectionTests.cs" />
-    <Compile Remove="Integration\Commands\SheetCommandsTests.cs" />
-    <Compile Remove="Integration\Commands\SetupCommandsTests.cs" />
-    <Compile Remove="Integration\Commands\PowerQueryWorkflowGuidanceTests.cs" />
-    <Compile Remove="Integration\Commands\PowerQueryPrivacyLevelTests.cs" />
     <Compile Remove="RoundTrip\**" />
     <Compile Remove="Unit\**" />
-    <Compile Remove="Helpers\ConnectionTestHelper.cs" />
-    <Compile Remove="Helpers\DataModelTestHelper.cs" />
   </ItemGroup>
 
 </Project>
