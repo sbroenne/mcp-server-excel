@@ -153,6 +153,27 @@ After completing significant tasks, update these instructions with lessons learn
 7. **Plan Documentation:** Create detailed migration plans for future continuation (see BATCH-API-MIGRATION-PLAN.md)
 8. **Test Incrementally:** After each file/group, build and run tests to catch issues early
 
+**Lesson Learned (2025-10-27 - Excel Type 3/4 Confusion):** When Excel COM API reports unexpected types:
+1. **Root Cause Investigation:** Excel returns type 4 (WEB) for TEXT connections created with "TEXT;filepath"
+2. **This is NOT a bug:** Excel COM API behavior, not a code defect - must be accepted
+3. **Dual Handling Pattern:** Handle BOTH type 3 AND type 4 in ALL connection property methods
+4. **Try/Catch Fallback:** Try TextConnection first, fall back to WebConnection if that fails
+5. **Test Reality, Not Ideals:** Update test expectations to match Excel's actual behavior (expect "WEB" not "TEXT")
+6. **Graceful Degradation:** Allow operations to succeed even if some properties aren't settable (Excel limitation)
+7. **Pragmatic Solutions:** Accept quirky behavior instead of fighting it - results in cleaner code
+8. **Comprehensive Updates:** When fixing type handling, update ALL related methods consistently (6 methods updated)
+9. **Pattern Consistency:** Use same try/catch pattern across all property access methods for maintainability
+
+**Lesson Learned (2025-10-27 - MCP Prompt Design):** When creating prompts for MCP servers:
+1. **Research First:** Study real MCP servers (fetch, everything, time) to understand best practices
+2. **Prompts ≠ Tutorials:** MCP prompts should be SHORT user shortcuts, not 400+ line programming tutorials
+3. **LLMs Know Programming:** Don't teach TypeScript, M code, or VBA - LLMs already know these languages
+4. **Domain Knowledge Only:** Keep prompts focused on domain-specific facts LLMs can't infer (Excel connection types, COM API limitations)
+5. **Quality > Quantity:** Deleted 4 tutorial prompts (1,538 lines), kept 1 reference (54 lines) - better results
+6. **Prompt Purpose:** Help users invoke tools efficiently, not educate LLMs on general programming
+7. **Pattern Knowledge:** Don't document patterns LLMs understand (batching, transactions) - use tool descriptions instead
+8. **Validation:** If it reads like a tutorial or "how to code X", it's wrong for MCP prompts
+
 **Lesson Learned (2025-10-24 - Bulk Refactoring):** When performing bulk refactoring with many find/replace operations:
 1. **Preferred:** Use `replace_string_in_file` tool for targeted, unambiguous edits with context
 2. **Batch Operations:** Use `grep_search` to find patterns, then use `replace_string_in_file` in parallel for independent changes
