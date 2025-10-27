@@ -37,13 +37,13 @@ public class CoreDataModelCommandsTests : IDisposable
         _testMeasureFile = Path.Combine(_tempDir, "TestMeasure.dax");
 
         // Create test Excel file with Data Model
-        CreateTestDataModelFile();
+        CreateTestDataModelFileAsync().GetAwaiter().GetResult();
     }
 
-    private void CreateTestDataModelFile()
+    private async Task CreateTestDataModelFileAsync()
     {
         // Create an empty workbook first
-        var result = _fileCommands.CreateEmptyAsync(_testExcelFile, overwriteIfExists: false).GetAwaiter().GetResult();
+        var result = await _fileCommands.CreateEmptyAsync(_testExcelFile, overwriteIfExists: false);
         if (!result.Success)
         {
             throw new InvalidOperationException($"Failed to create test Excel file: {result.ErrorMessage}. Excel may not be installed.");
@@ -52,7 +52,7 @@ public class CoreDataModelCommandsTests : IDisposable
         // Create realistic Data Model with sample data
         try
         {
-            DataModelTestHelper.CreateSampleDataModel(_testExcelFile);
+            await DataModelTestHelper.CreateSampleDataModelAsync(_testExcelFile);
         }
         catch (Exception ex)
         {
@@ -120,7 +120,8 @@ public class CoreDataModelCommandsTests : IDisposable
     public async Task ExportMeasure_WithNonExistentMeasure_ReturnsErrorResult()
     {
         // Act
-        var result = await _dataModelCommands.ExportMeasure(_testExcelFile, "NonExistentMeasure", _testMeasureFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.ExportMeasureAsync(batch, "NonExistentMeasure", _testMeasureFile);
 
         // Assert
         Assert.False(result.Success);
@@ -159,17 +160,17 @@ public class CoreDataModelCommandsTests : IDisposable
     }
 
     [Fact]
-    public void ListTables_WithNonExistentFile_ReturnsErrorResult()
+    public async Task ListTables_WithNonExistentFile_ThrowsFileNotFoundException()
     {
         // Arrange
         var nonExistentFile = Path.Combine(_tempDir, "NonExistent.xlsx");
 
-        // Act
-        var result = _dataModelCommands.ListTables(nonExistentFile);
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.Contains("not found", result.ErrorMessage ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        // Act & Assert - BeginBatchAsync should throw FileNotFoundException for non-existent file
+        await Assert.ThrowsAsync<FileNotFoundException>(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(nonExistentFile);
+            await _dataModelCommands.ListTablesAsync(batch);
+        });
     }
 
     [Fact]
@@ -356,15 +357,16 @@ public class CoreDataModelCommandsTests : IDisposable
     }
 
     [Fact(Skip = "Data Model test helper requires specific Excel version/configuration. May fail on some environments due to Data Model availability.")]
-    public void DeleteMeasure_WithValidMeasure_ReturnsSuccessResult()
+    public async Task DeleteMeasure_WithValidMeasure_ReturnsSuccessResult()
     {
         // Arrange - Create a test measure first
         var measureName = "TestMeasure_" + Guid.NewGuid().ToString("N")[..8];
 
-        DataModelTestHelper.CreateTestMeasure(_testExcelFile, measureName, "SUM(Sales[Amount])");
+        await DataModelTestHelper.CreateTestMeasureAsync(_testExcelFile, measureName, "SUM(Sales[Amount])");
 
         // Act
-        var result = _dataModelCommands.DeleteMeasure(_testExcelFile, measureName);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.DeleteMeasureAsync(batch, measureName);
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
@@ -390,22 +392,22 @@ public class CoreDataModelCommandsTests : IDisposable
     }
 
     [Fact]
-    public void DeleteMeasure_WithNonExistentFile_ReturnsErrorResult()
+    public async Task DeleteMeasure_WithNonExistentFile_ThrowsFileNotFoundException()
     {
-        // Act
-        var result = _dataModelCommands.DeleteMeasure("NonExistent.xlsx", "SomeMeasure");
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.NotNull(result.ErrorMessage);
-        Assert.Contains("File not found", result.ErrorMessage);
+        // Act & Assert - BeginBatchAsync should throw FileNotFoundException for non-existent file
+        await Assert.ThrowsAsync<FileNotFoundException>(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync("NonExistent.xlsx");
+            await _dataModelCommands.DeleteMeasureAsync(batch, "SomeMeasure");
+        });
     }
 
     [Fact(Skip = "Data Model test helper requires specific Excel version/configuration. May fail on some environments due to Data Model availability.")]
-    public void DeleteRelationship_WithValidRelationship_ReturnsSuccessResult()
+    public async Task DeleteRelationship_WithValidRelationship_ReturnsSuccessResult()
     {
         // Arrange - Requires Data Model with relationships
-        var listResult = _dataModelCommands.ListRelationships(_testExcelFile);
+        await using var listBatch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var listResult = await _dataModelCommands.ListRelationshipsAsync(listBatch);
 
         Assert.True(listResult.Success, "ListRelationships should succeed");
         Assert.NotNull(listResult.Relationships);
@@ -415,8 +417,9 @@ public class CoreDataModelCommandsTests : IDisposable
         var rel = listResult.Relationships[0];
 
         // Act
-        var result = _dataModelCommands.DeleteRelationship(
-            _testExcelFile,
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.DeleteRelationshipAsync(
+            batch,
             rel.FromTable,
             rel.FromColumn,
             rel.ToTable,
@@ -430,11 +433,12 @@ public class CoreDataModelCommandsTests : IDisposable
     }
 
     [Fact]
-    public void DeleteRelationship_WithNonExistentRelationship_ReturnsErrorResult()
+    public async Task DeleteRelationship_WithNonExistentRelationship_ReturnsErrorResult()
     {
         // Act
-        var result = _dataModelCommands.DeleteRelationship(
-            _testExcelFile,
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.DeleteRelationshipAsync(
+            batch,
             "FakeTable",
             "FakeColumn",
             "OtherTable",
@@ -452,21 +456,20 @@ public class CoreDataModelCommandsTests : IDisposable
     }
 
     [Fact]
-    public void DeleteRelationship_WithNonExistentFile_ReturnsErrorResult()
+    public async Task DeleteRelationship_WithNonExistentFile_ThrowsFileNotFoundException()
     {
-        // Act
-        var result = _dataModelCommands.DeleteRelationship(
-            "NonExistent.xlsx",
-            "Table1",
-            "Col1",
-            "Table2",
-            "Col2"
-        );
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.NotNull(result.ErrorMessage);
-        Assert.Contains("File not found", result.ErrorMessage);
+        // Act & Assert - BeginBatchAsync should throw FileNotFoundException for non-existent file
+        await Assert.ThrowsAsync<FileNotFoundException>(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync("NonExistent.xlsx");
+            await _dataModelCommands.DeleteRelationshipAsync(
+                batch,
+                "Table1",
+                "Col1",
+                "Table2",
+                "Col2"
+            );
+        });
     }
 
     public void Dispose()
