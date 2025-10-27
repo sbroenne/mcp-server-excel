@@ -183,7 +183,7 @@ After completing significant tasks, update these instructions with lessons learn
 4. **Separation of Concerns:** Lifecycle operations (create, delete, rename worksheet) ≠ Data operations (read, write, clear range) - split into separate tools/commands
 5. **Named Range Transparency:** Excel COM resolves named ranges natively (`Worksheet.Range("SalesData")` works like `Worksheet.Range("A1:D10")`) - API should reflect this (one rangeAddress parameter accepts both)
 6. **COM-Backed Only:** Don't implement data processing in server (transpose, statistics) - if Excel COM doesn't provide it, don't add it
-7. **Breaking Changes Strategy:** Clean architecture > backwards compatibility - delete fragmented commands entirely instead of deprecation (version 2.0.0)
+7. **Breaking Changes Strategy:** Clean architecture > backwards compatibility - delete fragmented commands entirely (still in minor releases, breaking changes acceptable during active development)
 8. **MCP-First Implementation:** Implement MCP server before CLI - faster feedback loop, JSON simpler than CSV conversion
 9. **Comprehensive Refactoring Analysis:** Document what gets deleted, what gets refactored, what gets added - file-by-file impact analysis prevents surprises
 10. **Migration Examples:** Provide before/after examples for every breaking change - LLMs and users need clear migration path
