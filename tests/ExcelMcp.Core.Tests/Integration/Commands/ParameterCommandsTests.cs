@@ -92,7 +92,7 @@ public class ParameterCommandsTests : IDisposable
     {
         // Arrange - Use unique parameter name to avoid conflicts
         string paramName = "SetTestParam_" + Guid.NewGuid().ToString("N")[..8];
-        
+
         await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
         {
             var createResult = await _parameterCommands.CreateAsync(batch, paramName, "Sheet1!C1");
@@ -117,7 +117,7 @@ public class ParameterCommandsTests : IDisposable
         // Arrange - Use unique parameter name to avoid conflicts
         string paramName = "GetSetParam_" + Guid.NewGuid().ToString("N")[..8];
         string testValue = "Integration Test Value";
-        
+
         await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
         {
             var createResult = await _parameterCommands.CreateAsync(batch, paramName, "Sheet1!D1");

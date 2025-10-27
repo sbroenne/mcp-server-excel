@@ -1,0 +1,32 @@
+# Test Duplication Analysis
+
+## Summary
+- CoreConnectionCommandsTests.cs: Uses OLD synchronous API (_commands.List(filePath))
+- ConnectionCommandsSimpleTests.cs: Uses NEW async batch API (await _commands.ListAsync(batch))
+- Both test files exist for same functionality
+
+## File Analysis
+CellCommandsSimpleTests.cs: Tests=3, Async=True, Batch=True, Sync=False
+CellCommandsTests.cs: Tests=8, Async=True, Batch=True, Sync=False
+ConnectionCommandsSimpleTests.cs: Tests=1, Async=True, Batch=True, Sync=False
+CoreConnectionCommandsExtendedTests.cs: Tests=34, Async=False, Batch=False, Sync=False
+CoreConnectionCommandsTests.cs: Tests=26, Async=False, Batch=False, Sync=False
+DataModelCommandsSimpleTests.cs: Tests=3, Async=True, Batch=True, Sync=False
+DataModelCommandsTests.cs: Tests=17, Async=True, Batch=True, Sync=False
+DataModelTomCommandsTests.cs: Tests=20, Async=True, Batch=True, Sync=False
+FileCommandsSimpleTests.cs: Tests=3, Async=True, Batch=False, Sync=False
+FileCommandsTests.cs: Tests=10, Async=True, Batch=False, Sync=False
+ParameterCommandsSimpleTests.cs: Tests=3, Async=True, Batch=True, Sync=False
+ParameterCommandsTests.cs: Tests=9, Async=True, Batch=True, Sync=False
+PowerQueryCommandsTests.cs: Tests=23, Async=True, Batch=True, Sync=False
+PowerQueryPrivacyLevelTests.cs: Tests=9, Async=True, Batch=True, Sync=False
+PowerQueryWorkflowGuidanceTests.cs: Tests=19, Async=True, Batch=True, Sync=False
+PowerQueryWorkflowSimpleTests.cs: Tests=2, Async=True, Batch=True, Sync=False
+ScriptCommandsSimpleTests.cs: Tests=2, Async=True, Batch=True, Sync=False
+ScriptCommandsTests.cs: Tests=8, Async=True, Batch=True, Sync=False
+SetupCommandsSimpleTests.cs: Tests=1, Async=True, Batch=True, Sync=False
+SetupCommandsTests.cs: Tests=3, Async=True, Batch=True, Sync=False
+SheetCommandsSimpleTests.cs: Tests=3, Async=True, Batch=True, Sync=False
+SheetCommandsTests.cs: Tests=10, Async=True, Batch=True, Sync=False
+VbaTrustDetectionTests.cs: Tests=9, Async=True, Batch=True, Sync=False
+VbaTrustSimpleTests.cs: Tests=1, Async=True, Batch=True, Sync=False

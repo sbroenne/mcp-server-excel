@@ -32,7 +32,7 @@ public class CellCommandsTests : IDisposable
 
         // Create test Excel file
         var result = _fileCommands.CreateEmptyAsync(_testExcelFile).GetAwaiter().GetResult();
-        
+
         if (!result.Success)
         {
             throw new InvalidOperationException($"Failed to create test Excel file: {result.ErrorMessage}");
@@ -78,11 +78,11 @@ public class CellCommandsTests : IDisposable
             Assert.True(setResult.Success);
             await batch.SaveAsync();
         }
-        
+
         await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
         {
             var getResult = await _cellCommands.GetValueAsync(batch, "Sheet1", "B2");
-            
+
             // Assert
             Assert.True(getResult.Success);
             Assert.Equal(testValue, getResult.Value?.ToString());
@@ -128,11 +128,11 @@ public class CellCommandsTests : IDisposable
             Assert.True(setResult.Success);
             await batch.SaveAsync();
         }
-        
+
         await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
         {
             var getResult = await _cellCommands.GetFormulaAsync(batch, "Sheet1", "E1");
-            
+
             // Assert
             Assert.True(getResult.Success);
             Assert.Equal(formula, getResult.Formula);
