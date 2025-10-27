@@ -1,5 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Core.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 

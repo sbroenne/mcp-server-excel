@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Sbroenne.ExcelMcp.Core.ComInterop;
+namespace Sbroenne.ExcelMcp.ComInterop;
 
 /// <summary>
 /// COM interface for handling incoming and outgoing COM calls.

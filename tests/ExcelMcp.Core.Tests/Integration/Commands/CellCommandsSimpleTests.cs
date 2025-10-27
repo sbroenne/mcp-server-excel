@@ -1,5 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Commands;

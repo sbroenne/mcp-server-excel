@@ -19,10 +19,11 @@
 
 **ExcelMcp** is a Windows-only toolset for programmatic Excel automation via COM interop, designed for coding agents and automation scripts.
 
-**Three Layers:**
-1. **Core** (`src/ExcelMcp.Core`) - Excel COM interop business logic
-2. **CLI** (`src/ExcelMcp.CLI`) - Command-line interface for scripting
-3. **MCP Server** (`src/ExcelMcp.McpServer`) - Model Context Protocol for AI assistants
+**Four Layers:**
+1. **ComInterop** (`src/ExcelMcp.ComInterop`) - Reusable COM automation patterns (STA threading, session management, batch operations, OLE message filter)
+2. **Core** (`src/ExcelMcp.Core`) - Excel-specific business logic (Power Query, VBA, worksheets, parameters)
+3. **CLI** (`src/ExcelMcp.CLI`) - Command-line interface for scripting
+4. **MCP Server** (`src/ExcelMcp.McpServer`) - Model Context Protocol for AI assistants
 
 **Key Capabilities:**
 - Power Query M code management (import, export, update, refresh)
@@ -125,6 +126,22 @@ public async Task TestMethod()
 
 After completing significant tasks, update these instructions with lessons learned. See [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) Rule 4.
 
+**Lesson Learned (2025-10-27 - COM Interop Extraction):** Separating COM Interop into standalone project:
+1. **New Project Structure:** Created `ExcelMcp.ComInterop` as separate reusable library
+2. **Files Moved (Phase 1):** `ComUtilities.cs`, `IOleMessageFilter.cs`, `OleMessageFilter.cs`
+3. **Files Moved (Phase 2):** `ExcelSession.cs`, `ExcelBatch.cs`, `ExcelContext.cs`, `ExcelStaExecutor.cs`, `IExcelBatch.cs` (all from Session/)
+4. **Tests Moved:** `StaThreadingTests.cs` from `Core.Tests/Unit/Session/` to `ComInterop.Tests/Unit/Session/`
+5. **Namespace Changes:** 
+   - `Sbroenne.ExcelMcp.Core.ComInterop` → `Sbroenne.ExcelMcp.ComInterop`
+   - `Sbroenne.ExcelMcp.Core.Session` → `Sbroenne.ExcelMcp.ComInterop.Session`
+   - Test namespace: `Sbroenne.ExcelMcp.Core.Tests.Unit.Session` → `Sbroenne.ExcelMcp.ComInterop.Tests.Unit.Session`
+6. **Test Trait Updates:** Changed `[Trait("Layer", "Core")]` to `[Trait("Layer", "ComInterop")]` in StaThreadingTests
+7. **Visibility:** Changed `OleMessageFilter` from `internal` to `public` for cross-project use
+8. **Bulk Updates:** Used PowerShell for namespace replacements across 40+ files efficiently
+9. **Benefits:** ComInterop now provides complete Excel COM automation patterns (utilities, STA threading, session management, batch operations) with its own test suite - other projects can use or exclude entire library
+10. **Testing Side Effects:** Tests with Excel process side effects (like `StaThreadingTests`) must use `[Trait("RunType", "OnDemand")]` to avoid running during normal test runs
+11. **Session Classes Are Generic:** ExcelSession, ExcelBatch, ExcelStaExecutor are reusable COM interop patterns, not Excel-specific business logic
+
 **Lesson Learned (2025-10-27 - Batch API Migration):** When migrating large test suites to new API patterns:
 1. **Strategy Pivot:** Don't force conversion of complex old tests - create NEW simple tests instead
 2. **Exclude & Build:** Temporarily exclude unconverted files in .csproj to get clean build fast
@@ -167,6 +184,7 @@ GitHub Copilot automatically loads instructions based on the files you're workin
 
 - Working in `tests/**/*.cs`? → [Testing Strategy](instructions/testing-strategy.instructions.md) auto-applies
 - Working in `src/ExcelMcp.Core/**/*.cs`? → [Excel COM Interop](instructions/excel-com-interop.instructions.md) auto-applies
+- Working in `src/ExcelMcp.ComInterop/**/*.cs`? → Low-level COM utilities (minimal dependencies)
 - Working in `src/ExcelMcp.McpServer/**/*.cs`? → [MCP Server Guide](instructions/mcp-server-guide.instructions.md) auto-applies
 - Working in `.github/workflows/**/*.yml`? → [Development Workflow](instructions/development-workflow.instructions.md) auto-applies
 - **All files** → [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) always applies

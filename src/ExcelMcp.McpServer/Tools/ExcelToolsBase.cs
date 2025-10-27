@@ -3,7 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using ModelContextProtocol;
 using Sbroenne.ExcelMcp.Core;
-using Sbroenne.ExcelMcp.Core.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 
 #pragma warning disable IL2070 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' requirements
 

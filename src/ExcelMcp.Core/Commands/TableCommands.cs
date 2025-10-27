@@ -1,7 +1,7 @@
-using Sbroenne.ExcelMcp.Core.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Security;
-using Sbroenne.ExcelMcp.Core.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using System.Text.RegularExpressions;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;

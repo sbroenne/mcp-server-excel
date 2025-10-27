@@ -1,8 +1,8 @@
 using System.Runtime.InteropServices;
 using System.Threading.Channels;
-using Sbroenne.ExcelMcp.Core.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop;
 
-namespace Sbroenne.ExcelMcp.Core.Session;
+namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
 /// <summary>
 /// Executes Excel COM operations on a dedicated STA thread with OLE message filter.

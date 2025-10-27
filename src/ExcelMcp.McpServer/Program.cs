@@ -2,7 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sbroenne.ExcelMcp.Core;
-using Sbroenne.ExcelMcp.Core.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.McpServer.Tools;
 using Sbroenne.ExcelMcp.McpServer.Completions;
 using System.Text.Json.Nodes;

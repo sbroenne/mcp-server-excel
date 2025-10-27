@@ -1,6 +1,6 @@
 using Spectre.Console;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.Core.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 

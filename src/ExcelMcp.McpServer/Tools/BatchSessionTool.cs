@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using ModelContextProtocol.Server;
-using Sbroenne.ExcelMcp.Core.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 

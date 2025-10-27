@@ -1,4 +1,4 @@
-namespace Sbroenne.ExcelMcp.Core.Session;
+namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
 /// <summary>
 /// Provides access to Excel COM objects for operations.

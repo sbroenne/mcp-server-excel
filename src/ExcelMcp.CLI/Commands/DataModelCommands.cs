@@ -1,5 +1,5 @@
 using Spectre.Console;
-using Sbroenne.ExcelMcp.Core.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 

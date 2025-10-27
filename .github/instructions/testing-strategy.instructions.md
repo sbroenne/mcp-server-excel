@@ -130,6 +130,31 @@ dotnet test --filter "RunType=OnDemand" --nologo
 4. **Stress resilience** - 50+ parallel operations don't leak processes
 5. **Fixture disposal** - Test cleanup disposes all instances
 
+### Tests with Side Effects
+
+**Any test that spawns/terminates Excel processes should be marked OnDemand:**
+
+```csharp
+[Trait("Category", "Unit")]
+[Trait("RunType", "OnDemand")]  // At class level for documentation
+public class StaThreadingTests
+{
+    [Fact]
+    [Trait("RunType", "OnDemand")]  // At method level for filtering
+    public async Task ExecuteAsync_WithStaThreading_NoProcessLeak()
+    {
+        // Test that verifies Excel.exe cleanup
+    }
+}
+```
+
+**Why:** These tests have side effects that can interfere with parallel test execution and require Excel to be installed.
+
+**Examples:**
+- `StaThreadingTests` - Verifies Excel process cleanup
+- Pool cleanup tests - Terminates Excel instances
+- Any test that counts running Excel processes
+
 ---
 
 ## Test Naming Standards

@@ -1,5 +1,5 @@
-using Sbroenne.ExcelMcp.Core.ComInterop;
-using Sbroenne.ExcelMcp.Core.Session;
+using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using System.Runtime.InteropServices;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;

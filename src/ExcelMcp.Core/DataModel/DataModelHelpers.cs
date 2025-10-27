@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Sbroenne.ExcelMcp.Core.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop;
 
 namespace Sbroenne.ExcelMcp.Core.DataModel;
 

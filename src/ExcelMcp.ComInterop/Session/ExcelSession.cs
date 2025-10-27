@@ -1,8 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
-using Sbroenne.ExcelMcp.Core.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop;
 
-namespace Sbroenne.ExcelMcp.Core.Session;
+namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
 /// <summary>
 /// Main entry point for Excel COM interop operations using async/await pattern.

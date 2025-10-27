@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Sbroenne.ExcelMcp.Core.ComInterop;
+namespace Sbroenne.ExcelMcp.ComInterop;
 
 /// <summary>
 /// OLE Message Filter for handling Excel COM busy/retry scenarios.
@@ -13,7 +13,7 @@ namespace Sbroenne.ExcelMcp.Core.ComInterop;
 ///
 /// Register once per STA thread via Register(), revoke on thread shutdown via Revoke().
 /// </remarks>
-internal sealed class OleMessageFilter : IOleMessageFilter
+public sealed class OleMessageFilter : IOleMessageFilter
 {
     [ThreadStatic]
     private static IOleMessageFilter? _oldFilter;

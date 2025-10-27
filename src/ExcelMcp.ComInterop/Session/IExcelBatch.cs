@@ -1,4 +1,4 @@
-namespace Sbroenne.ExcelMcp.Core.Session;
+namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
 /// <summary>
 /// Represents a batch of Excel operations that share a single Excel instance.

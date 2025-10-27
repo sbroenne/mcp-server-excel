@@ -1,10 +1,10 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.Core.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Connections;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
-using Sbroenne.ExcelMcp.Core.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
 

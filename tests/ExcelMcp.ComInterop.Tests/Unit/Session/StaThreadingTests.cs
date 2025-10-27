@@ -1,27 +1,31 @@
 using System.Diagnostics;
-using Sbroenne.ExcelMcp.Core.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Unit.Session;
+namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit.Session;
 
 /// <summary>
 /// Tests for STA threading and Excel COM cleanup - verifies no process leaks
-/// 
+///
 /// LAYER RESPONSIBILITY:
 /// - ✅ Test that Excel COM objects are properly cleaned up
 /// - ✅ Test that Excel.exe processes terminate after disposal
 /// - ✅ Test STA thread management
 /// - ✅ USE GC.Collect() - This is CORRECT here because we're explicitly testing COM cleanup behavior
 /// - ❌ DO NOT test business logic (that's tested in other Core tests)
-/// 
+///
 /// NOTE: GC.Collect() calls in these tests are INTENTIONAL and CORRECT - they're part of the test
 /// assertions to verify that COM cleanup works properly.
+///
+/// IMPORTANT: These tests spawn and terminate Excel processes (side effects).
+/// They run OnDemand only to avoid interference with normal test runs.
 /// </summary>
 [Trait("Category", "Unit")]
 [Trait("Speed", "Medium")]
-[Trait("Layer", "Core")]
+[Trait("Layer", "ComInterop")]
 [Trait("Feature", "StaThreading")]
+[Trait("RunType", "OnDemand")]
 [Collection("Sequential")] // Disable parallelization to avoid COM interference
 public class StaThreadingTests
 {
@@ -44,6 +48,7 @@ public class StaThreadingTests
     }
 
     [Fact]
+    [Trait("RunType", "OnDemand")]
     public async Task ExecuteAsync_WithStaThreading_NoProcessLeak()
     {
         // Arrange
@@ -86,6 +91,7 @@ public class StaThreadingTests
     }
 
     [Fact]
+    [Trait("RunType", "OnDemand")]
     public async Task BeginBatchAsync_MultipleOperations_UseSameInstance()
     {
         // Arrange
@@ -118,6 +124,7 @@ public class StaThreadingTests
     }
 
     [Fact]
+    [Trait("RunType", "OnDemand")]
     public async Task Batch_DisposeAsync_CleansUpComObjects()
     {
         // Arrange
@@ -162,6 +169,7 @@ public class StaThreadingTests
     }
 
     [Fact]
+    [Trait("RunType", "OnDemand")]
     public async Task CreateNewAsync_WithStaThreading_NoProcessLeak()
     {
         // Arrange

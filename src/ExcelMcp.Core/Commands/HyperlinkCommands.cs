@@ -1,7 +1,6 @@
-using Sbroenne.ExcelMcp.Core.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Core.Security;
-using Sbroenne.ExcelMcp.Core.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using System.Runtime.InteropServices;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -185,8 +184,8 @@ return await batch.ExecuteAsync(async (ctx, ct) =>
 #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<HyperlinkListResult> ListHyperlinksAsync(IExcelBatch batch, string sheetName)
     {
-        var result = new HyperlinkListResult 
-        { 
+        var result = new HyperlinkListResult
+        {
             FilePath = batch.WorkbookPath,
             SheetName = sheetName
         };
@@ -278,8 +277,8 @@ return await batch.ExecuteAsync(async (ctx, ct) =>
 #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<HyperlinkInfoResult> GetHyperlinkAsync(IExcelBatch batch, string sheetName, string cellAddress)
     {
-        var result = new HyperlinkInfoResult 
-        { 
+        var result = new HyperlinkInfoResult
+        {
             FilePath = batch.WorkbookPath,
             SheetName = sheetName,
             CellAddress = cellAddress
