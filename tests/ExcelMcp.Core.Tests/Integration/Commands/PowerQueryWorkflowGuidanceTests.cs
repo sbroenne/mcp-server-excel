@@ -149,38 +149,45 @@ in
         var excelFile = CreateTestExcelFile();
         var queryFile = CreateBrokenQueryFile();
 
-        // Import without loading to worksheet to avoid immediate failure
-        await _powerQueryCommands.Import(excelFile, "BrokenQuery", queryFile, loadToWorksheet: false);
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            // Import without loading to worksheet to avoid immediate failure
+            await _powerQueryCommands.ImportAsync(batch, "BrokenQuery", queryFile, loadToWorksheet: false);
+            await batch.SaveAsync();
+        }
 
         // Note: Excel may accept syntactically invalid M code and only fail at refresh/execution time
         // This test validates that IF refresh fails, error details are captured properly
 
         // Act
-        var refreshResult = _powerQueryCommands.Refresh(excelFile, "BrokenQuery");
-
-        // Assert - Excel's M engine is lenient, may not fail immediately
-        // Test validates error capture mechanism IF errors occur
-        if (!refreshResult.Success || refreshResult.HasErrors)
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
         {
-            Assert.True(refreshResult.HasErrors, "If refresh failed, HasErrors should be true");
-            Assert.NotEmpty(refreshResult.ErrorMessages);
+            var refreshResult = await _powerQueryCommands.RefreshAsync(batch, "BrokenQuery");
 
-            // Verify error recovery suggestions provided when errors occur
-            Assert.NotNull(refreshResult.SuggestedNextActions);
-            Assert.NotEmpty(refreshResult.SuggestedNextActions);
+            // Assert - Excel's M engine is lenient, may not fail immediately
+            // Test validates error capture mechanism IF errors occur
+            if (!refreshResult.Success || refreshResult.HasErrors)
+            {
+                Assert.True(refreshResult.HasErrors, "If refresh failed, HasErrors should be true");
+                Assert.NotEmpty(refreshResult.ErrorMessages);
 
-            var hasErrorGuidance = refreshResult.SuggestedNextActions
-                .Any(s => s.Contains("error", StringComparison.OrdinalIgnoreCase) ||
-                          s.Contains("fix", StringComparison.OrdinalIgnoreCase) ||
-                          s.Contains("review", StringComparison.OrdinalIgnoreCase));
-            Assert.True(hasErrorGuidance, "Expected error recovery guidance in suggestions");
-        }
-        else
-        {
-            // Excel accepted the M code - this is also valid behavior
-            // Verify workflow guidance still provided
-            Assert.NotNull(refreshResult.SuggestedNextActions);
-            Assert.NotNull(refreshResult.WorkflowHint);
+                // Verify error recovery suggestions provided when errors occur
+                Assert.NotNull(refreshResult.SuggestedNextActions);
+                Assert.NotEmpty(refreshResult.SuggestedNextActions);
+
+                var hasErrorGuidance = refreshResult.SuggestedNextActions
+                    .Any(s => s.Contains("error", StringComparison.OrdinalIgnoreCase) ||
+                              s.Contains("fix", StringComparison.OrdinalIgnoreCase) ||
+                              s.Contains("review", StringComparison.OrdinalIgnoreCase));
+                Assert.True(hasErrorGuidance, "Expected error recovery guidance in suggestions");
+            }
+            else
+            {
+                // Excel accepted the M code - this is also valid behavior
+                // Verify workflow guidance still provided
+                Assert.NotNull(refreshResult.SuggestedNextActions);
+                Assert.NotNull(refreshResult.WorkflowHint);
+            }
         }
     }
 
@@ -190,22 +197,30 @@ in
         // Arrange
         var excelFile = CreateTestExcelFile();
         var queryFile = CreateValidQueryFile();
-        var importResult = await _powerQueryCommands.Import(excelFile, "ConnectionOnlyQuery", queryFile, loadToWorksheet: false);
-        Assert.True(importResult.Success);
+        
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "ConnectionOnlyQuery", queryFile, loadToWorksheet: false);
+            Assert.True(importResult.Success);
+            await batch.SaveAsync();
+        }
 
         // Act
-        var refreshResult = _powerQueryCommands.Refresh(excelFile, "ConnectionOnlyQuery");
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            var refreshResult = await _powerQueryCommands.RefreshAsync(batch, "ConnectionOnlyQuery");
 
-        // Assert
-        Assert.True(refreshResult.Success);
-        Assert.True(refreshResult.IsConnectionOnly, "Expected IsConnectionOnly to be true for query without load destination");
-        Assert.NotNull(refreshResult.SuggestedNextActions);
+            // Assert
+            Assert.True(refreshResult.Success);
+            Assert.True(refreshResult.IsConnectionOnly, "Expected IsConnectionOnly to be true for query without load destination");
+            Assert.NotNull(refreshResult.SuggestedNextActions);
 
-        // Should suggest loading to table/sheet
-        var suggestedText = string.Join(" ", refreshResult.SuggestedNextActions);
-        Assert.True(suggestedText.Contains("load", StringComparison.OrdinalIgnoreCase) ||
-                    suggestedText.Contains("table", StringComparison.OrdinalIgnoreCase) ||
-                    suggestedText.Contains("sheet", StringComparison.OrdinalIgnoreCase));
+            // Should suggest loading to table/sheet
+            var suggestedText = string.Join(" ", refreshResult.SuggestedNextActions);
+            Assert.True(suggestedText.Contains("load", StringComparison.OrdinalIgnoreCase) ||
+                        suggestedText.Contains("table", StringComparison.OrdinalIgnoreCase) ||
+                        suggestedText.Contains("sheet", StringComparison.OrdinalIgnoreCase));
+        }
     }
 
     [Fact]
@@ -214,15 +229,23 @@ in
         // Arrange
         var excelFile = CreateTestExcelFile();
         var queryFile = CreateValidQueryFile();
-        await _powerQueryCommands.Import(excelFile, "ExistingQuery", queryFile, loadToWorksheet: false);
+        
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            await _powerQueryCommands.ImportAsync(batch, "ExistingQuery", queryFile, loadToWorksheet: false);
+            await batch.SaveAsync();
+        }
 
         // Act
-        var refreshResult = _powerQueryCommands.Refresh(excelFile, "NonExistentQuery");
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            var refreshResult = await _powerQueryCommands.RefreshAsync(batch, "NonExistentQuery");
 
-        // Assert
-        Assert.False(refreshResult.Success);
-        Assert.Contains("not found", refreshResult.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-        // May include suggestion for closest match
+            // Assert
+            Assert.False(refreshResult.Success);
+            Assert.Contains("not found", refreshResult.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            // May include suggestion for closest match
+        }
     }
 
     #endregion
@@ -237,15 +260,18 @@ in
         var queryFile = CreateValidQueryFile();
 
         // Act - loadToWorksheet defaults to true, causing query execution and validation
-        var importResult = await _powerQueryCommands.Import(excelFile, "ValidatedQuery", queryFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
+        {
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "ValidatedQuery", queryFile);
 
-        // Assert
-        Assert.True(importResult.Success, $"Expected success: {importResult.ErrorMessage}");
+            // Assert
+            Assert.True(importResult.Success, $"Expected success: {importResult.ErrorMessage}");
 
-        // Verify workflow guidance provided
-        Assert.NotNull(importResult.SuggestedNextActions);
-        Assert.NotEmpty(importResult.SuggestedNextActions);
-        Assert.NotNull(importResult.WorkflowHint);
+            // Verify workflow guidance provided
+            Assert.NotNull(importResult.SuggestedNextActions);
+            Assert.NotEmpty(importResult.SuggestedNextActions);
+            Assert.NotNull(importResult.WorkflowHint);
+        }
     }
 
     [Fact]
