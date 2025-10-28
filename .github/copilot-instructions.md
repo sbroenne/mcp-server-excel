@@ -200,6 +200,103 @@ After completing significant tasks, update these instructions with lessons learn
 9. **Impact Documentation:** 13 actions deleted (worksheet.read/write/clear/append + all cell actions), 38 actions added (all range operations) - net improvement in capabilities
 10. **Acceptable Timeline:** ~1-2 weeks for Phase 1 (Core + MCP + CLI minimal + CLI full) is reasonable for 38-method implementation
 
+**Lesson Learned (2025-10-27 - Range API Implementation - File Organization & Refactoring Strategy):** When implementing large APIs with breaking changes:
+
+**1. File Organization - Context-Specific Patterns:**
+- **Core Business Logic** (Commands): Use partial classes when files exceed ~500 lines
+  - Example: RangeCommands split into 9 partial files (Values, Formulas, Clear, Copy, Editing, Search, Discovery, Hyperlinks, Named Ranges)
+  - Benefit: ~200 lines per file, git-friendly, team-friendly, feature-focused
+- **MCP Translation Layers** (Tools): Single file acceptable up to ~1400 lines
+  - Example: ExcelRangeTool.cs (30 actions, ~1400 lines) remains single file
+  - Rationale: LLM needs discoverability > organization; action-based routing simple to navigate
+  - Pattern: Follows ExcelWorksheetTool, ExcelPowerQueryTool precedent
+- **Key Insight**: Translation layers ≠ business logic; different optimization goals
+
+**2. Large-Scale Refactoring Strategies:**
+- **File Recreation > Incremental Edits** when removing 50%+ of content
+  - Example: SheetCommands.cs (430→186 lines) recreated from scratch
+  - Example: ExcelWorksheetTool.cs (428→220 lines) recreated cleanly
+  - Benefit: Cleaner result than complex `replace_string_in_file` operations
+  - Issue: Multi-line text replacements prone to whitespace/formatting mismatches
+- **When to Use `replace_string_in_file`:**
+  - Small targeted changes (single method, property rename)
+  - Requires exact whitespace matching (3-5 lines of context)
+  - Best for surgical edits, not structural refactoring
+- **File Recreation Process:**
+  1. Read original file to understand structure
+  2. Create new file with only desired functionality
+  3. Preserve XML documentation, using directives, namespace
+  4. Build and fix compilation errors incrementally
+
+**3. Breaking Change Documentation:**
+- **Commit Message Structure** (from Phase 1A commit):
+  - Clear title stating scope: "Phase 1A: Refactor SheetCommands to lifecycle-only"
+  - BREAKING CHANGES section listing all API removals
+  - Before/after metrics (line counts, method counts, action counts)
+  - Migration paths documented (old API → new API)
+  - Note expected compilation errors during phased refactoring
+- **Impact Transparency:**
+  - Document total lines removed (~650 lines across 6 files in Phase 1A)
+  - List affected components (Core, MCP Server, Tests)
+  - Specify which errors are intentional (CLI Phase 1B expected)
+
+**4. Test Dependency Management:**
+- **Cross-Feature Dependencies** require careful tracking
+  - Example: PowerQueryWorkflowGuidanceTests used SheetCommands.ReadAsync
+  - Solution: Update to RangeCommands.GetValuesAsync when SheetCommands refactored
+  - Pattern: Search for deleted method names before removing
+- **Test Refactoring Strategy:**
+  - Delete tests for removed functionality (don't migrate)
+  - Create NEW tests for unified API (fresh perspective)
+  - Example: Deleted 4 SheetCommands data tests, Range API has 24 comprehensive tests
+- **Model Changes Propagate:**
+  - Changed WorksheetDataResult → RangeValueResult
+  - Updated property access: `.Data` → `.Values`
+  - Required updates across test files
+
+**5. Phased Refactoring Pattern:**
+- **Phase 1A** (Core + MCP Server):
+  - Implement new unified API (RangeCommands, ExcelRangeTool)
+  - Delete obsolete commands (CellCommands, HyperlinkCommands)
+  - Refactor overlapping commands (SheetCommands lifecycle-only)
+  - Update MCP Server tool inventory
+  - **Accept CLI compilation errors** - documented as expected
+- **Phase 1B** (CLI Implementation):
+  - Create CLI wrapper for new API
+  - Fix CLI compilation errors from Phase 1A
+  - Update routing and documentation
+  - Complete user-facing integration
+- **Benefit**: Faster Core/MCP iteration without CLI complexity
+
+**6. MCP Tool Design Principles:**
+- **Single File Acceptable** for translation layers
+  - LLMs prioritize discoverability over file organization
+  - Action-based routing (switch statement) easy to navigate
+  - ~1400 lines manageable for AI comprehension
+- **Action Density**: 30 actions ≈ ~47 lines per action (acceptable)
+- **Validation**: Regex pattern at top documents available actions
+- **Pattern Consistency**: Follow existing tools (ExcelWorksheetTool pattern)
+
+**7. Architecture Documentation Importance:**
+- **Critical**: Update architecture-patterns.instructions.md with official Microsoft guidelines
+  - Link to Microsoft Learn documentation
+  - Clarify when to use partial classes vs single files
+  - Document patterns with code examples
+- **Prevents Confusion**: AI needs explicit guidance on file organization
+  - "One class per file" is .NET standard
+  - Partial classes documented exception for large classes
+  - Context matters: business logic ≠ translation layer
+
+**8. Metrics & Validation:**
+- **Success Criteria** from Phase 1A:
+  - Core: 38 methods implemented (9 partial files)
+  - MCP: 30 actions implemented (1 file)
+  - Tests: 24/24 passing (100% success rate)
+  - Build: 0 errors, 0 warnings (Core + MCP)
+  - Code reduction: ~650 lines removed
+  - Compilation errors: 4 expected in CLI (Phase 1B)
+- **Timeline**: Phase 1A completed in ~1 week (spec → implementation → testing → refactoring → deletions → MCP tool → SheetCommands refactoring)
+
 **Lesson Learned (2025-10-24 - Bulk Refactoring):** When performing bulk refactoring with many find/replace operations:
 1. **Preferred:** Use `replace_string_in_file` tool for targeted, unambiguous edits with context
 2. **Batch Operations:** Use `grep_search` to find patterns, then use `replace_string_in_file` in parallel for independent changes
