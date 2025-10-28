@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Commands;
@@ -40,12 +41,12 @@ public class ScriptCommandsTests : IDisposable
         CreateTestVbaFile();
 
         // Check VBA trust
-        CheckVbaTrust();
+        CheckVbaTrustAsync().GetAwaiter().GetResult();
     }
 
     private void CreateTestExcelFile()
     {
-        var result = _fileCommands.CreateEmpty(_testExcelFile, overwriteIfExists: false);
+        var result = _fileCommands.CreateEmptyAsync(_testExcelFile, overwriteIfExists: false).GetAwaiter().GetResult();
         if (!result.Success)
         {
             throw new InvalidOperationException($"Failed to create test Excel file: {result.ErrorMessage}");
@@ -67,9 +68,10 @@ End Sub";
         File.WriteAllText(_testVbaFile, vbaCode);
     }
 
-    private void CheckVbaTrust()
+    private async Task CheckVbaTrustAsync()
     {
-        var trustResult = _setupCommands.CheckVbaTrust(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var trustResult = await _setupCommands.CheckVbaTrustAsync(batch);
         if (!trustResult.IsTrusted)
         {
             throw new InvalidOperationException("VBA trust is not enabled. Run 'excelcli setup-vba-trust' first.");
@@ -77,10 +79,11 @@ End Sub";
     }
 
     [Fact]
-    public void List_WithValidFile_ReturnsSuccessResult()
+    public async Task List_WithValidFile_ReturnsSuccessResult()
     {
         // Act
-        var result = _scriptCommands.List(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _scriptCommands.ListAsync(batch);
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
@@ -94,7 +97,9 @@ End Sub";
     public async Task Import_WithValidVbaCode_ReturnsSuccessResult()
     {
         // Act
-        var result = await _scriptCommands.Import(_testExcelFile, "TestModule", _testVbaFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _scriptCommands.ImportAsync(batch, "TestModule", _testVbaFile);
+        await batch.SaveAsync();
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
@@ -104,78 +109,120 @@ End Sub";
     public async Task List_AfterImport_ShowsNewModule()
     {
         // Arrange
-        await _scriptCommands.Import(_testExcelFile, "TestModule", _testVbaFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _scriptCommands.ImportAsync(batch, "TestModule", _testVbaFile);
+            await batch.SaveAsync();
+        }
 
         // Act
-        var result = _scriptCommands.List(_testExcelFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _scriptCommands.ListAsync(batch);
 
-        // Assert
-        Assert.True(result.Success);
-        Assert.NotNull(result.Scripts);
-        // Should contain the imported module plus default document modules (ThisWorkbook, Sheet1)
-        Assert.Contains(result.Scripts, s => s.Name == "TestModule");
-        Assert.True(result.Scripts.Count >= 3); // At least TestModule + default document modules
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(result.Scripts);
+            // Should contain the imported module plus default document modules (ThisWorkbook, Sheet1)
+            Assert.Contains(result.Scripts, s => s.Name == "TestModule");
+            Assert.True(result.Scripts.Count >= 3); // At least TestModule + default document modules
+        }
     }
 
     [Fact]
     public async Task Export_WithExistingModule_CreatesFile()
     {
         // Arrange
-        await _scriptCommands.Import(_testExcelFile, "TestModule", _testVbaFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _scriptCommands.ImportAsync(batch, "TestModule", _testVbaFile);
+            await batch.SaveAsync();
+        }
         var exportPath = Path.Combine(_tempDir, "exported.vba");
 
         // Act
-        var result = await _scriptCommands.Export(_testExcelFile, "TestModule", exportPath);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _scriptCommands.ExportAsync(batch, "TestModule", exportPath);
 
-        // Assert
-        Assert.True(result.Success);
-        Assert.True(File.Exists(exportPath));
+            // Assert
+            Assert.True(result.Success);
+            Assert.True(File.Exists(exportPath));
+        }
     }
 
     [Fact]
     public async Task Update_WithValidVbaCode_ReturnsSuccessResult()
     {
         // Arrange
-        await _scriptCommands.Import(_testExcelFile, "TestModule", _testVbaFile);
-        var updateFile = Path.Combine(_tempDir, "updated.vba");
-        File.WriteAllText(updateFile, "Public Function Updated() As String\n    Updated = \"Updated\"\nEnd Function");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _scriptCommands.ImportAsync(batch, "TestModule", _testVbaFile);
+            await batch.SaveAsync();
+        }
+        var updatedVba = Path.Combine(_tempDir, "updated.vba");
+        File.WriteAllText(updatedVba, "Sub UpdatedSub()\nEnd Sub");
 
         // Act
-        var result = await _scriptCommands.Update(_testExcelFile, "TestModule", updateFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _scriptCommands.UpdateAsync(batch, "TestModule", updatedVba);
+            await batch.SaveAsync();
 
-        // Assert
-        Assert.True(result.Success);
+            // Assert
+            Assert.True(result.Success);
+        }
     }
 
     [Fact]
     public async Task Delete_WithExistingModule_ReturnsSuccessResult()
     {
         // Arrange
-        await _scriptCommands.Import(_testExcelFile, "TestModule", _testVbaFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _scriptCommands.ImportAsync(batch, "TestModule", _testVbaFile);
+            await batch.SaveAsync();
+        }
 
         // Act
-        var result = _scriptCommands.Delete(_testExcelFile, "TestModule");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _scriptCommands.DeleteAsync(batch, "TestModule");
+            await batch.SaveAsync();
 
-        // Assert
-        Assert.True(result.Success);
+            // Assert
+            Assert.True(result.Success);
+        }
     }
 
     [Fact]
     public async Task Import_ThenDelete_ThenList_ShowsEmpty()
     {
         // Arrange
-        await _scriptCommands.Import(_testExcelFile, "TestModule", _testVbaFile);
-        _scriptCommands.Delete(_testExcelFile, "TestModule");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _scriptCommands.ImportAsync(batch, "TestModule", _testVbaFile);
+            await batch.SaveAsync();
+        }
+
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _scriptCommands.DeleteAsync(batch, "TestModule");
+            await batch.SaveAsync();
+        }
 
         // Act
-        var result = _scriptCommands.List(_testExcelFile);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _scriptCommands.ListAsync(batch);
 
-        // Assert
-        Assert.True(result.Success);
-        // After deleting imported module, should not contain TestModule
-        // but default document modules (ThisWorkbook, Sheet1) will still exist
-        Assert.DoesNotContain(result.Scripts, s => s.Name == "TestModule");
-        Assert.True(result.Scripts.Count >= 0); // Default modules may still exist
+            // Assert
+            Assert.True(result.Success);
+            // After deleting imported module, should not contain TestModule
+            // but default document modules (ThisWorkbook, Sheet1) will still exist
+            Assert.DoesNotContain(result.Scripts, s => s.Name == "TestModule");
+            Assert.True(result.Scripts.Count >= 0); // Default modules may still exist
+        }
     }
 
     [Fact]
@@ -185,7 +232,8 @@ End Sub";
         var exportPath = Path.Combine(_tempDir, "nonexistent.vba");
 
         // Act
-        var result = await _scriptCommands.Export(_testExcelFile, "NonExistentModule", exportPath);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _scriptCommands.ExportAsync(batch, "NonExistentModule", exportPath);
 
         // Assert
         Assert.False(result.Success);

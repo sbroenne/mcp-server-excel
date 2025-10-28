@@ -13,6 +13,5 @@ public interface IFileCommands
     /// <param name="filePath">Path to the Excel file to create</param>
     /// <param name="overwriteIfExists">Whether to overwrite if file already exists</param>
     /// <returns>Operation result</returns>
-    OperationResult CreateEmpty(string filePath, bool overwriteIfExists = false);
-
+    Task<OperationResult> CreateEmptyAsync(string filePath, bool overwriteIfExists = false);
 }

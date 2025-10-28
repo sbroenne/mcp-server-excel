@@ -1,12 +1,14 @@
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 
 /// <summary>
-/// Integration tests for Sheet Core operations.
-/// These tests require Excel installation and validate Core worksheet data operations.
+/// Integration tests for Sheet lifecycle operations.
+/// These tests require Excel installation and validate Core worksheet lifecycle management.
 /// Tests use Core commands directly (not through CLI wrapper).
+/// Data operations (read, write, clear) moved to RangeCommandsTests.
 /// </summary>
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
@@ -37,7 +39,7 @@ public class SheetCommandsTests : IDisposable
 
     private void CreateTestExcelFile()
     {
-        var result = _fileCommands.CreateEmpty(_testExcelFile, overwriteIfExists: false);
+        var result = _fileCommands.CreateEmptyAsync(_testExcelFile, overwriteIfExists: false).GetAwaiter().GetResult();
         if (!result.Success)
         {
             throw new InvalidOperationException($"Failed to create test Excel file: {result.ErrorMessage}");
@@ -45,10 +47,11 @@ public class SheetCommandsTests : IDisposable
     }
 
     [Fact]
-    public void List_WithValidFile_ReturnsSuccessResult()
+    public async Task List_WithValidFile_ReturnsSuccessResult()
     {
         // Act
-        var result = _sheetCommands.List(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _sheetCommands.ListAsync(batch);
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
@@ -57,126 +60,99 @@ public class SheetCommandsTests : IDisposable
     }
 
     [Fact]
-    public void Create_WithValidName_ReturnsSuccessResult()
+    public async Task Create_WithValidName_ReturnsSuccessResult()
     {
         // Act
-        var result = _sheetCommands.Create(_testExcelFile, "TestSheet");
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _sheetCommands.CreateAsync(batch, "TestSheet");
+        await batch.SaveAsync();
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
     }
 
     [Fact]
-    public void List_AfterCreate_ShowsNewSheet()
+    public async Task List_AfterCreate_ShowsNewSheet()
     {
-        // Arrange
-        _sheetCommands.Create(_testExcelFile, "TestSheet");
+        // Arrange - Create sheet
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _sheetCommands.CreateAsync(batch, "TestSheet");
+            await batch.SaveAsync();
+        }
 
-        // Act
-        var result = _sheetCommands.List(_testExcelFile);
+        // Act - List sheets
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _sheetCommands.ListAsync(batch);
 
-        // Assert
-        Assert.True(result.Success);
-        Assert.Contains(result.Worksheets, w => w.Name == "TestSheet");
+            // Assert
+            Assert.True(result.Success);
+            Assert.Contains(result.Worksheets, w => w.Name == "TestSheet");
+        }
     }
 
     [Fact]
-    public void Rename_WithValidNames_ReturnsSuccessResult()
+    public async Task Rename_WithValidNames_ReturnsSuccessResult()
     {
         // Arrange
-        _sheetCommands.Create(_testExcelFile, "OldName");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _sheetCommands.CreateAsync(batch, "OldName");
+            await batch.SaveAsync();
+        }
 
         // Act
-        var result = _sheetCommands.Rename(_testExcelFile, "OldName", "NewName");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _sheetCommands.RenameAsync(batch, "OldName", "NewName");
+            await batch.SaveAsync();
 
-        // Assert
-        Assert.True(result.Success);
+            // Assert
+            Assert.True(result.Success);
+        }
     }
 
     [Fact]
-    public void Delete_WithExistingSheet_ReturnsSuccessResult()
+    public async Task Delete_WithExistingSheet_ReturnsSuccessResult()
     {
         // Arrange
-        _sheetCommands.Create(_testExcelFile, "ToDelete");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _sheetCommands.CreateAsync(batch, "ToDelete");
+            await batch.SaveAsync();
+        }
 
         // Act
-        var result = _sheetCommands.Delete(_testExcelFile, "ToDelete");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _sheetCommands.DeleteAsync(batch, "ToDelete");
+            await batch.SaveAsync();
 
-        // Assert
-        Assert.True(result.Success);
+            // Assert
+            Assert.True(result.Success);
+        }
     }
 
     [Fact]
-    public void Write_WithValidCsvData_ReturnsSuccessResult()
+    public async Task Copy_WithValidNames_ReturnsSuccessResult()
     {
         // Arrange
-        var csvPath = Path.Combine(_tempDir, "test.csv");
-        File.WriteAllText(csvPath, "Name,Age\nJohn,30\nJane,25");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _sheetCommands.CreateAsync(batch, "Source");
+            await batch.SaveAsync();
+        }
 
         // Act
-        var result = _sheetCommands.Write(_testExcelFile, "Sheet1", csvPath);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _sheetCommands.CopyAsync(batch, "Source", "Target");
+            await batch.SaveAsync();
 
-        // Assert
-        Assert.True(result.Success);
-    }
-
-    [Fact]
-    public void Read_AfterWrite_ReturnsData()
-    {
-        // Arrange
-        var csvPath = Path.Combine(_tempDir, "test.csv");
-        File.WriteAllText(csvPath, "Name,Age\nJohn,30");
-        _sheetCommands.Write(_testExcelFile, "Sheet1", csvPath);
-
-        // Act
-        var result = _sheetCommands.Read(_testExcelFile, "Sheet1", "A1:B2");
-
-        // Assert
-        Assert.True(result.Success);
-        Assert.NotNull(result.Data);
-        Assert.NotEmpty(result.Data);
-    }
-
-    [Fact]
-    public void Clear_WithValidRange_ReturnsSuccessResult()
-    {
-        // Arrange
-        var csvPath = Path.Combine(_tempDir, "test.csv");
-        File.WriteAllText(csvPath, "Test,Data\n1,2");
-        _sheetCommands.Write(_testExcelFile, "Sheet1", csvPath);
-
-        // Act
-        var result = _sheetCommands.Clear(_testExcelFile, "Sheet1", "A1:B2");
-
-        // Assert
-        Assert.True(result.Success);
-    }
-
-    [Fact]
-    public void Copy_WithValidNames_ReturnsSuccessResult()
-    {
-        // Arrange
-        _sheetCommands.Create(_testExcelFile, "Source");
-
-        // Act
-        var result = _sheetCommands.Copy(_testExcelFile, "Source", "Target");
-
-        // Assert
-        Assert.True(result.Success);
-    }
-
-    [Fact]
-    public void Append_WithValidData_ReturnsSuccessResult()
-    {
-        // Arrange
-        var csvPath = Path.Combine(_tempDir, "append.csv");
-        File.WriteAllText(csvPath, "Name,Value\nTest,123");
-
-        // Act
-        var result = _sheetCommands.Append(_testExcelFile, "Sheet1", csvPath);
-
-        // Assert
-        Assert.True(result.Success);
+            // Assert
+            Assert.True(result.Success);
+        }
     }
 
     public void Dispose()
@@ -191,16 +167,17 @@ public class SheetCommandsTests : IDisposable
 
         if (disposing)
         {
+            // Cleanup test directory
             try
             {
                 if (Directory.Exists(_tempDir))
                 {
-                    Directory.Delete(_tempDir, true);
+                    Directory.Delete(_tempDir, recursive: true);
                 }
             }
             catch
             {
-                // Ignore cleanup errors
+                // Ignore cleanup failures
             }
         }
 

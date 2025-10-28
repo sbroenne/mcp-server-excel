@@ -2,21 +2,27 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sbroenne.ExcelMcp.Core;
-using Sbroenne.ExcelMcp.Core.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.McpServer.Tools;
+using Sbroenne.ExcelMcp.McpServer.Completions;
+using System.Text.Json.Nodes;
 
 namespace Sbroenne.ExcelMcp.McpServer;
 
 /// <summary>
 /// ExcelCLI Model Context Protocol (MCP) Server
-/// Provides 6 resource-based tools for AI assistants to automate Excel operations:
+/// Provides resource-based tools for AI assistants to automate Excel operations:
 /// - excel_file: Create, validate Excel files
 /// - excel_powerquery: Manage Power Query M code and connections
-/// - excel_worksheet: CRUD operations on worksheets and data
+/// - excel_worksheet: Worksheet lifecycle (list, create, rename, copy, delete)
+/// - excel_range: Unified range operations (values, formulas, clear, copy, insert/delete, find, sort, hyperlinks)
 /// - excel_parameter: Manage named ranges as parameters
-/// - excel_cell: Individual cell operations (get/set values/formulas)
 /// - excel_vba: VBA script management and execution
+/// - excel_connection: Manage Excel connections (OLEDB, ODBC, Text, Web)
+/// - excel_data_model: Manage Data Model (tables, measures, relationships)
+/// - excel_table: Manage Excel Tables (ListObjects)
 /// - excel_version: Check for updates on NuGet.org
+/// - begin_excel_batch/commit_excel_batch: Batch session management for multi-operation workflows
 ///
 /// Performance Optimization:
 /// Uses ExcelInstancePool for conversational workflows - reuses Excel instances
@@ -59,34 +65,29 @@ public class Program
             }
         });
 
-        // Register Excel instance pool as singleton for reuse across tool calls
-        // Idle instances are automatically cleaned up after 60 seconds
-        builder.Services.AddSingleton<ExcelInstancePool>(sp =>
-            new ExcelInstancePool(idleTimeout: TimeSpan.FromSeconds(60)));
+        // MCP Server architecture:
+        // - Batch session management: LLM controls workbook lifecycle via begin/commit tools
+        // - Single operations: Backward-compatible with automatic batch-of-one (when no batchId)
+        // - MCP Prompts: Educate LLMs about batch workflows via [McpServerPrompt] attributes
+        // - Completions: Available via ExcelCompletionHandler (manual JSON-RPC handling required)
 
-        // Initialize the pool for use by Core commands and MCP tools
-        var pool = new ExcelInstancePool(idleTimeout: TimeSpan.FromSeconds(60));
-
-        // Configure MCP tools layer to use pooling (for static access)
-        ExcelToolsPoolManager.Initialize(pool);
-
-        // Add MCP server with Excel tools
+        // Add MCP server with Excel tools (auto-discovers tools and prompts via attributes)
         builder.Services
             .AddMcpServer()
             .WithStdioServerTransport()
             .WithToolsFromAssembly();
 
+        // Note: Completion support requires manual JSON-RPC method handling
+        // See ExcelCompletionHandler for completion logic implementation
+        // To enable: handle "completion/complete" method in custom transport layer
+
         var host = builder.Build();
 
-        // Ensure pool is disposed on shutdown
+        // Register cleanup handler for batch sessions
         var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
         lifetime.ApplicationStopping.Register(() =>
         {
-            // Clear pool references
-            ExcelToolsPoolManager.Shutdown();
-
-            // Dispose pool instance
-            pool.Dispose();
+            BatchSessionTool.CleanupAllBatches().GetAwaiter().GetResult();
         });
 
         await host.RunAsync();

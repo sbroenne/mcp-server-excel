@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Spectre.Console;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
@@ -53,7 +54,21 @@ public class ScriptCommands : IScriptCommands
         string filePath = args[1];
         AnsiConsole.MarkupLine($"[bold]VBA Scripts in:[/] {Path.GetFileName(filePath)}\n");
 
-        var result = _coreCommands.List(filePath);
+        ScriptListResult result;
+        try
+        {
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                return await _coreCommands.ListAsync(batch);
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
         if (!result.Success)
         {
@@ -129,7 +144,12 @@ public class ScriptCommands : IScriptCommands
         string filePath = args[1];
         string moduleName = args[2];
 
-        var result = _coreCommands.View(filePath, moduleName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.ViewAsync(batch, moduleName);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (!result.Success)
         {
@@ -198,7 +218,21 @@ public class ScriptCommands : IScriptCommands
         string moduleName = args[2];
         string outputFile = args.Length > 3 ? args[3] : $"{moduleName}.vba";
 
-        var result = _coreCommands.Export(filePath, moduleName, outputFile).Result;
+        ResultBase result;
+        try
+        {
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                return await _coreCommands.ExportAsync(batch, moduleName, outputFile);
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
         // Handle VBA trust guidance
         if (result is VbaTrustRequiredResult trustError)
@@ -243,7 +277,9 @@ public class ScriptCommands : IScriptCommands
         string moduleName = args[2];
         string vbaFile = args[3];
 
-        var result = await _coreCommands.Import(filePath, moduleName, vbaFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+        var result = await _coreCommands.ImportAsync(batch, moduleName, vbaFile);
+        await batch.SaveAsync();
 
         // Handle VBA trust guidance
         if (result is VbaTrustRequiredResult trustError)
@@ -297,7 +333,18 @@ public class ScriptCommands : IScriptCommands
         string moduleName = args[2];
         string vbaFile = args[3];
 
-        var result = await _coreCommands.Update(filePath, moduleName, vbaFile);
+        ResultBase result;
+        try
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            result = await _coreCommands.UpdateAsync(batch, moduleName, vbaFile);
+            await batch.SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
         // Handle VBA trust guidance
         if (result is VbaTrustRequiredResult trustError)
@@ -359,7 +406,14 @@ public class ScriptCommands : IScriptCommands
         }
         AnsiConsole.WriteLine();
 
-        var result = _coreCommands.Run(filePath, procedureName, parameters);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var runResult = await _coreCommands.RunAsync(batch, procedureName, parameters);
+            await batch.SaveAsync();
+            return runResult;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         // Handle VBA trust guidance
         if (result is VbaTrustRequiredResult trustError)
@@ -412,7 +466,14 @@ public class ScriptCommands : IScriptCommands
             return 1;
         }
 
-        var result = _coreCommands.Delete(filePath, moduleName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var deleteResult = await _coreCommands.DeleteAsync(batch, moduleName);
+            await batch.SaveAsync();
+            return deleteResult;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         // Handle VBA trust guidance
         if (result is VbaTrustRequiredResult trustError)

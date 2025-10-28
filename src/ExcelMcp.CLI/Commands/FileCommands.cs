@@ -1,4 +1,5 @@
 using Spectre.Console;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -37,7 +38,11 @@ public class FileCommands : IFileCommands
         }
 
         // Call core command
-        var result = _coreCommands.CreateEmpty(filePath, overwrite);
+        var task = Task.Run(async () =>
+        {
+            return await _coreCommands.CreateEmptyAsync(filePath, overwrite);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         // Format and display result
         if (result.Success)

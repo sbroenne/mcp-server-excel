@@ -1,4 +1,6 @@
 using Spectre.Console;
+using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -20,7 +22,12 @@ public class ParameterCommands : IParameterCommands
         var filePath = args[1];
         AnsiConsole.MarkupLine($"[bold]Named Ranges/Parameters in:[/] {Path.GetFileName(filePath)}\n");
 
-        var result = _coreCommands.List(filePath);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.ListAsync(batch);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -66,7 +73,23 @@ public class ParameterCommands : IParameterCommands
         var paramName = args[2];
         var value = args[3];
 
-        var result = _coreCommands.Set(filePath, paramName, value);
+        OperationResult result;
+        try
+        {
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                var setResult = await _coreCommands.SetAsync(batch, paramName, value);
+                await batch.SaveAsync();
+                return setResult;
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
         if (result.Success)
         {
@@ -107,7 +130,12 @@ public class ParameterCommands : IParameterCommands
         var filePath = args[1];
         var paramName = args[2];
 
-        var result = _coreCommands.Get(filePath, paramName);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.GetAsync(batch, paramName);
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -138,7 +166,14 @@ public class ParameterCommands : IParameterCommands
         var paramName = args[2];
         var reference = args[3];
 
-        var result = _coreCommands.Update(filePath, paramName, reference);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var updateResult = await _coreCommands.UpdateAsync(batch, paramName, reference);
+            await batch.SaveAsync();
+            return updateResult;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -191,7 +226,14 @@ public class ParameterCommands : IParameterCommands
         var paramName = args[2];
         var reference = args[3];
 
-        var result = _coreCommands.Create(filePath, paramName, reference);
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var createResult = await _coreCommands.CreateAsync(batch, paramName, reference);
+            await batch.SaveAsync();
+            return createResult;
+        });
+        var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
@@ -232,7 +274,23 @@ public class ParameterCommands : IParameterCommands
         var filePath = args[1];
         var paramName = args[2];
 
-        var result = _coreCommands.Delete(filePath, paramName);
+        OperationResult result;
+        try
+        {
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                var deleteResult = await _coreCommands.DeleteAsync(batch, paramName);
+                await batch.SaveAsync();
+                return deleteResult;
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
         if (result.Success)
         {

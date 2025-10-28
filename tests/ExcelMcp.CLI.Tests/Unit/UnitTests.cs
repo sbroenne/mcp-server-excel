@@ -4,9 +4,15 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 
 /// <summary>
-/// Fast unit tests that don't require Excel installation.
-/// These tests focus on CLI-specific concerns: argument validation, exit codes, etc.
-/// Business logic is tested in Core tests.
+/// Fast unit tests that don't require Excel installation - CLI argument validation only
+///
+/// LAYER RESPONSIBILITY:
+/// - ✅ Test argument validation (missing args, invalid args)
+/// - ✅ Test exit code mapping (0 for success, 1 for error)
+/// - ✅ Test that CLI handles errors gracefully without Excel
+/// - ❌ DO NOT test Excel operations or business logic (that's Core's responsibility)
+///
+/// These tests verify the CLI wrapper's argument handling. Business logic is tested in ExcelMcp.Core.Tests.
 /// </summary>
 [Trait("Category", "Unit")]
 [Trait("Speed", "Fast")]
@@ -95,30 +101,6 @@ public class UnitTests
             "param-list" => commands.List(args),
             "param-get" => commands.Get(args),
             "param-set" => commands.Set(args),
-            _ => throw new ArgumentException($"Unknown command: {args[0]}")
-        };
-
-        // Assert
-        Assert.Equal(expectedExitCode, actualExitCode);
-    }
-
-    [Theory]
-    [InlineData(new string[] { "cell-get-value" }, 1)] // Missing file path
-    [InlineData(new string[] { "cell-get-value", "file.xlsx" }, 1)] // Missing sheet name
-    [InlineData(new string[] { "cell-get-value", "file.xlsx", "Sheet1" }, 1)] // Missing cell address
-    [InlineData(new string[] { "cell-set-value" }, 1)] // Missing file path
-    [InlineData(new string[] { "cell-set-value", "file.xlsx", "Sheet1" }, 1)] // Missing cell address
-    [InlineData(new string[] { "cell-set-value", "file.xlsx", "Sheet1", "A1" }, 1)] // Missing value
-    public void CellCommands_WithInvalidArgs_ReturnsErrorExitCode(string[] args, int expectedExitCode)
-    {
-        // Arrange
-        var commands = new CellCommands();
-
-        // Act
-        int actualExitCode = args[0] switch
-        {
-            "cell-get-value" => commands.GetValue(args),
-            "cell-set-value" => commands.SetValue(args),
             _ => throw new ArgumentException($"Unknown command: {args[0]}")
         };
 

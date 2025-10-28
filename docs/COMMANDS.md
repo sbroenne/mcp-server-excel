@@ -98,28 +98,12 @@ excelcli pq-delete <file.xlsx> <query-name>
 
 ## Sheet Commands (`sheet-*`)
 
-Manage worksheets in Excel workbooks.
+Manage worksheet lifecycle (create, rename, copy, delete). For data operations, use `range-*` commands.
 
 **sheet-list** - List all worksheets
 
 ```powershell
 excelcli sheet-list <file.xlsx>
-```
-
-**sheet-read** - Read data from worksheet
-
-```powershell
-excelcli sheet-read <file.xlsx> <sheet-name> [range]
-
-# Examples
-excelcli sheet-read "Plan.xlsx" "Data"           # Read entire used range
-excelcli sheet-read "Plan.xlsx" "Data" "A1:C10"  # Read specific range
-```
-
-**sheet-write** - Write CSV data to worksheet
-
-```powershell
-excelcli sheet-write <file.xlsx> <sheet-name> <data.csv>
 ```
 
 **sheet-create** - Create new worksheet
@@ -128,16 +112,16 @@ excelcli sheet-write <file.xlsx> <sheet-name> <data.csv>
 excelcli sheet-create <file.xlsx> <sheet-name>
 ```
 
-**sheet-copy** - Copy worksheet
-
-```powershell
-excelcli sheet-copy <file.xlsx> <source-sheet> <new-sheet>
-```
-
 **sheet-rename** - Rename worksheet
 
 ```powershell
 excelcli sheet-rename <file.xlsx> <old-name> <new-name>
+```
+
+**sheet-copy** - Copy worksheet
+
+```powershell
+excelcli sheet-copy <file.xlsx> <source-sheet> <new-sheet>
 ```
 
 **sheet-delete** - Delete worksheet
@@ -146,17 +130,81 @@ excelcli sheet-rename <file.xlsx> <old-name> <new-name>
 excelcli sheet-delete <file.xlsx> <sheet-name>
 ```
 
-**sheet-clear** - Clear worksheet data
+## Range Commands (`range-*`)
+
+Manage range data operations. Single cell = 1x1 range (e.g., "A1"). Named ranges: use empty sheet name "".
+
+**range-get-values** - Read range values as CSV
 
 ```powershell
-excelcli sheet-clear <file.xlsx> <sheet-name> [range]
+excelcli range-get-values <file.xlsx> <sheet-name> <range>
+
+# Examples
+excelcli range-get-values "Plan.xlsx" "Data" "A1:D10"  # Read range
+excelcli range-get-values "Plan.xlsx" "Data" "A1"      # Read single cell (1x1 range)
+excelcli range-get-values "Plan.xlsx" "" "SalesData"   # Read named range
 ```
 
-**sheet-append** - Append CSV data to worksheet
+**range-set-values** - Write CSV data to range
 
 ```powershell
-excelcli sheet-append <file.xlsx> <sheet-name> <data.csv>
+excelcli range-set-values <file.xlsx> <sheet-name> <range> <data.csv>
+
+# Examples
+excelcli range-set-values "Plan.xlsx" "Data" "A1:C10" "values.csv"
+excelcli range-set-values "Plan.xlsx" "" "SalesData" "sales.csv"  # Named range
 ```
+
+**range-get-formulas** - Read range formulas as CSV
+
+```powershell
+excelcli range-get-formulas <file.xlsx> <sheet-name> <range>
+
+# Example
+excelcli range-get-formulas "Plan.xlsx" "Calc" "D1:D100"
+```
+
+**range-set-formulas** - Write CSV formulas to range
+
+```powershell
+excelcli range-set-formulas <file.xlsx> <sheet-name> <range> <formulas.csv>
+
+# Example (formulas.csv contains: =SUM(A1:A10))
+excelcli range-set-formulas "Plan.xlsx" "Calc" "D1" "total-formula.csv"
+```
+
+**range-clear-all** - Clear all content and formatting
+
+```powershell
+excelcli range-clear-all <file.xlsx> <sheet-name> <range>
+```
+
+**range-clear-contents** - Clear values/formulas, preserve formatting
+
+```powershell
+excelcli range-clear-contents <file.xlsx> <sheet-name> <range>
+```
+
+**range-clear-formats** - Clear formatting, preserve values/formulas
+
+```powershell
+excelcli range-clear-formats <file.xlsx> <sheet-name> <range>
+```
+
+### Migration from Sheet Commands
+
+| Old Command | New Command | Notes |
+|-------------|-------------|-------|
+| `sheet-read` | `range-get-values` | Same functionality, works with any range |
+| `sheet-write` | `range-set-values` | Specify range explicitly (e.g., "A1") |
+| `sheet-clear` | `range-clear-all` or `range-clear-contents` | Choose based on whether to preserve formatting |
+| `sheet-append` | *(not yet implemented)* | Use `range-set-values` with calculated range for now |
+
+### CSV Conversion Behavior
+
+- **Type Inference**: Numbers and booleans auto-detected, empty cells become null
+- **Quote Escaping**: Values with commas, quotes, or newlines are automatically quoted
+- **2D Arrays**: Core uses `List<List<object?>>`, CLI converts CSV ↔ 2D arrays for convenience
 
 ## Parameter Commands (`param-*`)
 
@@ -458,13 +506,149 @@ excelcli dm-delete-relationship <file.xlsx> <from-table> <from-column> <to-table
 
 Removes a relationship between two tables in the Data Model. Changes are saved to the workbook.
 
+### Phase 2: Discovery & CREATE/UPDATE Operations ✨ **NEW**
+
+**dm-list-columns** - List columns in a Data Model table
+
+```powershell
+excelcli dm-list-columns <file.xlsx> <table-name>
+```
+
+Lists all columns in a table with their data types and calculated status.
+
+Example:
+```powershell
+excelcli dm-list-columns "sales-model.xlsx" "Sales"
+# Output: Column Name, Data Type, Calculated
+#         SalesID, Integer, No
+#         Amount, Currency, No
+#         TotalWithTax, Currency, Yes
+```
+
+**dm-view-table** - View table details with columns and measures
+
+```powershell
+excelcli dm-view-table <file.xlsx> <table-name>
+```
+
+Shows complete table information including source, record count, refresh date, columns, and measure count.
+
+Example:
+```powershell
+excelcli dm-view-table "sales-model.xlsx" "Sales"
+# Output: Table Name, Source, Record Count, Columns (detailed list), Measure Count
+```
+
+**dm-get-model-info** - Get Data Model overview
+
+```powershell
+excelcli dm-get-model-info <file.xlsx>
+```
+
+Shows Data Model statistics: table count, measure count, relationship count, total rows, and table names.
+
+Example:
+```powershell
+excelcli dm-get-model-info "sales-model.xlsx"
+# Output: Tables: 3, Measures: 5, Relationships: 2, Total Rows: 15,234
+```
+
+**dm-create-measure** - Create DAX measure
+
+```powershell
+excelcli dm-create-measure <file.xlsx> <table-name> <measure-name> <dax-formula> [format-type] [description]
+```
+
+Creates a new DAX measure in the specified table. Format types: `Currency`, `Decimal`, `Percentage`, `General`.
+
+Examples:
+```powershell
+# Create measure with currency format
+excelcli dm-create-measure "sales.xlsx" "Sales" "TotalRevenue" "SUM(Sales[Amount])" "Currency" "Total sales revenue"
+
+# Create percentage measure
+excelcli dm-create-measure "sales.xlsx" "Sales" "GrowthRate" "DIVIDE(SUM(Sales[CurrentYear]), SUM(Sales[PriorYear])) - 1" "Percentage"
+
+# Simple measure (no format)
+excelcli dm-create-measure "sales.xlsx" "Products" "ProductCount" "COUNTROWS(Products)"
+```
+
+**dm-update-measure** - Update existing measure
+
+```powershell
+excelcli dm-update-measure <file.xlsx> <measure-name> [dax-formula] [format-type] [description]
+```
+
+Updates an existing measure. At least one optional parameter must be provided.
+
+Examples:
+```powershell
+# Update formula only
+excelcli dm-update-measure "sales.xlsx" "TotalRevenue" "CALCULATE(SUM(Sales[Amount]))"
+
+# Update format only
+excelcli dm-update-measure "sales.xlsx" "TotalRevenue" "" "Decimal"
+
+# Update description only
+excelcli dm-update-measure "sales.xlsx" "TotalRevenue" "" "" "Updated revenue calculation"
+
+# Update multiple properties
+excelcli dm-update-measure "sales.xlsx" "GrowthRate" "DIVIDE([CurrentYearSales], [PriorYearSales]) - 1" "Percentage" "Year-over-year growth"
+```
+
+**dm-create-relationship** - Create table relationship
+
+```powershell
+excelcli dm-create-relationship <file.xlsx> <from-table> <from-column> <to-table> <to-column> [active:true|false]
+```
+
+Creates a relationship between two tables. Default: active=true.
+
+Examples:
+```powershell
+# Create active relationship
+excelcli dm-create-relationship "sales.xlsx" "Sales" "CustomerID" "Customers" "ID"
+
+# Create inactive relationship
+excelcli dm-create-relationship "sales.xlsx" "Sales" "AlternateCustomerID" "Customers" "ID" "false"
+```
+
+**dm-update-relationship** - Update relationship active status
+
+```powershell
+excelcli dm-update-relationship <file.xlsx> <from-table> <from-column> <to-table> <to-column> <active:true|false>
+```
+
+Toggles a relationship's active status. Only one relationship between two tables can be active at a time.
+
+Examples:
+```powershell
+# Activate relationship
+excelcli dm-update-relationship "sales.xlsx" "Sales" "CustomerID" "Customers" "ID" "true"
+
+# Deactivate relationship
+excelcli dm-update-relationship "sales.xlsx" "Sales" "CustomerID" "Customers" "ID" "false"
+```
+
 ### Usage Examples
 
 ```powershell
-# View Data Model structure
+# Discovery - Explore Data Model structure
+excelcli dm-get-model-info "sales-analysis.xlsx"
 excelcli dm-list-tables "sales-analysis.xlsx"
+excelcli dm-view-table "sales-analysis.xlsx" "Sales"
+excelcli dm-list-columns "sales-analysis.xlsx" "Sales"
+
+# Measures - Create and manage DAX calculations
+excelcli dm-create-measure "sales.xlsx" "Sales" "TotalRevenue" "SUM(Sales[Amount])" "Currency"
 excelcli dm-list-measures "sales-analysis.xlsx"
+excelcli dm-view-measure "sales-analysis.xlsx" "TotalRevenue"
+excelcli dm-update-measure "sales.xlsx" "TotalRevenue" "CALCULATE(SUM(Sales[Amount]))" "Currency" "Updated formula"
+
+# Relationships - Connect tables
+excelcli dm-create-relationship "sales.xlsx" "Sales" "CustomerID" "Customers" "ID"
 excelcli dm-list-relationships "sales-analysis.xlsx"
+excelcli dm-update-relationship "sales.xlsx" "Sales" "CustomerID" "Customers" "ID" "false"
 
 # Export measure for version control
 excelcli dm-export-measure "sales-analysis.xlsx" "Total Sales" "measures/total-sales.dax"
@@ -481,10 +665,24 @@ excelcli dm-delete-relationship "sales-analysis.xlsx" "Sales" "CustomerID" "Cust
 
 | Operation | Status | Technology |
 |-----------|--------|------------|
-| **CREATE** | Phase 4 (Future) | Requires TOM API |
+| **CREATE** | ✅ Available (Phase 2) | Excel COM API |
 | **READ** | ✅ Available | Excel COM API |
-| **UPDATE** | Phase 4 (Future) | Requires TOM API |
+| **UPDATE** | ✅ Available (Phase 2) | Excel COM API |
 | **DELETE** | ✅ Available | Excel COM API |
+
+**Phase 2 Capabilities:**
+- ✅ Create DAX measures with format types and descriptions
+- ✅ Update existing measure properties (formula, format, description)
+- ✅ Create table relationships with active/inactive flag
+- ✅ Update relationship active status (toggle on/off)
+- ✅ Discover model structure (tables, columns, measures, relationships)
+
+**Advanced Operations (Future Phase 4 - TOM API):**
+- Calculated columns
+- Hierarchies
+- Perspectives
+- KPIs
+- Advanced formatting options
 
 ## VBA Trust Configuration
 

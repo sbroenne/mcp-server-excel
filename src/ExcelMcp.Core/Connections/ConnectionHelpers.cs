@@ -40,6 +40,7 @@ public static class ConnectionHelpers
 
     /// <summary>
     /// Gets the connection type name from XlConnectionType enum value
+    /// Per Microsoft docs: https://learn.microsoft.com/en-us/office/vba/api/excel.xlconnectiontype
     /// </summary>
     /// <param name="connectionType">Connection type numeric value</param>
     /// <returns>Human-readable connection type name</returns>
@@ -49,13 +50,13 @@ public static class ConnectionHelpers
         {
             1 => "OLEDB",
             2 => "ODBC",
-            3 => "XML",
-            4 => "Text",
-            5 => "Web",
-            6 => "DataFeed",
-            7 => "Model",
-            8 => "Worksheet",
-            9 => "NoSource",
+            3 => "TEXT",      // xlConnectionTypeTEXT (was incorrectly "XML")
+            4 => "WEB",       // xlConnectionTypeWEB (was incorrectly "Text")
+            5 => "XMLMAP",    // xlConnectionTypeXMLMAP
+            6 => "DATAFEED",  // xlConnectionTypeDATAFEED
+            7 => "MODEL",     // xlConnectionTypeMODEL
+            8 => "WORKSHEET", // xlConnectionTypeWORKSHEET
+            9 => "NOSOURCE",  // xlConnectionTypeNOSOURCE
             _ => $"Unknown ({connectionType})"
         };
     }
@@ -68,18 +69,23 @@ public static class ConnectionHelpers
     /// <returns>Sanitized connection string with password masked</returns>
     public static string SanitizeConnectionString(string? connectionString)
     {
-        if (string.IsNullOrWhiteSpace(connectionString))
+        if (connectionString == null)
         {
-            return string.Empty;
+            return null!;
         }
 
-        // Regex pattern to match password in various formats:
-        // Password=value; Pwd=value; password=value; pwd=value;
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            return connectionString;
+        }
+
+        // Regex pattern to match sensitive fields in connection strings:
+        // Password, Pwd, AccessToken, AccountKey, AccessKey, ApiKey, etc.
         // Handles both semicolon-terminated and end-of-string cases
         return System.Text.RegularExpressions.Regex.Replace(
             connectionString,
-            @"(password|pwd)\s*=\s*[^;]*",
-            "$1=***",
+            @"(password|pwd|apikey|accesstoken|accountkey|accesskey)\s*=\s*[^;]*",
+            "$1=***REDACTED***",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase
         );
     }

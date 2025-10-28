@@ -5,8 +5,17 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit.Serialization;
 
 /// <summary>
-/// Unit tests for JSON serialization of Result objects - no Excel required
-/// Tests verify proper serialization for MCP Server responses
+/// MCP Server-specific tests for JSON serialization of Result objects - Unit tests, no Excel required
+///
+/// LAYER RESPONSIBILITY:
+/// - ✅ Test JSON serialization of all Result types
+/// - ✅ Test property naming (camelCase for MCP protocol)
+/// - ✅ Test null value handling in JSON
+/// - ✅ Test deserialization roundtrip
+/// - ❌ DO NOT test Excel operations (that's Core's responsibility)
+/// - ❌ DO NOT test CLI output formatting (that's CLI's responsibility)
+///
+/// These tests verify that MCP Server correctly serializes Core Result objects to JSON for MCP protocol responses.
 /// </summary>
 [Trait("Category", "Unit")]
 [Trait("Speed", "Fast")]
@@ -26,7 +35,7 @@ public class ResultSerializationTests
         var result = new OperationResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "operation-success.xlsx",
             Action = "create",
             ErrorMessage = null
         };
@@ -51,7 +60,7 @@ public class ResultSerializationTests
         var result = new OperationResult
         {
             Success = false,
-            FilePath = "test.xlsx",
+            FilePath = "operation-failure.xlsx",
             Action = "delete",
             ErrorMessage = "File not found"
         };
@@ -75,7 +84,7 @@ public class ResultSerializationTests
         var result = new CellValueResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "cell-value.xlsx",
             CellAddress = "A1",
             Value = "Hello World",
             ValueType = "String",
@@ -101,7 +110,7 @@ public class ResultSerializationTests
         var result = new WorksheetListResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "worksheet-list.xlsx",
             Worksheets = new List<WorksheetInfo>
             {
                 new() { Name = "Sheet1", Index = 1, Visible = true },
@@ -129,7 +138,7 @@ public class ResultSerializationTests
         var result = new WorksheetDataResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "worksheet-data.xlsx",
             SheetName = "Data",
             Range = "A1:B2",
             Headers = new List<string> { "Name", "Age" },
@@ -162,7 +171,7 @@ public class ResultSerializationTests
         var result = new ParameterListResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "parameter-list.xlsx",
             Parameters = new List<ParameterInfo>
             {
                 new() { Name = "StartDate", Value = "2024-01-01", RefersTo = "Config!A1" },
@@ -189,7 +198,7 @@ public class ResultSerializationTests
         var result = new ScriptListResult
         {
             Success = true,
-            FilePath = "test.xlsm",
+            FilePath = "script-list.xlsm",
             Scripts = new List<ScriptInfo>
             {
                 new()
@@ -222,7 +231,7 @@ public class ResultSerializationTests
         var result = new PowerQueryListResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "powerquery-list.xlsx",
             Queries = new List<PowerQueryInfo>
             {
                 new()
@@ -253,7 +262,7 @@ public class ResultSerializationTests
         var result = new PowerQueryViewResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "powerquery-view.xlsx",
             QueryName = "WebData",
             MCode = "let\n    Source = Web.Contents(\"https://api.example.com\")\nin\n    Source",
             CharacterCount = 73,
@@ -305,7 +314,7 @@ public class ResultSerializationTests
         var result = new FileValidationResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "file-validation.xlsx",
             Exists = true,
             IsValid = true,
             Extension = ".xlsx",
@@ -332,7 +341,7 @@ public class ResultSerializationTests
         var result = new OperationResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "null-values.xlsx",
             Action = "create",
             ErrorMessage = null
         };
@@ -352,7 +361,7 @@ public class ResultSerializationTests
         var result = new WorksheetListResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "empty-collections.xlsx",
             Worksheets = new List<WorksheetInfo>()
         };
 
@@ -373,7 +382,7 @@ public class ResultSerializationTests
         var result = new WorksheetDataResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "complex-nested.xlsx",
             SheetName = "Complex",
             Range = "A1:C2",
             Headers = new List<string> { "String", "Number", "Boolean" },

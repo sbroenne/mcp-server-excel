@@ -4,9 +4,15 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 
 /// <summary>
-/// Tests for CLI ParameterCommands - verifying CLI-specific behavior (argument parsing, exit codes)
-/// These tests focus on the presentation layer, not the business logic
-/// Core data logic is tested in ExcelMcp.Core.Tests
+/// CLI-specific tests for ParameterCommands and CellCommands - verifying argument parsing, exit codes, and CLI behavior
+///
+/// LAYER RESPONSIBILITY:
+/// - ✅ Test argument validation (missing args, invalid args)
+/// - ✅ Test exit code mapping (0 for success, 1 for error)
+/// - ✅ Test user interaction (prompts, console output if applicable)
+/// - ❌ DO NOT test named range or cell operations or Excel COM interop (that's Core's responsibility)
+///
+/// These tests verify the CLI wrapper works correctly. Business logic is tested in ExcelMcp.Core.Tests.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
@@ -100,111 +106,6 @@ public class CliParameterCommandsTests : IDisposable
 
         // Act
         int exitCode = _cliCommands.Set(args);
-
-        // Assert - CLI returns 1 for error (invalid file extension)
-        Assert.Equal(1, exitCode);
-    }
-
-    public void Dispose()
-    {
-        // Clean up temp directory
-        try
-        {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, true);
-            }
-        }
-        catch { }
-
-        GC.SuppressFinalize(this);
-    }
-}
-
-/// <summary>
-/// Tests for CLI CellCommands - verifying CLI-specific behavior (argument parsing, exit codes)
-/// These tests focus on the presentation layer, not the business logic
-/// Core data logic is tested in ExcelMcp.Core.Tests
-/// </summary>
-[Trait("Category", "Integration")]
-[Trait("Speed", "Medium")]
-[Trait("Feature", "Cells")]
-[Trait("Layer", "CLI")]
-public class CliCellCommandsTests : IDisposable
-{
-    private readonly CellCommands _cliCommands;
-    private readonly string _tempDir;
-
-    public CliCellCommandsTests()
-    {
-        _cliCommands = new CellCommands();
-
-        // Create temp directory for test files
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCLI_CellTests_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
-    }
-
-    [Fact]
-    public void GetValue_WithMissingCellAddressArg_ReturnsErrorExitCode()
-    {
-        // Arrange
-        string[] args = { "cell-get-value", "file.xlsx", "Sheet1" }; // Missing cell address
-
-        // Act
-        int exitCode = _cliCommands.GetValue(args);
-
-        // Assert - CLI returns 1 for error (missing arguments)
-        Assert.Equal(1, exitCode);
-    }
-
-    [Fact]
-    public void SetValue_WithMissingValueArg_ReturnsErrorExitCode()
-    {
-        // Arrange
-        string[] args = { "cell-set-value", "file.xlsx", "Sheet1", "A1" }; // Missing value
-
-        // Act
-        int exitCode = _cliCommands.SetValue(args);
-
-        // Assert - CLI returns 1 for error (missing arguments)
-        Assert.Equal(1, exitCode);
-    }
-
-    [Fact]
-    public void GetFormula_WithMissingSheetNameArg_ReturnsErrorExitCode()
-    {
-        // Arrange
-        string[] args = { "cell-get-formula", "file.xlsx" }; // Missing sheet name
-
-        // Act
-        int exitCode = _cliCommands.GetFormula(args);
-
-        // Assert - CLI returns 1 for error (missing arguments)
-        Assert.Equal(1, exitCode);
-    }
-
-    [Fact]
-    public void SetFormula_WithNonExistentFile_ReturnsErrorExitCode()
-    {
-        // Arrange
-        string nonExistentFile = Path.Combine(_tempDir, "NonExistent.xlsx");
-        string[] args = { "cell-set-formula", nonExistentFile, "Sheet1", "A1", "=SUM(B1:B10)" };
-
-        // Act
-        int exitCode = _cliCommands.SetFormula(args);
-
-        // Assert - CLI returns 1 for error (file not found)
-        Assert.Equal(1, exitCode);
-    }
-
-    [Fact]
-    public void GetValue_WithInvalidFileExtension_ReturnsErrorExitCode()
-    {
-        // Arrange
-        string[] args = { "cell-get-value", "invalid.txt", "Sheet1", "A1" };
-
-        // Act
-        int exitCode = _cliCommands.GetValue(args);
 
         // Assert - CLI returns 1 for error (invalid file extension)
         Assert.Equal(1, exitCode);

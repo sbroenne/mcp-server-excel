@@ -8,19 +8,19 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// 🔧 Tool Architecture (8 Domain-Focused Tools):
 /// - ExcelFileTool: File operations (create-empty)
 /// - ExcelPowerQueryTool: M code and data loading management
-/// - ExcelWorksheetTool: Sheet operations and bulk data handling
+/// - ExcelWorksheetTool: Sheet lifecycle management (create, rename, copy, delete)
 /// - ExcelParameterTool: Named ranges as configuration parameters
-/// - ExcelCellTool: Precise individual cell operations
+/// - ExcelRangeTool: Unified range operations (values, formulas, formatting, hyperlinks)
 /// - ExcelVbaTool: VBA macro management and execution
 /// - ExcelDataModelTool: Data Model (Power Pivot) operations
 /// - ExcelVersionTool: Check for updates on NuGet.org
 ///
 /// 🤖 LLM Usage Guidelines:
 /// 1. Start with ExcelFileTool to create new Excel files
-/// 2. Use ExcelWorksheetTool for data operations and sheet management
-/// 3. Use ExcelPowerQueryTool for advanced data transformation
-/// 4. Use ExcelParameterTool for configuration and reusable values
-/// 5. Use ExcelCellTool for precision operations on individual cells
+/// 2. Use ExcelWorksheetTool for sheet lifecycle (create, rename, copy, delete)
+/// 3. Use ExcelRangeTool for ALL data operations (read, write, formulas, formatting, hyperlinks)
+/// 4. Use ExcelPowerQueryTool for advanced data transformation
+/// 5. Use ExcelParameterTool for configuration and reusable values
 /// 6. Use ExcelVbaTool for complex automation (requires .xlsm files)
 /// 7. Use ExcelDataModelTool for Data Model and DAX operations
 /// 8. Use ExcelVersionTool to check for updates
@@ -42,7 +42,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - ExcelPowerQueryTool.cs: excel_powerquery tool
 /// - ExcelWorksheetTool.cs: excel_worksheet tool
 /// - ExcelParameterTool.cs: excel_parameter tool
-/// - ExcelCellTool.cs: excel_cell tool
+/// - ExcelRangeTool.cs: excel_range tool (replaces excel_cell)
 /// - ExcelVbaTool.cs: excel_vba tool
 /// - ExcelDataModelTool.cs: excel_datamodel tool
 /// - ExcelVersionTool.cs: excel_version tool

@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -39,7 +40,7 @@ public class VbaTrustDetectionTests : IDisposable
     private void CreateTestExcelFile()
     {
         // Create macro-enabled file by using .xlsm extension
-        var result = _fileCommands.CreateEmpty(_testExcelFile, overwriteIfExists: false);
+        var result = _fileCommands.CreateEmptyAsync(_testExcelFile, overwriteIfExists: false).GetAwaiter().GetResult();
         if (!result.Success)
         {
             throw new InvalidOperationException($"Failed to create test Excel file: {result.ErrorMessage}. Excel may not be installed.");
@@ -80,13 +81,14 @@ public class VbaTrustDetectionTests : IDisposable
     }
 
     [Fact]
-    public void ScriptCommands_List_HandlesVbaTrustCorrectly()
+    public async Task ScriptCommands_List_HandlesVbaTrustCorrectly()
     {
         // Note: This test validates that List returns a ScriptListResult
         // and handles VBA trust issues appropriately
 
         // Act
-        var result = _scriptCommands.List(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _scriptCommands.ListAsync(batch);
 
         // Assert
         Assert.NotNull(result);
@@ -131,7 +133,8 @@ End Sub";
         // Act & Assert - VBA operations should work inside the scope
         using (var _ = new TestVbaTrustScope())
         {
-            var importResult = await _scriptCommands.Import(_testExcelFile, "TestModule", vbaFile);
+            await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+            var importResult = await _scriptCommands.ImportAsync(batch, "TestModule", vbaFile);
 
             // Should succeed when VBA trust is enabled
             if (!importResult.Success)
@@ -151,7 +154,8 @@ End Sub";
         // Act - Test with VBA trust enabled
         using (var _ = new TestVbaTrustScope())
         {
-            var result = await _scriptCommands.Export(_testExcelFile, "ThisWorkbook", exportFile);
+            await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+            var result = await _scriptCommands.ExportAsync(batch, "ThisWorkbook", exportFile);
 
             // Assert
             Assert.NotNull(result);
@@ -177,7 +181,8 @@ End Sub";
         // Act - Test with VBA trust enabled
         using (var _ = new TestVbaTrustScope())
         {
-            var result = await _scriptCommands.Import(_testExcelFile, "ImportTestModule", vbaFile);
+            await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+            var result = await _scriptCommands.ImportAsync(batch, "ImportTestModule", vbaFile);
 
             // Assert
             Assert.NotNull(result);
@@ -201,7 +206,11 @@ End Sub";
         using (var _ = new TestVbaTrustScope())
         {
             // First import
-            await _scriptCommands.Import(_testExcelFile, "UpdateTestModule", vbaFile);
+            await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+            {
+                await _scriptCommands.ImportAsync(batch, "UpdateTestModule", vbaFile);
+                await batch.SaveAsync();
+            }
 
             // Update the VBA code
             string vbaCode2 = @"Sub UpdateTest2()
@@ -210,10 +219,13 @@ End Sub";
             File.WriteAllText(vbaFile, vbaCode2);
 
             // Act - Update the module
-            var result = await _scriptCommands.Update(_testExcelFile, "UpdateTestModule", vbaFile);
+            await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+            {
+                var result = await _scriptCommands.UpdateAsync(batch, "UpdateTestModule", vbaFile);
 
-            // Assert
-            Assert.NotNull(result);
+                // Assert
+                Assert.NotNull(result);
+            }
         }
     }
 
@@ -229,13 +241,20 @@ End Sub";
         using (var _ = new TestVbaTrustScope())
         {
             // First import a module
-            await _scriptCommands.Import(_testExcelFile, "DeleteTestModule", vbaFile);
+            await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+            {
+                await _scriptCommands.ImportAsync(batch, "DeleteTestModule", vbaFile);
+                await batch.SaveAsync();
+            }
 
             // Act - Delete the module
-            var result = _scriptCommands.Delete(_testExcelFile, "DeleteTestModule");
+            await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+            {
+                var result = await _scriptCommands.DeleteAsync(batch, "DeleteTestModule");
 
-            // Assert
-            Assert.NotNull(result);
+                // Assert
+                Assert.NotNull(result);
+            }
         }
     }
 
@@ -254,13 +273,20 @@ End Sub";
         using (var _ = new TestVbaTrustScope())
         {
             // First import a module
-            await _scriptCommands.Import(_testExcelFile, "RunTestModule", vbaFile);
+            await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+            {
+                await _scriptCommands.ImportAsync(batch, "RunTestModule", vbaFile);
+                await batch.SaveAsync();
+            }
 
             // Act - Run the procedure
-            var result = _scriptCommands.Run(_testExcelFile, "RunTestModule.RunTest");
+            await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+            {
+                var result = await _scriptCommands.RunAsync(batch, "RunTestModule.RunTest");
 
-            // Assert
-            Assert.NotNull(result);
+                // Assert
+                Assert.NotNull(result);
+            }
         }
     }
 

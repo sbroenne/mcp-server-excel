@@ -419,6 +419,177 @@ public class CellValueResult : ResultBase
 }
 
 /// <summary>
+/// Result for Excel range value operations
+/// </summary>
+public class RangeValueResult : ResultBase
+{
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range address (e.g., A1:D10)
+    /// </summary>
+    public string RangeAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 2D array of cell values (row-major order)
+    /// </summary>
+    public List<List<object?>> Values { get; set; } = new();
+
+    /// <summary>
+    /// Number of rows in the range
+    /// </summary>
+    public int RowCount { get; set; }
+
+    /// <summary>
+    /// Number of columns in the range
+    /// </summary>
+    public int ColumnCount { get; set; }
+}
+
+/// <summary>
+/// Result for Excel range formula operations
+/// </summary>
+public class RangeFormulaResult : ResultBase
+{
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range address (e.g., A1:D10)
+    /// </summary>
+    public string RangeAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 2D array of cell formulas (row-major order, empty string if no formula)
+    /// </summary>
+    public List<List<string>> Formulas { get; set; } = new();
+
+    /// <summary>
+    /// 2D array of cell values (calculated results)
+    /// </summary>
+    public List<List<object?>> Values { get; set; } = new();
+
+    /// <summary>
+    /// Number of rows in the range
+    /// </summary>
+    public int RowCount { get; set; }
+
+    /// <summary>
+    /// Number of columns in the range
+    /// </summary>
+    public int ColumnCount { get; set; }
+}
+
+/// <summary>
+/// Result for range find operations
+/// </summary>
+public class RangeFindResult : ResultBase
+{
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range address that was searched
+    /// </summary>
+    public string RangeAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Search value
+    /// </summary>
+    public string SearchValue { get; set; } = string.Empty;
+
+    /// <summary>
+    /// List of matching cells
+    /// </summary>
+    public List<RangeCell> MatchingCells { get; set; } = new();
+}
+
+/// <summary>
+/// Represents a single cell in a range
+/// </summary>
+public class RangeCell
+{
+    /// <summary>
+    /// Cell address (e.g., "A5")
+    /// </summary>
+    public string Address { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Row number (1-based)
+    /// </summary>
+    public int Row { get; set; }
+
+    /// <summary>
+    /// Column number (1-based)
+    /// </summary>
+    public int Column { get; set; }
+
+    /// <summary>
+    /// Cell value
+    /// </summary>
+    public object? Value { get; set; }
+}
+
+/// <summary>
+/// Result for range information operations
+/// </summary>
+public class RangeInfoResult : ResultBase
+{
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Absolute address from Excel COM (e.g., "$A$1:$D$10")
+    /// </summary>
+    public string Address { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Number of rows (Excel COM: range.Rows.Count)
+    /// </summary>
+    public int RowCount { get; set; }
+
+    /// <summary>
+    /// Number of columns (Excel COM: range.Columns.Count)
+    /// </summary>
+    public int ColumnCount { get; set; }
+
+    /// <summary>
+    /// Number format code (Excel COM: range.NumberFormat, first cell)
+    /// </summary>
+    public string? NumberFormat { get; set; }
+}
+
+/// <summary>
+/// Result for hyperlink operations
+/// </summary>
+public class RangeHyperlinkResult : ResultBase
+{
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range or cell address
+    /// </summary>
+    public string RangeAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// List of hyperlinks
+    /// </summary>
+    public List<HyperlinkInfo> Hyperlinks { get; set; } = new();
+}
+
+/// <summary>
 /// Result for VBA trust operations
 /// </summary>
 public class VbaTrustResult : ResultBase
@@ -991,3 +1162,197 @@ public class DataModelCalculatedColumnViewResult : ResultBase
 
 #endregion
 
+#region Table (ListObject) Results
+
+/// <summary>
+/// Result for listing Excel Tables
+/// </summary>
+public class TableListResult : ResultBase
+{
+    /// <summary>
+    /// List of Excel Tables in the workbook
+    /// </summary>
+    public List<TableInfo> Tables { get; set; } = new();
+}
+
+/// <summary>
+/// Result for getting detailed information about an Excel Table
+/// </summary>
+public class TableInfoResult : ResultBase
+{
+    /// <summary>
+    /// Detailed information about the Excel Table
+    /// </summary>
+    public TableInfo? Table { get; set; }
+}
+
+/// <summary>
+/// Information about an Excel Table (ListObject)
+/// </summary>
+public class TableInfo
+{
+    /// <summary>
+    /// Name of the table
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Worksheet containing the table
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range address of the table (e.g., "A1:D10")
+    /// </summary>
+    public string Range { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the table has headers
+    /// </summary>
+    public bool HasHeaders { get; set; } = true;
+
+    /// <summary>
+    /// Table style name (e.g., "TableStyleMedium2")
+    /// </summary>
+    public string? TableStyle { get; set; }
+
+    /// <summary>
+    /// Number of rows (excluding header)
+    /// </summary>
+    public int RowCount { get; set; }
+
+    /// <summary>
+    /// Number of columns
+    /// </summary>
+    public int ColumnCount { get; set; }
+
+    /// <summary>
+    /// Column names (if table has headers)
+    /// </summary>
+    public List<string> Columns { get; set; } = new();
+
+    /// <summary>
+    /// Whether the table has a total row
+    /// </summary>
+    public bool ShowTotals { get; set; }
+}
+
+/// <summary>
+/// Result for reading Excel Table data
+/// </summary>
+public class TableDataResult : ResultBase
+{
+    /// <summary>
+    /// Name of the table
+    /// </summary>
+    public string TableName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Column headers
+    /// </summary>
+    public List<string> Headers { get; set; } = new();
+
+    /// <summary>
+    /// Data rows (each row is a list of cell values)
+    /// </summary>
+    public List<List<object?>> Data { get; set; } = new();
+
+    /// <summary>
+    /// Number of rows (excluding header)
+    /// </summary>
+    public int RowCount { get; set; }
+
+    /// <summary>
+    /// Number of columns
+    /// </summary>
+    public int ColumnCount { get; set; }
+}
+
+#endregion
+
+#region Hyperlink Results
+
+/// <summary>
+/// Information about a hyperlink in an Excel cell
+/// </summary>
+public class HyperlinkInfo
+{
+    /// <summary>
+    /// Cell address containing the hyperlink
+    /// </summary>
+    public string CellAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Hyperlink URL or file path
+    /// </summary>
+    public string Address { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Sub-address within the target (e.g., sheet reference)
+    /// </summary>
+    public string? SubAddress { get; set; }
+
+    /// <summary>
+    /// Display text (visible text in cell)
+    /// </summary>
+    public string DisplayText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Tooltip/ScreenTip text
+    /// </summary>
+    public string? ScreenTip { get; set; }
+
+    /// <summary>
+    /// Whether the hyperlink points to another location in the workbook
+    /// </summary>
+    public bool IsInternal { get; set; }
+}
+
+/// <summary>
+/// Result for listing hyperlinks in a worksheet
+/// </summary>
+public class HyperlinkListResult : ResultBase
+{
+    /// <summary>
+    /// List of hyperlinks in the worksheet
+    /// </summary>
+    public List<HyperlinkInfo> Hyperlinks { get; set; } = new();
+
+    /// <summary>
+    /// Total count of hyperlinks
+    /// </summary>
+    public int Count { get; set; }
+
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Result for getting hyperlink information from a specific cell
+/// </summary>
+public class HyperlinkInfoResult : ResultBase
+{
+    /// <summary>
+    /// Hyperlink information (null if no hyperlink exists)
+    /// </summary>
+    public HyperlinkInfo? Hyperlink { get; set; }
+
+    /// <summary>
+    /// Whether a hyperlink exists at the specified cell
+    /// </summary>
+    public bool HasHyperlink { get; set; }
+
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Cell address
+    /// </summary>
+    public string CellAddress { get; set; } = string.Empty;
+}
+
+#endregion

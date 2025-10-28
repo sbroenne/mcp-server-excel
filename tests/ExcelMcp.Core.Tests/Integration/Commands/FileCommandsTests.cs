@@ -4,20 +4,30 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 
 /// <summary>
-/// Unit tests for Core FileCommands - testing data layer without UI
-/// These tests verify that Core returns correct Result objects
+/// Core business logic tests for FileCommands - testing Excel operations and Result objects
+///
+/// LAYER RESPONSIBILITY:
+/// - ✅ Test all Excel COM file operations (create, validate, etc.)
+/// - ✅ Test Result object properties and error messages
+/// - ✅ Test edge cases and error scenarios
+/// - ✅ Test actual file system operations
+/// - ❌ DO NOT test CLI argument parsing or console output (that's CLI's responsibility)
+/// - ❌ DO NOT test JSON serialization (that's MCP Server's responsibility)
+///
+/// NOTE: ExcelSession handles all COM cleanup automatically. Tests await async operations,
+/// so COM objects are fully released by the time tests complete.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
 [Trait("Feature", "Files")]
 [Trait("Layer", "Core")]
-public class CoreFileCommandsTests : IDisposable
+public class FileCommandsTests : IDisposable
 {
     private readonly FileCommands _fileCommands;
     private readonly string _tempDir;
     private readonly List<string> _createdFiles;
 
-    public CoreFileCommandsTests()
+    public FileCommandsTests()
     {
         _fileCommands = new FileCommands();
 
@@ -29,14 +39,14 @@ public class CoreFileCommandsTests : IDisposable
     }
 
     [Fact]
-    public void CreateEmpty_WithValidPath_ReturnsSuccessResult()
+    public async Task CreateEmpty_WithValidPath_ReturnsSuccessResult()
     {
         // Arrange
         string testFile = Path.Combine(_tempDir, "TestFile.xlsx");
         _createdFiles.Add(testFile);
 
         // Act
-        var result = _fileCommands.CreateEmpty(testFile);
+        var result = await _fileCommands.CreateEmptyAsync(testFile);
 
         // Assert
         Assert.True(result.Success);
@@ -51,15 +61,15 @@ public class CoreFileCommandsTests : IDisposable
     }
 
     [Fact]
-    public void CreateEmpty_WithNestedDirectory_CreatesDirectoryAndReturnsSuccess()
+    public async Task CreateEmpty_WithNestedDirectory_CreatesDirectoryAndReturnsSuccess()
     {
         // Arrange
-        string nestedDir = Path.Combine(_tempDir, "nested", "deep", "path");
-        string testFile = Path.Combine(nestedDir, "TestFile.xlsx");
+        string nestedDir = Path.Combine(_tempDir, "Nested", "Subdirectory");
+        string testFile = Path.Combine(nestedDir, "NestedFile.xlsx");
         _createdFiles.Add(testFile);
 
         // Act
-        var result = _fileCommands.CreateEmpty(testFile);
+        var result = await _fileCommands.CreateEmptyAsync(testFile);
 
         // Assert
         Assert.True(result.Success);
@@ -68,13 +78,13 @@ public class CoreFileCommandsTests : IDisposable
     }
 
     [Fact]
-    public void CreateEmpty_WithEmptyPath_ReturnsErrorResult()
+    public async Task CreateEmpty_WithEmptyPath_ReturnsErrorResult()
     {
         // Arrange
         string invalidPath = "";
 
         // Act
-        var result = _fileCommands.CreateEmpty(invalidPath);
+        var result = await _fileCommands.CreateEmptyAsync(invalidPath);
 
         // Assert
         Assert.False(result.Success);
@@ -83,33 +93,33 @@ public class CoreFileCommandsTests : IDisposable
     }
 
     [Fact]
-    public void CreateEmpty_WithRelativePath_ConvertsToAbsoluteAndReturnsSuccess()
+    public async Task CreateEmpty_WithRelativePath_ConvertsToAbsoluteAndReturnsSuccess()
     {
         // Arrange
-        string relativePath = "RelativeTestFile.xlsx";
-        string expectedPath = Path.GetFullPath(relativePath);
-        _createdFiles.Add(expectedPath);
+        string relativePath = "TestFile.xlsx";
+        string expectedAbsPath = Path.GetFullPath(relativePath);
+        _createdFiles.Add(expectedAbsPath);
 
         // Act
-        var result = _fileCommands.CreateEmpty(relativePath);
+        var result = await _fileCommands.CreateEmptyAsync(relativePath);
 
         // Assert
         Assert.True(result.Success);
-        Assert.True(File.Exists(expectedPath));
-        Assert.Equal(expectedPath, Path.GetFullPath(result.FilePath!));
+        Assert.True(File.Exists(expectedAbsPath));
+        Assert.Equal(expectedAbsPath, Path.GetFullPath(result.FilePath!));
     }
 
     [Theory]
     [InlineData("TestFile.xlsx")]
     [InlineData("TestFile.xlsm")]
-    public void CreateEmpty_WithValidExtensions_ReturnsSuccessResult(string fileName)
+    public async Task CreateEmpty_WithValidExtensions_ReturnsSuccessResult(string fileName)
     {
         // Arrange
         string testFile = Path.Combine(_tempDir, fileName);
         _createdFiles.Add(testFile);
 
         // Act
-        var result = _fileCommands.CreateEmpty(testFile);
+        var result = await _fileCommands.CreateEmptyAsync(testFile);
 
         // Assert
         Assert.True(result.Success);
@@ -121,13 +131,13 @@ public class CoreFileCommandsTests : IDisposable
     [InlineData("TestFile.xls")]
     [InlineData("TestFile.csv")]
     [InlineData("TestFile.txt")]
-    public void CreateEmpty_WithInvalidExtensions_ReturnsErrorResult(string fileName)
+    public async Task CreateEmpty_WithInvalidExtensions_ReturnsErrorResult(string fileName)
     {
         // Arrange
         string testFile = Path.Combine(_tempDir, fileName);
 
         // Act
-        var result = _fileCommands.CreateEmpty(testFile);
+        var result = await _fileCommands.CreateEmptyAsync(testFile);
 
         // Assert
         Assert.False(result.Success);
@@ -137,13 +147,13 @@ public class CoreFileCommandsTests : IDisposable
     }
 
     [Fact]
-    public void CreateEmpty_WithInvalidPath_ReturnsErrorResult()
+    public async Task CreateEmpty_WithInvalidPath_ReturnsErrorResult()
     {
         // Arrange - Use invalid characters in path
         string invalidPath = Path.Combine(_tempDir, "invalid<>file.xlsx");
 
         // Act
-        var result = _fileCommands.CreateEmpty(invalidPath);
+        var result = await _fileCommands.CreateEmptyAsync(invalidPath);
 
         // Assert
         Assert.False(result.Success);
@@ -151,7 +161,7 @@ public class CoreFileCommandsTests : IDisposable
     }
 
     [Fact]
-    public void CreateEmpty_MultipleTimes_ReturnsSuccessForEachFile()
+    public async Task CreateEmpty_MultipleTimes_ReturnsSuccessForEachFile()
     {
         // Arrange
         string[] testFiles = {
@@ -165,7 +175,7 @@ public class CoreFileCommandsTests : IDisposable
         // Act & Assert
         foreach (string testFile in testFiles)
         {
-            var result = _fileCommands.CreateEmpty(testFile);
+            var result = await _fileCommands.CreateEmptyAsync(testFile);
 
             Assert.True(result.Success);
             Assert.Null(result.ErrorMessage);
@@ -174,18 +184,18 @@ public class CoreFileCommandsTests : IDisposable
     }
 
     [Fact]
-    public void CreateEmpty_FileAlreadyExists_WithoutOverwrite_ReturnsError()
+    public async Task CreateEmpty_FileAlreadyExists_WithoutOverwrite_ReturnsError()
     {
         // Arrange
         string testFile = Path.Combine(_tempDir, "ExistingFile.xlsx");
         _createdFiles.Add(testFile);
 
         // Create file first
-        var firstResult = _fileCommands.CreateEmpty(testFile);
+        var firstResult = await _fileCommands.CreateEmptyAsync(testFile);
         Assert.True(firstResult.Success);
 
         // Act - Try to create again without overwrite flag
-        var result = _fileCommands.CreateEmpty(testFile, overwriteIfExists: false);
+        var result = await _fileCommands.CreateEmptyAsync(testFile, overwriteIfExists: false);
 
         // Assert
         Assert.False(result.Success);
@@ -194,14 +204,14 @@ public class CoreFileCommandsTests : IDisposable
     }
 
     [Fact]
-    public void CreateEmpty_FileAlreadyExists_WithOverwrite_ReturnsSuccess()
+    public async Task CreateEmpty_FileAlreadyExists_WithOverwrite_ReturnsSuccess()
     {
         // Arrange
         string testFile = Path.Combine(_tempDir, "OverwriteFile.xlsx");
         _createdFiles.Add(testFile);
 
         // Create file first
-        var firstResult = _fileCommands.CreateEmpty(testFile);
+        var firstResult = await _fileCommands.CreateEmptyAsync(testFile);
         Assert.True(firstResult.Success);
 
         // Get original file info
@@ -212,7 +222,7 @@ public class CoreFileCommandsTests : IDisposable
         System.Threading.Thread.Sleep(100);
 
         // Act - Overwrite
-        var result = _fileCommands.CreateEmpty(testFile, overwriteIfExists: true);
+        var result = await _fileCommands.CreateEmptyAsync(testFile, overwriteIfExists: true);
 
         // Assert
         Assert.True(result.Success);
@@ -227,10 +237,12 @@ public class CoreFileCommandsTests : IDisposable
     public void Dispose()
     {
         // Clean up test files
+        // NOTE: ExcelSession handles all COM cleanup synchronously, so files are already released
+        // by the time tests complete. Just need basic file deletion.
         try
         {
-            // Wait a bit for Excel to fully release files
-            System.Threading.Thread.Sleep(500);
+            // Brief delay for any pending async operations
+            System.Threading.Thread.Sleep(200);
 
             // Delete individual files first
             foreach (string file in _createdFiles)
@@ -251,21 +263,13 @@ public class CoreFileCommandsTests : IDisposable
             // Then delete the temp directory
             if (Directory.Exists(_tempDir))
             {
-                // Try to delete directory multiple times if needed
-                for (int i = 0; i < 3; i++)
+                try
                 {
-                    try
-                    {
-                        Directory.Delete(_tempDir, true);
-                        break;
-                    }
-                    catch (IOException)
-                    {
-                        if (i == 2) throw; // Last attempt failed
-                        System.Threading.Thread.Sleep(1000);
-                        GC.Collect();
-                        GC.WaitForPendingFinalizers();
-                    }
+                    Directory.Delete(_tempDir, true);
+                }
+                catch
+                {
+                    // Best effort cleanup - don't fail tests if cleanup fails
                 }
             }
         }

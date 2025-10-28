@@ -5,9 +5,15 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 
 /// <summary>
-/// Tests for CLI DataModelCommands - verifying CLI-specific behavior (argument parsing, exit codes, formatting)
-/// These tests focus on the presentation layer, not the business logic
-/// Core Data Model logic is tested in ExcelMcp.Core.Tests
+/// CLI-specific tests for DataModelCommands - verifying argument parsing, exit codes, and CLI behavior
+///
+/// LAYER RESPONSIBILITY:
+/// - ✅ Test argument validation (missing args, invalid args)
+/// - ✅ Test exit code mapping (0 for success, 1 for error)
+/// - ✅ Test user interaction (prompts, console output if applicable)
+/// - ❌ DO NOT test Data Model operations or Excel COM interop (that's Core's responsibility)
+///
+/// These tests verify the CLI wrapper works correctly. Business logic is tested in ExcelMcp.Core.Tests.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
@@ -49,7 +55,7 @@ public class CliDataModelCommandsTests : IDisposable
         // Create realistic Data Model with sample data
         try
         {
-            DataModelTestHelper.CreateSampleDataModel(_testExcelFile);
+            DataModelTestHelper.CreateSampleDataModelAsync(_testExcelFile).GetAwaiter().GetResult();
         }
         catch (Exception ex)
         {
@@ -100,13 +106,13 @@ public class CliDataModelCommandsTests : IDisposable
     }
 
     [Fact]
-    public async Task ExportMeasure_WithMissingOutputFileArg_ReturnsErrorExitCode()
+    public void ExportMeasure_WithMissingOutputFileArg_ReturnsErrorExitCode()
     {
         // Arrange
         string[] args = { "dm-export-measure", _testExcelFile, "SomeMeasure" }; // Missing output file
 
         // Act
-        int exitCode = await _cliCommands.ExportMeasure(args);
+        int exitCode = _cliCommands.ExportMeasure(args);
 
         // Assert - CLI returns 1 for error (missing arguments)
         Assert.Equal(1, exitCode);
@@ -244,14 +250,14 @@ public class CliDataModelCommandsTests : IDisposable
     }
 
     [Fact]
-    public async Task ExportMeasure_WithNonExistentMeasure_ReturnsErrorExitCode()
+    public void ExportMeasure_WithNonExistentMeasure_ReturnsErrorExitCode()
     {
         // Arrange
         string outputPath = Path.Combine(_tempDir, "output.dax");
         string[] args = { "dm-export-measure", _testExcelFile, "NonExistentMeasure", outputPath };
 
         // Act
-        int exitCode = await _cliCommands.ExportMeasure(args);
+        int exitCode = _cliCommands.ExportMeasure(args);
 
         // Assert - CLI returns 1 for error (measure not found or no Data Model)
         Assert.Equal(1, exitCode);
@@ -288,12 +294,12 @@ public class CliDataModelCommandsTests : IDisposable
     }
 
     [Fact(Skip = "Data Model test helper requires specific Excel version/configuration. May fail on some environments due to Data Model availability.")]
-    public void DeleteMeasure_WithValidMeasure_ReturnsSuccess()
+    public async Task DeleteMeasure_WithValidMeasure_ReturnsSuccess()
     {
         // Arrange - Create a test measure first
         var measureName = "TestMeasure_" + Guid.NewGuid().ToString("N")[..8];
 
-        DataModelTestHelper.CreateTestMeasure(_testExcelFile, measureName, "SUM(Sales[Amount])");
+        await DataModelTestHelper.CreateTestMeasureAsync(_testExcelFile, measureName, "SUM(Sales[Amount])");
 
         string[] args = { "dm-delete-measure", _testExcelFile, measureName };
 

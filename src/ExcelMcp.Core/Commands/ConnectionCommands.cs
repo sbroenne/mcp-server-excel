@@ -1,10 +1,12 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.Core.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Connections;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
-using Sbroenne.ExcelMcp.Core.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
+
+#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -17,15 +19,15 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Lists all connections in a workbook
     /// </summary>
-    public ConnectionListResult List(string filePath)
+    public async Task<ConnectionListResult> ListAsync(IExcelBatch batch)
     {
-        var result = new ConnectionListResult { FilePath = filePath };
+        var result = new ConnectionListResult { FilePath = batch.WorkbookPath };
 
-        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
-                dynamic connections = workbook.Connections;
+                dynamic connections = ctx.Book.Connections;
 
                 for (int i = 1; i <= connections.Count; i++)
                 {
@@ -68,19 +70,19 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Views detailed connection information
     /// </summary>
-    public ConnectionViewResult View(string filePath, string connectionName)
+    public async Task<ConnectionViewResult> ViewAsync(IExcelBatch batch, string connectionName)
     {
         var result = new ConnectionViewResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             ConnectionName = connectionName
         };
 
-        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
-                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
                 if (conn == null)
                 {
@@ -133,11 +135,11 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Imports connection from JSON file
     /// </summary>
-    public OperationResult Import(string filePath, string connectionName, string jsonFilePath)
+    public async Task<OperationResult> ImportAsync(IExcelBatch batch, string connectionName, string jsonFilePath)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "import"
         };
 
@@ -161,12 +163,12 @@ public class ConnectionCommands : IConnectionCommands
                 return result;
             }
 
-            return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+            return await batch.ExecuteAsync(async (ctx, ct) =>
             {
                 try
                 {
                     // Check if connection already exists
-                    dynamic? existing = ComUtilities.FindConnection(workbook, connectionName);
+                    dynamic? existing = ComUtilities.FindConnection(ctx.Book, connectionName);
                     if (existing != null)
                     {
                         result.Success = false;
@@ -175,7 +177,7 @@ public class ConnectionCommands : IConnectionCommands
                     }
 
                     // Create new connection based on type
-                    CreateConnection(workbook, connectionName, definition);
+                    CreateConnection(ctx.Book, connectionName, definition);
 
                     result.Success = true;
                     return result;
@@ -199,19 +201,19 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Exports connection to JSON file
     /// </summary>
-    public OperationResult Export(string filePath, string connectionName, string jsonFilePath)
+    public async Task<OperationResult> ExportAsync(IExcelBatch batch, string connectionName, string jsonFilePath)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "export"
         };
 
-        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
-                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
                 if (conn == null)
                 {
@@ -267,11 +269,11 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Updates existing connection from JSON file
     /// </summary>
-    public OperationResult Update(string filePath, string connectionName, string jsonFilePath)
+    public async Task<OperationResult> UpdateAsync(IExcelBatch batch, string connectionName, string jsonFilePath)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "update"
         };
 
@@ -295,11 +297,11 @@ public class ConnectionCommands : IConnectionCommands
                 return result;
             }
 
-            return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+            return await batch.ExecuteAsync(async (ctx, ct) =>
             {
                 try
                 {
-                    dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
+                    dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
                     if (conn == null)
                     {
@@ -341,19 +343,19 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Refreshes connection data
     /// </summary>
-    public OperationResult Refresh(string filePath, string connectionName)
+    public async Task<OperationResult> RefreshAsync(IExcelBatch batch, string connectionName)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "refresh"
         };
 
-        return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
-                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
                 if (conn == null)
                 {
@@ -380,19 +382,19 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Deletes a connection
     /// </summary>
-    public OperationResult Delete(string filePath, string connectionName)
+    public async Task<OperationResult> DeleteAsync(IExcelBatch batch, string connectionName)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "delete"
         };
 
-        return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
-                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
                 if (conn == null)
                 {
@@ -410,7 +412,7 @@ public class ConnectionCommands : IConnectionCommands
                 }
 
                 // Remove associated QueryTables first
-                PowerQueryHelpers.RemoveQueryTables(workbook, connectionName);
+                PowerQueryHelpers.RemoveQueryTables(ctx.Book, connectionName);
 
                 // Delete the connection
                 conn.Delete();
@@ -430,19 +432,19 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Loads connection data to a worksheet
     /// </summary>
-    public OperationResult LoadTo(string filePath, string connectionName, string sheetName)
+    public async Task<OperationResult> LoadToAsync(IExcelBatch batch, string connectionName, string sheetName)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "loadto"
         };
 
-        return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
-                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
                 if (conn == null)
                 {
@@ -460,7 +462,7 @@ public class ConnectionCommands : IConnectionCommands
                 }
 
                 // Find or create target sheet
-                dynamic sheets = workbook.Worksheets;
+                dynamic sheets = ctx.Book.Worksheets;
                 dynamic? targetSheet = null;
 
                 for (int i = 1; i <= sheets.Count; i++)
@@ -480,7 +482,7 @@ public class ConnectionCommands : IConnectionCommands
                 }
 
                 // Remove existing QueryTables first
-                PowerQueryHelpers.RemoveQueryTables(workbook, connectionName);
+                PowerQueryHelpers.RemoveQueryTables(ctx.Book, connectionName);
 
                 // Create QueryTable to load data
                 var options = new PowerQueryHelpers.QueryTableOptions
@@ -506,19 +508,19 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Gets connection properties
     /// </summary>
-    public ConnectionPropertiesResult GetProperties(string filePath, string connectionName)
+    public async Task<ConnectionPropertiesResult> GetPropertiesAsync(IExcelBatch batch, string connectionName)
     {
         var result = new ConnectionPropertiesResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             ConnectionName = connectionName
         };
 
-        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
-                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
                 if (conn == null)
                 {
@@ -547,21 +549,21 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Sets connection properties
     /// </summary>
-    public OperationResult SetProperties(string filePath, string connectionName,
+    public async Task<OperationResult> SetPropertiesAsync(IExcelBatch batch, string connectionName,
         bool? backgroundQuery = null, bool? refreshOnFileOpen = null,
         bool? savePassword = null, int? refreshPeriod = null)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "set-properties"
         };
 
-        return ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
-                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
                 if (conn == null)
                 {
@@ -599,19 +601,19 @@ public class ConnectionCommands : IConnectionCommands
     /// <summary>
     /// Tests connection without refreshing data
     /// </summary>
-    public OperationResult Test(string filePath, string connectionName)
+    public async Task<OperationResult> TestAsync(IExcelBatch batch, string connectionName)
     {
         var result = new OperationResult
         {
-            FilePath = filePath,
+            FilePath = batch.WorkbookPath,
             Action = "test"
         };
 
-        return ExcelSession.Execute(filePath, save: false, (excel, workbook) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
-                dynamic? conn = ComUtilities.FindConnection(workbook, connectionName);
+                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
                 if (conn == null)
                 {
@@ -671,13 +673,24 @@ public class ConnectionCommands : IConnectionCommands
             {
                 return conn.ODBCConnection?.BackgroundQuery ?? false;
             }
-            else if (connType == 3) // Text
+            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
             {
-                return conn.TextConnection?.BackgroundQuery ?? false;
-            }
-            else if (connType == 4) // Web
-            {
-                return conn.WebConnection?.BackgroundQuery ?? false;
+                // Try TextConnection first, fall back to WebConnection
+                try
+                {
+                    return conn.TextConnection?.BackgroundQuery ?? false;
+                }
+                catch
+                {
+                    try
+                    {
+                        return conn.WebConnection?.BackgroundQuery ?? false;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                }
             }
         }
         catch
@@ -702,13 +715,24 @@ public class ConnectionCommands : IConnectionCommands
             {
                 return conn.ODBCConnection?.RefreshOnFileOpen ?? false;
             }
-            else if (connType == 3) // Text
+            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
             {
-                return conn.TextConnection?.RefreshOnFileOpen ?? false;
-            }
-            else if (connType == 4) // Web
-            {
-                return conn.WebConnection?.RefreshOnFileOpen ?? false;
+                // Try TextConnection first, fall back to WebConnection
+                try
+                {
+                    return conn.TextConnection?.RefreshOnFileOpen ?? false;
+                }
+                catch
+                {
+                    try
+                    {
+                        return conn.WebConnection?.RefreshOnFileOpen ?? false;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                }
             }
         }
         catch
@@ -733,13 +757,24 @@ public class ConnectionCommands : IConnectionCommands
             {
                 return conn.ODBCConnection?.SavePassword ?? false;
             }
-            else if (connType == 3) // Text
+            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
             {
-                return conn.TextConnection?.SavePassword ?? false;
-            }
-            else if (connType == 4) // Web
-            {
-                return conn.WebConnection?.SavePassword ?? false;
+                // Try TextConnection first, fall back to WebConnection
+                try
+                {
+                    return conn.TextConnection?.SavePassword ?? false;
+                }
+                catch
+                {
+                    try
+                    {
+                        return conn.WebConnection?.SavePassword ?? false;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                }
             }
         }
         catch
@@ -763,6 +798,25 @@ public class ConnectionCommands : IConnectionCommands
             else if (connType == 2) // ODBC
             {
                 return conn.ODBCConnection?.RefreshPeriod ?? 0;
+            }
+            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
+            {
+                // Try TextConnection first, fall back to WebConnection
+                try
+                {
+                    return conn.TextConnection?.RefreshPeriod ?? 0;
+                }
+                catch
+                {
+                    try
+                    {
+                        return conn.WebConnection?.RefreshPeriod ?? 0;
+                    }
+                    catch
+                    {
+                        return 0;
+                    }
+                }
             }
         }
         catch
@@ -1055,67 +1109,80 @@ public class ConnectionCommands : IConnectionCommands
                     }
                 }
             }
-            else if (connType == 3) // Text
+            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV files as either
             {
-                var text = conn.TextConnection;
-                if (text != null)
+                // Excel has type 3/4 confusion: CSV files created with "TEXT;filepath" may be reported as type 4 (WEB)
+                // Try TextConnection first (correct for type 3), fall back to WebConnection if that fails
+                dynamic? textOrWeb = null!;
+                try
+                {
+                    textOrWeb = conn.TextConnection; // Try TEXT first
+                }
+                catch
+                {
+                    try
+                    {
+                        textOrWeb = conn.WebConnection; // Fall back to WEB
+                    }
+                    catch
+                    {
+                        // Neither works - skip property updates
+                    }
+                }
+
+                if (textOrWeb != null)
                 {
                     if (!string.IsNullOrWhiteSpace(definition.ConnectionString))
                     {
-                        text.Connection = definition.ConnectionString;
+                        textOrWeb.Connection = definition.ConnectionString;
                     }
                     if (!string.IsNullOrWhiteSpace(definition.CommandText))
                     {
-                        text.CommandText = definition.CommandText;
+                        textOrWeb.CommandText = definition.CommandText;
                     }
                     if (definition.BackgroundQuery.HasValue)
                     {
-                        text.BackgroundQuery = definition.BackgroundQuery.Value;
+                        textOrWeb.BackgroundQuery = definition.BackgroundQuery.Value;
                     }
                     if (definition.RefreshOnFileOpen.HasValue)
                     {
-                        text.RefreshOnFileOpen = definition.RefreshOnFileOpen.Value;
+                        textOrWeb.RefreshOnFileOpen = definition.RefreshOnFileOpen.Value;
                     }
                     if (definition.SavePassword.HasValue)
                     {
-                        text.SavePassword = definition.SavePassword.Value;
+                        textOrWeb.SavePassword = definition.SavePassword.Value;
                     }
                     if (definition.RefreshPeriod.HasValue)
                     {
-                        text.RefreshPeriod = definition.RefreshPeriod.Value;
+                        textOrWeb.RefreshPeriod = definition.RefreshPeriod.Value;
                     }
                 }
             }
-            else if (connType == 4) // Web
+            else if (connType == 5) // XMLMAP (moved from 4 due to type 3/4 merge)
             {
-                var web = conn.WebConnection;
-                if (web != null)
-                {
-                    if (!string.IsNullOrWhiteSpace(definition.ConnectionString))
-                    {
-                        web.Connection = definition.ConnectionString;
-                    }
-                    if (!string.IsNullOrWhiteSpace(definition.CommandText))
-                    {
-                        web.CommandText = definition.CommandText;
-                    }
-                    if (definition.BackgroundQuery.HasValue)
-                    {
-                        web.BackgroundQuery = definition.BackgroundQuery.Value;
-                    }
-                    if (definition.RefreshOnFileOpen.HasValue)
-                    {
-                        web.RefreshOnFileOpen = definition.RefreshOnFileOpen.Value;
-                    }
-                    if (definition.SavePassword.HasValue)
-                    {
-                        web.SavePassword = definition.SavePassword.Value;
-                    }
-                    if (definition.RefreshPeriod.HasValue)
-                    {
-                        web.RefreshPeriod = definition.RefreshPeriod.Value;
-                    }
-                }
+                // XMLMAP connection properties - future implementation
+                // For now, just update basic properties like description (already done above)
+            }
+            else if (connType == 6) // DATAFEED  
+            {
+                // DATAFEED connection properties - future implementation
+            }
+            else if (connType == 7) // MODEL
+            {
+                // MODEL connection properties - future implementation
+            }
+            else if (connType == 8) // WORKSHEET
+            {
+                // WORKSHEET connection properties - future implementation
+            }
+            else if (connType == 9) // NOSOURCE
+            {
+                // NOSOURCE connection properties - future implementation
+            }
+            else
+            {
+                // Unknown connection type - skip property updates
+                // Description was already updated above if provided
             }
         }
         catch (Exception ex)
@@ -1148,20 +1215,29 @@ public class ConnectionCommands : IConnectionCommands
                     SetProperty(odbc, propertyName, value.Value);
                 }
             }
-            else if (connType == 3) // Text
+            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV files as either
             {
-                var text = conn.TextConnection;
-                if (text != null)
+                // Try TextConnection first, fall back to WebConnection
+                dynamic? textOrWeb = null;
+                try
                 {
-                    SetProperty(text, propertyName, value.Value);
+                    textOrWeb = conn.TextConnection;
                 }
-            }
-            else if (connType == 4) // Web
-            {
-                var web = conn.WebConnection;
-                if (web != null)
+                catch
                 {
-                    SetProperty(web, propertyName, value.Value);
+                    try
+                    {
+                        textOrWeb = conn.WebConnection;
+                    }
+                    catch
+                    {
+                        // Neither works
+                    }
+                }
+                
+                if (textOrWeb != null)
+                {
+                    SetProperty(textOrWeb, propertyName, value.Value);
                 }
             }
         }

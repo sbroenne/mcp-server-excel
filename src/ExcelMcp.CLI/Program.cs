@@ -39,13 +39,14 @@ class Program
         {
             var powerQuery = new PowerQueryCommands();
             var sheet = new SheetCommands();
+            var range = new RangeCommands();
             var param = new ParameterCommands();
-            var cell = new CellCommands();
             var script = new ScriptCommands();
             var file = new FileCommands();
             var connection = new ConnectionCommands();
             var dataModel = new DataModelCommands();
             var dataModelTom = new DataModelTomCommands();
+            var table = new TableCommands();
 
             return args[0].ToLower() switch
             {
@@ -76,16 +77,21 @@ class Program
                 "pq-set-load-to-both" => powerQuery.SetLoadToBoth(args),
                 "pq-get-load-config" => powerQuery.GetLoadConfig(args),
 
-                // Sheet commands
+                // Sheet commands (lifecycle only - data operations moved to range-* commands in Phase 1A)
                 "sheet-list" => sheet.List(args),
-                "sheet-read" => sheet.Read(args),
-                "sheet-write" => await sheet.Write(args),
                 "sheet-copy" => sheet.Copy(args),
                 "sheet-delete" => sheet.Delete(args),
                 "sheet-create" => sheet.Create(args),
                 "sheet-rename" => sheet.Rename(args),
-                "sheet-clear" => sheet.Clear(args),
-                "sheet-append" => sheet.Append(args),
+
+                // Range commands (data operations - replaces sheet-read/write/clear/append from Phase 1A)
+                "range-get-values" => range.GetValues(args),
+                "range-set-values" => range.SetValues(args),
+                "range-get-formulas" => range.GetFormulas(args),
+                "range-set-formulas" => range.SetFormulas(args),
+                "range-clear-all" => range.ClearAll(args),
+                "range-clear-contents" => range.ClearContents(args),
+                "range-clear-formats" => range.ClearFormats(args),
 
                 // Parameter commands
                 "param-list" => param.List(args),
@@ -95,11 +101,19 @@ class Program
                 "param-create" => param.Create(args),
                 "param-delete" => param.Delete(args),
 
-                // Cell commands
-                "cell-get-value" => cell.GetValue(args),
-                "cell-set-value" => cell.SetValue(args),
-                "cell-get-formula" => cell.GetFormula(args),
-                "cell-set-formula" => cell.SetFormula(args),
+                // Table commands
+                "table-list" => table.List(args),
+                "table-create" => table.Create(args),
+                "table-rename" => table.Rename(args),
+                "table-delete" => table.Delete(args),
+                "table-info" => table.Info(args),
+                "table-resize" => table.Resize(args),
+                "table-toggle-totals" => table.ToggleTotals(args),
+                "table-set-column-total" => table.SetColumnTotal(args),
+                "table-read" => table.ReadData(args),
+                "table-append" => table.AppendRows(args),
+                "table-set-style" => table.SetStyle(args),
+                "table-add-to-datamodel" => table.AddToDataModel(args),
 
                 // Connection commands
                 "conn-list" => connection.List(args),
@@ -122,23 +136,29 @@ class Program
                 "script-update" => await script.Update(args),
                 "script-run" => script.Run(args),
 
-                // Data Model commands
+                // Data Model commands (READ operations via COM API)
                 "dm-list-tables" => dataModel.ListTables(args),
                 "dm-list-measures" => dataModel.ListMeasures(args),
                 "dm-view-measure" => dataModel.ViewMeasure(args),
-                "dm-export-measure" => await dataModel.ExportMeasure(args),
+                "dm-export-measure" => dataModel.ExportMeasure(args),
                 "dm-list-relationships" => dataModel.ListRelationships(args),
                 "dm-refresh" => dataModel.Refresh(args),
                 "dm-delete-measure" => dataModel.DeleteMeasure(args),
                 "dm-delete-relationship" => dataModel.DeleteRelationship(args),
 
-                // Data Model TOM (Tabular Object Model) commands - CRUD operations
-                "dm-create-measure" => dataModelTom.CreateMeasure(args),
-                "dm-update-measure" => dataModelTom.UpdateMeasure(args),
-                "dm-create-relationship" => dataModelTom.CreateRelationship(args),
-                "dm-update-relationship" => dataModelTom.UpdateRelationship(args),
+                // Data Model Phase 2 commands (Discovery operations via COM API)
+                "dm-list-columns" => dataModel.ListColumns(args),
+                "dm-view-table" => dataModel.ViewTable(args),
+                "dm-get-model-info" => dataModel.GetModelInfo(args),
+
+                // Data Model Phase 2 commands (CREATE/UPDATE operations via COM API)
+                "dm-create-measure" => dataModel.CreateMeasure(args),
+                "dm-update-measure" => dataModel.UpdateMeasure(args),
+                "dm-create-relationship" => dataModel.CreateRelationship(args),
+                "dm-update-relationship" => dataModel.UpdateRelationship(args),
+
+                // Data Model TOM (Tabular Object Model) commands - Advanced CRUD operations (future)
                 "dm-create-column" => dataModelTom.CreateCalculatedColumn(args),
-                "dm-list-columns" => dataModelTom.ListCalculatedColumns(args),
                 "dm-view-column" => dataModelTom.ViewCalculatedColumn(args),
                 "dm-update-column" => dataModelTom.UpdateCalculatedColumn(args),
                 "dm-delete-column" => dataModelTom.DeleteCalculatedColumn(args),
@@ -274,16 +294,24 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]pq-get-load-config[/] file.xlsx query        Get current load configuration");
         AnsiConsole.WriteLine();
 
-        AnsiConsole.MarkupLine("[bold yellow]Sheet Commands:[/]");
+        AnsiConsole.MarkupLine("[bold yellow]Sheet Commands (Lifecycle Management):[/]");
         AnsiConsole.MarkupLine("  [cyan]sheet-list[/] file.xlsx                         List all worksheets");
-        AnsiConsole.MarkupLine("  [cyan]sheet-read[/] file.xlsx sheet (range)          Read data from worksheet");
-        AnsiConsole.MarkupLine("  [cyan]sheet-write[/] file.xlsx sheet data.csv         Write CSV data to worksheet");
         AnsiConsole.MarkupLine("  [cyan]sheet-copy[/] file.xlsx src-sheet new-sheet     Copy worksheet");
         AnsiConsole.MarkupLine("  [cyan]sheet-delete[/] file.xlsx sheet-name            Delete worksheet");
         AnsiConsole.MarkupLine("  [cyan]sheet-create[/] file.xlsx sheet-name            Create new worksheet");
         AnsiConsole.MarkupLine("  [cyan]sheet-rename[/] file.xlsx old-name new-name     Rename worksheet");
-        AnsiConsole.MarkupLine("  [cyan]sheet-clear[/] file.xlsx sheet-name (range)     Clear worksheet data");
-        AnsiConsole.MarkupLine("  [cyan]sheet-append[/] file.xlsx sheet-name data.csv   Append CSV data to worksheet");
+        AnsiConsole.MarkupLine("  [dim]Note: Data operations (read, write, clear) moved to range-* commands[/]");
+        AnsiConsole.WriteLine();
+
+        AnsiConsole.MarkupLine("[bold yellow]Range Commands (Data Operations):[/]");
+        AnsiConsole.MarkupLine("  [cyan]range-get-values[/] file.xlsx sheet range      Read values from range (output: CSV)");
+        AnsiConsole.MarkupLine("  [cyan]range-set-values[/] file.xlsx sheet range csv  Write CSV data to range");
+        AnsiConsole.MarkupLine("  [cyan]range-get-formulas[/] file.xlsx sheet range    Read formulas from range");
+        AnsiConsole.MarkupLine("  [cyan]range-set-formulas[/] file.xlsx sheet range csv Set formulas from CSV");
+        AnsiConsole.MarkupLine("  [cyan]range-clear-all[/] file.xlsx sheet range       Clear all (values, formulas, formats)");
+        AnsiConsole.MarkupLine("  [cyan]range-clear-contents[/] file.xlsx sheet range  Clear contents (preserve formats)");
+        AnsiConsole.MarkupLine("  [cyan]range-clear-formats[/] file.xlsx sheet range   Clear formats (preserve values)");
+        AnsiConsole.MarkupLine("  [dim]Note: Single cell = 1x1 range (e.g., A1). Named ranges: use empty sheet \"\"[/]");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Parameter Commands:[/]");
@@ -355,7 +383,8 @@ class Program
         AnsiConsole.MarkupLine("  [dim]excelcli pq-list \"Plan.xlsx\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli pq-view \"Plan.xlsx\" \"Milestones\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli pq-import \"Plan.xlsx\" \"fnHelper\" \"function.pq\"[/]");
-        AnsiConsole.MarkupLine("  [dim]excelcli sheet-read \"Plan.xlsx\" \"Data\" \"A1:D10\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli sheet-list \"Plan.xlsx\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli range-get-values \"Plan.xlsx\" \"Data\" \"A1:D10\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli param-set \"Plan.xlsx\" \"Start_Date\" \"2025-01-01\"[/]");
         AnsiConsole.WriteLine();
 

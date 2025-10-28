@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -20,6 +21,6 @@ public interface ISetupCommands
     /// <summary>
     /// Check current VBA trust status
     /// </summary>
-    /// <param name="testFilePath">Path to Excel file to test VBA access</param>
-    VbaTrustResult CheckVbaTrust(string testFilePath);
+    /// <param name="batch">Excel batch context for accessing workbook</param>
+    Task<VbaTrustResult> CheckVbaTrustAsync(IExcelBatch batch);
 }

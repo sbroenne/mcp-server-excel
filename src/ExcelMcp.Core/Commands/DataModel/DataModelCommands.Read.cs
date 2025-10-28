@@ -1,0 +1,601 @@
+using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.Core.DataModel;
+using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Security;
+using Sbroenne.ExcelMcp.ComInterop.Session;
+
+#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
+
+namespace Sbroenne.ExcelMcp.Core.Commands;
+
+/// <summary>
+/// Data Model Read operations - List, View, Export
+/// </summary>
+public partial class DataModelCommands
+{
+    /// <inheritdoc />
+    public async Task<DataModelTableListResult> ListTablesAsync(IExcelBatch batch)
+    {
+        var result = new DataModelTableListResult { FilePath = batch.WorkbookPath };
+
+        return await batch.ExecuteAsync(async (ctx, ct) =>
+        {
+            // Check if workbook has Data Model
+            if (!DataModelHelpers.HasDataModel(ctx.Book))
+            {
+                result.Success = false;
+                result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                return result;
+            }
+
+            dynamic? model = null;
+            try
+            {
+                model = ctx.Book.Model;
+
+                DataModelHelpers.ForEachTable(model, (Action<dynamic, int>)((table, index) =>
+                {
+                    // Try to get refresh date (may not always be available)
+                    DateTime? refreshDate = null;
+                    try
+                    {
+                        refreshDate = table.RefreshDate;
+                    }
+                    catch { /* RefreshDate not always accessible */ }
+
+                    var tableInfo = new DataModelTableInfo
+                    {
+                        Name = DataModelHelpers.SafeGetString(table, "Name"),
+                        SourceName = DataModelHelpers.SafeGetString(table, "SourceName"),
+                        RecordCount = DataModelHelpers.SafeGetInt(table, "RecordCount"),
+                        RefreshDate = refreshDate
+                    };
+
+                    result.Tables.Add(tableInfo);
+                }));
+
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = DataModelErrorMessages.OperationFailed("List tables", ex.Message);
+            }
+            finally
+            {
+                ComUtilities.Release(ref model);
+            }
+
+            return result;
+        });
+    }
+
+    /// <inheritdoc />
+    public async Task<DataModelMeasureListResult> ListMeasuresAsync(IExcelBatch batch, string? tableName = null)
+    {
+        var result = new DataModelMeasureListResult { FilePath = batch.WorkbookPath };
+
+        return await batch.ExecuteAsync(async (ctx, ct) =>
+        {
+            dynamic? model = null;
+            try
+            {
+                // Check if workbook has Data Model
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                {
+                    result.Success = false;
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    return result;
+                }
+
+                model = ctx.Book.Model;
+
+                DataModelHelpers.ForEachTable(model, (Action<dynamic, int>)((table, index) =>
+                {
+                    string currentTableName = DataModelHelpers.SafeGetString(table, "Name");
+
+                    // Skip if filtering by table and this isn't the table
+                    if (tableName != null && !currentTableName.Equals(tableName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+
+                    DataModelHelpers.ForEachMeasure(table, (Action<dynamic, int>)((measure, measureIndex) =>
+                    {
+                        string formula = DataModelHelpers.SafeGetString(measure, "Formula");
+                        string preview = formula.Length > 80 ? formula[..77] + "..." : formula;
+
+                        var measureInfo = new DataModelMeasureInfo
+                        {
+                            Name = DataModelHelpers.SafeGetString(measure, "Name"),
+                            Table = currentTableName,
+                            FormulaPreview = preview,
+                            Description = DataModelHelpers.SafeGetString(measure, "Description")
+                        };
+
+                        result.Measures.Add(measureInfo);
+                    }));
+                }));
+
+                // Check if table filter was specified but not found
+                if (tableName != null && result.Measures.Count == 0)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = DataModelErrorMessages.TableNotFound(tableName);
+                    return result;
+                }
+
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = DataModelErrorMessages.OperationFailed("listing measures", ex.Message);
+            }
+            finally
+            {
+                ComUtilities.Release(ref model);
+            }
+
+            return result;
+        });
+    }
+
+    /// <inheritdoc />
+    public async Task<DataModelMeasureViewResult> ViewMeasureAsync(IExcelBatch batch, string measureName)
+    {
+        var result = new DataModelMeasureViewResult
+        {
+            FilePath = batch.WorkbookPath,
+            MeasureName = measureName
+        };
+
+        return await batch.ExecuteAsync(async (ctx, ct) =>
+        {
+            dynamic? model = null;
+            dynamic? measure = null;
+            try
+            {
+                // Check if workbook has Data Model
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                {
+                    result.Success = false;
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    return result;
+                }
+
+                model = ctx.Book.Model;
+
+                // Find the measure
+                measure = ComUtilities.FindModelMeasure(model, measureName);
+                if (measure == null)
+                {
+                    var measureNames = DataModelHelpers.GetModelMeasureNames(model);
+                    result.Success = false;
+                    result.ErrorMessage = DataModelErrorMessages.MeasureNotFound(measureName);
+
+                    // Suggest similar measure names
+                    var suggestions = new List<string>();
+                    foreach (var m in measureNames)
+                    {
+                        if (m.Contains(measureName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            suggestions.Add($"Try measure: {m}");
+                            if (suggestions.Count >= 3) break;
+                        }
+                    }
+
+                    if (suggestions.Any())
+                    {
+                        result.SuggestedNextActions = suggestions;
+                    }
+
+                    return result;
+                }
+
+                // Get measure details using safe helpers
+                result.DaxFormula = DataModelHelpers.SafeGetString(measure, "Formula");
+                result.Description = DataModelHelpers.SafeGetString(measure, "Description");
+                result.CharacterCount = result.DaxFormula.Length;
+                result.TableName = DataModelHelpers.GetMeasureTableName(model, measureName) ?? "";
+
+                // Try to get format information
+                try
+                {
+                    dynamic? formatInfo = measure.FormatInformation;
+                    if (formatInfo != null)
+                    {
+                        try
+                        {
+                            result.FormatString = formatInfo.FormatString?.ToString();
+                        }
+                        catch { /* FormatString may not be accessible */ }
+                        finally
+                        {
+                            ComUtilities.Release(ref formatInfo);
+                        }
+                    }
+                }
+                catch { /* FormatInformation may not be available in all Excel versions */ }
+
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = DataModelErrorMessages.OperationFailed("viewing measure", ex.Message);
+            }
+            finally
+            {
+                ComUtilities.Release(ref measure);
+                ComUtilities.Release(ref model);
+            }
+
+            return result;
+        });
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResult> ExportMeasureAsync(IExcelBatch batch, string measureName, string outputFile)
+    {
+        var result = new OperationResult
+        {
+            FilePath = batch.WorkbookPath,
+            Action = "model-export-measure"
+        };
+
+        // Validate and normalize output file path
+        try
+        {
+            outputFile = PathValidator.ValidateOutputFile(outputFile, nameof(outputFile), allowOverwrite: true);
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Invalid output file path: {ex.Message}";
+            return result;
+        }
+
+        return await batch.ExecuteAsync(async (ctx, ct) =>
+        {
+            dynamic? model = null;
+            dynamic? measure = null;
+            try
+            {
+                // Check if workbook has Data Model
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                {
+                    result.Success = false;
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    return result;
+                }
+
+                model = ctx.Book.Model;
+
+                // Find the measure
+                measure = ComUtilities.FindModelMeasure(model, measureName);
+                if (measure == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = DataModelErrorMessages.MeasureNotFound(measureName);
+                    return result;
+                }
+
+                // Get measure details using safe helpers
+                string daxFormula = DataModelHelpers.SafeGetString(measure, "Formula");
+                string description = DataModelHelpers.SafeGetString(measure, "Description");
+                string tableName = DataModelHelpers.GetMeasureTableName(model, measureName) ?? "";
+                string? formatString = null;
+
+                // Try to get format information
+                try
+                {
+                    dynamic? formatInfo = measure.FormatInformation;
+                    if (formatInfo != null)
+                    {
+                        try
+                        {
+                            formatString = formatInfo.FormatString?.ToString();
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref formatInfo);
+                        }
+                    }
+                }
+                catch { }
+
+                // Build DAX file content with metadata
+                var daxContent = new System.Text.StringBuilder();
+                daxContent.AppendLine($"-- Measure: {measureName}");
+                daxContent.AppendLine($"-- Table: {tableName}");
+                if (!string.IsNullOrEmpty(description))
+                {
+                    daxContent.AppendLine($"-- Description: {description}");
+                }
+                if (!string.IsNullOrEmpty(formatString))
+                {
+                    daxContent.AppendLine($"-- Format: {formatString}");
+                }
+                daxContent.AppendLine();
+                daxContent.AppendLine($"{measureName} :=");
+                daxContent.AppendLine(daxFormula);
+
+                // Write to file
+                File.WriteAllText(outputFile, daxContent.ToString());
+
+                result.Success = true;
+                return result;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = DataModelErrorMessages.OperationFailed("exporting measure", ex.Message);
+                return result;
+            }
+            finally
+            {
+                ComUtilities.Release(ref measure);
+                ComUtilities.Release(ref model);
+            }
+        });
+    }
+
+    /// <inheritdoc />
+    public async Task<DataModelRelationshipListResult> ListRelationshipsAsync(IExcelBatch batch)
+    {
+        var result = new DataModelRelationshipListResult { FilePath = batch.WorkbookPath };
+
+        return await batch.ExecuteAsync(async (ctx, ct) =>
+        {
+            dynamic? model = null;
+            try
+            {
+                // Check if workbook has Data Model
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                {
+                    result.Success = false;
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    return result;
+                }
+
+                model = ctx.Book.Model;
+
+                DataModelHelpers.ForEachRelationship(model, (Action<dynamic, int>)((relationship, index) =>
+                {
+                    var relInfo = new DataModelRelationshipInfo
+                    {
+                        FromTable = DataModelHelpers.SafeGetString(relationship.ForeignKeyColumn?.Parent, "Name"),
+                        FromColumn = DataModelHelpers.SafeGetString(relationship.ForeignKeyColumn, "Name"),
+                        ToTable = DataModelHelpers.SafeGetString(relationship.PrimaryKeyColumn?.Parent, "Name"),
+                        ToColumn = DataModelHelpers.SafeGetString(relationship.PrimaryKeyColumn, "Name"),
+                        IsActive = relationship.Active ?? false
+                    };
+
+                    result.Relationships.Add(relInfo);
+                }));
+
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = DataModelErrorMessages.OperationFailed("listing relationships", ex.Message);
+            }
+            finally
+            {
+                ComUtilities.Release(ref model);
+            }
+
+            return result;
+        });
+    }
+
+    /// <inheritdoc />
+    public async Task<DataModelTableColumnsResult> ListTableColumnsAsync(IExcelBatch batch, string tableName)
+    {
+        var result = new DataModelTableColumnsResult
+        {
+            FilePath = batch.WorkbookPath,
+            TableName = tableName
+        };
+
+        return await batch.ExecuteAsync(async (ctx, ct) =>
+        {
+            dynamic? model = null;
+            dynamic? table = null;
+            try
+            {
+                // Check if workbook has Data Model
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                {
+                    result.Success = false;
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    return result;
+                }
+
+                model = ctx.Book.Model;
+
+                // Find the table
+                table = ComUtilities.FindModelTable(model, tableName);
+                if (table == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = DataModelErrorMessages.TableNotFound(tableName);
+                    return result;
+                }
+
+                // Iterate through columns
+                DataModelHelpers.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>
+                {
+                    var columnInfo = new DataModelColumnInfo
+                    {
+                        Name = DataModelHelpers.SafeGetString(column, "Name"),
+                        DataType = DataModelHelpers.SafeGetString(column, "DataType"),
+                        IsCalculated = column.IsCalculatedColumn ?? false
+                    };
+
+                    result.Columns.Add(columnInfo);
+                }));
+
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = DataModelErrorMessages.OperationFailed($"listing columns for table '{tableName}'", ex.Message);
+            }
+            finally
+            {
+                ComUtilities.Release(ref table);
+                ComUtilities.Release(ref model);
+            }
+
+            return result;
+        });
+    }
+
+    /// <inheritdoc />
+    public async Task<DataModelTableViewResult> ViewTableAsync(IExcelBatch batch, string tableName)
+    {
+        var result = new DataModelTableViewResult
+        {
+            FilePath = batch.WorkbookPath,
+            TableName = tableName
+        };
+
+        return await batch.ExecuteAsync(async (ctx, ct) =>
+        {
+            dynamic? model = null;
+            dynamic? table = null;
+            try
+            {
+                // Check if workbook has Data Model
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                {
+                    result.Success = false;
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    return result;
+                }
+
+                model = ctx.Book.Model;
+
+                // Find the table
+                table = ComUtilities.FindModelTable(model, tableName);
+                if (table == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = DataModelErrorMessages.TableNotFound(tableName);
+                    return result;
+                }
+
+                // Get table properties
+                result.SourceName = DataModelHelpers.SafeGetString(table, "SourceName");
+                result.RecordCount = DataModelHelpers.SafeGetInt(table, "RecordCount");
+
+                // Try to get refresh date (may not always be available)
+                try
+                {
+                    result.RefreshDate = table.RefreshDate;
+                }
+                catch { /* RefreshDate not always accessible */ }
+
+                // Get columns
+                DataModelHelpers.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>
+                {
+                    var columnInfo = new DataModelColumnInfo
+                    {
+                        Name = DataModelHelpers.SafeGetString(column, "Name"),
+                        DataType = DataModelHelpers.SafeGetString(column, "DataType"),
+                        IsCalculated = column.IsCalculatedColumn ?? false
+                    };
+
+                    result.Columns.Add(columnInfo);
+                }));
+
+                // Count measures in this table
+                result.MeasureCount = 0;
+                DataModelHelpers.ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
+                {
+                    string measureTableName = DataModelHelpers.SafeGetString(measure.AssociatedTable, "Name");
+                    if (string.Equals(measureTableName, tableName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.MeasureCount++;
+                    }
+                }));
+
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = DataModelErrorMessages.OperationFailed($"viewing table '{tableName}'", ex.Message);
+            }
+            finally
+            {
+                ComUtilities.Release(ref table);
+                ComUtilities.Release(ref model);
+            }
+
+            return result;
+        });
+    }
+
+    /// <inheritdoc />
+    public async Task<DataModelInfoResult> GetModelInfoAsync(IExcelBatch batch)
+    {
+        var result = new DataModelInfoResult { FilePath = batch.WorkbookPath };
+
+        return await batch.ExecuteAsync(async (ctx, ct) =>
+        {
+            dynamic? model = null;
+            try
+            {
+                // Check if workbook has Data Model
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                {
+                    result.Success = false;
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    return result;
+                }
+
+                model = ctx.Book.Model;
+
+                // Count tables and sum rows
+                int totalRows = 0;
+                DataModelHelpers.ForEachTable(model, (Action<dynamic, int>)((table, index) =>
+                {
+                    result.TableCount++;
+                    totalRows += DataModelHelpers.SafeGetInt(table, "RecordCount");
+                    result.TableNames.Add(DataModelHelpers.SafeGetString(table, "Name"));
+                }));
+                result.TotalRows = totalRows;
+
+                // Count measures
+                DataModelHelpers.ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
+                {
+                    result.MeasureCount++;
+                }));
+
+                // Count relationships
+                DataModelHelpers.ForEachRelationship(model, (Action<dynamic, int>)((relationship, index) =>
+                {
+                    result.RelationshipCount++;
+                }));
+
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = DataModelErrorMessages.OperationFailed("getting model info", ex.Message);
+            }
+            finally
+            {
+                ComUtilities.Release(ref model);
+            }
+
+            return result;
+        });
+    }
+}

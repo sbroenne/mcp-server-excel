@@ -164,11 +164,18 @@ dnx Sbroenne.ExcelMcp.McpServer --yes
 
 ### **Data Model & DAX Development**
 
-- **Measure Management** - View, export, and delete DAX measures
-- **Relationship Analysis** - List and manage table relationships
-- **Data Model Inspection** - Explore tables, record counts, and structure
+- **Measure Management** - Create, update, view, export, and delete DAX measures with format types
+- **Relationship Management** - Create, update (toggle active status), list, and delete table relationships
+- **Data Model Inspection** - Explore tables, columns, record counts, and structure
+- **Model Discovery** - Get model overview statistics and detailed table information
 - **Code Review** - Analyze DAX formulas for performance and best practices
 - **Version Control** - Export DAX measures to files for Git workflows
+
+**Phase 2 Enhancements** (NEW):
+- ✅ **CREATE Operations** - Create DAX measures with Currency, Decimal, Percentage, General formats
+- ✅ **UPDATE Operations** - Update measure formulas, formats, and descriptions
+- ✅ **Relationship CRUD** - Create relationships with active/inactive flags, toggle status
+- ✅ **Discovery APIs** - List columns, view table details, get model statistics
 
 ### **VBA Development & Enhancement**
 
@@ -203,9 +210,10 @@ The MCP server provides 8 focused resource-based tools for AI assistants:
 - **excel_powerquery** - Power Query M code management (11 actions: list, view, import, export, update, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config)
 - **excel_connection** - Data connection management (11 actions: list, view, import, export, update, refresh, delete, loadto, properties, set-properties, test) 🔌 *OLEDB, ODBC, Text, Web connections*
 - **excel_worksheet** - Worksheet operations and bulk data handling (9 actions: list, read, write, create, rename, copy, delete, clear, append)
+- **excel_range** - Unified range operations (30+ actions: get-values, set-values, get-formulas, set-formulas, clear variants, copy operations, insert/delete, find/replace, sort, hyperlinks, discovery) 📊 *Replaces excel_cell*
 - **excel_parameter** - Named ranges as configuration parameters (5 actions: list, get, set, create, delete)
-- **excel_cell** - Individual cell precision operations (4 actions: get-value, set-value, get-formula, set-formula)
 - **excel_vba** - VBA macro management and execution (6 actions: list, export, import, update, run, delete)
+- **excel_datamodel** - Data Model & DAX operations (14 actions: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, list-columns, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship) 📈 *Phase 2: Full CRUD support*
 - **excel_version** - Check for updates on NuGet.org (1 action: check) ⚡ *Automatic startup check*
 
 > 🧠 **[Complete MCP Server Guide →](src/ExcelMcp.McpServer/README.md)** - Detailed MCP integration and AI examples

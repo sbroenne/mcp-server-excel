@@ -1,5 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using System.Runtime.InteropServices;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -14,22 +14,23 @@ public static class ConnectionTestHelper
     /// Creates a simple OLEDB connection to a test database in an Excel workbook.
     /// This creates an actual Excel connection object that can be managed by ConnectionCommands.
     /// </summary>
-    public static void CreateOleDbConnection(string filePath, string connectionName, string connectionString)
+    public static async Task CreateOleDbConnectionAsync(string filePath, string connectionName, string connectionString)
     {
-        ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+        await batch.ExecuteAsync<int>((ctx, ct) =>
         {
             try
             {
                 // Get connections collection
-                dynamic connections = workbook.Connections;
+                dynamic connections = ctx.Book.Connections;
 
-                // Create OLEDB connection using positional parameters
-                // Connections.Add(Name, Description, ConnectionString, CommandText)
+                // Create OLEDB connection using NAMED parameters (Excel COM requires this)
+                // Per Microsoft docs: https://learn.microsoft.com/en-us/office/vba/api/excel.connections.add
                 dynamic newConnection = connections.Add(
-                    connectionName,
-                    $"Test OLEDB connection created by {nameof(CreateOleDbConnection)}",
-                    connectionString,
-                    ""
+                    Name: connectionName,
+                    Description: $"Test OLEDB connection created by {nameof(CreateOleDbConnectionAsync)}",
+                    ConnectionString: connectionString,
+                    CommandText: ""
                 );
 
                 // Configure OLEDB connection properties
@@ -44,50 +45,54 @@ public static class ConnectionTestHelper
                     }
                 }
 
-                return 0; // Success
+                return ValueTask.FromResult(0); // Success
             }
             catch (Exception ex)
             {
                 throw new InvalidOperationException($"Failed to create OLEDB connection '{connectionName}': {ex.Message}", ex);
             }
         });
+        await batch.SaveAsync();
     }
 
     /// <summary>
     /// Creates a simple ODBC connection in an Excel workbook.
     /// </summary>
-    public static void CreateOdbcConnection(string filePath, string connectionName, string connectionString)
+    public static async Task CreateOdbcConnectionAsync(string filePath, string connectionName, string connectionString)
     {
-        ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+        await batch.ExecuteAsync<int>((ctx, ct) =>
         {
             try
             {
-                dynamic connections = workbook.Connections;
+                dynamic connections = ctx.Book.Connections;
 
-                // Create ODBC connection using positional parameters
+                // Create ODBC connection using NAMED parameters (Excel COM requires this)
                 dynamic newConnection = connections.Add(
-                    connectionName,
-                    $"Test ODBC connection created by {nameof(CreateOdbcConnection)}",
-                    connectionString,
-                    ""
+                    Name: connectionName,
+                    Description: $"Test ODBC connection created by {nameof(CreateOdbcConnectionAsync)}",
+                    ConnectionString: connectionString,
+                    CommandText: ""
                 );
 
-                return 0; // Success
+                return ValueTask.FromResult(0); // Success
             }
             catch (Exception ex)
             {
                 throw new InvalidOperationException($"Failed to create ODBC connection '{connectionName}': {ex.Message}", ex);
             }
         });
+        await batch.SaveAsync();
     }
 
     /// <summary>
     /// Creates a text file connection in an Excel workbook.
     /// This is useful for testing connection refresh and data loading.
     /// </summary>
-    public static void CreateTextFileConnection(string filePath, string connectionName, string textFilePath)
+    public static async Task CreateTextFileConnectionAsync(string filePath, string connectionName, string textFilePath)
     {
-        ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+        await batch.ExecuteAsync<int>((ctx, ct) =>
         {
             try
             {
@@ -98,7 +103,7 @@ public static class ConnectionTestHelper
                     File.WriteAllText(textFilePath, "Column1,Column2,Column3\nValue1,Value2,Value3\nTest1,Test2,Test3");
                 }
 
-                dynamic connections = workbook.Connections;
+                dynamic connections = ctx.Book.Connections;
 
                 // Create text file connection using the SAME approach as Import
                 string connectionString = $"TEXT;{textFilePath}";
@@ -106,7 +111,7 @@ public static class ConnectionTestHelper
                 // Use Connections.Add() with named parameters like Import does
                 dynamic newConnection = connections.Add(
                     Name: connectionName,
-                    Description: $"Test text file connection created by {nameof(CreateTextFileConnection)}",
+                    Description: $"Test text file connection created by {nameof(CreateTextFileConnectionAsync)}",
                     ConnectionString: connectionString,
                     CommandText: ""
                 );
@@ -114,26 +119,28 @@ public static class ConnectionTestHelper
                 // Connection created - Excel should handle the rest
                 // If Import works, this should too
 
-                return 0; // Success
+                return ValueTask.FromResult(0); // Success
             }
             catch (Exception ex)
             {
                 throw new InvalidOperationException($"Failed to create text file connection '{connectionName}': {ex.Message}", ex);
             }
         });
+        await batch.SaveAsync();
     }
 
     /// <summary>
     /// Creates a simple web connection (URL) in an Excel workbook.
     /// Uses the same approach as ConnectionCommands.Import() for consistency.
     /// </summary>
-    public static void CreateWebConnection(string filePath, string connectionName, string url)
+    public static async Task CreateWebConnectionAsync(string filePath, string connectionName, string url)
     {
-        ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+        await batch.ExecuteAsync<int>((ctx, ct) =>
         {
             try
             {
-                dynamic connections = workbook.Connections;
+                dynamic connections = ctx.Book.Connections;
 
                 // Create web connection using the SAME approach as Import and CreateTextFileConnection
                 // Use URL; prefix in connection string to indicate web connection type
@@ -142,7 +149,7 @@ public static class ConnectionTestHelper
                 // Use Connections.Add() with named parameters like Import does
                 dynamic newConnection = connections.Add(
                     Name: connectionName,
-                    Description: $"Test web connection created by {nameof(CreateWebConnection)}",
+                    Description: $"Test web connection created by {nameof(CreateWebConnectionAsync)}",
                     ConnectionString: connectionString,
                     CommandText: ""
                 );
@@ -150,25 +157,27 @@ public static class ConnectionTestHelper
                 // Connection created - Excel should handle the rest
                 // With the URL; prefix, Excel should recognize this as a Web connection (type 5)
 
-                return 0; // Success
+                return ValueTask.FromResult(0); // Success
             }
             catch (Exception ex)
             {
                 throw new InvalidOperationException($"Failed to create web connection '{connectionName}': {ex.Message}", ex);
             }
         });
+        await batch.SaveAsync();
     }
 
     /// <summary>
     /// Creates multiple test connections of different types for multi-connection tests.
     /// </summary>
-    public static void CreateMultipleConnections(string filePath, params (string name, string type, string connectionString)[] connections)
+    public static async Task CreateMultipleConnectionsAsync(string filePath, params (string name, string type, string connectionString)[] connections)
     {
-        ExcelSession.Execute(filePath, save: true, (excel, workbook) =>
+        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+        await batch.ExecuteAsync<int>((ctx, ct) =>
         {
             try
             {
-                dynamic connectionsCollection = workbook.Connections;
+                dynamic connectionsCollection = ctx.Book.Connections;
 
                 foreach (var (name, type, connectionString) in connections)
                 {
@@ -181,12 +190,13 @@ public static class ConnectionTestHelper
                     );
                 }
 
-                return 0; // Success
+                return ValueTask.FromResult(0); // Success
             }
             catch (Exception ex)
             {
                 throw new InvalidOperationException($"Failed to create multiple connections: {ex.Message}", ex);
             }
         });
+        await batch.SaveAsync();
     }
 }

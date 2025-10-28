@@ -19,14 +19,14 @@ public class ResultTypesTests
         var result = new OperationResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "operation-success.xlsx",
             Action = "create",
             ErrorMessage = null
         };
 
         // Assert
         Assert.True(result.Success);
-        Assert.Equal("test.xlsx", result.FilePath);
+        Assert.Equal("operation-success.xlsx", result.FilePath);
         Assert.Equal("create", result.Action);
         Assert.Null(result.ErrorMessage);
     }
@@ -38,7 +38,7 @@ public class ResultTypesTests
         var result = new OperationResult
         {
             Success = false,
-            FilePath = "test.xlsx",
+            FilePath = "operation-failure.xlsx",
             Action = "delete",
             ErrorMessage = "File not found"
         };
@@ -55,7 +55,7 @@ public class ResultTypesTests
         var result = new CellValueResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "cell-value.xlsx",
             CellAddress = "A1",
             Value = "Hello",
             Formula = null,
@@ -76,7 +76,7 @@ public class ResultTypesTests
         var result = new CellValueResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "cell-formula.xlsx",
             CellAddress = "B1",
             Value = "42",
             Formula = "=SUM(A1:A10)",
@@ -95,7 +95,7 @@ public class ResultTypesTests
         var result = new ParameterListResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "parameter-list.xlsx",
             Parameters = new List<ParameterInfo>
             {
                 new() { Name = "StartDate", Value = "2024-01-01", RefersTo = "Settings!A1" },
@@ -117,7 +117,7 @@ public class ResultTypesTests
         var result = new ParameterValueResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "parameter-value.xlsx",
             ParameterName = "ReportDate",
             Value = "2024-03-15",
             RefersTo = "Config!B5"
@@ -136,7 +136,7 @@ public class ResultTypesTests
         var result = new WorksheetListResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "worksheet-list.xlsx",
             Worksheets = new List<WorksheetInfo>
             {
                 new() { Name = "Sheet1", Index = 1, Visible = true },
@@ -160,7 +160,7 @@ public class ResultTypesTests
         var result = new WorksheetDataResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "worksheet-data.xlsx",
             SheetName = "Data",
             Range = "A1:C3",
             Headers = new List<string> { "Name", "Age", "City" },
@@ -190,7 +190,7 @@ public class ResultTypesTests
         var result = new ScriptListResult
         {
             Success = true,
-            FilePath = "test.xlsm",
+            FilePath = "script-list.xlsm",
             Scripts = new List<ScriptInfo>
             {
                 new()
@@ -224,7 +224,7 @@ public class ResultTypesTests
         var result = new PowerQueryListResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "powerquery-list.xlsx",
             Queries = new List<PowerQueryInfo>
             {
                 new()
@@ -256,7 +256,7 @@ public class ResultTypesTests
         var result = new PowerQueryViewResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "powerquery-view.xlsx",
             QueryName = "WebData",
             MCode = "let\n    Source = Web.Contents(\"https://api.example.com\")\nin\n    Source",
             CharacterCount = 73,
@@ -318,7 +318,7 @@ public class ResultTypesTests
         var result = new FileValidationResult
         {
             Success = true,
-            FilePath = "test.xlsx",
+            FilePath = "file-validation-valid.xlsx",
             Exists = true,
             IsValid = true,
             Extension = ".xlsx",
@@ -339,7 +339,7 @@ public class ResultTypesTests
         var result = new FileValidationResult
         {
             Success = false,
-            FilePath = "test.txt",
+            FilePath = "file-validation-invalid.txt",
             Exists = true,
             IsValid = false,
             Extension = ".txt",

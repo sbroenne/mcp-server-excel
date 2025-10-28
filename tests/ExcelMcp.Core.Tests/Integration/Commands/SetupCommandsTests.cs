@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
@@ -30,7 +31,7 @@ public class SetupCommandsTests : IDisposable
         _testExcelFile = Path.Combine(_tempDir, "TestWorkbook.xlsm"); // Macro-enabled for VBA trust
 
         // Create test Excel file
-        var result = _fileCommands.CreateEmpty(_testExcelFile);
+        var result = _fileCommands.CreateEmptyAsync(_testExcelFile).GetAwaiter().GetResult();
         if (!result.Success)
         {
             throw new InvalidOperationException($"Failed to create test Excel file: {result.ErrorMessage}");
@@ -38,10 +39,11 @@ public class SetupCommandsTests : IDisposable
     }
 
     [Fact]
-    public void CheckVbaTrust_ReturnsResult()
+    public async Task CheckVbaTrust_ReturnsResult()
     {
         // Act
-        var result = _setupCommands.CheckVbaTrust(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _setupCommands.CheckVbaTrustAsync(batch);
 
         // Assert
         Assert.NotNull(result);
@@ -62,13 +64,14 @@ public class SetupCommandsTests : IDisposable
     }
 
     [Fact]
-    public void CheckVbaTrust_AfterEnable_MayBeTrusted()
+    public async Task CheckVbaTrust_AfterEnable_MayBeTrusted()
     {
         // Arrange
         _setupCommands.EnableVbaTrust();
 
         // Act
-        var result = _setupCommands.CheckVbaTrust(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _setupCommands.CheckVbaTrustAsync(batch);
 
         // Assert
         Assert.NotNull(result);

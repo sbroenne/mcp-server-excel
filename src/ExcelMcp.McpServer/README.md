@@ -243,6 +243,29 @@ AI Assistant uses: excel_parameter(action="set", filePath="config.xlsx", paramNa
 Result: {"success": true, "action": "set", "filePath": "config.xlsx"}
 ```
 
+## 📚 Reference Prompts
+
+The MCP server provides **1 reference prompt** to help AI assistants understand Excel connection types and COM API limitations:
+
+### Connection Type Reference
+- **`excel_connection_reference`** - Quick reference for Excel's 9 connection types, which ones work via COM API, and critical limitations
+
+**Why This Prompt Exists:**
+- Excel connection types and COM API quirks are **niche domain knowledge** not in standard LLM training
+- Prevents incorrect answers (e.g., telling users to create OLEDB connections via COM API, which fails)
+- Explains known issues like Type 3/4 confusion when users encounter them
+
+**Usage:** AI assistants can invoke this prompt when users ask about connection types, connection failures, or data source management.
+
+**Example Invocation:**
+```text
+User: "Why won't my SQL Server connection work?"
+AI: Get prompt excel_connection_reference
+AI: "Excel COM API cannot create OLEDB connections via Connections.Add(). 
+     Create the connection in Excel UI (Data → Get Data → From Database), 
+     then use excel_connection to manage it."
+```
+
 ## 🏗️ Architecture
 
 ### Core Components
@@ -250,7 +273,9 @@ Result: {"success": true, "action": "set", "filePath": "config.xlsx"}
 ```text
 ExcelMcp.McpServer/
 ├── Tools/
-│   └── ExcelTools.cs        # 6 resource-based MCP tools  
+│   └── ExcelTools.cs        # 9 resource-based MCP tools  
+├── Prompts/
+│   └── ExcelConnectionPrompts.cs    # Connection type reference
 ├── Program.cs               # Official MCP SDK hosting
 └── ExcelMcp.McpServer.csproj
 ```
@@ -267,9 +292,10 @@ ExcelMcp.McpServer
 ### Design Patterns
 
 - **Official MCP SDK** - Uses Microsoft's official ModelContextProtocol NuGet package
-- **Resource-Based Architecture** - 6 tools instead of 33+ granular operations  
+- **Resource-Based Architecture** - 9 tools instead of 56+ granular operations  
 - **Action Pattern** - Each tool supports multiple actions (REST-like design)
-- **Attribute-Based Registration** - `[McpServerTool]` and `[McpServerToolType]` attributes
+- **Attribute-Based Registration** - `[McpServerTool]`, `[McpServerPrompt]` attributes for auto-discovery
+- **Reference Prompt** - 1 prompt provides Excel connection type reference for AI assistants
 - **JSON Serialization** - Proper `JsonSerializer.Serialize()` for all responses
 - **COM Lifecycle Management** - Leverages ExcelMcp.Core's proven Excel automation
 

@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
@@ -12,14 +13,14 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 [Trait("Speed", "Fast")]
 [Trait("Feature", "Parameters")]
 [Trait("RequiresExcel", "true")]
-public class CoreParameterCommandsTests : IDisposable
+public class ParameterCommandsTests : IDisposable
 {
     private readonly IParameterCommands _parameterCommands;
     private readonly IFileCommands _fileCommands;
     private readonly string _testExcelFile;
     private readonly string _tempDir;
 
-    public CoreParameterCommandsTests()
+    public ParameterCommandsTests()
     {
         _parameterCommands = new ParameterCommands();
         _fileCommands = new FileCommands();
@@ -30,7 +31,7 @@ public class CoreParameterCommandsTests : IDisposable
         _testExcelFile = Path.Combine(_tempDir, "TestWorkbook.xlsx");
 
         // Create test Excel file
-        var result = _fileCommands.CreateEmpty(_testExcelFile);
+        var result = _fileCommands.CreateEmptyAsync(_testExcelFile).GetAwaiter().GetResult();
         if (!result.Success)
         {
             throw new InvalidOperationException($"Failed to create test Excel file: {result.ErrorMessage}");
@@ -38,10 +39,11 @@ public class CoreParameterCommandsTests : IDisposable
     }
 
     [Fact]
-    public void List_WithValidFile_ReturnsSuccess()
+    public async Task List_WithValidFile_ReturnsSuccess()
     {
         // Act
-        var result = _parameterCommands.List(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _parameterCommands.ListAsync(batch);
 
         // Assert
         Assert.True(result.Success);
@@ -49,116 +51,167 @@ public class CoreParameterCommandsTests : IDisposable
     }
 
     [Fact]
-    public void Create_WithValidParameter_ReturnsSuccess()
+    public async Task Create_WithValidParameter_ReturnsSuccess()
     {
         // Act
-        var result = _parameterCommands.Create(_testExcelFile, "TestParam", "Sheet1!A1");
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _parameterCommands.CreateAsync(batch, "TestParam", "Sheet1!A1");
+        await batch.SaveAsync();
 
         // Assert
         Assert.True(result.Success);
     }
 
     [Fact]
-    public void Create_ThenList_ShowsCreatedParameter()
+    public async Task Create_ThenList_ShowsCreatedParameter()
     {
         // Arrange
         string paramName = "IntegrationTestParam";
 
-        // Act
-        var createResult = _parameterCommands.Create(_testExcelFile, paramName, "Sheet1!B2");
-        var listResult = _parameterCommands.List(_testExcelFile);
+        // Act - Create parameter
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var createResult = await _parameterCommands.CreateAsync(batch, paramName, "Sheet1!B2");
+            Assert.True(createResult.Success);
+            await batch.SaveAsync();
+        }
 
-        // Assert
-        Assert.True(createResult.Success);
-        Assert.True(listResult.Success);
-        Assert.Contains(listResult.Parameters, p => p.Name == paramName);
+        // Act - List parameters
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var listResult = await _parameterCommands.ListAsync(batch);
+
+            // Assert
+            Assert.True(listResult.Success);
+            Assert.Contains(listResult.Parameters, p => p.Name == paramName);
+        }
     }
 
     [Fact]
-    public void Set_WithValidParameter_ReturnsSuccess()
+    public async Task Set_WithValidParameter_ReturnsSuccess()
     {
         // Arrange - Use unique parameter name to avoid conflicts
         string paramName = "SetTestParam_" + Guid.NewGuid().ToString("N")[..8];
-        var createResult = _parameterCommands.Create(_testExcelFile, paramName, "Sheet1!C1");
 
-        // Ensure parameter was created successfully
-        Assert.True(createResult.Success, $"Failed to create parameter: {createResult.ErrorMessage}");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var createResult = await _parameterCommands.CreateAsync(batch, paramName, "Sheet1!C1");
+            Assert.True(createResult.Success, $"Failed to create parameter: {createResult.ErrorMessage}");
+            await batch.SaveAsync();
+        }
 
         // Act
-        var result = _parameterCommands.Set(_testExcelFile, paramName, "TestValue");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _parameterCommands.SetAsync(batch, paramName, "TestValue");
+            await batch.SaveAsync();
 
-        // Assert
-        Assert.True(result.Success, $"Failed to set parameter: {result.ErrorMessage}");
+            // Assert
+            Assert.True(result.Success, $"Failed to set parameter: {result.ErrorMessage}");
+        }
     }
 
     [Fact]
-    public void Set_ThenGet_ReturnsSetValue()
+    public async Task Set_ThenGet_ReturnsSetValue()
     {
         // Arrange - Use unique parameter name to avoid conflicts
         string paramName = "GetSetParam_" + Guid.NewGuid().ToString("N")[..8];
         string testValue = "Integration Test Value";
-        var createResult = _parameterCommands.Create(_testExcelFile, paramName, "Sheet1!D1");
 
-        // Ensure parameter was created successfully
-        Assert.True(createResult.Success, $"Failed to create parameter: {createResult.ErrorMessage}");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var createResult = await _parameterCommands.CreateAsync(batch, paramName, "Sheet1!D1");
+            Assert.True(createResult.Success, $"Failed to create parameter: {createResult.ErrorMessage}");
+            await batch.SaveAsync();
+        }
 
-        // Act
-        var setResult = _parameterCommands.Set(_testExcelFile, paramName, testValue);
-        var getResult = _parameterCommands.Get(_testExcelFile, paramName);
+        // Act - Set value
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var setResult = await _parameterCommands.SetAsync(batch, paramName, testValue);
+            Assert.True(setResult.Success, $"Failed to set parameter: {setResult.ErrorMessage}");
+            await batch.SaveAsync();
+        }
 
-        // Assert
-        Assert.True(setResult.Success, $"Failed to set parameter: {setResult.ErrorMessage}");
-        Assert.True(getResult.Success, $"Failed to get parameter: {getResult.ErrorMessage}");
-        Assert.Equal(testValue, getResult.Value?.ToString());
+        // Act - Get value
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var getResult = await _parameterCommands.GetAsync(batch, paramName);
+
+            // Assert
+            Assert.True(getResult.Success, $"Failed to get parameter: {getResult.ErrorMessage}");
+            Assert.Equal(testValue, getResult.Value?.ToString());
+        }
     }
 
     [Fact]
-    public void Delete_WithValidParameter_ReturnsSuccess()
+    public async Task Delete_WithValidParameter_ReturnsSuccess()
     {
         // Arrange
         string paramName = "DeleteTestParam";
-        _parameterCommands.Create(_testExcelFile, paramName, "Sheet1!E1");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _parameterCommands.CreateAsync(batch, paramName, "Sheet1!E1");
+            await batch.SaveAsync();
+        }
 
         // Act
-        var result = _parameterCommands.Delete(_testExcelFile, paramName);
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var result = await _parameterCommands.DeleteAsync(batch, paramName);
+            await batch.SaveAsync();
 
-        // Assert
-        Assert.True(result.Success);
+            // Assert
+            Assert.True(result.Success);
+        }
     }
 
     [Fact]
-    public void Delete_ThenList_DoesNotShowDeletedParameter()
+    public async Task Delete_ThenList_DoesNotShowDeletedParameter()
     {
         // Arrange
         string paramName = "DeletedParam";
-        _parameterCommands.Create(_testExcelFile, paramName, "Sheet1!F1");
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            await _parameterCommands.CreateAsync(batch, paramName, "Sheet1!F1");
+            await batch.SaveAsync();
+        }
 
-        // Act
-        var deleteResult = _parameterCommands.Delete(_testExcelFile, paramName);
-        var listResult = _parameterCommands.List(_testExcelFile);
+        // Act - Delete parameter
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var deleteResult = await _parameterCommands.DeleteAsync(batch, paramName);
+            Assert.True(deleteResult.Success);
+            await batch.SaveAsync();
+        }
 
-        // Assert
-        Assert.True(deleteResult.Success);
-        Assert.True(listResult.Success);
-        Assert.DoesNotContain(listResult.Parameters, p => p.Name == paramName);
+        // Act - List parameters
+        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
+        {
+            var listResult = await _parameterCommands.ListAsync(batch);
+
+            // Assert
+            Assert.True(listResult.Success);
+            Assert.DoesNotContain(listResult.Parameters, p => p.Name == paramName);
+        }
     }
 
     [Fact]
-    public void List_WithNonExistentFile_ReturnsError()
+    public async Task List_WithNonExistentFile_ReturnsError()
     {
-        // Act
-        var result = _parameterCommands.List("nonexistent.xlsx");
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.NotNull(result.ErrorMessage);
+        // Act & Assert
+        await Assert.ThrowsAsync<FileNotFoundException>(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync("nonexistent.xlsx");
+        });
     }
 
     [Fact]
-    public void Get_WithNonExistentParameter_ReturnsError()
+    public async Task Get_WithNonExistentParameter_ReturnsError()
     {
         // Act
-        var result = _parameterCommands.Get(_testExcelFile, "NonExistentParam");
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _parameterCommands.GetAsync(batch, "NonExistentParam");
 
         // Assert
         Assert.False(result.Success);

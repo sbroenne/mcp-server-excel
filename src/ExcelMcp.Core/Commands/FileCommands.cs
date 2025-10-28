@@ -1,5 +1,7 @@
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Core.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
+
+#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -9,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public class FileCommands : IFileCommands
 {
     /// <inheritdoc />
-    public OperationResult CreateEmpty(string filePath, bool overwriteIfExists = false)
+    public async Task<OperationResult> CreateEmptyAsync(string filePath, bool overwriteIfExists = false)
     {
         try
         {
@@ -63,10 +65,10 @@ public class FileCommands : IFileCommands
             // Create Excel workbook using proper resource management
             bool isMacroEnabled = extension == ".xlsm";
 
-            return ExcelSession.CreateNew(filePath, isMacroEnabled, (excel, workbook) =>
+            return await ExcelSession.CreateNewAsync<OperationResult>(filePath, isMacroEnabled, async (ctx, ct) =>
             {
                 // Set up a basic structure
-                dynamic sheet = workbook.Worksheets.Item(1);
+                dynamic sheet = ctx.Book.Worksheets.Item(1);
                 sheet.Name = "Sheet1";
 
                 // Add a comment to indicate this was created by ExcelCLI
