@@ -236,7 +236,7 @@ public partial class DataModelCommandsTests
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
-        var result = await _dataModelCommands.CreateMeasureAsync(batch, "Sales", measureName, daxFormula, 
+        var result = await _dataModelCommands.CreateMeasureAsync(batch, "Sales", measureName, daxFormula,
                                                                  formatType: "Currency", description: "Test measure with currency format");
         await batch.SaveAsync();
 

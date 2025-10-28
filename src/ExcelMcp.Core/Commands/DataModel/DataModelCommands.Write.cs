@@ -207,8 +207,8 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> CreateMeasureAsync(IExcelBatch batch, string tableName, string measureName, 
-                                                          string daxFormula, string? formatType = null, 
+    public async Task<OperationResult> CreateMeasureAsync(IExcelBatch batch, string tableName, string measureName,
+                                                          string daxFormula, string? formatType = null,
                                                           string? description = null)
     {
         var result = new OperationResult
@@ -309,8 +309,8 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> UpdateMeasureAsync(IExcelBatch batch, string measureName, 
-                                                          string? daxFormula = null, string? formatType = null, 
+    public async Task<OperationResult> UpdateMeasureAsync(IExcelBatch batch, string measureName,
+                                                          string? daxFormula = null, string? formatType = null,
                                                           string? description = null)
     {
         var result = new OperationResult
@@ -407,8 +407,8 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> CreateRelationshipAsync(IExcelBatch batch, string fromTable, 
-                                                                string fromColumn, string toTable, 
+    public async Task<OperationResult> CreateRelationshipAsync(IExcelBatch batch, string fromTable,
+                                                                string fromColumn, string toTable,
                                                                 string toColumn, bool active = true)
     {
         var result = new OperationResult
@@ -529,8 +529,8 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> UpdateRelationshipAsync(IExcelBatch batch, string fromTable, 
-                                                                string fromColumn, string toTable, 
+    public async Task<OperationResult> UpdateRelationshipAsync(IExcelBatch batch, string fromTable,
+                                                                string fromColumn, string toTable,
                                                                 string toColumn, bool active)
     {
         var result = new OperationResult
@@ -576,8 +576,8 @@ public partial class DataModelCommands
                 // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.modelrelationship (Active property is Read/Write)
                 relationship.Active = active;
 
-                string stateChange = wasActive == active 
-                    ? $"remains {(active ? "active" : "inactive")}" 
+                string stateChange = wasActive == active
+                    ? $"remains {(active ? "active" : "inactive")}"
                     : $"changed from {(wasActive ? "active" : "inactive")} to {(active ? "active" : "inactive")}";
 
                 result.Success = true;

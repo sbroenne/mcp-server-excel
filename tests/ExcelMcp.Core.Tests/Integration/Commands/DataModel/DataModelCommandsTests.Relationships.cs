@@ -145,8 +145,8 @@ public partial class DataModelCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var listResult = await _dataModelCommands.ListRelationshipsAsync(batch);
 
-        if (listResult.Success && listResult.Relationships?.Any(r => 
-            r.FromTable == "Sales" && r.ToTable == "Customers" && 
+        if (listResult.Success && listResult.Relationships?.Any(r =>
+            r.FromTable == "Sales" && r.ToTable == "Customers" &&
             r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID") == true)
         {
             // Delete existing relationship to allow creating it fresh
@@ -156,10 +156,10 @@ public partial class DataModelCommandsTests
 
         // Act - Create the relationship
         var createResult = await _dataModelCommands.CreateRelationshipAsync(
-            batch, 
-            "Sales", 
-            "CustomerID", 
-            "Customers", 
+            batch,
+            "Sales",
+            "CustomerID",
+            "Customers",
             "CustomerID"
         );
         await batch.SaveAsync();
@@ -194,22 +194,22 @@ public partial class DataModelCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var listResult = await _dataModelCommands.ListRelationshipsAsync(batch);
 
-        if (listResult.Success && listResult.Relationships?.Any(r => 
+        if (listResult.Success && listResult.Relationships?.Any(r =>
             r.FromTable == "Sales" && r.ToTable == "Products") == true)
         {
             // Delete existing to create fresh
             var existing = listResult.Relationships.First(r => r.FromTable == "Sales" && r.ToTable == "Products");
-            await _dataModelCommands.DeleteRelationshipAsync(batch, existing.FromTable, existing.FromColumn, 
+            await _dataModelCommands.DeleteRelationshipAsync(batch, existing.FromTable, existing.FromColumn,
                                                             existing.ToTable, existing.ToColumn);
             await batch.SaveAsync();
         }
 
         // Act - Create inactive relationship
         var createResult = await _dataModelCommands.CreateRelationshipAsync(
-            batch, 
-            "Sales", 
-            "ProductID", 
-            "Products", 
+            batch,
+            "Sales",
+            "ProductID",
+            "Products",
             "ProductID",
             active: false
         );
@@ -237,10 +237,10 @@ public partial class DataModelCommandsTests
         // Arrange - Ensure relationship exists
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var firstCreate = await _dataModelCommands.CreateRelationshipAsync(
-            batch, 
-            "Sales", 
-            "CustomerID", 
-            "Customers", 
+            batch,
+            "Sales",
+            "CustomerID",
+            "Customers",
             "CustomerID"
         );
 
@@ -250,10 +250,10 @@ public partial class DataModelCommandsTests
 
             // Act - Try to create duplicate
             var duplicateResult = await _dataModelCommands.CreateRelationshipAsync(
-                batch, 
-                "Sales", 
-                "CustomerID", 
-                "Customers", 
+                batch,
+                "Sales",
+                "CustomerID",
+                "Customers",
                 "CustomerID"
             );
 
@@ -270,10 +270,10 @@ public partial class DataModelCommandsTests
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var result = await _dataModelCommands.CreateRelationshipAsync(
-            batch, 
-            "NonExistentTable", 
-            "Column1", 
-            "OtherTable", 
+            batch,
+            "NonExistentTable",
+            "Column1",
+            "OtherTable",
             "Column2"
         );
 
@@ -293,10 +293,10 @@ public partial class DataModelCommandsTests
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var result = await _dataModelCommands.CreateRelationshipAsync(
-            batch, 
-            "Sales", 
-            "NonExistentColumn", 
-            "Customers", 
+            batch,
+            "Sales",
+            "NonExistentColumn",
+            "Customers",
             "CustomerID"
         );
 
@@ -315,13 +315,13 @@ public partial class DataModelCommandsTests
     {
         // Arrange - Ensure we have an active relationship
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
-        
+
         // Create or ensure Sales->Customers relationship exists and is active
         var createResult = await _dataModelCommands.CreateRelationshipAsync(
-            batch, 
-            "Sales", 
-            "CustomerID", 
-            "Customers", 
+            batch,
+            "Sales",
+            "CustomerID",
+            "Customers",
             "CustomerID",
             active: true
         );
@@ -332,10 +332,10 @@ public partial class DataModelCommandsTests
 
             // Act - Toggle to inactive
             var updateResult = await _dataModelCommands.UpdateRelationshipAsync(
-                batch, 
-                "Sales", 
-                "CustomerID", 
-                "Customers", 
+                batch,
+                "Sales",
+                "CustomerID",
+                "Customers",
                 "CustomerID",
                 active: false
             );
@@ -363,10 +363,10 @@ public partial class DataModelCommandsTests
     {
         // Arrange - Ensure we have an inactive relationship
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
-        
+
         // Create or ensure Sales->Products relationship exists and is inactive
         var listResult = await _dataModelCommands.ListRelationshipsAsync(batch);
-        if (listResult.Success && listResult.Relationships?.Any(r => 
+        if (listResult.Success && listResult.Relationships?.Any(r =>
             r.FromTable == "Sales" && r.ToTable == "Products") == true)
         {
             var existing = listResult.Relationships.First(r => r.FromTable == "Sales" && r.ToTable == "Products");
@@ -376,10 +376,10 @@ public partial class DataModelCommandsTests
         }
 
         var createResult = await _dataModelCommands.CreateRelationshipAsync(
-            batch, 
-            "Sales", 
-            "ProductID", 
-            "Products", 
+            batch,
+            "Sales",
+            "ProductID",
+            "Products",
             "ProductID",
             active: false
         );
@@ -390,10 +390,10 @@ public partial class DataModelCommandsTests
 
             // Act - Toggle to active
             var updateResult = await _dataModelCommands.UpdateRelationshipAsync(
-                batch, 
-                "Sales", 
-                "ProductID", 
-                "Products", 
+                batch,
+                "Sales",
+                "ProductID",
+                "Products",
                 "ProductID",
                 active: true
             );
@@ -422,10 +422,10 @@ public partial class DataModelCommandsTests
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var result = await _dataModelCommands.UpdateRelationshipAsync(
-            batch, 
-            "FakeTable", 
-            "FakeColumn", 
-            "OtherTable", 
+            batch,
+            "FakeTable",
+            "FakeColumn",
+            "OtherTable",
             "OtherColumn",
             active: true
         );

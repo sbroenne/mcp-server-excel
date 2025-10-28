@@ -394,8 +394,8 @@ public partial class DataModelCommands
     /// <inheritdoc />
     public async Task<DataModelTableColumnsResult> ListTableColumnsAsync(IExcelBatch batch, string tableName)
     {
-        var result = new DataModelTableColumnsResult 
-        { 
+        var result = new DataModelTableColumnsResult
+        {
             FilePath = batch.WorkbookPath,
             TableName = tableName
         };
@@ -415,7 +415,7 @@ public partial class DataModelCommands
                 }
 
                 model = ctx.Book.Model;
-                
+
                 // Find the table
                 table = ComUtilities.FindModelTable(model, tableName);
                 if (table == null)
@@ -458,8 +458,8 @@ public partial class DataModelCommands
     /// <inheritdoc />
     public async Task<DataModelTableViewResult> ViewTableAsync(IExcelBatch batch, string tableName)
     {
-        var result = new DataModelTableViewResult 
-        { 
+        var result = new DataModelTableViewResult
+        {
             FilePath = batch.WorkbookPath,
             TableName = tableName
         };
@@ -479,7 +479,7 @@ public partial class DataModelCommands
                 }
 
                 model = ctx.Book.Model;
-                
+
                 // Find the table
                 table = ComUtilities.FindModelTable(model, tableName);
                 if (table == null)
@@ -492,7 +492,7 @@ public partial class DataModelCommands
                 // Get table properties
                 result.SourceName = DataModelHelpers.SafeGetString(table, "SourceName");
                 result.RecordCount = DataModelHelpers.SafeGetInt(table, "RecordCount");
-                
+
                 // Try to get refresh date (may not always be available)
                 try
                 {

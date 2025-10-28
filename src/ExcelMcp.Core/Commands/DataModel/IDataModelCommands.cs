@@ -109,8 +109,8 @@ public interface IDataModelCommands
     /// <param name="formatType">Optional: Format type (Currency, Decimal, Percentage, General)</param>
     /// <param name="description">Optional: Description of the measure</param>
     /// <returns>Result indicating success or failure</returns>
-    Task<OperationResult> CreateMeasureAsync(IExcelBatch batch, string tableName, string measureName, 
-                                             string daxFormula, string? formatType = null, 
+    Task<OperationResult> CreateMeasureAsync(IExcelBatch batch, string tableName, string measureName,
+                                             string daxFormula, string? formatType = null,
                                              string? description = null);
 
     /// <summary>
@@ -123,8 +123,8 @@ public interface IDataModelCommands
     /// <param name="formatType">Optional: New format type (null to keep existing)</param>
     /// <param name="description">Optional: New description (null to keep existing)</param>
     /// <returns>Result indicating success or failure</returns>
-    Task<OperationResult> UpdateMeasureAsync(IExcelBatch batch, string measureName, 
-                                             string? daxFormula = null, string? formatType = null, 
+    Task<OperationResult> UpdateMeasureAsync(IExcelBatch batch, string measureName,
+                                             string? daxFormula = null, string? formatType = null,
                                              string? description = null);
 
     /// <summary>
@@ -138,8 +138,8 @@ public interface IDataModelCommands
     /// <param name="toColumn">Target column name</param>
     /// <param name="active">Whether the relationship should be active (default: true)</param>
     /// <returns>Result indicating success or failure</returns>
-    Task<OperationResult> CreateRelationshipAsync(IExcelBatch batch, string fromTable, 
-                                                   string fromColumn, string toTable, 
+    Task<OperationResult> CreateRelationshipAsync(IExcelBatch batch, string fromTable,
+                                                   string fromColumn, string toTable,
                                                    string toColumn, bool active = true);
 
     /// <summary>
@@ -153,7 +153,7 @@ public interface IDataModelCommands
     /// <param name="toColumn">Target column name</param>
     /// <param name="active">New active state for the relationship</param>
     /// <returns>Result indicating success or failure</returns>
-    Task<OperationResult> UpdateRelationshipAsync(IExcelBatch batch, string fromTable, 
-                                                   string fromColumn, string toTable, 
+    Task<OperationResult> UpdateRelationshipAsync(IExcelBatch batch, string fromTable,
+                                                   string fromColumn, string toTable,
                                                    string toColumn, bool active);
 }

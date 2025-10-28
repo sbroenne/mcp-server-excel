@@ -113,7 +113,7 @@ public static class ExcelDataModelTool
         [RegularExpression("^(String|Integer|Double|Boolean|DateTime)$")]
         [Description("Data type (for create-column, update-column): String, Integer, Double, Boolean, DateTime")]
         string? dataType = null,
-        
+
         [Description("Optional batch ID for grouping operations")]
         string? batchId = null)
     {
@@ -133,12 +133,12 @@ public static class ExcelDataModelTool
                 "refresh" => await RefreshAsync(dataModelCommands, excelPath, batchId),
                 "delete-measure" => await DeleteMeasureAsync(dataModelCommands, excelPath, measureName, batchId),
                 "delete-relationship" => await DeleteRelationshipAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, batchId),
-                
+
                 // Phase 2: Discovery operations (COM API)
                 "list-columns" => await ListTableColumnsAsync(dataModelCommands, excelPath, tableName, batchId),
                 "view-table" => await ViewTableAsync(dataModelCommands, excelPath, tableName, batchId),
                 "get-model-info" => await GetModelInfoAsync(dataModelCommands, excelPath, batchId),
-                
+
                 // Phase 2: CREATE/UPDATE operations (COM API - Office 2016+)
                 "create-measure" => await CreateMeasureComAsync(dataModelCommands, excelPath, tableName, measureName, daxFormula, formatString, description, batchId),
                 "update-measure" => await UpdateMeasureComAsync(dataModelCommands, excelPath, measureName, daxFormula, formatString, description, batchId),
@@ -604,7 +604,7 @@ public static class ExcelDataModelTool
     }
 
     private static async Task<string> CreateMeasureComAsync(DataModelCommands commands, string filePath,
-        string? tableName, string? measureName, string? daxFormula, string? formatString, 
+        string? tableName, string? measureName, string? daxFormula, string? formatString,
         string? description, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName))
@@ -626,7 +626,7 @@ public static class ExcelDataModelTool
             batchId,
             filePath,
             save: true,
-            async (batch) => await commands.CreateMeasureAsync(batch, tableName, measureName, daxFormula, 
+            async (batch) => await commands.CreateMeasureAsync(batch, tableName, measureName, daxFormula,
                 formatString, description));
 
         // If operation failed, throw exception with detailed error message
@@ -736,7 +736,7 @@ public static class ExcelDataModelTool
             batchId,
             filePath,
             save: true,
-            async (batch) => await commands.CreateRelationshipAsync(batch, fromTable, fromColumn, toTable, toColumn, 
+            async (batch) => await commands.CreateRelationshipAsync(batch, fromTable, fromColumn, toTable, toColumn,
                 isActive ?? true));
 
         // If operation failed, throw exception with detailed error message
@@ -804,7 +804,7 @@ public static class ExcelDataModelTool
             batchId,
             filePath,
             save: true,
-            async (batch) => await commands.UpdateRelationshipAsync(batch, fromTable, fromColumn, toTable, toColumn, 
+            async (batch) => await commands.UpdateRelationshipAsync(batch, fromTable, fromColumn, toTable, toColumn,
                 isActive.Value));
 
         // If operation failed, throw exception with detailed error message
