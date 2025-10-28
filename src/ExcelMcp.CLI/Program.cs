@@ -136,7 +136,7 @@ class Program
                 "script-update" => await script.Update(args),
                 "script-run" => script.Run(args),
 
-                // Data Model commands
+                // Data Model commands (READ operations via COM API)
                 "dm-list-tables" => dataModel.ListTables(args),
                 "dm-list-measures" => dataModel.ListMeasures(args),
                 "dm-view-measure" => dataModel.ViewMeasure(args),
@@ -146,13 +146,19 @@ class Program
                 "dm-delete-measure" => dataModel.DeleteMeasure(args),
                 "dm-delete-relationship" => dataModel.DeleteRelationship(args),
 
-                // Data Model TOM (Tabular Object Model) commands - CRUD operations
-                "dm-create-measure" => dataModelTom.CreateMeasure(args),
-                "dm-update-measure" => dataModelTom.UpdateMeasure(args),
-                "dm-create-relationship" => dataModelTom.CreateRelationship(args),
-                "dm-update-relationship" => dataModelTom.UpdateRelationship(args),
+                // Data Model Phase 2 commands (Discovery operations via COM API)
+                "dm-list-columns" => dataModel.ListColumns(args),
+                "dm-view-table" => dataModel.ViewTable(args),
+                "dm-get-model-info" => dataModel.GetModelInfo(args),
+
+                // Data Model Phase 2 commands (CREATE/UPDATE operations via COM API)
+                "dm-create-measure" => dataModel.CreateMeasure(args),
+                "dm-update-measure" => dataModel.UpdateMeasure(args),
+                "dm-create-relationship" => dataModel.CreateRelationship(args),
+                "dm-update-relationship" => dataModel.UpdateRelationship(args),
+
+                // Data Model TOM (Tabular Object Model) commands - Advanced CRUD operations (future)
                 "dm-create-column" => dataModelTom.CreateCalculatedColumn(args),
-                "dm-list-columns" => dataModelTom.ListCalculatedColumns(args),
                 "dm-view-column" => dataModelTom.ViewCalculatedColumn(args),
                 "dm-update-column" => dataModelTom.UpdateCalculatedColumn(args),
                 "dm-delete-column" => dataModelTom.DeleteCalculatedColumn(args),

@@ -52,4 +52,50 @@ public interface IDataModelCommands
     /// Usage: dm-delete-relationship <file.xlsx> <from-table> <from-column> <to-table> <to-column>
     /// </summary>
     int DeleteRelationship(string[] args);
+
+    // Phase 2: Discovery operations
+
+    /// <summary>
+    /// Lists all columns in a Data Model table
+    /// Usage: dm-list-columns <file.xlsx> <table-name>
+    /// </summary>
+    int ListColumns(string[] args);
+
+    /// <summary>
+    /// Views detailed information about a Data Model table
+    /// Usage: dm-view-table <file.xlsx> <table-name>
+    /// </summary>
+    int ViewTable(string[] args);
+
+    /// <summary>
+    /// Gets Data Model overview (table/measure/relationship counts)
+    /// Usage: dm-get-model-info <file.xlsx>
+    /// </summary>
+    int GetModelInfo(string[] args);
+
+    // Phase 2: CREATE/UPDATE operations
+
+    /// <summary>
+    /// Creates a new DAX measure in the Data Model
+    /// Usage: dm-create-measure <file.xlsx> <table-name> <measure-name> <dax-formula> [format-type] [description]
+    /// </summary>
+    int CreateMeasure(string[] args);
+
+    /// <summary>
+    /// Updates an existing DAX measure
+    /// Usage: dm-update-measure <file.xlsx> <measure-name> [dax-formula] [format-type] [description]
+    /// </summary>
+    int UpdateMeasure(string[] args);
+
+    /// <summary>
+    /// Creates a relationship between two Data Model tables
+    /// Usage: dm-create-relationship <file.xlsx> <from-table> <from-column> <to-table> <to-column> [active:true|false]
+    /// </summary>
+    int CreateRelationship(string[] args);
+
+    /// <summary>
+    /// Updates a relationship's active status
+    /// Usage: dm-update-relationship <file.xlsx> <from-table> <from-column> <to-table> <to-column> <active:true|false>
+    /// </summary>
+    int UpdateRelationship(string[] args);
 }
