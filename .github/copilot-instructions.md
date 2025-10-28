@@ -297,6 +297,18 @@ After completing significant tasks, update these instructions with lessons learn
   - Compilation errors: 4 expected in CLI (Phase 1B)
 - **Timeline**: Phase 1A completed in ~1 week (spec → implementation → testing → refactoring → deletions → MCP tool → SheetCommands refactoring)
 
+**Lesson Learned (2025-10-28 - Phase 1B CLI Implementation & Testing Strategy):** When implementing CLI wrappers for Core commands:
+1. **Don't Duplicate Integration Tests**: If Core integration tests cover business logic with Excel COM, CLI doesn't need to re-test the same operations
+2. **CLI Testing Focus**: Only test CLI-specific concerns (argument parsing, exit codes, CSV conversion helpers)
+3. **Manual Testing Suffices**: Quick manual verification (CSV round-trip, formula operations, single cells) proves CLI wrapper works
+4. **Core Tests Are Authoritative**: 24 passing Core integration tests = business logic verified; CLI just formats I/O
+5. **CSV Conversion Pattern**: CLI layer converts CSV ↔ 2D arrays (`List<List<object?>>`); Core uses native 2D arrays; MCP uses JSON
+6. **Type Inference**: ParseCsvTo2DArray auto-detects numbers, booleans, nulls (empty strings) vs strings for better UX
+7. **Progressive Implementation**: Start with 7 essential commands (get/set values/formulas, clear variants), add 23 more later if needed
+8. **Migration Documentation Critical**: Users need clear old→new command mapping (COMMANDS.md migration guide essential)
+9. **Help Text Updates**: Update CLI help text synchronously with command additions (examples section + command list)
+10. **Commit Message Simplicity**: Long multi-paragraph commit messages fail; use short title + 1-2 sentence body instead
+
 **Lesson Learned (2025-10-24 - Bulk Refactoring):** When performing bulk refactoring with many find/replace operations:
 1. **Preferred:** Use `replace_string_in_file` tool for targeted, unambiguous edits with context
 2. **Batch Operations:** Use `grep_search` to find patterns, then use `replace_string_in_file` in parallel for independent changes
