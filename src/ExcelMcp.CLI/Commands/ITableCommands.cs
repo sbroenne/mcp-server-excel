@@ -46,11 +46,6 @@ public interface ITableCommands
     int SetColumnTotal(string[] args);
 
     /// <summary>
-    /// Reads data from a table
-    /// </summary>
-    int ReadData(string[] args);
-
-    /// <summary>
     /// Appends rows to a table
     /// </summary>
     int AppendRows(string[] args);
@@ -64,4 +59,39 @@ public interface ITableCommands
     /// Adds table to Power Pivot Data Model
     /// </summary>
     int AddToDataModel(string[] args);
+
+    /// <summary>
+    /// Applies a filter to a table column with criteria
+    /// </summary>
+    int ApplyFilter(string[] args);
+
+    /// <summary>
+    /// Applies a filter to a table column with specific values
+    /// </summary>
+    int ApplyFilterValues(string[] args);
+
+    /// <summary>
+    /// Clears all filters from a table
+    /// </summary>
+    int ClearFilters(string[] args);
+
+    /// <summary>
+    /// Gets current filter state of a table
+    /// </summary>
+    int GetFilters(string[] args);
+
+    /// <summary>
+    /// Adds a new column to a table
+    /// </summary>
+    int AddColumn(string[] args);
+
+    /// <summary>
+    /// Removes a column from a table
+    /// </summary>
+    int RemoveColumn(string[] args);
+
+    /// <summary>
+    /// Renames a table column
+    /// </summary>
+    int RenameColumn(string[] args);
 }

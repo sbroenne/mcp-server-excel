@@ -1,6 +1,7 @@
 using Spectre.Console;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands.Table;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -8,9 +9,9 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 /// Table management commands implementation for CLI
 /// Wraps Core commands and provides console formatting
 /// </summary>
-public class TableCommands : ITableCommands
+public class CliTableCommands : ITableCommands
 {
-    private readonly Core.Commands.TableCommands _coreCommands = new();
+    private readonly TableCommands _coreCommands = new();
 
     public int List(string[] args)
     {
@@ -427,59 +428,6 @@ public class TableCommands : ITableCommands
         }
     }
 
-    public int ReadData(string[] args)
-    {
-        if (args.Length < 3)
-        {
-            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
-            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-read <file.xlsx> <tableName>");
-            return 1;
-        }
-
-        string filePath = Path.GetFullPath(args[1]);
-        string tableName = args[2];
-
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ReadDataAsync(batch, tableName);
-        });
-        var result = task.GetAwaiter().GetResult();
-
-        if (result.Success)
-        {
-            if (result.Data == null || !result.Data.Any())
-            {
-                AnsiConsole.MarkupLine("[yellow]Table is empty[/]");
-                return 0;
-            }
-
-            var table = new Table();
-            
-            // Add headers
-            foreach (var header in result.Headers)
-            {
-                table.AddColumn(header);
-            }
-
-            // Add data rows
-            foreach (var row in result.Data)
-            {
-                table.AddRow(row.Select(cell => cell?.ToString() ?? "").ToArray());
-            }
-
-            AnsiConsole.Write(table);
-            AnsiConsole.MarkupLine($"\n[dim]{result.RowCount} rows, {result.ColumnCount} columns[/]");
-
-            return 0;
-        }
-        else
-        {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-            return 1;
-        }
-    }
-
     public int AppendRows(string[] args)
     {
         if (args.Length < 4)
@@ -494,10 +442,13 @@ public class TableCommands : ITableCommands
         string tableName = args[2];
         string csvData = args[3];
 
+        // Parse CSV to List<List<object?>>
+        var rows = ParseCsvToRows(csvData);
+
         var task = Task.Run(async () =>
         {
             await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.AppendRowsAsync(batch, tableName, csvData);
+            return await _coreCommands.AppendRowsAsync(batch, tableName, rows);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -515,6 +466,32 @@ public class TableCommands : ITableCommands
             AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
             return 1;
         }
+    }
+
+    /// <summary>
+    /// Parse CSV data into List of List of objects for table operations.
+    /// Simple CSV parser - assumes comma delimiter, handles quoted strings.
+    /// </summary>
+    private static List<List<object?>> ParseCsvToRows(string csvData)
+    {
+        var rows = new List<List<object?>>();
+        var lines = csvData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var line in lines)
+        {
+            var row = new List<object?>();
+            var values = line.Split(',');
+            
+            foreach (var value in values)
+            {
+                var trimmed = value.Trim().Trim('"');
+                row.Add(string.IsNullOrEmpty(trimmed) ? null : trimmed);
+            }
+            
+            rows.Add(row);
+        }
+
+        return rows;
     }
 
     public int SetStyle(string[] args)
@@ -589,6 +566,283 @@ public class TableCommands : ITableCommands
                     AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
                 }
             }
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    // === FILTER OPERATIONS ===
+
+    public int ApplyFilter(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-apply-filter <file.xlsx> <tableName> <columnName> <criteria>");
+            AnsiConsole.MarkupLine("[dim]Example:[/] table-apply-filter sales.xlsx SalesTable Amount \">100\"");
+            AnsiConsole.MarkupLine("[dim]Criteria:[/] >value, <value, =value, >=value, <=value, <>value");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+        string columnName = args[3];
+        string criteria = args[4];
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.ApplyFilterAsync(batch, tableName, columnName, criteria);
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Applied filter to column [cyan]{columnName}[/] in table [cyan]{tableName}[/]");
+            AnsiConsole.MarkupLine($"[dim]Filter criteria: {criteria.EscapeMarkup()}[/]");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int ApplyFilterValues(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-apply-filter-values <file.xlsx> <tableName> <columnName> <value1,value2,...>");
+            AnsiConsole.MarkupLine("[dim]Example:[/] table-apply-filter-values sales.xlsx SalesTable Region \"North,South,East\"");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+        string columnName = args[3];
+        string valuesStr = args[4];
+
+        // Parse comma-separated values
+        var filterValues = valuesStr.Split(',').Select(v => v.Trim()).ToList();
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.ApplyFilterAsync(batch, tableName, columnName, filterValues);
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Applied filter to column [cyan]{columnName}[/] in table [cyan]{tableName}[/]");
+            AnsiConsole.MarkupLine($"[dim]Filter values: {string.Join(", ", filterValues)}[/]");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int ClearFilters(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-clear-filters <file.xlsx> <tableName>");
+            AnsiConsole.MarkupLine("[dim]Example:[/] table-clear-filters sales.xlsx SalesTable");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.ClearFiltersAsync(batch, tableName);
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Cleared all filters from table [cyan]{tableName}[/]");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int GetFilters(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-get-filters <file.xlsx> <tableName>");
+            AnsiConsole.MarkupLine("[dim]Example:[/] table-get-filters sales.xlsx SalesTable");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.GetFiltersAsync(batch, tableName);
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[cyan]Table:[/] {result.TableName}");
+            AnsiConsole.MarkupLine($"[cyan]Has Active Filters:[/] {(result.HasActiveFilters ? "Yes" : "No")}");
+
+            if (result.ColumnFilters != null && result.ColumnFilters.Any())
+            {
+                var table = new Table();
+                table.AddColumn("Column");
+                table.AddColumn("Filtered");
+                table.AddColumn("Criteria");
+                table.AddColumn("Filter Values");
+
+                foreach (var filter in result.ColumnFilters)
+                {
+                    table.AddRow(
+                        filter.ColumnName,
+                        filter.IsFiltered ? "Yes" : "No",
+                        filter.Criteria ?? "-",
+                        filter.FilterValues != null && filter.FilterValues.Any() 
+                            ? string.Join(", ", filter.FilterValues) 
+                            : "-"
+                    );
+                }
+
+                AnsiConsole.Write(table);
+            }
+            else
+            {
+                AnsiConsole.MarkupLine("[dim]No column filters found[/]");
+            }
+
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    // === COLUMN OPERATIONS ===
+
+    public int AddColumn(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-add-column <file.xlsx> <tableName> <columnName> [position]");
+            AnsiConsole.MarkupLine("[dim]Example:[/] table-add-column sales.xlsx SalesTable NewColumn");
+            AnsiConsole.MarkupLine("[dim]Example:[/] table-add-column sales.xlsx SalesTable NewColumn 2");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+        string columnName = args[3];
+        int? position = args.Length > 4 && int.TryParse(args[4], out int pos) ? pos : null;
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.AddColumnAsync(batch, tableName, columnName, position);
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Added column [cyan]{columnName}[/] to table [cyan]{tableName}[/]");
+            if (position.HasValue)
+            {
+                AnsiConsole.MarkupLine($"[dim]Position: {position.Value}[/]");
+            }
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int RemoveColumn(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-remove-column <file.xlsx> <tableName> <columnName>");
+            AnsiConsole.MarkupLine("[dim]Example:[/] table-remove-column sales.xlsx SalesTable OldColumn");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+        string columnName = args[3];
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.RemoveColumnAsync(batch, tableName, columnName);
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Removed column [cyan]{columnName}[/] from table [cyan]{tableName}[/]");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int RenameColumn(string[] args)
+    {
+        if (args.Length < 5)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-rename-column <file.xlsx> <tableName> <oldColumnName> <newColumnName>");
+            AnsiConsole.MarkupLine("[dim]Example:[/] table-rename-column sales.xlsx SalesTable OldName NewName");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+        string oldColumnName = args[3];
+        string newColumnName = args[4];
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.RenameColumnAsync(batch, tableName, oldColumnName, newColumnName);
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Renamed column from [cyan]{oldColumnName}[/] to [cyan]{newColumnName}[/] in table [cyan]{tableName}[/]");
             return 0;
         }
         else

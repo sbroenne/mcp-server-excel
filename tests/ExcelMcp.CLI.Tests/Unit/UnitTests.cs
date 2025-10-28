@@ -63,9 +63,6 @@ public class UnitTests
 
     [Theory]
     [InlineData(new string[] { "sheet-list" }, 1)] // Missing file path
-    [InlineData(new string[] { "sheet-read" }, 1)] // Missing file path
-    [InlineData(new string[] { "sheet-read", "file.xlsx" }, 1)] // Missing sheet name
-    [InlineData(new string[] { "sheet-read", "file.xlsx", "Sheet1" }, 1)] // Missing range
     public void SheetCommands_WithInvalidArgs_ReturnsErrorExitCode(string[] args, int expectedExitCode)
     {
         // Arrange
@@ -75,7 +72,6 @@ public class UnitTests
         int actualExitCode = args[0] switch
         {
             "sheet-list" => commands.List(args),
-            "sheet-read" => commands.Read(args),
             _ => throw new ArgumentException($"Unknown command: {args[0]}")
         };
 
