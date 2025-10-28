@@ -76,4 +76,89 @@ public class ExcelFileToolErrorTests : IDisposable
         // Assert - Verify exception contains expected message
         Assert.Contains("Unknown action 'invalid-action'", exception.Message);
     }
+
+    [Fact]
+    public async Task ExcelFile_TestAction_WithExistingFile_ShouldReturnSuccess()
+    {
+        // Arrange
+        var testFile = Path.Combine(_tempDir, "test-validation.xlsx");
+
+        // Create a dummy file (test action doesn't need a real Excel file, just checks existence and extension)
+        File.WriteAllText(testFile, "dummy Excel content");
+
+        _output.WriteLine($"Testing file validation at: {testFile}");
+
+        // Act - Call the test action
+        var result = await ExcelFileTool.ExcelFile("test", testFile);
+
+        _output.WriteLine($"Test result: {result}");
+
+        // Parse the result
+        var jsonDoc = JsonDocument.Parse(result);
+        var success = jsonDoc.RootElement.GetProperty("success").GetBoolean();
+        var exists = jsonDoc.RootElement.GetProperty("exists").GetBoolean();
+        var isValid = jsonDoc.RootElement.GetProperty("isValid").GetBoolean();
+        var extension = jsonDoc.RootElement.GetProperty("extension").GetString();
+
+        // Assert
+        Assert.True(success, $"Test action failed: {result}");
+        Assert.True(exists, "File should exist");
+        Assert.True(isValid, "File should be valid");
+        Assert.Equal(".xlsx", extension);
+    }
+
+    [Fact]
+    public async Task ExcelFile_TestAction_WithNonExistentFile_ShouldReturnFailure()
+    {
+        // Arrange
+        var testFile = Path.Combine(_tempDir, "nonexistent.xlsx");
+
+        _output.WriteLine($"Testing non-existent file at: {testFile}");
+
+        // Act - Call the test action on non-existent file
+        var result = await ExcelFileTool.ExcelFile("test", testFile);
+
+        _output.WriteLine($"Test result: {result}");
+
+        // Parse the result
+        var jsonDoc = JsonDocument.Parse(result);
+        var success = jsonDoc.RootElement.GetProperty("success").GetBoolean();
+        var exists = jsonDoc.RootElement.GetProperty("exists").GetBoolean();
+        var isValid = jsonDoc.RootElement.GetProperty("isValid").GetBoolean();
+
+        // Assert
+        Assert.False(success, "Test action should fail for non-existent file");
+        Assert.False(exists, "File should not exist");
+        Assert.False(isValid, "File should not be valid");
+    }
+
+    [Fact]
+    public async Task ExcelFile_TestAction_WithInvalidExtension_ShouldReturnFailure()
+    {
+        // Arrange
+        var testFile = Path.Combine(_tempDir, "test-file.txt");
+        
+        // Create file with invalid extension
+        File.WriteAllText(testFile, "test content");
+
+        _output.WriteLine($"Testing invalid extension at: {testFile}");
+
+        // Act - Call the test action
+        var result = await ExcelFileTool.ExcelFile("test", testFile);
+
+        _output.WriteLine($"Test result: {result}");
+
+        // Parse the result
+        var jsonDoc = JsonDocument.Parse(result);
+        var success = jsonDoc.RootElement.GetProperty("success").GetBoolean();
+        var exists = jsonDoc.RootElement.GetProperty("exists").GetBoolean();
+        var isValid = jsonDoc.RootElement.GetProperty("isValid").GetBoolean();
+        var extension = jsonDoc.RootElement.GetProperty("extension").GetString();
+
+        // Assert
+        Assert.False(success, "Test action should fail for invalid extension");
+        Assert.True(exists, "File should exist");
+        Assert.False(isValid, "File should not be valid");
+        Assert.Equal(".txt", extension);
+    }
 }

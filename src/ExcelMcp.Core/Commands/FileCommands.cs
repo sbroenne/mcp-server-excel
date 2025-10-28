@@ -96,5 +96,61 @@ public class FileCommands : IFileCommands
         }
     }
 
+    /// <inheritdoc />
+    public async Task<FileValidationResult> TestFileAsync(string filePath)
+    {
+        try
+        {
+            filePath = Path.GetFullPath(filePath);
+
+            // Check if file exists
+            bool exists = File.Exists(filePath);
+            
+            // Get file extension
+            string extension = exists ? Path.GetExtension(filePath).ToLowerInvariant() : "";
+
+            // Validate extension
+            bool isValidExtension = extension == ".xlsx" || extension == ".xlsm";
+
+            // Get file info if exists
+            long size = 0;
+            DateTime lastModified = DateTime.MinValue;
+
+            if (exists)
+            {
+                var fileInfo = new FileInfo(filePath);
+                size = fileInfo.Length;
+                lastModified = fileInfo.LastWriteTime;
+            }
+
+            return await Task.FromResult(new FileValidationResult
+            {
+                Success = exists && isValidExtension,
+                ErrorMessage = !exists ? $"File not found: {filePath}" 
+                    : !isValidExtension ? $"Invalid file extension. Expected .xlsx or .xlsm, got {extension}"
+                    : null,
+                FilePath = filePath,
+                Exists = exists,
+                Size = size,
+                Extension = extension,
+                LastModified = lastModified,
+                IsValid = exists && isValidExtension
+            });
+        }
+        catch (Exception ex)
+        {
+            return new FileValidationResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to validate file: {ex.Message}",
+                FilePath = filePath,
+                Exists = false,
+                Size = 0,
+                Extension = "",
+                LastModified = DateTime.MinValue,
+                IsValid = false
+            };
+        }
+    }
 
 }
