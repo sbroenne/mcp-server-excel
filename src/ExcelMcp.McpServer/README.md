@@ -57,7 +57,7 @@ dotnet run --project src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
 
 ## 🛠️ Resource-Based Tools
 
-The MCP server provides **9 focused resource-based tools** optimized for AI coding agents. Each tool handles only Excel-specific operations:
+The MCP server provides **10 focused resource-based tools** optimized for AI coding agents. Each tool handles only Excel-specific operations:
 
 ### 1. **`excel_file`** - Excel File Creation 🎯
 
@@ -87,48 +87,73 @@ The MCP server provides **9 focused resource-based tools** optimized for AI codi
 
 ### 4. **`excel_datamodel`** - Data Model & DAX Management 📈
 
-**Actions**: `list-tables`, `list-measures`, `view-measure`, `export-measure`, `list-relationships`, `refresh`, `delete-measure`, `delete-relationship` (8 actions)
+**Actions**: `list-tables`, `list-measures`, `view-measure`, `export-measure`, `list-relationships`, `refresh`, `delete-measure`, `delete-relationship`, `list-columns`, `view-table`, `get-model-info`, `create-measure`, `update-measure`, `create-relationship`, `update-relationship` (15 actions)
 
 - Excel Data Model (Power Pivot) operations for enterprise analytics
-- DAX measure inspection, export, and deletion
+- **Phase 2 CRUD:** Create/update DAX measures with format types (Currency, Percentage, Decimal, General)
+- **Phase 2 CRUD:** Create/update table relationships with active/inactive toggles
+- Discovery: List tables, columns, measures, relationships; view table details; get model statistics
+- DAX measure inspection, export to .dax files for version control, and deletion
 - Table relationship management and analysis
 - Data Model refresh and structure exploration
-- 🎯 **LLM-Optimized**: AI can analyze DAX formulas and optimize Data Model structure
-- 📝 **Note**: CREATE/UPDATE operations require TOM API (planned for future phase)
+- 🎯 **LLM-Optimized**: AI can create/manage DAX formulas and optimize Data Model structure
 
-### 5. **`excel_worksheet`** - Worksheet Operations & Bulk Data 📊
+### 5. **`excel_worksheet`** - Worksheet Lifecycle Management 📊
 
-**Actions**: `list`, `read`, `write`, `create`, `rename`, `copy`, `delete`, `clear`, `append` (9 actions)  
+**Actions**: `list`, `create`, `rename`, `copy`, `delete` (5 actions)  
 
-- Full worksheet lifecycle with bulk data operations for efficient AI-driven automation
-- CSV import/export and data processing capabilities
-- 🎯 **LLM-Optimized**: Bulk operations reduce the number of tool calls needed
+- Worksheet lifecycle management (creation, renaming, copying, deletion)
+- List all worksheets with visibility and index information
+- 📝 **Note**: Data operations (read/write/clear) moved to `excel_range` in Phase 1
+- 🎯 **LLM-Optimized**: AI manages worksheet structure while using `excel_range` for data
 
-### 6. **`excel_parameter`** - Named Ranges as Configuration ⚙️
+### 6. **`excel_range`** - Unified Range Operations 🎯
 
-**Actions**: `list`, `get`, `set`, `create`, `delete` (5 actions)
+**Actions**: `get-values`, `set-values`, `get-formulas`, `set-formulas`, `clear-all`, `clear-contents`, `clear-formats`, and 23+ more (30+ actions)
+
+- **Unified range API**: Single cell = 1x1 range (e.g., "A1" returns `[[value]]`)
+- **Phase 1 Consolidation:** Replaced `excel_cell` tool, absorbed worksheet data operations
+- Value/formula operations with 2D arrays (JSON format)
+- Clear, copy, insert/delete cells/rows/columns
+- Find/replace, sorting, hyperlink management
+- Discovery: UsedRange, CurrentRegion, RangeInfo
+- Named ranges: Transparent resolution (accepts both "A1:D10" and "SalesData")
+- 🎯 **LLM-Optimized**: AI works with ranges naturally without cell vs range confusion
+
+### 7. **`excel_parameter`** - Named Ranges as Configuration ⚙️
+
+**Actions**: `list`, `get`, `set`, `create`, `delete`, `update` (6 actions)
 
 - Excel configuration management through named ranges for dynamic AI-controlled parameters
 - Parameter-driven workbook automation and templating
+- Update named range references to point to different cells
 - 🎯 **LLM-Optimized**: AI can dynamically configure Excel behavior via parameters
 
-### 7. **`excel_cell`** - Individual Cell Precision Operations 🎯
+### 8. **`table`** - Excel Table (ListObject) Management 📊
 
-**Actions**: `get-value`, `set-value`, `get-formula`, `set-formula` (4 actions)
+**Actions**: `list`, `create`, `info`, `rename`, `delete`, `resize`, `set-style`, `toggle-totals`, `set-column-total`, `append`, `apply-filter`, `apply-filter-values`, `clear-filters`, `get-filters`, `add-column`, `remove-column`, `rename-column`, `get-structured-reference`, `sort`, `sort-multi`, `add-to-datamodel` (22 actions)
 
-- Granular cell control for precise AI-driven formula and value manipulation
-- Individual cell operations when bulk operations aren't appropriate
-- 🎯 **LLM-Optimized**: Perfect for AI formula generation and cell-specific logic
+- **Phase 2 Advanced Features:** Complete Excel Table automation
+- Table lifecycle: Create, rename, delete, resize with auto-expansion
+- Structure: Add/remove/rename columns, set visual styles
+- Totals: Toggle totals row, set column total functions (SUM, AVG, COUNT, etc.)
+- Filtering: Apply criteria filters, value filters, clear filters, get filter state
+- Sorting: Single column or multi-column sorts (up to 3 levels)
+- Structured References: Get Excel formulas for table regions (All, Data, Headers, Totals, ThisRow)
+- Data Model Integration: Add tables to Power Pivot for analytics
+- 🎯 **LLM-Optimized**: AI can build complex table structures with filters, sorts, and formulas
 
-### 8. **`excel_vba`** - VBA Macro Management & Execution 📜
+### 9. **`excel_vba`** - VBA Macro Management & Execution 📜
 
-**Actions**: `list`, `export`, `import`, `update`, `run`, `delete` (6 actions) ⚠️ *(.xlsm files only)*
+**Actions**: `list`, `view`, `export`, `import`, `update`, `run`, `delete` (7 actions) ⚠️ *(.xlsm files only)*
 
 - Complete VBA lifecycle for AI-assisted macro development and automation
+- View module code without exporting to file
 - Script import/export for version control and code review
+- Execute macros with parameters directly from AI
 - 🎯 **LLM-Optimized**: AI can enhance VBA with error handling, logging, and best practices
 
-### 9. **`excel_version`** - Version Checking ⚡
+### 10. **`excel_version`** - Version Checking ⚡
 
 **Actions**: `check` (1 action)
 
@@ -190,6 +215,18 @@ User: "List all DAX measures in my workbook"
 AI Assistant uses: excel_datamodel(action="list-measures", excelPath="sales-analysis.xlsx")
 Result: {"success": true, "measures": [{"name": "Total Sales", "formula": "SUM(Sales[Amount])", "table": "Sales"}]}
 
+User: "Create a new DAX measure for total revenue with currency formatting"
+AI Assistant uses: excel_datamodel(action="create-measure", excelPath="sales.xlsx", tableName="Sales", measureName="TotalRevenue", formula="SUM(Sales[Amount])", formatType="Currency", description="Total sales revenue")
+Result: {"success": true, "message": "Measure 'TotalRevenue' created successfully"}
+
+User: "Update the Total Sales formula to use CALCULATE"
+AI Assistant uses: excel_datamodel(action="update-measure", excelPath="sales.xlsx", measureName="Total Sales", formula="CALCULATE(SUM(Sales[Amount]))", description="Updated with CALCULATE for better performance")
+Result: {"success": true, "message": "Measure 'Total Sales' updated successfully"}
+
+User: "Create a relationship between Sales and Customers tables"
+AI Assistant uses: excel_datamodel(action="create-relationship", excelPath="sales.xlsx", fromTable="Sales", fromColumn="CustomerID", toTable="Customers", toColumn="ID", active=true)
+Result: {"success": true, "message": "Relationship created successfully"}
+
 User: "Export the 'Total Sales' measure to a file for version control"
 AI Assistant uses: excel_datamodel(action="export-measure", excelPath="sales-analysis.xlsx", measureName="Total Sales", outputPath="measures/total-sales.dax")
 Result: {"success": true, "message": "Measure exported successfully"}
@@ -219,16 +256,36 @@ AI Assistant uses: excel_worksheet(action="create", filePath="analysis.xlsx", sh
 Result: {"success": true, "action": "create", "filePath": "analysis.xlsx"}
 ```
 
-### Cell Operations
+### Range & Cell Operations
 
 ```text  
 User: "What's the value in cell B5 of the Summary sheet?"
-AI Assistant uses: excel_cell(action="get-value", filePath="report.xlsx", sheetName="Summary", cellAddress="B5")
-Result: {"success": true, "action": "get-value", "filePath": "report.xlsx", "sheetName": "Summary", "cellAddress": "B5"}
+AI Assistant uses: excel_range(action="get-values", excelPath="report.xlsx", sheetName="Summary", rangeAddress="B5")
+Result: {"success": true, "values": [[42]], "sheetName": "Summary", "rangeAddress": "B5"}
 
 User: "Set cell A1 to contain the formula =SUM(B1:B10)"  
-AI Assistant uses: excel_cell(action="set-formula", filePath="report.xlsx", sheetName="Sheet1", cellAddress="A1", valueOrFormula="=SUM(B1:B10)")
-Result: {"success": true, "action": "set-formula", "filePath": "report.xlsx", "sheetName": "Sheet1", "cellAddress": "A1"}
+AI Assistant uses: excel_range(action="set-formulas", excelPath="report.xlsx", sheetName="Sheet1", rangeAddress="A1", formulas=[["=SUM(B1:B10)"]])
+Result: {"success": true, "action": "set-formulas", "sheetName": "Sheet1", "rangeAddress": "A1"}
+
+User: "Read the sales data from range A1:D100"
+AI Assistant uses: excel_range(action="get-values", excelPath="sales.xlsx", sheetName="Data", rangeAddress="A1:D100")
+Result: {"success": true, "values": [[...2D array...]], "rowCount": 100, "columnCount": 4}
+```
+
+### Table Operations
+
+```text
+User: "List all Excel Tables in my workbook"
+AI Assistant uses: table(action="list", filePath="sales.xlsx")
+Result: {"success": true, "tables": [{"name": "SalesTable", "sheetName": "Data", "recordCount": 150}]}
+
+User: "Apply a filter to show only sales over $100"
+AI Assistant uses: table(action="apply-filter", filePath="sales.xlsx", tableName="SalesTable", columnName="Amount", criteria=">100")
+Result: {"success": true, "message": "Filter applied successfully"}
+
+User: "Sort the table by Amount descending, then by Date ascending"
+AI Assistant uses: table(action="sort-multi", filePath="sales.xlsx", tableName="SalesTable", sortColumns=[{"columnName": "Amount", "ascending": false}, {"columnName": "Date", "ascending": true}])
+Result: {"success": true, "message": "Table sorted successfully"}
 ```
 
 ### Parameter Management
