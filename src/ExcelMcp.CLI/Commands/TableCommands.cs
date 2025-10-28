@@ -851,4 +851,178 @@ public class CliTableCommands : ITableCommands
             return 1;
         }
     }
+
+    #region Phase 2 Commands
+
+    public int GetStructuredReference(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-get-structured-reference <file.xlsx> <tableName> <region> [[columnName]]");
+            AnsiConsole.MarkupLine("[dim]Regions:[/] All, Data, Headers, Totals, ThisRow");
+            AnsiConsole.MarkupLine("[dim]Example:[/] table-get-structured-reference sales.xlsx SalesTable Data");
+            AnsiConsole.MarkupLine("[dim]Example:[/] table-get-structured-reference sales.xlsx SalesTable Data Amount");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+        string regionStr = args[3];
+        string? columnName = args.Length > 4 ? args[4] : null;
+
+        // Parse region
+        if (!Enum.TryParse<TableRegion>(regionStr, ignoreCase: true, out var region))
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] Invalid region '{regionStr}'");
+            AnsiConsole.MarkupLine("[yellow]Valid regions:[/] All, Data, Headers, Totals, ThisRow");
+            return 1;
+        }
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.GetStructuredReferenceAsync(batch, tableName, region, columnName);
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            var table = new Table();
+            table.AddColumn("Property");
+            table.AddColumn("Value");
+
+            table.AddRow("Table Name", result.TableName);
+            table.AddRow("Region", result.Region.ToString());
+            if (!string.IsNullOrEmpty(result.ColumnName))
+            {
+                table.AddRow("Column Name", result.ColumnName);
+            }
+            table.AddRow("Structured Reference", $"[cyan]{result.StructuredReference}[/]");
+            table.AddRow("Range Address", $"[dim]{result.RangeAddress}[/]");
+            table.AddRow("Row Count", result.RowCount.ToString());
+            table.AddRow("Column Count", result.ColumnCount.ToString());
+
+            AnsiConsole.Write(table);
+            
+            AnsiConsole.MarkupLine($"\n[dim]Use this structured reference in formulas or with RangeCommands[/]");
+            
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int Sort(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-sort <file.xlsx> <tableName> <columnName> [[asc|desc]]");
+            AnsiConsole.MarkupLine("[dim]Example:[/] table-sort sales.xlsx SalesTable Amount desc");
+            AnsiConsole.MarkupLine("[dim]Example:[/] table-sort sales.xlsx SalesTable Region asc");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+        string columnName = args[3];
+        bool ascending = args.Length > 4 ? args[4].Equals("asc", StringComparison.OrdinalIgnoreCase) : true;
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.SortAsync(batch, tableName, columnName, ascending);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            string direction = ascending ? "ascending" : "descending";
+            AnsiConsole.MarkupLine($"[green]✓[/] Sorted table [cyan]{tableName}[/] by [cyan]{columnName}[/] ({direction})");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int SortMulti(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-sort-multi <file.xlsx> <tableName> <column1:asc> <column2:desc> [[column3:asc]]");
+            AnsiConsole.MarkupLine("[dim]Example:[/] table-sort-multi sales.xlsx SalesTable Region:asc Amount:desc");
+            AnsiConsole.MarkupLine("[dim]Example:[/] table-sort-multi sales.xlsx SalesTable Year:desc Quarter:desc Amount:desc");
+            AnsiConsole.MarkupLine("[dim]Note:[/] Excel supports max 3 sort levels");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+
+        // Parse sort columns (format: "columnName:asc" or "columnName:desc")
+        var sortColumns = new List<TableSortColumn>();
+        for (int i = 3; i < args.Length && i < 6; i++) // Max 3 levels (args 3, 4, 5)
+        {
+            string[] parts = args[i].Split(':');
+            if (parts.Length != 2)
+            {
+                AnsiConsole.MarkupLine($"[red]Error:[/] Invalid sort column format '{args[i]}'");
+                AnsiConsole.MarkupLine("[yellow]Expected format:[/] columnName:asc or columnName:desc");
+                return 1;
+            }
+
+            string columnName = parts[0];
+            bool ascending = parts[1].Equals("asc", StringComparison.OrdinalIgnoreCase);
+
+            sortColumns.Add(new TableSortColumn
+            {
+                ColumnName = columnName,
+                Ascending = ascending
+            });
+        }
+
+        if (sortColumns.Count == 0)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] No sort columns specified");
+            return 1;
+        }
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.SortAsync(batch, tableName, sortColumns);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Sorted table [cyan]{tableName}[/] by {sortColumns.Count} level(s):");
+            for (int i = 0; i < sortColumns.Count; i++)
+            {
+                var col = sortColumns[i];
+                string direction = col.Ascending ? "ascending" : "descending";
+                AnsiConsole.MarkupLine($"  [dim]{i + 1}.[/] [cyan]{col.ColumnName}[/] ({direction})");
+            }
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    #endregion
 }

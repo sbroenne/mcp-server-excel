@@ -120,6 +120,9 @@ class Program
                 "table-add-column" => table.AddColumn(args),
                 "table-remove-column" => table.RemoveColumn(args),
                 "table-rename-column" => table.RenameColumn(args),
+                "table-get-structured-reference" => table.GetStructuredReference(args),
+                "table-sort" => table.Sort(args),
+                "table-sort-multi" => table.SortMulti(args),
 
                 // Connection commands
                 "conn-list" => connection.List(args),
