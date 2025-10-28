@@ -308,6 +308,15 @@ After completing significant tasks, update these instructions with lessons learn
 8. **Migration Documentation Critical**: Users need clear old→new command mapping (COMMANDS.md migration guide essential)
 9. **Help Text Updates**: Update CLI help text synchronously with command additions (examples section + command list)
 10. **Commit Message Simplicity**: Long multi-paragraph commit messages fail; use short title + 1-2 sentence body instead
+11. **Scope Discipline**: Stick to defined phase boundaries - don't add "nice to have" features beyond the plan, even if Core/MCP already support them
+
+**Lesson Learned (2025-10-28 - Scope Management & Phase Boundaries):** When implementing multi-phase features:
+1. **Define clear phase boundaries** - Phase 1B = "7 essential commands to replace deleted functionality"
+2. **Progressive implementation is intentional** - Start with minimum viable set, add more based on user demand
+3. **Resist scope creep** - Don't add features just because they're "easy" or already implemented in other layers
+4. **Each phase should solve a specific problem** - Phase 1B solved: "Users lost sheet-read/write/clear commands"
+5. **Future additions go in separate PRs** - Remaining 23 CLI commands are user-driven, not automatic
+6. **Complete means complete** - When phase objectives are met, mark it done and move on
 
 **Lesson Learned (2025-10-24 - Bulk Refactoring):** When performing bulk refactoring with many find/replace operations:
 1. **Preferred:** Use `replace_string_in_file` tool for targeted, unambiguous edits with context
