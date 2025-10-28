@@ -1,0 +1,122 @@
+# VS Code Extension - Installation Guide
+
+## Quick Install from VSIX
+
+1. Download `excelmcp-1.0.0.vsix` from the [Releases page](https://github.com/sbroenne/mcp-server-excel/releases)
+
+2. Install in VS Code:
+   - Open VS Code
+   - Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (Mac)
+   - Type "Install from VSIX"
+   - Select the downloaded `excelmcp-1.0.0.vsix` file
+
+3. **Requirements** (must be installed before using the extension):
+   - **Windows OS** - Excel COM automation requires Windows
+   - **Microsoft Excel 2016+** - Must be installed on your system
+   - **.NET 10 SDK** - Required for the `dnx` command
+     ```powershell
+     winget install Microsoft.DotNet.SDK.10
+     ```
+
+4. **Verify Installation**:
+   - Ask GitHub Copilot: "List all available Excel MCP tools"
+   - You should see 10 Excel tools available
+
+## What the Extension Does
+
+The ExcelMcp extension automatically registers the ExcelMcp MCP server with VS Code, making Excel automation available to AI assistants like GitHub Copilot.
+
+- ✅ **No manual configuration needed** - The extension handles everything
+- ✅ **Automatic updates** - Uses `dnx` to download the latest version from NuGet
+- ✅ **10 Excel tools** - Power Query, DAX, VBA, Tables, Ranges, and more
+
+## Using the Extension
+
+Once installed, you can ask GitHub Copilot to help with Excel tasks:
+
+```
+"List all Power Query queries in workbook.xlsx"
+"Export all DAX measures to .dax files"  
+"Create a new Excel table from range A1:D100"
+"Refactor this Power Query M code for better performance"
+```
+
+## Available Tools
+
+The MCP server provides **10 specialized tools**:
+
+1. **excel_powerquery** - Power Query M code (11 actions)
+2. **excel_datamodel** - DAX measures & relationships (20 actions)
+3. **table** - Excel Tables/ListObjects (22 actions)
+4. **excel_range** - Range operations (30+ actions)
+5. **excel_vba** - VBA macros (7 actions)
+6. **excel_connection** - Data connections (11 actions)
+7. **excel_worksheet** - Worksheet lifecycle (5 actions)
+8. **excel_parameter** - Named ranges (6 actions)
+9. **excel_file** - File creation (1 action)
+10. **excel_version** - Update checking (1 action)
+
+## Troubleshooting
+
+### Extension not working?
+
+1. **Check .NET 10 is installed**:
+   ```powershell
+   dotnet --version
+   # Should show 10.x.x
+   ```
+
+2. **Verify dnx command works**:
+   ```powershell
+   dnx --help
+   ```
+
+3. **Check Excel is installed**:
+   - Open Excel manually to verify
+
+4. **Restart VS Code** after installing prerequisites
+
+### Still having issues?
+
+- Check the [Issues page](https://github.com/sbroenne/mcp-server-excel/issues)
+- Review the [main documentation](https://github.com/sbroenne/mcp-server-excel)
+
+## Alternative: Manual Configuration
+
+If you prefer not to use the extension, you can manually configure the MCP server by creating `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "excel": {
+      "command": "dnx",
+      "args": ["Sbroenne.ExcelMcp.McpServer", "--yes"]
+    }
+  }
+}
+```
+
+## Development
+
+To build the extension from source:
+
+```bash
+cd vscode-extension
+npm install
+npm run compile
+npm run package
+```
+
+This creates `excelmcp-1.0.0.vsix` which can be installed in VS Code.
+
+## Publishing
+
+The extension is currently distributed via GitHub releases. To publish to the VS Code Marketplace:
+
+1. Get a publisher account from [Visual Studio Marketplace](https://marketplace.visualstudio.com/)
+2. Generate a Personal Access Token
+3. Run: `npx @vscode/vsce publish`
+
+## License
+
+MIT License - see [LICENSE](../LICENSE)

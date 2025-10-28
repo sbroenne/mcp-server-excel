@@ -1,0 +1,64 @@
+{
+  "name": "excelmcp",
+  "displayName": "ExcelMcp - MCP Server for Excel",
+  "description": "Excel automation MCP server - Power Query, DAX, VBA, Tables, Ranges via AI assistants",
+  "version": "1.0.0",
+  "publisher": "sbroenne",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sbroenne/mcp-server-excel"
+  },
+  "bugs": {
+    "url": "https://github.com/sbroenne/mcp-server-excel/issues"
+  },
+  "homepage": "https://github.com/sbroenne/mcp-server-excel#readme",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.105.0"
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "keywords": [
+    "mcp",
+    "model context protocol",
+    "excel",
+    "automation",
+    "power query",
+    "dax",
+    "vba",
+    "copilot",
+    "ai"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "excelmcp",
+        "label": "ExcelMcp - Excel Automation"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.13",
+    "@types/vscode": "^1.105.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.2",
+    "@typescript-eslint/parser": "^8.46.2",
+    "@vscode/vsce": "^3.6.2",
+    "eslint": "^9.38.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.2"
+  }
+}

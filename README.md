@@ -80,13 +80,31 @@ Control Power Query M code, Data Models with DAX measures, VBA macros, Excel Tab
 
 **Requirements:** Windows OS + Microsoft Excel 2016+ + .NET SDK 10
 
-### 1. Install .NET 10 SDK - required for the "dnx" command
+### Option 1: VS Code Extension (Easiest) ⭐
+
+1. **Install prerequisites**:
+   ```powershell
+   winget install Microsoft.DotNet.SDK.10
+   ```
+
+2. **Install the extension**:
+   - Download `excelmcp-1.0.0.vsix` from [Releases](https://github.com/sbroenne/mcp-server-excel/releases)
+   - In VS Code: `Ctrl+Shift+P` → "Install from VSIX" → Select the file
+   - **That's it!** The extension automatically configures everything
+
+3. **Verify**: Ask GitHub Copilot: `List all available Excel MCP tools`
+
+> 📚 See [vscode-extension/INSTALL.md](vscode-extension/INSTALL.md) for detailed installation guide
+
+### Option 2: Manual Configuration
+
+1. **Install .NET 10 SDK** - required for the "dnx" command
 
 ```powershell
 winget install Microsoft.DotNet.SDK.10
 ```
 
-### 2. Configure Your AI Assistant
+2. **Configure Your AI Assistant**
 
 **For GitHub Copilot** - Create `.vscode/mcp.json` in your workspace:
 
@@ -114,7 +132,7 @@ winget install Microsoft.DotNet.SDK.10
 }
 ```
 
-### 3. Verify Setup
+3. **Verify Setup**
 
 Ask your AI assistant:
 ```
