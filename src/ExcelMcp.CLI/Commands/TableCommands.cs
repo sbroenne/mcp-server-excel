@@ -574,11 +574,6 @@ public class CliTableCommands : ITableCommands
             return 1;
         }
     }
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> f6c5ae0 (feat: Phase 2 TableCommands - Structured References and Sorting)
 
     // === FILTER OPERATIONS ===
 
@@ -856,7 +851,6 @@ public class CliTableCommands : ITableCommands
             return 1;
         }
     }
-<<<<<<< HEAD
 
     #region Phase 2 Commands
 
@@ -1031,7 +1025,4 @@ public class CliTableCommands : ITableCommands
     }
 
     #endregion
->>>>>>> 51886ea (feat: Add CLI commands for Phase 2 TableCommands features)
-=======
->>>>>>> f6c5ae0 (feat: Phase 2 TableCommands - Structured References and Sorting)
 }

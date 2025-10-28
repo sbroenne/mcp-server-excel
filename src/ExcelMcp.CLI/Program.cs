@@ -113,11 +113,6 @@ class Program
                 "table-append" => table.AppendRows(args),
                 "table-set-style" => table.SetStyle(args),
                 "table-add-to-datamodel" => table.AddToDataModel(args),
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> f6c5ae0 (feat: Phase 2 TableCommands - Structured References and Sorting)
                 "table-apply-filter" => table.ApplyFilter(args),
                 "table-apply-filter-values" => table.ApplyFilterValues(args),
                 "table-clear-filters" => table.ClearFilters(args),
@@ -125,13 +120,9 @@ class Program
                 "table-add-column" => table.AddColumn(args),
                 "table-remove-column" => table.RemoveColumn(args),
                 "table-rename-column" => table.RenameColumn(args),
-<<<<<<< HEAD
                 "table-get-structured-reference" => table.GetStructuredReference(args),
                 "table-sort" => table.Sort(args),
                 "table-sort-multi" => table.SortMulti(args),
->>>>>>> 51886ea (feat: Add CLI commands for Phase 2 TableCommands features)
-=======
->>>>>>> f6c5ae0 (feat: Phase 2 TableCommands - Structured References and Sorting)
 
                 // Connection commands
                 "conn-list" => connection.List(args),
