@@ -66,7 +66,7 @@ public class PowerQueryEnhancementsMcpTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    [Fact]
+    [Fact(Timeout = 60000)] // 60 second timeout to prevent hanging
     public async Task PowerQuery_Import_ShouldValidateAndProvideGuidance()
     {
         // Arrange
@@ -135,7 +135,7 @@ in
         }
     }
 
-    [Fact]
+    [Fact(Timeout = 60000)] // 60 second timeout to prevent hanging
     public async Task PowerQuery_Import_WithConnectionOnly_ShouldSkipValidation()
     {
         // Arrange
@@ -183,7 +183,7 @@ in
         }
     }
 
-    [Fact]
+    [Fact(Timeout = 60000)] // 60 second timeout to prevent hanging
     public async Task PowerQuery_Update_ShouldPreserveLoadConfiguration()
     {
         // Arrange
@@ -272,7 +272,7 @@ in
         _output.WriteLine($"Load configuration preserved: {mode}");
     }
 
-    [Fact]
+    [Fact(Timeout = 60000)] // 60 second timeout to prevent hanging
     public async Task PowerQuery_Refresh_ShouldCaptureErrorsAndProvideRecovery()
     {
         // Arrange
@@ -355,7 +355,7 @@ in
         }
     }
 
-    [Fact]
+    [Fact(Timeout = 60000)] // 60 second timeout to prevent hanging
     public async Task PowerQuery_CompleteWorkflow_ShouldProvideContextualGuidance()
     {
         // Arrange
