@@ -108,16 +108,6 @@ public class ExcelMcpServerTests : IDisposable
     }
 
     [Fact]
-    public async Task ExcelCell_GetValue_RequiresExistingFile()
-    {
-        // Act & Assert - Should throw McpException for non-existent file
-        var exception = await Assert.ThrowsAsync<ModelContextProtocol.McpException>(async () =>
-            await ExcelCellTool.ExcelCell("get-value", "nonexistent.xlsx", "Sheet1", "A1"));
-
-        Assert.Contains("File not found", exception.Message);
-    }
-
-    [Fact]
     public async Task ExcelPowerQuery_CreateAndReadWorkflow_ShouldSucceed()
     {
         // Arrange

@@ -109,30 +109,6 @@ public class UnitTests
     }
 
     [Theory]
-    [InlineData(new string[] { "cell-get-value" }, 1)] // Missing file path
-    [InlineData(new string[] { "cell-get-value", "file.xlsx" }, 1)] // Missing sheet name
-    [InlineData(new string[] { "cell-get-value", "file.xlsx", "Sheet1" }, 1)] // Missing cell address
-    [InlineData(new string[] { "cell-set-value" }, 1)] // Missing file path
-    [InlineData(new string[] { "cell-set-value", "file.xlsx", "Sheet1" }, 1)] // Missing cell address
-    [InlineData(new string[] { "cell-set-value", "file.xlsx", "Sheet1", "A1" }, 1)] // Missing value
-    public void CellCommands_WithInvalidArgs_ReturnsErrorExitCode(string[] args, int expectedExitCode)
-    {
-        // Arrange
-        var commands = new CellCommands();
-
-        // Act
-        int actualExitCode = args[0] switch
-        {
-            "cell-get-value" => commands.GetValue(args),
-            "cell-set-value" => commands.SetValue(args),
-            _ => throw new ArgumentException($"Unknown command: {args[0]}")
-        };
-
-        // Assert
-        Assert.Equal(expectedExitCode, actualExitCode);
-    }
-
-    [Theory]
     [InlineData(new string[] { "script-list" }, 1)] // Missing file path
     public void ScriptCommands_WithInvalidArgs_ReturnsErrorExitCode(string[] args, int expectedExitCode)
     {

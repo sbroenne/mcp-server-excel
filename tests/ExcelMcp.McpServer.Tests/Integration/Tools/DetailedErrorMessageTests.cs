@@ -72,26 +72,6 @@ public class DetailedErrorMessageTests : IDisposable
     }
 
     [Fact]
-    public async Task ExcelCell_WithNonExistentFile_ShouldThrowDetailedError()
-    {
-        // Arrange
-        string nonExistentFile = Path.Combine(_tempDir, "nonexistent-cell.xlsx");
-
-        // Act & Assert
-        var exception = await Assert.ThrowsAsync<McpException>(async () =>
-            await ExcelCellTool.ExcelCell("get-value", nonExistentFile, "Sheet1", "A1"));
-
-        _output.WriteLine($"Error message: {exception.Message}");
-
-        // Verify detailed components
-        Assert.Contains("get-value", exception.Message);
-        Assert.Contains(nonExistentFile, exception.Message);
-        Assert.Contains("File not found", exception.Message);
-
-        _output.WriteLine("✅ Verified: Cell operation includes detailed context");
-    }
-
-    [Fact]
     public async Task ExcelParameter_WithNonExistentFile_ShouldThrowDetailedError()
     {
         // Arrange
@@ -229,25 +209,6 @@ public class DetailedErrorMessageTests : IDisposable
         Assert.Contains("import", exception.Message);
 
         _output.WriteLine("✅ Verified: Missing parameters error lists all required parameters");
-    }
-
-    [Fact]
-    public async Task ExcelCell_SetValue_WithMissingValue_ShouldThrowDetailedError()
-    {
-        // Arrange
-        await ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
-
-        // Act & Assert - set-value requires value parameter
-        var exception = await Assert.ThrowsAsync<McpException>(async () =>
-            await ExcelCellTool.ExcelCell("set-value", _testExcelFile, "Sheet1", "A1", value: null));
-
-        _output.WriteLine($"Error message: {exception.Message}");
-
-        // Verify parameter name is mentioned
-        Assert.Contains("value", exception.Message);
-        Assert.Contains("required", exception.Message);
-
-        _output.WriteLine("✅ Verified: Missing parameter error specifies which parameter is required");
     }
 
     [Fact]

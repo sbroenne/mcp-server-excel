@@ -40,14 +40,12 @@ class Program
             var powerQuery = new PowerQueryCommands();
             var sheet = new SheetCommands();
             var param = new ParameterCommands();
-            var cell = new CellCommands();
             var script = new ScriptCommands();
             var file = new FileCommands();
             var connection = new ConnectionCommands();
             var dataModel = new DataModelCommands();
             var dataModelTom = new DataModelTomCommands();
             var table = new TableCommands();
-            var hyperlink = new HyperlinkCommands();
 
             return args[0].ToLower() switch
             {
@@ -97,12 +95,6 @@ class Program
                 "param-create" => param.Create(args),
                 "param-delete" => param.Delete(args),
 
-                // Cell commands
-                "cell-get-value" => cell.GetValue(args),
-                "cell-set-value" => cell.SetValue(args),
-                "cell-get-formula" => cell.GetFormula(args),
-                "cell-set-formula" => cell.SetFormula(args),
-
                 // Table commands
                 "table-list" => table.List(args),
                 "table-create" => table.Create(args),
@@ -116,12 +108,6 @@ class Program
                 "table-append" => table.AppendRows(args),
                 "table-set-style" => table.SetStyle(args),
                 "table-add-to-datamodel" => table.AddToDataModel(args),
-
-                // Hyperlink commands
-                "hyperlink-add" => hyperlink.AddHyperlink(args),
-                "hyperlink-remove" => hyperlink.RemoveHyperlink(args),
-                "hyperlink-list" => hyperlink.ListHyperlinks(args),
-                "hyperlink-get" => hyperlink.GetHyperlink(args),
 
                 // Connection commands
                 "conn-list" => connection.List(args),
