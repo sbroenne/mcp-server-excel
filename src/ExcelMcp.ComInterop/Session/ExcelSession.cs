@@ -139,7 +139,11 @@ public static class ExcelSession
 
                 if (excel != null)
                 {
+                    // CodeQL suppression: Safe COM interop - excel is guaranteed to be Excel.Application type with Quit() method
+                    // The dynamic type is intentional for late-binding COM automation
+#pragma warning disable CS8602 // Dereference of a possibly null reference
                     try { excel.Quit(); } catch { }
+#pragma warning restore CS8602
                     try { Marshal.FinalReleaseComObject(excel); } catch { }
                 }
 
