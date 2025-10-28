@@ -880,7 +880,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         string queryName = args[2];
         var privacyLevel = ParsePrivacyLevel(args);
 
-        AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Load to Data Model mode...[/]");
+        AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Load to Data Model mode (atomic operation)...[/]");
 
         var task = Task.Run(async () =>
         {
@@ -891,20 +891,34 @@ public class PowerQueryCommands : IPowerQueryCommands
         });
         var result = task.GetAwaiter().GetResult();
 
-        // Handle privacy error result
-        if (result is PowerQueryPrivacyErrorResult privacyError)
+        // Check for privacy error (indicated in error message)
+        if (!result.Success && result.ErrorMessage?.Contains("privacy level", StringComparison.OrdinalIgnoreCase) == true)
         {
-            DisplayPrivacyConsentPrompt(privacyError);
+            AnsiConsole.MarkupLine($"[yellow]Privacy Level Required[/]");
+            AnsiConsole.MarkupLine($"[dim]{result.ErrorMessage.EscapeMarkup()}[/]");
+            
+            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+            {
+                AnsiConsole.MarkupLine("\n[bold]Suggested Actions:[/]");
+                foreach (var suggestion in result.SuggestedNextActions)
+                {
+                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
+                }
+            }
             return 1;
         }
 
         if (!result.Success)
         {
             AnsiConsole.MarkupLine($"[red]✗[/] {result.ErrorMessage?.EscapeMarkup()}");
+            AnsiConsole.MarkupLine($"[dim]Workflow Status: {result.WorkflowStatus}[/]");
             return 1;
         }
 
-        AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' is now loading to Data Model");
+        // Display success with verification details
+        AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' loaded to Data Model");
+        AnsiConsole.MarkupLine($"[dim]Rows Loaded: {result.RowsLoaded}, Tables in Data Model: {result.TablesInDataModel}[/]");
+        AnsiConsole.MarkupLine($"[dim]Workflow Status: {result.WorkflowStatus}[/]");
 
         // Display workflow hints if available
         if (!string.IsNullOrEmpty(result.WorkflowHint))

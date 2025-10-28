@@ -74,11 +74,13 @@ public interface IPowerQueryCommands
 
     /// <summary>
     /// Sets a Power Query to Load to Data Model mode (data loaded to PowerPivot)
+    /// ATOMIC OPERATION: Configures query AND refreshes to ensure data persists
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query</param>
     /// <param name="privacyLevel">Optional privacy level for data combining. If not specified and privacy error occurs, operation returns PowerQueryPrivacyErrorResult for user to choose.</param>
-    Task<OperationResult> SetLoadToDataModelAsync(IExcelBatch batch, string queryName, PowerQueryPrivacyLevel? privacyLevel = null);
+    /// <returns>PowerQueryLoadToDataModelResult with verification of data actually loaded</returns>
+    Task<PowerQueryLoadToDataModelResult> SetLoadToDataModelAsync(IExcelBatch batch, string queryName, PowerQueryPrivacyLevel? privacyLevel = null);
 
     /// <summary>
     /// Sets a Power Query to Load to Both modes (table + data model)

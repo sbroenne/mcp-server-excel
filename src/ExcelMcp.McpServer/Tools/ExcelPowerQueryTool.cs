@@ -393,28 +393,12 @@ public static class ExcelPowerQueryTool
             excelPath,
             save: true,
             async (batch) => await commands.SetLoadToDataModelAsync(batch, queryName, privacyLevel));
-        if (result.Success)
-        {
-            result.SuggestedNextActions = new List<string>
-            {
-                "Use 'refresh' to load data to the data model",
-                "Use 'get-load-config' to confirm load settings",
-                "Create PivotTables or Power BI reports from the data model"
-            };
-            result.WorkflowHint = "Load-to-data-model configured. Next, refresh to load data.";
-        }
-        else
-        {
-            result.SuggestedNextActions = new List<string>
-            {
-                "Check that the query exists using 'list'",
-                "Review privacy level settings if needed",
-                "Verify Excel supports data model operations"
-            };
-            result.WorkflowHint = "Set-load-to-data-model failed. Check query and settings.";
-        }
-
-        // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
+        
+        // Result now includes verification metrics: RowsLoaded, TablesInDataModel, WorkflowStatus
+        // WorkflowHint and SuggestedNextActions are set by Core layer based on verification outcome
+        // Do NOT overwrite these values - they reflect actual operation results
+        
+        // Return result as JSON with all verification details
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 

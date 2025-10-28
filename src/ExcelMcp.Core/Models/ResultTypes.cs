@@ -231,6 +231,43 @@ public class PowerQueryLoadConfigResult : ResultBase
 }
 
 /// <summary>
+/// Result for Power Query load-to-data-model operations with verification
+/// Extends OperationResult to provide detailed verification of atomic operation
+/// </summary>
+public class PowerQueryLoadToDataModelResult : OperationResult
+{
+    /// <summary>
+    /// Name of the query
+    /// </summary>
+    public string QueryName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the load configuration was successfully applied
+    /// </summary>
+    public bool ConfigurationApplied { get; set; }
+
+    /// <summary>
+    /// Whether data was actually loaded to the Data Model
+    /// </summary>
+    public bool DataLoadedToModel { get; set; }
+
+    /// <summary>
+    /// Number of rows loaded to the Data Model (0 if not loaded)
+    /// </summary>
+    public int RowsLoaded { get; set; }
+
+    /// <summary>
+    /// Total number of tables in the Data Model after operation
+    /// </summary>
+    public int TablesInDataModel { get; set; }
+
+    /// <summary>
+    /// Overall workflow status: "Complete" | "Failed" | "Partial"
+    /// </summary>
+    public string WorkflowStatus { get; set; } = "Failed";
+}
+
+/// <summary>
 /// Result for listing named ranges/parameters
 /// </summary>
 public class ParameterListResult : ResultBase
