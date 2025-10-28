@@ -6,6 +6,126 @@ applyTo: "src/**/*.cs"
 
 > **Core patterns for ExcelMcp development**
 
+## .NET Class Design Guidelines (MANDATORY)
+
+> **Follow official Microsoft .NET Framework Design Guidelines**
+
+### Official Documentation
+- [Framework Design Guidelines](https://learn.microsoft.com/en-us/dotnet/standard/design-guidelines/)
+- [Names of Classes, Structs, and Interfaces](https://learn.microsoft.com/en-us/dotnet/standard/design-guidelines/names-of-classes-structs-and-interfaces)
+- [Partial Classes and Methods](https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/partial-classes-and-methods)
+- [C# Coding Conventions](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions)
+
+### Key Rules
+
+**1. One Public Class Per File**
+```csharp
+// ✅ CORRECT - Each public class in its own file
+// File: RangeCommands.cs
+public class RangeCommands : IRangeCommands { }
+
+// File: RangeHelpers.cs
+public static class RangeHelpers { }
+```
+
+**Why:** Standard practice in .NET projects (see System.Text.Json, ASP.NET Core, Entity Framework Core). Improves discoverability, reduces merge conflicts, makes navigation easier.
+
+**2. File Name Matches Class Name**
+```csharp
+// ✅ CORRECT
+// File: RangeCommands.cs
+public class RangeCommands { }
+
+// ❌ WRONG
+// File: Commands.cs  (too generic!)
+public class RangeCommands { }
+```
+
+**3. Partial Classes for Large Implementations** ([Official Guideline](https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/partial-classes-and-methods))
+```csharp
+// File: RangeCommands.cs (main/constructor)
+public partial class RangeCommands : IRangeCommands
+{
+    public RangeCommands() { }
+}
+
+// File: RangeCommands.Values.cs (feature group)
+public partial class RangeCommands
+{
+    public Task<RangeValueResult> GetValuesAsync(...) { }
+    public Task<OperationResult> SetValuesAsync(...) { }
+}
+
+// File: RangeCommands.Formulas.cs (feature group)
+public partial class RangeCommands
+{
+    public Task<RangeFormulaResult> GetFormulasAsync(...) { }
+    public Task<OperationResult> SetFormulasAsync(...) { }
+}
+```
+
+**4. Keep Descriptive Names - No Over-Optimization**
+```csharp
+// ✅ CORRECT - Clear, unambiguous
+namespace Sbroenne.ExcelMcp.Core.Commands.Range;
+public partial class RangeCommands : IRangeCommands { }
+
+// ❌ WRONG - Too generic, causes ambiguity
+namespace Sbroenne.ExcelMcp.Core.Commands.Range;
+public partial class Commands : IRangeCommands { }  // What kind of commands?
+```
+
+**5. Folder Structure Provides Organization, Not Identity**
+```
+Commands/Range/              ← Organization
+    IRangeCommands.cs        ← Identity: IRangeCommands
+    RangeCommands.cs         ← Identity: RangeCommands
+    RangeCommands.Values.cs  ← Identity: RangeCommands (partial)
+    RangeHelpers.cs          ← Identity: RangeHelpers (separate class)
+```
+
+### Large Command Class Pattern
+
+**When to split using partial classes:**
+- Class has 15+ public methods
+- Multiple feature domains (values, formulas, editing, search)
+- Team collaboration on same class
+- Want git-friendly organization
+
+**How to organize partial files:**
+```
+Commands/Range/
+    IRangeCommands.cs                  ← Interface (full contract)
+    RangeCommands.cs                   ← Partial (constructor, DI, shared state)
+    RangeCommands.Values.cs            ← Partial (Get/Set values)
+    RangeCommands.Formulas.cs          ← Partial (Get/Set formulas)
+    RangeCommands.Editing.cs           ← Partial (Clear, Copy, Insert, Delete)
+    RangeCommands.Search.cs            ← Partial (Find, Replace, Sort)
+    RangeCommands.Discovery.cs         ← Partial (UsedRange, CurrentRegion, RangeInfo)
+    RangeCommands.Hyperlinks.cs        ← Partial (Hyperlink operations)
+    RangeHelpers.cs                    ← Separate static helper class
+
+Tests/Integration/Range/
+    RangeCommandsTests.cs              ← Base test class (shared fixture)
+    RangeCommandsTests.Values.cs       ← Test partial (mirrors implementation)
+    RangeCommandsTests.Formulas.cs
+    RangeCommandsTests.Editing.cs
+    RangeCommandsTests.Search.cs
+    RangeCommandsTests.Discovery.cs
+    RangeCommandsTests.Hyperlinks.cs
+    RangeTestHelpers.cs                ← Test utilities (separate class)
+```
+
+**Benefits:**
+- ✅ Follows .NET Framework patterns (DbContext, Controllers, etc.)
+- ✅ Clear file-to-feature mapping (~100-200 lines per file)
+- ✅ Git-friendly (isolated changes, fewer merge conflicts)
+- ✅ Team-friendly (multiple developers, different features)
+- ✅ Discoverable (obvious where to find code)
+- ✅ Testable (test structure mirrors implementation)
+
+---
+
 ## Command Pattern
 
 ### Structure

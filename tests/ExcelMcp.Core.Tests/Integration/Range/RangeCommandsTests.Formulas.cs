@@ -1,0 +1,77 @@
+using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
+using Sbroenne.ExcelMcp.Core.Models;
+using Xunit;
+
+namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Range;
+
+/// <summary>
+/// Tests for range formulas operations
+/// </summary>
+public partial class RangeCommandsTests
+{
+    // === FORMULA OPERATIONS TESTS ===
+
+    [Fact]
+    public async Task GetFormulasAsync_ReturnsFormulasAndValues()
+    {
+        // Arrange
+        string testFile = CreateTestWorkbook();
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+
+        // Set values and formulas
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3", new List<List<object?>>
+        {
+            new() { 10 },
+            new() { 20 },
+            new() { 30 }
+        });
+
+        await _commands.SetFormulasAsync(batch, "Sheet1", "B1", new List<List<string>>
+        {
+            new() { "=SUM(A1:A3)" }
+        });
+
+        // Act
+        var result = await _commands.GetFormulasAsync(batch, "Sheet1", "B1");
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal("=SUM(A1:A3)", result.Formulas[0][0]);
+        Assert.Equal(60.0, Convert.ToDouble(result.Values[0][0]));
+    }
+
+    [Fact]
+    public async Task SetFormulasAsync_WritesFormulasToRange()
+    {
+        // Arrange
+        string testFile = CreateTestWorkbook();
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3", new List<List<object?>>
+        {
+            new() { 5 },
+            new() { 10 },
+            new() { 15 }
+        });
+
+        var formulas = new List<List<string>>
+        {
+            new() { "=A1*2", "=A2*2", "=A3*2" }
+        };
+
+        // Act
+        var result = await _commands.SetFormulasAsync(batch, "Sheet1", "B1:D1", formulas);
+        await batch.SaveAsync();
+
+        // Assert
+        Assert.True(result.Success);
+
+        // Verify values
+        var readResult = await _commands.GetValuesAsync(batch, "Sheet1", "B1:D1");
+        Assert.Equal(10.0, Convert.ToDouble(readResult.Values[0][0]));
+        Assert.Equal(20.0, Convert.ToDouble(readResult.Values[0][1]));
+        Assert.Equal(30.0, Convert.ToDouble(readResult.Values[0][2]));
+    }
+
+}

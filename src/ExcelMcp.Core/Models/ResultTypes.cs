@@ -486,6 +486,110 @@ public class RangeFormulaResult : ResultBase
 }
 
 /// <summary>
+/// Result for range find operations
+/// </summary>
+public class RangeFindResult : ResultBase
+{
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range address that was searched
+    /// </summary>
+    public string RangeAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Search value
+    /// </summary>
+    public string SearchValue { get; set; } = string.Empty;
+
+    /// <summary>
+    /// List of matching cells
+    /// </summary>
+    public List<RangeCell> MatchingCells { get; set; } = new();
+}
+
+/// <summary>
+/// Represents a single cell in a range
+/// </summary>
+public class RangeCell
+{
+    /// <summary>
+    /// Cell address (e.g., "A5")
+    /// </summary>
+    public string Address { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Row number (1-based)
+    /// </summary>
+    public int Row { get; set; }
+
+    /// <summary>
+    /// Column number (1-based)
+    /// </summary>
+    public int Column { get; set; }
+
+    /// <summary>
+    /// Cell value
+    /// </summary>
+    public object? Value { get; set; }
+}
+
+/// <summary>
+/// Result for range information operations
+/// </summary>
+public class RangeInfoResult : ResultBase
+{
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Absolute address from Excel COM (e.g., "$A$1:$D$10")
+    /// </summary>
+    public string Address { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Number of rows (Excel COM: range.Rows.Count)
+    /// </summary>
+    public int RowCount { get; set; }
+
+    /// <summary>
+    /// Number of columns (Excel COM: range.Columns.Count)
+    /// </summary>
+    public int ColumnCount { get; set; }
+
+    /// <summary>
+    /// Number format code (Excel COM: range.NumberFormat, first cell)
+    /// </summary>
+    public string? NumberFormat { get; set; }
+}
+
+/// <summary>
+/// Result for hyperlink operations
+/// </summary>
+public class RangeHyperlinkResult : ResultBase
+{
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range or cell address
+    /// </summary>
+    public string RangeAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// List of hyperlinks
+    /// </summary>
+    public List<HyperlinkInfo> Hyperlinks { get; set; } = new();
+}
+
+/// <summary>
 /// Result for VBA trust operations
 /// </summary>
 public class VbaTrustResult : ResultBase
