@@ -47,11 +47,11 @@ public static class ExcelDataModelTool
     /// Manage Excel Data Model (Power Pivot) - tables, measures, relationships
     /// </summary>
     [McpServerTool(Name = "excel_datamodel")]
-    [Description("Manage Excel Data Model operations. Supports: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, create-measure, update-measure, create-relationship, update-relationship, create-column, list-columns, view-column, update-column, delete-column, validate-dax.")]
+    [Description("Manage Excel Data Model operations. Phase 2 (COM API): list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, list-columns, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship. Phase 4 (TOM API): create-column, view-column, update-column, delete-column, validate-dax.")]
     public static async Task<string> ExcelDataModel(
         [Required]
-        [RegularExpression("^(list-tables|list-measures|view-measure|export-measure|list-relationships|refresh|delete-measure|delete-relationship|create-measure|update-measure|create-relationship|update-relationship|create-column|list-columns|view-column|update-column|delete-column|validate-dax)$")]
-        [Description("Action: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, create-measure, update-measure, create-relationship, update-relationship, create-column, list-columns, view-column, update-column, delete-column, validate-dax")]
+        [RegularExpression("^(list-tables|list-measures|view-measure|export-measure|list-relationships|refresh|delete-measure|delete-relationship|list-columns|view-table|get-model-info|create-measure|update-measure|create-relationship|update-relationship|create-column|view-column|update-column|delete-column|validate-dax)$")]
+        [Description("Action: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, list-columns, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship, create-column, view-column, update-column, delete-column, validate-dax")]
         string action,
 
         [Required]
@@ -124,7 +124,7 @@ public static class ExcelDataModelTool
 
             return action.ToLowerInvariant() switch
             {
-                // COM API operations (Phase 1)
+                // COM API operations (Phase 1 + Phase 2)
                 "list-tables" => await ListTablesAsync(dataModelCommands, excelPath, batchId),
                 "list-measures" => await ListMeasuresAsync(dataModelCommands, excelPath, batchId),
                 "view-measure" => await ViewMeasureAsync(dataModelCommands, excelPath, measureName, batchId),
@@ -133,21 +133,27 @@ public static class ExcelDataModelTool
                 "refresh" => await RefreshAsync(dataModelCommands, excelPath, batchId),
                 "delete-measure" => await DeleteMeasureAsync(dataModelCommands, excelPath, measureName, batchId),
                 "delete-relationship" => await DeleteRelationshipAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, batchId),
+                
+                // Phase 2: Discovery operations (COM API)
+                "list-columns" => await ListTableColumnsAsync(dataModelCommands, excelPath, tableName, batchId),
+                "view-table" => await ViewTableAsync(dataModelCommands, excelPath, tableName, batchId),
+                "get-model-info" => await GetModelInfoAsync(dataModelCommands, excelPath, batchId),
+                
+                // Phase 2: CREATE/UPDATE operations (COM API - Office 2016+)
+                "create-measure" => await CreateMeasureComAsync(dataModelCommands, excelPath, tableName, measureName, daxFormula, formatString, description, batchId),
+                "update-measure" => await UpdateMeasureComAsync(dataModelCommands, excelPath, measureName, daxFormula, formatString, description, batchId),
+                "create-relationship" => await CreateRelationshipComAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, batchId),
+                "update-relationship" => await UpdateRelationshipComAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, batchId),
 
-                // TOM API operations (Phase 4)
-                "create-measure" => await CreateMeasureAsync(tomCommands, excelPath, tableName, measureName, daxFormula, description, formatString, batchId),
-                "update-measure" => await UpdateMeasureAsync(tomCommands, excelPath, measureName, daxFormula, description, formatString, batchId),
-                "create-relationship" => await CreateRelationshipAsync(tomCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, crossFilterDirection, batchId),
-                "update-relationship" => await UpdateRelationshipAsync(tomCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, crossFilterDirection, batchId),
+                // TOM API operations (Phase 4 - Future)
                 "create-column" => await CreateCalculatedColumnAsync(tomCommands, excelPath, tableName, columnName, daxFormula, description, dataType, batchId),
-                "list-columns" => await ListCalculatedColumnsAsync(tomCommands, excelPath, tableName, batchId),
                 "view-column" => await ViewCalculatedColumnAsync(tomCommands, excelPath, tableName, columnName, batchId),
                 "update-column" => await UpdateCalculatedColumnAsync(tomCommands, excelPath, tableName, columnName, daxFormula, description, dataType, batchId),
                 "delete-column" => await DeleteCalculatedColumnAsync(tomCommands, excelPath, tableName, columnName, batchId),
                 "validate-dax" => await ValidateDaxAsync(tomCommands, excelPath, daxFormula, batchId),
 
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, create-measure, update-measure, create-relationship, update-relationship, create-column, list-columns, view-column, update-column, delete-column, validate-dax")
+                    $"Unknown action '{action}'. Supported: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, list-columns, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship, create-column, view-column, update-column, delete-column, validate-dax")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -462,6 +468,372 @@ public static class ExcelDataModelTool
             };
         }
         result.WorkflowHint = "Relationship deleted. Next, verify remaining relationships or create new ones.";
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    // Phase 2 COM API Action Handlers (Office 2016+)
+
+    private static async Task<string> ListTableColumnsAsync(DataModelCommands commands, string filePath,
+        string? tableName, string? batchId)
+    {
+        if (string.IsNullOrWhiteSpace(tableName))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for list-columns action");
+        }
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.ListTableColumnsAsync(batch, tableName));
+
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+            {
+                result.SuggestedNextActions = new List<string>
+                {
+                    "Use 'list-tables' to see available tables",
+                    "Check table name for typos",
+                    "Verify the Excel file contains a Data Model"
+                };
+            }
+            result.WorkflowHint = $"Failed to list columns for table '{tableName}'. Verify table exists.";
+            throw new ModelContextProtocol.McpException($"list-columns failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        // Success - add workflow guidance
+        if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+        {
+            result.SuggestedNextActions = new List<string>
+            {
+                "Use 'view-table' to see table details",
+                "Use 'create-measure' to create calculated measures",
+                "Use 'create-relationship' to link tables"
+            };
+        }
+        result.WorkflowHint = $"Found columns in '{tableName}'. Use these for creating measures or relationships.";
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> ViewTableAsync(DataModelCommands commands, string filePath,
+        string? tableName, string? batchId)
+    {
+        if (string.IsNullOrWhiteSpace(tableName))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for view-table action");
+        }
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.ViewTableAsync(batch, tableName));
+
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+            {
+                result.SuggestedNextActions = new List<string>
+                {
+                    "Use 'list-tables' to see available tables",
+                    "Check table name for typos",
+                    "Verify the Excel file contains a Data Model"
+                };
+            }
+            result.WorkflowHint = $"Failed to view table '{tableName}'. Verify table exists.";
+            throw new ModelContextProtocol.McpException($"view-table failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        // Success - add workflow guidance
+        if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+        {
+            result.SuggestedNextActions = new List<string>
+            {
+                "Use 'list-columns' to see all columns in detail",
+                "Use 'create-measure' to add calculated measures",
+                "Use 'list-relationships' to see table connections"
+            };
+        }
+        result.WorkflowHint = $"Viewed table '{tableName}'. Use this information for creating measures or relationships.";
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> GetModelInfoAsync(DataModelCommands commands, string filePath, string? batchId)
+    {
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.GetModelInfoAsync(batch));
+
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+            {
+                result.SuggestedNextActions = new List<string>
+                {
+                    "Verify the Excel file contains a Data Model",
+                    "Try 'list-tables' to check if tables exist",
+                    "Check if file is corrupted"
+                };
+            }
+            result.WorkflowHint = "Failed to get Data Model info. Verify workbook has a Data Model.";
+            throw new ModelContextProtocol.McpException($"get-model-info failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        // Success - add workflow guidance
+        if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+        {
+            result.SuggestedNextActions = new List<string>
+            {
+                "Use 'list-tables' to explore tables",
+                "Use 'list-measures' to see calculated measures",
+                "Use 'list-relationships' to understand table connections"
+            };
+        }
+        result.WorkflowHint = "Got Data Model overview. Use list commands to explore in detail.";
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> CreateMeasureComAsync(DataModelCommands commands, string filePath,
+        string? tableName, string? measureName, string? daxFormula, string? formatString, 
+        string? description, string? batchId)
+    {
+        if (string.IsNullOrWhiteSpace(tableName))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for create-measure action");
+        }
+
+        if (string.IsNullOrWhiteSpace(measureName))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'measureName' is required for create-measure action");
+        }
+
+        if (string.IsNullOrWhiteSpace(daxFormula))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'daxFormula' is required for create-measure action");
+        }
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.CreateMeasureAsync(batch, tableName, measureName, daxFormula, 
+                formatString, description));
+
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+            {
+                result.SuggestedNextActions = new List<string>
+                {
+                    "Verify DAX formula syntax is correct",
+                    "Use 'list-tables' to check available tables",
+                    "Use 'list-columns' to see available columns",
+                    "Check if measure name already exists"
+                };
+            }
+            result.WorkflowHint = $"Failed to create measure '{measureName}'. Check DAX syntax and table existence.";
+            throw new ModelContextProtocol.McpException($"create-measure failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        // Success - add workflow guidance
+        if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+        {
+            result.SuggestedNextActions = new List<string>
+            {
+                $"Measure '{measureName}' created successfully in table '{tableName}'",
+                "Use 'view-measure' to verify the formula",
+                "Use 'list-measures' to see all measures",
+                "Changes saved to workbook"
+            };
+        }
+        result.WorkflowHint = "Measure created. Next, test it in a PivotTable or create more measures.";
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> UpdateMeasureComAsync(DataModelCommands commands, string filePath,
+        string? measureName, string? daxFormula, string? formatString, string? description, string? batchId)
+    {
+        if (string.IsNullOrWhiteSpace(measureName))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'measureName' is required for update-measure action");
+        }
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.UpdateMeasureAsync(batch, measureName, daxFormula, formatString, description));
+
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+            {
+                result.SuggestedNextActions = new List<string>
+                {
+                    "Verify measure name exists using 'list-measures'",
+                    "Check DAX formula syntax if updating formula",
+                    "Use 'view-measure' to see current formula",
+                    "Ensure at least one property is provided for update"
+                };
+            }
+            result.WorkflowHint = $"Failed to update measure '{measureName}'. Verify measure exists and DAX syntax.";
+            throw new ModelContextProtocol.McpException($"update-measure failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        // Success - add workflow guidance
+        if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+        {
+            result.SuggestedNextActions = new List<string>
+            {
+                $"Measure '{measureName}' updated successfully",
+                "Use 'view-measure' to verify the changes",
+                "Use 'list-measures' to see all measures",
+                "Changes saved to workbook"
+            };
+        }
+        result.WorkflowHint = "Measure updated. Next, test the changes in a PivotTable.";
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> CreateRelationshipComAsync(DataModelCommands commands, string filePath,
+        string? fromTable, string? fromColumn, string? toTable, string? toColumn, bool? isActive, string? batchId)
+    {
+        if (string.IsNullOrWhiteSpace(fromTable))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'fromTable' is required for create-relationship action");
+        }
+
+        if (string.IsNullOrWhiteSpace(fromColumn))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'fromColumn' is required for create-relationship action");
+        }
+
+        if (string.IsNullOrWhiteSpace(toTable))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'toTable' is required for create-relationship action");
+        }
+
+        if (string.IsNullOrWhiteSpace(toColumn))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'toColumn' is required for create-relationship action");
+        }
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.CreateRelationshipAsync(batch, fromTable, fromColumn, toTable, toColumn, 
+                isActive ?? true));
+
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+            {
+                result.SuggestedNextActions = new List<string>
+                {
+                    "Use 'list-tables' to verify both tables exist",
+                    "Use 'list-columns' to verify columns exist in both tables",
+                    "Check if relationship already exists",
+                    "Verify column data types are compatible"
+                };
+            }
+            result.WorkflowHint = $"Failed to create relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn}. Verify tables and columns.";
+            throw new ModelContextProtocol.McpException($"create-relationship failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        // Success - add workflow guidance
+        if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+        {
+            result.SuggestedNextActions = new List<string>
+            {
+                $"Relationship created from {fromTable}.{fromColumn} to {toTable}.{toColumn}",
+                "Use 'list-relationships' to verify the relationship",
+                "Create measures that use this relationship",
+                "Changes saved to workbook"
+            };
+        }
+        result.WorkflowHint = "Relationship created. Next, create measures that leverage this relationship.";
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> UpdateRelationshipComAsync(DataModelCommands commands, string filePath,
+        string? fromTable, string? fromColumn, string? toTable, string? toColumn, bool? isActive, string? batchId)
+    {
+        if (string.IsNullOrWhiteSpace(fromTable))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'fromTable' is required for update-relationship action");
+        }
+
+        if (string.IsNullOrWhiteSpace(fromColumn))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'fromColumn' is required for update-relationship action");
+        }
+
+        if (string.IsNullOrWhiteSpace(toTable))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'toTable' is required for update-relationship action");
+        }
+
+        if (string.IsNullOrWhiteSpace(toColumn))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'toColumn' is required for update-relationship action");
+        }
+
+        if (!isActive.HasValue)
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'isActive' is required for update-relationship action");
+        }
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.UpdateRelationshipAsync(batch, fromTable, fromColumn, toTable, toColumn, 
+                isActive.Value));
+
+        // If operation failed, throw exception with detailed error message
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+            {
+                result.SuggestedNextActions = new List<string>
+                {
+                    "Use 'list-relationships' to verify relationship exists",
+                    "Check table and column names for typos",
+                    "Verify the Excel file contains a Data Model"
+                };
+            }
+            result.WorkflowHint = $"Failed to update relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn}. Verify relationship exists.";
+            throw new ModelContextProtocol.McpException($"update-relationship failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        // Success - add workflow guidance
+        if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
+        {
+            result.SuggestedNextActions = new List<string>
+            {
+                $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} updated successfully",
+                "Use 'list-relationships' to verify the changes",
+                "Changes saved to workbook"
+            };
+        }
+        result.WorkflowHint = "Relationship updated. Changes will affect measures using this relationship.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }

@@ -2,7 +2,7 @@
 
 > **Last Updated:** January 29, 2025  
 > **Branch:** feature/remove-pooling-add-batching  
-> **Current Status:** Tests Complete - Ready for Phase 3 MCP/CLI Integration
+> **Current Status:** MCP Server Integration Complete - Ready for CLI Integration
 
 ---
 
@@ -248,44 +248,30 @@ Task<OperationResult> UpdateRelationshipAsync(IExcelBatch batch, string fromTabl
 
 ## Next Steps 🎯
 
-### Task 19-23: Phase 3 MCP/CLI Integration (CURRENT)
+### Task 19-22: Phase 3 CLI Integration (CURRENT)
 
-**Phase 2 integration tests COMPLETE:** ✅ All 23 tests passing (8 Discovery + 9 Measures + 6 Relationships)
+**Phase 2 MCP Server integration COMPLETE:** ✅ All 7 wrapper methods created, 3 new actions added, routing fixed
 
-Next step is Phase 3 integration:
+Next step is CLI integration:
 
-1. **Update COMMANDS.md** - Document 7 new CLI commands
-2. **Update README.md** - Add CREATE/UPDATE examples
-3. **MCP Server Integration** - Add 7 actions to ExcelDataModelTool
-4. **CLI Integration** - Add CLI wrappers for 7 operations
-5. **Final Commit** - "Phase 2 Complete: Data Model CREATE/UPDATE with tests"
+1. **CLI Integration** - Add CLI wrappers for 7 operations  
+2. **Update COMMANDS.md** - Document 7 new CLI commands  
+3. **Update README.md** - Add Phase 2 CREATE/UPDATE examples  
+4. **Final Commit** - "Phase 2 Complete: Data Model CREATE/UPDATE with MCP/CLI integration"
 
 ---
 
-## Pending Work (Phase 3 MCP/CLI Integration)
+## Pending Work (Phase 3 CLI Integration)
 
-### MCP Server (10 tasks)
+### CLI (7 tasks)
 
-1. Create/update ExcelDataModelTool.cs with 7 new actions
-2. Update server.json configuration
-3. Create MCP Server integration tests
-
-### CLI (3 tasks)
-
-4. Create CLI DataModelCommands wrappers
-5. Add routing to Program.cs
-6. Create CLI integration tests
-
-### Documentation (3 tasks)
-
-7. Update COMMANDS.md
-8. Update README.md
-9. Update MCP Server README
-
-### Final Testing
-
-10. Run ALL tests (Unit, Integration, MCP Server, CLI)
-11. Commit: "Add Data Model MCP/CLI support for CREATE/UPDATE operations"
+1. Create CLI DataModelCommands wrappers for 7 operations
+2. Add routing to Program.cs for new commands
+3. Create CLI integration tests
+4. Update COMMANDS.md with 7 new commands
+5. Update README.md with Phase 2 examples
+6. Update INSTALLATION.md if needed
+7. Final commit and PR
 
 ---
 
@@ -336,12 +322,56 @@ src/ExcelMcp.Core/Models/DataModelInfoResult.cs                        (NEW - 27
 src/ExcelMcp.Core/Commands/DataModel/IDataModelCommands.cs             (8 → 15 methods)
 src/ExcelMcp.Core/Commands/DataModel/DataModelCommands.Read.cs         (394 → 601 lines)
 src/ExcelMcp.Core/Commands/DataModel/DataModelCommands.Write.cs        (215 → 594 lines)
+src/ExcelMcp.McpServer/Tools/ExcelDataModelTool.cs                     (889 → 1261 lines)
 tests/ExcelMcp.Core.Tests/Integration/Commands/DataModel/DataModelCommandsTests.Discovery.cs (NEW - 8 tests)
 tests/ExcelMcp.Core.Tests/Integration/Commands/DataModel/DataModelCommandsTests.Measures.cs (+9 tests)
 tests/ExcelMcp.Core.Tests/Integration/Commands/DataModel/DataModelCommandsTests.Relationships.cs (+6 tests)
 ```
 
-**Total Implementation:** +586 lines of new functionality + 23 comprehensive tests
+**Total Implementation:** +586 lines Core + +372 lines MCP Server + 23 comprehensive tests
+
+---
+
+### 5. MCP Server Integration ✅
+
+**File:** `src/ExcelMcp.McpServer/Tools/ExcelDataModelTool.cs` (889 → 1261 lines, +372 lines)
+
+**Changes:**
+1. **Updated Action Routing** - Fixed 4 existing actions to use COM API instead of TOM:
+   - `create-measure` → dataModelCommands (was tomCommands)
+   - `update-measure` → dataModelCommands (was tomCommands)
+   - `create-relationship` → dataModelCommands (was tomCommands)
+   - `update-relationship` → dataModelCommands (was tomCommands)
+
+2. **Added 3 New Actions** - Phase 2 READ operations:
+   - `list-columns` → ListTableColumnsAsync wrapper
+   - `view-table` → ViewTableAsync wrapper
+   - `get-model-info` → GetModelInfoAsync wrapper
+
+3. **Created 7 Wrapper Methods** - Following ExcelToolsBase patterns:
+   - ListTableColumnsAsync - Lists columns in a table
+   - ViewTableAsync - Shows table details (columns, measures, row count)
+   - GetModelInfoAsync - Shows model overview (table/measure/relationship counts)
+   - CreateMeasureComAsync - Creates DAX measure using COM API
+   - UpdateMeasureComAsync - Updates existing measure using COM API
+   - CreateRelationshipComAsync - Creates table relationship using COM API
+   - UpdateRelationshipComAsync - Updates relationship active status using COM API
+
+4. **Updated Tool Metadata:**
+   - [Description] attribute - Clearly separates Phase 2 (COM API) vs Phase 4 (TOM API) actions
+   - [RegularExpression] pattern - Added list-columns, view-table, get-model-info
+   - Tool comments - Reflect Phase 2 COM API scope for CREATE/UPDATE operations
+
+**Wrapper Pattern:**
+- Uses ExcelToolsBase.WithBatchAsync for batch operations
+- Adds SuggestedNextActions for workflow guidance
+- Adds WorkflowHint for contextual hints
+- Throws McpException on failure with detailed error messages
+- Returns JSON serialized results
+
+**Build Status:** ✅ 0 errors, 0 warnings
+
+---
 
 ### Files to Modify (Next Steps)
 
@@ -360,12 +390,14 @@ tests/ExcelMcp.Core.Tests/Integration/Commands/DataModelCommandsTests.cs (Add 7 
 |-----------|--------|---------|
 | **Core Build** | ✅ PASSING | 0 errors, 0 warnings |
 | **Core Tests** | ✅ PASSING | 0 errors, 0 warnings |
+| **MCP Server Build** | ✅ PASSING | 0 errors, 0 warnings |
 | **Phase 1 Tests** | ✅ PASSING | 17/17 integration tests |
 | **Phase 2 Helpers** | ✅ COMMITTED | Commit 50acd40 |
 | **Phase 2 Result Types** | ✅ COMMITTED | Commit 75b15a6 |
 | **Phase 2 Implementation** | ✅ COMMITTED | Commit b82f4e4 - 7 new methods |
-| **Phase 2 Tests** | ✅ COMPLETE | 23 new tests (8 Discovery + 9 Measures + 6 Relationships) |
-| **Phase 3 Integration** | ⏳ PENDING | MCP/CLI integration tasks |
+| **Phase 2 Tests** | ✅ COMMITTED | Commit 1a0ef54 - 23 new tests |
+| **Phase 2 MCP Server** | ✅ COMPLETE | 7 wrapper methods, 3 new actions |
+| **Phase 3 CLI** | ⏳ PENDING | CLI integration tasks |
 
 ---
 
