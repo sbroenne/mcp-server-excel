@@ -868,16 +868,26 @@ public static class ExcelDataModelTool
         // TOM API doesn't use Excel COM batching - it uses its own Analysis Services connection
         var result = await Task.Run(() => commands.CreateMeasure(filePath, tableName, measureName, daxFormula, description, formatString));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        // Add workflow guidance with batch mode awareness
+        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+        
+        if (result.Success)
+        {
+            result.SuggestedNextActions = Core.Commands.DataModel.DataModelWorkflowGuidance.GetNextStepsAfterCreateMeasure(
+                success: true,
+                usedBatchMode: usedBatchMode);
+            
+            result.WorkflowHint = usedBatchMode
+                ? "Measure created in batch mode. Continue adding more measures to this batch."
+                : Core.Commands.DataModel.DataModelWorkflowGuidance.GetWorkflowHint("create-measure", true, usedBatchMode);
+        }
+        else if (!string.IsNullOrEmpty(result.ErrorMessage))
         {
             if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
             {
-                result.SuggestedNextActions = new List<string>
-                {
-                    "Verify table name is correct",
-                    "Check DAX formula syntax",
-                    "Ensure TOM API connection is available"
-                };
+                result.SuggestedNextActions = Core.Commands.DataModel.DataModelWorkflowGuidance.GetNextStepsAfterCreateMeasure(
+                    success: false,
+                    usedBatchMode: false);
             }
             throw new ModelContextProtocol.McpException($"create-measure failed for '{filePath}': {result.ErrorMessage}");
         }

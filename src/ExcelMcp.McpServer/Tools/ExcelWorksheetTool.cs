@@ -119,26 +119,26 @@ public static class ExcelWorksheetTool
             save: true,
             async (batch) => await commands.CreateAsync(batch, sheetName));
 
+        // Use workflow guidance with batch mode awareness
+        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+        
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
-                "Check that the worksheet name doesn't already exist",
-                "Verify the worksheet name is valid",
-                "Use 'list' to see existing worksheets"
-            };
+            result.SuggestedNextActions = WorksheetWorkflowGuidance.GetNextStepsAfterCreate(
+                success: false,
+                usedBatchMode: false);
             result.WorkflowHint = "Create failed. Ensure the worksheet name is unique and valid.";
             throw new ModelContextProtocol.McpException($"create failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions = new List<string>
-        {
-            "Use excel_range 'set-values' to populate the new worksheet",
-            "Use 'list' to verify worksheet exists",
-            "Use PowerQuery to load data into the sheet"
-        };
-        result.WorkflowHint = "Worksheet created successfully. Next, populate with data using excel_range.";
+        result.SuggestedNextActions = WorksheetWorkflowGuidance.GetNextStepsAfterCreate(
+            success: true,
+            usedBatchMode: usedBatchMode);
+        
+        result.WorkflowHint = usedBatchMode
+            ? "Worksheet created in batch mode. Continue adding more sheets or data."
+            : WorksheetWorkflowGuidance.GetWorkflowHint("create", true, usedBatchMode);
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
