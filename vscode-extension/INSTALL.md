@@ -1,34 +1,102 @@
 # VS Code Extension - Installation Guide
 
-## Quick Install from VSIX
+## Installation Options
 
-1. Download `excelmcp-1.0.0.vsix` from the [Releases page](https://github.com/sbroenne/mcp-server-excel/releases)
+### Option 1: VS Code Marketplace (Recommended - Easiest)
 
-2. Install in VS Code:
+**The easiest way to install:**
+
+1. **Open VS Code**
+2. **Go to Extensions** panel (`Ctrl+Shift+X` or click Extensions icon in left sidebar)
+3. **Search** for "ExcelMcp"
+4. **Click Install** on the ExcelMcp extension
+5. **Done!** Extension activates automatically
+
+**What happens automatically:**
+- ✅ .NET 8 runtime installed (via .NET Install Tool extension)
+- ✅ ExcelMcp MCP server tool installed
+- ✅ MCP server registered for AI assistants
+- ✅ Welcome message shows you're ready
+
+**Marketplace Link:** [ExcelMcp on VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=sbroenne.excelmcp)
+
+---
+
+### Option 2: Manual VSIX Install
+
+**If you prefer to install from a file:**
+
+1. **Download** `excelmcp-1.0.0.vsix` from the [Releases page](https://github.com/sbroenne/mcp-server-excel/releases)
+
+2. **Install in VS Code:**
    - Open VS Code
    - Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (Mac)
    - Type "Install from VSIX"
    - Select the downloaded `excelmcp-1.0.0.vsix` file
 
-3. **Requirements** (must be installed before using the extension):
-   - **Windows OS** - Excel COM automation requires Windows
-   - **Microsoft Excel 2016+** - Must be installed on your system
-   - **.NET 10 SDK** - Required for the `dnx` command
-     ```powershell
-     winget install Microsoft.DotNet.SDK.10
-     ```
+3. **Extension activates** and automatically:
+   - Installs .NET 8 runtime (if not already installed)
+   - Installs ExcelMcp MCP server tool
+   - Registers MCP server
 
-4. **Verify Installation**:
-   - Ask GitHub Copilot: "List all available Excel MCP tools"
-   - You should see 10 Excel tools available
+---
+
+### Option 3: Open VSX Registry
+
+**For VS Codium or other Open VSX-compatible editors:**
+
+1. Open your editor
+2. Go to Extensions
+3. Search for "ExcelMcp"
+4. Click Install
+
+**Open VSX Link:** [ExcelMcp on Open VSX](https://open-vsx.org/extension/sbroenne/excelmcp)
+
+---
+
+## Requirements
+
+**Must be installed on your system:**
+- **Windows OS** - Excel COM automation requires Windows
+- **Microsoft Excel 2016+** - Must be installed on your system
+
+**Automatically installed by extension:**
+- **.NET 8 Runtime** - Extension handles this via .NET Install Tool
+- **ExcelMcp MCP Server** - Extension installs this as a global tool
+
+---
+
+## Verifying Installation
+
+**After installation:**
+
+1. **Look for welcome message** - Extension shows a notification on first activation
+2. **Ask GitHub Copilot**: "List all available Excel MCP tools"
+3. **Expected result**: You should see 10 Excel tools available:
+   - excel_powerquery
+   - excel_datamodel
+   - table
+   - excel_range
+   - excel_vba
+   - excel_connection
+   - excel_worksheet
+   - excel_parameter
+   - excel_file
+   - excel_version
+
+---
 
 ## What the Extension Does
 
 The ExcelMcp extension automatically registers the ExcelMcp MCP server with VS Code, making Excel automation available to AI assistants like GitHub Copilot.
 
-- ✅ **No manual configuration needed** - The extension handles everything
-- ✅ **Automatic updates** - Uses `dnx` to download the latest version from NuGet
+- ✅ **Zero configuration needed** - Extension handles everything automatically
+- ✅ **Automatic .NET installation** - Uses .NET Install Tool extension
+- ✅ **Automatic tool installation** - Installs MCP server on activation
+- ✅ **Works everywhere** - All VS Code workspaces, no per-workspace config
 - ✅ **10 Excel tools** - Power Query, DAX, VBA, Tables, Ranges, and more
+
+---
 
 ## Using the Extension
 

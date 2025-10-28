@@ -1,11 +1,28 @@
 # ExcelMcp - MCP Server for Excel
 
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/sbroenne.excelmcp?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=sbroenne.excelmcp)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/sbroenne.excelmcp)](https://marketplace.visualstudio.com/items?itemName=sbroenne.excelmcp)
 [![GitHub](https://img.shields.io/badge/GitHub-sbroenne%2Fmcp--server--excel-blue)](https://github.com/sbroenne/mcp-server-excel)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Excel automation MCP server extension for Visual Studio Code**
 
 This extension enables AI assistants like GitHub Copilot to interact with Microsoft Excel through the ExcelMcp MCP server. Automate Power Query M code, DAX measures, VBA macros, Excel Tables, ranges, worksheets, and data connections using natural language.
+
+## Installation
+
+### Option 1: VS Code Marketplace (Recommended)
+
+1. Open VS Code
+2. Go to Extensions (`Ctrl+Shift+X`)
+3. Search for "ExcelMcp"
+4. Click **Install**
+
+### Option 2: Manual VSIX Install
+
+1. Download the `.vsix` file from [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases)
+2. In VS Code: `Ctrl+Shift+P` → "Install from VSIX"
+3. Select the downloaded file
 
 ## Features
 
@@ -29,7 +46,7 @@ Only Excel needs to be installed - the extension handles .NET automatically!
 
 ## Quick Start
 
-1. **Install this extension** from the VSIX file
+1. **Install this extension** from the VS Code Marketplace or VSIX file
 2. **The extension automatically**:
    - Installs .NET 8 runtime (via .NET Install Tool)
    - Installs the ExcelMcp MCP server tool

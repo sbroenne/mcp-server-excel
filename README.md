@@ -78,9 +78,34 @@ Control Power Query M code, Data Models with DAX measures, VBA macros, Excel Tab
 
 ## 🚀 Quick Start
 
-**Requirements:** Windows OS + Microsoft Excel 2016+ + .NET SDK 8
+**Requirements:** Windows OS + Microsoft Excel 2016+
 
-### 1. Install .NET 8 SDK and the MCP server tool
+### Option 1: VS Code Extension (Easiest - Recommended) ⭐
+
+**One-click installation with automatic setup:**
+
+1. **Open VS Code** → Extensions panel (`Ctrl+Shift+X`)
+2. **Search** for "ExcelMcp"
+3. **Click Install**
+4. **Done!** Extension automatically:
+   - Installs .NET 8 runtime (via .NET Install Tool)
+   - Installs ExcelMcp MCP server tool
+   - Registers MCP server for AI assistants
+   - Shows welcome message with quick start guide
+
+**Verify:** Ask GitHub Copilot: `List all available Excel MCP tools`
+
+You should see 10 Excel tools available immediately!
+
+> 📚 **Alternative:** Download the VSIX from [Releases](https://github.com/sbroenne/mcp-server-excel/releases) → Install from VSIX in VS Code
+
+---
+
+### Option 2: Manual Configuration
+
+**For non-VS Code environments or manual setup:**
+
+**1. Install .NET 8 SDK and the MCP server tool**
 
 ```powershell
 # Install .NET 8 SDK
@@ -90,7 +115,7 @@ winget install Microsoft.DotNet.SDK.8
 dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 ```
 
-### 2. Configure Your AI Assistant
+**2. Configure Your AI Assistant**
 
 **For GitHub Copilot** - Create `.vscode/mcp.json` in your workspace:
 
@@ -118,7 +143,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 }
 ```
 
-### 3. Verify Setup
+**3. Verify Setup**
 
 Ask your AI assistant:
 ```
@@ -126,8 +151,6 @@ List all available Excel MCP tools
 ```
 
 You should see 10 Excel tools: `excel_file`, `excel_powerquery`, `excel_connection`, `excel_worksheet`, `excel_range`, `excel_parameter`, `excel_vba`, `excel_datamodel`, `table`, `excel_version`.
-
-**That's it!** The MCP server is now available to AI assistants.
 
 > 💡 **First-time Setup Helper:** Download [excel-powerquery-vba-copilot-instructions.md](https://raw.githubusercontent.com/sbroenne/mcp-server-excel/main/instructions/excel-powerquery-vba-copilot-instructions.md) and save to `YourProject/.github/` for AI assistant guidance, or ask GitHub Copilot to set up everything automatically.
 
