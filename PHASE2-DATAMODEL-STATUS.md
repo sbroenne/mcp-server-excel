@@ -2,7 +2,7 @@
 
 > **Last Updated:** October 28, 2025  
 > **Branch:** feature/remove-pooling-add-batching  
-> **Current Status:** In Progress - Prerequisites Complete
+> **Current Status:** Implementation Complete - Ready for Testing
 
 ---
 
@@ -112,21 +112,26 @@ public static dynamic? FindRelationship(dynamic model, string fromTable, string 
 
 ---
 
-## Next Steps 🎯
+### 3. Interface & Implementation (Commit: b82f4e4) ✅
 
-### Task 13: Update IDataModelCommands Interface
+**Files Modified:**
+- `src/ExcelMcp.Core/Commands/DataModel/IDataModelCommands.cs` (8 → 15 methods)
+- `src/ExcelMcp.Core/Commands/DataModel/DataModelCommands.Read.cs` (394 → 601 lines, +207 lines)
+- `src/ExcelMcp.Core/Commands/DataModel/DataModelCommands.Write.cs` (215 → 594 lines, +379 lines)
 
-**File:** `src/ExcelMcp.Core/Commands/IDataModelCommands.cs`
+**Total Changes:** +586 lines of implementation
 
-Add 7 new method signatures:
+#### Added Interface Methods:
 
+**READ Operations (3 methods):**
 ```csharp
-// READ Operations (add to interface)
 Task<DataModelTableColumnsResult> ListTableColumnsAsync(IExcelBatch batch, string tableName);
 Task<DataModelTableViewResult> ViewTableAsync(IExcelBatch batch, string tableName);
 Task<DataModelInfoResult> GetModelInfoAsync(IExcelBatch batch);
+```
 
-// WRITE Operations (add to interface)
+**WRITE Operations (4 methods):**
+```csharp
 Task<OperationResult> CreateMeasureAsync(IExcelBatch batch, string tableName, string measureName, 
                                          string daxFormula, string? formatType = null, 
                                          string? description = null);
@@ -141,50 +146,91 @@ Task<OperationResult> UpdateRelationshipAsync(IExcelBatch batch, string fromTabl
                                                string toColumn, bool active);
 ```
 
+#### Implementation Details:
+
+**ListTableColumnsAsync:**
+- Uses `DataModelHelpers.ForEachColumn` for safe COM iteration
+- Returns column name, data type, and isCalculated flag
+- Proper COM cleanup for table and model objects
+
+**ViewTableAsync:**
+- Combines table metadata (SourceName, RecordCount, RefreshDate)
+- Lists all columns using ForEachColumn
+- Counts measures associated with the table
+- Comprehensive table view in single operation
+
+**GetModelInfoAsync:**
+- Aggregates Data Model statistics (table count, measure count, relationship count)
+- Sums total rows across all tables
+- Returns list of table names
+- Complete model summary for overview/reporting
+
+**CreateMeasureAsync:**
+- Uses `ModelMeasures.Add()` API (Office 2016+)
+- Supports format types: Currency, Decimal, Percentage, General
+- Validates table existence and measure uniqueness
+- Optional description parameter
+- Returns helpful next steps (verify, list, test in PivotTable)
+
+**UpdateMeasureAsync:**
+- Updates Formula, FormatInformation, and/or Description properties
+- Supports partial updates (only provided parameters changed)
+- Uses Read/Write properties per Microsoft official docs
+- Validates measure exists before updating
+
+**CreateRelationshipAsync:**
+- Uses `ModelRelationships.Add()` API (Office 2016+)
+- Validates both tables and columns exist
+- Checks for duplicate relationships
+- Sets Active property after creation
+- Foreign key → Primary key direction
+
+**UpdateRelationshipAsync:**
+- Uses `DataModelHelpers.FindRelationship` to locate relationship
+- Updates Active property (toggle active/inactive)
+- Reports state change (was X, now Y)
+- Simple toggle operation for relationship state
+
+**Build Status:** ✅ 0 errors, 0 warnings
+
 ---
 
-## Pending Implementation (Tasks 14-23)
+## Next Steps 🎯
 
-### Phase 2 Core Implementation
+### Task 14-16: Integration Tests (CURRENT)
 
-1. **CreateMeasureAsync** - Use `ModelMeasures.Add()` API
-   - Support format types: Currency, Decimal, Percentage, General
-   - Use DataModelHelpers.GetFormatObject for format conversion
+**File:** `tests/ExcelMcp.Core.Tests/Integration/Commands/DataModel/DataModelCommandsTests.*.cs`
 
-2. **UpdateMeasureAsync** - Set measure properties directly
-   - Update Formula, Description, FormatInformation (all Read/Write per Microsoft docs)
-   - Support partial updates (only set provided parameters)
+Add tests for the 7 new operations:
 
-3. **CreateRelationshipAsync** - Use `ModelRelationships.Add()` API
-   - Use DataModelHelpers.FindModelTableColumn to find columns
-   - Set relationship.Active property
+1. **READ Operations Tests:**
+   - ListTableColumnsAsync - Valid table, invalid table, empty table
+   - ViewTableAsync - Valid table with measures, table without measures
+   - GetModelInfoAsync - Model with data, empty model
 
-4. **UpdateRelationshipAsync** - Set relationship.Active property
-   - Use DataModelHelpers.FindRelationship to locate relationship
-   - Toggle active/inactive state
+2. **CREATE Tests:**
+   - CreateMeasureAsync - Valid measure, duplicate measure, invalid table, format types
+   - CreateRelationshipAsync - Valid relationship, duplicate, invalid table/column
 
-5. **ListTableColumnsAsync** - Iterate table.ModelTableColumns
-   - Use DataModelHelpers.ForEachColumn
-   - Return DataModelColumnInfo list
+3. **UPDATE Tests:**
+   - UpdateMeasureAsync - Update formula, format, description, partial updates, invalid measure
+   - UpdateRelationshipAsync - Toggle active/inactive, invalid relationship
 
-6. **ViewTableAsync** - Get table metadata + columns + measure count
-   - Combine table properties, column list, and measure count
+**Expected Test Count:** ~15-20 new tests across DataModelCommandsTests partials
 
-7. **GetModelInfoAsync** - Get Data Model summary
-   - Count tables, measures, relationships
-   - Sum total rows across all tables
+---
 
-### Integration Tests
+## Pending Work (Tasks 17-33)
 
-- **CREATE tests:** Verify measures/relationships appear in list results
-- **UPDATE tests:** Verify changes persist in view results
-- **DISCOVERY tests:** Verify accurate column lists and model statistics
+### Phase 2 Remaining Tasks (7 tasks)
 
-### Expected Outcome
-
-- **15 total operations:** 8 existing + 7 new
-- **File size:** DataModelCommands ~400 → ~700 lines
-- **Commit:** "Add Data Model CREATE/UPDATE operations via Excel COM API"
+17. **Integration Tests** - Add tests for 7 new operations (~15-20 tests)
+18. **Test Validation** - Run all DataModel tests, verify 100% pass rate
+19. **Update COMMANDS.md** - Document 7 new CLI commands (Phase 3)
+20. **Update README.md** - Add CREATE/UPDATE examples (Phase 3)
+21. **MCP Server Integration** - Add 7 actions to ExcelDataModelTool (Phase 3)
+22. **CLI Integration** - Add CLI wrappers for 7 operations (Phase 3)
+23. **Final Commit** - "Phase 2 Complete: Data Model CREATE/UPDATE with tests"
 
 ---
 
@@ -253,13 +299,18 @@ Validated against Microsoft Learn documentation (October 2025):
 ### Committed Changes ✅
 
 ```
-src/ExcelMcp.Core/DataModel/DataModelHelpers.cs         (377 → 489 lines)
-src/ExcelMcp.Core/Models/ResultTypes.cs                 (1464 → 1360 lines)
-src/ExcelMcp.Core/Models/DataModelColumnInfo.cs         (NEW - 20 lines)
-src/ExcelMcp.Core/Models/DataModelTableColumnsResult.cs (NEW - 17 lines)
-src/ExcelMcp.Core/Models/DataModelTableViewResult.cs    (NEW - 40 lines)
-src/ExcelMcp.Core/Models/DataModelInfoResult.cs         (NEW - 27 lines)
+src/ExcelMcp.Core/Commands/DataModel/DataModelHelpers.cs              (377 → 489 lines)
+src/ExcelMcp.Core/Models/ResultTypes.cs                                (1464 → 1360 lines)
+src/ExcelMcp.Core/Models/DataModelColumnInfo.cs                        (NEW - 20 lines)
+src/ExcelMcp.Core/Models/DataModelTableColumnsResult.cs                (NEW - 17 lines)
+src/ExcelMcp.Core/Models/DataModelTableViewResult.cs                   (NEW - 40 lines)
+src/ExcelMcp.Core/Models/DataModelInfoResult.cs                        (NEW - 27 lines)
+src/ExcelMcp.Core/Commands/DataModel/IDataModelCommands.cs             (8 → 15 methods)
+src/ExcelMcp.Core/Commands/DataModel/DataModelCommands.Read.cs         (394 → 601 lines)
+src/ExcelMcp.Core/Commands/DataModel/DataModelCommands.Write.cs        (215 → 594 lines)
 ```
+
+**Total Implementation:** +586 lines of new functionality
 
 ### Files to Modify (Next Steps)
 
@@ -281,8 +332,9 @@ tests/ExcelMcp.Core.Tests/Integration/Commands/DataModelCommandsTests.cs (Add 7 
 | **Phase 1 Tests** | ✅ PASSING | 17/17 integration tests |
 | **Phase 2 Helpers** | ✅ COMMITTED | Commit 50acd40 |
 | **Phase 2 Result Types** | ✅ COMMITTED | Commit 75b15a6 |
-| **Phase 2 Implementation** | ⏳ PENDING | Tasks 13-23 |
-| **Phase 3 Integration** | ⏳ PENDING | Tasks 24-33 |
+| **Phase 2 Implementation** | ✅ COMMITTED | Commit b82f4e4 - 7 new methods |
+| **Phase 2 Tests** | ⏳ PENDING | Tasks 17-18 |
+| **Phase 3 Integration** | ⏳ PENDING | Tasks 19-23 |
 
 ---
 
@@ -313,6 +365,7 @@ tests/ExcelMcp.Core.Tests/Integration/Commands/DataModelCommandsTests.cs (Add 7 
 ## Git History
 
 ```
+b82f4e4 - Phase 2: Add Data Model CREATE/UPDATE operations via Excel COM API (7 new methods, +586 lines)
 75b15a6 - Split Phase 2 result types into separate files (fix architectural violation)
 50acd40 - Add ForEachColumn and FindRelationship helpers for Phase 2 Data Model operations
 1800b8b - Split DataModelCommands into partial classes (Read, Write, Refresh)
@@ -336,4 +389,6 @@ tests/ExcelMcp.Core.Tests/Integration/Commands/DataModelCommandsTests.cs (Add 7 
 
 ---
 
-**Status:** Ready to resume implementation at Task 13 (Update IDataModelCommands interface)
+**Status:** Core implementation complete (Commit b82f4e4). Next: Add integration tests for 7 new operations (Tasks 17-18).
+
+**Summary:** Successfully added 7 CREATE/UPDATE operations using Excel COM API. Total implementation: +586 lines across 3 files. Build succeeds with 0 errors, 0 warnings. Ready for integration testing.
