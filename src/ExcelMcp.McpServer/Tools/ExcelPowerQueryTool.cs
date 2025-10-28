@@ -69,7 +69,7 @@ public static class ExcelPowerQueryTool
         [RegularExpression("^(None|Private|Organizational|Public)$")]
         [Description("Privacy level for Power Query data combining (optional). If not specified and privacy error occurs, LLM must ask user to choose: None (least secure), Private (most secure), Organizational (internal data), or Public (public data)")]
         string? privacyLevel = null,
-        
+
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
         string? batchId = null)
     {
@@ -358,28 +358,13 @@ public static class ExcelPowerQueryTool
             excelPath,
             save: true,
             async (batch) => await commands.SetLoadToTableAsync(batch, queryName, targetSheet ?? "", privacyLevel));
-        if (result.Success)
-        {
-            result.SuggestedNextActions = new List<string>
-            {
-                "Use 'refresh' to load data to the worksheet",
-                "Use worksheet 'read' to verify loaded data",
-                "Use 'get-load-config' to confirm load settings"
-            };
-            result.WorkflowHint = "Load-to-table configured. Next, refresh to load data.";
-        }
-        else
-        {
-            result.SuggestedNextActions = new List<string>
-            {
-                "Check that the query exists using 'list'",
-                "Verify the target sheet name is correct",
-                "Review privacy level settings if needed"
-            };
-            result.WorkflowHint = "Set-load-to-table failed. Check query and sheet names.";
-        }
 
-        // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
+        // Result now includes atomic operation verification metrics:
+        // RowsLoaded, WorkflowStatus (Complete/Partial/Failed), ConfigurationApplied, DataLoadedToTable
+        // WorkflowHint and SuggestedNextActions are set by Core layer based on verification outcome
+        // Do NOT overwrite these values - they reflect actual operation results
+
+        // Return result as JSON with all verification details
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -393,11 +378,11 @@ public static class ExcelPowerQueryTool
             excelPath,
             save: true,
             async (batch) => await commands.SetLoadToDataModelAsync(batch, queryName, privacyLevel));
-        
+
         // Result now includes verification metrics: RowsLoaded, TablesInDataModel, WorkflowStatus
         // WorkflowHint and SuggestedNextActions are set by Core layer based on verification outcome
         // Do NOT overwrite these values - they reflect actual operation results
-        
+
         // Return result as JSON with all verification details
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -412,28 +397,14 @@ public static class ExcelPowerQueryTool
             excelPath,
             save: true,
             async (batch) => await commands.SetLoadToBothAsync(batch, queryName, targetSheet ?? "", privacyLevel));
-        if (result.Success)
-        {
-            result.SuggestedNextActions = new List<string>
-            {
-                "Use 'refresh' to load data to both worksheet and data model",
-                "Use worksheet 'read' to verify worksheet data",
-                "Use 'get-load-config' to confirm dual-load settings"
-            };
-            result.WorkflowHint = "Load-to-both configured. Next, refresh to load data.";
-        }
-        else
-        {
-            result.SuggestedNextActions = new List<string>
-            {
-                "Check that the query exists using 'list'",
-                "Verify the target sheet name is correct",
-                "Review privacy level settings if needed"
-            };
-            result.WorkflowHint = "Set-load-to-both failed. Check query and sheet names.";
-        }
 
-        // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
+        // Result now includes dual atomic operation verification metrics:
+        // RowsLoadedToTable, RowsLoadedToModel, TablesInDataModel, WorkflowStatus (Complete/Partial/Failed)
+        // DataLoadedToTable, DataLoadedToModel, ConfigurationApplied
+        // WorkflowHint and SuggestedNextActions are set by Core layer based on verification outcome
+        // Do NOT overwrite these values - they reflect actual operation results
+
+        // Return result as JSON with all verification details
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
