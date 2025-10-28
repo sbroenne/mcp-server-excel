@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Connections;
+using Sbroenne.ExcelMcp.Core.DataModel;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
 using Sbroenne.ExcelMcp.Core.Security;
@@ -1978,7 +1979,7 @@ in
                 }
 
                 // STEP 1: Check Data Model availability
-                if (!DataModel.DataModelHelpers.HasDataModel(ctx.Book))
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
                 {
                     result.Success = false;
                     result.ErrorMessage = "Data Model not available. Excel requires Power Pivot or Data Model features enabled.";
@@ -2154,7 +2155,7 @@ in
                 }
 
                 // STEP 2: Check Data Model availability
-                bool dataModelAvailable = DataModel.DataModelHelpers.HasDataModel(ctx.Book);
+                bool dataModelAvailable = DataModelHelpers.HasDataModel(ctx.Book);
                 if (!dataModelAvailable)
                 {
                     result.Success = false;

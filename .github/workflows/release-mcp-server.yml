@@ -109,6 +109,42 @@ jobs:
         Write-Output "🔗 Package will be available at: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer/$version"
       shell: pwsh
 
+    - name: Install MCP Publisher
+      run: |
+        Write-Output "Installing MCP Publisher CLI..."
+        $arch = if ([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture -eq "Arm64") { "arm64" } else { "amd64" }
+        Invoke-WebRequest -Uri "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_windows_$arch.tar.gz" -OutFile "mcp-publisher.tar.gz"
+        tar xf mcp-publisher.tar.gz mcp-publisher.exe
+        Remove-Item mcp-publisher.tar.gz
+        Write-Output "✓ MCP Publisher installed"
+      shell: pwsh
+
+    - name: Login to MCP Registry
+      run: |
+        Write-Output "Authenticating with MCP Registry using GitHub OIDC..."
+        ./mcp-publisher.exe login github-oidc
+        Write-Output "✓ Authenticated with MCP Registry"
+      shell: pwsh
+
+    - name: Publish to MCP Registry
+      run: |
+        $version = $env:PACKAGE_VERSION
+        Write-Output "Publishing to MCP Registry..."
+        Write-Output "Server name: io.github.sbroenne/mcp-server-excel"
+        Write-Output "Version: $version"
+        
+        # Navigate to MCP Server directory (where server.json is located)
+        Set-Location src/ExcelMcp.McpServer
+        
+        # Publish to registry
+        ../../mcp-publisher.exe publish
+        
+        Write-Output "🚀 Published to MCP Registry"
+        Write-Output "🔗 Server available at: https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel"
+      shell: pwsh
+      env:
+        PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
+
     - name: Create MCP Server Release Package
       run: |
         $version = $env:PACKAGE_VERSION
@@ -144,8 +180,8 @@ jobs:
         $readmeContent += "## Features`n`n"
         $readmeContent += "- AI Assistant Integration - Native MCP protocol support`n"
         $readmeContent += "- Conversational Interface - Natural language Excel operations`n"
-        $readmeContent += "- 6 Resource-Based Tools - Structured API for AI assistants`n"
-        $readmeContent += "- Excel Development Focus - Power Query, VBA, worksheets`n`n"
+        $readmeContent += "- 12 Resource-Based Tools - Structured API for AI assistants`n"
+        $readmeContent += "- Excel Development Focus - Power Query, VBA, Data Model, tables, ranges, worksheets`n`n"
         $readmeContent += "## Requirements`n`n"
         $readmeContent += "- Windows OS with Microsoft Excel installed`n"
         $readmeContent += "- .NET 8.0 runtime`n"
@@ -173,8 +209,8 @@ jobs:
         $releaseNotes += "### Key Features`n"
         $releaseNotes += "- Native AI Integration - Built for GitHub Copilot and AI assistants`n"
         $releaseNotes += "- Conversational Excel - Natural language Excel operations`n"
-        $releaseNotes += "- Resource-Based API - 6 structured tools instead of 40+ commands`n"
-        $releaseNotes += "- Development Focus - Power Query refactoring, VBA enhancement, code review`n"
+        $releaseNotes += "- Resource-Based API - 12 structured tools for comprehensive Excel automation`n"
+        $releaseNotes += "- Development Focus - Power Query refactoring, VBA enhancement, Data Model operations, table management, range operations`n"
         $releaseNotes += "- Smart Context - AI understands Excel development workflows`n`n"
         $releaseNotes += "### Installation`n`n"
         $releaseNotes += "**Option 1: .NET Tool (Recommended)**`n"
@@ -186,12 +222,18 @@ jobs:
         $releaseNotes += "1. Download ExcelMcp-MCP-Server-$version-windows.zip`n"
         $releaseNotes += "2. Extract and run: dotnet ExcelMcp.McpServer.dll`n`n"
         $releaseNotes += "### MCP Tools Available`n"
-        $releaseNotes += "- excel_file - File management (create, validate, check-exists)`n"
-        $releaseNotes += "- excel_powerquery - Power Query operations (list, view, import, export, update, refresh, delete)`n"
-        $releaseNotes += "- excel_worksheet - Worksheet operations (list, read, write, create, rename, copy, delete, clear, append)`n"
-        $releaseNotes += "- excel_parameter - Named range management (list, get, set, create, delete)`n"
+        $releaseNotes += "- excel_file - File management (create-empty, close-workbook)`n"
+        $releaseNotes += "- excel_powerquery - Power Query operations (list, view, import, export, update, refresh, delete, set-load-config, get-load-config)`n"
+        $releaseNotes += "- excel_worksheet - Worksheet operations (list, create, rename, copy, delete)`n"
+        $releaseNotes += "- excel_range - Range operations (get-values, set-values, get-formulas, set-formulas, clear-all, clear-contents, clear-formats)`n"
+        $releaseNotes += "- excel_table - Table operations (list, create, info, rename, delete, resize, set-style, toggle-totals, set-column-total, append, apply-filter, clear-filters, get-filters, add-column, remove-column, rename-column, sort, add-to-datamodel, get-structured-reference)`n"
+        $releaseNotes += "- excel_parameter - Named range management (list, get, set, create, delete, update)`n"
         $releaseNotes += "- excel_cell - Cell operations (get-value, set-value, get-formula, set-formula)`n"
-        $releaseNotes += "- excel_vba - VBA script management (list, export, import, update, run, delete)`n`n"
+        $releaseNotes += "- excel_connection - Connection management (list, view, import, export, update, refresh, delete, loadto, properties, set-properties, test)`n"
+        $releaseNotes += "- excel_datamodel - Data Model operations (list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, list-columns, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship, create-column, update-column, delete-column, view-column)`n"
+        $releaseNotes += "- excel_vba - VBA script management (list, export, import, view, update, run, delete)`n"
+        $releaseNotes += "- excel_version - Version information`n"
+        $releaseNotes += "- batch_session - Batch operation management (begin, save, discard, status)`n`n"
         $releaseNotes += "### Requirements`n"
         $releaseNotes += "- Windows OS with Microsoft Excel installed`n"
         $releaseNotes += "- .NET 8.0 runtime`n"

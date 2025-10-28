@@ -115,10 +115,12 @@ jobs:
         $nugetInfoContent += "  - Power Query operations`n"
         $nugetInfoContent += "  - VBA management`n"
         $nugetInfoContent += "  - Worksheet operations`n"
+        $nugetInfoContent += "  - Range operations`n"
+        $nugetInfoContent += "  - Table operations`n"
         $nugetInfoContent += "  - Named range parameters`n"
         $nugetInfoContent += "  - Cell operations`n"
         $nugetInfoContent += "  - Connection management`n"
-        $nugetInfoContent += "  - Data Model operations`n`n"
+        $nugetInfoContent += "  - Data Model operations (DAX measures, relationships, calculated columns)`n`n"
         $nugetInfoContent += "## Quick Start`n`n"
         $nugetInfoContent += "``````csharp`n"
         $nugetInfoContent += "using Sbroenne.ExcelMcp.ComInterop.Session;`n"
@@ -185,10 +187,12 @@ jobs:
           - ✅ Power Query M code operations
           - ✅ VBA macro management
           - ✅ Worksheet CRUD operations
+          - ✅ Range operations (values, formulas, clear variants)
+          - ✅ Table operations (lifecycle, data, filters, columns)
           - ✅ Named range parameters
           - ✅ Cell-level operations
           - ✅ Connection management (OLEDB, ODBC, Text, Web, etc.)
-          - ✅ Data Model operations
+          - ✅ Data Model operations (DAX measures, relationships, calculated columns)
 
           ## 🚀 Quick Start
 

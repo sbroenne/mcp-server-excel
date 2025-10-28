@@ -161,6 +161,7 @@ ExcelMcp also provides a command-line interface for script-based Excel automatio
 | Document | Description |
 |----------|-------------|
 | **[MCP Server Guide](src/ExcelMcp.McpServer/README.md)** | MCP setup, AI integration, examples |
+| **[MCP Registry Publishing](docs/MCP_REGISTRY_PUBLISHING.md)** | How the server is published to MCP Registry |
 | **[CLI Guide](docs/CLI.md)** | Command-line interface for automation |
 | **[Command Reference](docs/COMMANDS.md)** | All 50+ CLI commands |
 | **[Installation Guide](docs/INSTALLATION.md)** | Building from source |

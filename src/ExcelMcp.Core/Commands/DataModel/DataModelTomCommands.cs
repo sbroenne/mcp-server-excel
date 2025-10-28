@@ -177,16 +177,12 @@ public class DataModelTomCommands : IDataModelTomCommands
                     result.Success = false;
                     result.ErrorMessage = $"Measure '{measureName}' not found in Data Model.";
 
-                    // Suggest similar measure names
-                    var suggestions = new List<string>();
-                    foreach (var m in measureNames)
-                    {
-                        if (m.Contains(measureName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            suggestions.Add($"Try measure: {m}");
-                            if (suggestions.Count >= 3) break;
-                        }
-                    }
+                    // Suggest similar measure names - filter first, then transform
+                    var suggestions = measureNames
+                        .Where(m => m.Contains(measureName, StringComparison.OrdinalIgnoreCase))
+                        .Take(3)
+                        .Select(m => $"Try measure: {m}")
+                        .ToList();
 
                     result.SuggestedNextActions = suggestions.Any()
                         ? suggestions
@@ -634,24 +630,20 @@ public class DataModelTomCommands : IDataModelTomCommands
             result.IsValid = isValid;
             result.ValidationError = errorMessage;
 
-            if (isValid)
-            {
-                result.SuggestedNextActions = new List<string>
+            // Use ternary operator for conditional assignment
+            result.SuggestedNextActions = isValid
+                ? new List<string>
                 {
                     "DAX formula syntax appears valid",
                     "Create a measure using this formula",
                     "Test the formula with actual data"
-                };
-            }
-            else
-            {
-                result.SuggestedNextActions = new List<string>
+                }
+                : new List<string>
                 {
                     "Review DAX formula syntax",
                     "Check for balanced parentheses and brackets",
                     "Verify table and column references exist"
                 };
-            }
 
             return result;
         }
@@ -764,11 +756,11 @@ public class DataModelTomCommands : IDataModelTomCommands
                         TomHelper.FindTable(model, tableName) ?? throw new InvalidOperationException($"Table '{tableName}' not found")
                     };
 
-                foreach (var table in tablesToSearch)
-                {
-                    foreach (var column in table.Columns.OfType<Microsoft.AnalysisServices.Tabular.CalculatedColumn>())
-                    {
-                        var columnInfo = new DataModelCalculatedColumnInfo
+                // Use LINQ Select to transform columns to info objects
+                var calculatedColumns = tablesToSearch
+                    .SelectMany(table => table.Columns
+                        .OfType<Microsoft.AnalysisServices.Tabular.CalculatedColumn>()
+                        .Select(column => new DataModelCalculatedColumnInfo
                         {
                             Name = column.Name,
                             Table = table.Name,
@@ -777,11 +769,10 @@ public class DataModelTomCommands : IDataModelTomCommands
                                 : column.Expression ?? "",
                             DataType = column.DataType.ToString(),
                             Description = column.Description
-                        };
+                        }))
+                    .ToList();
 
-                        result.CalculatedColumns.Add(columnInfo);
-                    }
-                }
+                result.CalculatedColumns = calculatedColumns;
 
                 result.Success = true;
                 result.SuggestedNextActions = new List<string>

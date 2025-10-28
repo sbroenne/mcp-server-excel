@@ -11,8 +11,9 @@ public static class PowerQueryWorkflowGuidance
     /// </summary>
     /// <param name="isConnectionOnly">Whether the query is connection-only</param>
     /// <param name="hasErrors">Whether errors were detected during import</param>
+    /// <param name="usedBatchMode">Whether batch mode was used for this operation</param>
     /// <returns>List of suggested actions for LLM</returns>
-    public static List<string> GetNextStepsAfterImport(bool isConnectionOnly, bool hasErrors = false)
+    public static List<string> GetNextStepsAfterImport(bool isConnectionOnly, bool hasErrors = false, bool usedBatchMode = false)
     {
         if (hasErrors)
         {
@@ -25,23 +26,29 @@ public static class PowerQueryWorkflowGuidance
             };
         }
 
+        var suggestions = new List<string>();
+
         if (isConnectionOnly)
         {
-            return new List<string>
-            {
-                "Query imported as connection-only (no data loaded yet)",
-                "Use 'set-load-to-table' with targetSheet parameter to load data to worksheet",
-                "Or use 'set-load-to-data-model' to load to PowerPivot",
-                "Then use 'refresh' to validate the query works"
-            };
+            suggestions.Add("Query imported as connection-only (no data loaded yet)");
+            suggestions.Add("Use 'set-load-to-table' with targetSheet parameter to load data to worksheet");
+            suggestions.Add("Or use 'set-load-to-data-model' to load to PowerPivot");
+            suggestions.Add("Then use 'refresh' to validate the query works");
+        }
+        else
+        {
+            suggestions.Add("Query imported and data loaded successfully");
+            suggestions.Add("Use 'view' to review M code if needed");
+            suggestions.Add("Use 'get-load-config' to check configuration");
         }
 
-        return new List<string>
+        // Add batch mode suggestion if not already using it
+        if (!usedBatchMode)
         {
-            "Query imported and data loaded successfully",
-            "Use 'view' to review M code if needed",
-            "Use 'get-load-config' to check configuration"
-        };
+            suggestions.Insert(0, "For multiple imports: Use begin_excel_batch to group operations efficiently");
+        }
+
+        return suggestions;
     }
 
     /// <summary>
@@ -49,8 +56,9 @@ public static class PowerQueryWorkflowGuidance
     /// </summary>
     /// <param name="configPreserved">Whether load configuration was preserved</param>
     /// <param name="hasErrors">Whether errors were detected during update</param>
+    /// <param name="usedBatchMode">Whether batch mode was used for this operation</param>
     /// <returns>List of suggested actions for LLM</returns>
-    public static List<string> GetNextStepsAfterUpdate(bool configPreserved = true, bool hasErrors = false)
+    public static List<string> GetNextStepsAfterUpdate(bool configPreserved = true, bool hasErrors = false, bool usedBatchMode = false)
     {
         if (hasErrors)
         {
@@ -63,38 +71,53 @@ public static class PowerQueryWorkflowGuidance
             };
         }
 
+        var suggestions = new List<string>();
+
         if (configPreserved)
         {
-            return new List<string>
-            {
-                "Query updated successfully, load configuration preserved",
-                "Data automatically refreshed with new M code",
-                "Use 'get-load-config' to verify configuration if needed"
-            };
+            suggestions.Add("Query updated successfully, load configuration preserved");
+            suggestions.Add("Data automatically refreshed with new M code");
+            suggestions.Add("Use 'get-load-config' to verify configuration if needed");
+        }
+        else
+        {
+            suggestions.Add("Query updated successfully");
+            suggestions.Add("Use 'refresh' to reload data with updated M code");
+            suggestions.Add("Check 'get-load-config' to verify load settings");
         }
 
-        return new List<string>
+        // Add batch mode suggestion if not already using it
+        if (!usedBatchMode)
         {
-            "Query updated successfully",
-            "Use 'refresh' to reload data with updated M code",
-            "Check 'get-load-config' to verify load settings"
-        };
+            suggestions.Insert(0, "For multiple updates: Use begin_excel_batch to group operations efficiently");
+        }
+
+        return suggestions;
     }
 
     /// <summary>
     /// Get suggested next steps after configuring load destination
     /// </summary>
     /// <param name="loadMode">The load mode that was configured</param>
+    /// <param name="usedBatchMode">Whether batch mode was used for this operation</param>
     /// <returns>List of suggested actions for LLM</returns>
-    public static List<string> GetNextStepsAfterLoadConfig(string loadMode)
+    public static List<string> GetNextStepsAfterLoadConfig(string loadMode, bool usedBatchMode = false)
     {
-        return new List<string>
+        var suggestions = new List<string>
         {
             $"Query configured to load data as: {loadMode}",
             "Use 'refresh' to load data to configured destination",
             "Use 'view' to review M code if needed",
             "Data will now refresh to this location automatically"
         };
+
+        // Add batch mode suggestion if not already using it
+        if (!usedBatchMode)
+        {
+            suggestions.Insert(0, "For configuring multiple queries: Use begin_excel_batch to group operations efficiently");
+        }
+
+        return suggestions;
     }
 
     /// <summary>

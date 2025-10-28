@@ -193,16 +193,22 @@ public static class ExcelPowerQueryTool
             save: true,
             async (batch) => await commands.ImportAsync(batch, queryName, sourcePath, privacyLevel));
 
-        // Always provide actionable next steps and workflow hint for LLM guidance
+        // Use workflow guidance with batch mode awareness
+        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+        
         if (result.Success)
         {
-            result.SuggestedNextActions = new List<string>
-            {
-                "Use 'set-load-to-table' to load query data to worksheet",
-                "Use 'refresh' to validate the query and update data",
-                "Use 'view' to inspect the imported M code"
-            };
-            result.WorkflowHint = "Query imported successfully. Next, load data to worksheet or refresh to validate.";
+            // Determine if connection-only by checking suggestions or workflow hint
+            bool isConnectionOnly = result.WorkflowHint?.Contains("connection-only", StringComparison.OrdinalIgnoreCase) ?? false;
+            
+            result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterImport(
+                isConnectionOnly: isConnectionOnly,
+                hasErrors: false,
+                usedBatchMode: usedBatchMode);
+            
+            result.WorkflowHint = usedBatchMode 
+                ? "Query imported in batch mode. Continue adding operations to this batch."
+                : "Query imported successfully. For multiple imports, use begin_excel_batch to group operations efficiently.";
         }
         else
         {
@@ -260,15 +266,20 @@ public static class ExcelPowerQueryTool
             excelPath,
             save: true,
             async (batch) => await commands.UpdateAsync(batch, queryName, sourcePath, privacyLevel));
+        
+        // Use workflow guidance with batch mode awareness
+        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+        
         if (result.Success)
         {
-            result.SuggestedNextActions = new List<string>
-            {
-                "Use 'refresh' to validate the updated query",
-                "Use 'view' to inspect the new M code",
-                "Use 'set-load-to-table' to load updated data"
-            };
-            result.WorkflowHint = "Query updated. Next, refresh, view, or load data.";
+            result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterUpdate(
+                configPreserved: true,
+                hasErrors: false,
+                usedBatchMode: usedBatchMode);
+            
+            result.WorkflowHint = usedBatchMode
+                ? "Query updated in batch mode. Configuration preserved. Continue with more operations."
+                : "Query updated successfully. Configuration preserved. For multiple updates, use begin_excel_batch.";
         }
         else
         {
@@ -359,12 +370,31 @@ public static class ExcelPowerQueryTool
             save: true,
             async (batch) => await commands.SetLoadToTableAsync(batch, queryName, targetSheet ?? "", privacyLevel));
 
-        // Result now includes atomic operation verification metrics:
-        // RowsLoaded, WorkflowStatus (Complete/Partial/Failed), ConfigurationApplied, DataLoadedToTable
-        // WorkflowHint and SuggestedNextActions are set by Core layer based on verification outcome
-        // Do NOT overwrite these values - they reflect actual operation results
+        // Use workflow guidance with batch mode awareness
+        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
 
-        // Return result as JSON with all verification details
+        if (result.Success)
+        {
+            result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterLoadConfig(
+                loadMode: "LoadToTable",
+                usedBatchMode: usedBatchMode);
+
+            result.WorkflowHint = usedBatchMode
+                ? "Load-to-table configured in batch mode. Continue configuring other queries."
+                : "Load-to-table configured. For configuring multiple queries, use begin_excel_batch.";
+        }
+        else
+        {
+            result.SuggestedNextActions = new List<string>
+            {
+                "Check that the query exists using 'list'",
+                "Verify the target sheet name is correct",
+                "Review privacy level settings if needed"
+            };
+            result.WorkflowHint = "Set-load-to-table failed. Check query and sheet names.";
+        }
+
+        // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -379,11 +409,31 @@ public static class ExcelPowerQueryTool
             save: true,
             async (batch) => await commands.SetLoadToDataModelAsync(batch, queryName, privacyLevel));
 
-        // Result now includes verification metrics: RowsLoaded, TablesInDataModel, WorkflowStatus
-        // WorkflowHint and SuggestedNextActions are set by Core layer based on verification outcome
-        // Do NOT overwrite these values - they reflect actual operation results
+        // Use workflow guidance with batch mode awareness
+        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
 
-        // Return result as JSON with all verification details
+        if (result.Success)
+        {
+            result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterLoadConfig(
+                loadMode: "LoadToDataModel",
+                usedBatchMode: usedBatchMode);
+
+            result.WorkflowHint = usedBatchMode
+                ? "Load-to-data-model configured in batch mode. Continue configuring other queries."
+                : "Load-to-data-model configured. For configuring multiple queries, use begin_excel_batch.";
+        }
+        else
+        {
+            result.SuggestedNextActions = new List<string>
+            {
+                "Check that the query exists using 'list'",
+                "Review privacy level settings if needed",
+                "Verify Data Model is enabled"
+            };
+            result.WorkflowHint = "Set-load-to-data-model failed. Check query and Data Model status.";
+        }
+
+        // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
