@@ -192,4 +192,223 @@ public partial class DataModelCommandsTests
             await _dataModelCommands.DeleteMeasureAsync(batch, "SomeMeasure");
         });
     }
+
+    // Phase 2: CREATE/UPDATE Tests
+
+    [Fact]
+    public async Task CreateMeasure_WithValidParameters_CreatesSuccessfully()
+    {
+        // Arrange
+        var measureName = "TestMeasure_" + Guid.NewGuid().ToString("N")[..8];
+        var daxFormula = "SUM(Sales[Amount])";
+
+        // Act
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.CreateMeasureAsync(batch, "Sales", measureName, daxFormula);
+        await batch.SaveAsync();
+
+        // Assert - Should either succeed or indicate no Data Model
+        if (result.Success)
+        {
+            Assert.NotNull(result.SuggestedNextActions);
+            Assert.Contains(result.SuggestedNextActions, s => s.Contains("created successfully"));
+
+            // Verify measure was created by listing measures
+            var listResult = await _dataModelCommands.ListMeasuresAsync(batch);
+            Assert.True(listResult.Success);
+            Assert.Contains(listResult.Measures, m => m.Name == measureName);
+        }
+        else
+        {
+            Assert.True(
+                result.ErrorMessage?.Contains("does not contain a Data Model") == true,
+                $"Expected 'no Data Model' error, but got: {result.ErrorMessage}"
+            );
+        }
+    }
+
+    [Fact]
+    public async Task CreateMeasure_WithFormatType_CreatesWithFormat()
+    {
+        // Arrange
+        var measureName = "FormattedMeasure_" + Guid.NewGuid().ToString("N")[..8];
+        var daxFormula = "SUM(Sales[Amount])";
+
+        // Act
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.CreateMeasureAsync(batch, "Sales", measureName, daxFormula, 
+                                                                 formatType: "Currency", description: "Test measure with currency format");
+        await batch.SaveAsync();
+
+        // Assert - Should either succeed or indicate no Data Model
+        if (result.Success)
+        {
+            Assert.NotNull(result.SuggestedNextActions);
+
+            // Verify measure exists
+            var viewResult = await _dataModelCommands.ViewMeasureAsync(batch, measureName);
+            Assert.True(viewResult.Success);
+            Assert.Equal(measureName, viewResult.MeasureName);
+        }
+        else
+        {
+            Assert.True(
+                result.ErrorMessage?.Contains("does not contain a Data Model") == true,
+                $"Expected 'no Data Model' error, but got: {result.ErrorMessage}"
+            );
+        }
+    }
+
+    [Fact]
+    public async Task CreateMeasure_WithDuplicateName_ReturnsError()
+    {
+        // Arrange - First create a measure
+        var measureName = "DuplicateTest_" + Guid.NewGuid().ToString("N")[..8];
+        var daxFormula = "SUM(Sales[Amount])";
+
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var firstResult = await _dataModelCommands.CreateMeasureAsync(batch, "Sales", measureName, daxFormula);
+
+        if (firstResult.Success)
+        {
+            await batch.SaveAsync();
+
+            // Act - Try to create same measure again
+            var duplicateResult = await _dataModelCommands.CreateMeasureAsync(batch, "Sales", measureName, daxFormula);
+
+            // Assert - Should fail with duplicate error
+            Assert.False(duplicateResult.Success);
+            Assert.NotNull(duplicateResult.ErrorMessage);
+            Assert.Contains("already exists", duplicateResult.ErrorMessage);
+            Assert.NotNull(duplicateResult.SuggestedNextActions);
+        }
+    }
+
+    [Fact]
+    public async Task CreateMeasure_WithInvalidTable_ReturnsError()
+    {
+        // Act
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.CreateMeasureAsync(batch, "NonExistentTable", "TestMeasure", "1+1");
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.True(
+            result.ErrorMessage.Contains("does not contain a Data Model") ||
+            result.ErrorMessage.Contains("Table 'NonExistentTable' not found"),
+            $"Expected 'no Data Model' or 'table not found' error, but got: {result.ErrorMessage}"
+        );
+    }
+
+    [Fact]
+    public async Task UpdateMeasure_WithValidFormula_UpdatesSuccessfully()
+    {
+        // Arrange - Create a measure first
+        var measureName = "UpdateTest_" + Guid.NewGuid().ToString("N")[..8];
+        var originalFormula = "SUM(Sales[Amount])";
+        var updatedFormula = "AVERAGE(Sales[Amount])";
+
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var createResult = await _dataModelCommands.CreateMeasureAsync(batch, "Sales", measureName, originalFormula);
+
+        if (createResult.Success)
+        {
+            await batch.SaveAsync();
+
+            // Act - Update the formula
+            var updateResult = await _dataModelCommands.UpdateMeasureAsync(batch, measureName, daxFormula: updatedFormula);
+            await batch.SaveAsync();
+
+            // Assert
+            Assert.True(updateResult.Success, $"Expected success but got error: {updateResult.ErrorMessage}");
+            Assert.NotNull(updateResult.SuggestedNextActions);
+            Assert.Contains(updateResult.SuggestedNextActions, s => s.Contains("Formula updated"));
+
+            // Verify the update
+            var viewResult = await _dataModelCommands.ViewMeasureAsync(batch, measureName);
+            Assert.True(viewResult.Success);
+            Assert.Contains("AVERAGE", viewResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public async Task UpdateMeasure_WithFormatTypeOnly_UpdatesFormat()
+    {
+        // Arrange - Create a measure first
+        var measureName = "FormatUpdateTest_" + Guid.NewGuid().ToString("N")[..8];
+        var daxFormula = "SUM(Sales[Quantity])";
+
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var createResult = await _dataModelCommands.CreateMeasureAsync(batch, "Sales", measureName, daxFormula);
+
+        if (createResult.Success)
+        {
+            await batch.SaveAsync();
+
+            // Act - Update only the format
+            var updateResult = await _dataModelCommands.UpdateMeasureAsync(batch, measureName, formatType: "Decimal");
+            await batch.SaveAsync();
+
+            // Assert
+            Assert.True(updateResult.Success, $"Expected success but got error: {updateResult.ErrorMessage}");
+            Assert.NotNull(updateResult.SuggestedNextActions);
+            Assert.Contains(updateResult.SuggestedNextActions, s => s.Contains("Format changed"));
+        }
+    }
+
+    [Fact]
+    public async Task UpdateMeasure_WithDescriptionOnly_UpdatesDescription()
+    {
+        // Arrange - Create a measure first
+        var measureName = "DescUpdateTest_" + Guid.NewGuid().ToString("N")[..8];
+        var daxFormula = "SUM(Sales[Amount])";
+
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var createResult = await _dataModelCommands.CreateMeasureAsync(batch, "Sales", measureName, daxFormula);
+
+        if (createResult.Success)
+        {
+            await batch.SaveAsync();
+
+            // Act - Update only the description
+            var updateResult = await _dataModelCommands.UpdateMeasureAsync(batch, measureName, description: "Updated description");
+            await batch.SaveAsync();
+
+            // Assert
+            Assert.True(updateResult.Success, $"Expected success but got error: {updateResult.ErrorMessage}");
+            Assert.NotNull(updateResult.SuggestedNextActions);
+            Assert.Contains(updateResult.SuggestedNextActions, s => s.Contains("Description updated"));
+        }
+    }
+
+    [Fact]
+    public async Task UpdateMeasure_WithNoParameters_ReturnsError()
+    {
+        // Act
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.UpdateMeasureAsync(batch, "SomeMeasure");
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.Contains("No updates provided", result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task UpdateMeasure_WithNonExistentMeasure_ReturnsError()
+    {
+        // Act
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var result = await _dataModelCommands.UpdateMeasureAsync(batch, "NonExistentMeasure", daxFormula: "1+1");
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.True(
+            result.ErrorMessage.Contains("does not contain a Data Model") ||
+            result.ErrorMessage.Contains("Measure 'NonExistentMeasure' not found"),
+            $"Expected 'no Data Model' or 'measure not found' error, but got: {result.ErrorMessage}"
+        );
+    }
 }
