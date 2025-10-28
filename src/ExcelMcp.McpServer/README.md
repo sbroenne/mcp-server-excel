@@ -87,16 +87,18 @@ The MCP server provides **10 focused resource-based tools** optimized for AI cod
 
 ### 4. **`excel_datamodel`** - Data Model & DAX Management 📈
 
-**Actions**: `list-tables`, `list-measures`, `view-measure`, `export-measure`, `list-relationships`, `refresh`, `delete-measure`, `delete-relationship`, `list-columns`, `view-table`, `get-model-info`, `create-measure`, `update-measure`, `create-relationship`, `update-relationship` (15 actions)
+**Actions**: `list-tables`, `list-measures`, `view-measure`, `export-measure`, `list-relationships`, `refresh`, `delete-measure`, `delete-relationship`, `list-columns`, `view-table`, `get-model-info`, `create-measure`, `update-measure`, `create-relationship`, `update-relationship`, `create-column`, `view-column`, `update-column`, `delete-column`, `validate-dax` (20 actions)
 
 - Excel Data Model (Power Pivot) operations for enterprise analytics
 - **Phase 2 CRUD:** Create/update DAX measures with format types (Currency, Percentage, Decimal, General)
 - **Phase 2 CRUD:** Create/update table relationships with active/inactive toggles
+- **Phase 2 CRUD:** Create/update/delete DAX calculated columns with data types (String, Integer, Double, Boolean, DateTime)
 - Discovery: List tables, columns, measures, relationships; view table details; get model statistics
 - DAX measure inspection, export to .dax files for version control, and deletion
 - Table relationship management and analysis
 - Data Model refresh and structure exploration
-- 🎯 **LLM-Optimized**: AI can create/manage DAX formulas and optimize Data Model structure
+- DAX formula validation without creating objects
+- 🎯 **LLM-Optimized**: AI can create/manage DAX formulas, calculated columns, and optimize Data Model structure
 
 ### 5. **`excel_worksheet`** - Worksheet Lifecycle Management 📊
 
@@ -242,6 +244,26 @@ Result: {"success": true, "message": "Measure 'Previous Year Sales' deleted succ
 User: "Refresh the Data Model to get latest data"
 AI Assistant uses: excel_datamodel(action="refresh", excelPath="sales-analysis.xlsx")
 Result: {"success": true, "message": "Data Model refreshed successfully"}
+
+User: "Create a calculated column for total cost in the Sales table"
+AI Assistant uses: excel_datamodel(action="create-column", excelPath="sales.xlsx", tableName="Sales", columnName="TotalCost", daxFormula="[Price] * [Quantity]", dataType="Double", description="Total cost per item")
+Result: {"success": true, "message": "Calculated column 'TotalCost' created successfully"}
+
+User: "List all calculated columns in my Data Model"
+AI Assistant uses: excel_datamodel(action="list-columns", excelPath="sales.xlsx")
+Result: {"success": true, "calculatedColumns": [{"name": "TotalCost", "table": "Sales", "dataType": "Double", "formulaPreview": "[Price] * [Quantity]"}]}
+
+User: "Show me the details for the Profit calculated column"
+AI Assistant uses: excel_datamodel(action="view-column", excelPath="sales.xlsx", tableName="Sales", columnName="Profit")
+Result: {"success": true, "columnName": "Profit", "tableName": "Sales", "daxFormula": "[Revenue] - [Cost]", "dataType": "Double"}
+
+User: "Update the TotalCost column to include tax"
+AI Assistant uses: excel_datamodel(action="update-column", excelPath="sales.xlsx", tableName="Sales", columnName="TotalCost", daxFormula="[Price] * [Quantity] * 1.1", description="Total cost with 10% tax")
+Result: {"success": true, "message": "Calculated column 'TotalCost' updated successfully"}
+
+User: "Validate this DAX formula before creating a column"
+AI Assistant uses: excel_datamodel(action="validate-dax", excelPath="sales.xlsx", daxFormula="[Revenue] - [Cost]")
+Result: {"success": true, "isValid": true, "daxFormula": "[Revenue] - [Cost]"}
 ```
 
 ### Worksheet Operations
