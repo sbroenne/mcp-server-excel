@@ -21,74 +21,46 @@ public class DataModelCommands : IDataModelCommands
 
         return await batch.ExecuteAsync(async (ctx, ct) =>
         {
+            // Check if workbook has Data Model
+            if (!DataModelHelpers.HasDataModel(ctx.Book))
+            {
+                result.Success = false;
+                result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                return result;
+            }
+
             dynamic? model = null;
             try
             {
-                // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(ctx.Book))
-                {
-                    result.Success = false;
-                    result.ErrorMessage = "This workbook does not contain a Data Model. Load data to Data Model first using Power Query or external data sources.";
-                    return result;
-                }
-
                 model = ctx.Book.Model;
-                dynamic? modelTables = null;
-                try
-                {
-                    modelTables = model.ModelTables;
-                    int count = modelTables.Count;
 
-                    for (int i = 1; i <= count; i++)
+                DataModelHelpers.ForEachTable(model, (Action<dynamic, int>)((table, index) =>
+                {
+                    // Try to get refresh date (may not always be available)
+                    DateTime? refreshDate = null;
+                    try
                     {
-                        dynamic? table = null;
-                        try
-                        {
-                            table = modelTables.Item(i);
-
-                            var tableInfo = new DataModelTableInfo
-                            {
-                                Name = table.Name?.ToString() ?? "",
-                                SourceName = table.SourceName?.ToString() ?? "",
-                                RecordCount = table.RecordCount ?? 0
-                            };
-
-                            // Try to get refresh date (may not always be available)
-                            try
-                            {
-                                DateTime? refreshDate = table.RefreshDate;
-                                if (refreshDate.HasValue)
-                                {
-                                    tableInfo = new DataModelTableInfo
-                                    {
-                                        Name = tableInfo.Name,
-                                        SourceName = tableInfo.SourceName,
-                                        RecordCount = tableInfo.RecordCount,
-                                        RefreshDate = refreshDate
-                                    };
-                                }
-                            }
-                            catch { /* RefreshDate not always accessible */ }
-
-                            result.Tables.Add(tableInfo);
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref table);
-                        }
+                        refreshDate = table.RefreshDate;
                     }
+                    catch { /* RefreshDate not always accessible */ }
 
-                    result.Success = true;
-                }
-                finally
-                {
-                    ComUtilities.Release(ref modelTables);
-                }
+                    var tableInfo = new DataModelTableInfo
+                    {
+                        Name = DataModelHelpers.SafeGetString(table, "Name"),
+                        SourceName = DataModelHelpers.SafeGetString(table, "SourceName"),
+                        RecordCount = DataModelHelpers.SafeGetInt(table, "RecordCount"),
+                        RefreshDate = refreshDate
+                    };
+
+                    result.Tables.Add(tableInfo);
+                }));
+
+                result.Success = true;
             }
             catch (Exception ex)
             {
                 result.Success = false;
-                result.ErrorMessage = $"Error accessing Data Model: {ex.Message}";
+                result.ErrorMessage = DataModelErrorMessages.OperationFailed("List tables", ex.Message);
             }
             finally
             {
@@ -113,84 +85,53 @@ public class DataModelCommands : IDataModelCommands
                 if (!DataModelHelpers.HasDataModel(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = "This workbook does not contain a Data Model.";
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
                     return result;
                 }
 
                 model = ctx.Book.Model;
-                dynamic? modelTables = null;
-                try
+
+                DataModelHelpers.ForEachTable(model, (Action<dynamic, int>)((table, index) =>
                 {
-                    modelTables = model.ModelTables;
+                    string currentTableName = DataModelHelpers.SafeGetString(table, "Name");
 
-                    for (int t = 1; t <= modelTables.Count; t++)
+                    // Skip if filtering by table and this isn't the table
+                    if (tableName != null && !currentTableName.Equals(tableName, StringComparison.OrdinalIgnoreCase))
                     {
-                        dynamic? table = null;
-                        dynamic? measures = null;
-                        try
-                        {
-                            table = modelTables.Item(t);
-                            string currentTableName = table.Name?.ToString() ?? "";
-
-                            // Skip if filtering by table and this isn't the table
-                            if (tableName != null && !currentTableName.Equals(tableName, StringComparison.OrdinalIgnoreCase))
-                            {
-                                continue;
-                            }
-
-                            measures = table.ModelMeasures;
-
-                            for (int m = 1; m <= measures.Count; m++)
-                            {
-                                dynamic? measure = null;
-                                try
-                                {
-                                    measure = measures.Item(m);
-                                    string formula = measure.Formula?.ToString() ?? "";
-                                    string preview = formula.Length > 80 ? formula[..77] + "..." : formula;
-
-                                    var measureInfo = new DataModelMeasureInfo
-                                    {
-                                        Name = measure.Name?.ToString() ?? "",
-                                        Table = currentTableName,
-                                        FormulaPreview = preview,
-                                        Description = measure.Description?.ToString()
-                                    };
-
-                                    result.Measures.Add(measureInfo);
-                                }
-                                finally
-                                {
-                                    ComUtilities.Release(ref measure);
-                                }
-                            }
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref measures);
-                            ComUtilities.Release(ref table);
-                        }
+                        return;
                     }
 
-                    // Check if table filter was specified but not found
-                    if (tableName != null && result.Measures.Count == 0)
+                    DataModelHelpers.ForEachMeasure(table, (Action<dynamic, int>)((measure, measureIndex) =>
                     {
-                        result.Success = false;
-                        result.ErrorMessage = $"Table '{tableName}' not found in Data Model or contains no measures.";
-                        return result;
-                    }
+                        string formula = DataModelHelpers.SafeGetString(measure, "Formula");
+                        string preview = formula.Length > 80 ? formula[..77] + "..." : formula;
 
-                    result.Success = true;
-                }
-                finally
+                        var measureInfo = new DataModelMeasureInfo
+                        {
+                            Name = DataModelHelpers.SafeGetString(measure, "Name"),
+                            Table = currentTableName,
+                            FormulaPreview = preview,
+                            Description = DataModelHelpers.SafeGetString(measure, "Description")
+                        };
+
+                        result.Measures.Add(measureInfo);
+                    }));
+                }));
+
+                // Check if table filter was specified but not found
+                if (tableName != null && result.Measures.Count == 0)
                 {
-                    ComUtilities.Release(ref modelTables);
+                    result.Success = false;
+                    result.ErrorMessage = DataModelErrorMessages.TableNotFound(tableName);
+                    return result;
                 }
+
+                result.Success = true;
             }
             catch (Exception ex)
             {
                 result.Success = false;
-                result.ErrorMessage = $"Error listing measures: {ex.Message}";
+                result.ErrorMessage = DataModelErrorMessages.OperationFailed("listing measures", ex.Message);
             }
             finally
             {
@@ -220,7 +161,7 @@ public class DataModelCommands : IDataModelCommands
                 if (!DataModelHelpers.HasDataModel(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = "This workbook does not contain a Data Model.";
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
                     return result;
                 }
 
@@ -232,7 +173,7 @@ public class DataModelCommands : IDataModelCommands
                 {
                     var measureNames = DataModelHelpers.GetModelMeasureNames(model);
                     result.Success = false;
-                    result.ErrorMessage = $"Measure '{measureName}' not found in Data Model.";
+                    result.ErrorMessage = DataModelErrorMessages.MeasureNotFound(measureName);
 
                     // Suggest similar measure names
                     var suggestions = new List<string>();
@@ -253,9 +194,9 @@ public class DataModelCommands : IDataModelCommands
                     return result;
                 }
 
-                // Get measure details
-                result.DaxFormula = measure.Formula?.ToString() ?? "";
-                result.Description = measure.Description?.ToString();
+                // Get measure details using safe helpers
+                result.DaxFormula = DataModelHelpers.SafeGetString(measure, "Formula");
+                result.Description = DataModelHelpers.SafeGetString(measure, "Description");
                 result.CharacterCount = result.DaxFormula.Length;
                 result.TableName = DataModelHelpers.GetMeasureTableName(model, measureName) ?? "";
 
@@ -283,7 +224,7 @@ public class DataModelCommands : IDataModelCommands
             catch (Exception ex)
             {
                 result.Success = false;
-                result.ErrorMessage = $"Error viewing measure: {ex.Message}";
+                result.ErrorMessage = DataModelErrorMessages.OperationFailed("viewing measure", ex.Message);
             }
             finally
             {
@@ -326,7 +267,7 @@ public class DataModelCommands : IDataModelCommands
                 if (!DataModelHelpers.HasDataModel(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = "This workbook does not contain a Data Model.";
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
                     return result;
                 }
 
@@ -337,13 +278,13 @@ public class DataModelCommands : IDataModelCommands
                 if (measure == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = $"Measure '{measureName}' not found in Data Model.";
+                    result.ErrorMessage = DataModelErrorMessages.MeasureNotFound(measureName);
                     return result;
                 }
 
-                // Get measure details
-                string daxFormula = measure.Formula?.ToString() ?? "";
-                string? description = measure.Description?.ToString();
+                // Get measure details using safe helpers
+                string daxFormula = DataModelHelpers.SafeGetString(measure, "Formula");
+                string description = DataModelHelpers.SafeGetString(measure, "Description");
                 string tableName = DataModelHelpers.GetMeasureTableName(model, measureName) ?? "";
                 string? formatString = null;
 
@@ -390,7 +331,7 @@ public class DataModelCommands : IDataModelCommands
             catch (Exception ex)
             {
                 result.Success = false;
-                result.ErrorMessage = $"Error exporting measure: {ex.Message}";
+                result.ErrorMessage = DataModelErrorMessages.OperationFailed("exporting measure", ex.Message);
                 return result;
             }
             finally
@@ -415,75 +356,61 @@ public class DataModelCommands : IDataModelCommands
                 if (!DataModelHelpers.HasDataModel(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = "This workbook does not contain a Data Model.";
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
                     return result;
                 }
 
                 model = ctx.Book.Model;
-                dynamic? relationships = null;
-                try
-                {
-                    relationships = model.ModelRelationships;
-                    int count = relationships.Count;
 
-                    for (int i = 1; i <= count; i++)
+                DataModelHelpers.ForEachRelationship(model, (Action<dynamic, int>)((relationship, index) =>
+                {
+                    dynamic? fkColumn = null;
+                    dynamic? pkColumn = null;
+                    dynamic? fkTable = null;
+                    dynamic? pkTable = null;
+                    try
                     {
-                        dynamic? relationship = null;
-                        dynamic? fkColumn = null;
-                        dynamic? pkColumn = null;
-                        dynamic? fkTable = null;
-                        dynamic? pkTable = null;
-                        try
+                        // Get foreign key column and table
+                        fkColumn = relationship.ForeignKeyColumn;
+                        fkTable = fkColumn.Parent;
+                        string fromColumn = DataModelHelpers.SafeGetString(fkColumn, "Name");
+                        string fromTable = DataModelHelpers.SafeGetString(fkTable, "Name");
+
+                        // Get primary key column and table
+                        pkColumn = relationship.PrimaryKeyColumn;
+                        pkTable = pkColumn.Parent;
+                        string toColumn = DataModelHelpers.SafeGetString(pkColumn, "Name");
+                        string toTable = DataModelHelpers.SafeGetString(pkTable, "Name");
+
+                        // Get relationship status
+                        bool isActive = relationship.Active ?? true;
+
+                        var relationshipInfo = new DataModelRelationshipInfo
                         {
-                            relationship = relationships.Item(i);
+                            FromTable = fromTable,
+                            FromColumn = fromColumn,
+                            ToTable = toTable,
+                            ToColumn = toColumn,
+                            IsActive = isActive
+                        };
 
-                            // Get foreign key column and table
-                            fkColumn = relationship.ForeignKeyColumn;
-                            fkTable = fkColumn.Parent;
-                            string fromColumn = fkColumn.Name?.ToString() ?? "";
-                            string fromTable = fkTable.Name?.ToString() ?? "";
-
-                            // Get primary key column and table
-                            pkColumn = relationship.PrimaryKeyColumn;
-                            pkTable = pkColumn.Parent;
-                            string toColumn = pkColumn.Name?.ToString() ?? "";
-                            string toTable = pkTable.Name?.ToString() ?? "";
-
-                            // Get relationship status
-                            bool isActive = relationship.Active ?? true;
-
-                            var relationshipInfo = new DataModelRelationshipInfo
-                            {
-                                FromTable = fromTable,
-                                FromColumn = fromColumn,
-                                ToTable = toTable,
-                                ToColumn = toColumn,
-                                IsActive = isActive
-                            };
-
-                            result.Relationships.Add(relationshipInfo);
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref pkTable);
-                            ComUtilities.Release(ref fkTable);
-                            ComUtilities.Release(ref pkColumn);
-                            ComUtilities.Release(ref fkColumn);
-                            ComUtilities.Release(ref relationship);
-                        }
+                        result.Relationships.Add(relationshipInfo);
                     }
+                    finally
+                    {
+                        ComUtilities.Release(ref pkTable);
+                        ComUtilities.Release(ref fkTable);
+                        ComUtilities.Release(ref pkColumn);
+                        ComUtilities.Release(ref fkColumn);
+                    }
+                }));
 
-                    result.Success = true;
-                }
-                finally
-                {
-                    ComUtilities.Release(ref relationships);
-                }
+                result.Success = true;
             }
             catch (Exception ex)
             {
                 result.Success = false;
-                result.ErrorMessage = $"Error listing relationships: {ex.Message}";
+                result.ErrorMessage = DataModelErrorMessages.OperationFailed("listing relationships", ex.Message);
             }
             finally
             {
@@ -512,7 +439,7 @@ public class DataModelCommands : IDataModelCommands
                 if (!DataModelHelpers.HasDataModel(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = "This workbook does not contain a Data Model.";
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
                     return result;
                 }
 
@@ -525,7 +452,7 @@ public class DataModelCommands : IDataModelCommands
                     if (table == null)
                     {
                         result.Success = false;
-                        result.ErrorMessage = $"Table '{tableName}' not found in Data Model.";
+                        result.ErrorMessage = DataModelErrorMessages.TableNotFound(tableName);
                         return result;
                     }
 
@@ -569,7 +496,7 @@ public class DataModelCommands : IDataModelCommands
             catch (Exception ex)
             {
                 result.Success = false;
-                result.ErrorMessage = $"Error refreshing Data Model: {ex.Message}";
+                result.ErrorMessage = DataModelErrorMessages.OperationFailed("refreshing Data Model", ex.Message);
             }
             finally
             {
@@ -599,7 +526,7 @@ public class DataModelCommands : IDataModelCommands
                 if (!DataModelHelpers.HasDataModel(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = "This workbook does not contain a Data Model.";
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
                     return result;
                 }
 
@@ -611,7 +538,7 @@ public class DataModelCommands : IDataModelCommands
                 {
                     var measureNames = DataModelHelpers.GetModelMeasureNames(model);
                     result.Success = false;
-                    result.ErrorMessage = $"Measure '{measureName}' not found in Data Model.";
+                    result.ErrorMessage = DataModelErrorMessages.MeasureNotFound(measureName);
 
                     // Suggest similar measure names
                     var suggestions = new List<string>();
@@ -647,7 +574,7 @@ public class DataModelCommands : IDataModelCommands
             catch (Exception ex)
             {
                 result.Success = false;
-                result.ErrorMessage = $"Error deleting measure: {ex.Message}";
+                result.ErrorMessage = DataModelErrorMessages.OperationFailed("deleting measure", ex.Message);
             }
             finally
             {
@@ -679,7 +606,7 @@ public class DataModelCommands : IDataModelCommands
                 if (!DataModelHelpers.HasDataModel(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = "This workbook does not contain a Data Model.";
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
                     return result;
                 }
 
@@ -702,10 +629,10 @@ public class DataModelCommands : IDataModelCommands
                             dynamic? fkTable = fkColumn.Parent;
                             dynamic? pkTable = pkColumn.Parent;
 
-                            string currentFromTable = fkTable?.Name?.ToString() ?? "";
-                            string currentFromColumn = fkColumn?.Name?.ToString() ?? "";
-                            string currentToTable = pkTable?.Name?.ToString() ?? "";
-                            string currentToColumn = pkColumn?.Name?.ToString() ?? "";
+                            string currentFromTable = DataModelHelpers.SafeGetString(fkTable, "Name");
+                            string currentFromColumn = DataModelHelpers.SafeGetString(fkColumn, "Name");
+                            string currentToTable = DataModelHelpers.SafeGetString(pkTable, "Name");
+                            string currentToColumn = DataModelHelpers.SafeGetString(pkColumn, "Name");
 
                             ComUtilities.Release(ref fkTable);
                             ComUtilities.Release(ref pkTable);
@@ -739,7 +666,7 @@ public class DataModelCommands : IDataModelCommands
                 if (!found)
                 {
                     result.Success = false;
-                    result.ErrorMessage = $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} not found in Data Model.";
+                    result.ErrorMessage = DataModelErrorMessages.RelationshipNotFound(fromTable, fromColumn, toTable, toColumn);
                     result.SuggestedNextActions = new List<string>
                     {
                         "Use 'model-list-relationships' to see available relationships",
@@ -761,7 +688,7 @@ public class DataModelCommands : IDataModelCommands
             catch (Exception ex)
             {
                 result.Success = false;
-                result.ErrorMessage = $"Error deleting relationship: {ex.Message}";
+                result.ErrorMessage = DataModelErrorMessages.OperationFailed("deleting relationship", ex.Message);
             }
             finally
             {
