@@ -318,6 +318,75 @@ After completing significant tasks, update these instructions with lessons learn
 5. **Future additions go in separate PRs** - Remaining 23 CLI commands are user-driven, not automatic
 6. **Complete means complete** - When phase objectives are met, mark it done and move on
 
+**Lesson Learned (2025-01-29 - Spec Validation Against Official Documentation):** When encountering architectural decisions based on "API limitation" claims:
+
+**Situation**: DataModelCommands refactoring - Original spec claimed: "Excel COM API limited, use TOM for CREATE/UPDATE operations"
+
+**User Instinct**: "I do not trust our spec" → Request validation against Microsoft official documentation
+
+**Agent Research Process**:
+1. **Microsoft Docs Search**: "Excel Data Model Power Pivot DAX measures programmatic access COM API"
+2. **Microsoft Docs Search**: "Excel VBA Model object ModelMeasures ModelTables ModelRelationships COM automation"
+3. **Fetch API Documentation**: https://learn.microsoft.com/en-us/office/vba/api/excel.modelmeasures.add
+4. **Fetch API Documentation**: https://learn.microsoft.com/en-us/office/vba/api/excel.modelrelationships.add
+5. **Microsoft Docs Search**: "Tabular Object Model TOM Analysis Services embedded Excel workbook"
+
+**Critical Discovery**: Original spec was **COMPLETELY WRONG**
+
+**Actual Truth** (Microsoft Official Documentation):
+- ✅ Excel COM API **FULLY SUPPORTS** `ModelMeasures.Add()` since Office 2016
+- ✅ Excel COM API **FULLY SUPPORTS** `ModelRelationships.Add()` since Office 2016
+- ✅ Excel COM API **FULLY SUPPORTS** updating measures (Formula, Description, FormatInformation properties)
+- ✅ Excel COM API **FULLY SUPPORTS** updating relationships (Active property)
+- ❌ TOM **ONLY REQUIRED** for advanced features (calculated columns, hierarchies, perspectives, KPIs)
+
+**Impact**:
+- Saved weeks of unnecessary TOM integration work (NuGet packages, connection management, deployment scenarios)
+- Simpler implementation (native Excel operations, no server dependencies)
+- Better user experience (works offline, no external services)
+- Complete CRUD capability using Excel COM only
+
+**Mandatory Process for Future Work**:
+1. ✅ **Always search Microsoft official documentation FIRST** (use mcp_microsoft_doc tools)
+2. ✅ **Fetch specific API reference pages** (validate exact method signatures and parameters)
+3. ✅ **Never trust secondary sources or assumptions** (even internal specs can be wrong)
+4. ✅ **Update specs immediately when errors found** (correct misinformation)
+5. ✅ **Archive incorrect specs** (preserve history with .archived.md suffix, prevent future confusion)
+6. ✅ **Document lessons learned** (add to copilot instructions for future AI sessions)
+
+**Examples of Validated APIs**:
+```csharp
+// Microsoft Official: ModelMeasures.Add() method
+dynamic measures = table.ModelMeasures;
+dynamic newMeasure = measures.Add(
+    MeasureName: "TotalSales",
+    AssociatedTable: table,
+    Formula: "SUM(Sales[Amount])",
+    FormatInformation: model.ModelFormatCurrency,
+    Description: "Total sales amount"
+);
+
+// Microsoft Official: ModelRelationships.Add() method
+dynamic relationships = model.ModelRelationships;
+relationships.Add(
+    ForeignKeyColumn: salesTable.ModelTableColumns.Item("CustomerID"),
+    PrimaryKeyColumn: customersTable.ModelTableColumns.Item("ID")
+);
+
+// Microsoft Official: Property updates
+measure.Formula = "CALCULATE(SUM(Sales[Amount]))";  // Read/Write
+measure.Description = "Updated description";         // Read/Write
+relationship.Active = false;                         // Read/Write
+```
+
+**Red Flags That Require Validation**:
+- Claims like "API X doesn't support operation Y" (verify with official docs)
+- "Use library Z because native API insufficient" (validate limitation exists)
+- "Requires external service/package for basic operation" (check if native alternative exists)
+- Any architectural decision based on undocumented assumptions
+
+**Principle**: **Microsoft official documentation is ALWAYS authoritative over specs, blog posts, Stack Overflow, or assumptions**
+
 **Lesson Learned (2025-10-24 - Bulk Refactoring):** When performing bulk refactoring with many find/replace operations:
 1. **Preferred:** Use `replace_string_in_file` tool for targeted, unambiguous edits with context
 2. **Batch Operations:** Use `grep_search` to find patterns, then use `replace_string_in_file` in parallel for independent changes
