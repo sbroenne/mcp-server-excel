@@ -6,7 +6,7 @@
 [![NuGet](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
 [![Downloads](https://img.shields.io/github/downloads/sbroenne/mcp-server-excel/total)](https://github.com/sbroenne/mcp-server-excel/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![.NET](https://img.shields.io/badge/.NET-10.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
+[![.NET](https://img.shields.io/badge/.NET-8.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/sbroenne/mcp-server-excel)
 [![Built with Copilot](https://img.shields.io/badge/Built%20with-GitHub%20Copilot-0366d6.svg)](https://copilot.github.com/)
 
@@ -78,33 +78,19 @@ Control Power Query M code, Data Models with DAX measures, VBA macros, Excel Tab
 
 ## 🚀 Quick Start
 
-**Requirements:** Windows OS + Microsoft Excel 2016+ + .NET SDK 10
+**Requirements:** Windows OS + Microsoft Excel 2016+ + .NET SDK 8
 
-### Option 1: VS Code Extension (Easiest) ⭐
-
-1. **Install prerequisites**:
-   ```powershell
-   winget install Microsoft.DotNet.SDK.10
-   ```
-
-2. **Install the extension**:
-   - Download `excelmcp-1.0.0.vsix` from [Releases](https://github.com/sbroenne/mcp-server-excel/releases)
-   - In VS Code: `Ctrl+Shift+P` → "Install from VSIX" → Select the file
-   - **That's it!** The extension automatically configures everything
-
-3. **Verify**: Ask GitHub Copilot: `List all available Excel MCP tools`
-
-> 📚 See [vscode-extension/INSTALL.md](vscode-extension/INSTALL.md) for detailed installation guide
-
-### Option 2: Manual Configuration
-
-1. **Install .NET 10 SDK** - required for the "dnx" command
+### 1. Install .NET 8 SDK and the MCP server tool
 
 ```powershell
-winget install Microsoft.DotNet.SDK.10
+# Install .NET 8 SDK
+winget install Microsoft.DotNet.SDK.8
+
+# Install ExcelMcp MCP server as a global tool
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 ```
 
-2. **Configure Your AI Assistant**
+### 2. Configure Your AI Assistant
 
 **For GitHub Copilot** - Create `.vscode/mcp.json` in your workspace:
 
@@ -112,8 +98,8 @@ winget install Microsoft.DotNet.SDK.10
 {
   "servers": {
     "excel": {
-      "command": "dnx",
-      "args": ["Sbroenne.ExcelMcp.McpServer", "--yes"]
+      "command": "dotnet",
+      "args": ["tool", "run", "mcp-excel"]
     }
   }
 }
@@ -125,14 +111,14 @@ winget install Microsoft.DotNet.SDK.10
 {
   "mcpServers": {
     "excel": {
-      "command": "dnx",
-      "args": ["Sbroenne.ExcelMcp.McpServer", "--yes"]
+      "command": "dotnet",
+      "args": ["tool", "run", "mcp-excel"]
     }
   }
 }
 ```
 
-3. **Verify Setup**
+### 3. Verify Setup
 
 Ask your AI assistant:
 ```
@@ -141,7 +127,7 @@ List all available Excel MCP tools
 
 You should see 10 Excel tools: `excel_file`, `excel_powerquery`, `excel_connection`, `excel_worksheet`, `excel_range`, `excel_parameter`, `excel_vba`, `excel_datamodel`, `table`, `excel_version`.
 
-**That's it!** The `dnx` command automatically downloads and runs the latest MCP server version.
+**That's it!** The MCP server is now available to AI assistants.
 
 > 💡 **First-time Setup Helper:** Download [excel-powerquery-vba-copilot-instructions.md](https://raw.githubusercontent.com/sbroenne/mcp-server-excel/main/instructions/excel-powerquery-vba-copilot-instructions.md) and save to `YourProject/.github/` for AI assistant guidance, or ask GitHub Copilot to set up everything automatically.
 

@@ -21,22 +21,25 @@ This extension enables AI assistants like GitHub Copilot to interact with Micros
 
 - **Windows OS** - Excel COM automation requires Windows
 - **Microsoft Excel 2016+** - Must be installed on your system
-- **.NET 10 SDK** - Required for the `dnx` command
+- **.NET 8 Runtime** - **Automatically installed** by the extension via the .NET Install Tool
 
-### Install .NET 10 SDK
+### Prerequisites
 
-```powershell
-winget install Microsoft.DotNet.SDK.10
-```
+Only Excel needs to be installed - the extension handles .NET automatically!
 
 ## Quick Start
 
-1. **Install this extension** from the VS Code Marketplace
-2. **The extension automatically configures** the ExcelMcp MCP server for AI assistants
-3. **Ask GitHub Copilot** to help with Excel tasks:
+1. **Install this extension** from the VSIX file
+2. **The extension automatically**:
+   - Installs .NET 8 runtime (via .NET Install Tool)
+   - Installs the ExcelMcp MCP server tool
+   - Configures the MCP server for AI assistants
+3. **Start using** - Ask GitHub Copilot to help with Excel tasks:
    - "List all Power Query queries in workbook.xlsx"
    - "Export all DAX measures to .dax files"
    - "Create a new Excel table from range A1:D100"
+
+**No manual setup required!** The extension handles everything automatically.
 
 ## What is MCP?
 

@@ -35,6 +35,9 @@
   "activationEvents": [
     "onStartupFinished"
   ],
+  "extensionDependencies": [
+    "ms-dotnettools.vscode-dotnet-runtime"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "mcpServerDefinitionProviders": [
