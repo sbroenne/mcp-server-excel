@@ -390,4 +390,212 @@ public partial class DataModelCommands
             return result;
         });
     }
+
+    /// <inheritdoc />
+    public async Task<DataModelTableColumnsResult> ListTableColumnsAsync(IExcelBatch batch, string tableName)
+    {
+        var result = new DataModelTableColumnsResult 
+        { 
+            FilePath = batch.WorkbookPath,
+            TableName = tableName
+        };
+
+        return await batch.ExecuteAsync(async (ctx, ct) =>
+        {
+            dynamic? model = null;
+            dynamic? table = null;
+            try
+            {
+                // Check if workbook has Data Model
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                {
+                    result.Success = false;
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    return result;
+                }
+
+                model = ctx.Book.Model;
+                
+                // Find the table
+                table = ComUtilities.FindModelTable(model, tableName);
+                if (table == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = DataModelErrorMessages.TableNotFound(tableName);
+                    return result;
+                }
+
+                // Iterate through columns
+                DataModelHelpers.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>
+                {
+                    var columnInfo = new DataModelColumnInfo
+                    {
+                        Name = DataModelHelpers.SafeGetString(column, "Name"),
+                        DataType = DataModelHelpers.SafeGetString(column, "DataType"),
+                        IsCalculated = column.IsCalculatedColumn ?? false
+                    };
+
+                    result.Columns.Add(columnInfo);
+                }));
+
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = DataModelErrorMessages.OperationFailed($"listing columns for table '{tableName}'", ex.Message);
+            }
+            finally
+            {
+                ComUtilities.Release(ref table);
+                ComUtilities.Release(ref model);
+            }
+
+            return result;
+        });
+    }
+
+    /// <inheritdoc />
+    public async Task<DataModelTableViewResult> ViewTableAsync(IExcelBatch batch, string tableName)
+    {
+        var result = new DataModelTableViewResult 
+        { 
+            FilePath = batch.WorkbookPath,
+            TableName = tableName
+        };
+
+        return await batch.ExecuteAsync(async (ctx, ct) =>
+        {
+            dynamic? model = null;
+            dynamic? table = null;
+            try
+            {
+                // Check if workbook has Data Model
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                {
+                    result.Success = false;
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    return result;
+                }
+
+                model = ctx.Book.Model;
+                
+                // Find the table
+                table = ComUtilities.FindModelTable(model, tableName);
+                if (table == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = DataModelErrorMessages.TableNotFound(tableName);
+                    return result;
+                }
+
+                // Get table properties
+                result.SourceName = DataModelHelpers.SafeGetString(table, "SourceName");
+                result.RecordCount = DataModelHelpers.SafeGetInt(table, "RecordCount");
+                
+                // Try to get refresh date (may not always be available)
+                try
+                {
+                    result.RefreshDate = table.RefreshDate;
+                }
+                catch { /* RefreshDate not always accessible */ }
+
+                // Get columns
+                DataModelHelpers.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>
+                {
+                    var columnInfo = new DataModelColumnInfo
+                    {
+                        Name = DataModelHelpers.SafeGetString(column, "Name"),
+                        DataType = DataModelHelpers.SafeGetString(column, "DataType"),
+                        IsCalculated = column.IsCalculatedColumn ?? false
+                    };
+
+                    result.Columns.Add(columnInfo);
+                }));
+
+                // Count measures in this table
+                result.MeasureCount = 0;
+                DataModelHelpers.ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
+                {
+                    string measureTableName = DataModelHelpers.SafeGetString(measure.AssociatedTable, "Name");
+                    if (string.Equals(measureTableName, tableName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.MeasureCount++;
+                    }
+                }));
+
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = DataModelErrorMessages.OperationFailed($"viewing table '{tableName}'", ex.Message);
+            }
+            finally
+            {
+                ComUtilities.Release(ref table);
+                ComUtilities.Release(ref model);
+            }
+
+            return result;
+        });
+    }
+
+    /// <inheritdoc />
+    public async Task<DataModelInfoResult> GetModelInfoAsync(IExcelBatch batch)
+    {
+        var result = new DataModelInfoResult { FilePath = batch.WorkbookPath };
+
+        return await batch.ExecuteAsync(async (ctx, ct) =>
+        {
+            dynamic? model = null;
+            try
+            {
+                // Check if workbook has Data Model
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                {
+                    result.Success = false;
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    return result;
+                }
+
+                model = ctx.Book.Model;
+
+                // Count tables and sum rows
+                int totalRows = 0;
+                DataModelHelpers.ForEachTable(model, (Action<dynamic, int>)((table, index) =>
+                {
+                    result.TableCount++;
+                    totalRows += DataModelHelpers.SafeGetInt(table, "RecordCount");
+                    result.TableNames.Add(DataModelHelpers.SafeGetString(table, "Name"));
+                }));
+                result.TotalRows = totalRows;
+
+                // Count measures
+                DataModelHelpers.ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
+                {
+                    result.MeasureCount++;
+                }));
+
+                // Count relationships
+                DataModelHelpers.ForEachRelationship(model, (Action<dynamic, int>)((relationship, index) =>
+                {
+                    result.RelationshipCount++;
+                }));
+
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = DataModelErrorMessages.OperationFailed("getting model info", ex.Message);
+            }
+            finally
+            {
+                ComUtilities.Release(ref model);
+            }
+
+            return result;
+        });
+    }
 }

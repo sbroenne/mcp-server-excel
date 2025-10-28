@@ -17,6 +17,29 @@ public interface IDataModelCommands
     Task<DataModelTableListResult> ListTablesAsync(IExcelBatch batch);
 
     /// <summary>
+    /// Lists all columns in a Data Model table
+    /// </summary>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
+    /// <param name="tableName">Name of the table to list columns from</param>
+    /// <returns>Result containing list of columns with metadata</returns>
+    Task<DataModelTableColumnsResult> ListTableColumnsAsync(IExcelBatch batch, string tableName);
+
+    /// <summary>
+    /// Views complete table details including columns and measures
+    /// </summary>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
+    /// <param name="tableName">Name of the table to view</param>
+    /// <returns>Result containing complete table information</returns>
+    Task<DataModelTableViewResult> ViewTableAsync(IExcelBatch batch, string tableName);
+
+    /// <summary>
+    /// Gets overall Data Model summary statistics
+    /// </summary>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
+    /// <returns>Result containing model metadata (table count, measure count, etc.)</returns>
+    Task<DataModelInfoResult> GetModelInfoAsync(IExcelBatch batch);
+
+    /// <summary>
     /// Lists all DAX measures in the model
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
@@ -74,4 +97,63 @@ public interface IDataModelCommands
     /// <param name="tableName">Optional: Specific table to refresh (if null, refreshes entire model)</param>
     /// <returns>Result indicating success or failure</returns>
     Task<OperationResult> RefreshAsync(IExcelBatch batch, string? tableName = null);
+
+    /// <summary>
+    /// Creates a new DAX measure in the Data Model
+    /// Uses Excel COM API: ModelMeasures.Add method (Office 2016+)
+    /// </summary>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
+    /// <param name="tableName">Name of the table to add the measure to</param>
+    /// <param name="measureName">Name of the new measure</param>
+    /// <param name="daxFormula">DAX formula for the measure</param>
+    /// <param name="formatType">Optional: Format type (Currency, Decimal, Percentage, General)</param>
+    /// <param name="description">Optional: Description of the measure</param>
+    /// <returns>Result indicating success or failure</returns>
+    Task<OperationResult> CreateMeasureAsync(IExcelBatch batch, string tableName, string measureName, 
+                                             string daxFormula, string? formatType = null, 
+                                             string? description = null);
+
+    /// <summary>
+    /// Updates an existing DAX measure in the Data Model
+    /// Uses Excel COM API: ModelMeasure properties (Formula, Description, FormatInformation - all Read/Write)
+    /// </summary>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
+    /// <param name="measureName">Name of the measure to update</param>
+    /// <param name="daxFormula">Optional: New DAX formula (null to keep existing)</param>
+    /// <param name="formatType">Optional: New format type (null to keep existing)</param>
+    /// <param name="description">Optional: New description (null to keep existing)</param>
+    /// <returns>Result indicating success or failure</returns>
+    Task<OperationResult> UpdateMeasureAsync(IExcelBatch batch, string measureName, 
+                                             string? daxFormula = null, string? formatType = null, 
+                                             string? description = null);
+
+    /// <summary>
+    /// Creates a new relationship between two tables in the Data Model
+    /// Uses Excel COM API: ModelRelationships.Add method (Office 2016+)
+    /// </summary>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
+    /// <param name="fromTable">Source table name</param>
+    /// <param name="fromColumn">Source column name</param>
+    /// <param name="toTable">Target table name</param>
+    /// <param name="toColumn">Target column name</param>
+    /// <param name="active">Whether the relationship should be active (default: true)</param>
+    /// <returns>Result indicating success or failure</returns>
+    Task<OperationResult> CreateRelationshipAsync(IExcelBatch batch, string fromTable, 
+                                                   string fromColumn, string toTable, 
+                                                   string toColumn, bool active = true);
+
+    /// <summary>
+    /// Updates an existing relationship's active state in the Data Model
+    /// Uses Excel COM API: ModelRelationship.Active property (Read/Write)
+    /// </summary>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
+    /// <param name="fromTable">Source table name</param>
+    /// <param name="fromColumn">Source column name</param>
+    /// <param name="toTable">Target table name</param>
+    /// <param name="toColumn">Target column name</param>
+    /// <param name="active">New active state for the relationship</param>
+    /// <returns>Result indicating success or failure</returns>
+    Task<OperationResult> UpdateRelationshipAsync(IExcelBatch batch, string fromTable, 
+                                                   string fromColumn, string toTable, 
+                                                   string toColumn, bool active);
 }
