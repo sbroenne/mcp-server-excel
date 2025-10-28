@@ -366,6 +366,237 @@ excelcli cell-get-formula <file.xlsx> <sheet-name> <cell>
 excelcli cell-set-formula <file.xlsx> <sheet-name> <cell> <formula>
 ```
 
+## Table Commands (`table-*`)
+
+Manage Excel Tables (ListObjects) - structured data with auto-filtering, formatting, and Power Query integration.
+
+### Overview
+
+Excel Tables are structured ranges that provide:
+- Automatic filtering and sorting
+- Structured references in formulas
+- Dynamic expansion when adding data
+- Visual formatting with table styles
+- Power Query integration via `Excel.CurrentWorkbook()`
+
+### Lifecycle Commands
+
+**table-list** - List all tables in workbook
+
+```powershell
+excelcli table-list <file.xlsx>
+```
+
+**table-create** - Create new table from range
+
+```powershell
+excelcli table-create <file.xlsx> <sheet-name> <table-name> <range> [hasHeaders] [tableStyle]
+
+# Examples
+excelcli table-create sales.xlsx Data SalesTable A1:E100
+excelcli table-create sales.xlsx Data SalesTable A1:E100 true TableStyleMedium2
+```
+
+**table-info** - Get detailed table information
+
+```powershell
+excelcli table-info <file.xlsx> <table-name>
+```
+
+**table-rename** - Rename table
+
+```powershell
+excelcli table-rename <file.xlsx> <old-table-name> <new-table-name>
+```
+
+**table-delete** - Delete table (converts to range, preserves data)
+
+```powershell
+excelcli table-delete <file.xlsx> <table-name>
+```
+
+### Structure Commands
+
+**table-resize** - Resize table to new range
+
+```powershell
+excelcli table-resize <file.xlsx> <table-name> <new-range>
+
+# Example
+excelcli table-resize sales.xlsx SalesTable A1:E150
+```
+
+**table-set-style** - Change table visual style
+
+```powershell
+excelcli table-set-style <file.xlsx> <table-name> <style-name>
+
+# Example
+excelcli table-set-style sales.xlsx SalesTable TableStyleDark1
+```
+
+**table-toggle-totals** - Show/hide totals row
+
+```powershell
+excelcli table-toggle-totals <file.xlsx> <table-name> <true|false>
+
+# Example
+excelcli table-toggle-totals sales.xlsx SalesTable true
+```
+
+**table-set-column-total** - Set total function for column
+
+```powershell
+excelcli table-set-column-total <file.xlsx> <table-name> <column-name> <function>
+
+# Functions: sum, avg, count, max, min, stdev, var
+# Example
+excelcli table-set-column-total sales.xlsx SalesTable Amount sum
+```
+
+### Data Commands
+
+**table-append** - Append rows to table
+
+```powershell
+excelcli table-append <file.xlsx> <table-name> <data.csv>
+
+# Example
+excelcli table-append sales.xlsx SalesTable new-rows.csv
+```
+
+### Filter Commands ✨ **NEW**
+
+**table-apply-filter** - Filter table column by criteria
+
+```powershell
+excelcli table-apply-filter <file.xlsx> <table-name> <column-name> <criteria>
+
+# Criteria operators: >value, <value, =value, >=value, <=value, <>value
+# Examples
+excelcli table-apply-filter sales.xlsx SalesTable Amount ">100"
+excelcli table-apply-filter sales.xlsx SalesTable Status "=Active"
+excelcli table-apply-filter sales.xlsx SalesTable Region "<>North"
+```
+
+**table-apply-filter-values** - Filter table column by specific values
+
+```powershell
+excelcli table-apply-filter-values <file.xlsx> <table-name> <column-name> <value1,value2,...>
+
+# Example - show only North, South, East regions
+excelcli table-apply-filter-values sales.xlsx SalesTable Region "North,South,East"
+```
+
+**table-clear-filters** - Remove all filters from table
+
+```powershell
+excelcli table-clear-filters <file.xlsx> <table-name>
+
+# Example
+excelcli table-clear-filters sales.xlsx SalesTable
+```
+
+**table-get-filters** - Get current filter state
+
+```powershell
+excelcli table-get-filters <file.xlsx> <table-name>
+
+# Displays table of filtered columns with criteria and values
+```
+
+### Column Commands ✨ **NEW**
+
+**table-add-column** - Add new column to table
+
+```powershell
+excelcli table-add-column <file.xlsx> <table-name> <column-name> [position]
+
+# Examples
+excelcli table-add-column sales.xlsx SalesTable NewColumn
+excelcli table-add-column sales.xlsx SalesTable NewColumn 2
+```
+
+**table-remove-column** - Remove column from table
+
+```powershell
+excelcli table-remove-column <file.xlsx> <table-name> <column-name>
+
+# Example
+excelcli table-remove-column sales.xlsx SalesTable OldColumn
+```
+
+**table-rename-column** - Rename table column
+
+```powershell
+excelcli table-rename-column <file.xlsx> <table-name> <old-column-name> <new-column-name>
+
+# Example
+excelcli table-rename-column sales.xlsx SalesTable OldName NewName
+```
+
+### Data Model Integration
+
+**table-add-to-datamodel** - Add table to Power Pivot Data Model
+
+```powershell
+excelcli table-add-to-datamodel <file.xlsx> <table-name>
+
+# Example
+excelcli table-add-to-datamodel sales.xlsx SalesTable
+```
+
+### Structured Reference Operations ✨ **NEW**
+
+**table-get-structured-reference** - Get structured reference formula for table region
+
+```powershell
+excelcli table-get-structured-reference <file.xlsx> <table-name> <region> [column-name]
+
+# Regions: All, Data, Headers, Totals, ThisRow
+# Examples
+excelcli table-get-structured-reference sales.xlsx SalesTable Data
+# Returns: SalesTable[#Data] and range address $A$2:$D$100
+
+excelcli table-get-structured-reference sales.xlsx SalesTable Data Amount
+# Returns: SalesTable[[Amount]] and range address $D$2:$D$100
+
+excelcli table-get-structured-reference sales.xlsx SalesTable Headers
+# Returns: SalesTable[#Headers] and range address $A$1:$D$1
+```
+
+**Workflow Hints:**
+- Use with RangeCommands: Get the range address, then use `range-get-values` to read data
+- Use in formulas: Copy the structured reference for use in Excel formulas
+- Table regions: All (entire table), Data (rows only), Headers (header row), Totals (totals row)
+
+### Sort Operations ✨ **NEW**
+
+**table-sort** - Sort table by single column
+
+```powershell
+excelcli table-sort <file.xlsx> <table-name> <column-name> [asc|desc]
+
+# Examples
+excelcli table-sort sales.xlsx SalesTable Amount desc
+excelcli table-sort sales.xlsx SalesTable Date asc
+```
+
+**table-sort-multi** - Sort table by multiple columns (max 3 levels)
+
+```powershell
+excelcli table-sort-multi <file.xlsx> <table-name> <column1:asc> <column2:desc> [column3:asc]
+
+# Examples
+excelcli table-sort-multi sales.xlsx SalesTable Region:asc Amount:desc
+excelcli table-sort-multi sales.xlsx SalesTable Year:desc Quarter:desc Amount:desc
+```
+
+**Workflow Hints:**
+- Single column sort: Simple ascending/descending sort
+- Multi-column sort: Excel supports max 3 sort levels
+- Table structure preserved: Headers and totals row maintained
+
 ## VBA Script Commands (`script-*`)
 
 **⚠️ VBA commands require macro-enabled (.xlsm) files!**

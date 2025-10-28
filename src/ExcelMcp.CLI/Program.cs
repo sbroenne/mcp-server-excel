@@ -46,7 +46,7 @@ class Program
             var connection = new ConnectionCommands();
             var dataModel = new DataModelCommands();
             var dataModelTom = new DataModelTomCommands();
-            var table = new TableCommands();
+            var table = new CliTableCommands();
 
             return args[0].ToLower() switch
             {
@@ -110,10 +110,19 @@ class Program
                 "table-resize" => table.Resize(args),
                 "table-toggle-totals" => table.ToggleTotals(args),
                 "table-set-column-total" => table.SetColumnTotal(args),
-                "table-read" => table.ReadData(args),
                 "table-append" => table.AppendRows(args),
                 "table-set-style" => table.SetStyle(args),
                 "table-add-to-datamodel" => table.AddToDataModel(args),
+                "table-apply-filter" => table.ApplyFilter(args),
+                "table-apply-filter-values" => table.ApplyFilterValues(args),
+                "table-clear-filters" => table.ClearFilters(args),
+                "table-get-filters" => table.GetFilters(args),
+                "table-add-column" => table.AddColumn(args),
+                "table-remove-column" => table.RemoveColumn(args),
+                "table-rename-column" => table.RenameColumn(args),
+                "table-get-structured-reference" => table.GetStructuredReference(args),
+                "table-sort" => table.Sort(args),
+                "table-sort-multi" => table.SortMulti(args),
 
                 // Connection commands
                 "conn-list" => connection.List(args),

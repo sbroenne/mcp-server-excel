@@ -17,7 +17,7 @@
 
     <!-- NuGet MCP Server Configuration -->
     <PackageId>Sbroenne.ExcelMcp.McpServer</PackageId>
-    <PackageType>McpServer</PackageType>
+    <PackageType>mcpserver</PackageType>
     <Title>Sbroenne ExcelMcp Model Context Protocol Server</Title>
     <Description>Model Context Protocol (MCP) server for ExcelMcp by Sbroenne. Enables AI assistants like GitHub Copilot, Claude, and ChatGPT to automate Excel development workflows - Power Query refactoring, VBA enhancement, and Excel automation through structured JSON API. Uses portable .NET 10 deployment supporting Windows x64 and ARM64.</Description>
     <PackageTags>excel;mcp;model-context-protocol;ai;automation;github-copilot;claude;chatgpt;power-query;vba;excel-automation;dotnet-tool;arm64;windows;sbroenne</PackageTags>
