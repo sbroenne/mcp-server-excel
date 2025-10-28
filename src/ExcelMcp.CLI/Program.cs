@@ -76,16 +76,12 @@ class Program
                 "pq-set-load-to-both" => powerQuery.SetLoadToBoth(args),
                 "pq-get-load-config" => powerQuery.GetLoadConfig(args),
 
-                // Sheet commands
+                // Sheet commands (lifecycle only - data operations moved to range-* commands in Phase 1A)
                 "sheet-list" => sheet.List(args),
-                "sheet-read" => sheet.Read(args),
-                "sheet-write" => await sheet.Write(args),
                 "sheet-copy" => sheet.Copy(args),
                 "sheet-delete" => sheet.Delete(args),
                 "sheet-create" => sheet.Create(args),
                 "sheet-rename" => sheet.Rename(args),
-                "sheet-clear" => sheet.Clear(args),
-                "sheet-append" => sheet.Append(args),
 
                 // Parameter commands
                 "param-list" => param.List(args),
@@ -282,16 +278,13 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]pq-get-load-config[/] file.xlsx query        Get current load configuration");
         AnsiConsole.WriteLine();
 
-        AnsiConsole.MarkupLine("[bold yellow]Sheet Commands:[/]");
+        AnsiConsole.MarkupLine("[bold yellow]Sheet Commands (Lifecycle Management):[/]");
         AnsiConsole.MarkupLine("  [cyan]sheet-list[/] file.xlsx                         List all worksheets");
-        AnsiConsole.MarkupLine("  [cyan]sheet-read[/] file.xlsx sheet (range)          Read data from worksheet");
-        AnsiConsole.MarkupLine("  [cyan]sheet-write[/] file.xlsx sheet data.csv         Write CSV data to worksheet");
         AnsiConsole.MarkupLine("  [cyan]sheet-copy[/] file.xlsx src-sheet new-sheet     Copy worksheet");
         AnsiConsole.MarkupLine("  [cyan]sheet-delete[/] file.xlsx sheet-name            Delete worksheet");
         AnsiConsole.MarkupLine("  [cyan]sheet-create[/] file.xlsx sheet-name            Create new worksheet");
         AnsiConsole.MarkupLine("  [cyan]sheet-rename[/] file.xlsx old-name new-name     Rename worksheet");
-        AnsiConsole.MarkupLine("  [cyan]sheet-clear[/] file.xlsx sheet-name (range)     Clear worksheet data");
-        AnsiConsole.MarkupLine("  [cyan]sheet-append[/] file.xlsx sheet-name data.csv   Append CSV data to worksheet");
+        AnsiConsole.MarkupLine("  [dim]Note: Data operations (read, write, clear) moved to range-* commands (Phase 1B)[/]");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Parameter Commands:[/]");
@@ -363,7 +356,7 @@ class Program
         AnsiConsole.MarkupLine("  [dim]excelcli pq-list \"Plan.xlsx\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli pq-view \"Plan.xlsx\" \"Milestones\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli pq-import \"Plan.xlsx\" \"fnHelper\" \"function.pq\"[/]");
-        AnsiConsole.MarkupLine("  [dim]excelcli sheet-read \"Plan.xlsx\" \"Data\" \"A1:D10\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli sheet-list \"Plan.xlsx\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli param-set \"Plan.xlsx\" \"Start_Date\" \"2025-01-01\"[/]");
         AnsiConsole.WriteLine();
 
