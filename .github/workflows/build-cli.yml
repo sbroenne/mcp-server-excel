@@ -9,7 +9,10 @@ on:
     paths:
       - 'src/ExcelMcp.CLI/**'
       - 'src/ExcelMcp.Core/**'
+      - 'src/ExcelMcp.ComInterop/**'
       - 'tests/ExcelMcp.CLI.Tests/**'
+      - 'tests/ExcelMcp.Core.Tests/**'
+      - 'tests/ExcelMcp.ComInterop.Tests/**'
       - 'global.json'
       - 'Directory.Build.props'
       - 'Directory.Packages.props'
@@ -19,7 +22,10 @@ on:
     paths:
       - 'src/ExcelMcp.CLI/**'
       - 'src/ExcelMcp.Core/**'
+      - 'src/ExcelMcp.ComInterop/**'
       - 'tests/ExcelMcp.CLI.Tests/**'
+      - 'tests/ExcelMcp.Core.Tests/**'
+      - 'tests/ExcelMcp.ComInterop.Tests/**'
       - 'global.json'
       - 'Directory.Build.props'
       - 'Directory.Packages.props'
