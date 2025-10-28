@@ -1160,6 +1160,8 @@ public class DataModelCalculatedColumnViewResult : ResultBase
     public int CharacterCount { get; set; }
 }
 
+#endregion
+
 #region Table (ListObject) Results
 
 /// <summary>
@@ -1354,6 +1356,3 @@ public class HyperlinkInfoResult : ResultBase
 }
 
 #endregion
-
-#endregion
-
