@@ -5,13 +5,13 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 
 /// <summary>
 /// Fast unit tests that don't require Excel installation - CLI argument validation only
-/// 
+///
 /// LAYER RESPONSIBILITY:
 /// - ✅ Test argument validation (missing args, invalid args)
 /// - ✅ Test exit code mapping (0 for success, 1 for error)
 /// - ✅ Test that CLI handles errors gracefully without Excel
 /// - ❌ DO NOT test Excel operations or business logic (that's Core's responsibility)
-/// 
+///
 /// These tests verify the CLI wrapper's argument handling. Business logic is tested in ExcelMcp.Core.Tests.
 /// </summary>
 [Trait("Category", "Unit")]
