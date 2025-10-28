@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
@@ -119,7 +120,7 @@ in
         // Arrange
         var excelFile = CreateTestExcelFile();
         var queryFile = CreateValidQueryFile();
-        
+
         await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
         {
             var importResult = await _powerQueryCommands.ImportAsync(batch, "ValidQuery", queryFile, loadToWorksheet: false);
@@ -197,7 +198,7 @@ in
         // Arrange
         var excelFile = CreateTestExcelFile();
         var queryFile = CreateValidQueryFile();
-        
+
         await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
         {
             var importResult = await _powerQueryCommands.ImportAsync(batch, "ConnectionOnlyQuery", queryFile, loadToWorksheet: false);
@@ -229,7 +230,7 @@ in
         // Arrange
         var excelFile = CreateTestExcelFile();
         var queryFile = CreateValidQueryFile();
-        
+
         await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
         {
             await _powerQueryCommands.ImportAsync(batch, "ExistingQuery", queryFile, loadToWorksheet: false);
@@ -460,18 +461,18 @@ in
         }
 
         // Verify initial data is in worksheet
-        var sheetCommands = new SheetCommands();
+        var rangeCommands = new RangeCommands();
         await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
         {
-            var initialData = await sheetCommands.ReadAsync(batch, "DataUpdateTest", "A1:A4"); // Header + 3 rows
+            var initialData = await rangeCommands.GetValuesAsync(batch, "DataUpdateTest", "A1:A4"); // Header + 3 rows
             Assert.True(initialData.Success, $"Initial read failed: {initialData.ErrorMessage}");
-            Assert.NotNull(initialData.Data);
-            Assert.Equal(4, initialData.Data.Count); // 4 rows (header + 3 data rows)
+            Assert.NotNull(initialData.Values);
+            Assert.Equal(4, initialData.Values.Count); // 4 rows (header + 3 data rows)
 
-            // Verify initial values are present (Data is List<List<object?>>, so row[0] is first column)
-            Assert.Equal("Original1", initialData.Data[1][0]?.ToString()); // Row 2 (index 1), Column 1 (index 0)
-            Assert.Equal("Original2", initialData.Data[2][0]?.ToString()); // Row 3, Column 1
-            Assert.Equal("Original3", initialData.Data[3][0]?.ToString()); // Row 4, Column 1
+            // Verify initial values are present (Values is List<List<object?>>, so row[0] is first column)
+            Assert.Equal("Original1", initialData.Values[1][0]?.ToString()); // Row 2 (index 1), Column 1 (index 0)
+            Assert.Equal("Original2", initialData.Values[2][0]?.ToString()); // Row 3, Column 1
+            Assert.Equal("Original3", initialData.Values[3][0]?.ToString()); // Row 4, Column 1
         }
 
         // Step 2: Update query with different data
@@ -485,20 +486,20 @@ in
         // Step 3: Verify worksheet now contains UPDATED data, not original data
         await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
         {
-            var updatedData = await sheetCommands.ReadAsync(batch, "DataUpdateTest", "A1:A4");
+            var updatedData = await rangeCommands.GetValuesAsync(batch, "DataUpdateTest", "A1:A4");
             Assert.True(updatedData.Success, $"Updated read failed: {updatedData.ErrorMessage}");
-            Assert.NotNull(updatedData.Data);
-            Assert.Equal(4, updatedData.Data.Count);
+            Assert.NotNull(updatedData.Values);
+            Assert.Equal(4, updatedData.Values.Count);
 
             // Critical assertions: Data should be DIFFERENT from original
-            Assert.Equal("Updated1", updatedData.Data[1][0]?.ToString());
-            Assert.Equal("Updated2", updatedData.Data[2][0]?.ToString());
-            Assert.Equal("Updated3", updatedData.Data[3][0]?.ToString());
+            Assert.Equal("Updated1", updatedData.Values[1][0]?.ToString());
+            Assert.Equal("Updated2", updatedData.Values[2][0]?.ToString());
+            Assert.Equal("Updated3", updatedData.Values[3][0]?.ToString());
 
             // Ensure old data is NOT present
-            Assert.NotEqual("Original1", updatedData.Data[1][0]?.ToString());
-            Assert.NotEqual("Original2", updatedData.Data[2][0]?.ToString());
-            Assert.NotEqual("Original3", updatedData.Data[3][0]?.ToString());
+            Assert.NotEqual("Original1", updatedData.Values[1][0]?.ToString());
+            Assert.NotEqual("Original2", updatedData.Values[2][0]?.ToString());
+            Assert.NotEqual("Original3", updatedData.Values[3][0]?.ToString());
         }
     }
 

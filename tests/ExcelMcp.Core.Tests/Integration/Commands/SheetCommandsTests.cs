@@ -5,9 +5,10 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 
 /// <summary>
-/// Integration tests for Sheet Core operations.
-/// These tests require Excel installation and validate Core worksheet data operations.
+/// Integration tests for Sheet lifecycle operations.
+/// These tests require Excel installation and validate Core worksheet lifecycle management.
 /// Tests use Core commands directly (not through CLI wrapper).
+/// Data operations (read, write, clear) moved to RangeCommandsTests.
 /// </summary>
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
@@ -134,69 +135,6 @@ public class SheetCommandsTests : IDisposable
     }
 
     [Fact]
-    public async Task Write_WithValidCsvData_ReturnsSuccessResult()
-    {
-        // Arrange
-        var csvPath = Path.Combine(_tempDir, "write-test.csv");
-        File.WriteAllText(csvPath, "Name,Age\nJohn,30\nJane,25");
-
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
-        var result = await _sheetCommands.WriteAsync(batch, "Sheet1", csvPath);
-        await batch.SaveAsync();
-
-        // Assert
-        Assert.True(result.Success);
-    }
-
-    [Fact]
-    public async Task Read_AfterWrite_ReturnsData()
-    {
-        // Arrange
-        var csvPath = Path.Combine(_tempDir, "read-test.csv");
-        File.WriteAllText(csvPath, "Name,Age\nJohn,30");
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            await _sheetCommands.WriteAsync(batch, "Sheet1", csvPath);
-            await batch.SaveAsync();
-        }
-
-        // Act
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            var result = await _sheetCommands.ReadAsync(batch, "Sheet1", "A1:B2");
-
-            // Assert
-            Assert.True(result.Success);
-            Assert.NotNull(result.Data);
-            Assert.NotEmpty(result.Data);
-        }
-    }
-
-    [Fact]
-    public async Task Clear_WithValidRange_ReturnsSuccessResult()
-    {
-        // Arrange
-        var csvPath = Path.Combine(_tempDir, "clear-test.csv");
-        File.WriteAllText(csvPath, "Test,Data\n1,2");
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            await _sheetCommands.WriteAsync(batch, "Sheet1", csvPath);
-            await batch.SaveAsync();
-        }
-
-        // Act
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            var result = await _sheetCommands.ClearAsync(batch, "Sheet1", "A1:B2");
-            await batch.SaveAsync();
-
-            // Assert
-            Assert.True(result.Success);
-        }
-    }
-
-    [Fact]
     public async Task Copy_WithValidNames_ReturnsSuccessResult()
     {
         // Arrange
@@ -217,22 +155,6 @@ public class SheetCommandsTests : IDisposable
         }
     }
 
-    [Fact]
-    public async Task Append_WithValidData_ReturnsSuccessResult()
-    {
-        // Arrange
-        var csvPath = Path.Combine(_tempDir, "append.csv");
-        File.WriteAllText(csvPath, "Name,Value\nTest,123");
-
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
-        var result = await _sheetCommands.AppendAsync(batch, "Sheet1", csvPath);
-        await batch.SaveAsync();
-
-        // Assert
-        Assert.True(result.Success);
-    }
-
     public void Dispose()
     {
         Dispose(true);
@@ -245,16 +167,17 @@ public class SheetCommandsTests : IDisposable
 
         if (disposing)
         {
+            // Cleanup test directory
             try
             {
                 if (Directory.Exists(_tempDir))
                 {
-                    Directory.Delete(_tempDir, true);
+                    Directory.Delete(_tempDir, recursive: true);
                 }
             }
             catch
             {
-                // Ignore cleanup errors
+                // Ignore cleanup failures
             }
         }
 

@@ -11,14 +11,18 @@ namespace Sbroenne.ExcelMcp.McpServer;
 
 /// <summary>
 /// ExcelCLI Model Context Protocol (MCP) Server
-/// Provides 6 resource-based tools for AI assistants to automate Excel operations:
+/// Provides resource-based tools for AI assistants to automate Excel operations:
 /// - excel_file: Create, validate Excel files
 /// - excel_powerquery: Manage Power Query M code and connections
-/// - excel_worksheet: CRUD operations on worksheets and data
+/// - excel_worksheet: Worksheet lifecycle (list, create, rename, copy, delete)
+/// - excel_range: Unified range operations (values, formulas, clear, copy, insert/delete, find, sort, hyperlinks)
 /// - excel_parameter: Manage named ranges as parameters
-/// - excel_cell: Individual cell operations (get/set values/formulas)
 /// - excel_vba: VBA script management and execution
+/// - excel_connection: Manage Excel connections (OLEDB, ODBC, Text, Web)
+/// - excel_data_model: Manage Data Model (tables, measures, relationships)
+/// - excel_table: Manage Excel Tables (ListObjects)
 /// - excel_version: Check for updates on NuGet.org
+/// - begin_excel_batch/commit_excel_batch: Batch session management for multi-operation workflows
 ///
 /// Performance Optimization:
 /// Uses ExcelInstancePool for conversational workflows - reuses Excel instances
@@ -72,7 +76,7 @@ public class Program
             .AddMcpServer()
             .WithStdioServerTransport()
             .WithToolsFromAssembly();
-        
+
         // Note: Completion support requires manual JSON-RPC method handling
         // See ExcelCompletionHandler for completion logic implementation
         // To enable: handle "completion/complete" method in custom transport layer
