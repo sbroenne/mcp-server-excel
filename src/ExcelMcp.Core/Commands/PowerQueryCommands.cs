@@ -15,6 +15,17 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 public class PowerQueryCommands : IPowerQueryCommands
 {
+    private readonly IDataModelCommands _dataModelCommands;
+
+    /// <summary>
+    /// Constructor with dependency injection for atomic Data Model operations
+    /// </summary>
+    /// <param name="dataModelCommands">Data Model commands for atomic refresh operations in SetLoadToDataModelAsync</param>
+    public PowerQueryCommands(IDataModelCommands dataModelCommands)
+    {
+        _dataModelCommands = dataModelCommands ?? throw new ArgumentNullException(nameof(dataModelCommands));
+    }
+
     /// <summary>
     /// Detects privacy levels from M code
     /// </summary>

@@ -13,7 +13,8 @@ public class PowerQueryCommands : IPowerQueryCommands
 
     public PowerQueryCommands()
     {
-        _coreCommands = new Core.Commands.PowerQueryCommands();
+        var dataModelCommands = new Core.Commands.DataModelCommands();
+        _coreCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
     }
 
     /// <summary>

@@ -44,7 +44,7 @@ class Program
             var script = new ScriptCommands();
             var file = new FileCommands();
             var connection = new ConnectionCommands();
-            var dataModel = new DataModelCommands();
+            var dataModel = new DataModelCommands();  // Used for dm-* commands
             var dataModelTom = new DataModelTomCommands();
             var table = new CliTableCommands();
 

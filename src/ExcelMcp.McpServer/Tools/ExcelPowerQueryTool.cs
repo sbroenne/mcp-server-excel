@@ -75,7 +75,10 @@ public static class ExcelPowerQueryTool
     {
         try
         {
-            var powerQueryCommands = new PowerQueryCommands();
+            // Create commands
+            var dataModelCommands = new DataModelCommands();
+            var powerQueryCommands = new PowerQueryCommands(dataModelCommands);
+            var parameterCommands = new ParameterCommands();
 
             // Parse privacy level if provided
             PowerQueryPrivacyLevel? parsedPrivacyLevel = null;

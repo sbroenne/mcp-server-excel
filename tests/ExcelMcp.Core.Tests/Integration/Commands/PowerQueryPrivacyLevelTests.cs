@@ -23,7 +23,8 @@ public class PowerQueryPrivacyLevelTests : IDisposable
 
     public PowerQueryPrivacyLevelTests()
     {
-        _powerQueryCommands = new PowerQueryCommands();
+        var dataModelCommands = new DataModelCommands();
+        _powerQueryCommands = new PowerQueryCommands(dataModelCommands);
         _fileCommands = new FileCommands();
 
         // Create temp directory for test files
