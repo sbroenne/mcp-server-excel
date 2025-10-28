@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="128" height="128" fill="#217346" rx="8"/>
+  
+  <!-- Excel-style "E" letter -->
+  <text x="64" y="90" font-family="Arial, sans-serif" font-size="80" font-weight="bold" fill="white" text-anchor="middle">E</text>
+  
+  <!-- MCP indicator -->
+  <circle cx="100" cy="28" r="18" fill="#0078D4"/>
+  <text x="100" y="34" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">M</text>
+</svg>
