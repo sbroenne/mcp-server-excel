@@ -396,13 +396,10 @@ public class ExcelBatchTests
         }
         finally
         {
-            // Cleanup all test files
-            foreach (var testFile in testFiles)
+            // Cleanup all test files - filter files that exist before attempting deletion
+            foreach (var testFile in testFiles.Where(File.Exists))
             {
-                if (File.Exists(testFile))
-                {
-                    try { File.Delete(testFile); } catch { }
-                }
+                try { File.Delete(testFile); } catch { }
             }
         }
     }
@@ -476,13 +473,10 @@ public class ExcelBatchTests
         }
         finally
         {
-            // Cleanup
-            foreach (var testFile in testFiles)
+            // Cleanup - filter files that exist before attempting deletion
+            foreach (var testFile in testFiles.Where(File.Exists))
             {
-                if (File.Exists(testFile))
-                {
-                    try { File.Delete(testFile); } catch { }
-                }
+                try { File.Delete(testFile); } catch { }
             }
         }
     }

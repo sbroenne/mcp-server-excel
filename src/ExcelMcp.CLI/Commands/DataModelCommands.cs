@@ -886,7 +886,7 @@ public class DataModelCommands : IDataModelCommands
         var fromColumn = args[3];
         var toTable = args[4];
         var toColumn = args[5];
-        var active = args.Length > 6 ? bool.Parse(args[6]) : true;
+        var active = args.Length <= 6 || bool.Parse(args[6]); // Default to true if not specified
 
         AnsiConsole.MarkupLine($"[bold]Creating relationship:[/] {fromTable}.{fromColumn} → {toTable}.{toColumn}");
 

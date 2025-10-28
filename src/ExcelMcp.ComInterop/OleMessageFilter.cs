@@ -73,16 +73,23 @@ public sealed class OleMessageFilter : IOleMessageFilter
         // SERVERCALL_RETRYLATER (2) = Server is busy, try again later
         // SERVERCALL_REJECTED (1) = Server rejected the call
 
-        if (dwRejectType == 2) // SERVERCALL_RETRYLATER
+        // Early return pattern to reduce nesting
+        const int SERVERCALL_RETRYLATER = 2;
+        const int RETRY_TIMEOUT_MS = 30000;
+        const int RETRY_DELAY_MS = 100;
+
+        if (dwRejectType != SERVERCALL_RETRYLATER)
         {
-            // Retry after 100ms for up to 30 seconds
-            if (dwTickCount < 30000)
-            {
-                return 100; // Retry after 100ms
-            }
+            return -1; // Cancel immediately for non-retry scenarios
         }
 
-        // Cancel the call for all other scenarios
+        // Retry after 100ms for up to 30 seconds
+        if (dwTickCount < RETRY_TIMEOUT_MS)
+        {
+            return RETRY_DELAY_MS; // Retry after 100ms
+        }
+
+        // Cancel the call if timeout exceeded
         return -1;
     }
 

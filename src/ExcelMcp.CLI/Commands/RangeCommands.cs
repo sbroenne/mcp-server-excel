@@ -38,11 +38,10 @@ public class RangeCommands
 
         if (result.Success)
         {
-            // Output as CSV
-            foreach (var row in result.Values)
+            // Output as CSV - transform rows to CSV format
+            foreach (var csvRow in result.Values.Select(row => string.Join(",", row.Select(v => FormatCsvValue(v)))))
             {
-                var values = row.Select(v => FormatCsvValue(v)).ToArray();
-                Console.WriteLine(string.Join(",", values));
+                Console.WriteLine(csvRow);
             }
             return 0;
         }
@@ -138,11 +137,10 @@ public class RangeCommands
 
         if (result.Success)
         {
-            // Output formulas as CSV (empty string if no formula)
-            foreach (var row in result.Formulas)
+            // Output formulas as CSV (empty string if no formula) - transform rows to CSV format
+            foreach (var csvRow in result.Formulas.Select(row => string.Join(",", row.Select(f => FormatCsvValue(f)))))
             {
-                var formulas = row.Select(f => FormatCsvValue(f)).ToArray();
-                Console.WriteLine(string.Join(",", formulas));
+                Console.WriteLine(csvRow);
             }
             return 0;
         }
@@ -322,44 +320,38 @@ public class RangeCommands
 
     private static List<List<object?>> ParseCsvTo2DArray(string csvData)
     {
-        var result = new List<List<object?>>();
         var lines = csvData.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
 
-        foreach (var line in lines)
+        // Transform lines to rows using Select
+        return lines.Select(line =>
         {
-            var row = new List<object?>();
             var values = line.Split(',');
-
-            foreach (var value in values)
+            return values.Select(value =>
             {
                 var trimmed = value.Trim();
 
                 // Try to parse as number
                 if (double.TryParse(trimmed, out var number))
                 {
-                    row.Add(number);
+                    return (object?)number;
                 }
                 // Try to parse as boolean
                 else if (bool.TryParse(trimmed, out var boolean))
                 {
-                    row.Add(boolean);
+                    return (object?)boolean;
                 }
                 // Empty string → null
                 else if (string.IsNullOrEmpty(trimmed))
                 {
-                    row.Add(null);
+                    return null;
                 }
                 // Otherwise string
                 else
                 {
-                    row.Add(trimmed);
+                    return (object?)trimmed;
                 }
-            }
-
-            result.Add(row);
-        }
-
-        return result;
+            }).ToList();
+        }).ToList();
     }
 
     private static List<List<string>> ParseCsvTo2DStringArray(string csvData)

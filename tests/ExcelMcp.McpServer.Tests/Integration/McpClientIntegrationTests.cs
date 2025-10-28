@@ -43,13 +43,14 @@ public class McpClientIntegrationTests : IDisposable
             }
             catch (Exception)
             {
-                // Any other process cleanup error - ignore
+                // Suppress cleanup errors - test process may already be terminated
             }
         }
         _serverProcess?.Dispose();
 
         if (Directory.Exists(_tempDir))
         {
+            // Suppress cleanup errors - test artifacts may already be deleted
             try { Directory.Delete(_tempDir, recursive: true); } catch { }
         }
         GC.SuppressFinalize(this);

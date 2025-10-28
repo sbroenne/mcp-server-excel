@@ -38,7 +38,7 @@ public class McpParameterBindingTests : IDisposable
             }
             catch (Exception)
             {
-                // Process cleanup error - ignore
+                // Suppress cleanup errors - test process may already be terminated
             }
         }
         _serverProcess?.Dispose();
@@ -52,7 +52,7 @@ public class McpParameterBindingTests : IDisposable
         }
         catch
         {
-            // Cleanup failed - not critical
+            // Suppress cleanup errors - test artifacts may already be deleted
         }
         GC.SuppressFinalize(this);
     }
