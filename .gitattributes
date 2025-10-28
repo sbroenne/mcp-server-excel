@@ -1,0 +1,35 @@
+# Set default behavior to automatically normalize line endings
+* text=auto
+
+# C# source files
+*.cs text diff=csharp
+*.csproj text
+*.sln text
+
+# Markdown files
+*.md text
+
+# JSON files
+*.json text
+
+# PowerShell scripts
+*.ps1 text eol=crlf
+*.psm1 text eol=crlf
+*.psd1 text eol=crlf
+
+# Shell scripts (use LF)
+*.sh text eol=lf
+
+# Windows batch files
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary files
+*.dll binary
+*.exe binary
+*.xlsx binary
+*.xlsm binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
