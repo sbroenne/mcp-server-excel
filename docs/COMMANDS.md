@@ -98,28 +98,12 @@ excelcli pq-delete <file.xlsx> <query-name>
 
 ## Sheet Commands (`sheet-*`)
 
-Manage worksheets in Excel workbooks.
+Manage worksheet lifecycle (create, rename, copy, delete). For data operations, use `range-*` commands.
 
 **sheet-list** - List all worksheets
 
 ```powershell
 excelcli sheet-list <file.xlsx>
-```
-
-**sheet-read** - Read data from worksheet
-
-```powershell
-excelcli sheet-read <file.xlsx> <sheet-name> [range]
-
-# Examples
-excelcli sheet-read "Plan.xlsx" "Data"           # Read entire used range
-excelcli sheet-read "Plan.xlsx" "Data" "A1:C10"  # Read specific range
-```
-
-**sheet-write** - Write CSV data to worksheet
-
-```powershell
-excelcli sheet-write <file.xlsx> <sheet-name> <data.csv>
 ```
 
 **sheet-create** - Create new worksheet
@@ -128,16 +112,16 @@ excelcli sheet-write <file.xlsx> <sheet-name> <data.csv>
 excelcli sheet-create <file.xlsx> <sheet-name>
 ```
 
-**sheet-copy** - Copy worksheet
-
-```powershell
-excelcli sheet-copy <file.xlsx> <source-sheet> <new-sheet>
-```
-
 **sheet-rename** - Rename worksheet
 
 ```powershell
 excelcli sheet-rename <file.xlsx> <old-name> <new-name>
+```
+
+**sheet-copy** - Copy worksheet
+
+```powershell
+excelcli sheet-copy <file.xlsx> <source-sheet> <new-sheet>
 ```
 
 **sheet-delete** - Delete worksheet
@@ -146,17 +130,81 @@ excelcli sheet-rename <file.xlsx> <old-name> <new-name>
 excelcli sheet-delete <file.xlsx> <sheet-name>
 ```
 
-**sheet-clear** - Clear worksheet data
+## Range Commands (`range-*`)
+
+Manage range data operations. Single cell = 1x1 range (e.g., "A1"). Named ranges: use empty sheet name "".
+
+**range-get-values** - Read range values as CSV
 
 ```powershell
-excelcli sheet-clear <file.xlsx> <sheet-name> [range]
+excelcli range-get-values <file.xlsx> <sheet-name> <range>
+
+# Examples
+excelcli range-get-values "Plan.xlsx" "Data" "A1:D10"  # Read range
+excelcli range-get-values "Plan.xlsx" "Data" "A1"      # Read single cell (1x1 range)
+excelcli range-get-values "Plan.xlsx" "" "SalesData"   # Read named range
 ```
 
-**sheet-append** - Append CSV data to worksheet
+**range-set-values** - Write CSV data to range
 
 ```powershell
-excelcli sheet-append <file.xlsx> <sheet-name> <data.csv>
+excelcli range-set-values <file.xlsx> <sheet-name> <range> <data.csv>
+
+# Examples
+excelcli range-set-values "Plan.xlsx" "Data" "A1:C10" "values.csv"
+excelcli range-set-values "Plan.xlsx" "" "SalesData" "sales.csv"  # Named range
 ```
+
+**range-get-formulas** - Read range formulas as CSV
+
+```powershell
+excelcli range-get-formulas <file.xlsx> <sheet-name> <range>
+
+# Example
+excelcli range-get-formulas "Plan.xlsx" "Calc" "D1:D100"
+```
+
+**range-set-formulas** - Write CSV formulas to range
+
+```powershell
+excelcli range-set-formulas <file.xlsx> <sheet-name> <range> <formulas.csv>
+
+# Example (formulas.csv contains: =SUM(A1:A10))
+excelcli range-set-formulas "Plan.xlsx" "Calc" "D1" "total-formula.csv"
+```
+
+**range-clear-all** - Clear all content and formatting
+
+```powershell
+excelcli range-clear-all <file.xlsx> <sheet-name> <range>
+```
+
+**range-clear-contents** - Clear values/formulas, preserve formatting
+
+```powershell
+excelcli range-clear-contents <file.xlsx> <sheet-name> <range>
+```
+
+**range-clear-formats** - Clear formatting, preserve values/formulas
+
+```powershell
+excelcli range-clear-formats <file.xlsx> <sheet-name> <range>
+```
+
+### Migration from Sheet Commands
+
+| Old Command | New Command | Notes |
+|-------------|-------------|-------|
+| `sheet-read` | `range-get-values` | Same functionality, works with any range |
+| `sheet-write` | `range-set-values` | Specify range explicitly (e.g., "A1") |
+| `sheet-clear` | `range-clear-all` or `range-clear-contents` | Choose based on whether to preserve formatting |
+| `sheet-append` | *(not yet implemented)* | Use `range-set-values` with calculated range for now |
+
+### CSV Conversion Behavior
+
+- **Type Inference**: Numbers and booleans auto-detected, empty cells become null
+- **Quote Escaping**: Values with commas, quotes, or newlines are automatically quoted
+- **2D Arrays**: Core uses `List<List<object?>>`, CLI converts CSV ↔ 2D arrays for convenience
 
 ## Parameter Commands (`param-*`)
 
