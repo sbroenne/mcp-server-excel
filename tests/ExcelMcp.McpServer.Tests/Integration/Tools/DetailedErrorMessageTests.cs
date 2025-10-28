@@ -66,7 +66,7 @@ public class DetailedErrorMessageTests : IDisposable
         Assert.Contains(nonExistentFile, exception.Message);
 
         // Should include specific error details
-        Assert.Contains("File not found", exception.Message);
+        Assert.Contains("Excel file not found", exception.Message);
 
         _output.WriteLine("✅ Verified: Action, file path, and error details included");
     }
@@ -86,7 +86,7 @@ public class DetailedErrorMessageTests : IDisposable
         // Verify detailed components
         Assert.Contains("list", exception.Message);
         Assert.Contains(nonExistentFile, exception.Message);
-        Assert.Contains("File not found", exception.Message);
+        Assert.Contains("Excel file not found", exception.Message);
 
         _output.WriteLine("✅ Verified: Parameter operation includes detailed context");
     }
@@ -106,7 +106,7 @@ public class DetailedErrorMessageTests : IDisposable
         // Verify detailed components
         Assert.Contains("list", exception.Message);
         Assert.Contains(nonExistentFile, exception.Message);
-        Assert.Contains("File not found", exception.Message);
+        Assert.Contains("Excel file not found", exception.Message);
 
         _output.WriteLine("✅ Verified: PowerQuery operation includes detailed context");
     }
@@ -184,8 +184,8 @@ public class DetailedErrorMessageTests : IDisposable
         Assert.Contains("Unknown action", exception.Message);
         Assert.Contains("invalid-action", exception.Message);
         Assert.Contains("list", exception.Message);
-        Assert.Contains("read", exception.Message);
-        Assert.Contains("write", exception.Message);
+        Assert.Contains("create", exception.Message);
+        Assert.Contains("delete", exception.Message);
 
         _output.WriteLine("✅ Verified: Unknown action error provides comprehensive list of valid options");
     }
@@ -229,25 +229,5 @@ public class DetailedErrorMessageTests : IDisposable
         Assert.Contains("create", exception.Message);
 
         _output.WriteLine("✅ Verified: Missing parameter error includes action context");
-    }
-
-    [Fact]
-    public async Task ExcelWorksheet_Read_WithMissingSheetName_ShouldThrowDetailedError()
-    {
-        // Arrange
-        await ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
-
-        // Act & Assert - read requires sheetName and rangeAddress
-        var exception = await Assert.ThrowsAsync<McpException>(async () =>
-            await ExcelWorksheetTool.ExcelWorksheet("read", _testExcelFile, sheetName: null));
-
-        _output.WriteLine($"Error message: {exception.Message}");
-
-        // Verify parameter name is mentioned
-        Assert.Contains("sheetName", exception.Message);
-        Assert.Contains("required", exception.Message);
-        Assert.Contains("read", exception.Message);
-
-        _output.WriteLine("✅ Verified: Missing parameter includes action and parameter name");
     }
 }
