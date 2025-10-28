@@ -56,6 +56,21 @@ After researching official Microsoft documentation, **our original spec was INCO
 - ❌ `ViewTableAsync` - Complete table details (columns + metadata)
 - ❌ `GetModelInfoAsync` - Model summary (table/measure/relationship counts)
 
+**AI AGENT Operations** (MISSING - CRITICAL FOR AUTONOMOUS WORKFLOWS):
+
+*Bulk Operations (Performance + Atomicity):*
+- ❌ `CreateMeasuresBulkAsync` - Create multiple measures in single transaction
+- ❌ `CreateRelationshipsBulkAsync` - Create multiple relationships in single transaction
+
+*Validation Operations (Client-Side DAX Parsing):*
+- ❌ `ValidateDaxFormulaAsync` - Validate DAX syntax before creating (prevent trial-and-error)
+- ❌ `GetMeasureDependenciesAsync` - Parse DAX formulas to build dependency graph (safe refactoring)
+
+*Discovery Operations (Build from Collections):*
+- ❌ `GetRelationshipGraphAsync` - Build complete relationship graph from ModelRelationships collection (DAX context awareness)
+
+**Note**: These operations use **client-side logic** (DAX parsing, graph building) rather than Excel COM APIs. Excel does not expose model validation APIs.
+
 ### Code Quality Issues
 
 **Issue 1: Repetitive COM Cleanup Pattern**
@@ -241,18 +256,20 @@ for (int i = 1; i <= columns.Count; i++)
 
 ---
 
-## What TOM API Actually Adds (Out of Scope)
+## What Excel Power Pivot Supports (Research-Validated)
 
-**TOM is ONLY required for:**
-- ❌ Calculated columns (not available via Excel COM)
-- ❌ Calculated tables (not available via Excel COM)
-- ❌ Hierarchies (not available via Excel COM)
-- ❌ Perspectives (not available via Excel COM)
-- ❌ KPIs (not available via Excel COM)
-- ❌ Row-level security (not available via Excel COM)
-- ❌ Partitions (not available via Excel COM)
+**✅ Excel Power Pivot UI SUPPORTS** (users can create via Excel UI, but COM API may be limited):
+- ✅ **Calculated Columns** - Via Power Pivot model designer Data View ([Microsoft Docs](https://learn.microsoft.com/en-us/analysis-services/tutorial-tabular-1400/as-lesson-5-create-calculated-columns))
+- ✅ **Hierarchies** - Via Power Pivot model designer Diagram View ([Microsoft Docs](https://learn.microsoft.com/en-us/analysis-services/tabular-models/hierarchies-ssas-tabular))
+- ✅ **KPIs** - Via Create KPI dialog in measure grid ([Microsoft Docs](https://learn.microsoft.com/en-us/analysis-services/tabular-models/kpis-ssas-tabular))
 
-**These are advanced Analysis Services features, not basic Data Model operations.**
+**❌ NOT Supported in Excel Power Pivot** (Analysis Services server features only):
+- ❌ **Calculated Tables** - Power BI/Analysis Services only (NOT in Excel embedded model)
+- ❌ **Perspectives** - Server-based viewable subsets (NOT in Excel embedded model)
+- ❌ **Row-Level Security (RLS)** - Server security feature (NOT in Excel embedded model)
+- ❌ **Partitions** - Enterprise-scale data partitioning (NOT in Excel embedded model)
+
+**Important Note**: Excel Power Pivot has UI for creating calculated columns, hierarchies, and KPIs, but Excel COM API may not expose programmatic creation methods for these. Need to research if `Model.ModelTables.ModelTableColumns.Add()` exists for calculated columns.
 
 ---
 
@@ -865,7 +882,7 @@ excelcli dm-model-info <file.xlsx>
 
 ### Phase 2: Add CREATE/UPDATE Operations - ~3 days
 
-**Goal**: Implement missing CRUD operations using Microsoft-validated Excel COM APIs
+**Goal**: Implement missing CRUD operations using Microsoft-validated Excel COM APIs + AI-specific operations
 
 **Tasks**:
 1. Add helper methods to DataModelHelpers:
@@ -875,7 +892,7 @@ excelcli dm-model-info <file.xlsx>
    - `FindModelTableColumn(table, columnName)`
    - `GetFormatObject(model, formatType)` - Map "Currency" → ModelFormatCurrency
 
-2. Implement 7 new methods:
+2. Implement 7 base CRUD methods:
    - ✅ CreateMeasureAsync (use ModelMeasures.Add)
    - ✅ UpdateMeasureAsync (set measure properties)
    - ✅ CreateRelationshipAsync (use ModelRelationships.Add)
@@ -884,33 +901,47 @@ excelcli dm-model-info <file.xlsx>
    - ✅ ViewTableAsync (complete metadata)
    - ✅ GetModelInfoAsync (summary statistics)
 
-3. Create new result types:
+3. Implement 5 AI-specific methods (client-side logic):
+   - ✅ CreateMeasuresBulkAsync (atomic batch create with transaction logic)
+   - ✅ CreateRelationshipsBulkAsync (atomic batch create)
+   - ✅ ValidateDaxFormulaAsync (client-side DAX syntax validation)
+   - ✅ GetMeasureDependenciesAsync (parse DAX formulas, build dependency graph)
+   - ✅ GetRelationshipGraphAsync (build from ModelRelationships collection)
+
+4. Create new result types:
    - `DataModelTableColumnsResult`
    - `DataModelTableViewResult`
    - `DataModelInfoResult`
+   - `DataModelBulkCreateResult` (for bulk operations)
+   - `DaxValidationResult` (for validation)
+   - `MeasureDependenciesResult` (for dependency graph)
+   - `RelationshipGraphResult` (for relationship graph)
 
-4. Update IDataModelCommands interface (add 7 method signatures)
+5. Update IDataModelCommands interface (add 12 method signatures)
 
-5. Testing:
+6. Testing:
    - ✅ Create integration tests for each new method
    - ✅ Test CREATE operations with various DAX formulas
    - ✅ Test UPDATE operations (formula, description, format changes)
    - ✅ Test relationships (active/inactive)
    - ✅ Test column listing and table views
+   - ✅ Test bulk operations (atomicity, rollback on failure)
+   - ✅ Test DAX validation (syntax errors, missing tables/columns)
+   - ✅ Test dependency parsing (circular dependencies, missing references)
 
-6. Commit: "Add Data Model CREATE/UPDATE operations via Excel COM API"
+7. Commit: "Add Data Model CREATE/UPDATE operations via Excel COM API + AI-specific operations"
 
 **Success Criteria**:
-- ✅ 7 new methods implemented (~150 lines added)
-- ✅ ~400 → ~550 lines total (18 methods)
-- ✅ Full CRUD capability
+- ✅ 12 new methods implemented (~300 lines added)
+- ✅ ~400 → ~700 lines total (8 existing + 12 new = 20 methods)
+- ✅ Full CRUD capability + AI autonomous workflows
 - ✅ All tests passing
 
 ### Phase 3: Update MCP Server & CLI - ~2 days
 
 **MCP Server Tasks**:
 1. Create or update `ExcelDataModelTool.cs`:
-   - Add routing for 7 new actions
+   - Add routing for 12 new actions (7 CRUD + 5 AI-specific)
    - Add parameter binding (tableName, measureName, daxFormula, etc.)
    - Add error handling and McpException wrapping
 
@@ -918,6 +949,8 @@ excelcli dm-model-info <file.xlsx>
    - Add create-measure, update-measure actions
    - Add create-relationship, update-relationship actions
    - Add list-table-columns, view-table, get-model-info actions
+   - Add create-measures-bulk, create-relationships-bulk actions
+   - Add validate-dax-formula, get-measure-dependencies, get-relationship-graph actions
    - Document parameters and examples
 
 3. MCP Server integration tests:
@@ -932,6 +965,8 @@ excelcli dm-model-info <file.xlsx>
    - Add dm-create-relationship command
    - Add dm-update-relationship command
    - Add dm-list-columns, dm-view-table, dm-model-info commands
+   - Add dm-create-measures-bulk, dm-create-relationships-bulk commands
+   - Add dm-validate-dax, dm-measure-dependencies, dm-relationship-graph commands
 
 2. Update `CLI/Program.cs` routing
 
@@ -945,11 +980,11 @@ excelcli dm-model-info <file.xlsx>
    - Update `README.md` capabilities section
    - Update MCP Server README
 
-5. Commit: "Add Data Model MCP/CLI support for CREATE/UPDATE operations"
+5. Commit: "Add Data Model MCP/CLI support for CREATE/UPDATE + AI-specific operations"
 
 **Success Criteria**:
-- ✅ MCP Server exposes all 15 Data Model actions
-- ✅ CLI provides all 15 Data Model commands
+- ✅ MCP Server exposes all 20 Data Model actions (8 existing + 12 new)
+- ✅ CLI provides all 20 Data Model commands
 - ✅ Documentation complete
 - ✅ All integration tests passing
 
@@ -967,21 +1002,25 @@ excelcli dm-model-info <file.xlsx>
 - ✅ Commit: "Refactor DataModelCommands: Extract helper methods (777 → ~400 lines)"
 
 ### Phase 2 Complete When:
-- ✅ 7 new methods implemented using Microsoft-validated Excel COM APIs
-- ✅ ~400 → ~550 lines total (8 existing + 7 new = 15 methods)
+- ✅ 12 new methods implemented using Microsoft-validated Excel COM APIs + client-side AI logic
+- ✅ ~400 → ~700 lines total (8 existing + 12 new = 20 methods)
 - ✅ Full CRUD capability: Create, Read, Update, Delete (no TOM required)
+- ✅ AI autonomous workflow support: Bulk operations, DAX validation, dependency tracking
 - ✅ Helper methods added to DataModelHelpers:
   * FindModelTable, FindMeasure, FindRelationship, FindModelTableColumn
   * GetFormatObject (maps format strings to Excel COM objects)
 - ✅ New result types created:
   * DataModelTableColumnsResult, DataModelTableViewResult, DataModelInfoResult
-- ✅ IDataModelCommands interface updated with 7 new method signatures
+  * DataModelBulkCreateResult, DaxValidationResult, MeasureDependenciesResult, RelationshipGraphResult
+- ✅ IDataModelCommands interface updated with 12 new method signatures
 - ✅ Integration tests created and passing for all new methods:
   * CREATE: measures, relationships
   * UPDATE: measure formulas/descriptions, relationship active/inactive
   * DISCOVERY: list columns, view table, get model info
+  * BULK: atomic batch creates, rollback on failure
+  * VALIDATION: DAX syntax checking, dependency parsing, relationship graph building
 - ✅ Build successful (0 errors, 0 warnings)
-- ✅ Commit: "Add Data Model CREATE/UPDATE operations via Excel COM API"
+- ✅ Commit: "Add Data Model CREATE/UPDATE operations via Excel COM API + AI-specific operations"
 
 ### Phase 3 Complete When:
 - ✅ MCP Server updated with 7 new actions (ExcelDataModelTool.cs):

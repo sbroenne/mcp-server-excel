@@ -120,7 +120,9 @@ public partial class RangeCommands
                     {
                         for (int c = 0; c < cols; c++)
                         {
-                            arrayFormulas[r, c] = formulas[r][c];
+                            // Convert JsonElement to proper C# type for COM interop
+                            // MCP framework deserializes JSON to JsonElement, not primitives
+                            arrayFormulas[r, c] = RangeHelpers.ConvertToCellValue(formulas[r][c]);
                         }
                     }
 

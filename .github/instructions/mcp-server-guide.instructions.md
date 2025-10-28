@@ -247,6 +247,101 @@ Returns `VbaTrustRequiredResult` with manual setup instructions when VBA trust n
 5. **Update server.json** - Keep configuration synchronized
 6. **JSON serialization** - Always use `JsonSerializer`
 7. **Clear error messages** - Include exception type, inner exceptions, context
+8. **Handle JsonElement for complex parameters** - See "JSON Deserialization and COM Marshalling" section below
+
+---
+
+## JSON Deserialization and COM Marshalling
+
+**⚠️ CRITICAL: MCP framework deserializes JSON arrays to `System.Text.Json.JsonElement`, NOT primitive types**
+
+### The Problem
+
+When MCP framework receives JSON parameters like `values: [["text", 123, true]]`, it deserializes to:
+```csharp
+List<List<object?>> values // Each object? is JsonElement, NOT string/int/bool!
+```
+
+Excel COM API requires proper C# types (string, int, double, bool). COM marshaller **CANNOT** convert `JsonElement` to Variant → Runtime exception.
+
+### The Solution Pattern
+
+For MCP tools accepting complex parameters (arrays, nested objects), add type conversion:
+
+```csharp
+private static object ConvertToCellValue(object? value)
+{
+    if (value == null)
+        return string.Empty;
+
+    // Handle System.Text.Json.JsonElement (from MCP JSON deserialization)
+    if (value is System.Text.Json.JsonElement jsonElement)
+    {
+        return jsonElement.ValueKind switch
+        {
+            JsonValueKind.String => jsonElement.GetString() ?? string.Empty,
+            JsonValueKind.Number => jsonElement.TryGetInt64(out var i64) ? i64 : jsonElement.GetDouble(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null => string.Empty,
+            _ => jsonElement.ToString() ?? string.Empty
+        };
+    }
+
+    // Already a proper type (from CLI or tests)
+    return value;
+}
+```
+
+### When to Apply This Pattern
+
+**✅ REQUIRED for MCP tools accepting:**
+- 2D arrays (`List<List<object?>>`) - like range values/formulas
+- Object arrays with mixed types
+- Nested JSON structures passed to COM APIs
+
+**❌ NOT NEEDED for:**
+- Simple string/int/bool parameters (MCP deserializes these correctly)
+- Parameters not passed to Excel COM (internal processing only)
+
+### Testing Strategy
+
+Create integration tests simulating MCP JSON deserialization:
+```csharp
+[Fact]
+public async Task MethodAsync_WithJsonElementValues_WorksCorrectly()
+{
+    // Simulate MCP framework JSON deserialization
+    string json = """[["text", 123, true, null]]""";
+    var jsonDoc = System.Text.Json.JsonDocument.Parse(json);
+    
+    // Convert to List<List<object?>> containing JsonElement objects
+    var testData = new List<List<object?>>();
+    foreach (var rowElement in jsonDoc.RootElement.EnumerateArray())
+    {
+        var row = new List<object?>();
+        foreach (var cellElement in rowElement.EnumerateArray())
+        {
+            row.Add(cellElement); // This is JsonElement, not primitive!
+        }
+        testData.Add(row);
+    }
+    
+    // Call method and verify it handles JsonElement correctly
+    var result = await _commands.MethodAsync(batch, testData);
+    Assert.True(result.Success);
+}
+```
+
+### Real-World Bug Example
+
+**Bug**: `excel_range` tool's `set-values` action failed with "Type 'System.Text.Json.JsonElement' cannot be marshalled to a Variant"
+
+**Root Cause**: Direct assignment of `JsonElement` to `object[,]` array for COM interop
+
+**Fix**: Added `ConvertToCellValue()` helper in `RangeCommands.Values.cs` to detect and convert `JsonElement` before COM assignment
+
+**Why Tests Didn't Catch It**: Integration tests use C# literals (`new() { "test", 123 }`), CLI uses CSV parsing. Only MCP Server triggers JSON deserialization path.
 
 ---
 

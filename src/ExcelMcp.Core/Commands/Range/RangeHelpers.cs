@@ -58,6 +58,36 @@ public static class RangeHelpers
         }
         return $"Sheet '{sheetName}' or range '{rangeAddress}' not found";
     }
+
+    /// <summary>
+    /// Converts a value to a proper Excel cell value, handling System.Text.Json.JsonElement.
+    /// MCP framework deserializes JSON arrays to JsonElement objects which cannot be marshalled to COM Variant.
+    /// This helper detects JsonElement and converts to proper C# types before COM assignment.
+    /// </summary>
+    /// <param name="value">Value from MCP JSON deserialization or direct C# types</param>
+    /// <returns>Proper C# type (string, long, double, bool) for COM marshalling</returns>
+    public static object ConvertToCellValue(object? value)
+    {
+        if (value == null)
+            return string.Empty;
+
+        // Handle System.Text.Json.JsonElement (from MCP JSON deserialization)
+        if (value is System.Text.Json.JsonElement jsonElement)
+        {
+            return jsonElement.ValueKind switch
+            {
+                System.Text.Json.JsonValueKind.String => jsonElement.GetString() ?? string.Empty,
+                System.Text.Json.JsonValueKind.Number => jsonElement.TryGetInt64(out var i64) ? i64 : jsonElement.GetDouble(),
+                System.Text.Json.JsonValueKind.True => true,
+                System.Text.Json.JsonValueKind.False => false,
+                System.Text.Json.JsonValueKind.Null => string.Empty,
+                _ => jsonElement.ToString() ?? string.Empty
+            };
+        }
+
+        // Already a proper type (from CLI or tests)
+        return value;
+    }
 }
 
 /// <summary>

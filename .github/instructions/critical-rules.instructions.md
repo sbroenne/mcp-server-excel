@@ -85,6 +85,63 @@ dotnet test --filter "RunType=OnDemand"              # All must pass
 
 ---
 
+## Rule 6: COM API First - No External Dependencies for Native Capabilities
+
+**Everything that CAN be implemented via Excel COM API MUST be implemented via COM API.**
+
+### Requirements
+- ✅ Use native Excel COM objects and methods
+- ❌ NEVER add external libraries for capabilities Excel already provides
+- ❌ NEVER use third-party APIs when Excel COM supports the operation
+- ⚠️ Only use external libraries (like TOM) for features Excel COM explicitly doesn't support
+
+### Examples
+
+**✅ CORRECT - Use Excel COM API:**
+```csharp
+// CREATE measure - Excel COM fully supports this
+dynamic measures = table.ModelMeasures;
+dynamic newMeasure = measures.Add(
+    MeasureName: "TotalSales",
+    AssociatedTable: table,
+    Formula: "SUM(Sales[Amount])",
+    FormatInformation: model.ModelFormatCurrency,
+    Description: "Total sales amount"
+);
+```
+
+**❌ WRONG - Don't use TOM when Excel COM works:**
+```csharp
+// WRONG - Excel COM already supports measure creation!
+// Don't use TOM API for this
+var tom = new TomServer();
+var measure = new Microsoft.AnalysisServices.Tabular.Measure();
+// ... unnecessary complexity
+```
+
+### Validation Process
+1. **Before adding ANY external library:** Search Microsoft official docs for Excel COM capability
+2. **If Excel COM supports it:** Use Excel COM API (no exceptions)
+3. **If Excel COM doesn't support it:** Document why, then consider alternatives
+4. **Always validate against official Microsoft documentation:** https://learn.microsoft.com/en-us/office/vba/api/overview/excel
+
+### Real Example - DataModelCommands
+
+**Original spec claimed:** "Use TOM API for measure creation" ❌ WRONG
+
+**Microsoft official docs proved:** Excel COM fully supports `ModelMeasures.Add()` ✅ CORRECT
+
+**Lesson:** Always validate specs against Microsoft official documentation before architectural decisions.
+
+**Why This Rule Exists:**
+- Simpler code (native operations, no external dependencies)
+- Better performance (direct COM access vs library overhead)
+- Fewer deployment issues (no NuGet packages, no version conflicts)
+- Works offline (no server dependencies)
+- Smaller attack surface (fewer dependencies = fewer vulnerabilities)
+
+---
+
 ## Quick Reference
 
 | Scenario | Action | Time |
