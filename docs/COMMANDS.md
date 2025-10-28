@@ -667,9 +667,10 @@ The Data Model is Excel's in-memory analytical database (formerly known as Power
 - Large datasets (millions of rows)
 - Relationships between tables
 - DAX (Data Analysis Expressions) calculated measures
+- DAX calculated columns
 - Advanced analytics and aggregations
 
-**Note:** CREATE and UPDATE operations for measures and relationships require the Analysis Services Tabular Object Model (TOM) API, which is planned for a future phase. Current operations support READ and DELETE via Excel COM API.
+**Note:** CREATE and UPDATE operations for measures, relationships, and calculated columns use the Analysis Services Tabular Object Model (TOM) API. READ operations use Excel COM API where available.
 
 ### Commands
 
@@ -861,6 +862,89 @@ excelcli dm-update-relationship "sales.xlsx" "Sales" "CustomerID" "Customers" "I
 excelcli dm-update-relationship "sales.xlsx" "Sales" "CustomerID" "Customers" "ID" "false"
 ```
 
+**dm-create-column** - Create DAX calculated column
+
+```powershell
+excelcli dm-create-column <file.xlsx> <table-name> <column-name> <dax-formula> [--type <data-type>] [--desc <description>]
+```
+
+Creates a calculated column using a DAX formula. Data types: `String`, `Integer`, `Double`, `Boolean`, `DateTime`.
+
+Examples:
+```powershell
+# Create numeric calculated column
+excelcli dm-create-column "sales.xlsx" "Sales" "TotalCost" "[Price] * [Quantity]" --type Double
+
+# Create boolean calculated column
+excelcli dm-create-column "sales.xlsx" "Sales" "IsHighValue" "[Amount] > 1000" --type Boolean --desc "Flags high-value sales"
+
+# Create string calculated column
+excelcli dm-create-column "sales.xlsx" "Customers" "FullName" "[FirstName] & \" \" & [LastName]" --type String
+```
+
+**dm-list-columns** - List calculated columns
+
+```powershell
+excelcli dm-list-columns <file.xlsx> [table-name]
+```
+
+Lists all calculated columns in the Data Model, optionally filtered by table.
+
+Examples:
+```powershell
+# List all calculated columns
+excelcli dm-list-columns "sales.xlsx"
+
+# List columns in specific table
+excelcli dm-list-columns "sales.xlsx" "Sales"
+```
+
+**dm-view-column** - View calculated column details
+
+```powershell
+excelcli dm-view-column <file.xlsx> <table-name> <column-name>
+```
+
+Shows complete details for a calculated column including DAX formula, data type, and description.
+
+Example:
+```powershell
+excelcli dm-view-column "sales.xlsx" "Sales" "TotalCost"
+```
+
+**dm-update-column** - Update calculated column
+
+```powershell
+excelcli dm-update-column <file.xlsx> <table-name> <column-name> [--formula <dax-formula>] [--desc <description>] [--type <data-type>]
+```
+
+Updates an existing calculated column. At least one optional parameter must be provided.
+
+Examples:
+```powershell
+# Update formula only
+excelcli dm-update-column "sales.xlsx" "Sales" "TotalCost" --formula "[Price] * [Quantity] * 1.1"
+
+# Update description only
+excelcli dm-update-column "sales.xlsx" "Sales" "TotalCost" --desc "Total cost with 10% markup"
+
+# Update multiple properties
+excelcli dm-update-column "sales.xlsx" "Sales" "TotalCost" --formula "[Price] * [Quantity] * 1.15" --desc "Total cost with 15% markup" --type Double
+```
+
+**dm-delete-column** - Delete calculated column
+
+```powershell
+excelcli dm-delete-column <file.xlsx> <table-name> <column-name>
+```
+
+Permanently removes a calculated column from the table.
+
+Example:
+```powershell
+excelcli dm-delete-column "sales.xlsx" "Sales" "OldColumn"
+```
+
 ### Usage Examples
 
 ```powershell
@@ -875,6 +959,13 @@ excelcli dm-create-measure "sales.xlsx" "Sales" "TotalRevenue" "SUM(Sales[Amount
 excelcli dm-list-measures "sales-analysis.xlsx"
 excelcli dm-view-measure "sales-analysis.xlsx" "TotalRevenue"
 excelcli dm-update-measure "sales.xlsx" "TotalRevenue" "CALCULATE(SUM(Sales[Amount]))" "Currency" "Updated formula"
+
+# Calculated Columns - Add computed columns with DAX
+excelcli dm-create-column "sales.xlsx" "Sales" "Profit" "[Revenue] - [Cost]" --type Double
+excelcli dm-list-columns "sales.xlsx" "Sales"
+excelcli dm-view-column "sales.xlsx" "Sales" "Profit"
+excelcli dm-update-column "sales.xlsx" "Sales" "Profit" --formula "[Revenue] - [Cost] - [Tax]"
+excelcli dm-delete-column "sales.xlsx" "Sales" "OldColumn"
 
 # Relationships - Connect tables
 excelcli dm-create-relationship "sales.xlsx" "Sales" "CustomerID" "Customers" "ID"
@@ -896,20 +987,22 @@ excelcli dm-delete-relationship "sales-analysis.xlsx" "Sales" "CustomerID" "Cust
 
 | Operation | Status | Technology |
 |-----------|--------|------------|
-| **CREATE** | ✅ Available (Phase 2) | Excel COM API |
-| **READ** | ✅ Available | Excel COM API |
-| **UPDATE** | ✅ Available (Phase 2) | Excel COM API |
-| **DELETE** | ✅ Available | Excel COM API |
+| **CREATE** | ✅ Available (Phase 2) | TOM API |
+| **READ** | ✅ Available | Excel COM API & TOM API |
+| **UPDATE** | ✅ Available (Phase 2) | TOM API |
+| **DELETE** | ✅ Available | Excel COM API & TOM API |
 
-**Phase 2 Capabilities:**
-- ✅ Create DAX measures with format types and descriptions
-- ✅ Update existing measure properties (formula, format, description)
-- ✅ Create table relationships with active/inactive flag
-- ✅ Update relationship active status (toggle on/off)
+**Phase 2 Capabilities (Available Now):**
+- ✅ Create DAX measures with format types and descriptions (TOM API)
+- ✅ Update existing measure properties (formula, format, description) (TOM API)
+- ✅ Create table relationships with active/inactive flag (TOM API)
+- ✅ Update relationship active status (toggle on/off) (TOM API)
+- ✅ Create DAX calculated columns with data types (TOM API)
+- ✅ Update calculated column properties (formula, description, data type) (TOM API)
+- ✅ Delete calculated columns (TOM API)
 - ✅ Discover model structure (tables, columns, measures, relationships)
 
-**Advanced Operations (Future Phase 4 - TOM API):**
-- Calculated columns
+**Advanced Operations (Future Phase 4):**
 - Hierarchies
 - Perspectives
 - KPIs
