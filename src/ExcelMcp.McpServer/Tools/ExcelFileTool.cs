@@ -21,9 +21,9 @@ public static class ExcelFileTool
     /// Create new Excel files for automation workflows
     /// </summary>
     [McpServerTool(Name = "excel_file")]
-    [Description("Manage Excel files. Supports: create-empty, close-workbook. Optional batchId for batch sessions.")]
+    [Description("Manage Excel files. Supports: create-empty, close-workbook, test. Optional batchId for batch sessions.")]
     public static async Task<string> ExcelFile(
-        [Description("Action to perform: create-empty, close-workbook")]
+        [Description("Action to perform: create-empty, close-workbook, test")]
         string action,
 
         [Description("Excel file path (.xlsx or .xlsm extension)")]
@@ -46,8 +46,11 @@ public static class ExcelFileTool
                 case "close-workbook":
                     return CloseWorkbook(excelPath);
 
+                case "test":
+                    return await TestFileAsync(fileCommands, excelPath);
+
                 default:
-                    throw new ModelContextProtocol.McpException($"Unknown action '{action}'. Supported: create-empty, close-workbook");
+                    throw new ModelContextProtocol.McpException($"Unknown action '{action}'. Supported: create-empty, close-workbook, test");
             }
         }
         catch (ModelContextProtocol.McpException)
@@ -138,5 +141,56 @@ public static class ExcelFileTool
             },
             workflowHint = "With single-instance architecture, workbooks are automatically closed after each operation."
         }, ExcelToolsBase.JsonOptions);
+    }
+
+    /// <summary>
+    /// Tests if an Excel file exists and is valid.
+    /// LLM Pattern: Use this for discovery/connectivity testing and validation before operations.
+    /// This is a lightweight check that doesn't open the file with Excel COM.
+    /// </summary>
+    private static async Task<string> TestFileAsync(FileCommands fileCommands, string excelPath)
+    {
+        var result = await fileCommands.TestFileAsync(excelPath);
+
+        if (result.Success)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                filePath = result.FilePath,
+                exists = result.Exists,
+                isValid = result.IsValid,
+                extension = result.Extension,
+                size = result.Size,
+                lastModified = result.LastModified,
+                message = "File exists and is a valid Excel file",
+                suggestedNextActions = new[]
+                {
+                    "Use excel_worksheet to manage worksheets",
+                    "Use excel_powerquery to manage Power Query connections",
+                    "Use excel_vba to manage VBA macros",
+                    "Use begin_excel_batch for multi-operation workflows"
+                },
+                workflowHint = "File is ready for Excel operations."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        else
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                filePath = result.FilePath,
+                exists = result.Exists,
+                isValid = result.IsValid,
+                extension = result.Extension,
+                error = result.ErrorMessage,
+                suggestedNextActions = result.Exists
+                    ? new[] { "Ensure file has .xlsx or .xlsm extension", "Check file path is correct" }
+                    : new[] { "Verify file path is correct", "Use 'excel_file' with action 'create-empty' to create new file" },
+                workflowHint = result.Exists
+                    ? "File exists but has invalid extension for Excel operations."
+                    : "File not found. Create it first or verify the path."
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 }

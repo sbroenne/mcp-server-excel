@@ -14,4 +14,11 @@ public interface IFileCommands
     /// <param name="overwriteIfExists">Whether to overwrite if file already exists</param>
     /// <returns>Operation result</returns>
     Task<OperationResult> CreateEmptyAsync(string filePath, bool overwriteIfExists = false);
+
+    /// <summary>
+    /// Tests if a file exists and is a valid Excel file
+    /// </summary>
+    /// <param name="filePath">Path to the Excel file to validate</param>
+    /// <returns>File validation result with existence, size, extension, and validity information</returns>
+    Task<FileValidationResult> TestFileAsync(string filePath);
 }

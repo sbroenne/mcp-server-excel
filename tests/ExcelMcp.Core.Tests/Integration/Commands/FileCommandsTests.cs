@@ -233,6 +233,116 @@ public class FileCommandsTests : IDisposable
         Assert.True(newInfo.LastWriteTime > originalTime);
     }
 
+    [Fact]
+    public async Task TestFile_WithExistingValidFile_ReturnsSuccess()
+    {
+        // Arrange
+        string testFile = Path.Combine(_tempDir, "TestValidation.xlsx");
+        _createdFiles.Add(testFile);
+
+        // Create a dummy file (TestFileAsync doesn't open with Excel, just checks existence and extension)
+        File.WriteAllText(testFile, "dummy Excel content");
+
+        // Act
+        var result = await _fileCommands.TestFileAsync(testFile);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Null(result.ErrorMessage);
+        Assert.True(result.Exists);
+        Assert.True(result.IsValid);
+        Assert.Equal(".xlsx", result.Extension);
+        Assert.True(result.Size > 0);
+        Assert.NotEqual(DateTime.MinValue, result.LastModified);
+    }
+
+    [Fact]
+    public async Task TestFile_WithNonExistentFile_ReturnsFailure()
+    {
+        // Arrange
+        string testFile = Path.Combine(_tempDir, "NonExistent.xlsx");
+
+        // Act
+        var result = await _fileCommands.TestFileAsync(testFile);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.Contains("not found", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.False(result.Exists);
+        Assert.False(result.IsValid);
+        Assert.Equal(0, result.Size);
+        Assert.Equal(DateTime.MinValue, result.LastModified);
+    }
+
+    [Theory]
+    [InlineData("TestFile.xlsx")]
+    [InlineData("TestFile.xlsm")]
+    public async Task TestFile_WithValidExtensions_ReturnsSuccess(string fileName)
+    {
+        // Arrange
+        string testFile = Path.Combine(_tempDir, fileName);
+        _createdFiles.Add(testFile);
+
+        // Create dummy file (TestFileAsync doesn't open with Excel, just checks existence and extension)
+        File.WriteAllText(testFile, "dummy Excel content");
+
+        // Act
+        var result = await _fileCommands.TestFileAsync(testFile);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.True(result.Exists);
+        Assert.True(result.IsValid);
+        Assert.Contains(result.Extension, new[] { ".xlsx", ".xlsm" });
+    }
+
+    [Theory]
+    [InlineData("TestFile.xls", ".xls")]
+    [InlineData("TestFile.csv", ".csv")]
+    [InlineData("TestFile.txt", ".txt")]
+    public async Task TestFile_WithInvalidExtensions_ReturnsFailure(string fileName, string expectedExt)
+    {
+        // Arrange
+        string testFile = Path.Combine(_tempDir, fileName);
+        
+        // Create file with invalid extension
+        File.WriteAllText(testFile, "test content");
+        _createdFiles.Add(testFile);
+
+        // Act
+        var result = await _fileCommands.TestFileAsync(testFile);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.Contains("Invalid file extension", result.ErrorMessage);
+        Assert.True(result.Exists);
+        Assert.False(result.IsValid);
+        Assert.Equal(expectedExt, result.Extension);
+    }
+
+    [Fact]
+    public async Task TestFile_WithRelativePath_ConvertsToAbsoluteAndReturnsSuccess()
+    {
+        // Arrange
+        string relativePath = "TestValidation.xlsx";
+        string expectedAbsPath = Path.GetFullPath(relativePath);
+        _createdFiles.Add(expectedAbsPath);
+
+        // Create dummy file (TestFileAsync doesn't open with Excel, just checks existence and extension)
+        File.WriteAllText(expectedAbsPath, "dummy Excel content");
+
+        // Act
+        var result = await _fileCommands.TestFileAsync(relativePath);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.True(result.Exists);
+        Assert.True(result.IsValid);
+        Assert.Equal(expectedAbsPath, result.FilePath);
+    }
+
 
     public void Dispose()
     {
