@@ -373,4 +373,93 @@ public static class DataModelHelpers
             return null;  // Format not available in this Excel version
         }
     }
+
+    /// <summary>
+    /// Safely iterates through all columns in a model table with automatic COM cleanup
+    /// </summary>
+    /// <param name="table">Table COM object</param>
+    /// <param name="action">Action to perform on each column</param>
+    public static void ForEachColumn(dynamic table, Action<dynamic, int> action)
+    {
+        dynamic? columns = null;
+        try
+        {
+            columns = table.ModelTableColumns;
+            int count = columns.Count;
+
+            for (int i = 1; i <= count; i++)
+            {
+                dynamic? column = null;
+                try
+                {
+                    column = columns.Item(i);
+                    action(column, i);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref column);
+                }
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref columns);
+        }
+    }
+
+    /// <summary>
+    /// Finds a relationship in the Data Model by table and column names (case-insensitive)
+    /// </summary>
+    /// <param name="model">Model COM object</param>
+    /// <param name="fromTable">From table name</param>
+    /// <param name="fromColumn">From column name</param>
+    /// <param name="toTable">To table name</param>
+    /// <param name="toColumn">To column name</param>
+    /// <returns>Relationship COM object or null if not found</returns>
+    public static dynamic? FindRelationship(dynamic model, string fromTable, string fromColumn, string toTable, string toColumn)
+    {
+        dynamic? relationships = null;
+        try
+        {
+            relationships = model.ModelRelationships;
+            int count = relationships.Count;
+
+            for (int i = 1; i <= count; i++)
+            {
+                dynamic? relationship = null;
+                try
+                {
+                    relationship = relationships.Item(i);
+                    
+                    // Get relationship details
+                    string currentFromTable = relationship.ForeignKeyColumn?.Parent?.Name?.ToString() ?? "";
+                    string currentFromColumn = relationship.ForeignKeyColumn?.Name?.ToString() ?? "";
+                    string currentToTable = relationship.PrimaryKeyColumn?.Parent?.Name?.ToString() ?? "";
+                    string currentToColumn = relationship.PrimaryKeyColumn?.Name?.ToString() ?? "";
+
+                    // Match all four components (case-insensitive)
+                    if (currentFromTable.Equals(fromTable, StringComparison.OrdinalIgnoreCase) &&
+                        currentFromColumn.Equals(fromColumn, StringComparison.OrdinalIgnoreCase) &&
+                        currentToTable.Equals(toTable, StringComparison.OrdinalIgnoreCase) &&
+                        currentToColumn.Equals(toColumn, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return relationship;  // Don't release - caller will use it
+                    }
+                }
+                finally
+                {
+                    if (relationship != null)
+                    {
+                        ComUtilities.Release(ref relationship);
+                    }
+                }
+            }
+
+            return null;
+        }
+        finally
+        {
+            ComUtilities.Release(ref relationships);
+        }
+    }
 }
