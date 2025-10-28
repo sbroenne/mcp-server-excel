@@ -39,6 +39,7 @@ class Program
         {
             var powerQuery = new PowerQueryCommands();
             var sheet = new SheetCommands();
+            var range = new RangeCommands();
             var param = new ParameterCommands();
             var script = new ScriptCommands();
             var file = new FileCommands();
@@ -82,6 +83,15 @@ class Program
                 "sheet-delete" => sheet.Delete(args),
                 "sheet-create" => sheet.Create(args),
                 "sheet-rename" => sheet.Rename(args),
+
+                // Range commands (data operations - replaces sheet-read/write/clear/append from Phase 1A)
+                "range-get-values" => range.GetValues(args),
+                "range-set-values" => range.SetValues(args),
+                "range-get-formulas" => range.GetFormulas(args),
+                "range-set-formulas" => range.SetFormulas(args),
+                "range-clear-all" => range.ClearAll(args),
+                "range-clear-contents" => range.ClearContents(args),
+                "range-clear-formats" => range.ClearFormats(args),
 
                 // Parameter commands
                 "param-list" => param.List(args),
@@ -284,7 +294,18 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]sheet-delete[/] file.xlsx sheet-name            Delete worksheet");
         AnsiConsole.MarkupLine("  [cyan]sheet-create[/] file.xlsx sheet-name            Create new worksheet");
         AnsiConsole.MarkupLine("  [cyan]sheet-rename[/] file.xlsx old-name new-name     Rename worksheet");
-        AnsiConsole.MarkupLine("  [dim]Note: Data operations (read, write, clear) moved to range-* commands (Phase 1B)[/]");
+        AnsiConsole.MarkupLine("  [dim]Note: Data operations (read, write, clear) moved to range-* commands[/]");
+        AnsiConsole.WriteLine();
+
+        AnsiConsole.MarkupLine("[bold yellow]Range Commands (Data Operations):[/]");
+        AnsiConsole.MarkupLine("  [cyan]range-get-values[/] file.xlsx sheet range      Read values from range (output: CSV)");
+        AnsiConsole.MarkupLine("  [cyan]range-set-values[/] file.xlsx sheet range csv  Write CSV data to range");
+        AnsiConsole.MarkupLine("  [cyan]range-get-formulas[/] file.xlsx sheet range    Read formulas from range");
+        AnsiConsole.MarkupLine("  [cyan]range-set-formulas[/] file.xlsx sheet range csv Set formulas from CSV");
+        AnsiConsole.MarkupLine("  [cyan]range-clear-all[/] file.xlsx sheet range       Clear all (values, formulas, formats)");
+        AnsiConsole.MarkupLine("  [cyan]range-clear-contents[/] file.xlsx sheet range  Clear contents (preserve formats)");
+        AnsiConsole.MarkupLine("  [cyan]range-clear-formats[/] file.xlsx sheet range   Clear formats (preserve values)");
+        AnsiConsole.MarkupLine("  [dim]Note: Single cell = 1x1 range (e.g., A1). Named ranges: use empty sheet \"\"[/]");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Parameter Commands:[/]");
@@ -357,6 +378,7 @@ class Program
         AnsiConsole.MarkupLine("  [dim]excelcli pq-view \"Plan.xlsx\" \"Milestones\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli pq-import \"Plan.xlsx\" \"fnHelper\" \"function.pq\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli sheet-list \"Plan.xlsx\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli range-get-values \"Plan.xlsx\" \"Data\" \"A1:D10\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli param-set \"Plan.xlsx\" \"Start_Date\" \"2025-01-01\"[/]");
         AnsiConsole.WriteLine();
 
