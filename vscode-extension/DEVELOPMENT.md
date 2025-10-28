@@ -116,6 +116,58 @@ npm run package      # Create VSIX package
 3. **Create release** on GitHub
 4. **Upload VSIX** as release asset
 
+## Publishing
+
+### Automated Publishing (Recommended)
+
+The extension is automatically published to both marketplaces when a version tag is pushed:
+
+```bash
+# 1. Update version in package.json and CHANGELOG.md
+npm version patch  # or minor, or major
+
+# 2. Commit changes
+git add .
+git commit -m "Bump version to X.Y.Z"
+
+# 3. Create and push tag
+git tag vscode-vX.Y.Z
+git push && git push --tags
+```
+
+The GitHub Actions workflow will:
+- Build and package the extension
+- Publish to VS Code Marketplace (if `VSCE_TOKEN` secret is configured)
+- Publish to Open VSX Registry (if `OPEN_VSX_TOKEN` secret is configured)
+- Create GitHub release with VSIX file
+
+See [MARKETPLACE-PUBLISHING.md](MARKETPLACE-PUBLISHING.md) for setup instructions.
+
+### Manual Publishing
+
+#### VS Code Marketplace
+
+1. **Create publisher account**: https://marketplace.visualstudio.com/manage
+2. **Generate PAT**: https://dev.azure.com (Marketplace Manage scope)
+3. **Login**: `npx @vscode/vsce login <publisher>`
+4. **Publish**: `npx @vscode/vsce publish`
+
+#### Open VSX Registry
+
+1. **Create account**: https://open-vsx.org
+2. **Generate token**: https://open-vsx.org/user-settings/tokens
+3. **Publish**: `npx ovsx publish -p <token>`
+
+#### GitHub Releases Only
+
+To create a GitHub release without marketplace publishing:
+
+```bash
+cd vscode-extension
+npm run package
+# Upload the .vsix file manually to GitHub releases
+```
+
 ## Versioning
 
 Follow Semantic Versioning (SemVer):
