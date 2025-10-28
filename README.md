@@ -1,4 +1,4 @@
-# ExcelMcp - Excel MCP Server for AI-Powered Development
+# ExcelMcp - MCP Server for Microsoft Excel
 
 [![Build MCP Server](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-mcp-server.yml/badge.svg)](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-mcp-server.yml)
 [![Build CLI](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-cli.yml/badge.svg)](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-cli.yml)
@@ -10,74 +10,85 @@
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/sbroenne/mcp-server-excel)
 [![Built with Copilot](https://img.shields.io/badge/Built%20with-GitHub%20Copilot-0366d6.svg)](https://copilot.github.com/)
 
-`MCP Server` • `Excel Development` • `AI Assistant Integration` • `Model Context Protocol` • `GitHub Copilot`
+**A Model Context Protocol (MCP) server that gives AI assistants full control over Microsoft Excel through native COM automation.**
 
-A **Model Context Protocol (MCP) server** that enables **AI assistants** like GitHub Copilot, Claude, and ChatGPT to perform Excel development tasks through conversational interfaces. Transform Excel development workflows with AI-assisted Power Query refactoring, VBA enhancement, code review, and automation—all through natural language interactions.
+Control Power Query M code, Data Models with DAX measures, VBA macros, Excel Tables, connections, ranges, and worksheets through conversational AI. Also includes a CLI for direct human automation.
 
-**🎯 How does it work?** The MCP server provides AI assistants with structured access to Excel operations through 6 resource-based tools, enabling conversational Excel development workflows while maintaining the power of direct Excel COM interop integration.
+## 🎯 What You Can Do
 
-## 🤖 **AI-Powered Excel Development**
+**Power Query & M Code:**
+- Create, read, update, delete Power Query transformations
+- Export/import M code for version control
+- Manage query load destinations (worksheet/data model/connection-only)
+- Set privacy levels for data source combinations
 
-- **GitHub Copilot** - Native MCP integration for conversational Excel development
-- **Claude & ChatGPT** - Natural language Excel operations through MCP protocol
-- **Power Query AI Enhancement** - AI-assisted M code refactoring and optimization
-- **VBA AI Development** - Intelligent macro enhancement with error handling
-- **Conversational Workflows** - Ask AI to perform complex Excel tasks naturally
+**Data Model & DAX:**
+- Create/update/delete DAX measures with format types (Currency, Percentage, Decimal, General)
+- Manage table relationships (create, toggle active/inactive, delete)
+- Discover model structure (tables, columns, measures, relationships)
+- Export measures to .dax files for Git workflows
+
+**Excel Tables (ListObjects):**
+- 22 operations: create, resize, rename, delete, style
+- Column management: add, remove, rename columns
+- Data operations: append rows, apply filters (criteria/values), sort (single/multi-column)
+- Advanced features: structured references, totals row, Data Model integration
+
+**VBA Macros:**
+- List, view, export, import, update VBA modules
+- Execute macros with parameters
+- Version control VBA code through file exports
+
+**Ranges & Worksheets:**
+- 30+ range operations: get/set values/formulas, clear, copy, insert/delete, find/replace, sort
+- Manage hyperlinks and range properties
+- Worksheet lifecycle: create, rename, copy, delete
+
+**Data Connections:**
+- Manage OLEDB, ODBC, Text, Web connections
+- Update connection strings and properties
+- Test connections and troubleshoot issues
+
+## 🔧 How It Works - COM Interop Architecture
+
+**ExcelMcp uses Windows COM automation to control the actual Excel application (not just .xlsx files).**
+
+**✅ Benefits:**
+- **Full Excel Feature Access** - Power Query engine, VBA runtime, Data Model, calculation engine, charts, pivot tables
+- **True Compatibility** - Works exactly like Excel UI, no feature limitations
+- **Live Data Refresh** - Can refresh Power Query, connections, Data Model in real workbooks
+- **REPL Development** - Interactive development with immediate Excel feedback
+- **No File Format Restrictions** - Handles .xlsx, .xlsm, .xlsb, legacy formats
+
+**⚠️ Requirements:**
+- **Windows Only** - COM interop is Windows-specific technology
+- **Excel Installation Required** - Must have Microsoft Excel installed (2016 or later)
+- **Desktop Automation** - Controls actual Excel process (not suitable for server-side processing)
+
+**💡 When to Use:**
+- Excel development and automation workflows
+- Power Query/VBA/Data Model management
+- Interactive Excel operations with AI assistance
+- Version control integration for Excel code artifacts
+
+**❌ When NOT to Use:**
+- Server-side data processing (use file-based libraries instead)
+- Linux/macOS environments (Excel not available)
+- High-volume batch processing (consider Excel-free alternatives)
 
 ## 🚀 Quick Start
 
-Get started with AI-powered Excel development in under 2 minutes!
+**Requirements:** Windows OS + Microsoft Excel 2016+ + .NET SDK 10
 
-### **Option 1: Let Copilot Do Everything (Easiest!)**
-
-**Step 1: Enable ExcelMcp in Your Project**
-
-Download the Copilot instructions file:
-
-1. **Download:** [📄 excel-powerquery-vba-copilot-instructions.md](https://raw.githubusercontent.com/sbroenne/mcp-server-excel/main/instructions/excel-powerquery-vba-copilot-instructions.md) _(Right-click → Save As)_
-2. **Save to:** `YourProject/.github/excel-powerquery-vba-copilot-instructions.md`
-3. **Reload VS Code:** Press `Ctrl+Shift+P` → type "Reload Window" → press Enter
-
-> **Note:** Keep the filename as-is to avoid overwriting any existing `copilot-instructions.md` you may have. GitHub Copilot will read all `.md` files in the `.github/` folder.
-
-**Step 2: Ask Copilot to Set Up Everything**
-
-Just ask GitHub Copilot:
-
-```
-Set up my workspace for Excel MCP Server development. Check if .NET SDK 10 is installed, 
-install it if needed, then configure the Excel MCP Server.
-```
-
-Copilot will automatically:
-1. Check if .NET SDK 10 is installed
-2. Install it via winget if needed
-3. Create `.vscode/mcp.json` with the correct configuration
-4. Verify everything is ready
-
-### **Option 2: Manual Setup (3 Steps)**
-
-#### Step 1: Enable ExcelMcp in Your Project
-
-Download the Copilot instructions file:
-
-1. **Download:** [📄 excel-powerquery-vba-copilot-instructions.md](https://raw.githubusercontent.com/sbroenne/mcp-server-excel/main/instructions/excel-powerquery-vba-copilot-instructions.md) _(Right-click → Save As)_
-2. **Save to:** `YourProject/.github/excel-powerquery-vba-copilot-instructions.md`
-3. **Reload VS Code:** Press `Ctrl+Shift+P` → type "Reload Window" → press Enter
-
-> **Note:** Keep the filename as-is to avoid overwriting any existing `copilot-instructions.md` you may have. GitHub Copilot will read all `.md` files in the `.github/` folder.
-
-#### Step 2: Install .NET SDK (for dnx command)
+### 1. Install .NET 10 SDK - required for the "dnx" command
 
 ```powershell
 winget install Microsoft.DotNet.SDK.10
 ```
 
-> **Note:** The `dnx` (dotnet execute) command requires the .NET SDK to download and run NuGet tools. The MCP server itself targets .NET 8.0 runtime.
+### 2. Configure Your AI Assistant
 
-#### Step 3: Configure GitHub Copilot MCP Server
-
-Create or modify `.vscode/mcp.json` in your workspace:
+**For GitHub Copilot** - Create `.vscode/mcp.json` in your workspace:
 
 ```json
 {
@@ -90,23 +101,7 @@ Create or modify `.vscode/mcp.json` in your workspace:
 }
 ```
 
-That's it! The `dnx` command automatically downloads and runs the latest version when GitHub Copilot needs it.
-
-### **Verify Setup**
-
-Ask Copilot to confirm:
-
-```
-List all available Excel MCP tools
-```
-
-You should see 6 Excel resources listed (excel_file, excel_powerquery, excel_worksheet, excel_parameter, excel_cell, excel_vba).
-
-### **Alternative AI Assistants**
-
-**Claude Desktop Integration:**
-
-Add to your Claude Desktop MCP configuration:
+**For Claude Desktop** - Add to your MCP configuration:
 
 ```json
 {
@@ -119,124 +114,74 @@ Add to your Claude Desktop MCP configuration:
 }
 ```
 
-**Direct Command Line Testing:**
+### 3. Verify Setup
 
-```powershell
-# Test the MCP server directly
-dnx Sbroenne.ExcelMcp.McpServer --yes
+Ask your AI assistant:
+```
+List all available Excel MCP tools
 ```
 
-> **Note:** The MCP server will appear to "hang" after startup - this is expected behavior as it waits for MCP protocol messages from your AI assistant.
+You should see 10 Excel tools: `excel_file`, `excel_powerquery`, `excel_connection`, `excel_worksheet`, `excel_range`, `excel_parameter`, `excel_vba`, `excel_datamodel`, `table`, `excel_version`.
 
-## ✨ Key Features
+**That's it!** The `dnx` command automatically downloads and runs the latest MCP server version.
 
-- 🤖 **MCP Protocol Integration** - Native support for AI assistants through Model Context Protocol
-- �️ **Conversational Interface** - Natural language Excel operations with AI assistants
-- � **Resource-Based Architecture** - 6 structured tools instead of 40+ individual commands
-- � **AI-Assisted Development** - Power Query refactoring, VBA enhancement, code review
-- 🧠 **Smart Context Management** - AI assistants understand Excel development workflows
-- 💾 **Full Excel Integration** - Controls actual Excel application for complete feature access
-- �️ **Production Ready** - Enterprise-grade with security validation and robust error handling
-- 📈 **Development Focus** - Optimized for Excel development, not data processing workflows
+> 💡 **First-time Setup Helper:** Download [excel-powerquery-vba-copilot-instructions.md](https://raw.githubusercontent.com/sbroenne/mcp-server-excel/main/instructions/excel-powerquery-vba-copilot-instructions.md) and save to `YourProject/.github/` for AI assistant guidance, or ask GitHub Copilot to set up everything automatically.
 
-> 📚 **[Complete MCP Server Guide →](src/ExcelMcp.McpServer/README.md)** - Setup, configuration, and AI integration examples
+## 🔟 MCP Tools Overview
 
-## 📖 Documentation
+**10 specialized tools for comprehensive Excel automation:**
+
+1. **excel_powerquery** (11 actions) - Power Query M code: create, view, import, export, update, delete, manage load destinations, privacy levels
+2. **excel_datamodel** (15 actions) - Data Model & DAX: CRUD measures/relationships, discover structure, export to .dax files *[Phase 2: Full CRUD]*
+3. **table** (22 actions) - Excel Tables: lifecycle, columns, filters, sorts, structured references, totals, Data Model integration *[Phase 2: Advanced]*
+4. **excel_range** (30+ actions) - Ranges: get/set values/formulas, clear, copy, insert/delete, find/replace, sort, hyperlinks
+5. **excel_vba** (7 actions) - VBA: list, view, export, import, update, run, delete modules
+6. **excel_connection** (11 actions) - Connections: OLEDB/ODBC/Text/Web management, properties, refresh, test
+7. **excel_worksheet** (5 actions) - Worksheets: list, create, rename, copy, delete
+8. **excel_parameter** (6 actions) - Named ranges: list, get, set, create, delete, update
+9. **excel_file** (1 action) - File creation: create empty .xlsx/.xlsm workbooks
+10. **excel_version** (1 action) - Update checking from NuGet.org
+
+> 📚 **[Complete MCP Server Guide →](src/ExcelMcp.McpServer/README.md)** - Detailed tool documentation and examples
+
+---
+
+## 📋 Additional Information
+
+### CLI for Direct Automation
+
+ExcelMcp also provides a command-line interface for script-based Excel automation (no AI required):
+
+- **[ExcelMcp.CLI Guide](docs/CLI.md)** - Complete CLI documentation
+- **[Command Reference](docs/COMMANDS.md)** - All 50+ CLI commands
+- **Use Cases:** CI/CD pipelines, batch processing, scheduled tasks, PowerShell scripts
+
+### Documentation
 
 | Document | Description |
 |----------|-------------|
-| **[🚀 Quick Start Guide](instructions/excel-powerquery-vba-copilot-instructions.md)** | Complete guide for users - copy to `.github/copilot-instructions.md` in your projects |
-| **[🧠 MCP Server Guide](src/ExcelMcp.McpServer/README.md)** | MCP server setup and AI integration examples |
-| **[🔧 ExcelMcp.CLI](docs/CLI.md)** | Command-line interface for direct Excel automation |
-| **[📋 Command Reference](docs/COMMANDS.md)** | Complete reference for all 50+ CLI commands |
-| **[⚙️ Installation Guide](docs/INSTALLATION.md)** | Building from source and installation options |
-| **[🔧 Development Workflow](docs/DEVELOPMENT.md)** | Contributing guidelines and PR requirements |
-| **[📦 NuGet Publishing](docs/NUGET_TRUSTED_PUBLISHING.md)** | Trusted publishing setup for maintainers |
+| **[MCP Server Guide](src/ExcelMcp.McpServer/README.md)** | MCP setup, AI integration, examples |
+| **[CLI Guide](docs/CLI.md)** | Command-line interface for automation |
+| **[Command Reference](docs/COMMANDS.md)** | All 50+ CLI commands |
+| **[Installation Guide](docs/INSTALLATION.md)** | Building from source |
+| **[Development Workflow](docs/DEVELOPMENT.md)** | Contributing guidelines |
+| **[Copilot Instructions](instructions/excel-powerquery-vba-copilot-instructions.md)** | AI assistant setup guide |
 
-## 🎯 Excel Development Use Cases
+### Project Information
 
-### **Power Query Development**
+**License:** MIT License - see [LICENSE](LICENSE) file
 
-- **M Code Refactoring** - AI-assisted optimization of Power Query transformations
-- **Performance Analysis** - Identify and fix slow Power Query operations
-- **Code Review** - Analyze M code for best practices and improvements
-- **Version Control** - Export/import Power Query code for Git workflows
+**Contributing:** See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines
 
-### **Data Model & DAX Development**
+**Built With:** This entire project was developed using GitHub Copilot AI assistance
 
-- **Measure Management** - Create, update, view, export, and delete DAX measures with format types
-- **Relationship Management** - Create, update (toggle active status), list, and delete table relationships
-- **Data Model Inspection** - Explore tables, columns, record counts, and structure
-- **Model Discovery** - Get model overview statistics and detailed table information
-- **Code Review** - Analyze DAX formulas for performance and best practices
-- **Version Control** - Export DAX measures to files for Git workflows
+**Acknowledgments:**
+- Microsoft Excel Team - For comprehensive COM automation APIs
+- Model Context Protocol community - For the AI integration standard
+- Open Source Community - For inspiration and best practices
 
-**Phase 2 Enhancements** (NEW):
-- ✅ **CREATE Operations** - Create DAX measures with Currency, Decimal, Percentage, General formats
-- ✅ **UPDATE Operations** - Update measure formulas, formats, and descriptions
-- ✅ **Relationship CRUD** - Create relationships with active/inactive flags, toggle status
-- ✅ **Discovery APIs** - List columns, view table details, get model statistics
+---
 
-### **VBA Development & Enhancement**
+### SEO & Discovery
 
-- **Error Handling** - Add comprehensive try-catch patterns to VBA modules
-- **Code Quality** - Implement logging, input validation, and best practices
-- **Module Management** - Export, enhance, and import VBA code with AI assistance
-- **Testing & Debugging** - Automated testing workflows for Excel macros
-
-### **Excel Development Workflows**
-
-- **CI/CD Integration** - Automated Excel development testing and validation
-- **Code Templates** - Generate Excel workbook templates for development projects
-- **Development Environment** - Create and configure Excel files for coding workflows
-- **Documentation** - Generate code documentation and comments for Excel automation
-
-## ⚙️ System Requirements
-
-| Requirement | Details | Why Required |
-|-------------|---------|--------------|
-| **Windows OS** | Windows 10/11 or Server | COM interop is Windows-specific |
-| **Microsoft Excel** | Any recent version (2016+) | ExcelMcp controls the actual Excel application |
-| **.NET SDK** | `winget install Microsoft.DotNet.SDK.10` | Required for `dnx` command to download/execute NuGet tools |
-| **.NET 8.0 Runtime** | Automatically installed with SDK or via `winget install Microsoft.DotNet.Runtime.8` | MCP server targets .NET 8.0 |
-
-> **🚨 Critical:** ExcelMcp controls the actual running Excel application through COM interop, not just Excel file formats. This provides access to Excel's full feature set (Power Query engine, VBA runtime, formula calculations, charts, pivot tables) but requires Excel to be installed and available for automation.
-
-## 7️⃣ MCP Tools Overview
-
-The MCP server provides 8 focused resource-based tools for AI assistants:
-
-- **excel_file** - Excel file creation (1 action: create-empty) 🎯 *Only Excel-specific operations*
-- **excel_powerquery** - Power Query M code management (11 actions: list, view, import, export, update, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config)
-- **excel_connection** - Data connection management (11 actions: list, view, import, export, update, refresh, delete, loadto, properties, set-properties, test) 🔌 *OLEDB, ODBC, Text, Web connections*
-- **excel_worksheet** - Worksheet operations and bulk data handling (9 actions: list, read, write, create, rename, copy, delete, clear, append)
-- **excel_range** - Unified range operations (30+ actions: get-values, set-values, get-formulas, set-formulas, clear variants, copy operations, insert/delete, find/replace, sort, hyperlinks, discovery) 📊 *Replaces excel_cell*
-- **excel_parameter** - Named ranges as configuration parameters (5 actions: list, get, set, create, delete)
-- **excel_vba** - VBA macro management and execution (6 actions: list, export, import, update, run, delete)
-- **excel_datamodel** - Data Model & DAX operations (14 actions: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, list-columns, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship) 📈 *Phase 2: Full CRUD support*
-- **excel_version** - Check for updates on NuGet.org (1 action: check) ⚡ *Automatic startup check*
-
-> 🧠 **[Complete MCP Server Guide →](src/ExcelMcp.McpServer/README.md)** - Detailed MCP integration and AI examples
-
-## 🔗 Additional Tools
-
-- **[ExcelMcp.CLI](docs/CLI.md)** - Command-line interface for direct Excel automation
-- **[Command Reference](docs/COMMANDS.md)** - All 50+ CLI commands for script-based workflows
-
-## 🤝 Contributing
-
-We welcome contributions! See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.
-
-## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🏷️ **SEO & Discovery Tags**
-
-**MCP Server** | **Model Context Protocol** | **AI Excel Development** | **GitHub Copilot Excel** | **Excel MCP** | **Conversational Excel** | **AI Assistant Integration** | **Power Query AI** | **VBA AI Development** | **Excel Code Review** | **Excel COM Interop** | **Excel Development AI**
-
-## �🙏 Acknowledgments
-
-- **GitHub Copilot** - This entire project was developed using AI assistance
-- **Microsoft Excel Team** - For the comprehensive COM automation APIs
-- **Open Source Community** - For inspiration and best practices in CLI tool development
+`MCP Server` • `Model Context Protocol` • `Excel Automation` • `GitHub Copilot` • `AI Excel` • `Power Query` • `DAX Measures` • `Data Model` • `VBA Macros` • `Excel Tables` • `COM Interop` • `Windows Excel` • `Excel Development`
