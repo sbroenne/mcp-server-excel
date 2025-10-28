@@ -19,11 +19,9 @@ export default tseslint.config(
           format: ['camelCase', 'PascalCase']
         }
       ],
-      '@typescript-eslint/semi': 'warn',
       'curly': 'warn',
       'eqeqeq': 'warn',
-      'no-throw-literal': 'warn',
-      'semi': 'off'
+      'no-throw-literal': 'warn'
     }
   },
   {

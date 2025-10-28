@@ -34,12 +34,12 @@ export function activate(context: vscode.ExtensionContext) {
 	// Show welcome message on first activation
 	const hasShownWelcome = context.globalState.get<boolean>('excelmcp.hasShownWelcome', false);
 	if (!hasShownWelcome) {
-		showWelcomeMessage(context);
+		showWelcomeMessage();
 		context.globalState.update('excelmcp.hasShownWelcome', true);
 	}
 }
 
-function showWelcomeMessage(context: vscode.ExtensionContext) {
+function showWelcomeMessage() {
 	const message = 'ExcelMcp extension activated! The Excel MCP server is now available for AI assistants.';
 	const learnMore = 'Learn More';
 	const dontShowAgain = "Don't Show Again";
