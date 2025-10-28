@@ -109,6 +109,42 @@ jobs:
         Write-Output "🔗 Package will be available at: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer/$version"
       shell: pwsh
 
+    - name: Install MCP Publisher
+      run: |
+        Write-Output "Installing MCP Publisher CLI..."
+        $arch = if ([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture -eq "Arm64") { "arm64" } else { "amd64" }
+        Invoke-WebRequest -Uri "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_windows_$arch.tar.gz" -OutFile "mcp-publisher.tar.gz"
+        tar xf mcp-publisher.tar.gz mcp-publisher.exe
+        Remove-Item mcp-publisher.tar.gz
+        Write-Output "✓ MCP Publisher installed"
+      shell: pwsh
+
+    - name: Login to MCP Registry
+      run: |
+        Write-Output "Authenticating with MCP Registry using GitHub OIDC..."
+        ./mcp-publisher.exe login github-oidc
+        Write-Output "✓ Authenticated with MCP Registry"
+      shell: pwsh
+
+    - name: Publish to MCP Registry
+      run: |
+        $version = $env:PACKAGE_VERSION
+        Write-Output "Publishing to MCP Registry..."
+        Write-Output "Server name: io.github.sbroenne/mcp-server-excel"
+        Write-Output "Version: $version"
+        
+        # Navigate to MCP Server directory (where server.json is located)
+        Set-Location src/ExcelMcp.McpServer
+        
+        # Publish to registry
+        ../../mcp-publisher.exe publish
+        
+        Write-Output "🚀 Published to MCP Registry"
+        Write-Output "🔗 Server available at: https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel"
+      shell: pwsh
+      env:
+        PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
+
     - name: Create MCP Server Release Package
       run: |
         $version = $env:PACKAGE_VERSION
