@@ -299,4 +299,78 @@ public static class DataModelHelpers
             return 0;
         }
     }
+
+    /// <summary>
+    /// Finds a column in a model table by name (case-insensitive)
+    /// </summary>
+    /// <param name="table">Table COM object</param>
+    /// <param name="columnName">Column name to find</param>
+    /// <returns>Column COM object or null if not found</returns>
+    public static dynamic? FindModelTableColumn(dynamic table, string columnName)
+    {
+        dynamic? columns = null;
+        try
+        {
+            columns = table.ModelTableColumns;
+            int count = columns.Count;
+
+            for (int i = 1; i <= count; i++)
+            {
+                dynamic? column = null;
+                try
+                {
+                    column = columns.Item(i);
+                    string currentName = column.Name?.ToString() ?? "";
+
+                    if (currentName.Equals(columnName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return column;  // Don't release - caller will use it
+                    }
+                }
+                finally
+                {
+                    if (column != null)
+                    {
+                        ComUtilities.Release(ref column);
+                    }
+                }
+            }
+
+            return null;
+        }
+        finally
+        {
+            ComUtilities.Release(ref columns);
+        }
+    }
+
+    /// <summary>
+    /// Gets the appropriate format object from the model for measure creation
+    /// </summary>
+    /// <param name="model">Model COM object</param>
+    /// <param name="formatType">Format type (Currency, Decimal, Percentage, General)</param>
+    /// <returns>FormatInformation COM object or null for General format</returns>
+    public static dynamic? GetFormatObject(dynamic model, string? formatType)
+    {
+        if (string.IsNullOrEmpty(formatType) || formatType.Equals("General", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;  // General format (no format object needed)
+        }
+
+        try
+        {
+            return formatType.ToLowerInvariant() switch
+            {
+                "currency" => model.ModelFormatCurrency,
+                "decimal" => model.ModelFormatDecimalNumber,
+                "percentage" => model.ModelFormatPercentageNumber,
+                "wholenumber" => model.ModelFormatWholeNumber,
+                _ => null
+            };
+        }
+        catch
+        {
+            return null;  // Format not available in this Excel version
+        }
+    }
 }
