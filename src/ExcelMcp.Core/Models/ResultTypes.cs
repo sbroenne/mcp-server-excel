@@ -1268,6 +1268,151 @@ public class TableDataResult : ResultBase
     public int ColumnCount { get; set; }
 }
 
+/// <summary>
+/// Result for getting filter state of an Excel Table
+/// </summary>
+public class TableFilterResult : ResultBase
+{
+    /// <summary>
+    /// Name of the table
+    /// </summary>
+    public string TableName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Filter information for each column
+    /// </summary>
+    public List<ColumnFilter> ColumnFilters { get; set; } = new();
+
+    /// <summary>
+    /// Whether any filters are active
+    /// </summary>
+    public bool HasActiveFilters { get; set; }
+}
+
+/// <summary>
+/// Filter information for a table column
+/// </summary>
+public class ColumnFilter
+{
+    /// <summary>
+    /// Column name
+    /// </summary>
+    public string ColumnName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Column index (1-based)
+    /// </summary>
+    public int ColumnIndex { get; set; }
+
+    /// <summary>
+    /// Whether this column has an active filter
+    /// </summary>
+    public bool IsFiltered { get; set; }
+
+    /// <summary>
+    /// Filter criteria (if single criteria)
+    /// </summary>
+    public string? Criteria { get; set; }
+
+    /// <summary>
+    /// Filter values (if multiple values)
+    /// </summary>
+    public List<string>? FilterValues { get; set; }
+}
+
+/// <summary>
+/// Excel Table regions for structured references
+/// </summary>
+public enum TableRegion
+{
+    /// <summary>
+    /// Entire table including headers, data, and totals (TableName[#All])
+    /// </summary>
+    All,
+
+    /// <summary>
+    /// Data rows only, excluding headers and totals (TableName[#Data])
+    /// </summary>
+    Data,
+
+    /// <summary>
+    /// Header row only (TableName[#Headers])
+    /// </summary>
+    Headers,
+
+    /// <summary>
+    /// Totals row only (TableName[#Totals])
+    /// </summary>
+    Totals,
+
+    /// <summary>
+    /// This row in formula context (TableName[@])
+    /// </summary>
+    ThisRow
+}
+
+/// <summary>
+/// Result for getting structured reference information for a table region
+/// </summary>
+public class TableStructuredReferenceResult : ResultBase
+{
+    /// <summary>
+    /// Name of the table
+    /// </summary>
+    public string TableName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Table region requested
+    /// </summary>
+    public TableRegion Region { get; set; }
+
+    /// <summary>
+    /// Excel range address for the region (e.g., "$A$1:$D$100")
+    /// </summary>
+    public string RangeAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Structured reference formula (e.g., "SalesTable[#Data]")
+    /// </summary>
+    public string StructuredReference { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Sheet name where the table is located
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Column name (if requesting specific column reference)
+    /// </summary>
+    public string? ColumnName { get; set; }
+
+    /// <summary>
+    /// Number of rows in the region
+    /// </summary>
+    public int RowCount { get; set; }
+
+    /// <summary>
+    /// Number of columns in the region
+    /// </summary>
+    public int ColumnCount { get; set; }
+}
+
+/// <summary>
+/// Sort column specification for table sorting
+/// </summary>
+public class TableSortColumn
+{
+    /// <summary>
+    /// Column name to sort by
+    /// </summary>
+    public string ColumnName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether to sort in ascending order (true) or descending (false)
+    /// </summary>
+    public bool Ascending { get; set; } = true;
+}
+
 #endregion
 
 #region Hyperlink Results

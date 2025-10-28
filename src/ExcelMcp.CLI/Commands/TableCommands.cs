@@ -1,6 +1,7 @@
 using Spectre.Console;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands.Table;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -8,9 +9,9 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 /// Table management commands implementation for CLI
 /// Wraps Core commands and provides console formatting
 /// </summary>
-public class TableCommands : ITableCommands
+public class CliTableCommands : ITableCommands
 {
-    private readonly Core.Commands.TableCommands _coreCommands = new();
+    private readonly TableCommands _coreCommands = new();
 
     public int List(string[] args)
     {
@@ -427,59 +428,6 @@ public class TableCommands : ITableCommands
         }
     }
 
-    public int ReadData(string[] args)
-    {
-        if (args.Length < 3)
-        {
-            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
-            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-read <file.xlsx> <tableName>");
-            return 1;
-        }
-
-        string filePath = Path.GetFullPath(args[1]);
-        string tableName = args[2];
-
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ReadDataAsync(batch, tableName);
-        });
-        var result = task.GetAwaiter().GetResult();
-
-        if (result.Success)
-        {
-            if (result.Data == null || !result.Data.Any())
-            {
-                AnsiConsole.MarkupLine("[yellow]Table is empty[/]");
-                return 0;
-            }
-
-            var table = new Table();
-            
-            // Add headers
-            foreach (var header in result.Headers)
-            {
-                table.AddColumn(header);
-            }
-
-            // Add data rows
-            foreach (var row in result.Data)
-            {
-                table.AddRow(row.Select(cell => cell?.ToString() ?? "").ToArray());
-            }
-
-            AnsiConsole.Write(table);
-            AnsiConsole.MarkupLine($"\n[dim]{result.RowCount} rows, {result.ColumnCount} columns[/]");
-
-            return 0;
-        }
-        else
-        {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-            return 1;
-        }
-    }
-
     public int AppendRows(string[] args)
     {
         if (args.Length < 4)
@@ -494,10 +442,13 @@ public class TableCommands : ITableCommands
         string tableName = args[2];
         string csvData = args[3];
 
+        // Parse CSV to List<List<object?>>
+        var rows = ParseCsvToRows(csvData);
+
         var task = Task.Run(async () =>
         {
             await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.AppendRowsAsync(batch, tableName, csvData);
+            return await _coreCommands.AppendRowsAsync(batch, tableName, rows);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -515,6 +466,32 @@ public class TableCommands : ITableCommands
             AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
             return 1;
         }
+    }
+
+    /// <summary>
+    /// Parse CSV data into List of List of objects for table operations.
+    /// Simple CSV parser - assumes comma delimiter, handles quoted strings.
+    /// </summary>
+    private static List<List<object?>> ParseCsvToRows(string csvData)
+    {
+        var rows = new List<List<object?>>();
+        var lines = csvData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var line in lines)
+        {
+            var row = new List<object?>();
+            var values = line.Split(',');
+            
+            foreach (var value in values)
+            {
+                var trimmed = value.Trim().Trim('"');
+                row.Add(string.IsNullOrEmpty(trimmed) ? null : trimmed);
+            }
+            
+            rows.Add(row);
+        }
+
+        return rows;
     }
 
     public int SetStyle(string[] args)
@@ -598,7 +575,10 @@ public class TableCommands : ITableCommands
         }
     }
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> f6c5ae0 (feat: Phase 2 TableCommands - Structured References and Sorting)
 
     // === FILTER OPERATIONS ===
 
@@ -876,6 +856,7 @@ public class TableCommands : ITableCommands
             return 1;
         }
     }
+<<<<<<< HEAD
 
     #region Phase 2 Commands
 
@@ -1051,4 +1032,6 @@ public class TableCommands : ITableCommands
 
     #endregion
 >>>>>>> 51886ea (feat: Add CLI commands for Phase 2 TableCommands features)
+=======
+>>>>>>> f6c5ae0 (feat: Phase 2 TableCommands - Structured References and Sorting)
 }

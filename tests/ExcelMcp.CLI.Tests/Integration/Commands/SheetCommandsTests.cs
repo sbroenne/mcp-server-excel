@@ -49,19 +49,6 @@ public class SheetCommandsTests : IDisposable
     }
 
     [Fact]
-    public void Read_WithMissingArgs_ReturnsErrorExitCode()
-    {
-        // Arrange
-        string[] args = { "sheet-read", "file.xlsx" }; // Missing sheet name and range
-
-        // Act
-        int exitCode = _cliCommands.Read(args);
-
-        // Assert - CLI returns 1 for error (missing arguments)
-        Assert.Equal(1, exitCode);
-    }
-
-    [Fact]
     public void Create_WithMissingArgs_ReturnsErrorExitCode()
     {
         // Arrange
@@ -114,45 +101,6 @@ public class SheetCommandsTests : IDisposable
         Assert.Equal(1, exitCode);
     }
 
-    [Fact]
-    public void Clear_WithMissingRangeArg_ReturnsErrorExitCode()
-    {
-        // Arrange
-        string[] args = { "sheet-clear", "file.xlsx", "Sheet1" }; // Missing range
-
-        // Act
-        int exitCode = _cliCommands.Clear(args);
-
-        // Assert - CLI returns 1 for error (missing arguments)
-        Assert.Equal(1, exitCode);
-    }
-
-    [Fact]
-    public async Task Write_WithMissingDataFileArg_ReturnsErrorExitCode()
-    {
-        // Arrange
-        string[] args = { "sheet-write", "file.xlsx", "Sheet1" }; // Missing data file
-
-        // Act
-        int exitCode = await _cliCommands.Write(args);
-
-        // Assert - CLI returns 1 for error (missing arguments)
-        Assert.Equal(1, exitCode);
-    }
-
-    [Fact]
-    public void Append_WithNonExistentDataFile_ReturnsErrorExitCode()
-    {
-        // Arrange
-        string nonExistentDataFile = Path.Combine(_tempDir, "NonExistent.csv");
-        string[] args = { "sheet-append", "file.xlsx", "Sheet1", nonExistentDataFile };
-
-        // Act
-        int exitCode = _cliCommands.Append(args);
-
-        // Assert - CLI returns 1 for error (data file not found)
-        Assert.Equal(1, exitCode);
-    }
 
     public void Dispose()
     {

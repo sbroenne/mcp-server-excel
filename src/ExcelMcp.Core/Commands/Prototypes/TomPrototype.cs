@@ -1,4 +1,5 @@
 using Microsoft.AnalysisServices.Tabular;
+using TomTable = Microsoft.AnalysisServices.Tabular.Table;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Prototypes;
 
@@ -51,7 +52,7 @@ public class TomPrototype
                                 
                                 // Count measures across all tables
                                 int totalMeasures = 0;
-                                foreach (Table table in db.Model.Tables)
+                                foreach (TomTable table in db.Model.Tables)
                                 {
                                     totalMeasures += table.Measures.Count;
                                 }
@@ -119,7 +120,7 @@ public class TomPrototype
             Model model = db.Model;
 
             // Find table
-            Table? table = model.Tables.Find(tableName);
+            TomTable? table = model.Tables.Find(tableName);
             if (table == null)
             {
                 Console.WriteLine($"❌ Table '{tableName}' not found");
@@ -190,8 +191,8 @@ public class TomPrototype
             Model model = db.Model;
 
             // Find tables and columns
-            Table? fromTable = model.Tables.Find(fromTableName);
-            Table? toTable = model.Tables.Find(toTableName);
+            TomTable? fromTable = model.Tables.Find(fromTableName);
+            TomTable? toTable = model.Tables.Find(toTableName);
 
             if (fromTable == null || toTable == null)
             {
@@ -261,7 +262,7 @@ public class TomPrototype
         Console.WriteLine("  - Server: Connection to Analysis Services");
         Console.WriteLine("  - Database: Excel workbook Data Model");
         Console.WriteLine("  - Model: Contains tables, measures, relationships");
-        Console.WriteLine("  - Table: Data Model table");
+        Console.WriteLine("  - TomTable: Data Model table");
         Console.WriteLine("  - Column: Table column");
         Console.WriteLine("  - Measure: DAX measure");
         Console.WriteLine("  - Relationship: Table relationship");
