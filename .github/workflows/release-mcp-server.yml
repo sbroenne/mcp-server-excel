@@ -133,11 +133,11 @@ jobs:
         Write-Output "Server name: io.github.sbroenne/mcp-server-excel"
         Write-Output "Version: $version"
         
-        # Navigate to MCP Server directory (where server.json is located)
-        Set-Location src/ExcelMcp.McpServer
+        # Navigate to MCP Server .mcp directory (where server.json is located)
+        Set-Location src/ExcelMcp.McpServer/.mcp
         
         # Publish to registry
-        ../../mcp-publisher.exe publish
+        ../../../mcp-publisher.exe publish
         
         Write-Output "🚀 Published to MCP Registry"
         Write-Output "🔗 Server available at: https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel"
