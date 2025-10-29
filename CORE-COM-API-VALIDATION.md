@@ -312,35 +312,37 @@ listObjects.Add(
 - **Reference:** MS docs ListObjects.Add method
 - **Note:** Implementation uses this exact pattern (verified in existing code)
 
-**🔧 AddToDataModelAsync - FIXED** (TableCommands.DataModel.cs)
+**🔧 AddToDataModelAsync - FIXED (REQUIRES TESTING)** (TableCommands.DataModel.cs)
 
-**ISSUE IDENTIFIED:** Original implementation used `Connections.Add2()` with `CreateModelConnection=true`, which is NOT the documented Microsoft pattern.
+**ISSUE IDENTIFIED:** Original implementation used `Connections.Add2()` with `CreateModelConnection=true`, which is NOT the documented Microsoft VBA pattern.
 
-**CORRECT PATTERN per Microsoft docs:**
+**MICROSOFT VBA PATTERN:**
 1. Create a **legacy (non-model) WorkbookConnection** first
 2. Use `Model.AddConnection(legacyConnection)` to add it to the Data Model
 
-**Fixed Implementation:**
+**Fixed Implementation (COM Interop with dynamic):**
 ```csharp
 // Step 1: Create legacy connection (CreateModelConnection=false)
 legacyConnection = workbookConnections.Add2(
     Name: connectionName,
     Description: $"Excel Table: {tableName}",
-    ConnectionString: connectionString,
-    CommandText: tableName,
+    ConnectionString: $"WORKSHEET;{fullPath}",
+    CommandText: tableName, // Table name, not SQL
     lCmdtype: 2, // xlCmdDefault
     CreateModelConnection: false, // Create as legacy first
     ImportRelationships: false
 );
 
-// Step 2: Add to Data Model using documented approach
+// Step 2: Add to Data Model using VBA-documented approach
 dynamic? modelConnection = model.AddConnection(legacyConnection);
 ```
 
-- **Status:** FIXED - Now follows Microsoft official pattern
-- **Reference:** [Model.AddConnection method](https://learn.microsoft.com/en-us/office/vba/api/Excel.model.addconnection)
-- **Key Insight:** Model.AddConnection only works with legacy connections, fails with model connections
-- **Credit:** User @sbroenne identified the bug
+- **Status:** FIXED (pending integration test validation)
+- **Reference:** [Model.AddConnection VBA method](https://learn.microsoft.com/en-us/office/vba/api/Excel.model.addconnection)
+- **Key Insight:** Model.AddConnection only works with legacy connections per VBA docs
+- **COM Interop Note:** Using dynamic late binding gives access to same methods as VBA
+- **IMPORTANT:** This fix changes from one-step to two-step approach - requires actual Excel testing to confirm it works via COM interop (not just VBA)
+- **Credit:** User @sbroenne identified the bug and emphasized COM interop vs VBA distinction
 
 ---
 
