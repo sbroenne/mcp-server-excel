@@ -257,13 +257,14 @@ in
         // First create Excel file
         await CallExcelTool(server, "excel_file", new { action = "create-empty", excelPath = testFile });
 
-        // Act - Import Power Query
+        // Act - Import Power Query (with loadToWorksheet=false to avoid COM issues in test)
         var importResponse = await CallExcelTool(server, "excel_powerquery", new
         {
             action = "import",
             excelPath = testFile,
             queryName = queryName,
-            sourcePath = mCodeFile
+            sourcePath = mCodeFile,
+            loadToWorksheet = false  // Prevent Excel COM hanging in test environment
         });
 
         // Assert import succeeded
@@ -373,6 +374,18 @@ in
         Assert.NotNull(process);
 
         _serverProcess = process;
+
+        // CRITICAL: Consume stderr asynchronously to prevent buffer deadlock
+        // Without this, the server process can hang when stderr buffer fills up
+        process.ErrorDataReceived += (sender, e) =>
+        {
+            if (!string.IsNullOrEmpty(e.Data))
+            {
+                Console.WriteLine($"[MCP Server Error]: {e.Data}");
+            }
+        };
+        process.BeginErrorReadLine();
+
         return process;
     }
 

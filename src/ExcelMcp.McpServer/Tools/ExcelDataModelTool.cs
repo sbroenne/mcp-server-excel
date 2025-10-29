@@ -47,7 +47,7 @@ public static class ExcelDataModelTool
     /// Manage Excel Data Model (Power Pivot) - tables, measures, relationships
     /// </summary>
     [McpServerTool(Name = "excel_datamodel")]
-    [Description("Manage Excel Data Model operations. Phase 2 (COM API): list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, list-columns, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship. Phase 4 (TOM API): create-column, view-column, update-column, delete-column, validate-dax.")]
+    [Description("Manage Excel Data Model operations. Phase 2 (COM API): list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, list-columns, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship, create-column, view-column, update-column, delete-column, validate-dax.")]
     public static async Task<string> ExcelDataModel(
         [Required]
         [RegularExpression("^(list-tables|list-measures|view-measure|export-measure|list-relationships|refresh|delete-measure|delete-relationship|list-columns|view-table|get-model-info|create-measure|update-measure|create-relationship|update-relationship|create-column|view-column|update-column|delete-column|validate-dax)$")]
@@ -870,13 +870,13 @@ public static class ExcelDataModelTool
 
         // Add workflow guidance with batch mode awareness
         bool usedBatchMode = !string.IsNullOrEmpty(batchId);
-        
+
         if (result.Success)
         {
             result.SuggestedNextActions = Core.Commands.DataModel.DataModelWorkflowGuidance.GetNextStepsAfterCreateMeasure(
                 success: true,
                 usedBatchMode: usedBatchMode);
-            
+
             result.WorkflowHint = usedBatchMode
                 ? "Measure created in batch mode. Continue adding more measures to this batch."
                 : Core.Commands.DataModel.DataModelWorkflowGuidance.GetWorkflowHint("create-measure", true, usedBatchMode);

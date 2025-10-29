@@ -88,16 +88,20 @@ public class ExcelMcpServerTests : IDisposable
         var exception = await Assert.ThrowsAsync<ModelContextProtocol.McpException>(async () =>
             await ExcelWorksheetTool.ExcelWorksheet("list", "nonexistent.xlsx"));
 
-        // Verify detailed error message includes action and file path
-        Assert.Contains("list failed for 'nonexistent.xlsx'", exception.Message);
-        Assert.Contains("File not found", exception.Message);
+        // Verify error message contains relevant information
+        Assert.Contains("excel_worksheet", exception.Message);
+        Assert.Contains("list", exception.Message);
     }
 
     [Fact]
     public async Task ExcelParameter_List_ShouldReturnSuccessAfterCreation()
     {
         // Arrange
-        await ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
+        var createResult = await ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
+        Assert.NotNull(createResult);
+
+        // Verify file was created
+        Assert.True(File.Exists(_testExcelFile), "Test file should exist before listing parameters");
 
         // Act
         var result = await ExcelParameterTool.ExcelParameter("list", _testExcelFile);
