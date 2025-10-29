@@ -16,14 +16,10 @@ public partial class DataModelCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var result = await _dataModelCommands.ListMeasuresAsync(batch);
 
-        // Assert
-        Assert.True(result.Success || result.ErrorMessage?.Contains("does not contain a Data Model") == true,
-            $"Expected success or 'no Data Model' message, but got: {result.ErrorMessage}");
-
-        if (result.Success)
-        {
-            Assert.NotNull(result.Measures);
-        }
+        // Assert - Data Model is ALWAYS available in Excel 2013+
+        Assert.True(result.Success, 
+            $"ListMeasures MUST succeed - Data Model is always available in Excel 2013+. Error: {result.ErrorMessage}");
+        Assert.NotNull(result.Measures);
     }
 
     [Fact]
@@ -33,12 +29,13 @@ public partial class DataModelCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var result = await _dataModelCommands.ListMeasuresAsync(batch);
 
-        // Assert
-        Assert.True(result.Success || result.ErrorMessage?.Contains("does not contain a Data Model") == true,
-            $"Expected success or 'no Data Model' message, but got: {result.ErrorMessage}");
+        // Assert - Data Model is ALWAYS available in Excel 2013+
+        Assert.True(result.Success, 
+            $"ListMeasures MUST succeed - Data Model is always available in Excel 2013+. Error: {result.ErrorMessage}");
+        Assert.NotNull(result.Measures);
 
         // If Data Model was created successfully with measures, validate them
-        if (result.Success && result.Measures != null && result.Measures.Count > 0)
+        if (result.Measures.Count > 0)
         {
             // Should have at least Total Sales, Average Sale, Total Customers
             Assert.True(result.Measures.Count >= 3, $"Expected at least 3 measures, got {result.Measures.Count}");
@@ -67,14 +64,11 @@ public partial class DataModelCommandsTests
         var result = await _dataModelCommands.ViewMeasureAsync(batch, "NonExistentMeasure");
 
         // Assert
-        // Should fail with either "no Data Model" or "measure not found"
-        Assert.False(result.Success);
+        // Should fail because measure doesn't exist (Data Model is always available in Excel 2013+)
+        Assert.False(result.Success, "ViewMeasure should fail when measure doesn't exist");
         Assert.NotNull(result.ErrorMessage);
-        Assert.True(
-            result.ErrorMessage.Contains("does not contain a Data Model") ||
-            result.ErrorMessage.Contains("Measure 'NonExistentMeasure' not found"),
-            $"Expected 'no Data Model' or 'measure not found' error, but got: {result.ErrorMessage}"
-        );
+        Assert.True(result.ErrorMessage.Contains("Measure 'NonExistentMeasure' not found"), 
+            $"Expected 'measure not found' error, but got: {result.ErrorMessage}");
     }
 
     [Fact]
@@ -84,24 +78,15 @@ public partial class DataModelCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var result = await _dataModelCommands.ViewMeasureAsync(batch, "Total Sales");
 
-        // Assert - Should either succeed with valid DAX or indicate no Data Model
-        if (result.Success)
-        {
-            Assert.NotNull(result.DaxFormula);
-            Assert.Contains("SUM", result.DaxFormula, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Sales", result.DaxFormula);
-            Assert.Contains("Amount", result.DaxFormula);
-            Assert.Equal("Total Sales", result.MeasureName);
-        }
-        else
-        {
-            // If not successful, should be because Data Model wasn't created or measure doesn't exist
-            Assert.True(
-                result.ErrorMessage?.Contains("does not contain a Data Model") == true ||
-                result.ErrorMessage?.Contains("not found") == true,
-                $"Expected 'no Data Model' or 'not found', but got: {result.ErrorMessage}"
-            );
-        }
+        // Assert - Data Model is ALWAYS available in Excel 2013+
+        // If measure doesn't exist, it's because test fixture didn't create it (separate issue)
+        Assert.True(result.Success, 
+            $"ViewMeasure MUST succeed if measure exists. Error: {result.ErrorMessage}");
+        Assert.NotNull(result.DaxFormula);
+        Assert.Contains("SUM", result.DaxFormula, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Sales", result.DaxFormula);
+        Assert.Contains("Amount", result.DaxFormula);
+        Assert.Equal("Total Sales", result.MeasureName);
     }
 
     [Fact]
@@ -126,25 +111,16 @@ public partial class DataModelCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var result = await _dataModelCommands.ExportMeasureAsync(batch, "Total Sales", exportPath);
 
-        // Assert - Should either succeed or indicate no Data Model
-        if (result.Success)
-        {
-            Assert.True(File.Exists(exportPath), "DAX file should be created");
+        // Assert - Data Model is ALWAYS available in Excel 2013+
+        Assert.True(result.Success, 
+            $"ExportMeasure MUST succeed if measure exists. Error: {result.ErrorMessage}");
+        Assert.True(File.Exists(exportPath), "DAX file should be created");
 
-            var daxContent = File.ReadAllText(exportPath);
-            Assert.NotEmpty(daxContent);
-            Assert.Contains("SUM", daxContent, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Sales", daxContent);
-            Assert.Contains("Amount", daxContent);
-        }
-        else
-        {
-            Assert.True(
-                result.ErrorMessage?.Contains("does not contain a Data Model") == true ||
-                result.ErrorMessage?.Contains("not found") == true,
-                $"Expected 'no Data Model' or 'not found', but got: {result.ErrorMessage}"
-            );
-        }
+        var daxContent = File.ReadAllText(exportPath);
+        Assert.NotEmpty(daxContent);
+        Assert.Contains("SUM", daxContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Sales", daxContent);
+        Assert.Contains("Amount", daxContent);
     }
 
     [Fact(Skip = "Data Model test helper requires specific Excel version/configuration. May fail on some environments due to Data Model availability.")]
@@ -179,14 +155,11 @@ public partial class DataModelCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var result = await _dataModelCommands.DeleteMeasureAsync(batch, "NonExistentMeasure");
 
-        // Assert
-        Assert.False(result.Success);
+        // Assert - Should fail because measure doesn't exist (Data Model is always available in Excel 2013+)
+        Assert.False(result.Success, "DeleteMeasure should fail when measure doesn't exist");
         Assert.NotNull(result.ErrorMessage);
-        Assert.True(
-            result.ErrorMessage.Contains("does not contain a Data Model") ||
-            result.ErrorMessage.Contains("Measure 'NonExistentMeasure' not found"),
-            $"Expected 'no Data Model' or 'measure not found' error, but got: {result.ErrorMessage}"
-        );
+        Assert.True(result.ErrorMessage.Contains("Measure 'NonExistentMeasure' not found"), 
+            $"Expected 'measure not found' error, but got: {result.ErrorMessage}");
     }
 
     [Fact]
@@ -214,24 +187,16 @@ public partial class DataModelCommandsTests
         var result = await _dataModelCommands.CreateMeasureAsync(batch, "Sales", measureName, daxFormula);
         await batch.SaveAsync();
 
-        // Assert - Should either succeed or indicate no Data Model
-        if (result.Success)
-        {
-            Assert.NotNull(result.SuggestedNextActions);
-            Assert.Contains(result.SuggestedNextActions, s => s.Contains("created successfully"));
+        // Assert - Data Model is ALWAYS available in Excel 2013+
+        Assert.True(result.Success, 
+            $"CreateMeasure MUST succeed with valid parameters. Error: {result.ErrorMessage}");
+        Assert.NotNull(result.SuggestedNextActions);
+        Assert.Contains(result.SuggestedNextActions, s => s.Contains("created successfully"));
 
-            // Verify measure was created by listing measures
-            var listResult = await _dataModelCommands.ListMeasuresAsync(batch);
-            Assert.True(listResult.Success);
-            Assert.Contains(listResult.Measures, m => m.Name == measureName);
-        }
-        else
-        {
-            Assert.True(
-                result.ErrorMessage?.Contains("does not contain a Data Model") == true,
-                $"Expected 'no Data Model' error, but got: {result.ErrorMessage}"
-            );
-        }
+        // Verify measure was created by listing measures
+        var listResult = await _dataModelCommands.ListMeasuresAsync(batch);
+        Assert.True(listResult.Success);
+        Assert.Contains(listResult.Measures, m => m.Name == measureName);
     }
 
     [Fact]
@@ -247,48 +212,39 @@ public partial class DataModelCommandsTests
                                                                  formatType: "Currency", description: "Test measure with currency format");
         await batch.SaveAsync();
 
-        // Assert - Should either succeed or indicate no Data Model
-        if (result.Success)
-        {
-            Assert.NotNull(result.SuggestedNextActions);
+        // Assert - Data Model is ALWAYS available in Excel 2013+
+        Assert.True(result.Success, 
+            $"CreateMeasure with format MUST succeed. Error: {result.ErrorMessage}");
+        Assert.NotNull(result.SuggestedNextActions);
 
-            // Verify measure exists
-            var viewResult = await _dataModelCommands.ViewMeasureAsync(batch, measureName);
-            Assert.True(viewResult.Success);
-            Assert.Equal(measureName, viewResult.MeasureName);
-        }
-        else
-        {
-            Assert.True(
-                result.ErrorMessage?.Contains("does not contain a Data Model") == true,
-                $"Expected 'no Data Model' error, but got: {result.ErrorMessage}"
-            );
-        }
+        // Verify measure exists
+        var viewResult = await _dataModelCommands.ViewMeasureAsync(batch, measureName);
+        Assert.True(viewResult.Success);
+        Assert.Equal(measureName, viewResult.MeasureName);
     }
 
     [Fact]
     public async Task CreateMeasure_WithDuplicateName_ReturnsError()
     {
-        // Arrange - First create a measure
+        // Arrange - First create a measure (MUST succeed - Data Model is always available in Excel 2013+)
         var measureName = "DuplicateTest_" + Guid.NewGuid().ToString("N")[..8];
         var daxFormula = "SUM(Sales[Amount])";
 
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var firstResult = await _dataModelCommands.CreateMeasureAsync(batch, "Sales", measureName, daxFormula);
+        
+        Assert.True(firstResult.Success, 
+            $"First CreateMeasure MUST succeed. Error: {firstResult.ErrorMessage}");
+        await batch.SaveAsync();
 
-        if (firstResult.Success)
-        {
-            await batch.SaveAsync();
+        // Act - Try to create same measure again
+        var duplicateResult = await _dataModelCommands.CreateMeasureAsync(batch, "Sales", measureName, daxFormula);
 
-            // Act - Try to create same measure again
-            var duplicateResult = await _dataModelCommands.CreateMeasureAsync(batch, "Sales", measureName, daxFormula);
-
-            // Assert - Should fail with duplicate error
-            Assert.False(duplicateResult.Success);
-            Assert.NotNull(duplicateResult.ErrorMessage);
-            Assert.Contains("already exists", duplicateResult.ErrorMessage);
-            Assert.NotNull(duplicateResult.SuggestedNextActions);
-        }
+        // Assert - Should fail with duplicate error
+        Assert.False(duplicateResult.Success);
+        Assert.NotNull(duplicateResult.ErrorMessage);
+        Assert.Contains("already exists", duplicateResult.ErrorMessage);
+        Assert.NotNull(duplicateResult.SuggestedNextActions);
     }
 
     [Fact]
@@ -298,14 +254,11 @@ public partial class DataModelCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var result = await _dataModelCommands.CreateMeasureAsync(batch, "NonExistentTable", "TestMeasure", "1+1");
 
-        // Assert
-        Assert.False(result.Success);
+        // Assert - Should fail because table doesn't exist (Data Model is always available in Excel 2013+)
+        Assert.False(result.Success, "CreateMeasure should fail when table doesn't exist");
         Assert.NotNull(result.ErrorMessage);
-        Assert.True(
-            result.ErrorMessage.Contains("does not contain a Data Model") ||
-            result.ErrorMessage.Contains("Table 'NonExistentTable' not found"),
-            $"Expected 'no Data Model' or 'table not found' error, but got: {result.ErrorMessage}"
-        );
+        Assert.True(result.ErrorMessage.Contains("Table 'NonExistentTable' not found"),
+            $"Expected 'table not found' error, but got: {result.ErrorMessage}");
     }
 
     [Fact]
@@ -409,13 +362,10 @@ public partial class DataModelCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var result = await _dataModelCommands.UpdateMeasureAsync(batch, "NonExistentMeasure", daxFormula: "1+1");
 
-        // Assert
-        Assert.False(result.Success);
+        // Assert - Should fail because measure doesn't exist (Data Model is always available in Excel 2013+)
+        Assert.False(result.Success, "UpdateMeasure should fail when measure doesn't exist");
         Assert.NotNull(result.ErrorMessage);
-        Assert.True(
-            result.ErrorMessage.Contains("does not contain a Data Model") ||
-            result.ErrorMessage.Contains("Measure 'NonExistentMeasure' not found"),
-            $"Expected 'no Data Model' or 'measure not found' error, but got: {result.ErrorMessage}"
-        );
+        Assert.True(result.ErrorMessage.Contains("Measure 'NonExistentMeasure' not found"),
+            $"Expected 'measure not found' error, but got: {result.ErrorMessage}");
     }
 }

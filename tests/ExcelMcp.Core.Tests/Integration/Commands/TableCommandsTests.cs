@@ -408,6 +408,15 @@ public class TableCommandsTests : IDisposable
 
     #region Data Model Tests
 
+    /// <summary>
+    /// ⚠️ TODO: DELETE THIS TEST - IT'S BROKEN!
+    /// This test is fundamentally flawed because it accepts both success AND failure.
+    /// The AddToDataModelAsync feature is completely non-functional (wrong API usage),
+    /// but this test passes because it accepts "environment" failures.
+    ///
+    /// See: specs/TABLE-DATAMODEL-ISSUE-ANALYSIS.md for details
+    /// See: tests/ExcelMcp.Core.Tests/Integration/Commands/TableAddToDataModelTests.cs for proper tests
+    /// </summary>
     [Fact]
     public async Task AddToDataModelAsync_WithValidTable_ShouldSucceedOrProvideReasonableError()
     {
