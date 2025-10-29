@@ -89,7 +89,7 @@ Control Power Query M code, Data Models with DAX measures, VBA macros, Excel Tab
 3. **Click Install**
 4. **Done!** Extension automatically:
    - Installs .NET 8 runtime (via .NET Install Tool)
-   - Installs ExcelMcp MCP server tool
+   - Includes bundled ExcelMcp MCP server (no separate installation needed)
    - Registers MCP server for AI assistants
    - Shows welcome message with quick start guide
 
@@ -105,7 +105,7 @@ You should see 10 Excel tools available immediately!
 
 **For non-VS Code environments or manual setup:**
 
-**1. Install .NET 8 SDK and the MCP server tool**
+**Option A: Global Tool Installation**
 
 ```powershell
 # Install .NET 8 SDK
@@ -114,6 +114,10 @@ winget install Microsoft.DotNet.SDK.8
 # Install ExcelMcp MCP server as a global tool
 dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 ```
+
+**Option B: Standalone Executable**
+
+Download the standalone MCP server executable from [Releases](https://github.com/sbroenne/mcp-server-excel/releases) (no .NET SDK required, just .NET 8 runtime).
 
 **2. Configure Your AI Assistant**
 
@@ -130,6 +134,18 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 }
 ```
 
+*Or with standalone executable:*
+```json
+{
+  "servers": {
+    "excel": {
+      "command": "path/to/Sbroenne.ExcelMcp.McpServer.exe",
+      "args": []
+    }
+  }
+}
+```
+
 **For Claude Desktop** - Add to your MCP configuration:
 
 ```json
@@ -138,6 +154,18 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
     "excel": {
       "command": "dotnet",
       "args": ["tool", "run", "mcp-excel"]
+    }
+  }
+}
+```
+
+*Or with standalone executable:*
+```json
+{
+  "mcpServers": {
+    "excel": {
+      "command": "path/to/Sbroenne.ExcelMcp.McpServer.exe",
+      "args": []
     }
   }
 }

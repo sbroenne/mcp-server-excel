@@ -68,7 +68,46 @@ npm run lint         # Run ESLint
 npm run package      # Create VSIX package
 ```
 
+## Building Bundled Executable
+
+The extension includes a self-contained MCP server executable. To update it:
+
+```bash
+# 1. Navigate to MCP server project
+cd d:\source\mcp-server-excel\src\ExcelMcp.McpServer
+
+# 2. Publish self-contained executable for Windows x64
+dotnet publish -c Release -r win-x64 --self-contained -o ../../vscode-extension/bin
+
+# 3. Verify the executable works
+../../vscode-extension/bin/Sbroenne.ExcelMcp.McpServer.exe --help
+```
+
+This creates a self-contained executable with all dependencies included.
+
 ## Testing
+
+### Prerequisites for Testing
+
+The extension uses a bundled MCP server executable. For development testing:
+
+The extension uses a bundled MCP server executable. For development testing:
+
+```bash
+# Option 1: Use bundled executable (matches production)
+# - Extension will use: extension-path/bin/Sbroenne.ExcelMcp.McpServer.exe
+# - No additional setup needed
+
+# Option 2: Test with local development version
+# - Build and publish the MCP server as shown above
+# - Extension automatically uses the bundled version
+
+# Verify bundled executable works
+cd vscode-extension
+bin/Sbroenne.ExcelMcp.McpServer.exe --help
+```
+
+**Why this approach**: The extension uses a bundled MCP server executable. During development, you can use the local version or test with the bundled executable.
 
 ### Manual Testing
 
@@ -79,10 +118,21 @@ npm run package      # Create VSIX package
 
 2. **Press F5 in VS Code** (opens Extension Development Host)
 
-3. **In the Extension Development Host**:
+3. **Check the Debug Console** for activation logs:
+   - ✅ `ExcelMcp extension is now active`
+   - ✅ `ExcelMcp: .NET runtime available at ...`
+   - ✅ `ExcelMcp: MCP server tool installation/update initiated`
+   - ❌ NO errors about "Cannot read properties of undefined"
+
+4. **In the Extension Development Host**:
    - Check if extension is loaded: Extensions panel
    - Check if MCP server is registered: Settings → MCP
    - Ask GitHub Copilot to list Excel tools
+
+5. **Check Developer Tools Console** (Ctrl+Shift+I):
+   - Go to Console tab
+   - Look for "ExcelMcp:" messages
+   - Verify no errors
 
 ### Package Testing
 
@@ -286,19 +336,23 @@ When VS Code releases new API features:
 - Verify extension ID matches registration
 
 **MCP server not found**
-- Ensure `dotnet tool run mcp-excel` command works
+- Ensure bundled executable exists in `bin/` directory
 - Check .NET 8 Runtime is installed
-- Verify NuGet package is available
+- Verify bundled executable has all required dependencies
 
-## Extension Size Optimization
+## Extension Size 
 
-Current size: **9 KB** (very small!)
+Current size: **~41 MB** (includes bundled MCP server executable)
 
-Ways to keep it small:
-- ✅ Use `--no-dependencies` when packaging (only include compiled code)
-- ✅ Use `.vscodeignore` to exclude source files
-- ✅ No runtime dependencies (uses dotnet tool)
-- ✅ Minimal icon size (1 KB)
+The extension includes:
+- Main extension code (~10 KB)
+- Bundled .NET 8 self-contained MCP server (~41 MB)
+
+Benefits of bundled approach:
+- ✅ Zero-setup installation (no separate tool download required)
+- ✅ Version compatibility guaranteed (extension includes matching MCP server)
+- ✅ Works offline after installation
+- ✅ No dependency on dotnet tool installations
 
 ## Future Enhancements
 
