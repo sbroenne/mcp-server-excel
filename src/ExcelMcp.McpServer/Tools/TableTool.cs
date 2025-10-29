@@ -17,12 +17,14 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Use "info" to get detailed information about a table
 /// - Use "rename" to change table names
 /// - Use "delete" to remove tables (converts back to range, data preserved)
+/// - Use "add-to-datamodel" to add a table to Power Pivot Data Model
 ///
 /// IMPORTANT:
 /// - Excel Tables provide AutoFilter, structured references ([@Column]), dynamic expansion, and visual formatting
 /// - Tables can be used standalone OR referenced in Power Query: Excel.CurrentWorkbook(){[Name="TableName"]}[Content]
 /// - Table names must start with a letter/underscore, contain only alphanumeric and underscore characters
 /// - Deleting a table converts it back to a range but preserves data
+/// - For comprehensive Power Pivot operations (DAX measures, relationships, calculated columns), use excel_datamodel tools
 /// </summary>
 [McpServerToolType]
 public static class TableTool
@@ -31,7 +33,7 @@ public static class TableTool
     /// Manage Excel Tables (ListObjects) - comprehensive table management including Power Pivot integration
     /// </summary>
     [McpServerTool(Name = "excel_table")]
-    [Description("Manage Excel Tables (ListObjects). Tables provide AutoFilter, structured references, dynamic expansion, and visual formatting. Can be used standalone or referenced in Power Query. Supports: list, create, info, rename, delete, resize, toggle-totals, set-column-total, append, set-style, add-to-datamodel, apply-filter, apply-filter-values, clear-filters, get-filters, add-column, remove-column, rename-column, get-structured-reference, sort, sort-multi.")]
+    [Description("Manage Excel Tables (ListObjects). Tables provide AutoFilter, structured references, dynamic expansion, and visual formatting. Can be used standalone or referenced in Power Query. Use 'add-to-datamodel' action to add existing tables to Power Pivot. For Power Pivot workflows: create table here → use excel_powerquery to load external data to Power Pivot → use excel_datamodel/excel_powerpivot for DAX measures and relationships. Supports: list, create, info, rename, delete, resize, toggle-totals, set-column-total, append, set-style, add-to-datamodel, apply-filter, apply-filter-values, clear-filters, get-filters, add-column, remove-column, rename-column, get-structured-reference, sort, sort-multi.")]
     public static async Task<string> Table(
         [Required]
         [RegularExpression("^(list|create|info|rename|delete|resize|toggle-totals|set-column-total|append|set-style|add-to-datamodel|apply-filter|apply-filter-values|clear-filters|get-filters|add-column|remove-column|rename-column|get-structured-reference|sort|sort-multi)$")]
@@ -424,13 +426,13 @@ public static class TableTool
         {
             var row = new List<object?>();
             var values = line.Split(',');
-            
+
             foreach (var value in values)
             {
                 var trimmed = value.Trim().Trim('"');
                 row.Add(string.IsNullOrEmpty(trimmed) ? null : trimmed);
             }
-            
+
             rows.Add(row);
         }
 

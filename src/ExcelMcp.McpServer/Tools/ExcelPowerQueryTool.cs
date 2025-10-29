@@ -20,8 +20,8 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Use "refresh" to refresh query data from source
 /// - Use "delete" to remove queries
 /// - Use "set-load-to-table" to load query data to worksheet (validates M code via execution)
-/// - Use "set-load-to-data-model" to load to Excel's data model
-/// - Use "set-load-to-both" to load to both table and data model
+/// - Use "set-load-to-data-model" to load to Excel's Power Pivot (Data Model)
+/// - Use "set-load-to-both" to load to both table and Power Pivot
 /// - Use "set-connection-only" to prevent data loading (M code not validated)
 /// - Use "get-load-config" to check current loading configuration
 ///
@@ -29,6 +29,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Import DEFAULT behavior: Automatically loads to worksheet (validates M code by executing it)
 /// - Validation = Execution: Power Query M code is only validated when data is actually loaded/refreshed
 /// - Connection-only queries are NOT validated until first execution via set-load-to-table or refresh
+/// - For Power Pivot operations beyond loading data (DAX measures, relationships), use excel_datamodel or excel_powerpivot tools
 /// </summary>
 [McpServerToolType]
 public static class ExcelPowerQueryTool
@@ -37,7 +38,7 @@ public static class ExcelPowerQueryTool
     /// Manage Power Query operations - M code, data loading, and query lifecycle
     /// </summary>
     [McpServerTool(Name = "excel_powerquery")]
-    [Description("Manage Power Query M code and data loading. Supports: list, view, import, export, update, refresh, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config. Optional batchId for batch sessions.")]
+    [Description("Manage Power Query M code and data loading. Primary tool for loading data into Power Pivot: use 'set-load-to-data-model' action to add data to Power Pivot (Data Model). Supports: list, view, import, export, update, refresh, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config. After loading data to Power Pivot, use excel_datamodel or excel_powerpivot tools for DAX measures and relationships. Optional batchId for batch sessions.")]
     public static async Task<string> ExcelPowerQuery(
         [Required]
         [RegularExpression("^(list|view|import|export|update|refresh|delete|set-load-to-table|set-load-to-data-model|set-load-to-both|set-connection-only|get-load-config)$")]
