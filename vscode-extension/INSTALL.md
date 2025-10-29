@@ -179,11 +179,16 @@ This creates `excelmcp-1.0.0.vsix` which can be installed in VS Code.
 
 ## Publishing
 
-The extension is currently distributed via GitHub releases. To publish to the VS Code Marketplace:
+The extension is **automatically published** to the VS Code Marketplace via GitHub Actions when a version tag is pushed (e.g., `vscode-v1.0.0`). 
 
-1. Get a publisher account from [Visual Studio Marketplace](https://marketplace.visualstudio.com/)
-2. Generate a Personal Access Token
-3. Run: `npx @vscode/vsce publish`
+The release workflow automatically:
+- ✅ Updates the version number in `package.json`
+- ✅ Updates `CHANGELOG.md` with the release date
+- ✅ Publishes to VS Code Marketplace
+- ✅ Creates a GitHub release with the VSIX file
+
+**Manual Publishing** (if needed):
+See [MARKETPLACE-PUBLISHING.md](MARKETPLACE-PUBLISHING.md) for manual publishing instructions and setup details.
 
 ## License
 

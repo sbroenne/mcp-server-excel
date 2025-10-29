@@ -28,17 +28,17 @@ jobs:
       run: |
         TAG_NAME="${{ github.ref_name }}"
         VERSION="${TAG_NAME#vscode-v}"
-        
+
         echo "Updating VS Code extension to version $VERSION"
-        
+
         # Update package.json version
         cd vscode-extension
         npm version "$VERSION" --no-git-tag-version
-        
+
         # Update CHANGELOG.md
         DATE=$(date +%Y-%m-%d)
         sed -i "s/## \[Unreleased\]/## [$VERSION] - $DATE/" CHANGELOG.md || true
-        
+
         echo "Updated extension version to $VERSION"
         echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
       shell: bash
@@ -62,15 +62,15 @@ jobs:
       run: |
         cd vscode-extension
         npx @vscode/vsce package --no-dependencies --allow-missing-repository
-        
+
         VERSION="${{ env.PACKAGE_VERSION }}"
         VSIX_FILE="excelmcp-${VERSION}.vsix"
-        
+
         # Rename if needed
         if [ -f "excelmcp-*.vsix" ]; then
           mv excelmcp-*.vsix "$VSIX_FILE"
         fi
-        
+
         echo "Created $VSIX_FILE"
         ls -lh "$VSIX_FILE"
         echo "VSIX_PATH=vscode-extension/$VSIX_FILE" >> $GITHUB_ENV
@@ -84,70 +84,52 @@ jobs:
       continue-on-error: true
       id: publishToMarketplace
 
-    - name: Publish to Open VSX Registry
-      uses: HaaLeo/publish-vscode-extension@v2
-      with:
-        pat: ${{ secrets.OPEN_VSX_TOKEN }}
-        extensionFile: ${{ env.VSIX_PATH }}
-      continue-on-error: true
-      id: publishToOpenVSX
-
     - name: Create GitHub Release
       run: |
         TAG_NAME="${{ github.ref_name }}"
         VERSION="${{ env.PACKAGE_VERSION }}"
         VSIX_FILE="${{ env.VSIX_PATH }}"
-        
+
         # Check marketplace publishing results
         MARKETPLACE_STATUS="❌ Not published"
-        OPENVSX_STATUS="❌ Not published"
-        
+
         if [ "${{ steps.publishToMarketplace.outcome }}" == "success" ]; then
           MARKETPLACE_STATUS="✅ Published to VS Code Marketplace"
         fi
-        
-        if [ "${{ steps.publishToOpenVSX.outcome }}" == "success" ]; then
-          OPENVSX_STATUS="✅ Published to Open VSX Registry"
-        fi
-        
+
         # Create release notes
         cat > release_notes.md << EOF
         ## ExcelMcp VS Code Extension $TAG_NAME
-        
+
         ### One-Click Excel MCP Server Installation for VS Code
-        
+
         This extension automatically registers the ExcelMcp MCP server with VS Code, enabling AI assistants like GitHub Copilot to control Microsoft Excel through 10 specialized tools.
-        
+
         ### Installation Options
-        
+
         **Option 1: VS Code Marketplace (Recommended)**
         - Search for "ExcelMcp" in VS Code Extensions
         - Click Install
         - Extension auto-installs .NET 8 runtime and MCP server tool
-        
+
         **Option 2: Manual VSIX Install**
         - Download \`excelmcp-${VERSION}.vsix\` below
         - In VS Code: \`Ctrl+Shift+P\` → "Install from VSIX"
         - Select the downloaded VSIX file
-        
-        **Option 3: Open VSX Registry**
-        - For VS Codium and other Open VSX-compatible editors
-        - Search for "ExcelMcp" in extensions
-        
+
         ### Publishing Status
-        
+
         - $MARKETPLACE_STATUS
-        - $OPENVSX_STATUS
-        
+
         ### Key Features
         - ✅ **Zero Configuration** - Automatic MCP server registration
         - ✅ **Automatic .NET Installation** - Uses .NET Install Tool extension
         - ✅ **Automatic Tool Installation** - Installs ExcelMcp MCP server on activation
         - ✅ **Works Everywhere** - All VS Code workspaces, no per-workspace config
         - ✅ **10 Excel Tools** - 108+ actions for Excel automation
-        
+
         ### Excel Tools Available (108+ actions)
-        
+
         1. **excel_powerquery** (11 actions) - Power Query M code management
         2. **excel_datamodel** (20 actions) - DAX measures & Data Model
         3. **table** (22 actions) - Excel Tables/ListObjects
@@ -158,55 +140,54 @@ jobs:
         8. **excel_parameter** (6 actions) - Named ranges
         9. **excel_file** (1 action) - File creation
         10. **excel_version** (1 action) - Update checking
-        
+
         ### Requirements
-        
+
         - **Windows OS** - Excel COM automation requires Windows
         - **Microsoft Excel 2016+** - Must be installed on your system
         - **.NET 8 Runtime** - **Automatically installed** by the extension
         - **VS Code 1.105.0+** - For MCP support
-        
+
         ### Benefits vs Manual Configuration
-        
+
         Before (Manual):
         - ❌ Install .NET 8 SDK manually
         - ❌ Run \`dotnet tool install\` command
         - ❌ Create \`.vscode/mcp.json\` manually
         - ❌ Error-prone JSON editing
         - ❌ Per-workspace setup
-        
+
         After (Extension):
         - ✅ One-click install from Marketplace
         - ✅ .NET runtime auto-installed
         - ✅ MCP server tool auto-installed
         - ✅ Works in all workspaces
         - ✅ Welcome message guides users
-        
+
         ### Documentation
-        
+
         - [Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/vscode-extension/INSTALL.md)
         - [Developer Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/vscode-extension/DEVELOPMENT.md)
         - [Main Repository](https://github.com/sbroenne/mcp-server-excel)
-        
+
         ### Package Details
-        
+
         - **Size**: ~22 KB
         - **Files**: 16 total in VSIX
         - **Dependencies**: ms-dotnettools.vscode-dotnet-runtime (auto-installs .NET 8)
         - **License**: MIT
         EOF
-        
+
         # Create the release
         gh release create "$TAG_NAME" \
           "$VSIX_FILE" \
           --title "ExcelMcp VS Code Extension $TAG_NAME" \
           --notes-file release_notes.md
-        
+
         echo "✅ Released ExcelMcp VS Code Extension $VERSION"
         echo "📦 Package: excelmcp-${VERSION}.vsix"
         echo "🔗 Release: https://github.com/sbroenne/mcp-server-excel/releases/tag/$TAG_NAME"
         echo "📊 Marketplace: $MARKETPLACE_STATUS"
-        echo "📊 Open VSX: $OPENVSX_STATUS"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       shell: bash

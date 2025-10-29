@@ -102,44 +102,25 @@ npm run package      # Create VSIX package
 
 ## Publishing
 
-### Marketplace Publishing
-
-1. **Create publisher account**: https://marketplace.visualstudio.com/
-2. **Generate PAT**: https://dev.azure.com
-3. **Login**: `npx @vscode/vsce login <publisher>`
-4. **Publish**: `npx @vscode/vsce publish`
-
-### GitHub Releases
-
-1. **Tag version**: `git tag v1.0.0`
-2. **Push tag**: `git push --tags`
-3. **Create release** on GitHub
-4. **Upload VSIX** as release asset
-
-## Publishing
-
 ### Automated Publishing (Recommended)
 
-The extension is automatically published to both marketplaces when a version tag is pushed:
+The extension is automatically published to the VS Code Marketplace when a version tag is pushed:
 
 ```bash
-# 1. Update version in package.json and CHANGELOG.md
-npm version patch  # or minor, or major
-
-# 2. Commit changes
-git add .
-git commit -m "Bump version to X.Y.Z"
-
-# 3. Create and push tag
+# 1. Create and push tag (workflow updates version automatically)
 git tag vscode-vX.Y.Z
-git push && git push --tags
+git push --tags
 ```
 
-The GitHub Actions workflow will:
-- Build and package the extension
-- Publish to VS Code Marketplace (if `VSCE_TOKEN` secret is configured)
-- Publish to Open VSX Registry (if `OPEN_VSX_TOKEN` secret is configured)
-- Create GitHub release with VSIX file
+The GitHub Actions workflow will automatically:
+- ✅ **Extract version from tag** (e.g., `vscode-v1.0.0` → `1.0.0`)
+- ✅ **Update package.json version** using `npm version` (no manual editing needed)
+- ✅ **Update CHANGELOG.md** with release date
+- ✅ **Build and package the extension**
+- ✅ **Publish to VS Code Marketplace** (if `VSCE_TOKEN` secret is configured)
+- ✅ **Create GitHub release** with VSIX file
+
+**Important**: The workflow manages version numbers - you don't need to manually update `package.json` before tagging.
 
 See [MARKETPLACE-PUBLISHING.md](MARKETPLACE-PUBLISHING.md) for setup instructions.
 
@@ -151,12 +132,6 @@ See [MARKETPLACE-PUBLISHING.md](MARKETPLACE-PUBLISHING.md) for setup instruction
 2. **Generate PAT**: https://dev.azure.com (Marketplace Manage scope)
 3. **Login**: `npx @vscode/vsce login <publisher>`
 4. **Publish**: `npx @vscode/vsce publish`
-
-#### Open VSX Registry
-
-1. **Create account**: https://open-vsx.org
-2. **Generate token**: https://open-vsx.org/user-settings/tokens
-3. **Publish**: `npx ovsx publish -p <token>`
 
 #### GitHub Releases Only
 
@@ -170,14 +145,35 @@ npm run package
 
 ## Versioning
 
+**Automatic Version Management** (Recommended):
+The release workflow automatically updates version numbers from git tags:
+
+```bash
+# Just create and push the tag - workflow does the rest
+git tag vscode-v1.2.3
+git push --tags
+```
+
+The workflow will:
+- Extract version from tag (`vscode-v1.2.3` → `1.2.3`)
+- Update `package.json` version
+- Update `CHANGELOG.md` with release date
+
+**Manual Version Updates** (if needed):
+If you need to update the version locally before tagging:
+
+```bash
+npm version patch   # Bumps 1.0.0 → 1.0.1
+npm version minor   # Bumps 1.0.0 → 1.1.0
+npm version major   # Bumps 1.0.0 → 2.0.0
+```
+
 Follow Semantic Versioning (SemVer):
 - **Major**: Breaking changes
 - **Minor**: New features
 - **Patch**: Bug fixes
 
-Update version in:
-- `package.json`
-- `CHANGELOG.md`
+**Important**: Don't manually edit version numbers in `package.json` - use either git tags (for releases) or `npm version` commands (for local testing).
 
 ## Maintenance
 
