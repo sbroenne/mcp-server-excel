@@ -49,16 +49,14 @@ jobs:
 
     - name: Build Bundled MCP Server
       run: |
-        Write-Output "Building self-contained MCP Server executable for Windows x64"
+        Write-Output "Building framework-dependent MCP Server executable"
         
         # Ensure bin directory exists
         New-Item -ItemType Directory -Path "vscode-extension/bin" -Force
         
-        # Publish self-contained executable
+        # Publish framework-dependent executable (works on both x64 and ARM64 with .NET runtime)
         dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj `
           -c Release `
-          -r win-x64 `
-          --self-contained `
           -o "vscode-extension/bin" `
           --verbosity minimal
 
@@ -66,11 +64,13 @@ jobs:
         $exePath = "vscode-extension/bin/Sbroenne.ExcelMcp.McpServer.exe"
         if (Test-Path $exePath) {
           $fileInfo = Get-Item $exePath
-          Write-Output "✅ Created bundled executable: $($fileInfo.Name) ($([math]::Round($fileInfo.Length / 1MB, 2)) MB)"
+          Write-Output "✅ Created framework-dependent executable: $($fileInfo.Name) ($([math]::Round($fileInfo.Length / 1MB, 2)) MB)"
         } else {
-          Write-Error "❌ Failed to create bundled executable at $exePath"
+          Write-Error "❌ Failed to create executable at $exePath"
           exit 1
         }
+        
+        Write-Output "✅ Built framework-dependent executable (works on x64 and ARM64 with .NET runtime)"
       shell: pwsh
 
     - name: Update Extension Version
@@ -223,8 +223,8 @@ jobs:
 
         ### Package Details
 
-        - **Size**: ~41 MB (includes bundled MCP server executable)
-        - **Files**: Extension code + self-contained .NET 8 MCP server
+        - **Size**: ~28 MB (includes framework-dependent MCP server executable)
+        - **Files**: Extension code + .NET framework-dependent MCP server
         - **Dependencies**: ms-dotnettools.vscode-dotnet-runtime (auto-installs .NET 8)
         - **License**: MIT
         EOF
