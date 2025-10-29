@@ -242,41 +242,44 @@ public static class ErrorCodes
 
 ---
 
-### 5. **Progress/Status System** (MEDIUM PRIORITY)
+### 5. **~~Progress/Status System~~** (NOT FEASIBLE)
 
 **Problem**: Long-running operations (refresh, import) provide no feedback.
 
-**Solution**: Implement progress notifications
+**Proposed Solution**: Implement progress notifications
 
-**MCP SDK Support**:
+**⚠️ LIMITATION**: **Cannot implement** - Excel COM Interop does not provide progress callbacks during operations like `QueryTable.Refresh()`, `Connection.Refresh()`, or workbook saves. These operations are synchronous blocking calls with no intermediate progress reporting.
+
+**Alternative Approach**: Operation status messages
 ```csharp
 [McpServerTool]
 public async Task<string> RefreshPowerQuery(
     string excelPath,
-    string queryName,
-    IProgress<ProgressNotification>? progress = null)
+    string queryName)
 {
-    progress?.Report(new ProgressNotification 
-    { 
-        Message = $"Refreshing query '{queryName}'...", 
-        Progress = 0.3 
-    });
+    var startTime = DateTime.UtcNow;
     
+    // No progress callbacks available - COM blocks until complete
     await RefreshQuery(excelPath, queryName);
     
-    progress?.Report(new ProgressNotification 
-    { 
-        Message = $"Query refreshed successfully", 
-        Progress = 1.0 
+    var duration = DateTime.UtcNow - startTime;
+    
+    return JsonSerializer.Serialize(new
+    {
+        success = true,
+        message = $"Query '{queryName}' refreshed successfully",
+        performance = new { durationMs = duration.TotalMilliseconds }
     });
 }
 ```
 
-**Benefits**:
-- **LLM awareness** - Knows operation is in progress
-- **User feedback** - Can show status to users
-- **Timeout management** - LLMs can decide when to abort
-- **Better UX** - Users see what's happening
+**What we CAN provide**:
+- ✅ **Start/completion messages** - "Operation started", "Operation completed"
+- ✅ **Performance metrics** - Operation duration in response
+- ✅ **Timeout estimates** - Document typical operation times in tool descriptions
+- ❌ **Real-time progress** - Not available from Excel COM API
+
+**Recommendation**: Mark long-running operations in tool descriptions with estimated durations (e.g., "Refresh typically takes 5-30 seconds depending on data volume")
 
 ---
 
@@ -382,8 +385,9 @@ public static string GetCapabilities()
 6. Capability discovery tool
 
 ### Phase 3 (Future - 5-7 days)
-7. Progress notifications (requires MCP SDK support investigation)
+7. ~~Progress notifications~~ (NOT FEASIBLE - COM Interop limitation)
 8. Advanced resource templates (query schemas, table metadata)
+9. Performance metrics in responses (operation duration, etc.)
 
 ---
 
@@ -460,12 +464,14 @@ These improvements leverage MCP SDK capabilities to make ExcelMcp more LLM-frien
 2. **Sampling** - Let LLMs preview data
 3. **Rich descriptions** - Self-documenting tools
 4. **Structured errors** - Programmatic error handling
-5. **Progress** - Feedback on long operations
+5. ~~**Progress**~~ - ~~Feedback on long operations~~ (NOT FEASIBLE - COM limitation)
 6. **Batch summaries** - Clear reporting
 7. **Capabilities** - Version-aware introspection
 
-**Implementation cost**: ~7-10 days total  
+**Implementation cost**: ~5-7 days total (reduced from 7-10 days)  
 **Value to LLMs**: Significantly improved workflow efficiency  
 **Backward compatibility**: 100% (all additions, no breaking changes)
+
+**COM Interop Constraint**: Excel COM API does not provide progress callbacks during operations. Alternative: Include operation duration metrics in responses and estimated times in tool descriptions.
 
 **Recommendation**: Start with Phase 1 (quick wins) to validate approach, then proceed with Phase 2.
