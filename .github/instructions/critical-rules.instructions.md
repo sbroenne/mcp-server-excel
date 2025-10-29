@@ -70,6 +70,53 @@ dotnet test --filter "RunType=OnDemand"              # All must pass
 
 ---
 
+## Rule 8: Check for COM Object Leaks Before Commit
+
+**Run COM leak detection script before every commit:**
+
+```bash
+& "scripts\check-com-leaks.ps1"
+```
+
+**Requirements:**
+- ✅ Script must report 0 leak files
+- ✅ All files with `dynamic ... = ...COM...` must have `ComUtilities.Release()`
+- ⚠️ Exception: Session management files (ExcelBatch.cs, ExcelSession.cs)
+
+### How to Fix COM Leaks
+
+```csharp
+// ❌ WRONG - COM objects never released
+dynamic connections = workbook.Connections;
+dynamic conn = connections.Item(1);
+// Objects leak when method exits
+
+// ✅ CORRECT - Proper COM cleanup
+dynamic connections = null!;
+try 
+{
+    connections = workbook.Connections;
+    dynamic conn = null!;
+    try 
+    {
+        conn = connections.Item(1);
+        // Use objects...
+    }
+    finally 
+    {
+        ComUtilities.Release(ref conn!);
+    }
+}
+finally 
+{
+    ComUtilities.Release(ref connections!);
+}
+```
+
+**Why:** COM object leaks cause Excel process memory bloat and eventual system instability.
+
+---
+
 ## Rule 5: All Changes Via Pull Requests
 
 **NEVER commit directly to `main` branch.**

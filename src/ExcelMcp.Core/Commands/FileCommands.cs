@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop;
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
 
@@ -67,21 +68,34 @@ public class FileCommands : IFileCommands
 
             return await ExcelSession.CreateNewAsync<OperationResult>(filePath, isMacroEnabled, async (ctx, ct) =>
             {
-                // Set up a basic structure
-                dynamic sheet = ctx.Book.Worksheets.Item(1);
-                sheet.Name = "Sheet1";
+                // Set up a basic structure with proper COM cleanup
+                dynamic? sheet = null;
+                dynamic? cell = null;
+                dynamic? comment = null;
 
-                // Add a comment to indicate this was created by ExcelCLI
-                dynamic cell = sheet.Range["A1"];
-                dynamic comment = cell.AddComment($"Created by ExcelCLI on {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                comment.Visible = false;
-
-                return new OperationResult
+                try
                 {
-                    Success = true,
-                    FilePath = filePath,
-                    Action = "create-empty"
-                };
+                    sheet = ctx.Book.Worksheets.Item(1);
+                    sheet.Name = "Sheet1";
+
+                    // Add a comment to indicate this was created by ExcelCLI
+                    cell = sheet.Range["A1"];
+                    comment = cell.AddComment($"Created by ExcelCLI on {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                    comment.Visible = false;
+
+                    return new OperationResult
+                    {
+                        Success = true,
+                        FilePath = filePath,
+                        Action = "create-empty"
+                    };
+                }
+                finally
+                {
+                    ComUtilities.Release(ref comment);
+                    ComUtilities.Release(ref cell);
+                    ComUtilities.Release(ref sheet);
+                }
             });
         }
         catch (Exception ex)
@@ -105,7 +119,7 @@ public class FileCommands : IFileCommands
 
             // Check if file exists
             bool exists = File.Exists(filePath);
-            
+
             // Get file extension
             string extension = exists ? Path.GetExtension(filePath).ToLowerInvariant() : "";
 
@@ -126,7 +140,7 @@ public class FileCommands : IFileCommands
             return await Task.FromResult(new FileValidationResult
             {
                 Success = exists && isValidExtension,
-                ErrorMessage = !exists ? $"File not found: {filePath}" 
+                ErrorMessage = !exists ? $"File not found: {filePath}"
                     : !isValidExtension ? $"Invalid file extension. Expected .xlsx or .xlsm, got {extension}"
                     : null,
                 FilePath = filePath,
