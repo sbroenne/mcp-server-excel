@@ -24,6 +24,55 @@ jobs:
       with:
         node-version: '20'
 
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Update MCP Server Version
+      run: |
+        $tagName = "${{ github.ref_name }}"
+        $version = $tagName -replace '^vscode-v', ''
+
+        Write-Output "Updating MCP Server to version $version for bundled executable"
+
+        # Update MCP Server project version
+        $mcpCsprojPath = "src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj"
+        $mcpContent = Get-Content $mcpCsprojPath -Raw
+        $mcpContent = $mcpContent -replace '<Version>[\d\.]+</Version>', "<Version>$version</Version>"
+        $mcpContent = $mcpContent -replace '<AssemblyVersion>[\d\.]+\.[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
+        $mcpContent = $mcpContent -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
+        Set-Content $mcpCsprojPath $mcpContent
+
+        Write-Output "Updated MCP Server project to version $version"
+      shell: pwsh
+
+    - name: Build Bundled MCP Server
+      run: |
+        Write-Output "Building self-contained MCP Server executable for Windows x64"
+        
+        # Ensure bin directory exists
+        New-Item -ItemType Directory -Path "vscode-extension/bin" -Force
+        
+        # Publish self-contained executable
+        dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained `
+          -o "vscode-extension/bin" `
+          --verbosity minimal
+
+        # Verify the executable was created
+        $exePath = "vscode-extension/bin/Sbroenne.ExcelMcp.McpServer.exe"
+        if (Test-Path $exePath) {
+          $fileInfo = Get-Item $exePath
+          Write-Output "✅ Created bundled executable: $($fileInfo.Name) ($([math]::Round($fileInfo.Length / 1MB, 2)) MB)"
+        } else {
+          Write-Error "❌ Failed to create bundled executable at $exePath"
+          exit 1
+        }
+      shell: pwsh
+
     - name: Update Extension Version
       run: |
         TAG_NAME="${{ github.ref_name }}"
@@ -112,7 +161,7 @@ jobs:
         **Option 1: VS Code Marketplace (Recommended)**
         - Search for "ExcelMcp" in VS Code Extensions
         - Click Install
-        - Extension auto-installs .NET 8 runtime and MCP server tool
+        - Extension auto-installs .NET 8 runtime and includes bundled MCP server
 
         **Option 2: Manual VSIX Install**
         - Download \`excelmcp-${VERSION}.vsix\` below
@@ -125,8 +174,8 @@ jobs:
 
         ### Key Features
         - ✅ **Zero Configuration** - Automatic MCP server registration
-        - ✅ **Automatic .NET Installation** - Uses .NET Install Tool extension
-        - ✅ **Automatic Tool Installation** - Installs ExcelMcp MCP server on activation
+        - ✅ **Automatic .NET Installation** - Uses .NET Install Tool extension  
+        - ✅ **Bundled MCP Server** - No separate tool installation required
         - ✅ **Works Everywhere** - All VS Code workspaces, no per-workspace config
         - ✅ **10 Excel Tools** - 108+ actions for Excel automation
 
@@ -162,7 +211,7 @@ jobs:
         After (Extension):
         - ✅ One-click install from Marketplace
         - ✅ .NET runtime auto-installed
-        - ✅ MCP server tool auto-installed
+        - ✅ MCP server bundled with extension
         - ✅ Works in all workspaces
         - ✅ Welcome message guides users
 
@@ -174,8 +223,8 @@ jobs:
 
         ### Package Details
 
-        - **Size**: ~22 KB
-        - **Files**: 16 total in VSIX
+        - **Size**: ~41 MB (includes bundled MCP server executable)
+        - **Files**: Extension code + self-contained .NET 8 MCP server
         - **Dependencies**: ms-dotnettools.vscode-dotnet-runtime (auto-installs .NET 8)
         - **License**: MIT
         EOF
