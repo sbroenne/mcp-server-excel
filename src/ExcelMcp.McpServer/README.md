@@ -1,6 +1,7 @@
 # ExcelMcp Model Context Protocol (MCP) Server
 
 <!-- mcp-name: io.github.sbroenne/mcp-server-excel -->
+mcp-name: io.github.sbroenne/mcp-server-excel
 
 [![NuGet](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
