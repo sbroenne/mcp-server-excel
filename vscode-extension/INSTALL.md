@@ -69,7 +69,7 @@
    - excel_worksheet
    - excel_parameter
    - excel_file
-   - excel_version
+   - excel_table
 
 ---
 
@@ -109,7 +109,7 @@ The MCP server provides **10 specialized tools**:
 7. **excel_worksheet** - Worksheet lifecycle (5 actions)
 8. **excel_parameter** - Named ranges (6 actions)
 9. **excel_file** - File creation (1 action)
-10. **excel_version** - Update checking (1 action)
+9. **excel_table** - Excel Tables (ListObjects) management (22 actions)
 
 ## Troubleshooting
 

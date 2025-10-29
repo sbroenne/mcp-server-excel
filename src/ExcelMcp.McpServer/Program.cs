@@ -21,7 +21,6 @@ namespace Sbroenne.ExcelMcp.McpServer;
 /// - excel_connection: Manage Excel connections (OLEDB, ODBC, Text, Web)
 /// - excel_data_model: Manage Data Model (tables, measures, relationships)
 /// - excel_table: Manage Excel Tables (ListObjects)
-/// - excel_version: Check for updates on NuGet.org
 /// - begin_excel_batch/commit_excel_batch: Batch session management for multi-operation workflows
 ///
 /// Performance Optimization:
@@ -39,30 +38,6 @@ public class Program
         builder.Logging.AddConsole(consoleLogOptions =>
         {
             consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
-        });
-
-        // Check for updates on startup (non-blocking)
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                var checker = new VersionChecker();
-                var result = await checker.CheckForUpdatesAsync("Sbroenne.ExcelMcp.McpServer");
-
-                if (result.Success && result.IsOutdated)
-                {
-                    // Log warning to stderr for MCP protocol compliance
-                    Console.Error.WriteLine($"⚠️  WARNING: ExcelMcp update available!");
-                    Console.Error.WriteLine($"   Current version: {result.CurrentVersion}");
-                    Console.Error.WriteLine($"   Latest version:  {result.LatestVersion}");
-                    Console.Error.WriteLine($"   The dnx command automatically downloads the latest version.");
-                    Console.Error.WriteLine($"   Restart VS Code to update to the new version.");
-                }
-            }
-            catch
-            {
-                // Silently ignore version check failures on startup
-            }
         });
 
         // MCP Server architecture:

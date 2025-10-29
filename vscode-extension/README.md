@@ -129,7 +129,7 @@ The ExcelMcp MCP server provides **10 specialized tools** with 100+ operations:
 | **excel_worksheet** | 5 actions | Create, rename, copy, delete sheets |
 | **excel_parameter** | 6 actions | Named range management |
 | **excel_file** | 1 action | Create Excel workbooks |
-| **excel_version** | 1 action | Check for updates |
+| **excel_table** | 22 actions | Excel Tables management |
 
 ## Troubleshooting
 
