@@ -13,6 +13,12 @@ name: Release MCP Server
 # - Owner: sbroenne
 # - Repository: mcp-server-excel
 # - Workflow: release-mcp-server.yml
+#
+# MCP Registry Publishing:
+# - MCP Registry steps use continue-on-error to ensure NuGet publishing succeeds
+# - If MCP Registry validation fails, the workflow continues and completes
+# - Check "MCP Registry Status" step output for publishing status
+# - NuGet package is always published regardless of MCP Registry status
 
 on:
   push:
@@ -109,7 +115,57 @@ jobs:
         Write-Output "🔗 Package will be available at: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer/$version"
       shell: pwsh
 
+    - name: Wait for NuGet Package Propagation
+      run: |
+        $version = $env:PACKAGE_VERSION
+        $packageId = "sbroenne.excelmcp.mcpserver"
+        $readmeUrl = "https://api.nuget.org/v3-flatcontainer/$packageId/$version/readme"
+        
+        Write-Output "Waiting for NuGet CDN to propagate package README..."
+        Write-Output "Checking: $readmeUrl"
+        
+        $maxAttempts = 12  # 12 attempts * 15 seconds = 3 minutes max
+        $attempt = 0
+        $found = $false
+        
+        while ($attempt -lt $maxAttempts -and -not $found) {
+          $attempt++
+          Write-Output "Attempt $attempt of $maxAttempts..."
+          
+          try {
+            $response = Invoke-WebRequest -Uri $readmeUrl -UseBasicParsing -ErrorAction SilentlyContinue
+            if ($response.StatusCode -eq 200) {
+              $content = $response.Content
+              if ($content -match "mcp-name:\s+io\.github\.sbroenne/mcp-server-excel") {
+                Write-Output "✅ README found and contains mcp-name validation string!"
+                $found = $true
+              } else {
+                Write-Output "⚠️ README found but mcp-name string not detected yet"
+              }
+            }
+          } catch {
+            Write-Output "README not yet available (expected during propagation)"
+          }
+          
+          if (-not $found -and $attempt -lt $maxAttempts) {
+            Write-Output "Waiting 15 seconds before next check..."
+            Start-Sleep -Seconds 15
+          }
+        }
+        
+        if ($found) {
+          Write-Output "✅ NuGet package README is propagated and ready for MCP Registry validation"
+        } else {
+          Write-Output "⚠️ README propagation taking longer than expected, but continuing..."
+          Write-Output "   MCP Registry publish may need to be retried manually if validation fails"
+        }
+      shell: pwsh
+      env:
+        PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
+
     - name: Install MCP Publisher
+      id: install-mcp-publisher
+      continue-on-error: true
       run: |
         Write-Output "Installing MCP Publisher CLI..."
         $arch = if ([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture -eq "Arm64") { "arm64" } else { "amd64" }
@@ -120,6 +176,9 @@ jobs:
       shell: pwsh
 
     - name: Login to MCP Registry
+      id: login-mcp-registry
+      continue-on-error: true
+      if: steps.install-mcp-publisher.outcome == 'success'
       run: |
         Write-Output "Authenticating with MCP Registry using GitHub OIDC..."
         ./mcp-publisher.exe login github-oidc
@@ -127,23 +186,80 @@ jobs:
       shell: pwsh
 
     - name: Publish to MCP Registry
+      id: publish-mcp-registry
+      continue-on-error: true
+      if: steps.login-mcp-registry.outcome == 'success'
       run: |
         $version = $env:PACKAGE_VERSION
+        $packageId = "sbroenne.excelmcp.mcpserver"
+        
         Write-Output "Publishing to MCP Registry..."
         Write-Output "Server name: io.github.sbroenne/mcp-server-excel"
+        Write-Output "Package ID: $packageId"
         Write-Output "Version: $version"
+        Write-Output ""
+        
+        # Verify README is accessible before publishing
+        $readmeUrl = "https://api.nuget.org/v3-flatcontainer/$packageId/$version/readme"
+        Write-Output "Pre-publish verification:"
+        Write-Output "Checking README at: $readmeUrl"
+        
+        try {
+          $readmeContent = Invoke-WebRequest -Uri $readmeUrl -UseBasicParsing | Select-Object -ExpandProperty Content
+          if ($readmeContent -match "mcp-name:\s+io\.github\.sbroenne/mcp-server-excel") {
+            Write-Output "✅ README contains mcp-name validation string"
+          } else {
+            Write-Output "⚠️ README found but mcp-name string not detected - publishing may fail validation"
+          }
+        } catch {
+          Write-Output "⚠️ Could not verify README accessibility - publishing may fail validation"
+        }
+        
+        Write-Output ""
+        Write-Output "Proceeding with MCP Registry publish..."
         
         # Navigate to MCP Server .mcp directory (where server.json is located)
         Set-Location src/ExcelMcp.McpServer/.mcp
         
-        # Publish to registry
-        ../../../mcp-publisher.exe publish
+        # Publish to registry (verbose mode for debugging)
+        ../../../mcp-publisher.exe publish --verbose
         
         Write-Output "🚀 Published to MCP Registry"
         Write-Output "🔗 Server available at: https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel"
       shell: pwsh
       env:
         PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
+
+    - name: MCP Registry Status
+      if: always()
+      run: |
+        Write-Output "========================================"
+        Write-Output "MCP Registry Publishing Status Summary"
+        Write-Output "========================================"
+        
+        $installStatus = "${{ steps.install-mcp-publisher.outcome }}"
+        $loginStatus = "${{ steps.login-mcp-registry.outcome }}"
+        $publishStatus = "${{ steps.publish-mcp-registry.outcome }}"
+        
+        Write-Output "Install MCP Publisher: $installStatus"
+        Write-Output "Login to MCP Registry: $loginStatus"
+        Write-Output "Publish to MCP Registry: $publishStatus"
+        Write-Output ""
+        
+        if ($publishStatus -eq "success") {
+          Write-Output "✅ MCP Registry publishing succeeded!"
+          Write-Output "🔗 Server available at: https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel"
+        } else {
+          Write-Output "⚠️ MCP Registry publishing did not complete successfully"
+          Write-Output "   This does not affect NuGet package availability"
+          Write-Output "   NuGet package: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer"
+          Write-Output ""
+          Write-Output "   Known issue: MCP Registry validation may fail despite correct README format"
+          Write-Output "   See: https://github.com/sbroenne/mcp-server-excel/issues/XXX"
+        }
+        
+        Write-Output "========================================"
+      shell: pwsh
 
     - name: Create MCP Server Release Package
       run: |
