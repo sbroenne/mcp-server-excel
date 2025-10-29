@@ -2,7 +2,7 @@
   "name": "excelmcp",
   "displayName": "ExcelMcp - MCP Server for Excel",
   "description": "Excel automation MCP server - Power Query, DAX, VBA, Tables, Ranges & more via AI assistants",
-  "version": "1.0.0",
+  "version": "1.1.2",
   "publisher": "sbroenne",
   "icon": "icon.png",
   "repository": {
