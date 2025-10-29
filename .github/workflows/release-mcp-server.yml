@@ -124,7 +124,7 @@ jobs:
         Write-Output "Waiting for NuGet CDN to propagate package README..."
         Write-Output "Checking: $readmeUrl"
         
-        $maxAttempts = 12  # 12 attempts * 15 seconds = 3 minutes max
+        $maxAttempts = 60  # 60 attempts * 15 seconds = 15 minutes max (minimum required for NuGet propagation)
         $attempt = 0
         $found = $false
         
