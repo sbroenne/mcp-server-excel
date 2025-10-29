@@ -56,12 +56,12 @@ Ask GitHub Copilot to manage Power Query M code, DAX measures, VBA macros, Excel
 
 1. **Install this extension** (you just did!)
 2. **Open a workspace** with Excel files or create a new one
-3. **Ask Copilot** in the chat panel:
-   - `@workspace List all Power Query queries in workbook.xlsx`
-   - `@workspace Create a new Excel file with sample data`
-   - `@workspace Export all DAX measures to version control`
+3. **Ask Copilot** in the chat panel - just ask naturally:
+   - "List all Power Query queries in workbook.xlsx"
+   - "Create a new Excel file with sample data"
+   - "Export all DAX measures to version control"
 
-**That's it!** The extension automatically installs .NET 8 runtime and the MCP server. No manual configuration needed.
+**That's it!** The extension automatically installs .NET 8 runtime and the MCP server. Copilot automatically uses the ExcelMcp tools when you ask Excel-related questions.
 
 ## Common Use Cases
 
