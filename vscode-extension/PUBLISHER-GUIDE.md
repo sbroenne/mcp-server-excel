@@ -121,7 +121,6 @@ This guide walks you through publishing your VS Code extension to the marketplac
    - It will:
      - Build the extension
      - Publish to VS Code Marketplace
-     - Publish to Open VSX Registry
      - Create GitHub release
 
 6. **Verify publication** (takes 5-15 minutes):
@@ -242,22 +241,6 @@ git push origin vscode-v1.0.1
 
 ---
 
-## Open VSX Registry (Optional)
-
-Open VSX is an alternative marketplace used by VS Codium, Gitpod, etc.
-
-**Setup is similar but simpler:**
-
-1. **Create account**: https://open-vsx.org (sign in with GitHub)
-2. **Generate token**: https://open-vsx.org/user-settings/tokens
-3. **Create namespace**: https://open-vsx.org/admin/create-namespace
-   - Namespace: `sbroenne` (matches publisher)
-4. **Add GitHub secret**: `OPEN_VSX_TOKEN` with the token
-
-The same workflow will publish to both marketplaces!
-
----
-
 ## Security Best Practices
 
 1. **Never commit tokens** to Git (use GitHub secrets only)
@@ -273,7 +256,6 @@ The same workflow will publish to both marketplaces!
 - **VS Code Publishing Docs**: https://code.visualstudio.com/api/working-with-extensions/publishing-extension
 - **Azure DevOps PAT Docs**: https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate
 - **Marketplace Publisher Portal**: https://marketplace.visualstudio.com/manage
-- **Open VSX Docs**: https://github.com/eclipse/openvsx/wiki/Publishing-Extensions
 
 ---
 

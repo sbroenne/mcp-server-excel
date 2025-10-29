@@ -1,7 +1,7 @@
 {
   "name": "excelmcp",
   "displayName": "ExcelMcp - MCP Server for Excel",
-  "description": "Excel automation MCP server - Power Query, DAX, VBA, Tables, Ranges via AI assistants",
+  "description": "Excel automation MCP server - Power Query, DAX, VBA, Tables, Ranges & more via AI assistants",
   "version": "1.0.0",
   "publisher": "sbroenne",
   "icon": "icon.png",
@@ -17,20 +17,34 @@
   "engines": {
     "vscode": "^1.105.0"
   },
+  "os": [
+    "win32"
+  ],
   "categories": [
     "AI",
-    "Other"
+    "Chat",
+    "Data Science"
   ],
   "keywords": [
     "mcp",
     "model context protocol",
     "excel",
+    "microsoft",
+    "office",
+    "spreadsheet",
     "automation",
     "power query",
+    "m language",
     "dax",
+    "data model",
+    "power pivot",
     "vba",
+    "macro",
+    "table",
     "copilot",
-    "ai"
+    "ai",
+    "github copilot",
+    "data analysis"
   ],
   "activationEvents": [
     "onStartupFinished"

@@ -94,8 +94,8 @@ vscode-extension/
 ### MCP Server Definition
 ```typescript
 ✅ Uses vscode.McpStdioServerDefinition
-✅ Command: "dnx"
-✅ Args: ["Sbroenne.ExcelMcp.McpServer", "--yes"]
+✅ Command: "dotnet"
+✅ Args: ["tool", "run", "mcp-excel"]
 ✅ Proper async/await handling
 ```
 
@@ -182,10 +182,7 @@ mcp-server-excel/
 Users must have installed:
 1. ✅ Windows OS (Excel COM requirement)
 2. ✅ Microsoft Excel 2016+ (installed and activated)
-3. ✅ .NET 10 SDK (for dnx command)
-   ```
-   winget install Microsoft.DotNet.SDK.10
-   ```
+3. ✅ .NET 8 Runtime (auto-installed by extension via .NET Install Tool)
 
 ## Success Criteria ✅
 

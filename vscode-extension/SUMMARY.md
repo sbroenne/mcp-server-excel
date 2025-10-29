@@ -49,7 +49,6 @@ vscode-extension/
 ├── INSTALL.md (3.5 KB)                - Installation guide
 ├── DEVELOPMENT.md (5.4 KB)            - Developer guide
 ├── VERIFICATION.md (6.6 KB)           - Testing checklist
-├── VISUAL-GUIDE.md (7.4 KB)           - Visual documentation
 ├── SUMMARY.md (this file)             - Implementation summary
 ├── test-extension.sh (2.6 KB)         - Test automation
 └── excelmcp-1.0.0.vsix (16.1 KB)     - Packaged extension
@@ -81,7 +80,7 @@ All checks passing:
 
 - Windows OS
 - Microsoft Excel 2016+
-- .NET 10 SDK (for dnx command)
+- .NET 8 Runtime (auto-installed by extension)
 - VS Code 1.105.0+
 
 ## 🧪 Testing
@@ -108,9 +107,8 @@ Complete documentation provided:
 2. **INSTALL.md** - Detailed installation guide
 3. **DEVELOPMENT.md** - Building, testing, publishing
 4. **VERIFICATION.md** - Testing checklist
-5. **VISUAL-GUIDE.md** - Visual walkthrough
-6. **CHANGELOG.md** - Version history
-7. **SUMMARY.md** - This file
+5. **CHANGELOG.md** - Version history
+6. **SUMMARY.md** - This file
 
 ## 🔧 Technical Implementation
 
@@ -120,8 +118,8 @@ vscode.lm.registerMcpServerDefinitionProvider('excelmcp', {
   provideMcpServerDefinitions: async () => [
     new vscode.McpStdioServerDefinition(
       'ExcelMcp - Excel Automation',
-      'dnx',
-      ['Sbroenne.ExcelMcp.McpServer', '--yes'],
+      'dotnet',
+      ['tool', 'run', 'mcp-excel'],
       {}
     )
   ]
@@ -145,7 +143,7 @@ vscode.lm.registerMcpServerDefinitionProvider('excelmcp', {
 
 ### Technical Benefits:
 - ✅ Tiny size (16 KB vs MB for typical extensions)
-- ✅ No runtime dependencies (uses dnx)
+- ✅ No runtime dependencies (uses dotnet tool)
 - ✅ Automatic updates (via NuGet)
 - ✅ Type-safe TypeScript code
 - ✅ Comprehensive documentation
