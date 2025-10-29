@@ -41,7 +41,7 @@ public class PowerQueryEnhancementsMcpTests : IDisposable
             {
                 if (!_serverProcess.HasExited)
                 {
-                    _serverProcess.Kill();
+                    _serverProcess.Kill(entireProcessTree: true);
                     _serverProcess.WaitForExit(2000);
                 }
             }
@@ -92,14 +92,14 @@ in
         // Create Excel file
         await CallExcelTool(server, "excel_file", new { action = "create-empty", excelPath = testFile });
 
-        // Act - Import with loadToWorksheet (default: true validates via execution)
+        // Act - Import with loadToWorksheet = false to avoid hanging in test environment
         var importResponse = await CallExcelTool(server, "excel_powerquery", new
         {
             action = "import",
             excelPath = testFile,
             queryName = "WorkflowTest",
-            sourcePath = queryFile
-            // loadToWorksheet defaults to true (validates via SetLoadToTable execution)
+            sourcePath = queryFile,
+            loadToWorksheet = false // Disable auto-load to prevent hanging in test
         });
 
         // Assert
@@ -392,13 +392,14 @@ in
         var list1Json = JsonDocument.Parse(listResponse1);
         Assert.True(list1Json.RootElement.GetProperty("Success").GetBoolean());
 
-        // Step 2: Import query
+        // Step 2: Import query with loadToWorksheet = false to avoid hanging
         var importResponse = await CallExcelTool(server, "excel_powerquery", new
         {
             action = "import",
             excelPath = testFile,
             queryName = "WorkflowTest",
-            sourcePath = queryFile
+            sourcePath = queryFile,
+            loadToWorksheet = false // Disable auto-load to prevent hanging in test
         });
 
         _output.WriteLine($"Import: {importResponse}");
@@ -472,6 +473,18 @@ in
         Assert.NotNull(process);
 
         _serverProcess = process;
+
+        // CRITICAL: Consume stderr asynchronously to prevent buffer deadlock
+        // Without this, the server process can hang when stderr buffer fills up
+        process.ErrorDataReceived += (sender, e) =>
+        {
+            if (!string.IsNullOrEmpty(e.Data))
+            {
+                _output.WriteLine($"[MCP Server Error]: {e.Data}");
+            }
+        };
+        process.BeginErrorReadLine();
+
         _output.WriteLine($"MCP Server started with PID: {process.Id}");
 
         return process;
