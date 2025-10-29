@@ -22,19 +22,29 @@
   ],
   "categories": [
     "AI",
-    "Other",
-    "Chat"
+    "Data Science",
+    "Programming Languages"
   ],
   "keywords": [
     "mcp",
     "model context protocol",
     "excel",
+    "microsoft",
+    "office",
+    "spreadsheet",
     "automation",
     "power query",
+    "m language",
     "dax",
+    "data model",
+    "power pivot",
     "vba",
+    "macro",
+    "table",
     "copilot",
-    "ai"
+    "ai",
+    "github copilot",
+    "data analysis"
   ],
   "activationEvents": [
     "onStartupFinished"
