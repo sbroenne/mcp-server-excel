@@ -589,7 +589,8 @@ public class PowerQueryCommands : IPowerQueryCommands
         // STEP 1: Capture current load configuration BEFORE update
         var loadConfigBefore = await GetLoadConfigAsync(batch, queryName);
 
-        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
+        // STEP 2: Update the query M code
+        result = await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -615,7 +616,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                     return result;
                 }
 
-                // STEP 2: Update M code
+                // Update M code
                 query.Formula = mCode;
                 result.Success = true;
 
@@ -641,6 +642,55 @@ public class PowerQueryCommands : IPowerQueryCommands
                 ComUtilities.Release(ref query);
             }
         });
+
+        // STEP 3: Restore load configuration if query was loaded before
+        if (result.Success && loadConfigBefore.Success)
+        {
+            if (loadConfigBefore.LoadMode == PowerQueryLoadMode.LoadToTable ||
+                loadConfigBefore.LoadMode == PowerQueryLoadMode.LoadToBoth)
+            {
+                string targetSheet = loadConfigBefore.TargetSheet ?? queryName;
+                var restoreResult = await SetLoadToTableAsync(batch, queryName, targetSheet, privacyLevel);
+
+                if (!restoreResult.Success)
+                {
+                    result.ErrorMessage = $"Query updated but failed to restore load configuration: {restoreResult.ErrorMessage}";
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        "Query M code updated successfully",
+                        "⚠️ Load configuration could not be restored automatically",
+                        $"Manually load with: Use 'set-load-to-table' with worksheet '{targetSheet}'",
+                        "Or use 'get-load-config' to check current state"
+                    };
+                    return result;
+                }
+
+                // Successfully updated and restored load configuration
+                result.SuggestedNextActions = new List<string>
+                {
+                    "For multiple updates: Use begin_excel_batch to group operations efficiently",
+                    "Query updated successfully, load configuration preserved",
+                    "Data automatically refreshed with new M code",
+                    "Use 'get-load-config' to verify configuration if needed"
+                };
+                result.WorkflowHint = "Query updated successfully. Configuration preserved. For multiple updates, use begin_excel_batch.";
+                return result;
+            }
+        }
+
+        // Connection-only query or restore not needed
+        if (result.Success)
+        {
+            result.SuggestedNextActions = new List<string>
+            {
+                "Query updated successfully (connection-only)",
+                "Use 'set-load-to-table' if you want to load data",
+                "Use 'get-load-config' to verify configuration"
+            };
+            result.WorkflowHint = "Query updated as connection-only (no data loaded).";
+        }
+
+        return result;
     }
 
     /// <inheritdoc />
@@ -779,12 +829,10 @@ public class PowerQueryCommands : IPowerQueryCommands
         });
 
         // Auto-load to worksheet if requested (default behavior)
-        // TODO: SetLoadToTable needs batch API conversion
-        /*
         if (result.Success && loadToWorksheet)
         {
             string targetSheet = worksheetName ?? queryName;
-            var loadResult = SetLoadToTable(batch.WorkbookPath, queryName, targetSheet, privacyLevel);
+            var loadResult = await SetLoadToTableAsync(batch, queryName, targetSheet, privacyLevel);
 
             if (!loadResult.Success)
             {
@@ -800,36 +848,36 @@ public class PowerQueryCommands : IPowerQueryCommands
                 result.WorkflowHint = "Query imported but could not be automatically loaded to worksheet";
                 return result;
             }
-        }
-        */
-
-        // Provide guidance based on validation status
-        if (result.Success)
-        {
-            if (loadToWorksheet)
-            {
-                // Query was loaded to worksheet, validated via SetLoadToTable execution
-                result.SuggestedNextActions = new List<string>
-                {
-                    "Query imported (validation via load pending - TODO)",
-                    "Use 'set-load-to-table' to validate and load data",
-                    "Use 'view' to inspect M code"
-                };
-                result.WorkflowHint = "Query imported. Use set-load-to-table to validate.";
-            }
             else
             {
-                // Connection-only query - M code stored but NOT validated
+                // CRITICAL: Save the workbook to persist the QueryTable changes
+                // SetLoadToTableAsync creates the QueryTable, but changes are lost without explicit save
+                await batch.SaveAsync();
+
+                // Query was loaded to worksheet successfully - validated via SetLoadToTableAsync execution
                 result.SuggestedNextActions = new List<string>
                 {
-                    "Query imported as connection-only (NOT validated yet)",
-                    "⚠️ M code has not been executed or validated",
-                    "Use 'set-load-to-table' to validate and load data",
-                    "Or use 'refresh' after loading (refresh only works with loaded queries)",
-                    "Use 'view' to review imported M code"
+                    "Query imported and data loaded successfully",
+                    "Use 'view' to inspect M code",
+                    "Use 'get-load-config' to verify configuration"
                 };
-                result.WorkflowHint = "Query imported as connection-only (M code not executed or validated).";
+                result.WorkflowHint = "Query imported and loaded to worksheet for validation.";
+                return result;
             }
+        }
+
+        // Connection-only query - M code stored but NOT validated (loadToWorksheet=false)
+        if (result.Success)
+        {
+            result.SuggestedNextActions = new List<string>
+            {
+                "Query imported as connection-only (NOT validated yet)",
+                "⚠️ M code has not been executed or validated",
+                "Use 'set-load-to-table' to validate and load data",
+                "Or use 'refresh' after loading (refresh only works with loaded queries)",
+                "Use 'view' to review imported M code"
+            };
+            result.WorkflowHint = "Query imported as connection-only (M code not executed or validated).";
         }
 
         return result;
@@ -1796,36 +1844,19 @@ in
                 var queryTableOptions = new PowerQueryHelpers.QueryTableOptions
                 {
                     Name = queryName,
-                    RefreshImmediately = false // Don't refresh yet - we'll do it atomically
+                    RefreshImmediately = true // CRITICAL: Refresh synchronously to persist QueryTable properly
                 };
                 PowerQueryHelpers.CreateQueryTable(targetSheet, queryName, queryTableOptions);
 
                 result.ConfigurationApplied = true;
 
-                // STEP 4: ATOMIC REFRESH - Refresh the entire workbook to ensure data loads
-                try
-                {
-                    // Refresh all queries to ensure this one loads
-                    ctx.Book.RefreshAll();
+                // Note: RefreshImmediately=true causes CreateQueryTable to call queryTable.Refresh(false)
+                // which is SYNCHRONOUS and ensures proper persistence when workbook is saved.
+                // This follows Microsoft's documented pattern: Create → Refresh(False) → Save
+                // (See VBA example: https://learn.microsoft.com/en-us/office/troubleshoot/excel/...)
+                // RefreshAll() is ASYNCHRONOUS and unreliable for individual QueryTable persistence.
 
-                    // Wait for refresh to complete (synchronous)
-                    // Excel's RefreshAll is synchronous by default
-                }
-                catch (Exception refreshEx)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Refresh failed: {refreshEx.Message}";
-                    result.WorkflowStatus = "Partial";
-                    result.SuggestedNextActions = new List<string>
-                    {
-                        "Check query syntax and data source connectivity",
-                        "Review privacy level settings if combining data sources",
-                        "Use 'errors' action to see detailed error information"
-                    };
-                    return result;
-                }
-
-                // STEP 5: VERIFY data was actually loaded
+                // STEP 4: VERIFY data was actually loaded
                 queryTables = targetSheet.QueryTables;
                 string normalizedName = queryName.Replace(" ", "_");
                 bool foundQueryTable = false;

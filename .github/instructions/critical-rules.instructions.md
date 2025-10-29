@@ -142,6 +142,52 @@ var measure = new Microsoft.AnalysisServices.Tabular.Measure();
 
 ---
 
+## Rule 7: No TODO/FIXME Markers Before Commit
+
+**Code must be COMPLETE before committing - NO TODO, FIXME, HACK, XXX markers allowed.**
+
+### ❌ FORBIDDEN
+```csharp
+// TODO: Implement error handling
+// FIXME: This is broken
+// HACK: Temporary workaround
+public void Method() { }
+```
+
+### ✅ CORRECT
+```csharp
+// Complete implementation with proper error handling
+public void Method() 
+{
+    try 
+    {
+        // Full implementation
+    }
+    catch (Exception ex)
+    {
+        throw new McpException($"Operation failed: {ex.Message}");
+    }
+}
+```
+
+### Requirements
+- ✅ All functionality FULLY implemented
+- ✅ All known issues FIXED before commit
+- ✅ No placeholder comments
+- ✅ No commented-out code (delete it, use git history if needed)
+- ❌ NO TODO/FIXME/HACK/XXX markers in committed code
+
+**Why:** 
+- TODO markers indicate incomplete work
+- Incomplete work should not be committed
+- If you can't finish it, don't start it in that commit
+- Git history preserves old code - no need to comment it out
+- Professional codebases are clean and complete
+
+**Exception:** Documentation files (like specs or instructions) MAY have TODO sections for future enhancements, but NEVER in source code.
+
+---
+
 ## Quick Reference
 
 | Scenario | Action | Time |
@@ -151,6 +197,7 @@ var measure = new Microsoft.AnalysisServices.Tabular.Measure();
 | **Pool code change** | Run OnDemand tests | 3-5 min |
 | **Significant task** | Update instructions | 5-10 min |
 | **Any code change** | Create PR, never direct commit | Always |
+| **Before commit** | Search for TODO/FIXME/HACK - all must be resolved | 1 min |
 
 ---
 

@@ -387,6 +387,20 @@ relationship.Active = false;                         // Read/Write
 
 **Principle**: **Microsoft official documentation is ALWAYS authoritative over specs, blog posts, Stack Overflow, or assumptions**
 
+**Lesson Learned (2025-10-29 - QueryTable Persistence Bug):** When debugging COM interop issues with mysterious persistence failures:
+1. **Symptoms Recognition**: If objects exist in memory but disappear after file reopen, suspect async operations
+2. **Research Pattern**: Search Microsoft official docs for VBA examples showing proven patterns
+3. **RefreshAll() Caveat**: `RefreshAll()` is ASYNCHRONOUS for objects with `BackgroundQuery=true`
+4. **Individual Refresh Required**: QueryTables must call `.Refresh(false)` synchronously to persist properly
+5. **Microsoft VBA Examples Are Gold**: Official VBA code samples show production-proven patterns (Create → Refresh(False) → Save)
+6. **Debug At Core Level**: Create simple Core-level tests to isolate COM behavior from MCP/CLI layers
+7. **Async vs Sync Matters**: Excel COM has both sync and async variants - wrong choice causes silent failures
+8. **Save Isn't Enough**: Some objects need explicit initialization (like Refresh) before Save to persist
+9. **Document Discovery**: Add critical findings to excel-com-interop.instructions.md immediately
+10. **Trust User Instincts**: When user says "research this online", they're often sensing a pattern mismatch
+
+**Key Insight**: RefreshAll() claims to refresh queries but doesn't properly initialize individual QueryTables for disk persistence. Individual queryTable.Refresh(false) is mandatory.
+
 **Lesson Learned (2025-10-24 - Bulk Refactoring):** When performing bulk refactoring with many find/replace operations:
 1. **Preferred:** Use `replace_string_in_file` tool for targeted, unambiguous edits with context
 2. **Batch Operations:** Use `grep_search` to find patterns, then use `replace_string_in_file` in parallel for independent changes
@@ -410,6 +424,13 @@ relationship.Active = false;                         // Read/Write
 3. Find code → `grep_search` or `semantic_search` (always)
 4. Check errors → `get_errors` (preferred over terminal build)
 5. Build/test/git → `run_in_terminal` (only when no alternative)
+
+**Pre-Commit Checklist:**
+1. ✅ Search for TODO/FIXME/HACK markers: `grep_search` with pattern `//\s*(TODO|FIXME|HACK|XXX)`
+2. ✅ Resolve ALL markers before committing (see CRITICAL-RULES.md Rule 7)
+3. ✅ Delete commented-out code (use git history if needed)
+4. ✅ Verify all tests pass
+5. ✅ Update documentation if behavior changed
 
 ---
 
