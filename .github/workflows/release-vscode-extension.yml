@@ -35,11 +35,12 @@ jobs:
         cd vscode-extension
         npm version "$VERSION" --no-git-tag-version
 
-        # Update CHANGELOG.md
+        # Update CHANGELOG.md - replace the first version number and date
         DATE=$(date +%Y-%m-%d)
-        sed -i "s/## \[Unreleased\]/## [$VERSION] - $DATE/" CHANGELOG.md || true
+        sed -i "0,/## \[[0-9.]*\] - [0-9-]*/s//## [$VERSION] - $DATE/" CHANGELOG.md
 
         echo "Updated extension version to $VERSION"
+        echo "Updated CHANGELOG.md to version $VERSION with date $DATE"
         echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
       shell: bash
 
