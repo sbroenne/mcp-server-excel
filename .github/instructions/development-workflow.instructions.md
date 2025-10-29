@@ -206,11 +206,47 @@ $workflowPkgRefs = Select-String -Path .github/workflows/*.yml -Pattern "tool in
 
 ## Release Process (Maintainers Only)
 
+### Standard Releases
+
 1. Ensure all PRs merged to main
 2. All CI/CD checks passing
 3. Push version tag (e.g., `v1.2.3`)
 4. Release workflows auto-build and publish
 5. GitHub release created automatically
+
+### VS Code Extension Releases
+
+1. Update `vscode-extension/package.json` version
+2. Ensure extension functionality tested
+3. Push **vscode-v{version}** tag (e.g., `vscode-v1.1.3`)
+4. VS Code extension workflow triggers automatically
+5. Extension packaged and ready for marketplace publication
+
+### Tag Patterns (MANDATORY)
+
+- **CLI Releases**: `cli-v{version}` (e.g., `cli-v1.2.3`)
+- **MCP Server Releases**: `v{version}` (e.g., `v1.2.3`)
+- **VS Code Extension Releases**: `vscode-v{version}` (e.g., `vscode-v1.1.3`)
+
+**Why Different Patterns**: Each component has different release cycles and requirements:
+- CLI: Standalone executable, Windows-only
+- MCP Server: Cross-platform server, registry integration
+- VS Code Extension: Marketplace publication, VS Code version compatibility
+
+**Examples**:
+```powershell
+# Tag CLI release
+git tag cli-v1.2.3
+git push origin cli-v1.2.3
+
+# Tag MCP server release  
+git tag v1.2.3
+git push origin v1.2.3
+
+# Tag VS Code extension release
+git tag vscode-v1.1.3
+git push origin vscode-v1.1.3
+```
 
 ---
 

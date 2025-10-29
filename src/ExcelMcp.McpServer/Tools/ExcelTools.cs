@@ -12,16 +12,23 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - ExcelParameterTool: Named ranges as configuration parameters
 /// - ExcelRangeTool: Unified range operations (values, formulas, formatting, hyperlinks)
 /// - ExcelVbaTool: VBA macro management and execution
-/// - ExcelDataModelTool: Data Model (Power Pivot) operations
+/// - ExcelDataModelTool: Power Pivot (Data Model) operations - DAX, measures, relationships
+/// - ExcelTableTool: Excel Tables (ListObjects) with filtering and formatting
+///
+/// 🎯 Power Pivot Guidance for LLMs:
+/// If you're thinking "Power Pivot" or "PowerPivot" operations, use ExcelDataModelTool!
+/// Common Power Pivot keywords: DAX measures, table relationships, analytical model, calculated columns
+/// Workflow: 1) ExcelPowerQueryTool to load data, 2) ExcelDataModelTool for DAX and relationships
 ///
 /// 🤖 LLM Usage Guidelines:
 /// 1. Start with ExcelFileTool to create new Excel files
 /// 2. Use ExcelWorksheetTool for sheet lifecycle (create, rename, copy, delete)
 /// 3. Use ExcelRangeTool for ALL data operations (read, write, formulas, formatting, hyperlinks)
-/// 4. Use ExcelPowerQueryTool for advanced data transformation
-/// 5. Use ExcelParameterTool for configuration and reusable values
-/// 6. Use ExcelVbaTool for complex automation (requires .xlsm files)
-/// 7. Use ExcelDataModelTool for Data Model and DAX operations
+/// 4. Use ExcelPowerQueryTool for advanced data transformation and loading to Power Pivot
+/// 5. Use ExcelDataModelTool for ALL Power Pivot operations (DAX, measures, relationships)
+/// 6. Use ExcelParameterTool for configuration and reusable values
+/// 7. Use ExcelVbaTool for complex automation (requires .xlsm files)
+/// 8. Use ExcelTableTool for structured data with filtering and auto-formatting
 ///
 /// 📝 Parameter Patterns:
 /// - action: Always the first parameter, defines what operation to perform
