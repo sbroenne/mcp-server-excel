@@ -9,21 +9,6 @@
 
 This extension enables AI assistants like GitHub Copilot to interact with Microsoft Excel through the ExcelMcp MCP server. Automate Power Query M code, DAX measures, VBA macros, Excel Tables, ranges, worksheets, and data connections using natural language.
 
-## Installation
-
-### Option 1: VS Code Marketplace (Recommended)
-
-1. Open VS Code
-2. Go to Extensions (`Ctrl+Shift+X`)
-3. Search for "ExcelMcp"
-4. Click **Install**
-
-### Option 2: Manual VSIX Install
-
-1. Download the `.vsix` file from [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases)
-2. In VS Code: `Ctrl+Shift+P` → "Install from VSIX"
-3. Select the downloaded file
-
 ## Features
 
 - 🤖 **AI-Powered Excel Automation** - Control Excel through GitHub Copilot and other AI assistants
