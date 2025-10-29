@@ -1,8 +1,8 @@
 {
-  "name": "excelmcp",
-  "displayName": "ExcelMcp - MCP Server for Excel",
-  "description": "Excel automation MCP server - Power Query, DAX, VBA, Tables, Ranges & more via AI assistants",
-  "version": "1.0.0",
+  "name": "excel-mcp",
+  "displayName": "Excel MCP Server",
+  "description": "Excel automation for AI assistants - manage Sheets, Power Query, DAX, VBA, Tables, Ranges, Formatting, Validation & more - requires Excel to be installed",
+  "version": "1.1.3",
   "publisher": "sbroenne",
   "icon": "icon.png",
   "repository": {
@@ -64,8 +64,8 @@
   "contributes": {
     "mcpServerDefinitionProviders": [
       {
-        "id": "excelmcp",
-        "label": "ExcelMcp - Excel Automation"
+        "id": "excel-mcp",
+        "label": "Excel MCP"
       }
     ]
   },
