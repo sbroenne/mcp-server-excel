@@ -103,7 +103,7 @@ public partial class TableCommands
                 }
 
                 result.Success = true;
-                result.SuggestedNextActions.Add($"Use 'table info {tableName}' to see updated row count");
+                result.SuggestedNextActions.Add($"Use 'table-info {tableName}' to see updated row count");
                 result.SuggestedNextActions.Add($"Use 'range-get-values' on the table range to verify appended data");
                 result.WorkflowHint = $"Appended {rowsToAdd} rows to table '{tableName}'. Table auto-expanded.";
 

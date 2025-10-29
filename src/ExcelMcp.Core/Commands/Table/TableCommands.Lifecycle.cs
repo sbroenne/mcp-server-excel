@@ -188,9 +188,9 @@ public partial class TableCommands
                 }
 
                 result.Success = true;
-                result.SuggestedNextActions.Add($"Use 'table info {tableName}' to view table details");
+                result.SuggestedNextActions.Add($"Use 'table-info {tableName}' to view table details");
                 result.SuggestedNextActions.Add($"Use structured references in formulas: ={tableName}[@Column] or =[@Column] within table");
-                result.SuggestedNextActions.Add($"Use 'table delete {tableName}' to remove table (converts back to range)");
+                result.SuggestedNextActions.Add($"Use 'table-delete {tableName}' to remove table (converts back to range)");
                 result.WorkflowHint = $"Table '{tableName}' created successfully. AutoFilter, structured references, and dynamic expansion enabled.";
 
                 return result;
@@ -412,8 +412,8 @@ public partial class TableCommands
                 };
 
                 result.Success = true;
-                result.SuggestedNextActions.Add($"Use 'table rename {tableName} NewName' to rename table");
-                result.SuggestedNextActions.Add($"Use 'table delete {tableName}' to remove table");
+                result.SuggestedNextActions.Add($"Use 'table-rename {tableName} NewName' to rename table");
+                result.SuggestedNextActions.Add($"Use 'table-delete {tableName}' to remove table");
                 result.SuggestedNextActions.Add($"Use structured references in formulas: ={tableName}[@Column]");
                 result.WorkflowHint = $"Table '{tableName}' has {rowCount} rows and {columnCount} columns.";
 

@@ -39,9 +39,9 @@ public partial class TableCommands
                 table.Resize(newRangeObj);
 
                 result.Success = true;
-                result.SuggestedNextActions.Add($"Use 'table info {tableName}' to verify the new size");
-                result.SuggestedNextActions.Add("Use 'table read {tableName}' to read the updated data");
-                result.WorkflowHint = $"Table '{tableName}' resized to {newRange}.";
+                result.SuggestedNextActions.Add($"Use 'table-info {tableName}' to verify the new size");
+                result.SuggestedNextActions.Add($"Use 'range-get-values' on the table range to view updated data");
+                result.WorkflowHint = $"Table '{tableName}' resized to {newRange}";
 
                 return result;
             }
@@ -185,8 +185,8 @@ public partial class TableCommands
                 column.TotalsCalculation = xlFunction;
 
                 result.Success = true;
-                result.SuggestedNextActions.Add($"Use 'table info {tableName}' to verify totals configuration");
-                result.SuggestedNextActions.Add($"Use 'table read {tableName}' to see calculated totals");
+                result.SuggestedNextActions.Add($"Use 'table-info {tableName}' to verify totals configuration");
+                result.SuggestedNextActions.Add($"Use 'range-get-values' on the table range to see calculated totals");
                 result.WorkflowHint = $"Column '{columnName}' total set to {totalFunction}.";
 
                 return result;
@@ -230,7 +230,7 @@ public partial class TableCommands
                 table.TableStyle = tableStyle;
 
                 result.Success = true;
-                result.SuggestedNextActions.Add($"Use 'table info {tableName}' to verify the style change");
+                result.SuggestedNextActions.Add($"Use 'table-info {tableName}' to verify the style change");
                 result.SuggestedNextActions.Add("Common styles: TableStyleLight1-21, TableStyleMedium1-28, TableStyleDark1-11");
                 result.WorkflowHint = $"Table '{tableName}' style changed to '{tableStyle}'.";
 
