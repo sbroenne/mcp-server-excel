@@ -124,6 +124,73 @@ The GitHub Actions workflow will automatically:
 
 See [MARKETPLACE-PUBLISHING.md](MARKETPLACE-PUBLISHING.md) for setup instructions.
 
+## CHANGELOG Maintenance
+
+### How to Maintain CHANGELOG.md
+
+The CHANGELOG.md file should always have a **top entry ready for the next release**. The release workflow will automatically update the version number and date.
+
+**Before Release**:
+```markdown
+## [1.0.0] - 2025-10-29
+
+### Added
+- New feature A
+- New feature B
+
+### Fixed
+- Bug fix C
+```
+
+**After Release** (workflow automatically updates):
+```markdown
+## [1.1.0] - 2025-10-30
+
+### Added
+- New feature A
+- New feature B
+
+### Fixed
+- Bug fix C
+```
+
+### Workflow Process
+
+1. **You maintain**: Keep CHANGELOG.md updated with changes, but version number can be any placeholder
+2. **Workflow updates**: When you push tag `vscode-v1.1.0`, the workflow replaces the first version number with `1.1.0` and updates the date
+
+### Best Practice
+
+**After each release, add a new top section for the next version**:
+
+```markdown
+# Change Log
+
+## [1.0.0] - 2025-10-29
+
+### Added
+- Prepare for next release
+- Add changes here as you make them
+
+## [1.0.0] - 2025-10-29
+
+### Added
+- Initial release
+...
+```
+
+This way, the CHANGELOG is always ready, and the workflow just updates the version/date.
+
+### Format
+
+Follow [Keep a Changelog](https://keepachangelog.com/) format:
+- **Added**: New features
+- **Changed**: Changes in existing functionality
+- **Deprecated**: Soon-to-be removed features
+- **Removed**: Removed features
+- **Fixed**: Bug fixes
+- **Security**: Security fixes
+
 ### Manual Publishing
 
 #### VS Code Marketplace
