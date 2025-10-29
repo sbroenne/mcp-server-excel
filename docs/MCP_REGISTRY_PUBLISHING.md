@@ -79,10 +79,12 @@ When a tag like `mcp-v1.0.10` is pushed, the workflow:
 - Publishes to NuGet.org
 - Waits for package to be available
 
-### 4. MCP Registry Publishing
+### 4. MCP Registry Publishing (Non-Blocking)
 - Downloads the MCP Publisher CLI tool
 - Authenticates using GitHub OIDC (no secrets required)
 - Publishes `server.json` to the MCP Registry
+- **Note**: These steps use `continue-on-error: true` to ensure release completes even if MCP Registry publishing fails
+- Check the "MCP Registry Status" step output for publishing results
 
 ### 5. GitHub Release
 - Creates a ZIP file with binaries
@@ -169,12 +171,16 @@ The workflow has `id-token: write` permission enabled for OIDC authentication.
 - Wait a few minutes for NuGet indexing
 - Verify the mcp-name matches the server.json name exactly
 
+**Note**: As of the latest workflow update, MCP Registry publishing failures do not block the release process. The NuGet package will still be published successfully, and you can manually publish to the MCP Registry later if needed.
+
 **Issue**: "Authentication failed"
 
 **Solution**:
 - Verify workflow has `id-token: write` permission
 - Ensure you're using the correct namespace format
 - For `io.github.*` namespaces, GitHub OIDC should work automatically
+
+**Note**: The workflow uses `continue-on-error: true` for MCP Registry steps, so authentication failures will not prevent the release from completing.
 
 ### Workflow Doesn't Trigger
 
