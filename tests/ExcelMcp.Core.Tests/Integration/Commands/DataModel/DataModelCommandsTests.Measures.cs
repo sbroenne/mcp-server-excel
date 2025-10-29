@@ -163,6 +163,13 @@ public partial class DataModelCommandsTests
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
         Assert.NotNull(result.SuggestedNextActions);
         Assert.Contains(result.SuggestedNextActions, s => s.Contains("deleted successfully"));
+
+        // Verify the measure was actually deleted by listing measures
+        var listResult = await _dataModelCommands.ListMeasuresAsync(batch);
+        if (listResult.Success)
+        {
+            Assert.DoesNotContain(listResult.Measures, m => m.Name == measureName);
+        }
     }
 
     [Fact]

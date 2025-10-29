@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
@@ -10,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 /// Integration tests for Table commands (Phase 1 & Phase 2).
 /// These tests require Excel installation and validate Core table operations.
 /// Tests use Core commands directly (not through CLI wrapper).
-/// 
+///
 /// Phase 1: Lifecycle, Structure, Filters, Columns, Data, DataModel
 /// Phase 2: Structured References, Sorting
 /// </summary>
@@ -21,6 +22,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 public class TableCommandsTests : IDisposable
 {
     private readonly ITableCommands _tableCommands;
+    private readonly IRangeCommands _rangeCommands;
     private readonly IFileCommands _fileCommands;
     private readonly string _testExcelFile;
     private readonly string _tempDir;
@@ -29,6 +31,7 @@ public class TableCommandsTests : IDisposable
     public TableCommandsTests()
     {
         _tableCommands = new TableCommands();
+        _rangeCommands = new RangeCommands();
         _fileCommands = new FileCommands();
 
         // Create temp directory for test files
@@ -53,7 +56,7 @@ public class TableCommandsTests : IDisposable
         Task.Run(async () =>
         {
             await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
-            
+
             // Get Sheet1 and add sample data
             await batch.ExecuteAsync<int>((ctx, ct) =>
             {
@@ -251,9 +254,18 @@ public class TableCommandsTests : IDisposable
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var sortResult = await _tableCommands.SortAsync(batch, "SalesTable", "Region", ascending: true);
         await batch.SaveAsync();
-        
+
         // Assert
         Assert.True(sortResult.Success, $"Sort failed: {sortResult.ErrorMessage}");
+
+        // Verify the table data is actually sorted by Region (ascending: East, North, South, West)
+        var dataResult = await _rangeCommands.GetValuesAsync(batch, "Sales", "A2:A5"); // Region column data only
+        Assert.True(dataResult.Success, $"Failed to read table data: {dataResult.ErrorMessage}");
+        Assert.Equal(4, dataResult.Values.Count);
+        Assert.Equal("East", dataResult.Values[0][0]?.ToString());
+        Assert.Equal("North", dataResult.Values[1][0]?.ToString());
+        Assert.Equal("South", dataResult.Values[2][0]?.ToString());
+        Assert.Equal("West", dataResult.Values[3][0]?.ToString());
     }
 
     [Fact]
@@ -263,9 +275,18 @@ public class TableCommandsTests : IDisposable
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var sortResult = await _tableCommands.SortAsync(batch, "SalesTable", "Amount", ascending: false);
         await batch.SaveAsync();
-        
+
         // Assert
         Assert.True(sortResult.Success, $"Sort failed: {sortResult.ErrorMessage}");
+
+        // Verify the table data is actually sorted by Amount (descending: 300, 250, 150, 100)
+        var dataResult = await _rangeCommands.GetValuesAsync(batch, "Sales", "C2:C5"); // Amount column data only
+        Assert.True(dataResult.Success, $"Failed to read table data: {dataResult.ErrorMessage}");
+        Assert.Equal(4, dataResult.Values.Count);
+        Assert.Equal(300, Convert.ToInt32(dataResult.Values[0][0]));
+        Assert.Equal(250, Convert.ToInt32(dataResult.Values[1][0]));
+        Assert.Equal(150, Convert.ToInt32(dataResult.Values[2][0]));
+        Assert.Equal(100, Convert.ToInt32(dataResult.Values[3][0]));
     }
 
     [Fact]
@@ -281,9 +302,26 @@ public class TableCommandsTests : IDisposable
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var sortResult = await _tableCommands.SortAsync(batch, "SalesTable", sortColumns);
         await batch.SaveAsync();
-        
+
         // Assert
         Assert.True(sortResult.Success, $"Sort failed: {sortResult.ErrorMessage}");
+
+        // Verify the table data is actually sorted by Product first (Gadget, Widget), then Amount within each group
+        var dataResult = await _rangeCommands.GetValuesAsync(batch, "Sales", "B2:C5"); // Product and Amount columns
+        Assert.True(dataResult.Success, $"Failed to read table data: {dataResult.ErrorMessage}");
+        Assert.Equal(4, dataResult.Values.Count);
+
+        // First two rows should be Gadget products (sorted by Amount desc: 300, 250)
+        Assert.Equal("Gadget", dataResult.Values[0][0]?.ToString());
+        Assert.Equal(300, Convert.ToInt32(dataResult.Values[0][1]));
+        Assert.Equal("Gadget", dataResult.Values[1][0]?.ToString());
+        Assert.Equal(250, Convert.ToInt32(dataResult.Values[1][1]));
+
+        // Next two rows should be Widget products (sorted by Amount desc: 150, 100)
+        Assert.Equal("Widget", dataResult.Values[2][0]?.ToString());
+        Assert.Equal(150, Convert.ToInt32(dataResult.Values[2][1]));
+        Assert.Equal("Widget", dataResult.Values[3][0]?.ToString());
+        Assert.Equal(100, Convert.ToInt32(dataResult.Values[3][1]));
     }
 
     [Fact]
@@ -300,7 +338,7 @@ public class TableCommandsTests : IDisposable
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var sortResult = await _tableCommands.SortAsync(batch, "SalesTable", sortColumns);
         await batch.SaveAsync();
-        
+
         // Assert
         Assert.True(sortResult.Success, $"Sort failed: {sortResult.ErrorMessage}");
     }
@@ -364,6 +402,78 @@ public class TableCommandsTests : IDisposable
         Assert.False(result.Success);
         Assert.NotNull(result.ErrorMessage);
         Assert.Contains("maximum of 3", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    #endregion
+
+    #region Data Model Tests
+
+    [Fact]
+    public async Task AddToDataModelAsync_WithValidTable_ShouldSucceedOrProvideReasonableError()
+    {
+        // Arrange
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+
+        // This test validates that AddToDataModelAsync works correctly with a real table
+        // In environments where Power Pivot isn't available, it should fail gracefully
+
+        // Act - Add the table to Data Model
+        var result = await _tableCommands.AddToDataModelAsync(batch, "SalesTable");
+
+        // Assert - Either succeeds OR fails with a reasonable environment-related error
+        if (result.Success)
+        {
+            // SUCCESS CASE: Verify the operation completed properly
+            Assert.True(result.Success);
+            Assert.Equal("add-to-data-model", result.Action);
+            Assert.Contains("added to Power Pivot Data Model", result.WorkflowHint ?? "");
+            Assert.Contains("dm-list-tables", result.SuggestedNextActions?.FirstOrDefault() ?? "");
+        }
+        else
+        {
+            // GRACEFUL FAILURE: Should be environment-related, not a code bug
+            var errorMsg = result.ErrorMessage ?? "";
+
+            // These are acceptable environment-related failures
+            bool isEnvironmentIssue =
+                errorMsg.Contains("Data Model not available") ||
+                errorMsg.Contains("Power Pivot") ||
+                errorMsg.Contains("does not have a Data Model") ||
+                errorMsg.Contains("already in the Data Model") ||
+                errorMsg.Contains("Connections.Add2");
+
+            Assert.True(isEnvironmentIssue,
+                $"Expected environment-related error, but got: {errorMsg}");
+
+            // Should NOT be the original COM bug that was fixed in Issue #64
+            Assert.False(errorMsg.Contains("does not contain a definition for 'Add'"),
+                "Should not have the original COM method error that was fixed");
+        }
+    }
+
+    [Fact]
+    public async Task AddToDataModelAsync_WithNonExistentTable_ShouldFail()
+    {
+        // Arrange
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+
+        // Act
+        var result = await _tableCommands.AddToDataModelAsync(batch, "NonExistentTable");
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("not found", result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task AddToDataModelAsync_WithInvalidTableName_ShouldFail()
+    {
+        // Arrange
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+
+        // Act & Assert - Invalid characters should be rejected
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _tableCommands.AddToDataModelAsync(batch, "Table<>Name"));
     }
 
     #endregion
