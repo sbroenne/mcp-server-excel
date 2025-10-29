@@ -82,8 +82,8 @@ The ExcelMcp MCP server provides **10 specialized tools**:
 This extension uses the **NuGet MCP approach**:
 
 - The extension registers the MCP server with VS Code
-- When an AI assistant needs Excel automation, VS Code runs: `dnx Sbroenne.ExcelMcp.McpServer --yes`
-- The `dnx` command automatically downloads the latest version from NuGet
+- When an AI assistant needs Excel automation, VS Code runs: `dotnet tool run mcp-excel`
+- The `dotnet tool` command automatically downloads the latest version from NuGet
 - The MCP server communicates with Excel via COM automation
 
 ## Configuration

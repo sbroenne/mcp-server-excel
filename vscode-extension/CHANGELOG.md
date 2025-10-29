@@ -2,7 +2,7 @@
 
 All notable changes to the ExcelMcp VS Code extension will be documented in this file.
 
-## [1.0.0] - 2025-01-28
+## [1.0.0] - 2025-10-29
 
 ### Added
 - Initial release of ExcelMcp VS Code extension
@@ -28,5 +28,5 @@ All notable changes to the ExcelMcp VS Code extension will be documented in this
 ### Requirements
 - Windows OS
 - Microsoft Excel 2016+
-- .NET 10 SDK (for dnx command)
-- VS Code 1.101.0+
+- .NET 8 Runtime (automatically installed by extension)
+- VS Code 1.105.0+
