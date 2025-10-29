@@ -124,7 +124,8 @@ jobs:
         Write-Output "Waiting for NuGet CDN to propagate package README..."
         Write-Output "Checking: $readmeUrl"
         
-        $maxAttempts = 12  # 12 attempts * 15 seconds = 3 minutes max
+        $maxAttempts = 3  # 3 attempts * 10 minutes = 30 minutes max (safe margin for NuGet propagation)
+        $pollIntervalSeconds = 600  # 10 minutes between polls
         $attempt = 0
         $found = $false
         
@@ -148,8 +149,8 @@ jobs:
           }
           
           if (-not $found -and $attempt -lt $maxAttempts) {
-            Write-Output "Waiting 15 seconds before next check..."
-            Start-Sleep -Seconds 15
+            Write-Output "Waiting $pollIntervalSeconds seconds (10 minutes) before next check..."
+            Start-Sleep -Seconds $pollIntervalSeconds
           }
         }
         
