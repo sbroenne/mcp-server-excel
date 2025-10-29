@@ -6,6 +6,24 @@ applyTo: "tests/**/*.cs"
 
 > **Comprehensive guide to ExcelMcp's three-tier testing approach**
 
+## ⚠️ MANDATORY PRE-COMMIT CHECKLIST
+
+**BEFORE COMMITTING ANY TEST CODE:**
+
+1. ✅ **Search for lenient assertions**: Run `grep -r "if (result.Success)" tests/` - if found, verify they FAIL when feature breaks
+2. ✅ **No "accept both" patterns**: Tests must NOT pass when `Success=true` AND when `Success=false`
+3. ✅ **Run tests and verify failures**: If feature is known broken, test MUST fail with clear message
+4. ✅ **Binary assertions only**: Use `Assert.True(result.Success, "clear error")` or `Assert.False(result.Success, "clear error")`
+5. ✅ **No environment excuses**: If feature should work, test demands it works - no "skip if environment unavailable" unless feature is truly optional
+
+**REAL EXAMPLE OF CATASTROPHIC FAILURE:**
+- `AddToDataModelAsync` feature was 100% non-functional for months
+- Tests PASSED because they accepted "environment-related" errors
+- Production users hit errors that tests claimed were "acceptable"
+- **NEVER AGAIN!**
+
+---
+
 ## Test Architecture
 
 ```
@@ -22,6 +40,134 @@ tests/
     ├── Unit/
     └── Integration/
 ```
+
+---
+
+## CRITICAL RULE: NO "ACCEPT FAILURE" TESTS (MANDATORY)
+
+**⚠️ NEVER write tests that accept both success AND failure!**
+
+### ❌ FORBIDDEN Pattern - Tests That Always Pass
+
+```csharp
+// ❌ WRONG - This test ALWAYS passes, even when feature is broken!
+[Fact]
+public async Task SomeOperation_ShouldSucceedOrFailGracefully()
+{
+    var result = await _commands.SomeOperationAsync(...);
+    
+    if (result.Success)
+    {
+        Assert.True(result.Success);  // ✅ Passes if it works
+    }
+    else
+    {
+        // ❌ ALSO passes if it fails with "expected" errors
+        var errorMsg = result.ErrorMessage ?? "";
+        bool isAcceptableError = 
+            errorMsg.Contains("environment") ||
+            errorMsg.Contains("not available");
+        Assert.True(isAcceptableError);  // ✅ Passes when broken!
+    }
+}
+```
+
+**Why This Is Catastrophic:**
+1. Feature can be **completely broken** and test still passes
+2. No way to detect when implementation is wrong
+3. Users encounter errors that tests claim are "acceptable"
+4. Masks critical bugs for months/years
+
+### ✅ CORRECT Patterns
+
+**Pattern 1: Binary Success Test (Preferred)**
+```csharp
+[Fact]
+public async Task SomeOperation_WithValidInput_MustSucceed()
+{
+    // Arrange
+    await PrepareValidEnvironment();
+    
+    // Act
+    var result = await _commands.SomeOperationAsync(...);
+    
+    // Assert - MUST succeed, no excuses
+    Assert.True(result.Success, 
+        $"Operation must succeed with valid input. Error: {result.ErrorMessage}");
+    Assert.Equal("expected-action", result.Action);
+    Assert.NotNull(result.Data);
+}
+```
+
+**Pattern 2: Skip If Environment Unavailable**
+```csharp
+[Fact]
+public async Task SomeOperation_RequiringSpecialFeature_MustSucceed()
+{
+    // Arrange
+    await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+    
+    // Check if required feature is available
+    bool featureAvailable = await CheckFeatureAvailableAsync(batch);
+    
+    if (!featureAvailable)
+    {
+        // Skip test with clear reason - DON'T accept failure!
+        _output.WriteLine("Skipping: Required feature not available in this Excel version");
+        return;
+    }
+    
+    // Act
+    var result = await _commands.SomeOperationAsync(batch, ...);
+    
+    // Assert - Since feature is available, MUST succeed
+    Assert.True(result.Success, 
+        $"Operation must succeed when feature is available. Error: {result.ErrorMessage}");
+}
+```
+
+**Pattern 3: Separate Tests for Success and Failure**
+```csharp
+[Fact]
+public async Task SomeOperation_WithValidInput_Succeeds()
+{
+    var result = await _commands.SomeOperationAsync(validInput);
+    Assert.True(result.Success);
+}
+
+[Fact]
+public async Task SomeOperation_WithInvalidInput_FailsWithClearError()
+{
+    var result = await _commands.SomeOperationAsync(invalidInput);
+    Assert.False(result.Success);
+    Assert.Contains("specific expected error", result.ErrorMessage);
+}
+
+[Fact]
+public async Task SomeOperation_WhenFeatureUnavailable_FailsWithClearGuidance()
+{
+    var result = await _commands.SomeOperationAsync(...);
+    
+    // If feature isn't available, error MUST be specific
+    if (!result.Success)
+    {
+        Assert.True(
+            result.ErrorMessage.Contains("Feature X requires Excel 2016+") ||
+            result.ErrorMessage.Contains("Enable add-in Y in Excel settings"),
+            $"Error must provide clear guidance. Actual: {result.ErrorMessage}");
+    }
+}
+```
+
+### Mandatory Review Before Committing Tests
+
+**Before committing ANY test, ask:**
+1. ✅ Can this test pass when the feature is broken?
+2. ✅ Does it test ONE specific behavior?
+3. ✅ Will it fail loudly if something breaks?
+4. ✅ Is the assertion unambiguous (success XOR failure, never both)?
+
+**If any answer is NO, REWRITE THE TEST!**
 
 ---
 

@@ -1,4 +1,23 @@
-# Power Query Data Model Loading Fix - Issue #42
+# Power Query Data Model Loading Fix - Issues #42 and #64
+
+> **Status:** BROKEN - Feature Never Worked  
+> **User Reports:** Issue #42 (original), Issue #64 (2025-10-29 production error)  
+> **Test File:** `DataModelLoadingIssueTests.cs` **EXPECTS FAILURE**
+
+## Latest Production Error (2025-10-29)
+
+```json
+{
+  "action": "set-load-to-data-model",
+  "QueryName": "Milestones",
+  "ConfigurationApplied": false,
+  "DataLoadedToModel": false,
+  "ErrorMessage": "Failed to configure query for Data Model loading",
+  "Success": false
+}
+```
+
+**Test Evidence:** Test passes with `Assert.False(setDataModelResult.Success)` - **EXPECTS FAILURE!**
 
 ## Problem Statement
 
