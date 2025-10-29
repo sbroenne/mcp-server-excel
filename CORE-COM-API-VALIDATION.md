@@ -14,14 +14,14 @@
 | PowerQueryCommands | 11 | ✅ PASS | 0 |
 | SheetCommands | 5 | ✅ PASS | 0 |
 | RangeCommands | 8 | ✅ PASS | 0 |
-| TableCommands | 1 | ✅ PASS | 0 |
+| TableCommands | 2 | ✅ PASS (1 FIXED) | 1 (*fixed*) |
 | ParameterCommands | 5 | ✅ PASS | 0 |
 | ScriptCommands | 4 | ✅ PASS | 0 |
 | DataModelCommands | 5 | ✅ PASS | 0 (*1 major discovery*) |
 | ConnectionCommands | 3 | ✅ PASS | 0 (*1 known limitation*) |
 | FileCommands | 2 | ✅ PASS | 0 |
 
-**Total:** 62 methods validated | **Pass Rate:** 100% | **Issues:** 0
+**Total:** 63 methods validated | **Pass Rate:** 100% (after fixes) | **Issues Found:** 1 | **Issues Fixed:** 1
 
 ---
 
@@ -289,11 +289,13 @@ range.Sort(
 
 ---
 
-## 5. TableCommands ✅ VALIDATED
+## 5. TableCommands ✅ VALIDATED (FIXED)
 
 **Microsoft Documentation:**
 - [ListObject](https://learn.microsoft.com/en-us/office/vba/api/excel.listobject)
 - [ListObjects.Add](https://learn.microsoft.com/en-us/office/vba/api/excel.listobjects.add)
+- [Model.AddConnection](https://learn.microsoft.com/en-us/office/vba/api/Excel.model.addconnection)
+- [WorkbookConnection Object](https://learn.microsoft.com/en-us/office/vba/api/excel.workbookconnection)
 
 ### Key Validations:
 
@@ -309,6 +311,36 @@ listObjects.Add(
 - **Status:** CORRECT pattern documented
 - **Reference:** MS docs ListObjects.Add method
 - **Note:** Implementation uses this exact pattern (verified in existing code)
+
+**🔧 AddToDataModelAsync - FIXED** (TableCommands.DataModel.cs)
+
+**ISSUE IDENTIFIED:** Original implementation used `Connections.Add2()` with `CreateModelConnection=true`, which is NOT the documented Microsoft pattern.
+
+**CORRECT PATTERN per Microsoft docs:**
+1. Create a **legacy (non-model) WorkbookConnection** first
+2. Use `Model.AddConnection(legacyConnection)` to add it to the Data Model
+
+**Fixed Implementation:**
+```csharp
+// Step 1: Create legacy connection (CreateModelConnection=false)
+legacyConnection = workbookConnections.Add2(
+    Name: connectionName,
+    Description: $"Excel Table: {tableName}",
+    ConnectionString: connectionString,
+    CommandText: tableName,
+    lCmdtype: 2, // xlCmdDefault
+    CreateModelConnection: false, // Create as legacy first
+    ImportRelationships: false
+);
+
+// Step 2: Add to Data Model using documented approach
+dynamic? modelConnection = model.AddConnection(legacyConnection);
+```
+
+- **Status:** FIXED - Now follows Microsoft official pattern
+- **Reference:** [Model.AddConnection method](https://learn.microsoft.com/en-us/office/vba/api/Excel.model.addconnection)
+- **Key Insight:** Model.AddConnection only works with legacy connections, fails with model connections
+- **Credit:** User @sbroenne identified the bug
 
 ---
 
