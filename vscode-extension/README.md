@@ -99,6 +99,15 @@ Ask GitHub Copilot to manage Power Query M code, DAX measures, VBA macros, Excel
 
 **What happens:** Copilot applies the filter criteria and multi-level sort, preparing the data for your analysis.
 
+---
+
+### Complete Worksheet Creation
+**Scenario:** You need to create a fully formatted worksheet with validation rules for data entry.
+
+**Ask Copilot:** "Create a new sheet called 'Budget', add headers in row 1 (Month, Budget, Actual, Variance), format the headers bold with blue background, add currency formatting to columns B-D, and set data validation on column A to only allow month names"
+
+**What happens:** Copilot creates the worksheet, writes the headers, applies bold and background color formatting, sets number formats for currency columns, and adds a data validation rule restricting column A to valid month names.
+
 ## Requirements
 
 - **Windows OS** - Excel COM automation requires Windows
