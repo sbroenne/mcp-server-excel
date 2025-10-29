@@ -33,8 +33,8 @@ vscode.lm.registerMcpServerDefinitionProvider('excelmcp', {
     return [
       new vscode.McpStdioServerDefinition(
         'ExcelMcp - Excel Automation',
-        'dnx',
-        ['Sbroenne.ExcelMcp.McpServer', '--yes'],
+        'dotnet',
+        ['tool', 'run', 'mcp-excel'],
         {} // Optional environment variables
       )
     ];
@@ -50,7 +50,7 @@ vscode.lm.registerMcpServerDefinitionProvider('excelmcp', {
 
 ### Dependencies
 
-- **Runtime**: None - Uses `dnx` command from .NET SDK
+- **Runtime**: None - Uses `dotnet tool run` command from .NET SDK
 - **Dev Dependencies**:
   - `@types/vscode@^1.105.0` - VS Code API types
   - `@types/node@^22.0.0` - Node.js types
@@ -286,9 +286,9 @@ When VS Code releases new API features:
 - Verify extension ID matches registration
 
 **MCP server not found**
-- Ensure `dnx` command is available
-- Check .NET 10 SDK is installed
-- Verify NuGet package name is correct
+- Ensure `dotnet tool run mcp-excel` command works
+- Check .NET 8 Runtime is installed
+- Verify NuGet package is available
 
 ## Extension Size Optimization
 
@@ -297,7 +297,7 @@ Current size: **9 KB** (very small!)
 Ways to keep it small:
 - ✅ Use `--no-dependencies` when packaging (only include compiled code)
 - ✅ Use `.vscodeignore` to exclude source files
-- ✅ No runtime dependencies (uses dnx)
+- ✅ No runtime dependencies (uses dotnet tool)
 - ✅ Minimal icon size (1 KB)
 
 ## Future Enhancements
@@ -306,7 +306,7 @@ Potential improvements:
 - [ ] Add configuration options for MCP server
 - [ ] Status bar item showing server status
 - [ ] Commands to restart/reload MCP server
-- [ ] Settings for custom dnx arguments
+- [ ] Settings for custom tool arguments
 - [ ] Telemetry for usage insights
 - [ ] Automatic update notifications
 

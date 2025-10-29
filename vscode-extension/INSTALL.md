@@ -41,19 +41,6 @@
 
 ---
 
-### Option 3: Open VSX Registry
-
-**For VS Codium or other Open VSX-compatible editors:**
-
-1. Open your editor
-2. Go to Extensions
-3. Search for "ExcelMcp"
-4. Click Install
-
-**Open VSX Link:** [ExcelMcp on Open VSX](https://open-vsx.org/extension/sbroenne/excelmcp)
-
----
-
 ## Requirements
 
 **Must be installed on your system:**
@@ -128,15 +115,15 @@ The MCP server provides **10 specialized tools**:
 
 ### Extension not working?
 
-1. **Check .NET 10 is installed**:
+1. **Check .NET 8 Runtime is installed**:
    ```powershell
    dotnet --version
-   # Should show 10.x.x
+   # Should show 8.x.x or higher
    ```
 
-2. **Verify dnx command works**:
+2. **Verify MCP server tool is installed**:
    ```powershell
-   dnx --help
+   dotnet tool run mcp-excel --help
    ```
 
 3. **Check Excel is installed**:
@@ -157,8 +144,8 @@ If you prefer not to use the extension, you can manually configure the MCP serve
 {
   "servers": {
     "excel": {
-      "command": "dnx",
-      "args": ["Sbroenne.ExcelMcp.McpServer", "--yes"]
+      "command": "dotnet",
+      "args": ["tool", "run", "mcp-excel"]
     }
   }
 }

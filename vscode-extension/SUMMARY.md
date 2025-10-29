@@ -80,7 +80,7 @@ All checks passing:
 
 - Windows OS
 - Microsoft Excel 2016+
-- .NET 10 SDK (for dnx command)
+- .NET 8 Runtime (auto-installed by extension)
 - VS Code 1.105.0+
 
 ## 🧪 Testing
@@ -118,8 +118,8 @@ vscode.lm.registerMcpServerDefinitionProvider('excelmcp', {
   provideMcpServerDefinitions: async () => [
     new vscode.McpStdioServerDefinition(
       'ExcelMcp - Excel Automation',
-      'dnx',
-      ['Sbroenne.ExcelMcp.McpServer', '--yes'],
+      'dotnet',
+      ['tool', 'run', 'mcp-excel'],
       {}
     )
   ]
@@ -143,7 +143,7 @@ vscode.lm.registerMcpServerDefinitionProvider('excelmcp', {
 
 ### Technical Benefits:
 - ✅ Tiny size (16 KB vs MB for typical extensions)
-- ✅ No runtime dependencies (uses dnx)
+- ✅ No runtime dependencies (uses dotnet tool)
 - ✅ Automatic updates (via NuGet)
 - ✅ Type-safe TypeScript code
 - ✅ Comprehensive documentation
