@@ -25,15 +25,18 @@ public class ConnectionCommands : IConnectionCommands
 
         return await batch.ExecuteAsync(async (ctx, ct) =>
         {
+            dynamic? connections = null;
+
             try
             {
-                dynamic connections = ctx.Book.Connections;
+                connections = ctx.Book.Connections;
 
                 for (int i = 1; i <= connections.Count; i++)
                 {
+                    dynamic? conn = null;
                     try
                     {
-                        dynamic conn = connections.Item(i);
+                        conn = connections.Item(i);
 
                         var connInfo = new ConnectionInfo
                         {
@@ -53,6 +56,10 @@ public class ConnectionCommands : IConnectionCommands
                         // Skip connections that can't be read
                         continue;
                     }
+                    finally
+                    {
+                        ComUtilities.Release(ref conn);
+                    }
                 }
 
                 result.Success = true;
@@ -63,6 +70,10 @@ public class ConnectionCommands : IConnectionCommands
                 result.Success = false;
                 result.ErrorMessage = $"Error listing connections: {ex.Message}";
                 return result;
+            }
+            finally
+            {
+                ComUtilities.Release(ref connections);
             }
         });
     }
@@ -442,9 +453,13 @@ public class ConnectionCommands : IConnectionCommands
 
         return await batch.ExecuteAsync(async (ctx, ct) =>
         {
+            dynamic? conn = null;
+            dynamic? sheets = null;
+            dynamic? targetSheet = null;
+
             try
             {
-                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
+                conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
                 if (conn == null)
                 {
@@ -462,16 +477,24 @@ public class ConnectionCommands : IConnectionCommands
                 }
 
                 // Find or create target sheet
-                dynamic sheets = ctx.Book.Worksheets;
-                dynamic? targetSheet = null;
+                sheets = ctx.Book.Worksheets;
 
                 for (int i = 1; i <= sheets.Count; i++)
                 {
-                    dynamic sheet = sheets.Item(i);
-                    if (sheet.Name.ToString().Equals(sheetName, StringComparison.OrdinalIgnoreCase))
+                    dynamic? sheet = null;
+                    try
                     {
-                        targetSheet = sheet;
-                        break;
+                        sheet = sheets.Item(i);
+                        if (sheet.Name.ToString().Equals(sheetName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            targetSheet = sheet;
+                            sheet = null; // Don't release in finally since we're keeping reference
+                            break;
+                        }
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref sheet);
                     }
                 }
 
@@ -501,6 +524,12 @@ public class ConnectionCommands : IConnectionCommands
                 result.Success = false;
                 result.ErrorMessage = $"Error loading connection to sheet: {ex.Message}";
                 return result;
+            }
+            finally
+            {
+                ComUtilities.Release(ref targetSheet);
+                ComUtilities.Release(ref sheets);
+                ComUtilities.Release(ref conn);
             }
         });
     }
@@ -1007,15 +1036,18 @@ public class ConnectionCommands : IConnectionCommands
             throw new InvalidOperationException("ConnectionString is required to create a connection.");
         }
 
+        dynamic? connections = null;
+        dynamic? newConnection = null;
+
         try
         {
-            dynamic connections = workbook.Connections;
+            connections = workbook.Connections;
 
             // Create connection using Connections.Add() method
             // Per Microsoft documentation: https://learn.microsoft.com/en-us/office/vba/api/excel.connections.add
             // Parameters: Name (Required), Description (Required), ConnectionString (Required),
             //             CommandText (Required), lCmdtype (Optional), CreateModelConnection (Optional), ImportRelationships (Optional)
-            dynamic newConnection = connections.Add(
+            newConnection = connections.Add(
                 Name: connectionName,
                 Description: definition.Description ?? "",
                 ConnectionString: definition.ConnectionString,
@@ -1032,6 +1064,11 @@ public class ConnectionCommands : IConnectionCommands
         {
             throw new InvalidOperationException(
                 $"Failed to create connection '{connectionName}': {ex.Message}", ex);
+        }
+        finally
+        {
+            ComUtilities.Release(ref newConnection);
+            ComUtilities.Release(ref connections);
         }
     }
 
@@ -1163,7 +1200,7 @@ public class ConnectionCommands : IConnectionCommands
                 // XMLMAP connection properties - future implementation
                 // For now, just update basic properties like description (already done above)
             }
-            else if (connType == 6) // DATAFEED  
+            else if (connType == 6) // DATAFEED
             {
                 // DATAFEED connection properties - future implementation
             }
@@ -1234,7 +1271,7 @@ public class ConnectionCommands : IConnectionCommands
                         // Neither works
                     }
                 }
-                
+
                 if (textOrWeb != null)
                 {
                     SetProperty(textOrWeb, propertyName, value.Value);
@@ -1284,21 +1321,35 @@ public class ConnectionCommands : IConnectionCommands
             commandText = "";
         }
 
-        dynamic queryTables = targetSheet.QueryTables;
-        dynamic queryTable = queryTables.Add(connectionString, targetSheet.Range["A1"], commandText);
+        dynamic? queryTables = null;
+        dynamic? queryTable = null;
+        dynamic? range = null;
 
-        queryTable.Name = options.Name.Replace(" ", "_");
-        queryTable.RefreshStyle = 1; // xlInsertDeleteCells
-        queryTable.BackgroundQuery = options.BackgroundQuery;
-        queryTable.RefreshOnFileOpen = options.RefreshOnFileOpen;
-        queryTable.SavePassword = options.SavePassword;
-        queryTable.PreserveColumnInfo = options.PreserveColumnInfo;
-        queryTable.PreserveFormatting = options.PreserveFormatting;
-        queryTable.AdjustColumnWidth = options.AdjustColumnWidth;
-
-        if (options.RefreshImmediately)
+        try
         {
-            queryTable.Refresh(false);
+            queryTables = targetSheet.QueryTables;
+            range = targetSheet.Range["A1"];
+            queryTable = queryTables.Add(connectionString, range, commandText);
+
+            queryTable.Name = options.Name.Replace(" ", "_");
+            queryTable.RefreshStyle = 1; // xlInsertDeleteCells
+            queryTable.BackgroundQuery = options.BackgroundQuery;
+            queryTable.RefreshOnFileOpen = options.RefreshOnFileOpen;
+            queryTable.SavePassword = options.SavePassword;
+            queryTable.PreserveColumnInfo = options.PreserveColumnInfo;
+            queryTable.PreserveFormatting = options.PreserveFormatting;
+            queryTable.AdjustColumnWidth = options.AdjustColumnWidth;
+
+            if (options.RefreshImmediately)
+            {
+                queryTable.Refresh(false);
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref range);
+            ComUtilities.Release(ref queryTable);
+            ComUtilities.Release(ref queryTables);
         }
     }
 

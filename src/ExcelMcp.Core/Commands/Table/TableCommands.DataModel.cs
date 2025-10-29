@@ -21,7 +21,6 @@ public partial class TableCommands
         {
             dynamic? table = null;
             dynamic? modelTables = null;
-            dynamic? connections = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
@@ -85,74 +84,73 @@ public partial class TableCommands
                 string connectionString = $"WORKSHEET;{ctx.Book.FullName}";
                 string commandText = $"SELECT * FROM [{tableName}]";
 
-                // Check if connection already exists
-                connections = ctx.Book.Connections;
-                bool connectionExists = false;
-                for (int i = 1; i <= connections.Count; i++)
-                {
-                    dynamic? conn = null;
-                    try
-                    {
-                        conn = connections.Item(i);
-                        if (conn.Name == connectionName)
-                        {
-                            connectionExists = true;
-                            break;
-                        }
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref conn);
-                    }
-                }
-
-                // Add table to Data Model
-                // Using numeric constant for xlConnectionTypeOLEDB = 3
-                if (!connectionExists)
-                {
-                    try
-                    {
-                        dynamic? newConnection = connections.Add2(
-                            connectionName,
-                            "Connection to Excel Table",
-                            connectionString,
-                            commandText,
-                            3, // xlConnectionTypeOLEDB
-                            true, // SSO (not used for local)
-                            false // AddToModel parameter
-                        );
-                        ComUtilities.Release(ref newConnection);
-                    }
-                    catch
-                    {
-                        // Connection might not be needed in some Excel versions
-                        // Continue anyway
-                    }
-                }
-
-                // Add the table to the model using ModelTables.Add
+                // Add table to Data Model using the correct Microsoft approach
+                // Key insight: Use Connections.Add2() with CreateModelConnection=true
+                // This automatically adds the table to the Data Model
                 try
                 {
-                    modelTables = model.ModelTables;
-                    dynamic? newModelTable = modelTables.Add(
-                        connectionName,
-                        tableName
-                    );
-                    ComUtilities.Release(ref newModelTable);
-                    ComUtilities.Release(ref modelTables);
+                    dynamic workbookConnections = ctx.Book.Connections;
+
+                    // Check if a connection for this table already exists
+                    bool connectionExists = false;
+                    for (int i = 1; i <= workbookConnections.Count; i++)
+                    {
+                        dynamic? existingConn = null;
+                        try
+                        {
+                            existingConn = workbookConnections.Item(i);
+                            if (existingConn.Name == connectionName)
+                            {
+                                connectionExists = true;
+                                break;
+                            }
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref existingConn);
+                        }
+                    }
+
+                    if (!connectionExists)
+                    {
+                        // Use Connections.Add2() with CreateModelConnection=true
+                        // This is the documented approach for adding tables to Data Model
+                        dynamic? newConnection = workbookConnections.Add2(
+                            Name: connectionName,
+                            Description: $"Excel Table: {tableName}",
+                            ConnectionString: connectionString,
+                            CommandText: commandText,
+                            lCmdtype: 4, // xlCmdTable = 4 for Excel tables
+                            CreateModelConnection: true, // KEY: This adds table to Data Model
+                            ImportRelationships: false
+                        );
+
+                        if (newConnection != null)
+                        {
+                            ComUtilities.Release(ref newConnection);
+                        }
+                    }
+
+                    if (workbookConnections != null)
+                    {
+                        ComUtilities.Release(ref workbookConnections!);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    // Try alternative approach: use Publish to Data Model
+                    // Fallback: Try the table's publish method if available
                     try
                     {
-                        // Some Excel versions support PublishToDataModel on ListObject
+                        // Some Excel versions support Publish method on ListObject
                         table.Publish(null, false); // Publish to Data Model
                     }
-                    catch
+                    catch (Exception publishEx)
                     {
                         result.Success = false;
-                        result.ErrorMessage = $"Failed to add table to Data Model: {ex.Message}. Ensure Power Pivot is enabled.";
+                        result.ErrorMessage = $"Failed to add table to Data Model. " +
+                                            $"Connections.Add2 failed: {ex.Message}. " +
+                                            $"Table.Publish failed: {publishEx.Message}. " +
+                                            $"Ensure Power Pivot is enabled and the Data Model is available.";
                         return result;
                     }
                 }
@@ -175,9 +173,15 @@ public partial class TableCommands
             }
             finally
             {
-                ComUtilities.Release(ref connections);
-                ComUtilities.Release(ref modelTables);
-                ComUtilities.Release(ref table);
+                // Only release variables that were actually used in this method
+                if (modelTables != null)
+                {
+                    ComUtilities.Release(ref modelTables);
+                }
+                if (table != null)
+                {
+                    ComUtilities.Release(ref table);
+                }
             }
         });
     }

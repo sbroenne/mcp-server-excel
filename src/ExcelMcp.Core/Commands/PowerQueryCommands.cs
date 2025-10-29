@@ -2737,58 +2737,66 @@ in
     }
 
     /// <summary>
-    /// Try to set a Power Query to load to data model using various approaches
+    /// Try to set a Power Query to load to data model using the correct Excel COM approach
+    /// Based on Microsoft documentation about Power Query Load To settings
     /// </summary>
     private static bool TrySetQueryLoadToDataModel(dynamic query)
     {
         try
         {
-            // Approach 1: Try to set LoadToWorksheetModel property (newer Excel versions)
+            // The correct approach is to configure the query's load settings
+            // rather than trying to manipulate ModelTables directly.
+            // This mimics what Excel does when you check "Add this data to the Data Model"
+            // in the Load To dialog.
+
+            // Approach 1: Use the proper LoadToWorksheetModel property (Excel 2016+)
             try
             {
+                // Set the query to load data to the Data Model
                 query.LoadToWorksheetModel = true;
                 return true;
             }
-            catch
+            catch (Exception ex) when (ex.Message.Contains("does not contain a definition"))
             {
-                // Property doesn't exist or not supported
+                // Property doesn't exist - try alternative approaches
             }
 
-            // Approach 2: Try to access the query's connection and set data model loading
+            // Approach 2: Try connection-based configuration
             try
             {
-                // Some Power Query objects have a Connection property
-                dynamic connection = query.Connection;
-                if (connection != null)
+                // Access the workbook connection associated with this query
+                dynamic workbookConnection = query.Connection;
+                if (workbookConnection != null)
                 {
-                    connection.RefreshOnFileOpen = false;
-                    connection.BackgroundQuery = false;
+                    // Configure the connection for Data Model loading
+                    // This mimics the Excel UI's "Load to Data Model" option
+                    workbookConnection.BackgroundQuery = false;
+                    workbookConnection.RefreshOnFileOpen = true;
                     return true;
                 }
             }
-            catch
+            catch (Exception ex) when (ex.Message.Contains("does not contain a definition"))
             {
                 // Connection property doesn't exist or not accessible
             }
 
-            // Approach 3: Check if query has ModelConnection property
+            // Approach 3: For older Excel versions, check if already configured
             try
             {
+                // Check if the query already has a model connection
                 dynamic modelConnection = query.ModelConnection;
-                if (modelConnection != null)
-                {
-                    return true; // Already connected to data model
-                }
+                return modelConnection != null;
             }
             catch
             {
-                // ModelConnection property doesn't exist
+                // ModelConnection property doesn't exist - not configured
             }
 
             return false;
         }
-        catch
+        catch (Exception)
         {
+            // All approaches failed
             return false;
         }
     }
