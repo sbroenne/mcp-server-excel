@@ -75,6 +75,7 @@ jobs:
         echo "Created $VSIX_FILE"
         ls -lh "$VSIX_FILE"
         echo "VSIX_PATH=vscode-extension/$VSIX_FILE" >> $GITHUB_ENV
+      shell: bash
 
     - name: Publish to VS Code Marketplace
       uses: HaaLeo/publish-vscode-extension@v2
