@@ -79,10 +79,12 @@ When a tag like `mcp-v1.0.10` is pushed, the workflow:
 - Publishes to NuGet.org
 - Waits for package to be available
 
-### 4. MCP Registry Publishing
+### 4. MCP Registry Publishing (Non-Blocking)
 - Downloads the MCP Publisher CLI tool
 - Authenticates using GitHub OIDC (no secrets required)
 - Publishes `server.json` to the MCP Registry
+- **Note**: These steps use `continue-on-error: true` to ensure release completes even if MCP Registry publishing fails
+- Check the "MCP Registry Status" step output for publishing results
 
 ### 5. GitHub Release
 - Creates a ZIP file with binaries
@@ -161,13 +163,26 @@ The workflow has `id-token: write` permission enabled for OIDC authentication.
 
 ### MCP Registry Publishing Fails
 
-**Issue**: "Package validation failed"
+**Issue**: "Package validation failed" - README not found or mcp-name not detected
 
-**Solution**:
-- Verify the NuGet package has been published successfully
-- Check that `mcp-name:` is present in the package README
-- Wait a few minutes for NuGet indexing
-- Verify the mcp-name matches the server.json name exactly
+**Root Cause**: NuGet CDN propagation delay. The README file may not be immediately available after package publication.
+
+**Automatic Solution** (Implemented):
+- Workflow now waits up to 3 minutes for README propagation before MCP Registry publish
+- Verifies README contains `mcp-name:` validation string
+- Provides diagnostic output if verification fails
+
+**Manual Solution**:
+- Wait 5-10 minutes after NuGet publication for full CDN propagation
+- Verify README is accessible: `https://api.nuget.org/v3-flatcontainer/sbroenne.excelmcp.mcpserver/{version}/readme`
+- Manually publish to MCP Registry using the manual publishing process below
+
+**Verification Steps**:
+1. Check that `mcp-name:` is present in the package README
+2. Verify the mcp-name matches the server.json name exactly: `io.github.sbroenne/mcp-server-excel`
+3. Ensure NuGet package has been published successfully
+
+**Note**: As of the latest workflow update, MCP Registry publishing failures do not block the release process. The NuGet package will still be published successfully, and you can manually publish to the MCP Registry later if needed.
 
 **Issue**: "Authentication failed"
 
@@ -175,6 +190,8 @@ The workflow has `id-token: write` permission enabled for OIDC authentication.
 - Verify workflow has `id-token: write` permission
 - Ensure you're using the correct namespace format
 - For `io.github.*` namespaces, GitHub OIDC should work automatically
+
+**Note**: The workflow uses `continue-on-error: true` for MCP Registry steps, so authentication failures will not prevent the release from completing.
 
 ### Workflow Doesn't Trigger
 
