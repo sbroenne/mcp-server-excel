@@ -30,6 +30,11 @@ src/ExcelMcp.Core/Models/
 │   ├── ImportAction.cs            # Concrete: Import from file
 │   ├── ExportAction.cs            # Concrete: Export to file
 │   └── NextActionFactory.cs       # Factory with domain builders
+└── Validation/                    # NEW - Shared validation layer
+    ├── ActionDefinition.cs        # Action metadata (CLI + MCP)
+    ├── ParameterDefinition.cs     # Parameter validation rules
+    ├── ValidationResult.cs        # Validation result type
+    └── ActionDefinitions.cs       # Central action registry
 ```
 
 ### Files to Modify

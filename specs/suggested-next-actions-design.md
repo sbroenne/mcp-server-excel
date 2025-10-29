@@ -21,6 +21,79 @@ This document proposes a redesign of the `SuggestedNextActions` feature to addre
 3. **No type safety** - Action names can contain typos, wrong casing, or reference non-existent actions
 4. **Maintenance burden** - When adding/removing/renaming actions, must update suggestions in multiple places
 5. **Inconsistent quality** - Some suggestions are helpful, others are generic or redundant
+6. **Hardcoded validation** - Parameter validation rules duplicated across layers with no shared definitions
+
+### Current Validation Implementation
+
+The codebase has **three different validation approaches** with significant duplication:
+
+#### 1. MCP Server - Data Annotation Attributes
+```csharp
+[McpServerTool(Name = "excel_powerquery")]
+public static async Task<string> ExcelPowerQuery(
+    [Required]
+    [RegularExpression("^(list|view|import|export|update|refresh|delete|set-load-to-table|set-load-to-data-model|set-load-to-both|set-connection-only|get-load-config)$")]
+    string action,
+    
+    [Required]
+    [FileExtensions(Extensions = "xlsx,xlsm")]
+    string excelPath,
+    
+    [StringLength(255, MinimumLength = 1)]
+    string? queryName = null,
+    
+    [RegularExpression("^(None|Private|Organizational|Public)$")]
+    string? privacyLevel = null)
+```
+
+**Problems:**
+- Action list hardcoded in regex string (error-prone to maintain)
+- File extensions duplicated across all 8 MCP tools
+- Enum values hardcoded as strings (out of sync with actual enums)
+- No compile-time validation of regex patterns
+
+#### 2. CLI - Manual Argument Checking
+```csharp
+public int List(string[] args)
+{
+    if (args.Length < 2)
+    {
+        AnsiConsole.MarkupLine("[red]Usage:[/] pq-list <file.xlsx>");
+        return 1;
+    }
+    // Manual validation continues...
+}
+
+public int View(string[] args)
+{
+    if (args.Length < 3)
+    {
+        AnsiConsole.MarkupLine("[red]Usage:[/] pq-view <file.xlsx> <query-name>");
+        return 1;
+    }
+    // No validation of file extension, query name format, etc.
+}
+```
+
+**Problems:**
+- Each CLI command manually validates argument count
+- No validation of argument content (file extensions, name formats, etc.)
+- Usage messages hardcoded (can get out of sync with actual parameters)
+- No reusable validation logic
+
+#### 3. Core Commands - No Parameter Validation
+```csharp
+public async Task<PowerQueryViewResult> ViewAsync(IExcelBatch batch, string queryName)
+{
+    // NO validation of queryName format, length, null checks
+    // Validation happens implicitly when Excel COM fails
+}
+```
+
+**Problems:**
+- Core layer assumes valid inputs from CLI/MCP
+- Excel COM errors are cryptic (e.g., "Exception from HRESULT: 0x800A03EC")
+- No early validation to provide helpful error messages
 
 ### Impact
 
@@ -28,6 +101,9 @@ This document proposes a redesign of the `SuggestedNextActions` feature to addre
 - **LLM confusion** - Inconsistent action names between MCP tools may confuse AI agents
 - **User experience** - Generic suggestions like "Check file exists" don't add value
 - **Regression risk** - Refactoring action names can break suggestions silently
+- **Validation drift** - MCP, CLI, and Core can have different rules for same parameters
+- **Maintenance burden** - Changing validation rules requires updates in multiple files
+- **Poor error messages** - Users get COM errors instead of clear validation failures
 
 ## Design Principles
 
@@ -71,6 +147,221 @@ For human CLI users, I need:
 3. **Next steps guidance** - What to do after successful/failed operations
    - After list → Show commands to view/import/delete
    - After error → Show commands to diagnose or fix
+
+## Layer Separation Requirements
+
+> **Critical Design Constraint**: Core layer MUST NOT contain presentation layer concerns
+
+### Current Violations (See `layer-separation-analysis.md`)
+
+The existing codebase violates separation of concerns:
+
+1. **Core contains MCP/CLI-specific suggestions**
+   - Core Commands populate `SuggestedNextActions` with MCP action names (`"Use 'view' to inspect..."`)
+   - Core Commands also use CLI command names (`"Use 'param-list' to see..."`)
+   - Core is tightly coupled to both presentation layers
+
+2. **Mixed responsibility for suggestions**
+   - Core Commands populate suggestions
+   - MCP Tools sometimes overwrite, sometimes append
+   - CLI just displays what Core provides
+   - No clear ownership
+
+3. **Validation scattered across layers**
+   - MCP Server has data annotation attributes (only layer with validation!)
+   - CLI does manual argument count checks (no content validation)
+   - Core assumes inputs are valid (no parameter validation)
+   - Rules can drift out of sync
+
+### New Design Requirements
+
+#### 1. Core Layer - Business Logic ONLY
+
+```csharp
+// Core/Models/ResultTypes.cs
+public abstract class ResultBase
+{
+    public bool Success { get; set; }
+    public string? ErrorMessage { get; set; }
+    public string? FilePath { get; set; }
+    
+    // ❌ REMOVE in v2.0:
+    // public List<string> SuggestedNextActions { get; set; }
+    // public string? WorkflowHint { get; set; }
+}
+
+// Core layer MUST NOT:
+// - Know about CLI command names (pq-list, param-create, etc.)
+// - Know about MCP action names (view, list, import, etc.)
+// - Generate workflow guidance strings
+// - Reference Spectre.Console, ModelContextProtocol, or any UI framework
+```
+
+**Rationale**: Core is business logic. Presentation is MCP/CLI responsibility.
+
+#### 2. Shared Validation Layer
+
+```csharp
+// Core/Validation/ActionDefinitions.cs
+public static class ActionDefinitions
+{
+    public static class PowerQuery
+    {
+        public static readonly ActionDefinition List = new(
+            domain: "PowerQuery",
+            action: "list",
+            cliCommand: "pq-list",
+            mcpAction: "list",
+            mcpTool: "excel_powerquery",
+            parameters: new[]
+            {
+                new ParameterDef("excelPath", required: true, 
+                    fileExtensions: new[] { "xlsx", "xlsm" })
+            }
+        );
+        
+        public static readonly ActionDefinition View = new(
+            domain: "PowerQuery",
+            action: "view",
+            cliCommand: "pq-view",
+            mcpAction: "view",
+            mcpTool: "excel_powerquery",
+            parameters: new[]
+            {
+                new ParameterDef("excelPath", required: true, 
+                    fileExtensions: new[] { "xlsx", "xlsm" }),
+                new ParameterDef("queryName", required: true,
+                    maxLength: 255, pattern: @"^[a-zA-Z0-9_]+$")
+            }
+        );
+        
+        // ... all actions defined once
+    }
+}
+
+// Core/Validation/ParameterDefinition.cs
+public class ParameterDef
+{
+    public string Name { get; }
+    public bool Required { get; }
+    public int? MinLength { get; }
+    public int? MaxLength { get; }
+    public string? Pattern { get; }  // Regex
+    public string[]? FileExtensions { get; }
+    public string[]? AllowedValues { get; }  // For enums
+    public string? Description { get; }
+    
+    // Validation method
+    public ValidationResult Validate(object? value) { ... }
+}
+```
+
+**Benefits:**
+- ✅ Single source of truth for all actions
+- ✅ Validation rules shared between MCP and CLI
+- ✅ CLI gets command name from definition
+- ✅ MCP gets action name from definition
+- ✅ Add action once, available everywhere
+- ✅ Change action name once, propagates everywhere
+
+#### 3. MCP Server - Uses ActionDefinitions
+
+```csharp
+// MCP/Tools/ExcelPowerQueryTool.cs
+[McpServerTool(Name = "excel_powerquery")]
+public static async Task<string> ExcelPowerQuery(
+    [Required]
+    [RegularExpression(ActionDefinitions.PowerQuery.GetActionRegex())]  // Generated from ActionDefinitions
+    string action,
+    
+    [Required]
+    [FileExtensions(Extensions = "xlsx,xlsm")]  // From ParameterDef
+    string excelPath,
+    
+    [StringLength(255, MinimumLength = 1)]  // From ParameterDef
+    string? queryName = null)
+{
+    // Validate using ActionDefinition
+    var actionDef = ActionDefinitions.PowerQuery.GetByMcpAction(action);
+    var validation = actionDef.ValidateParameters(new { excelPath, queryName });
+    if (!validation.IsValid)
+    {
+        throw new McpException(validation.ErrorMessage);
+    }
+    
+    // Call Core business logic
+    var result = await commands.ViewAsync(batch, queryName);
+    
+    // Generate MCP-specific suggestions using ActionDefinition
+    var nextActions = NextActionFactory.PowerQuery.GetNextActions(result, actionDef);
+    
+    return JsonSerializer.Serialize(new
+    {
+        result.Success,
+        result.Data,
+        NextActions = nextActions.Select(a => a.ToMcp()).ToList()
+    });
+}
+```
+
+#### 4. CLI - Uses ActionDefinitions
+
+```csharp
+// CLI/Commands/PowerQueryCommands.cs
+public int View(string[] args)
+{
+    var actionDef = ActionDefinitions.PowerQuery.View;
+    
+    // Validate using ActionDefinition
+    var validation = actionDef.ValidateCliArgs(args);
+    if (!validation.IsValid)
+    {
+        AnsiConsole.MarkupLine($"[red]Error:[/] {validation.ErrorMessage}");
+        AnsiConsole.MarkupLine($"[dim]Usage:[/] {actionDef.GetCliUsage()}");
+        return 1;
+    }
+    
+    // Call Core business logic
+    var result = await commands.ViewAsync(batch, args[2]);
+    
+    // Generate CLI-specific suggestions using ActionDefinition
+    if (result.Success)
+    {
+        DisplayResult(result);
+        
+        var nextActions = NextActionFactory.PowerQuery.GetNextActions(result, actionDef);
+        DisplayNextActions(nextActions.Select(a => a.ToCli()));
+    }
+    
+    return result.Success ? 0 : 1;
+}
+```
+
+### Migration Path for Layer Separation
+
+#### Phase 1: Add Shared Validation (Parallel to NextAction work)
+1. Create `Core/Validation/ActionDefinitions.cs`
+2. Create `Core/Validation/ParameterDefinition.cs`
+3. Define all actions for PowerQuery, Parameter, Table, etc.
+4. Write unit tests for validation logic
+
+#### Phase 2: Update MCP Server
+1. Generate regex patterns from ActionDefinitions
+2. Use ParameterDef for attribute values
+3. Validate using ActionDefinition.ValidateParameters()
+4. Generate MCP suggestions from ActionDefinition
+
+#### Phase 3: Update CLI
+1. Use ActionDefinition.ValidateCliArgs()
+2. Use ActionDefinition.GetCliUsage() for help text
+3. Generate CLI suggestions from ActionDefinition
+
+#### Phase 4: Clean Core (v2.0)
+1. Remove `SuggestedNextActions` from ResultBase
+2. Remove `WorkflowHint` from ResultBase
+3. Remove all CLI command name references from Core
+4. Remove all MCP action name references from Core
+5. Core only returns business data
 
 ## Proposed Architecture
 
