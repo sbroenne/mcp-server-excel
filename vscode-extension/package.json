@@ -17,6 +17,9 @@
   "engines": {
     "vscode": "^1.105.0"
   },
+  "os": [
+    "win32"
+  ],
   "categories": [
     "AI",
     "Other",
