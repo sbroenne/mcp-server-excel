@@ -133,7 +133,7 @@ The MCP server provides **10 focused resource-based tools** optimized for AI cod
 - Update named range references to point to different cells
 - 🎯 **LLM-Optimized**: AI can dynamically configure Excel behavior via parameters
 
-### 8. **`table`** - Excel Table (ListObject) Management 📊
+### 8. **`excel_table`** - Excel Table (ListObject) Management 📊
 
 **Actions**: `list`, `create`, `info`, `rename`, `delete`, `resize`, `set-style`, `toggle-totals`, `set-column-total`, `append`, `apply-filter`, `apply-filter-values`, `clear-filters`, `get-filters`, `add-column`, `remove-column`, `rename-column`, `get-structured-reference`, `sort`, `sort-multi`, `add-to-datamodel` (22 actions)
 
@@ -145,6 +145,8 @@ The MCP server provides **10 focused resource-based tools** optimized for AI cod
 - Sorting: Single column or multi-column sorts (up to 3 levels)
 - Structured References: Get Excel formulas for table regions (All, Data, Headers, Totals, ThisRow)
 - Data Model Integration: Add tables to Power Pivot for analytics
+- **Standalone Features**: AutoFilter dropdowns, structured references ([@Column]), dynamic expansion, formatted bands
+- **Power Query Integration**: Tables can optionally be referenced in Power Query queries
 - 🎯 **LLM-Optimized**: AI can build complex table structures with filters, sorts, and formulas
 
 ### 9. **`excel_vba`** - VBA Macro Management & Execution 📜
@@ -300,15 +302,15 @@ Result: {"success": true, "values": [[...2D array...]], "rowCount": 100, "column
 
 ```text
 User: "List all Excel Tables in my workbook"
-AI Assistant uses: table(action="list", filePath="sales.xlsx")
+AI Assistant uses: excel_table(action="list", filePath="sales.xlsx")
 Result: {"success": true, "tables": [{"name": "SalesTable", "sheetName": "Data", "recordCount": 150}]}
 
 User: "Apply a filter to show only sales over $100"
-AI Assistant uses: table(action="apply-filter", filePath="sales.xlsx", tableName="SalesTable", columnName="Amount", criteria=">100")
+AI Assistant uses: excel_table(action="apply-filter", filePath="sales.xlsx", tableName="SalesTable", columnName="Amount", criteria=">100")
 Result: {"success": true, "message": "Filter applied successfully"}
 
 User: "Sort the table by Amount descending, then by Date ascending"
-AI Assistant uses: table(action="sort-multi", filePath="sales.xlsx", tableName="SalesTable", sortColumns=[{"columnName": "Amount", "ascending": false}, {"columnName": "Date", "ascending": true}])
+AI Assistant uses: excel_table(action="sort-multi", filePath="sales.xlsx", tableName="SalesTable", sortColumns=[{"columnName": "Amount", "ascending": false}, {"columnName": "Date", "ascending": true}])
 Result: {"success": true, "message": "Table sorted successfully"}
 ```
 

@@ -188,10 +188,10 @@ public partial class TableCommands
                 }
 
                 result.Success = true;
-                result.SuggestedNextActions.Add($"Use 'table info {tableName}' to view table details");
-                result.SuggestedNextActions.Add($"Use 'powerquery import' to reference table in Power Query: Excel.CurrentWorkbook(){{[Name=\"{tableName}\"]}}[Content]");
-                result.SuggestedNextActions.Add($"Use 'table delete {tableName}' to remove table (converts back to range)");
-                result.WorkflowHint = $"Table '{tableName}' created successfully. Ready for Power Query integration.";
+                result.SuggestedNextActions.Add($"Use 'table-info {tableName}' to view table details");
+                result.SuggestedNextActions.Add($"Use structured references in formulas: ={tableName}[@Column] or =[@Column] within table");
+                result.SuggestedNextActions.Add($"Use 'table-delete {tableName}' to remove table (converts back to range)");
+                result.WorkflowHint = $"Table '{tableName}' created successfully. AutoFilter, structured references, and dynamic expansion enabled.";
 
                 return result;
             }
@@ -243,8 +243,8 @@ public partial class TableCommands
 
                 table.Name = newName;
                 result.Success = true;
-                result.SuggestedNextActions.Add($"Update Power Query references to use new name: '{newName}'");
-                result.WorkflowHint = $"Table renamed from '{tableName}' to '{newName}'. Update any Power Query references.";
+                result.SuggestedNextActions.Add($"Update structured references in formulas to use new name: ={newName}[@Column]");
+                result.WorkflowHint = $"Table renamed from '{tableName}' to '{newName}'. Update formulas using structured references.";
 
                 return result;
             }
@@ -302,7 +302,7 @@ public partial class TableCommands
 
                 result.Success = true;
                 result.SuggestedNextActions.Add("Data remains in worksheet as a regular range");
-                result.SuggestedNextActions.Add("Update Power Query expressions that referenced this table");
+                result.SuggestedNextActions.Add("Update formulas that used structured references to this table");
                 result.WorkflowHint = $"Table '{tableName}' deleted. Data converted back to regular range.";
 
                 return result;
@@ -412,9 +412,9 @@ public partial class TableCommands
                 };
 
                 result.Success = true;
-                result.SuggestedNextActions.Add($"Use 'table rename {tableName} NewName' to rename table");
-                result.SuggestedNextActions.Add($"Use 'table delete {tableName}' to remove table");
-                result.SuggestedNextActions.Add($"Reference in Power Query: Excel.CurrentWorkbook(){{[Name=\"{tableName}\"]}}[Content]");
+                result.SuggestedNextActions.Add($"Use 'table-rename {tableName} NewName' to rename table");
+                result.SuggestedNextActions.Add($"Use 'table-delete {tableName}' to remove table");
+                result.SuggestedNextActions.Add($"Use structured references in formulas: ={tableName}[@Column]");
                 result.WorkflowHint = $"Table '{tableName}' has {rowCount} rows and {columnCount} columns.";
 
                 return result;

@@ -29,8 +29,8 @@ public static class DataModelWorkflowGuidance
         var suggestions = new List<string>
         {
             "Measure created successfully in Data Model",
-            "Use 'list-measures' to see all measures",
-            "Use 'view-measure' to inspect DAX formula",
+            "Use 'dm-list-measures' to see all measures",
+            "Use 'dm-view-measure' to inspect DAX formula",
             "Measure is now available in PivotTables and Power BI"
         };
 
@@ -65,8 +65,8 @@ public static class DataModelWorkflowGuidance
         var suggestions = new List<string>
         {
             "Relationship created successfully",
-            "Use 'list-relationships' to see all relationships",
-            "Use 'refresh-datamodel' to validate relationship with data",
+            "Use 'dm-list-relationships' to see all relationships",
+            "Use 'dm-refresh' to validate relationship with data",
             "Relationship enables cross-table DAX calculations"
         };
 
@@ -137,18 +137,18 @@ public static class DataModelWorkflowGuidance
             
             if (objectType.Contains("measure", StringComparison.OrdinalIgnoreCase))
             {
-                suggestions.Add("Use 'view-measure' to inspect DAX formulas");
-                suggestions.Add("Use 'update-measure' to modify existing measures");
+                suggestions.Add("Use 'dm-view-measure' to inspect DAX formulas");
+                suggestions.Add("Use 'dm-update-measure' to modify existing measures");
             }
             else if (objectType.Contains("table", StringComparison.OrdinalIgnoreCase))
             {
-                suggestions.Add("Use 'list-relationships' to see how tables are connected");
-                suggestions.Add("Use 'create-measure' to add calculations");
+                suggestions.Add("Use 'dm-list-relationships' to see how tables are connected");
+                suggestions.Add("Use 'dm-create-measure' to add calculations");
             }
             else if (objectType.Contains("relationship", StringComparison.OrdinalIgnoreCase))
             {
                 suggestions.Add("Relationships enable cross-table DAX calculations");
-                suggestions.Add("Use 'create-measure' to leverage relationships");
+                suggestions.Add("Use 'dm-create-measure' to leverage relationships");
             }
         }
 

@@ -150,7 +150,7 @@ Ask your AI assistant:
 List all available Excel MCP tools
 ```
 
-You should see 10 Excel tools: `excel_file`, `excel_powerquery`, `excel_connection`, `excel_worksheet`, `excel_range`, `excel_parameter`, `excel_vba`, `excel_datamodel`, `table`, `excel_version`.
+You should see 10 Excel tools: `excel_file`, `excel_powerquery`, `excel_connection`, `excel_worksheet`, `excel_range`, `excel_parameter`, `excel_vba`, `excel_datamodel`, `excel_table`, `excel_version`.
 
 > 💡 **First-time Setup Helper:** Download [excel-powerquery-vba-copilot-instructions.md](https://raw.githubusercontent.com/sbroenne/mcp-server-excel/main/instructions/excel-powerquery-vba-copilot-instructions.md) and save to `YourProject/.github/` for AI assistant guidance, or ask GitHub Copilot to set up everything automatically.
 
