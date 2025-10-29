@@ -113,7 +113,7 @@ The ExcelMcp MCP server provides **10 specialized tools** with 100+ operations:
 |------|------------|---------|
 | **excel_powerquery** | 11 actions | Create, view, update, refactor M code |
 | **excel_datamodel** | 20 actions | DAX measures, relationships, calculated columns |
-| **table** | 22 actions | Table lifecycle, columns, filters, sorts |
+| **excel_table** | 22 actions | Table lifecycle, columns, filters, sorts |
 | **excel_range** | 30+ actions | Read/write values, formulas, formatting |
 | **excel_vba** | 7 actions | List, export, import, run VBA code |
 | **excel_connection** | 11 actions | Manage OLEDB, ODBC, Text, Web connections |
