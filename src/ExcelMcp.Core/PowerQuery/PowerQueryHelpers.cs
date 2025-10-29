@@ -1,4 +1,5 @@
 using System;
+using Sbroenne.ExcelMcp.ComInterop;
 
 namespace Sbroenne.ExcelMcp.Core.PowerQuery;
 
@@ -49,33 +50,58 @@ public static class PowerQueryHelpers
     /// <param name="name">Name of the query or connection (spaces will be replaced with underscores for QueryTable names)</param>
     public static void RemoveQueryTables(dynamic workbook, string name)
     {
+        dynamic? worksheets = null;
+
         try
         {
-            dynamic worksheets = workbook.Worksheets;
+            worksheets = workbook.Worksheets;
             string normalizedName = name.Replace(" ", "_");
 
             for (int ws = 1; ws <= worksheets.Count; ws++)
             {
-                dynamic worksheet = worksheets.Item(ws);
-                dynamic queryTables = worksheet.QueryTables;
+                dynamic? worksheet = null;
+                dynamic? queryTables = null;
 
-                // Iterate backwards to safely delete items
-                for (int qt = queryTables.Count; qt >= 1; qt--)
+                try
                 {
-                    dynamic queryTable = queryTables.Item(qt);
-                    string queryTableName = queryTable.Name?.ToString() ?? "";
+                    worksheet = worksheets.Item(ws);
+                    queryTables = worksheet.QueryTables;
 
-                    // Match QueryTable names that contain the normalized name
-                    if (queryTableName.Contains(normalizedName, StringComparison.OrdinalIgnoreCase))
+                    // Iterate backwards to safely delete items
+                    for (int qt = queryTables.Count; qt >= 1; qt--)
                     {
-                        queryTable.Delete();
+                        dynamic? queryTable = null;
+                        try
+                        {
+                            queryTable = queryTables.Item(qt);
+                            string queryTableName = queryTable.Name?.ToString() ?? "";
+
+                            // Match QueryTable names that contain the normalized name
+                            if (queryTableName.Contains(normalizedName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                queryTable.Delete();
+                            }
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref queryTable);
+                        }
                     }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref queryTables);
+                    ComUtilities.Release(ref worksheet);
                 }
             }
         }
         catch
         {
             // Ignore errors when removing QueryTables - they may not exist
+        }
+        finally
+        {
+            ComUtilities.Release(ref worksheets);
         }
     }
 
@@ -135,29 +161,43 @@ public static class PowerQueryHelpers
     {
         options ??= new QueryTableOptions { Name = queryName };
 
-        dynamic queryTables = targetSheet.QueryTables;
+        dynamic? queryTables = null;
+        dynamic? queryTable = null;
+        dynamic? range = null;
 
-        // Connection string for Power Query (uses Microsoft.Mashup.OleDb provider)
-        string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
-        string commandText = $"SELECT * FROM [{queryName}]";
-
-        // Create QueryTable at cell A1
-        dynamic queryTable = queryTables.Add(connectionString, targetSheet.Range["A1"], commandText);
-
-        // Configure QueryTable properties
-        queryTable.Name = options.Name.Replace(" ", "_");
-        queryTable.RefreshStyle = 1; // xlInsertDeleteCells
-        queryTable.BackgroundQuery = options.BackgroundQuery;
-        queryTable.RefreshOnFileOpen = options.RefreshOnFileOpen;
-        queryTable.SavePassword = options.SavePassword;
-        queryTable.PreserveColumnInfo = options.PreserveColumnInfo;
-        queryTable.PreserveFormatting = options.PreserveFormatting;
-        queryTable.AdjustColumnWidth = options.AdjustColumnWidth;
-
-        // Refresh immediately if requested
-        if (options.RefreshImmediately)
+        try
         {
-            queryTable.Refresh(false);
+            queryTables = targetSheet.QueryTables;
+
+            // Connection string for Power Query (uses Microsoft.Mashup.OleDb provider)
+            string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
+            string commandText = $"SELECT * FROM [{queryName}]";
+
+            // Create QueryTable at cell A1
+            range = targetSheet.Range["A1"];
+            queryTable = queryTables.Add(connectionString, range, commandText);
+
+            // Configure QueryTable properties
+            queryTable.Name = options.Name.Replace(" ", "_");
+            queryTable.RefreshStyle = 1; // xlInsertDeleteCells
+            queryTable.BackgroundQuery = options.BackgroundQuery;
+            queryTable.RefreshOnFileOpen = options.RefreshOnFileOpen;
+            queryTable.SavePassword = options.SavePassword;
+            queryTable.PreserveColumnInfo = options.PreserveColumnInfo;
+            queryTable.PreserveFormatting = options.PreserveFormatting;
+            queryTable.AdjustColumnWidth = options.AdjustColumnWidth;
+
+            // Refresh immediately if requested
+            if (options.RefreshImmediately)
+            {
+                queryTable.Refresh(false);
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref range);
+            ComUtilities.Release(ref queryTable);
+            ComUtilities.Release(ref queryTables);
         }
     }
 }

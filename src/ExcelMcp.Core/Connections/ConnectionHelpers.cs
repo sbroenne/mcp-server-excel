@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Sbroenne.ExcelMcp.ComInterop;
 
 namespace Sbroenne.ExcelMcp.Core.Connections;
 
@@ -16,23 +17,36 @@ public static class ConnectionHelpers
     public static List<string> GetConnectionNames(dynamic workbook)
     {
         var names = new List<string>();
+        dynamic connections = null!;
 
         try
         {
-            dynamic connections = workbook.Connections;
+            connections = workbook.Connections;
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic conn = connections.Item(i);
-                string name = conn.Name?.ToString() ?? "";
-                if (!string.IsNullOrWhiteSpace(name))
+                dynamic conn = null!;
+                try
                 {
-                    names.Add(name);
+                    conn = connections.Item(i);
+                    string name = conn.Name?.ToString() ?? "";
+                    if (!string.IsNullOrWhiteSpace(name))
+                    {
+                        names.Add(name);
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref conn!);
                 }
             }
         }
         catch
         {
             // Return empty list if any error occurs
+        }
+        finally
+        {
+            ComUtilities.Release(ref connections!);
         }
 
         return names;
@@ -97,27 +111,41 @@ public static class ConnectionHelpers
     /// <param name="name">Name of the query or connection</param>
     public static void RemoveConnections(dynamic workbook, string name)
     {
+        dynamic connections = null!;
+
         try
         {
-            dynamic connections = workbook.Connections;
+            connections = workbook.Connections;
 
             // Iterate backwards to safely delete items
             for (int i = connections.Count; i >= 1; i--)
             {
-                dynamic conn = connections.Item(i);
-                string connName = conn.Name?.ToString() ?? "";
-
-                // Match exact name or "Query - Name" pattern
-                if (connName.Equals(name, StringComparison.OrdinalIgnoreCase) ||
-                    connName.Equals($"Query - {name}", StringComparison.OrdinalIgnoreCase))
+                dynamic conn = null!;
+                try
                 {
-                    conn.Delete();
+                    conn = connections.Item(i);
+                    string connName = conn.Name?.ToString() ?? "";
+
+                    // Match exact name or "Query - Name" pattern
+                    if (connName.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+                        connName.Equals($"Query - {name}", StringComparison.OrdinalIgnoreCase))
+                    {
+                        conn.Delete();
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref conn!);
                 }
             }
         }
         catch
         {
             // Ignore errors when removing connections - they may not exist
+        }
+        finally
+        {
+            ComUtilities.Release(ref connections!);
         }
     }
 }
