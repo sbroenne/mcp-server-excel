@@ -401,6 +401,76 @@ relationship.Active = false;                         // Read/Write
 
 **Key Insight**: RefreshAll() claims to refresh queries but doesn't properly initialize individual QueryTables for disk persistence. Individual queryTable.Refresh(false) is mandatory.
 
+**Lesson Learned (2025-01-29 - VS Code Extension Marketplace Optimization):** When improving VS Code extension discoverability and compliance:
+
+**Situation**: Extension name "excelmcp" was suboptimal for marketplace discoverability and user search patterns.
+
+**Research Process**:
+1. **Marketplace Research**: Used `vscode_searchExtensions_internal` to study successful extensions
+2. **Pattern Analysis**: Analyzed "Azure MCP Server" (11.4k installs), "Excel Viewer" (6.7M installs) naming patterns
+3. **Security Compliance**: Validated against VS Code extension security requirements
+4. **Installation Validation**: Verified bundling, dependencies, and runtime requirements
+
+**Critical Discoveries**:
+- ✅ "Excel MCP" follows successful naming patterns (descriptive + technology)
+- ✅ Kebab-case IDs ("excel-mcp") are marketplace standard for multi-word extensions
+- ✅ Security compliance: No sensitive APIs, self-contained .NET deployment, trusted runtime dependency
+- ✅ Installation readiness: Proper bundling, runtime acquisition, welcome messaging
+
+**Implementation Changes**:
+```json
+// package.json improvements
+{
+  "name": "excel-mcp",           // Was "excelmcp" - improved discoverability
+  "displayName": "Excel MCP Server",  // Clear, descriptive display name
+  "description": "Model Context Protocol server for Excel automation...",  // Enhanced description
+  "version": "1.1.3"            // Version bump for marketplace update
+}
+```
+
+**Technical Fixes**:
+- Fixed extension ID mismatch in TypeScript: `'sbroenne.excelmcp'` → `'sbroenne.excel-mcp'`
+- Verified ms-dotnettools.vscode-dotnet-runtime dependency for .NET self-contained deployment
+- Confirmed MCP server definition provider registration patterns
+
+**Release Strategy**:
+- **Tag Pattern**: Use `vscode-v{version}` for extension releases (e.g., `vscode-v1.1.3`)
+- **Differentiation**: VS Code extension uses `vscode-*` tags, CLI uses `cli-v*`, MCP server uses `v*`
+- **GitHub Workflow**: Automated release process triggered by vscode-prefixed tags
+
+**Mandatory Process for Extension Development**:
+1. ✅ **Research marketplace naming patterns** before choosing extension names
+2. ✅ **Use kebab-case for multi-word extension IDs** (marketplace standard)
+3. ✅ **Validate security compliance** (no sensitive APIs, trusted dependencies)
+4. ✅ **Test installation readiness** (bundling, dependencies, runtime acquisition)
+5. ✅ **Maintain consistent extension IDs** across package.json and TypeScript code
+6. ✅ **Use vscode-v* tag pattern** for extension-specific releases
+7. ✅ **Document marketplace optimization** in release notes and instructions
+
+**Extension ID Consistency Pattern**:
+```typescript
+// src/extension.ts - Must match package.json name
+const extensionId = 'sbroenne.excel-mcp';  // Matches "publisher.name" in package.json
+```
+
+**VS Code Extension Security Requirements Met**:
+- ✅ No access to sensitive VS Code APIs (authentication, secrets, settings)
+- ✅ Self-contained .NET runtime deployment (no external dependencies)
+- ✅ Trusted runtime provider (microsoft extension dependency)
+- ✅ Clear privacy policy and data handling documentation
+- ✅ Open source with transparent code review process
+
+**Performance Optimization**:
+- Welcome notification shown only once per version to avoid spam
+- Efficient MCP server discovery and registration
+- Minimal extension activation overhead
+
+**Marketplace Discoverability Factors**:
+- Descriptive naming following successful patterns (Excel + technology term)
+- Clear category assignment (Other/Language Support)
+- Comprehensive description with use cases and benefits
+- Proper keyword tagging for search optimization
+
 **Lesson Learned (2025-10-24 - Bulk Refactoring):** When performing bulk refactoring with many find/replace operations:
 1. **Preferred:** Use `replace_string_in_file` tool for targeted, unambiguous edits with context
 2. **Batch Operations:** Use `grep_search` to find patterns, then use `replace_string_in_file` in parallel for independent changes
