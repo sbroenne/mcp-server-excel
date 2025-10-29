@@ -11,6 +11,20 @@ namespace Sbroenne.ExcelMcp.Core.Models.Validation;
 public static class ActionDefinitions
 {
     /// <summary>
+    /// Shared parameter definitions used across multiple domains
+    /// </summary>
+    private static class SharedParams
+    {
+        public static readonly ParameterDefinition ExcelPath = new()
+        {
+            Name = "excelPath",
+            Required = true,
+            FileExtensions = new[] { "xlsx", "xlsm" },
+            Description = "Excel file path (.xlsx or .xlsm)"
+        };
+    }
+
+    /// <summary>
     /// Power Query action definitions
     /// </summary>
     public static class PowerQuery
@@ -22,13 +36,7 @@ public static class ActionDefinitions
         /// </summary>
         private static class CommonParams
         {
-            public static readonly ParameterDefinition ExcelPath = new()
-            {
-                Name = "excelPath",
-                Required = true,
-                FileExtensions = new[] { "xlsx", "xlsm" },
-                Description = "Excel file path (.xlsx or .xlsm)"
-            };
+            public static readonly ParameterDefinition ExcelPath = SharedParams.ExcelPath;
 
             public static readonly ParameterDefinition QueryName = new()
             {
@@ -249,5 +257,229 @@ public static class ActionDefinitions
         }
     }
 
-    // TODO: Add Parameter, Table, DataModel, VBA, etc. action definitions
+    /// <summary>
+    /// Parameter (Named Range) action definitions
+    /// </summary>
+    public static class Parameter
+    {
+        private const string Domain = "Parameter";
+
+        private static class CommonParams
+        {
+            public static readonly ParameterDefinition ExcelPath = SharedParams.ExcelPath;
+
+            public static readonly ParameterDefinition ParameterName = new()
+            {
+                Name = "parameterName",
+                Required = true,
+                MaxLength = 255,
+                MinLength = 1,
+                Description = "Named range parameter name"
+            };
+
+            public static readonly ParameterDefinition Value = new()
+            {
+                Name = "value",
+                Required = true,
+                Description = "Parameter value"
+            };
+
+            public static readonly ParameterDefinition Reference = new()
+            {
+                Name = "reference",
+                Required = true,
+                Pattern = @"^=?[A-Za-z]+[0-9]+$|^=?[A-Za-z]+[0-9]+:[A-Za-z]+[0-9]+$",
+                Description = "Cell reference (e.g., A1 or A1:B2)"
+            };
+        }
+
+        public static readonly ActionDefinition List = new()
+        {
+            Domain = Domain,
+            Name = "list",
+            Parameters = new[] { CommonParams.ExcelPath },
+            Description = "List all named range parameters"
+        };
+
+        public static readonly ActionDefinition Get = new()
+        {
+            Domain = Domain,
+            Name = "get",
+            Parameters = new[] { CommonParams.ExcelPath, CommonParams.ParameterName },
+            Description = "Get parameter value"
+        };
+
+        public static readonly ActionDefinition Set = new()
+        {
+            Domain = Domain,
+            Name = "set",
+            Parameters = new[] { CommonParams.ExcelPath, CommonParams.ParameterName, CommonParams.Value },
+            Description = "Set parameter value"
+        };
+
+        public static readonly ActionDefinition Create = new()
+        {
+            Domain = Domain,
+            Name = "create",
+            Parameters = new[] { CommonParams.ExcelPath, CommonParams.ParameterName, CommonParams.Reference },
+            Description = "Create new named range parameter"
+        };
+
+        public static readonly ActionDefinition Delete = new()
+        {
+            Domain = Domain,
+            Name = "delete",
+            Parameters = new[] { CommonParams.ExcelPath, CommonParams.ParameterName },
+            Description = "Delete named range parameter"
+        };
+
+        public static IEnumerable<ActionDefinition> GetAll()
+        {
+            yield return List;
+            yield return Get;
+            yield return Set;
+            yield return Create;
+            yield return Delete;
+        }
+
+        public static ActionDefinition? GetByName(string actionName)
+        {
+            return GetAll().FirstOrDefault(a =>
+                string.Equals(a.Name, actionName, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    /// <summary>
+    /// Table action definitions  
+    /// </summary>
+    public static class Table
+    {
+        private const string Domain = "Table";
+
+        private static class CommonParams
+        {
+            public static readonly ParameterDefinition ExcelPath = SharedParams.ExcelPath;
+
+            public static readonly ParameterDefinition TableName = new()
+            {
+                Name = "tableName",
+                Required = true,
+                MaxLength = 255,
+                MinLength = 1,
+                Description = "Excel table name"
+            };
+
+            public static readonly ParameterDefinition WorksheetName = new()
+            {
+                Name = "worksheetName",
+                Required = true,
+                MaxLength = 31,
+                MinLength = 1,
+                Pattern = @"^[^[\]/*?\\:]+$",
+                Description = "Worksheet name"
+            };
+
+            public static readonly ParameterDefinition RangeAddress = new()
+            {
+                Name = "rangeAddress",
+                Required = true,
+                Pattern = @"^[A-Z]+[0-9]+:[A-Z]+[0-9]+$",
+                Description = "Cell range address (e.g., A1:D10)"
+            };
+
+            public static readonly ParameterDefinition NewName = new()
+            {
+                Name = "newName",
+                Required = true,
+                MaxLength = 255,
+                MinLength = 1,
+                Description = "New table name"
+            };
+        }
+
+        public static readonly ActionDefinition List = new()
+        {
+            Domain = Domain,
+            Name = "list",
+            Parameters = new[] { CommonParams.ExcelPath },
+            Description = "List all tables in workbook"
+        };
+
+        public static readonly ActionDefinition Create = new()
+        {
+            Domain = Domain,
+            Name = "create",
+            Parameters = new[] 
+            { 
+                CommonParams.ExcelPath, 
+                CommonParams.TableName,
+                CommonParams.WorksheetName,
+                CommonParams.RangeAddress
+            },
+            Description = "Create new Excel table from range"
+        };
+
+        public static readonly ActionDefinition Info = new()
+        {
+            Domain = Domain,
+            Name = "info",
+            Parameters = new[] { CommonParams.ExcelPath, CommonParams.TableName },
+            Description = "Get table information (columns, row count, location)"
+        };
+
+        public static readonly ActionDefinition Rename = new()
+        {
+            Domain = Domain,
+            Name = "rename",
+            Parameters = new[] { CommonParams.ExcelPath, CommonParams.TableName, CommonParams.NewName },
+            Description = "Rename table"
+        };
+
+        public static readonly ActionDefinition Delete = new()
+        {
+            Domain = Domain,
+            Name = "delete",
+            Parameters = new[] { CommonParams.ExcelPath, CommonParams.TableName },
+            Description = "Delete table (keeps data, removes table structure)"
+        };
+
+        public static IEnumerable<ActionDefinition> GetAll()
+        {
+            yield return List;
+            yield return Create;
+            yield return Info;
+            yield return Rename;
+            yield return Delete;
+        }
+
+        public static ActionDefinition? GetByName(string actionName)
+        {
+            return GetAll().FirstOrDefault(a =>
+                string.Equals(a.Name, actionName, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    /// <summary>
+    /// Lookup action definition by domain and name
+    /// </summary>
+    public static ActionDefinition? FindAction(string domain, string actionName)
+    {
+        return domain.ToLowerInvariant() switch
+        {
+            "powerquery" => PowerQuery.GetByName(actionName),
+            "parameter" => Parameter.GetByName(actionName),
+            "table" => Table.GetByName(actionName),
+            _ => null
+        };
+    }
+
+    /// <summary>
+    /// Get all action definitions across all domains
+    /// </summary>
+    public static IEnumerable<ActionDefinition> GetAllActions()
+    {
+        foreach (var action in PowerQuery.GetAll()) yield return action;
+        foreach (var action in Parameter.GetAll()) yield return action;
+        foreach (var action in Table.GetAll()) yield return action;
+    }
 }
