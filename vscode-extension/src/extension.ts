@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 
 /**
  * ExcelMcp VS Code Extension
- * 
+ *
  * This extension provides MCP server definitions for the ExcelMcp MCP server,
  * enabling AI assistants like GitHub Copilot to interact with Microsoft Excel
  * through native COM automation.
@@ -11,9 +12,9 @@ import * as vscode from 'vscode';
 export async function activate(context: vscode.ExtensionContext) {
 	console.log('ExcelMcp extension is now active');
 
-	// Ensure .NET runtime is available and tool is installed
+	// Ensure .NET runtime is available (still needed for the bundled executable)
 	try {
-		await ensureDotNetAndTool();
+		await ensureDotNetRuntime();
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		vscode.window.showErrorMessage(
@@ -27,13 +28,15 @@ export async function activate(context: vscode.ExtensionContext) {
 		vscode.lm.registerMcpServerDefinitionProvider('excelmcp', {
 			provideMcpServerDefinitions: async () => {
 				// Return the MCP server definition for ExcelMcp
-				// Uses dotnet tool run with the globally installed tool
-				// This works with .NET 8 runtime (auto-installed by .NET Install Tool extension)
+				// Use the bundled executable path
+				const extensionPath = context.extensionPath;
+				const mcpServerPath = path.join(extensionPath, 'bin', 'Sbroenne.ExcelMcp.McpServer.exe');
+
 				return [
 					new vscode.McpStdioServerDefinition(
 						'ExcelMcp - Excel Automation',
-						'dotnet',
-						['tool', 'run', 'mcp-excel'],
+						mcpServerPath,
+						[],
 						{
 							// Optional environment variables can be added here if needed
 						}
@@ -51,11 +54,11 @@ export async function activate(context: vscode.ExtensionContext) {
 	}
 }
 
-async function ensureDotNetAndTool(): Promise<void> {
+async function ensureDotNetRuntime(): Promise<void> {
 	try {
 		// Request .NET runtime acquisition via the .NET Install Tool extension
 		const dotnetExtension = vscode.extensions.getExtension('ms-dotnettools.vscode-dotnet-runtime');
-		
+
 		if (!dotnetExtension) {
 			throw new Error('.NET Install Tool extension not found. Please install ms-dotnettools.vscode-dotnet-runtime');
 		}
@@ -64,31 +67,26 @@ async function ensureDotNetAndTool(): Promise<void> {
 			await dotnetExtension.activate();
 		}
 
-		// Request .NET 8 runtime
-		const dotnetApi = dotnetExtension.exports;
-		const dotnetPath = await dotnetApi.acquireDotNet('8.0', 'runtime');
-		
-		console.log(`ExcelMcp: .NET runtime available at ${dotnetPath.dotnetPath}`);
+		// Request .NET 8 runtime using the command-based API
+		// The extension uses commands, not direct exports
+		const requestingExtensionId = 'sbroenne.excelmcp';
 
-		// Check if the MCP server tool is installed
-		const terminal = vscode.window.createTerminal({
-			name: 'ExcelMcp Setup',
-			hideFromUser: true
+		await vscode.commands.executeCommand('dotnet.showAcquisitionLog');
+		const result = await vscode.commands.executeCommand<{ dotnetPath: string }>('dotnet.acquire', {
+			version: '8.0',
+			requestingExtensionId
 		});
 
-		// Install the tool if not already installed
-		// Using --ignore-failed-sources to handle offline scenarios gracefully
-		terminal.sendText('dotnet tool install --global Sbroenne.ExcelMcp.McpServer --ignore-failed-sources || dotnet tool update --global Sbroenne.ExcelMcp.McpServer --ignore-failed-sources');
-		terminal.dispose();
+		if (result?.dotnetPath) {
+			console.log(`ExcelMcp: .NET runtime available at ${result.dotnetPath}`);
+		}
 
-		console.log('ExcelMcp: MCP server tool installation/update initiated');
+		console.log('ExcelMcp: .NET runtime setup completed (MCP server is bundled with extension)');
 	} catch (error) {
-		console.error('ExcelMcp: Error during .NET/tool setup:', error);
+		console.error('ExcelMcp: Error during .NET runtime setup:', error);
 		throw error;
 	}
-}
-
-function showWelcomeMessage() {
+}function showWelcomeMessage() {
 	const message = 'ExcelMcp extension activated! The Excel MCP server is now available for AI assistants.';
 	const learnMore = 'Learn More';
 

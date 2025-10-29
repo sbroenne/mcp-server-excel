@@ -159,14 +159,17 @@ The MCP server provides **10 focused resource-based tools** optimized for AI cod
 - Execute macros with parameters directly from AI
 - 🎯 **LLM-Optimized**: AI can enhance VBA with error handling, logging, and best practices
 
-### 10. **`excel_version`** - Version Checking ⚡
+### 9. **`excel_table`** - Excel Tables (ListObjects) ⚡
 
-**Actions**: `check` (1 action)
+**Actions**: `list`, `create`, `info`, `rename`, `delete`, `resize`, `set-style`, `toggle-totals`, `set-column-total`, `append`, `apply-filter`, `apply-filter-values`, `clear-filters`, `get-filters`, `add-column`, `remove-column`, `rename-column`, `add-to-datamodel`, `get-structured-reference`, `sort`, `sort-multi` (22 actions)
 
-- Check for updates on NuGet.org
-- Automatic startup check displays warning if outdated version detected
-- Provides update instructions and workflow guidance
-- 🎯 **LLM-Optimized**: AI can notify users about available updates and guide upgrade process
+- Complete table lifecycle management (create, resize, style, delete)
+- Advanced filtering with criteria operators and value lists
+- Column management (add, remove, rename with position control)
+- Sort operations (single and multi-column with 3-level support)
+- Structured reference generation for formulas
+- Data Model integration for Power Pivot
+- 🎯 **LLM-Optimized**: AI can create sophisticated table structures with filters, sorts, and styling
 
 ## 💬 Example AI Assistant Interactions
 
@@ -503,24 +506,6 @@ Your VBA module now includes:
 - Structured logging for debugging
 - Input validation and sanitization
 - Better code organization and comments
-```
-
-**Version Check and Update Workflow:**
-
-```text
-User: "Check if I'm running the latest version of ExcelMcp"
-
-Copilot: Let me check for updates:
-
-[Executes: excel_version check]
-
-Result: A newer version (1.2.0) is available. You are running version 1.0.0.
-
-Update instructions:
-The dnx command automatically downloads the latest version from NuGet.
-Simply restart VS Code to update - the MCP server will use the new version automatically.
-
-Would you like me to verify the update after you restart?
 ```
 
 **Power Query Code Review and Optimization:**

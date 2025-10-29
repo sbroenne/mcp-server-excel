@@ -14,7 +14,7 @@
 
 **What happens automatically:**
 - ✅ .NET 8 runtime installed (via .NET Install Tool extension)
-- ✅ ExcelMcp MCP server tool installed
+- ✅ ExcelMcp MCP server bundled with extension (no separate installation needed)
 - ✅ MCP server registered for AI assistants
 - ✅ Welcome message shows you're ready
 
@@ -69,7 +69,7 @@
    - excel_worksheet
    - excel_parameter
    - excel_file
-   - excel_version
+   - excel_table
 
 ---
 
@@ -109,7 +109,7 @@ The MCP server provides **10 specialized tools**:
 7. **excel_worksheet** - Worksheet lifecycle (5 actions)
 8. **excel_parameter** - Named ranges (6 actions)
 9. **excel_file** - File creation (1 action)
-10. **excel_version** - Update checking (1 action)
+9. **excel_table** - Excel Tables (ListObjects) management (22 actions)
 
 ## Troubleshooting
 
@@ -121,10 +121,10 @@ The MCP server provides **10 specialized tools**:
    # Should show 8.x.x or higher
    ```
 
-2. **Verify MCP server tool is installed**:
-   ```powershell
-   dotnet tool run mcp-excel --help
-   ```
+2. **MCP server is bundled with extension**:
+   - The MCP server executable is included with the extension
+   - No separate tool installation required
+   - Located at: `extension-path/bin/Sbroenne.ExcelMcp.McpServer.exe`
 
 3. **Check Excel is installed**:
    - Open Excel manually to verify
@@ -138,18 +138,20 @@ The MCP server provides **10 specialized tools**:
 
 ## Alternative: Manual Configuration
 
-If you prefer not to use the extension, you can manually configure the MCP server by creating `.vscode/mcp.json`:
+If you prefer not to use the extension, you can manually configure the MCP server by downloading the standalone executable and creating `.vscode/mcp.json`:
 
 ```json
 {
   "servers": {
     "excel": {
-      "command": "dotnet",
-      "args": ["tool", "run", "mcp-excel"]
+      "command": "path/to/Sbroenne.ExcelMcp.McpServer.exe",
+      "args": []
     }
   }
 }
 ```
+
+Download the standalone MCP server from the [Releases page](https://github.com/sbroenne/mcp-server-excel/releases).
 
 ## Development
 

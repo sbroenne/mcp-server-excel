@@ -61,7 +61,7 @@ Ask GitHub Copilot to manage Power Query M code, DAX measures, VBA macros, Excel
    - "Create a new Excel file with sample data"
    - "Export all DAX measures to version control"
 
-**That's it!** The extension automatically installs .NET 8 runtime and the MCP server. Copilot automatically uses the ExcelMcp tools when you ask Excel-related questions.
+**That's it!** The extension automatically installs .NET 8 runtime and includes a bundled MCP server. Copilot automatically uses the ExcelMcp tools when you ask Excel-related questions.
 
 ## Common Use Cases
 
@@ -129,7 +129,7 @@ The ExcelMcp MCP server provides **10 specialized tools** with 100+ operations:
 | **excel_worksheet** | 5 actions | Create, rename, copy, delete sheets |
 | **excel_parameter** | 6 actions | Named range management |
 | **excel_file** | 1 action | Create Excel workbooks |
-| **excel_version** | 1 action | Check for updates |
+| **excel_table** | 22 actions | Excel Tables management |
 
 ## Troubleshooting
 
@@ -151,11 +151,11 @@ The ExcelMcp MCP server provides **10 specialized tools** with 100+ operations:
 This extension uses the Model Context Protocol (MCP) to connect AI assistants to Excel:
 
 1. The extension registers the ExcelMcp MCP server with VS Code
-2. When you ask Copilot about Excel, VS Code runs: `dotnet tool run mcp-excel`
+2. When you ask Copilot about Excel, VS Code runs the bundled MCP server executable
 3. The MCP server uses Excel COM automation to perform operations
 4. Results are returned to Copilot in your chat
 
-The extension automatically handles .NET installation via the .NET Install Tool.
+The extension automatically handles .NET installation via the .NET Install Tool and includes a bundled MCP server executable for zero-setup installation.
 
 ## Documentation & Support
 

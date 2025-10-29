@@ -23,7 +23,7 @@ All notable changes to the ExcelMcp VS Code extension will be documented in this
 - Worksheet operations (5 actions)
 - Named range parameters (6 actions)
 - File creation (1 action)
-- Version checking (1 action)
+- Excel Tables management (22 actions)
 
 ### Requirements
 - Windows OS
