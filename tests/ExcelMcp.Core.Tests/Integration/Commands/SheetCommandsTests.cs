@@ -69,6 +69,11 @@ public class SheetCommandsTests : IDisposable
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+
+        // Verify sheet actually exists
+        var listResult = await _sheetCommands.ListAsync(batch);
+        Assert.True(listResult.Success);
+        Assert.Contains(listResult.Worksheets, w => w.Name == "TestSheet");
     }
 
     [Fact]
@@ -110,6 +115,12 @@ public class SheetCommandsTests : IDisposable
 
             // Assert
             Assert.True(result.Success);
+
+            // Verify rename actually happened
+            var listResult = await _sheetCommands.ListAsync(batch);
+            Assert.True(listResult.Success);
+            Assert.DoesNotContain(listResult.Worksheets, w => w.Name == "OldName");
+            Assert.Contains(listResult.Worksheets, w => w.Name == "NewName");
         }
     }
 
@@ -131,6 +142,11 @@ public class SheetCommandsTests : IDisposable
 
             // Assert
             Assert.True(result.Success);
+
+            // Verify sheet is actually gone
+            var listResult = await _sheetCommands.ListAsync(batch);
+            Assert.True(listResult.Success);
+            Assert.DoesNotContain(listResult.Worksheets, w => w.Name == "ToDelete");
         }
     }
 
@@ -152,6 +168,12 @@ public class SheetCommandsTests : IDisposable
 
             // Assert
             Assert.True(result.Success);
+
+            // Verify both source and target sheets exist
+            var listResult = await _sheetCommands.ListAsync(batch);
+            Assert.True(listResult.Success);
+            Assert.Contains(listResult.Worksheets, w => w.Name == "Source");
+            Assert.Contains(listResult.Worksheets, w => w.Name == "Target");
         }
     }
 

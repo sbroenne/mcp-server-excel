@@ -60,6 +60,11 @@ public class ParameterCommandsTests : IDisposable
 
         // Assert
         Assert.True(result.Success);
+
+        // Verify the parameter was actually created by listing parameters
+        var listResult = await _parameterCommands.ListAsync(batch);
+        Assert.True(listResult.Success, $"Failed to list parameters: {listResult.ErrorMessage}");
+        Assert.Contains(listResult.Parameters, p => p.Name == "TestParam");
     }
 
     [Fact]
@@ -108,6 +113,11 @@ public class ParameterCommandsTests : IDisposable
 
             // Assert
             Assert.True(result.Success, $"Failed to set parameter: {result.ErrorMessage}");
+
+            // Verify the parameter value was actually set by reading it back
+            var getResult = await _parameterCommands.GetAsync(batch, paramName);
+            Assert.True(getResult.Success, $"Failed to get parameter: {getResult.ErrorMessage}");
+            Assert.Equal("TestValue", getResult.Value?.ToString());
         }
     }
 
@@ -163,6 +173,11 @@ public class ParameterCommandsTests : IDisposable
 
             // Assert
             Assert.True(result.Success);
+
+            // Verify the parameter was actually deleted by checking it's not in the list
+            var listResult = await _parameterCommands.ListAsync(batch);
+            Assert.True(listResult.Success, $"Failed to list parameters: {listResult.ErrorMessage}");
+            Assert.DoesNotContain(listResult.Parameters, p => p.Name == paramName);
         }
     }
 

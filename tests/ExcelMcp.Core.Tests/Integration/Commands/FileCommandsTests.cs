@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
@@ -38,6 +39,27 @@ public class FileCommandsTests : IDisposable
         _createdFiles = new List<string>();
     }
 
+    /// <summary>
+    /// Helper method to verify a file is a valid Excel workbook by trying to open it
+    /// </summary>
+    private async Task<bool> IsValidExcelFileAsync(string filePath)
+    {
+        try
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await batch.ExecuteAsync<bool>((ctx, ct) =>
+            {
+                // If we can access the workbook and get worksheets, it's valid
+                dynamic sheets = ctx.Book.Worksheets;
+                return ValueTask.FromResult(sheets.Count >= 1);
+            });
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     [Fact]
     public async Task CreateEmpty_WithValidPath_ReturnsSuccessResult()
     {
@@ -58,6 +80,10 @@ public class FileCommandsTests : IDisposable
         // Verify it's a valid Excel file by checking size > 0
         var fileInfo = new FileInfo(testFile);
         Assert.True(fileInfo.Length > 0);
+
+        // Verify it's a valid Excel workbook by opening it and checking for worksheets
+        bool isValidExcel = await IsValidExcelFileAsync(testFile);
+        Assert.True(isValidExcel, "Created file should be a valid Excel workbook with at least one worksheet");
     }
 
     [Fact]
@@ -75,6 +101,10 @@ public class FileCommandsTests : IDisposable
         Assert.True(result.Success);
         Assert.True(Directory.Exists(nestedDir));
         Assert.True(File.Exists(testFile));
+
+        // Verify the created file is a valid Excel workbook
+        bool isValidExcel = await IsValidExcelFileAsync(testFile);
+        Assert.True(isValidExcel, "Created file should be a valid Excel workbook with at least one worksheet");
     }
 
     [Fact]
@@ -305,7 +335,7 @@ public class FileCommandsTests : IDisposable
     {
         // Arrange
         string testFile = Path.Combine(_tempDir, fileName);
-        
+
         // Create file with invalid extension
         File.WriteAllText(testFile, "test content");
         _createdFiles.Add(testFile);
