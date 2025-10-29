@@ -6,7 +6,7 @@ namespace Sbroenne.ExcelMcp.Core.Models.Validation;
 
 /// <summary>
 /// Central registry of all action definitions
-/// Single source of truth for action metadata across CLI, MCP, and Core layers
+/// Domain-focused definitions without client-specific concerns (CLI/MCP)
 /// </summary>
 public static class ActionDefinitions
 {
@@ -15,7 +15,6 @@ public static class ActionDefinitions
     /// </summary>
     public static class PowerQuery
     {
-        private const string Tool = "excel_powerquery";
         private const string Domain = "PowerQuery";
 
         /// <summary>
@@ -78,10 +77,7 @@ public static class ActionDefinitions
         public static readonly ActionDefinition List = new()
         {
             Domain = Domain,
-            Action = "list",
-            CliCommand = "pq-list",
-            McpAction = "list",
-            McpTool = Tool,
+            Name = "list",
             Parameters = new[] { CommonParams.ExcelPath },
             Description = "List all Power Queries in workbook"
         };
@@ -89,10 +85,7 @@ public static class ActionDefinitions
         public static readonly ActionDefinition View = new()
         {
             Domain = Domain,
-            Action = "view",
-            CliCommand = "pq-view",
-            McpAction = "view",
-            McpTool = Tool,
+            Name = "view",
             Parameters = new[] { CommonParams.ExcelPath, CommonParams.QueryName },
             Description = "View Power Query M code"
         };
@@ -100,10 +93,7 @@ public static class ActionDefinitions
         public static readonly ActionDefinition Import = new()
         {
             Domain = Domain,
-            Action = "import",
-            CliCommand = "pq-import",
-            McpAction = "import",
-            McpTool = Tool,
+            Name = "import",
             Parameters = new[] 
             { 
                 CommonParams.ExcelPath, 
@@ -117,10 +107,7 @@ public static class ActionDefinitions
         public static readonly ActionDefinition Export = new()
         {
             Domain = Domain,
-            Action = "export",
-            CliCommand = "pq-export",
-            McpAction = "export",
-            McpTool = Tool,
+            Name = "export",
             Parameters = new[]
             {
                 CommonParams.ExcelPath,
@@ -133,10 +120,7 @@ public static class ActionDefinitions
         public static readonly ActionDefinition Update = new()
         {
             Domain = Domain,
-            Action = "update",
-            CliCommand = "pq-update",
-            McpAction = "update",
-            McpTool = Tool,
+            Name = "update",
             Parameters = new[]
             {
                 CommonParams.ExcelPath,
@@ -150,10 +134,7 @@ public static class ActionDefinitions
         public static readonly ActionDefinition Delete = new()
         {
             Domain = Domain,
-            Action = "delete",
-            CliCommand = "pq-delete",
-            McpAction = "delete",
-            McpTool = Tool,
+            Name = "delete",
             Parameters = new[]
             {
                 CommonParams.ExcelPath,
@@ -165,10 +146,7 @@ public static class ActionDefinitions
         public static readonly ActionDefinition Refresh = new()
         {
             Domain = Domain,
-            Action = "refresh",
-            CliCommand = "pq-refresh",
-            McpAction = "refresh",
-            McpTool = Tool,
+            Name = "refresh",
             Parameters = new[]
             {
                 CommonParams.ExcelPath,
@@ -180,10 +158,7 @@ public static class ActionDefinitions
         public static readonly ActionDefinition SetLoadToTable = new()
         {
             Domain = Domain,
-            Action = "set-load-to-table",
-            CliCommand = "pq-set-load-to-table",
-            McpAction = "set-load-to-table",
-            McpTool = Tool,
+            Name = "set-load-to-table",
             Parameters = new[]
             {
                 CommonParams.ExcelPath,
@@ -197,10 +172,7 @@ public static class ActionDefinitions
         public static readonly ActionDefinition SetLoadToDataModel = new()
         {
             Domain = Domain,
-            Action = "set-load-to-data-model",
-            CliCommand = "pq-set-load-to-data-model",
-            McpAction = "set-load-to-data-model",
-            McpTool = Tool,
+            Name = "set-load-to-data-model",
             Parameters = new[]
             {
                 CommonParams.ExcelPath,
@@ -213,10 +185,7 @@ public static class ActionDefinitions
         public static readonly ActionDefinition SetLoadToBoth = new()
         {
             Domain = Domain,
-            Action = "set-load-to-both",
-            CliCommand = "pq-set-load-to-both",
-            McpAction = "set-load-to-both",
-            McpTool = Tool,
+            Name = "set-load-to-both",
             Parameters = new[]
             {
                 CommonParams.ExcelPath,
@@ -230,10 +199,7 @@ public static class ActionDefinitions
         public static readonly ActionDefinition SetConnectionOnly = new()
         {
             Domain = Domain,
-            Action = "set-connection-only",
-            CliCommand = "pq-set-connection-only",
-            McpAction = "set-connection-only",
-            McpTool = Tool,
+            Name = "set-connection-only",
             Parameters = new[]
             {
                 CommonParams.ExcelPath,
@@ -245,10 +211,7 @@ public static class ActionDefinitions
         public static readonly ActionDefinition GetLoadConfig = new()
         {
             Domain = Domain,
-            Action = "get-load-config",
-            CliCommand = "pq-get-load-config",
-            McpAction = "get-load-config",
-            McpTool = Tool,
+            Name = "get-load-config",
             Parameters = new[]
             {
                 CommonParams.ExcelPath,
@@ -277,30 +240,12 @@ public static class ActionDefinitions
         }
 
         /// <summary>
-        /// Gets action definition by MCP action name
+        /// Gets action definition by name
         /// </summary>
-        public static ActionDefinition? GetByMcpAction(string action)
+        public static ActionDefinition? GetByName(string actionName)
         {
             return GetAll().FirstOrDefault(a => 
-                string.Equals(a.McpAction, action, StringComparison.OrdinalIgnoreCase));
-        }
-
-        /// <summary>
-        /// Gets action definition by CLI command name
-        /// </summary>
-        public static ActionDefinition? GetByCliCommand(string command)
-        {
-            return GetAll().FirstOrDefault(a =>
-                string.Equals(a.CliCommand, command, StringComparison.OrdinalIgnoreCase));
-        }
-
-        /// <summary>
-        /// Gets regex pattern for all valid MCP actions
-        /// </summary>
-        public static string GetMcpActionRegex()
-        {
-            var actions = GetAll().Select(a => Regex.Escape(a.McpAction));
-            return $"^({string.Join("|", actions)})$";
+                string.Equals(a.Name, actionName, StringComparison.OrdinalIgnoreCase));
         }
     }
 

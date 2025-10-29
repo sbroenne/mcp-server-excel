@@ -3,8 +3,8 @@ using System.Text.RegularExpressions;
 namespace Sbroenne.ExcelMcp.Core.Models.Validation;
 
 /// <summary>
-/// Defines an action with its CLI command, MCP details, and parameter validation
-/// Provides single source of truth for action metadata across all layers
+/// Defines an action with its parameters and validation rules
+/// Domain-focused definition without client-specific concerns
 /// </summary>
 public class ActionDefinition
 {
@@ -14,24 +14,9 @@ public class ActionDefinition
     public string Domain { get; init; } = "";
 
     /// <summary>
-    /// Generic action name (e.g., "list", "view", "create")
+    /// Action name (e.g., "list", "view", "create")
     /// </summary>
-    public string Action { get; init; } = "";
-
-    /// <summary>
-    /// CLI command name (e.g., "pq-list", "param-create", "table-info")
-    /// </summary>
-    public string CliCommand { get; init; } = "";
-
-    /// <summary>
-    /// MCP action name (e.g., "list", "view", "create")
-    /// </summary>
-    public string McpAction { get; init; } = "";
-
-    /// <summary>
-    /// MCP tool name (e.g., "excel_powerquery", "excel_parameter")
-    /// </summary>
-    public string McpTool { get; init; } = "";
+    public string Name { get; init; } = "";
 
     /// <summary>
     /// Parameter definitions for this action
@@ -62,65 +47,18 @@ public class ActionDefinition
     }
 
     /// <summary>
-    /// Validates CLI arguments for this action
+    /// Gets parameter names for documentation/help
     /// </summary>
-    public ValidationResult ValidateCliArgs(string[] args)
+    public string[] GetRequiredParameterNames()
     {
-        // First arg is command name, so required params start at index 1
-        int requiredCount = Parameters.Count(p => p.Required);
-        int providedCount = args.Length - 1; // Subtract command name
-
-        if (providedCount < requiredCount)
-        {
-            return ValidationResult.Failure("args",
-                $"Usage: excelcli {CliCommand} {GetCliUsage()}");
-        }
-
-        // Validate each parameter
-        int argIndex = 1;
-        foreach (var paramDef in Parameters.Where(p => p.Required))
-        {
-            if (argIndex < args.Length)
-            {
-                var result = paramDef.Validate(args[argIndex]);
-                if (!result.IsValid)
-                {
-                    return result;
-                }
-                argIndex++;
-            }
-        }
-
-        return ValidationResult.Success();
+        return Parameters.Where(p => p.Required).Select(p => p.Name).ToArray();
     }
 
     /// <summary>
-    /// Gets CLI usage string
+    /// Gets parameter names for documentation/help
     /// </summary>
-    public string GetCliUsage()
+    public string[] GetOptionalParameterNames()
     {
-        var parts = new List<string>();
-
-        foreach (var param in Parameters)
-        {
-            if (param.Required)
-            {
-                parts.Add($"<{param.Name}>");
-            }
-            else
-            {
-                parts.Add($"[{param.Name}]");
-            }
-        }
-
-        return string.Join(" ", parts);
-    }
-
-    /// <summary>
-    /// Gets regex pattern for MCP action validation
-    /// </summary>
-    public string GetMcpActionPattern()
-    {
-        return $"^{Regex.Escape(McpAction)}$";
+        return Parameters.Where(p => !p.Required).Select(p => p.Name).ToArray();
     }
 }
