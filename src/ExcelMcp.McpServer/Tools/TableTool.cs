@@ -30,7 +30,7 @@ public static class TableTool
     /// <summary>
     /// Manage Excel Tables (ListObjects) - comprehensive table management including Power Pivot integration
     /// </summary>
-    [McpServerTool(Name = "table")]
+    [McpServerTool(Name = "excel_table")]
     [Description("Manage Excel Tables (ListObjects) for Power Query integration. Supports: list, create, info, rename, delete, resize, toggle-totals, set-column-total, append, set-style, add-to-datamodel, apply-filter, apply-filter-values, clear-filters, get-filters, add-column, remove-column, rename-column, get-structured-reference, sort, sort-multi.")]
     public static async Task<string> Table(
         [Required]
@@ -139,7 +139,7 @@ public static class TableTool
         {
             result.SuggestedNextActions = new List<string>
             {
-                "Use 'table create' to create an Excel Table from a range",
+                "Use 'excel_table create' to create an Excel Table from a range",
                 "Excel Tables enable Power Query references: Excel.CurrentWorkbook(){[Name=\"TableName\"]}[Content]",
                 "Tables provide auto-filtering, structured references, and dynamic expansion"
             };
@@ -149,11 +149,11 @@ public static class TableTool
         {
             result.SuggestedNextActions = new List<string>
             {
-                "Use 'table info <tableName>' to view detailed table information",
+                "Use 'excel_table info <tableName>' to view detailed table information",
                 "Reference tables in Power Query: Excel.CurrentWorkbook(){[Name=\"TableName\"]}[Content]",
-                "Use 'table rename <oldName> <newName>' to rename a table"
+                "Use 'excel_table rename <oldName> <newName>' to rename a table"
             };
-            result.WorkflowHint = $"Found {result.Tables.Count} table(s). Use 'table info' for details.";
+            result.WorkflowHint = $"Found {result.Tables.Count} table(s). Use 'excel_table info' for details.";
         }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -189,9 +189,9 @@ public static class TableTool
         {
             result.SuggestedNextActions = new List<string>
             {
-                $"Use 'table info {tableName}' to view table details",
+                $"Use 'excel_table info {tableName}' to view table details",
                 $"Reference in Power Query: Excel.CurrentWorkbook(){{[Name=\"{tableName}\"]}}[Content]",
-                $"Use 'table rename {tableName} NewName' to rename the table"
+                $"Use 'excel_table rename {tableName} NewName' to rename the table"
             };
         }
 
@@ -218,11 +218,11 @@ public static class TableTool
         {
             result.SuggestedNextActions = new List<string>
             {
-                "Use 'table list' to see all available tables",
+                "Use 'excel_table list' to see all available tables",
                 "Check that the table name is correct (names are case-sensitive)",
                 "Verify the Excel file exists and is accessible"
             };
-            result.WorkflowHint = "Table not found. Use 'table list' to see available tables.";
+            result.WorkflowHint = "Table not found. Use 'excel_table list' to see available tables.";
             throw new ModelContextProtocol.McpException($"info failed for table '{tableName}': {result.ErrorMessage}");
         }
 
@@ -230,8 +230,8 @@ public static class TableTool
         {
             result.SuggestedNextActions = new List<string>
             {
-                $"Use 'table rename {tableName} NewName' to rename the table",
-                $"Use 'table delete {tableName}' to remove the table (data preserved as range)",
+                $"Use 'excel_table rename {tableName} NewName' to rename the table",
+                $"Use 'excel_table delete {tableName}' to remove the table (data preserved as range)",
                 $"Reference in Power Query: Excel.CurrentWorkbook(){{[Name=\"{tableName}\"]}}[Content]"
             };
         }
@@ -260,7 +260,7 @@ public static class TableTool
         {
             result.SuggestedNextActions = new List<string>
             {
-                "Use 'table list' to see all available tables",
+                "Use 'excel_table list' to see all available tables",
                 "Check that the table name is correct",
                 "Ensure the new name is unique and follows naming rules (starts with letter/underscore, alphanumeric + underscore only)",
                 "Verify the Excel file is not open in Excel Desktop"
@@ -275,7 +275,7 @@ public static class TableTool
             {
                 $"Update Power Query references to use new name: Excel.CurrentWorkbook(){{[Name=\"{newName}\"]}}[Content]",
                 "Update any formulas or scripts that reference the old table name",
-                $"Use 'table info {newName}' to verify the rename"
+                $"Use 'excel_table info {newName}' to verify the rename"
             };
         }
 
@@ -302,7 +302,7 @@ public static class TableTool
         {
             result.SuggestedNextActions = new List<string>
             {
-                "Use 'table list' to see all available tables",
+                "Use 'excel_table list' to see all available tables",
                 "Check that the table name is correct",
                 "Verify the Excel file is not open in Excel Desktop"
             };
