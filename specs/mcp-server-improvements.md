@@ -246,40 +246,35 @@ public static class ErrorCodes
 
 **Problem**: Long-running operations (refresh, import) provide no feedback.
 
-**Proposed Solution**: Implement progress notifications
+**⚠️ LIMITATION 1**: **Cannot implement** - Excel COM Interop does not provide progress callbacks during operations like `QueryTable.Refresh()`, `Connection.Refresh()`, or workbook saves. These operations are synchronous blocking calls with no intermediate progress reporting.
 
-**⚠️ LIMITATION**: **Cannot implement** - Excel COM Interop does not provide progress callbacks during operations like `QueryTable.Refresh()`, `Connection.Refresh()`, or workbook saves. These operations are synchronous blocking calls with no intermediate progress reporting.
+**⚠️ LIMITATION 2**: **Performance metrics redundant** - As the LLM calling the MCP server, I already measure how long each tool call takes via the MCP protocol itself. Adding duration metrics to responses would duplicate information I already have.
 
-**Alternative Approach**: Operation status messages
+**Alternative Approach**: Time estimates in tool descriptions
 ```csharp
-[McpServerTool]
-public async Task<string> RefreshPowerQuery(
-    string excelPath,
-    string queryName)
-{
-    var startTime = DateTime.UtcNow;
+[McpServerTool(
+    Name = "excel_powerquery",
+    Description = @"Manage Power Query M code and data connections.
     
-    // No progress callbacks available - COM blocks until complete
-    await RefreshQuery(excelPath, queryName);
-    
-    var duration = DateTime.UtcNow - startTime;
-    
-    return JsonSerializer.Serialize(new
-    {
-        success = true,
-        message = $"Query '{queryName}' refreshed successfully",
-        performance = new { durationMs = duration.TotalMilliseconds }
-    });
-}
+Actions: list, view, import, update, refresh, delete
+
+⏱️ Performance Notes:
+• Refresh operations: 5-30 seconds (typical), 1-2 minutes (large datasets >100K rows)
+• Import/export: <1 second
+• Update M code: 1-2 seconds"
+)]
+public static string ExcelPowerQuery(string action, ...)
 ```
 
-**What we CAN provide**:
-- ✅ **Start/completion messages** - "Operation started", "Operation completed"
-- ✅ **Performance metrics** - Operation duration in response
-- ✅ **Timeout estimates** - Document typical operation times in tool descriptions
-- ❌ **Real-time progress** - Not available from Excel COM API
+**What we SHOULD provide**:
+- ✅ **Estimated operation times** - Document in tool descriptions to set user expectations
+- ✅ **Start/completion messages** - Simple status updates
 
-**Recommendation**: Mark long-running operations in tool descriptions with estimated durations (e.g., "Refresh typically takes 5-30 seconds depending on data volume")
+**What we should NOT provide** (redundant/impossible):
+- ❌ **Real-time progress** - Not available from Excel COM API
+- ❌ **Performance metrics in responses** - LLMs already measure via MCP protocol
+
+**Recommendation**: Document typical operation durations in tool descriptions to help LLMs set accurate user expectations
 
 ---
 
@@ -312,11 +307,7 @@ public async Task<string> RefreshPowerQuery(
       {"action": "sheet-create", "sheetName": "Dashboard", "result": "success"},
       {"action": "range-set-values", "range": "A1:D10", "result": "success"},
       {"action": "file-save", "result": "success"}
-    ],
-    "performance": {
-      "duration": "2.5s",
-      "avgOperationTime": "0.5s"
-    }
+    ]
   }
 }
 ```
@@ -324,8 +315,9 @@ public async Task<string> RefreshPowerQuery(
 **Benefits**:
 - **LLM summary** - Can report "5/5 operations succeeded"
 - **Debugging** - See which operation failed in batch
-- **Performance insight** - Know if operations are slow
 - **User reporting** - Clear communication of what happened
+
+**Note**: Performance metrics removed (duration, avgOperationTime) - LLMs already track these via MCP protocol response times. No need for redundancy.
 
 ---
 
@@ -464,14 +456,17 @@ These improvements leverage MCP SDK capabilities to make ExcelMcp more LLM-frien
 2. **Sampling** - Let LLMs preview data
 3. **Rich descriptions** - Self-documenting tools
 4. **Structured errors** - Programmatic error handling
-5. ~~**Progress**~~ - ~~Feedback on long operations~~ (NOT FEASIBLE - COM limitation)
+5. ~~**Progress**~~ - NOT FEASIBLE (COM limitation + LLMs already track performance via MCP protocol)
 6. **Batch summaries** - Clear reporting
 7. **Capabilities** - Version-aware introspection
 
-**Implementation cost**: ~5-7 days total (reduced from 7-10 days)  
+**Implementation cost**: ~5-7 days total (reduced from initial 7-10 days estimate)  
 **Value to LLMs**: Significantly improved workflow efficiency  
 **Backward compatibility**: 100% (all additions, no breaking changes)
 
-**COM Interop Constraint**: Excel COM API does not provide progress callbacks during operations. Alternative: Include operation duration metrics in responses and estimated times in tool descriptions.
+**Key Insights**:
+- **COM Interop Constraint**: Excel COM API does not provide progress callbacks - operations are synchronous blocking calls
+- **MCP Protocol Advantage**: LLMs already measure tool call durations via MCP protocol - no need to duplicate this in responses
+- **Focus**: Time estimates in tool descriptions help LLMs set user expectations without redundancy
 
 **Recommendation**: Start with Phase 1 (quick wins) to validate approach, then proceed with Phase 2.
