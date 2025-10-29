@@ -13,7 +13,6 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - ExcelRangeTool: Unified range operations (values, formulas, formatting, hyperlinks)
 /// - ExcelVbaTool: VBA macro management and execution
 /// - ExcelDataModelTool: Data Model (Power Pivot) operations
-/// - ExcelVersionTool: Check for updates on NuGet.org
 ///
 /// 🤖 LLM Usage Guidelines:
 /// 1. Start with ExcelFileTool to create new Excel files
@@ -23,7 +22,6 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// 5. Use ExcelParameterTool for configuration and reusable values
 /// 6. Use ExcelVbaTool for complex automation (requires .xlsm files)
 /// 7. Use ExcelDataModelTool for Data Model and DAX operations
-/// 8. Use ExcelVersionTool to check for updates
 ///
 /// 📝 Parameter Patterns:
 /// - action: Always the first parameter, defines what operation to perform
@@ -45,7 +43,6 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - ExcelRangeTool.cs: excel_range tool (replaces excel_cell)
 /// - ExcelVbaTool.cs: excel_vba tool
 /// - ExcelDataModelTool.cs: excel_datamodel tool
-/// - ExcelVersionTool.cs: excel_version tool
 ///
 /// This prevents duplicate tool registration conflicts in the MCP framework.
 /// </summary>

@@ -27,7 +27,7 @@ Automatically registers the ExcelMcp MCP server with VS Code, enabling AI assist
 7. **excel_worksheet** - 5 actions (Worksheets)
 8. **excel_parameter** - 6 actions (Named ranges)
 9. **excel_file** - 1 action (File creation)
-10. **excel_version** - 1 action (Version checking)
+9. **excel_table** - 22 actions (Excel Tables management)
 
 ## 📁 File Structure
 
