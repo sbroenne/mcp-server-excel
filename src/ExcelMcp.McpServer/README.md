@@ -145,6 +145,8 @@ The MCP server provides **10 focused resource-based tools** optimized for AI cod
 - Sorting: Single column or multi-column sorts (up to 3 levels)
 - Structured References: Get Excel formulas for table regions (All, Data, Headers, Totals, ThisRow)
 - Data Model Integration: Add tables to Power Pivot for analytics
+- **Standalone Features**: AutoFilter dropdowns, structured references ([@Column]), dynamic expansion, formatted bands
+- **Power Query Integration**: Tables can optionally be referenced in Power Query queries
 - 🎯 **LLM-Optimized**: AI can build complex table structures with filters, sorts, and formulas
 
 ### 9. **`excel_vba`** - VBA Macro Management & Execution 📜

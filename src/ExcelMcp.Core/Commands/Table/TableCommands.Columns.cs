@@ -242,7 +242,7 @@ public partial class TableCommands
 
                 result.Success = true;
                 result.SuggestedNextActions.Add($"Use 'table-info {tableName}' to verify column renamed");
-                result.SuggestedNextActions.Add("Update any formulas or Power Query references using the old column name");
+                result.SuggestedNextActions.Add("Update any formulas using structured references with the old column name");
                 result.WorkflowHint = $"Column renamed from '{oldName}' to '{newName}' in table '{tableName}'.";
 
                 return result;
