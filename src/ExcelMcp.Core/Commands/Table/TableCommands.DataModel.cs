@@ -113,17 +113,57 @@ public partial class TableCommands
 
                     if (!connectionExists)
                     {
-                        // Use Connections.Add2() with CreateModelConnection=true
-                        // This is the documented approach for adding tables to Data Model
-                        dynamic? newConnection = workbookConnections.Add2(
-                            Name: connectionName,
-                            Description: $"Excel Table: {tableName}",
-                            ConnectionString: connectionString,
-                            CommandText: commandText,
-                            lCmdtype: 4, // xlCmdTable = 4 for Excel tables
-                            CreateModelConnection: true, // KEY: This adds table to Data Model
-                            ImportRelationships: false
-                        );
+                        // Try Connections.Add2() using positional parameters first (more compatible with COM)
+                        // Fallback to named parameters or to Connections.Add() if needed
+                        dynamic? newConnection = null;
+                        Exception? addException = null;
+                        try
+                        {
+                            newConnection = workbookConnections.Add2(
+                                connectionName,
+                                $"Excel Table: {tableName}",
+                                connectionString,
+                                commandText,
+                                4, // xlCmdTable = 4 for Excel tables
+                                true, // CreateModelConnection: true
+                                false // ImportRelationships: false
+                            );
+                        }
+                        catch (Exception exPos)
+                        {
+                            // Try named parameter form as a fallback
+                            try
+                            {
+                                newConnection = workbookConnections.Add2(
+                                    Name: connectionName,
+                                    Description: $"Excel Table: {tableName}",
+                                    ConnectionString: connectionString,
+                                    CommandText: commandText,
+                                    lCmdtype: 4,
+                                    CreateModelConnection: true,
+                                    ImportRelationships: false
+                                );
+                            }
+                            catch (Exception exNamed)
+                            {
+                                addException = exNamed;
+                                try
+                                {
+                                    // Try older Add() signature (may not support model connection)
+                                    newConnection = workbookConnections.Add(
+                                        connectionName,
+                                        $"Excel Table: {tableName}",
+                                        connectionString,
+                                        commandText
+                                    );
+                                }
+                                catch (Exception exAdd)
+                                {
+                                    // Aggregate exceptions for diagnostics
+                                    throw new AggregateException("Connections.Add2/Add attempts failed", exPos, exNamed, exAdd);
+                                }
+                            }
+                        }
 
                         if (newConnection != null)
                         {
@@ -139,20 +179,37 @@ public partial class TableCommands
                 catch (Exception ex)
                 {
                     // Fallback: Try the table's publish method if available
+                    Exception? publishEx = null;
                     try
                     {
                         // Some Excel versions support Publish method on ListObject
                         table.Publish(null, false); // Publish to Data Model
                     }
-                    catch (Exception publishEx)
+                    catch (Exception pEx)
                     {
-                        result.Success = false;
-                        result.ErrorMessage = $"Failed to add table to Data Model. " +
-                                            $"Connections.Add2 failed: {ex.Message}. " +
-                                            $"Table.Publish failed: {publishEx.Message}. " +
-                                            $"Ensure Power Pivot is enabled and the Data Model is available.";
+                        publishEx = pEx;
+                    }
+
+                    // Build detailed diagnostic message
+                    var diagnostics = new List<string>();
+                    diagnostics.Add($"Connections.Add2 exception: {ex.Message}");
+                    if (publishEx != null)
+                    {
+                        diagnostics.Add($"Table.Publish exception: {publishEx.Message}");
+                    }
+                    else
+                    {
+                        // If publish succeeded, consider the operation successful
+                        result.Success = true;
+                        result.WorkflowHint = $"Table '{tableName}' published to Data Model via ListObject.Publish().";
                         return result;
                     }
+
+                    result.Success = false;
+                    result.ErrorMessage = "Failed to add table to Data Model. " +
+                                          string.Join(" -- ", diagnostics) +
+                                          " -- Ensure Power Pivot is enabled and the Data Model is available.";
+                    return result;
                 }
 
                 ComUtilities.Release(ref model);
