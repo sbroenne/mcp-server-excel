@@ -231,6 +231,132 @@ public class PowerQueryLoadConfigResult : ResultBase
 }
 
 /// <summary>
+/// Result for Power Query load-to-data-model operations with verification
+/// Extends OperationResult to provide detailed verification of atomic operation
+/// </summary>
+public class PowerQueryLoadToDataModelResult : OperationResult
+{
+    /// <summary>
+    /// Name of the query
+    /// </summary>
+    public string QueryName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the load configuration was successfully applied
+    /// </summary>
+    public bool ConfigurationApplied { get; set; }
+
+    /// <summary>
+    /// Whether data was actually loaded to the Data Model
+    /// </summary>
+    public bool DataLoadedToModel { get; set; }
+
+    /// <summary>
+    /// Number of rows loaded to the Data Model (0 if not loaded)
+    /// </summary>
+    public int RowsLoaded { get; set; }
+
+    /// <summary>
+    /// Total number of tables in the Data Model after operation
+    /// </summary>
+    public int TablesInDataModel { get; set; }
+
+    /// <summary>
+    /// Overall workflow status: "Complete" | "Failed" | "Partial"
+    /// </summary>
+    public string WorkflowStatus { get; set; } = "Failed";
+}
+
+/// <summary>
+/// Result for Power Query load-to-table operations with verification
+/// Extends OperationResult to provide detailed verification of atomic operation
+/// </summary>
+public class PowerQueryLoadToTableResult : OperationResult
+{
+    /// <summary>
+    /// Name of the query
+    /// </summary>
+    public string QueryName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Name of the target worksheet
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the load configuration was successfully applied
+    /// </summary>
+    public bool ConfigurationApplied { get; set; }
+
+    /// <summary>
+    /// Whether data was actually loaded to the worksheet table
+    /// </summary>
+    public bool DataLoadedToTable { get; set; }
+
+    /// <summary>
+    /// Number of rows loaded to the worksheet table (0 if not loaded)
+    /// </summary>
+    public int RowsLoaded { get; set; }
+
+    /// <summary>
+    /// Overall workflow status: "Complete" | "Failed" | "Partial"
+    /// </summary>
+    public string WorkflowStatus { get; set; } = "Failed";
+}
+
+/// <summary>
+/// Result for Power Query load-to-both operations with verification
+/// Extends OperationResult to provide detailed verification of atomic operation
+/// </summary>
+public class PowerQueryLoadToBothResult : OperationResult
+{
+    /// <summary>
+    /// Name of the query
+    /// </summary>
+    public string QueryName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Name of the target worksheet
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the load configuration was successfully applied
+    /// </summary>
+    public bool ConfigurationApplied { get; set; }
+
+    /// <summary>
+    /// Whether data was actually loaded to the worksheet table
+    /// </summary>
+    public bool DataLoadedToTable { get; set; }
+
+    /// <summary>
+    /// Whether data was actually loaded to the Data Model
+    /// </summary>
+    public bool DataLoadedToModel { get; set; }
+
+    /// <summary>
+    /// Number of rows loaded to the worksheet table (0 if not loaded)
+    /// </summary>
+    public int RowsLoadedToTable { get; set; }
+
+    /// <summary>
+    /// Number of rows loaded to the Data Model (0 if not loaded)
+    /// </summary>
+    public int RowsLoadedToModel { get; set; }
+
+    /// <summary>
+    /// Total number of tables in the Data Model after operation
+    /// </summary>
+    public int TablesInDataModel { get; set; }
+
+    /// <summary>
+    /// Overall workflow status: "Complete" | "Failed" | "Partial"
+    /// </summary>
+    public string WorkflowStatus { get; set; } = "Failed";
+}
+
+/// <summary>
 /// Result for listing named ranges/parameters
 /// </summary>
 public class ParameterListResult : ResultBase

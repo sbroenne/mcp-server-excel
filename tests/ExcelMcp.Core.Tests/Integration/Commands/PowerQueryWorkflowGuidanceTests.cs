@@ -28,7 +28,8 @@ public class CorePowerQueryWorkflowGuidanceTests : IDisposable
 
     public CorePowerQueryWorkflowGuidanceTests()
     {
-        _powerQueryCommands = new PowerQueryCommands();
+        var dataModelCommands = new DataModelCommands();
+        _powerQueryCommands = new PowerQueryCommands(dataModelCommands);
         _fileCommands = new FileCommands();
 
         // Create temp directory for test files

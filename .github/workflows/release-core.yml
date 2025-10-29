@@ -127,7 +127,8 @@ jobs:
         $nugetInfoContent += "using Sbroenne.ExcelMcp.Core.Commands;`n`n"
         $nugetInfoContent += "// Create commands`n"
         $nugetInfoContent += "var fileCommands = new FileCommands();`n"
-        $nugetInfoContent += "var pqCommands = new PowerQueryCommands();`n`n"
+        $nugetInfoContent += "var dataModelCommands = new DataModelCommands();`n"
+        $nugetInfoContent += "var pqCommands = new PowerQueryCommands(dataModelCommands);`n`n"
         $nugetInfoContent += "// Use batch API`n"
         $nugetInfoContent += "await using var batch = await ExcelSession.BeginBatchAsync(`"workbook.xlsx`");`n"
         $nugetInfoContent += "var queries = await pqCommands.ListAsync(batch);`n"
@@ -199,7 +200,8 @@ jobs:
           using Sbroenne.ExcelMcp.ComInterop.Session;
           using Sbroenne.ExcelMcp.Core.Commands;
 
-          var pqCommands = new PowerQueryCommands();
+          var dataModelCommands = new DataModelCommands();
+          var pqCommands = new PowerQueryCommands(dataModelCommands);
 
           await using var batch = await ExcelSession.BeginBatchAsync("workbook.xlsx");
           var queries = await pqCommands.ListAsync(batch);

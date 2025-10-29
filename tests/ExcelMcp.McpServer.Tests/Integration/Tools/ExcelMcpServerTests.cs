@@ -157,20 +157,15 @@ in
             Assert.True(viewJson.RootElement.GetProperty("Success").GetBoolean());
         }
 
-        // Assert the operation succeeded (current MCP server only returns success/error, not the actual M code)
-        // Note: This is a limitation of the current MCP server architecture
-        // TODO: Enhance MCP server to return actual M code content for view operations
+        // Note: Current MCP server architecture limitation - operations return success/error only
 
         // Act - List queries to verify it appears
         var listResult = await ExcelPowerQueryTool.ExcelPowerQuery("list", _testExcelFile);
         var listJson = JsonDocument.Parse(listResult);
         Assert.True(listJson.RootElement.GetProperty("Success").GetBoolean());
 
-        // NOTE: Current MCP server architecture limitation - list operations only return success/error
+        // Note: Current MCP server architecture limitation - list operations only return success/error
         // The actual query data is not returned in JSON format, only displayed to console
-        // This is because the MCP server wraps CLI commands that output to console
-        // For now, we verify the list operation succeeded
-        // TODO: Future enhancement - modify MCP server to return structured data instead of just success/error
 
         // Act - Delete the query
         var deleteResult = await ExcelPowerQueryTool.ExcelPowerQuery("delete", _testExcelFile, queryName);

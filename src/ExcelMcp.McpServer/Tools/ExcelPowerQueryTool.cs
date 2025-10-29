@@ -69,13 +69,19 @@ public static class ExcelPowerQueryTool
         [RegularExpression("^(None|Private|Organizational|Public)$")]
         [Description("Privacy level for Power Query data combining (optional). If not specified and privacy error occurs, LLM must ask user to choose: None (least secure), Private (most secure), Organizational (internal data), or Public (public data)")]
         string? privacyLevel = null,
-        
+
+        [Description("Automatically load query data to worksheet for validation (default: true). When false, creates connection-only query without validation.")]
+        bool? loadToWorksheet = null,
+
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
         string? batchId = null)
     {
         try
         {
-            var powerQueryCommands = new PowerQueryCommands();
+            // Create commands
+            var dataModelCommands = new DataModelCommands();
+            var powerQueryCommands = new PowerQueryCommands(dataModelCommands);
+            var parameterCommands = new ParameterCommands();
 
             // Parse privacy level if provided
             PowerQueryPrivacyLevel? parsedPrivacyLevel = null;
@@ -91,9 +97,9 @@ public static class ExcelPowerQueryTool
             {
                 "list" => await ListPowerQueriesAsync(powerQueryCommands, excelPath, batchId),
                 "view" => await ViewPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
-                "import" => await ImportPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, parsedPrivacyLevel, batchId),
+                "import" => await ImportPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, parsedPrivacyLevel, loadToWorksheet, batchId),
                 "export" => await ExportPowerQueryAsync(powerQueryCommands, excelPath, queryName, targetPath, batchId),
-                "update" => await UpdatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, parsedPrivacyLevel, batchId),
+                "update" => await UpdatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, parsedPrivacyLevel, loadToWorksheet, batchId),
                 "refresh" => await RefreshPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
                 "delete" => await DeletePowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
                 "set-load-to-table" => await SetLoadToTableAsync(powerQueryCommands, excelPath, queryName, targetSheet, parsedPrivacyLevel, batchId),
@@ -179,44 +185,39 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ImportPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, PowerQueryPrivacyLevel? privacyLevel, string? batchId)
+    private static async Task<string> ImportPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, PowerQueryPrivacyLevel? privacyLevel, bool? loadToWorksheet, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(sourcePath))
             throw new ModelContextProtocol.McpException("queryName and sourcePath are required for import action");
+
+        // Default to true if not specified (auto-load for validation)
+        bool shouldLoad = loadToWorksheet ?? true;
 
         var result = await ExcelToolsBase.WithBatchAsync(
             batchId,
             excelPath,
             save: true,
-            async (batch) => await commands.ImportAsync(batch, queryName, sourcePath, privacyLevel));
+            async (batch) => await commands.ImportAsync(batch, queryName, sourcePath, privacyLevel, shouldLoad));
 
-        // Use workflow guidance with batch mode awareness
+        // Core already sets appropriate workflow guidance based on actual load outcome
+        // Only enhance guidance if in batch mode
         bool usedBatchMode = !string.IsNullOrEmpty(batchId);
-        
-        if (result.Success)
+
+        if (result.Success && usedBatchMode)
         {
-            // Determine if connection-only by checking suggestions or workflow hint
-            bool isConnectionOnly = result.WorkflowHint?.Contains("connection-only", StringComparison.OrdinalIgnoreCase) ?? false;
-            
+            // Enhance guidance for batch mode (Core doesn't know about batch mode)
+            bool isConnectionOnly = !shouldLoad;
+
             result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterImport(
                 isConnectionOnly: isConnectionOnly,
                 hasErrors: false,
                 usedBatchMode: usedBatchMode);
-            
-            result.WorkflowHint = usedBatchMode 
-                ? "Query imported in batch mode. Continue adding operations to this batch."
-                : "Query imported successfully. For multiple imports, use begin_excel_batch to group operations efficiently.";
+
+            result.WorkflowHint = isConnectionOnly
+                ? "Query imported as connection-only in batch mode. Use set-load-to-table to load data or continue adding operations."
+                : "Query imported in batch mode. Continue adding operations to this batch.";
         }
-        else
-        {
-            result.SuggestedNextActions = new List<string>
-            {
-                "Check that the source M code file exists and is accessible",
-                "Verify the file path and try again",
-                "Use 'list' to see available queries"
-            };
-            result.WorkflowHint = "Import failed due to missing M code file. Ensure the file exists and retry.";
-        }
+        // Otherwise, Core's guidance is already correct (for both success and failure cases) - don't overwrite it!
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -253,27 +254,28 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> UpdatePowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, PowerQueryPrivacyLevel? privacyLevel, string? batchId)
+    private static async Task<string> UpdatePowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, PowerQueryPrivacyLevel? privacyLevel, bool? loadToWorksheet, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(sourcePath))
             throw new ModelContextProtocol.McpException("queryName and sourcePath are required for update action");
 
+        // Note: loadToWorksheet parameter is ignored for update - Core preserves existing load configuration
         var result = await ExcelToolsBase.WithBatchAsync(
             batchId,
             excelPath,
             save: true,
             async (batch) => await commands.UpdateAsync(batch, queryName, sourcePath, privacyLevel));
-        
+
         // Use workflow guidance with batch mode awareness
         bool usedBatchMode = !string.IsNullOrEmpty(batchId);
-        
+
         if (result.Success)
         {
             result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterUpdate(
                 configPreserved: true,
                 hasErrors: false,
                 usedBatchMode: usedBatchMode);
-            
+
             result.WorkflowHint = usedBatchMode
                 ? "Query updated in batch mode. Configuration preserved. Continue with more operations."
                 : "Query updated successfully. Configuration preserved. For multiple updates, use begin_excel_batch.";
@@ -366,16 +368,16 @@ public static class ExcelPowerQueryTool
             excelPath,
             save: true,
             async (batch) => await commands.SetLoadToTableAsync(batch, queryName, targetSheet ?? "", privacyLevel));
-        
+
         // Use workflow guidance with batch mode awareness
         bool usedBatchMode = !string.IsNullOrEmpty(batchId);
-        
+
         if (result.Success)
         {
             result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterLoadConfig(
                 loadMode: "LoadToTable",
                 usedBatchMode: usedBatchMode);
-            
+
             result.WorkflowHint = usedBatchMode
                 ? "Load-to-table configured in batch mode. Continue configuring other queries."
                 : "Load-to-table configured. For configuring multiple queries, use begin_excel_batch.";
@@ -405,19 +407,19 @@ public static class ExcelPowerQueryTool
             excelPath,
             save: true,
             async (batch) => await commands.SetLoadToDataModelAsync(batch, queryName, privacyLevel));
-        
+
         // Use workflow guidance with batch mode awareness
         bool usedBatchMode = !string.IsNullOrEmpty(batchId);
-        
+
         if (result.Success)
         {
             result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterLoadConfig(
                 loadMode: "LoadToDataModel",
                 usedBatchMode: usedBatchMode);
-            
+
             result.WorkflowHint = usedBatchMode
-                ? "Load-to-data-model configured in batch mode. Continue with more queries."
-                : "Load-to-data-model configured. For multiple queries, use begin_excel_batch.";
+                ? "Load-to-data-model configured in batch mode. Continue configuring other queries."
+                : "Load-to-data-model configured. For configuring multiple queries, use begin_excel_batch.";
         }
         else
         {
@@ -425,9 +427,9 @@ public static class ExcelPowerQueryTool
             {
                 "Check that the query exists using 'list'",
                 "Review privacy level settings if needed",
-                "Verify Excel supports data model operations"
+                "Verify Data Model is enabled"
             };
-            result.WorkflowHint = "Set-load-to-data-model failed. Check query and settings.";
+            result.WorkflowHint = "Set-load-to-data-model failed. Check query and Data Model status.";
         }
 
         // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
@@ -444,28 +446,14 @@ public static class ExcelPowerQueryTool
             excelPath,
             save: true,
             async (batch) => await commands.SetLoadToBothAsync(batch, queryName, targetSheet ?? "", privacyLevel));
-        if (result.Success)
-        {
-            result.SuggestedNextActions = new List<string>
-            {
-                "Use 'refresh' to load data to both worksheet and data model",
-                "Use worksheet 'read' to verify worksheet data",
-                "Use 'get-load-config' to confirm dual-load settings"
-            };
-            result.WorkflowHint = "Load-to-both configured. Next, refresh to load data.";
-        }
-        else
-        {
-            result.SuggestedNextActions = new List<string>
-            {
-                "Check that the query exists using 'list'",
-                "Verify the target sheet name is correct",
-                "Review privacy level settings if needed"
-            };
-            result.WorkflowHint = "Set-load-to-both failed. Check query and sheet names.";
-        }
 
-        // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
+        // Result now includes dual atomic operation verification metrics:
+        // RowsLoadedToTable, RowsLoadedToModel, TablesInDataModel, WorkflowStatus (Complete/Partial/Failed)
+        // DataLoadedToTable, DataLoadedToModel, ConfigurationApplied
+        // WorkflowHint and SuggestedNextActions are set by Core layer based on verification outcome
+        // Do NOT overwrite these values - they reflect actual operation results
+
+        // Return result as JSON with all verification details
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 

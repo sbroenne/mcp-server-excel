@@ -23,7 +23,8 @@ public class PowerQueryPrivacyLevelTests : IDisposable
 
     public PowerQueryPrivacyLevelTests()
     {
-        _powerQueryCommands = new PowerQueryCommands();
+        var dataModelCommands = new DataModelCommands();
+        _powerQueryCommands = new PowerQueryCommands(dataModelCommands);
         _fileCommands = new FileCommands();
 
         // Create temp directory for test files
@@ -155,7 +156,7 @@ in
         string queryFile = Path.Combine(_tempDir, "UpdateTestQuery.pq");
         string mCode1 = @"let Source = ""Test1"" in Source";
         File.WriteAllText(queryFile, mCode1);
-        
+
         await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
         {
             await _powerQueryCommands.ImportAsync(batch, "UpdateTestQuery", queryFile);
@@ -187,7 +188,7 @@ in
         string queryFile = Path.Combine(_tempDir, $"LoadToTableQuery_{privacyLevel}.pq");
         string mCode = @"let Source = #table({""Col1""}, {{""Val1""}}) in Source";
         File.WriteAllText(queryFile, mCode);
-        
+
         await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
         {
             await _powerQueryCommands.ImportAsync(batch, $"LoadToTableQuery_{privacyLevel}", queryFile);
@@ -211,7 +212,7 @@ in
         string queryFile = Path.Combine(_tempDir, "LoadToDataModelQuery.pq");
         string mCode = @"let Source = #table({""Col1""}, {{""Val1""}}) in Source";
         File.WriteAllText(queryFile, mCode);
-        
+
         await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
         {
             await _powerQueryCommands.ImportAsync(batch, "LoadToDataModelQuery", queryFile);
@@ -235,7 +236,7 @@ in
         string queryFile = Path.Combine(_tempDir, "LoadToBothQuery.pq");
         string mCode = @"let Source = #table({""Col1""}, {{""Val1""}}) in Source";
         File.WriteAllText(queryFile, mCode);
-        
+
         await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
         {
             await _powerQueryCommands.ImportAsync(batch, "LoadToBothQuery", queryFile);

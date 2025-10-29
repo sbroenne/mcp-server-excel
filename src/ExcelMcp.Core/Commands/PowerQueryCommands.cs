@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Connections;
+using Sbroenne.ExcelMcp.Core.DataModel;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
 using Sbroenne.ExcelMcp.Core.Security;
@@ -15,6 +16,17 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 public class PowerQueryCommands : IPowerQueryCommands
 {
+    private readonly IDataModelCommands _dataModelCommands;
+
+    /// <summary>
+    /// Constructor with dependency injection for atomic Data Model operations
+    /// </summary>
+    /// <param name="dataModelCommands">Data Model commands for atomic refresh operations in SetLoadToDataModelAsync</param>
+    public PowerQueryCommands(IDataModelCommands dataModelCommands)
+    {
+        _dataModelCommands = dataModelCommands ?? throw new ArgumentNullException(nameof(dataModelCommands));
+    }
+
     /// <summary>
     /// Detects privacy levels from M code
     /// </summary>
@@ -577,7 +589,8 @@ public class PowerQueryCommands : IPowerQueryCommands
         // STEP 1: Capture current load configuration BEFORE update
         var loadConfigBefore = await GetLoadConfigAsync(batch, queryName);
 
-        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
+        // STEP 2: Update the query M code
+        result = await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -603,7 +616,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                     return result;
                 }
 
-                // STEP 2: Update M code
+                // Update M code
                 query.Formula = mCode;
                 result.Success = true;
 
@@ -629,6 +642,55 @@ public class PowerQueryCommands : IPowerQueryCommands
                 ComUtilities.Release(ref query);
             }
         });
+
+        // STEP 3: Restore load configuration if query was loaded before
+        if (result.Success && loadConfigBefore.Success)
+        {
+            if (loadConfigBefore.LoadMode == PowerQueryLoadMode.LoadToTable ||
+                loadConfigBefore.LoadMode == PowerQueryLoadMode.LoadToBoth)
+            {
+                string targetSheet = loadConfigBefore.TargetSheet ?? queryName;
+                var restoreResult = await SetLoadToTableAsync(batch, queryName, targetSheet, privacyLevel);
+
+                if (!restoreResult.Success)
+                {
+                    result.ErrorMessage = $"Query updated but failed to restore load configuration: {restoreResult.ErrorMessage}";
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        "Query M code updated successfully",
+                        "⚠️ Load configuration could not be restored automatically",
+                        $"Manually load with: Use 'set-load-to-table' with worksheet '{targetSheet}'",
+                        "Or use 'get-load-config' to check current state"
+                    };
+                    return result;
+                }
+
+                // Successfully updated and restored load configuration
+                result.SuggestedNextActions = new List<string>
+                {
+                    "For multiple updates: Use begin_excel_batch to group operations efficiently",
+                    "Query updated successfully, load configuration preserved",
+                    "Data automatically refreshed with new M code",
+                    "Use 'get-load-config' to verify configuration if needed"
+                };
+                result.WorkflowHint = "Query updated successfully. Configuration preserved. For multiple updates, use begin_excel_batch.";
+                return result;
+            }
+        }
+
+        // Connection-only query or restore not needed
+        if (result.Success)
+        {
+            result.SuggestedNextActions = new List<string>
+            {
+                "Query updated successfully (connection-only)",
+                "Use 'set-load-to-table' if you want to load data",
+                "Use 'get-load-config' to verify configuration"
+            };
+            result.WorkflowHint = "Query updated as connection-only (no data loaded).";
+        }
+
+        return result;
     }
 
     /// <inheritdoc />
@@ -767,12 +829,10 @@ public class PowerQueryCommands : IPowerQueryCommands
         });
 
         // Auto-load to worksheet if requested (default behavior)
-        // TODO: SetLoadToTable needs batch API conversion
-        /*
         if (result.Success && loadToWorksheet)
         {
             string targetSheet = worksheetName ?? queryName;
-            var loadResult = SetLoadToTable(batch.WorkbookPath, queryName, targetSheet, privacyLevel);
+            var loadResult = await SetLoadToTableAsync(batch, queryName, targetSheet, privacyLevel);
 
             if (!loadResult.Success)
             {
@@ -788,36 +848,36 @@ public class PowerQueryCommands : IPowerQueryCommands
                 result.WorkflowHint = "Query imported but could not be automatically loaded to worksheet";
                 return result;
             }
-        }
-        */
-
-        // Provide guidance based on validation status
-        if (result.Success)
-        {
-            if (loadToWorksheet)
-            {
-                // Query was loaded to worksheet, validated via SetLoadToTable execution
-                result.SuggestedNextActions = new List<string>
-                {
-                    "Query imported (validation via load pending - TODO)",
-                    "Use 'set-load-to-table' to validate and load data",
-                    "Use 'view' to inspect M code"
-                };
-                result.WorkflowHint = "Query imported. Use set-load-to-table to validate.";
-            }
             else
             {
-                // Connection-only query - M code stored but NOT validated
+                // CRITICAL: Save the workbook to persist the QueryTable changes
+                // SetLoadToTableAsync creates the QueryTable, but changes are lost without explicit save
+                await batch.SaveAsync();
+
+                // Query was loaded to worksheet successfully - validated via SetLoadToTableAsync execution
                 result.SuggestedNextActions = new List<string>
                 {
-                    "Query imported as connection-only (NOT validated yet)",
-                    "⚠️ M code has not been executed or validated",
-                    "Use 'set-load-to-table' to validate and load data",
-                    "Or use 'refresh' after loading (refresh only works with loaded queries)",
-                    "Use 'view' to review imported M code"
+                    "Query imported and data loaded successfully",
+                    "Use 'view' to inspect M code",
+                    "Use 'get-load-config' to verify configuration"
                 };
-                result.WorkflowHint = "Query imported as connection-only (M code not executed or validated).";
+                result.WorkflowHint = "Query imported and loaded to worksheet for validation.";
+                return result;
             }
+        }
+
+        // Connection-only query - M code stored but NOT validated (loadToWorksheet=false)
+        if (result.Success)
+        {
+            result.SuggestedNextActions = new List<string>
+            {
+                "Query imported as connection-only (NOT validated yet)",
+                "⚠️ M code has not been executed or validated",
+                "Use 'set-load-to-table' to validate and load data",
+                "Or use 'refresh' after loading (refresh only works with loaded queries)",
+                "Use 'view' to review imported M code"
+            };
+            result.WorkflowHint = "Query imported as connection-only (M code not executed or validated).";
         }
 
         return result;
@@ -1705,36 +1765,48 @@ in
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> SetLoadToTableAsync(IExcelBatch batch, string queryName, string sheetName, PowerQueryPrivacyLevel? privacyLevel = null)
+    public async Task<PowerQueryLoadToTableResult> SetLoadToTableAsync(IExcelBatch batch, string queryName, string sheetName, PowerQueryPrivacyLevel? privacyLevel = null)
     {
-        var result = new OperationResult
+        var result = new PowerQueryLoadToTableResult
         {
             FilePath = batch.WorkbookPath,
-            Action = "pq-set-load-to-table"
+            Action = "pq-set-load-to-table",
+            QueryName = queryName,
+            SheetName = sheetName,
+            WorkflowStatus = "Failed"
         };
 
-        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
+        return await batch.ExecuteAsync<PowerQueryLoadToTableResult>(async (ctx, ct) =>
         {
             dynamic? query = null;
             dynamic? sheets = null;
             dynamic? targetSheet = null;
+            dynamic? queryTables = null;
+            dynamic? queryTable = null;
             try
             {
+                // STEP 1: Verify query exists
+                query = ComUtilities.FindQuery(ctx.Book, queryName);
+                if (query == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Query '{queryName}' not found";
+                    result.WorkflowStatus = "Failed";
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        $"Use 'list' to see available queries",
+                        $"Check the query name spelling: '{queryName}'"
+                    };
+                    return result;
+                }
+
                 // Apply privacy level if specified
                 if (privacyLevel.HasValue)
                 {
                     ApplyPrivacyLevel(ctx.Book, privacyLevel.Value);
                 }
 
-                query = ComUtilities.FindQuery(ctx.Book, queryName);
-                if (query == null)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Query '{queryName}' not found";
-                    return result;
-                }
-
-                // Find or create target sheet
+                // STEP 2: Find or create target sheet
                 sheets = ctx.Book.Worksheets;
 
                 for (int i = 1; i <= sheets.Count; i++)
@@ -1765,39 +1837,137 @@ in
                     targetSheet.Name = sheetName;
                 }
 
-                // Remove existing connections first
+                // STEP 3: Configure query (remove old connections, create new QueryTable)
                 ConnectionHelpers.RemoveConnections(ctx.Book, queryName);
                 PowerQueryHelpers.RemoveQueryTables(ctx.Book, queryName);
 
-                // Create new QueryTable connection that loads data to table
                 var queryTableOptions = new PowerQueryHelpers.QueryTableOptions
                 {
                     Name = queryName,
-                    RefreshImmediately = true
+                    RefreshImmediately = true // CRITICAL: Refresh synchronously to persist QueryTable properly
                 };
                 PowerQueryHelpers.CreateQueryTable(targetSheet, queryName, queryTableOptions);
 
-                result.Success = true;
+                result.ConfigurationApplied = true;
+
+                // Note: RefreshImmediately=true causes CreateQueryTable to call queryTable.Refresh(false)
+                // which is SYNCHRONOUS and ensures proper persistence when workbook is saved.
+                // This follows Microsoft's documented pattern: Create → Refresh(False) → Save
+                // (See VBA example: https://learn.microsoft.com/en-us/office/troubleshoot/excel/...)
+                // RefreshAll() is ASYNCHRONOUS and unreliable for individual QueryTable persistence.
+
+                // STEP 4: VERIFY data was actually loaded
+                queryTables = targetSheet.QueryTables;
+                string normalizedName = queryName.Replace(" ", "_");
+                bool foundQueryTable = false;
+                int rowsLoaded = 0;
+
+                for (int qt = 1; qt <= queryTables.Count; qt++)
+                {
+                    dynamic? qt_obj = null;
+                    try
+                    {
+                        qt_obj = queryTables.Item(qt);
+                        string qtName = qt_obj.Name?.ToString() ?? "";
+
+                        if (qtName.Equals(normalizedName, StringComparison.OrdinalIgnoreCase) ||
+                            qtName.Contains(normalizedName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            foundQueryTable = true;
+
+                            // Get row count from ResultRange
+                            try
+                            {
+                                dynamic? resultRange = qt_obj.ResultRange;
+                                if (resultRange != null)
+                                {
+                                    rowsLoaded = resultRange.Rows.Count;
+                                    ComUtilities.Release(ref resultRange);
+                                }
+                            }
+                            catch
+                            {
+                                // If we can't get row count, at least we found the QueryTable
+                                rowsLoaded = 0;
+                            }
+
+                            queryTable = qt_obj;
+                            qt_obj = null; // Keep reference
+                            break;
+                        }
+                    }
+                    finally
+                    {
+                        if (qt_obj != null)
+                        {
+                            ComUtilities.Release(ref qt_obj);
+                        }
+                    }
+                }
+
+                if (foundQueryTable)
+                {
+                    result.Success = true;
+                    result.DataLoadedToTable = true;
+                    result.RowsLoaded = rowsLoaded;
+                    result.WorkflowStatus = "Complete";
+                    result.WorkflowHint = $"Query '{queryName}' loaded to worksheet '{sheetName}' with {rowsLoaded} rows";
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        $"View data in worksheet '{sheetName}'",
+                        "Use 'refresh' to reload data from source",
+                        "Create Excel tables or PivotTables from the data"
+                    };
+                }
+                else
+                {
+                    result.Success = false;
+                    result.DataLoadedToTable = false;
+                    result.RowsLoaded = 0;
+                    result.WorkflowStatus = "Partial";
+                    result.ErrorMessage = $"Configuration applied but QueryTable not found after refresh";
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        "Check if query has valid data source",
+                        "Verify privacy level settings",
+                        "Use 'errors' action to see query errors"
+                    };
+                }
+
                 return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("Information is needed in order to combine data") ||
                                              comEx.Message.Contains("privacy level", StringComparison.OrdinalIgnoreCase))
             {
-                // Privacy error detected - return detailed error result for user consent
+                // Privacy error detected - convert to privacy error result
                 var privacyError = DetectPrivacyLevelsAndRecommend(ctx.Book, comEx.Message);
-                privacyError.FilePath = batch.WorkbookPath;
-                privacyError.Action = "pq-set-load-to-table";
-                result = privacyError;
+
+                // Copy privacy error details to our result type
+                result.Success = false;
+                result.ErrorMessage = privacyError.ErrorMessage;
+                result.WorkflowStatus = "Failed";
+                result.WorkflowHint = privacyError.WorkflowHint;
+                result.SuggestedNextActions = privacyError.SuggestedNextActions;
+
                 return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error setting load to table: {ex.Message}";
+                result.WorkflowStatus = "Failed";
+                result.SuggestedNextActions = new List<string>
+                {
+                    "Check query name and worksheet name are valid",
+                    "Verify Excel workbook is not corrupted",
+                    "Review error message for specific issue"
+                };
                 return result;
             }
             finally
             {
+                ComUtilities.Release(ref queryTable);
+                ComUtilities.Release(ref queryTables);
                 ComUtilities.Release(ref targetSheet);
                 ComUtilities.Release(ref sheets);
                 ComUtilities.Release(ref query);
@@ -1806,15 +1976,21 @@ in
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> SetLoadToDataModelAsync(IExcelBatch batch, string queryName, PowerQueryPrivacyLevel? privacyLevel = null)
+    public async Task<PowerQueryLoadToDataModelResult> SetLoadToDataModelAsync(IExcelBatch batch, string queryName, PowerQueryPrivacyLevel? privacyLevel = null)
     {
-        var result = new OperationResult
+        var result = new PowerQueryLoadToDataModelResult
         {
             FilePath = batch.WorkbookPath,
-            Action = "pq-set-load-to-data-model"
+            Action = "pq-set-load-to-data-model",
+            QueryName = queryName,
+            ConfigurationApplied = false,
+            DataLoadedToModel = false,
+            RowsLoaded = 0,
+            TablesInDataModel = 0,
+            WorkflowStatus = "Failed"
         };
 
-        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
+        return await batch.ExecuteAsync<PowerQueryLoadToDataModelResult>(async (ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -1833,98 +2009,114 @@ in
                     return result;
                 }
 
-                // Remove existing table connections first
+                // STEP 1: Check Data Model availability
+                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                {
+                    result.Success = false;
+                    result.ErrorMessage = "Data Model not available. Excel requires Power Pivot or Data Model features enabled.";
+                    result.WorkflowStatus = "Failed";
+                    return result;
+                }
+
+                // STEP 2: Configure query to load to data model
+                // Remove existing table connections
                 ConnectionHelpers.RemoveConnections(ctx.Book, queryName);
                 PowerQueryHelpers.RemoveQueryTables(ctx.Book, queryName);
 
-                // Load to data model - check if Power Pivot/Data Model is available
+                // Set LoadToWorksheetModel property
+                bool configSuccess = TrySetQueryLoadToDataModel(query);
+                result.ConfigurationApplied = configSuccess;
+
+                if (!configSuccess)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = "Failed to configure query for Data Model loading";
+                    result.WorkflowStatus = "Failed";
+                    return result;
+                }
+
+                // STEP 3: ATOMIC OPERATION - Refresh query to load data
+                var refreshResult = await _dataModelCommands.RefreshAsync(batch);
+
+                if (!refreshResult.Success)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Configuration applied but refresh failed: {refreshResult.ErrorMessage}";
+                    result.WorkflowStatus = "Partial";
+                    return result;
+                }
+
+                // STEP 4: Verify data was actually loaded to Data Model
+                dynamic? model = null;
+                dynamic? modelTables = null;
                 try
                 {
-                    // First, check if the workbook has Data Model capability
-                    bool dataModelAvailable = CheckDataModelAvailability(ctx.Book);
+                    model = ctx.Book.Model;
+                    modelTables = model.ModelTables;
+                    result.TablesInDataModel = modelTables.Count;
 
-                    if (!dataModelAvailable)
-                    {
-                        result.Success = false;
-                        result.ErrorMessage = "Data Model loading requires Excel with Power Pivot or Data Model features enabled";
-                        return result;
-                    }
+                    // Find the query's table in the Data Model
+                    bool foundTable = false;
+                    int rowCount = 0;
 
-                    // Method 1: Try to set the query to load to data model directly
-                    if (TrySetQueryLoadToDataModel(query))
+                    for (int i = 1; i <= modelTables.Count; i++)
                     {
-                        result.Success = true;
-                    }
-                    else
-                    {
-                        // Method 2: Create a named range marker to indicate data model loading
-                        // This is more reliable than trying to create connections
-                        dynamic? names = null;
-                        dynamic? firstSheet = null;
+                        dynamic? table = null;
                         try
                         {
-                            names = ctx.Book.Names;
-                            string markerName = $"DataModel_Query_{queryName}";
+                            table = modelTables.Item(i);
+                            string tableName = table.Name?.ToString() ?? "";
 
-                            // Check if marker already exists
-                            bool markerExists = false;
-                            for (int i = 1; i <= names.Count; i++)
+                            // Match by query name (Excel may add prefixes/suffixes)
+                            if (tableName.Contains(queryName, StringComparison.OrdinalIgnoreCase))
                             {
-                                dynamic? existingName = null;
+                                foundTable = true;
+
+                                // Get row count
                                 try
                                 {
-                                    existingName = names.Item(i);
-                                    if (existingName.Name.ToString() == markerName)
-                                    {
-                                        markerExists = true;
-                                        break;
-                                    }
+                                    rowCount = (int)table.RecordCount;
                                 }
                                 catch
                                 {
-                                    continue;
+                                    rowCount = 0; // RecordCount may not be available immediately
                                 }
-                                finally
-                                {
-                                    ComUtilities.Release(ref existingName);
-                                }
-                            }
 
-                            if (!markerExists)
-                            {
-                                // Create a named range marker that points to cell A1 on first sheet
-                                dynamic? worksheets = null;
-                                try
-                                {
-                                    worksheets = ctx.Book.Worksheets;
-                                    firstSheet = worksheets.Item(1);
-                                    names.Add(markerName, $"={firstSheet.Name}!$A$1");
-                                }
-                                finally
-                                {
-                                    ComUtilities.Release(ref worksheets);
-                                }
+                                break;
                             }
-
-                            result.Success = true;
-                        }
-                        catch
-                        {
-                            // Fallback - just set to connection-only mode
-                            result.Success = true;
-                            result.ErrorMessage = "Set to connection-only mode (data available for Data Model operations)";
                         }
                         finally
                         {
-                            ComUtilities.Release(ref firstSheet);
-                            ComUtilities.Release(ref names);
+                            ComUtilities.Release(ref table);
                         }
                     }
+
+                    result.DataLoadedToModel = foundTable;
+                    result.RowsLoaded = rowCount;
+
+                    if (foundTable)
+                    {
+                        result.Success = true;
+                        result.WorkflowStatus = "Complete";
+                        result.WorkflowHint = $"Power Query '{queryName}' loaded to Data Model with {rowCount} rows";
+                        result.SuggestedNextActions = new List<string>
+                        {
+                            "Create DAX measures using dm-create-measure",
+                            "Add relationships using dm-create-relationship",
+                            "View Data Model tables using dm-list-tables"
+                        };
+                    }
+                    else
+                    {
+                        result.Success = false;
+                        result.ErrorMessage = "Query configured and refreshed, but table not found in Data Model";
+                        result.WorkflowStatus = "Partial";
+                    }
                 }
-                catch (Exception ex)
+                finally
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Data Model loading may not be available: {ex.Message}";
+                    ComUtilities.Release(ref modelTables);
+                    ComUtilities.Release(ref model);
                 }
 
                 return result;
@@ -1934,15 +2126,21 @@ in
             {
                 // Privacy error detected - return detailed error result for user consent
                 var privacyError = DetectPrivacyLevelsAndRecommend(ctx.Book, comEx.Message);
-                privacyError.FilePath = batch.WorkbookPath;
-                privacyError.Action = "pq-set-load-to-data-model";
-                result = privacyError;
+
+                // Convert to PowerQueryLoadToDataModelResult
+                result.Success = false;
+                result.ErrorMessage = privacyError.ErrorMessage;
+                result.WorkflowStatus = "Failed";
+                result.WorkflowHint = privacyError.WorkflowHint;
+                result.SuggestedNextActions = privacyError.SuggestedNextActions;
+
                 return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
-                result.ErrorMessage = $"Error setting load to data model: {ex.Message}";
+                result.ErrorMessage = $"Error in atomic load-to-data-model operation: {ex.Message}";
+                result.WorkflowStatus = "Failed";
                 return result;
             }
             finally
@@ -1953,184 +2151,306 @@ in
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> SetLoadToBothAsync(IExcelBatch batch, string queryName, string sheetName, PowerQueryPrivacyLevel? privacyLevel = null)
+    public async Task<PowerQueryLoadToBothResult> SetLoadToBothAsync(IExcelBatch batch, string queryName, string sheetName, PowerQueryPrivacyLevel? privacyLevel = null)
     {
-        var result = new OperationResult
+        var result = new PowerQueryLoadToBothResult
         {
             FilePath = batch.WorkbookPath,
-            Action = "pq-set-load-to-both"
+            Action = "pq-set-load-to-both",
+            QueryName = queryName,
+            SheetName = sheetName,
+            WorkflowStatus = "Failed"
         };
 
-        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
+        return await batch.ExecuteAsync<PowerQueryLoadToBothResult>(async (ctx, ct) =>
         {
             dynamic? query = null;
+            dynamic? sheets = null;
+            dynamic? targetSheet = null;
             try
             {
+                // STEP 1: Verify query exists
+                query = ComUtilities.FindQuery(ctx.Book, queryName);
+                if (query == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Query '{queryName}' not found";
+                    result.WorkflowStatus = "Failed";
+                    return result;
+                }
+
                 // Apply privacy level if specified
                 if (privacyLevel.HasValue)
                 {
                     ApplyPrivacyLevel(ctx.Book, privacyLevel.Value);
                 }
 
-                query = ComUtilities.FindQuery(ctx.Book, queryName);
-                if (query == null)
+                // STEP 2: Check Data Model availability
+                bool dataModelAvailable = DataModelHelpers.HasDataModel(ctx.Book);
+                if (!dataModelAvailable)
                 {
                     result.Success = false;
-                    result.ErrorMessage = $"Query '{queryName}' not found";
+                    result.ErrorMessage = "Data Model is not available in this workbook. Use SetLoadToTableAsync instead.";
+                    result.WorkflowStatus = "Failed";
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        "Use 'set-load-to-table' to load data to worksheet only",
+                        "Check Excel version supports Data Model (Excel 2013+)",
+                        "Ensure workbook is .xlsx format (not .xls)"
+                    };
                     return result;
                 }
 
-                // First set up table loading
-                dynamic? sheets = null;
-                dynamic? targetSheet = null;
+                // STEP 3: Find or create target sheet
+                sheets = ctx.Book.Worksheets;
+
+                for (int i = 1; i <= sheets.Count; i++)
+                {
+                    dynamic? sheet = null;
+                    try
+                    {
+                        sheet = sheets.Item(i);
+                        if (sheet.Name == sheetName)
+                        {
+                            targetSheet = sheet;
+                            sheet = null; // Don't release - we're keeping it
+                            break;
+                        }
+                    }
+                    finally
+                    {
+                        if (sheet != null)
+                        {
+                            ComUtilities.Release(ref sheet);
+                        }
+                    }
+                }
+
+                if (targetSheet == null)
+                {
+                    targetSheet = sheets.Add();
+                    targetSheet.Name = sheetName;
+                }
+
+                // STEP 4: Configure query for BOTH table and Data Model loading
+                ConnectionHelpers.RemoveConnections(ctx.Book, queryName);
+                PowerQueryHelpers.RemoveQueryTables(ctx.Book, queryName);
+
+                // Create QueryTable for worksheet loading
+                var queryTableOptions = new PowerQueryHelpers.QueryTableOptions
+                {
+                    Name = queryName,
+                    RefreshImmediately = false // Don't refresh yet - we'll do it atomically
+                };
+                PowerQueryHelpers.CreateQueryTable(targetSheet, queryName, queryTableOptions);
+
+                // Configure query for Data Model loading
+                if (!TrySetQueryLoadToDataModel(query))
+                {
+                    result.Success = false;
+                    result.ErrorMessage = "Failed to configure query for Data Model loading";
+                    result.WorkflowStatus = "Partial";
+                    return result;
+                }
+
+                result.ConfigurationApplied = true;
+
+                // STEP 5: ATOMIC REFRESH - Use Data Model refresh for atomic operation
                 try
                 {
-                    // Find or create target sheet
-                    sheets = ctx.Book.Worksheets;
-
-                    for (int i = 1; i <= sheets.Count; i++)
+                    await _dataModelCommands.RefreshAsync(batch);
+                }
+                catch (Exception refreshEx)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Refresh failed: {refreshEx.Message}";
+                    result.WorkflowStatus = "Partial";
+                    result.SuggestedNextActions = new List<string>
                     {
-                        dynamic? sheet = null;
+                        "Check query syntax and data source connectivity",
+                        "Review privacy level settings",
+                        "Use 'errors' action to see detailed error information"
+                    };
+                    return result;
+                }
+
+                // STEP 6: VERIFY data loaded to BOTH destinations
+                bool foundInTable = false;
+                bool foundInDataModel = false;
+                int tableRows = 0;
+                int modelRows = 0;
+                int tablesInDataModel = 0;
+
+                // Verify table loading
+                dynamic? queryTables = null;
+                try
+                {
+                    queryTables = targetSheet.QueryTables;
+                    string normalizedName = queryName.Replace(" ", "_");
+
+                    for (int qt = 1; qt <= queryTables.Count; qt++)
+                    {
+                        dynamic? qt_obj = null;
                         try
                         {
-                            sheet = sheets.Item(i);
-                            if (sheet.Name == sheetName)
+                            qt_obj = queryTables.Item(qt);
+                            string qtName = qt_obj.Name?.ToString() ?? "";
+
+                            if (qtName.Equals(normalizedName, StringComparison.OrdinalIgnoreCase) ||
+                                qtName.Contains(normalizedName, StringComparison.OrdinalIgnoreCase))
                             {
-                                targetSheet = sheet;
-                                sheet = null; // Don't release - we're keeping it
+                                foundInTable = true;
+
+                                // Get row count from ResultRange
+                                try
+                                {
+                                    dynamic? resultRange = qt_obj.ResultRange;
+                                    if (resultRange != null)
+                                    {
+                                        tableRows = resultRange.Rows.Count;
+                                        ComUtilities.Release(ref resultRange);
+                                    }
+                                }
+                                catch
+                                {
+                                    tableRows = 0;
+                                }
                                 break;
                             }
                         }
                         finally
                         {
-                            if (sheet != null)
-                            {
-                                ComUtilities.Release(ref sheet);
-                            }
+                            ComUtilities.Release(ref qt_obj);
                         }
                     }
-
-                    if (targetSheet == null)
-                    {
-                        targetSheet = sheets.Add();
-                        targetSheet.Name = sheetName;
-                    }
-
-                    // Remove existing connections first
-                    ConnectionHelpers.RemoveConnections(ctx.Book, queryName);
-                    PowerQueryHelpers.RemoveQueryTables(ctx.Book, queryName);
-
-                    // Create new QueryTable connection that loads data to table
-                    var queryTableOptions = new PowerQueryHelpers.QueryTableOptions
-                    {
-                        Name = queryName,
-                        RefreshImmediately = true
-                    };
-                    PowerQueryHelpers.CreateQueryTable(targetSheet, queryName, queryTableOptions);
-                }
-                catch (Exception ex)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Failed to set up table loading: {ex.Message}";
-                    return result;
                 }
                 finally
                 {
-                    ComUtilities.Release(ref targetSheet);
-                    ComUtilities.Release(ref sheets);
+                    ComUtilities.Release(ref queryTables);
                 }
 
-                // Then add data model loading marker
-                dynamic? names = null;
-                dynamic? firstSheet = null;
-                dynamic? worksheets2 = null;
+                // Verify Data Model loading
+                dynamic? model = null;
+                dynamic? modelTables = null;
                 try
                 {
-                    // Check if Data Model is available
-                    bool dataModelAvailable = CheckDataModelAvailability(ctx.Book);
-
-                    if (dataModelAvailable)
+                    model = ctx.Book.Model;
+                    if (model != null)
                     {
-                        // Create data model marker
-                        names = ctx.Book.Names;
-                        string markerName = $"DataModel_Query_{queryName}";
+                        modelTables = model.ModelTables;
+                        tablesInDataModel = modelTables.Count;
 
-                        // Check if marker already exists
-                        bool markerExists = false;
-                        for (int i = 1; i <= names.Count; i++)
+                        for (int t = 1; t <= modelTables.Count; t++)
                         {
-                            dynamic? existingName = null;
+                            dynamic? table = null;
                             try
                             {
-                                existingName = names.Item(i);
-                                if (existingName.Name.ToString() == markerName)
+                                table = modelTables.Item(t);
+                                string tableName = table.Name?.ToString() ?? "";
+
+                                if (tableName.Equals(queryName, StringComparison.OrdinalIgnoreCase))
                                 {
-                                    markerExists = true;
+                                    foundInDataModel = true;
+                                    modelRows = table.RecordCount;
                                     break;
                                 }
                             }
-                            catch
-                            {
-                                continue;
-                            }
                             finally
                             {
-                                ComUtilities.Release(ref existingName);
+                                ComUtilities.Release(ref table);
                             }
-                        }
-
-                        if (!markerExists)
-                        {
-                            // Create a named range marker that points to cell A1 on first sheet
-                            worksheets2 = ctx.Book.Worksheets;
-                            firstSheet = worksheets2.Item(1);
-                            names.Add(markerName, $"={firstSheet.Name}!$A$1");
                         }
                     }
                 }
-                catch (Exception ex)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table loading succeeded but data model setup failed: {ex.Message}";
-                    return result;
-                }
                 finally
                 {
-                    ComUtilities.Release(ref worksheets2);
-                    ComUtilities.Release(ref firstSheet);
-                    ComUtilities.Release(ref names);
+                    ComUtilities.Release(ref modelTables);
+                    ComUtilities.Release(ref model);
                 }
 
-                result.Success = true;
-                return result;
-            }
-            catch (COMException comEx) when (comEx.HResult == unchecked((int)0x8001010A))
-            {
-                // Excel is busy (RPC_E_SERVERCALL_RETRYLATER)
-                // Retry after a short delay
-                System.Threading.Thread.Sleep(500);
-                result.Success = false;
-                result.ErrorMessage = "Excel is busy. Please close any dialogs and try again.";
+                // Set result based on verification
+                result.DataLoadedToTable = foundInTable;
+                result.DataLoadedToModel = foundInDataModel;
+                result.RowsLoadedToTable = tableRows;
+                result.RowsLoadedToModel = modelRows;
+                result.TablesInDataModel = tablesInDataModel;
+
+                if (foundInTable && foundInDataModel)
+                {
+                    result.Success = true;
+                    result.WorkflowStatus = "Complete";
+                    result.WorkflowHint = $"Query '{queryName}' loaded to both worksheet '{sheetName}' ({tableRows} rows) and Data Model ({modelRows} rows)";
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        $"View data in worksheet '{sheetName}'",
+                        "Create PivotTables using Data Model",
+                        "Use 'refresh' to reload data from source"
+                    };
+                }
+                else if (foundInTable && !foundInDataModel)
+                {
+                    result.Success = false;
+                    result.WorkflowStatus = "Partial";
+                    result.ErrorMessage = "Data loaded to table but not to Data Model";
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        "Check Data Model compatibility",
+                        "Verify query configuration",
+                        "Try refreshing again"
+                    };
+                }
+                else if (!foundInTable && foundInDataModel)
+                {
+                    result.Success = false;
+                    result.WorkflowStatus = "Partial";
+                    result.ErrorMessage = "Data loaded to Data Model but not to table";
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        "Check worksheet and QueryTable configuration",
+                        "Verify target sheet exists",
+                        "Try refreshing again"
+                    };
+                }
+                else
+                {
+                    result.Success = false;
+                    result.WorkflowStatus = "Failed";
+                    result.ErrorMessage = "Data not loaded to either destination";
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        "Check query syntax and data source",
+                        "Review privacy level settings",
+                        "Use 'errors' action to see query errors"
+                    };
+                }
+
                 return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("Information is needed in order to combine data") ||
                                              comEx.Message.Contains("privacy level", StringComparison.OrdinalIgnoreCase))
             {
-                // Privacy error detected - return detailed error result for user consent
+                // Privacy error detected - convert to our result type
                 var privacyError = DetectPrivacyLevelsAndRecommend(ctx.Book, comEx.Message);
-                privacyError.FilePath = batch.WorkbookPath;
-                privacyError.Action = "pq-set-load-to-both";
-                result = privacyError;
+
+                result.Success = false;
+                result.ErrorMessage = privacyError.ErrorMessage;
+                result.WorkflowStatus = "Failed";
+                result.WorkflowHint = privacyError.WorkflowHint;
+                result.SuggestedNextActions = privacyError.SuggestedNextActions;
+
                 return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
-                result.ErrorMessage = $"Error setting load to both: {ex.Message}";
+                result.ErrorMessage = $"Error in atomic load-to-both operation: {ex.Message}";
+                result.WorkflowStatus = "Failed";
                 return result;
             }
             finally
             {
+                ComUtilities.Release(ref targetSheet);
+                ComUtilities.Release(ref sheets);
                 ComUtilities.Release(ref query);
             }
         });

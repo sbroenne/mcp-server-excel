@@ -11,7 +11,8 @@ applyTo: "src/ExcelMcp.Core/**/*.cs"
 1. **Use Late Binding** - `dynamic` types with `Type.GetTypeFromProgID()`
 2. **1-Based Indexing** - Excel collections start at 1, not 0
 3. **Release COM Objects** - Use `Marshal.ReleaseComObject()` and `GC.Collect()`
-4. **Never call RefreshAll()** - It hangs. Refresh individual connections instead.
+4. **QueryTable Refresh REQUIRED** - QueryTables must be refreshed synchronously with `.Refresh(false)` to persist properly
+5. **NEVER use RefreshAll() for automation** - It's asynchronous and unreliable; use individual `connection.Refresh()` or `queryTable.Refresh(false)` instead
 
 ---
 
@@ -80,13 +81,53 @@ namesCollection.Add("Param", ref);  // Now RefersToRange works
 // ❌ WRONG - Causes "Value does not fall within expected range"
 listObjects.Add(...);  // DO NOT USE!
 
-// ✅ CORRECT - Use QueryTables
+// ✅ CORRECT - Use QueryTables with synchronous refresh
 string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
 dynamic queryTable = sheet.QueryTables.Add(connectionString, sheet.Range["A1"], commandText);
-queryTable.Refresh(false);
+queryTable.Refresh(false);  // CRITICAL: false = synchronous, ensures persistence
 ```
 
-### 4. Excel Busy Handling
+### 4. QueryTable Persistence - CRITICAL Pattern
+
+**⚠️ DISCOVERED 2025-10-29: RefreshAll() does NOT persist QueryTables properly!**
+
+```csharp
+// ❌ WRONG - QueryTable exists in memory but lost when file reopened
+var qt = sheet.QueryTables.Add(connectionString, range, commandText);
+workbook.RefreshAll();  // ASYNC - doesn't ensure individual QueryTable persistence!
+workbook.Save();  // QueryTable NOT properly saved to disk
+
+// ✅ CORRECT - Microsoft documented pattern (VBA example)
+var qt = sheet.QueryTables.Add(connectionString, range, commandText);
+qt.Refresh(false);  // SYNCHRONOUS - blocks until complete, ensures persistence
+workbook.Save();  // QueryTable properly saved to disk
+```
+
+**Why this matters:**
+- `RefreshAll()` refreshes queries with `BackgroundQuery=true` **asynchronously**
+- Individual `queryTable.Refresh(false)` is **synchronous** and **required** for proper persistence
+- Microsoft VBA docs: "Unless Refresh() is called, QueryTable doesn't communicate with data source"
+- Pattern from Microsoft official example: Create → Refresh(False) → Save
+- Without individual refresh, QueryTable exists in-memory but won't persist to .xlsx file
+
+**Debugging symptoms:**
+- QueryTable found after creation (GetLoadConfigurationAsync returns LoadToTable)
+- QueryTable survives SaveAsync in same batch session
+- QueryTable LOST when file closed and reopened (GetLoadConfigurationAsync returns ConnectionOnly)
+- Root cause: RefreshAll() is async, doesn't ensure individual QueryTable initialization
+
+**Fix:**
+```csharp
+var queryTableOptions = new PowerQueryHelpers.QueryTableOptions
+{
+    Name = queryName,
+    RefreshImmediately = true  // Calls queryTable.Refresh(false) synchronously
+};
+PowerQueryHelpers.CreateQueryTable(targetSheet, queryName, queryTableOptions);
+// No RefreshAll() needed - individual refresh handles it
+```
+
+### 5. Excel Busy Handling
 
 ```csharp
 catch (COMException ex) when (ex.HResult == -2147417851)
