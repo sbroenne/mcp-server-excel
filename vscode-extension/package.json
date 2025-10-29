@@ -53,6 +53,14 @@
     "ms-dotnettools.vscode-dotnet-runtime"
   ],
   "main": "./out/extension.js",
+  "files": [
+    "out/**",
+    "bin/**",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "icon.png"
+  ],
   "contributes": {
     "mcpServerDefinitionProviders": [
       {
