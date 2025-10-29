@@ -18,6 +18,7 @@ public class PowerQueryCommandsTests : IDisposable
 {
     private readonly IPowerQueryCommands _powerQueryCommands;
     private readonly IFileCommands _fileCommands;
+    private readonly ISheetCommands _sheetCommands;
     private readonly string _testExcelFile;
     private readonly string _testQueryFile;
     private readonly string _tempDir;
@@ -28,6 +29,7 @@ public class PowerQueryCommandsTests : IDisposable
         var dataModelCommands = new DataModelCommands();
         _powerQueryCommands = new PowerQueryCommands(dataModelCommands);
         _fileCommands = new FileCommands();
+        _sheetCommands = new SheetCommands();
 
         // Create temp directory for test files
         _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_PQ_Tests_{Guid.NewGuid():N}");
@@ -288,6 +290,15 @@ in
             // Assert
             Assert.True(result.Success, $"SetLoadToTable failed: {result.ErrorMessage}");
             Assert.Equal("pq-set-load-to-table", result.Action);
+
+            // Verify the load configuration was actually set
+            var configResult = await _powerQueryCommands.GetLoadConfigAsync(batch, "TestLoadToTable");
+            Assert.True(configResult.Success, $"Failed to get load config: {configResult.ErrorMessage}");
+            Assert.Equal(PowerQueryLoadMode.LoadToTable, configResult.LoadMode);
+
+            // Verify sheet was created if loading worked
+            var sheetsResult = await _sheetCommands.ListAsync(batch);
+            Assert.True(sheetsResult.Success);
         }
     }
 
@@ -311,6 +322,11 @@ in
             // Assert
             Assert.True(result.Success, $"SetLoadToDataModel failed: {result.ErrorMessage}");
             Assert.Equal("pq-set-load-to-data-model", result.Action);
+
+            // Verify the load configuration was actually set
+            var configResult = await _powerQueryCommands.GetLoadConfigAsync(batch, "TestLoadToDataModel");
+            Assert.True(configResult.Success, $"Failed to get load config: {configResult.ErrorMessage}");
+            Assert.Equal(PowerQueryLoadMode.LoadToDataModel, configResult.LoadMode);
         }
     }
 
@@ -334,6 +350,11 @@ in
             // Assert
             Assert.True(result.Success, $"SetLoadToBoth failed: {result.ErrorMessage}");
             Assert.Equal("pq-set-load-to-both", result.Action);
+
+            // Verify the load configuration was actually set
+            var configResult = await _powerQueryCommands.GetLoadConfigAsync(batch, "TestLoadToBoth");
+            Assert.True(configResult.Success, $"Failed to get load config: {configResult.ErrorMessage}");
+            Assert.Equal(PowerQueryLoadMode.LoadToBoth, configResult.LoadMode);
         }
     }
 
