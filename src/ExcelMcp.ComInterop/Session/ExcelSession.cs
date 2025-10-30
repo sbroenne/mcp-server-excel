@@ -1,6 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
-using Sbroenne.ExcelMcp.ComInterop;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Session;
 

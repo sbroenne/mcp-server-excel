@@ -32,7 +32,7 @@ public partial class DataModelCommandsTests
         // Assert - Demand success (Data Model is always available in Excel 2013+)
         Assert.True(result.Success,
             $"Refresh MUST succeed - Data Model is always available in Excel 2013+. Error: {result.ErrorMessage}");
-        
+
         // Verify refresh completed with correct file path
         Assert.NotNull(result.FilePath);
         Assert.Equal(_testExcelFile, result.FilePath);

@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
-using Sbroenne.ExcelMcp.Core;
 using Sbroenne.ExcelMcp.Core.Commands;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
@@ -28,7 +27,7 @@ public static class ExcelFileTool
 
         [Description("Excel file path (.xlsx or .xlsm extension)")]
         string excelPath,
-        
+
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
         string? batchId = null)
     {
@@ -80,7 +79,7 @@ public static class ExcelFileTool
         // Note: CreateEmpty doesn't use batch session - it creates a new file
         // batchId is ignored for this operation
         var result = await fileCommands.CreateEmptyAsync(excelPath, overwriteIfExists: false);
-            
+
         if (result.Success)
         {
             return JsonSerializer.Serialize(new
@@ -91,7 +90,7 @@ public static class ExcelFileTool
                 message = "Excel file created successfully",
                 suggestedNextActions = new[]
                 {
-                    batchId != null 
+                    batchId != null
                         ? $"Continue using batchId '{batchId}' for subsequent operations on this file"
                         : "Use begin_excel_batch to start a batch session for multiple operations",
                     "Use worksheet 'create' to add new worksheets",

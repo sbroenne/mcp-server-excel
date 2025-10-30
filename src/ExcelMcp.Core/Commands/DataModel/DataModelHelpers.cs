@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Sbroenne.ExcelMcp.ComInterop;
 
 namespace Sbroenne.ExcelMcp.Core.DataModel;
@@ -430,7 +428,7 @@ public static class DataModelHelpers
                 try
                 {
                     relationship = relationships.Item(i);
-                    
+
                     // Get relationship details
                     string currentFromTable = relationship.ForeignKeyColumn?.Parent?.Name?.ToString() ?? "";
                     string currentFromColumn = relationship.ForeignKeyColumn?.Name?.ToString() ?? "";

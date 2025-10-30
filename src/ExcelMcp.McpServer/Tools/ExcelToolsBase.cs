@@ -2,7 +2,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ModelContextProtocol;
-using Sbroenne.ExcelMcp.Core;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 
 #pragma warning disable IL2070 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' requirements
@@ -56,14 +55,14 @@ public static class ExcelToolsBase
                 throw new ModelContextProtocol.McpException(
                     $"Batch session '{batchId}' not found. It may have already been committed or never existed.");
             }
-            
+
             // Verify file path matches batch
             if (!string.Equals(batch.WorkbookPath, Path.GetFullPath(filePath), StringComparison.OrdinalIgnoreCase))
             {
                 throw new ModelContextProtocol.McpException(
                     $"File path mismatch. Batch session is for '{batch.WorkbookPath}' but operation requested '{filePath}'.");
             }
-            
+
             return await action(batch);
         }
         else
@@ -71,12 +70,12 @@ public static class ExcelToolsBase
             // Batch-of-one (backward compatibility for single operations)
             await using var batch = await ExcelSession.BeginBatchAsync(filePath);
             var result = await action(batch);
-            
+
             if (save)
             {
                 await batch.SaveAsync();
             }
-            
+
             return result;
         }
     }

@@ -42,6 +42,21 @@ public partial class PivotTableCommands
                                 pivot = pivotTablesCol.Item(j);
                                 pivotCache = pivot.PivotCache;
 
+                                // Handle RefreshDate which can be DateTime or double (OLE date)
+                                DateTime? lastRefresh = null;
+                                if (pivotCache.RefreshDate != null)
+                                {
+                                    var refreshDate = pivotCache.RefreshDate;
+                                    if (refreshDate is DateTime dt)
+                                    {
+                                        lastRefresh = dt;
+                                    }
+                                    else if (refreshDate is double dbl)
+                                    {
+                                        lastRefresh = DateTime.FromOADate(dbl);
+                                    }
+                                }
+
                                 var info = new PivotTableInfo
                                 {
                                     Name = pivot.Name,
@@ -52,9 +67,7 @@ public partial class PivotTableCommands
                                     ColumnFieldCount = pivot.ColumnFields.Count,
                                     ValueFieldCount = pivot.DataFields.Count,
                                     FilterFieldCount = pivot.PageFields.Count,
-                                    LastRefresh = pivotCache.RefreshDate != null 
-                                        ? DateTime.FromOADate((double)pivotCache.RefreshDate) 
-                                        : (DateTime?)null
+                                    LastRefresh = lastRefresh
                                 };
 
                                 pivotTables.Add(info);
@@ -125,9 +138,7 @@ public partial class PivotTableCommands
                     ColumnFieldCount = pivot.ColumnFields.Count,
                     ValueFieldCount = pivot.DataFields.Count,
                     FilterFieldCount = pivot.PageFields.Count,
-                    LastRefresh = pivotCache.RefreshDate != null 
-                        ? DateTime.FromOADate((double)pivotCache.RefreshDate) 
-                        : (DateTime?)null
+                    LastRefresh = GetRefreshDateSafe(pivotCache.RefreshDate)
                 };
 
                 // Get field details
@@ -138,7 +149,7 @@ public partial class PivotTableCommands
                     try
                     {
                         field = pivotFields.Item(i);
-                        int orientation = field.Orientation;
+                        int orientation = Convert.ToInt32(field.Orientation);
 
                         var fieldInfo = new PivotFieldInfo
                         {
@@ -152,14 +163,14 @@ public partial class PivotTableCommands
                                 XlPivotFieldOrientation.xlDataField => PivotFieldArea.Value,
                                 _ => PivotFieldArea.Hidden
                             },
-                            Position = orientation != XlPivotFieldOrientation.xlHidden ? field.Position : 0,
+                            Position = orientation != XlPivotFieldOrientation.xlHidden ? Convert.ToInt32(field.Position) : 0,
                             DataType = DetectFieldDataType(field)
                         };
 
                         // Get function for value fields
                         if (orientation == XlPivotFieldOrientation.xlDataField)
                         {
-                            int comFunction = field.Function;
+                            int comFunction = Convert.ToInt32(field.Function);
                             fieldInfo.Function = GetAggregationFunctionFromCom(comFunction);
                         }
 
@@ -212,10 +223,10 @@ public partial class PivotTableCommands
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
                 tableRange = pivot.TableRange2;
-                
+
                 // Delete the PivotTable
                 tableRange.Clear();
-                
+
                 return new OperationResult
                 {
                     Success = true,
@@ -291,4 +302,22 @@ public partial class PivotTableCommands
             }
         });
     }
+
+    /// <summary>
+    /// Safely converts Excel RefreshDate (which can be DateTime or double OLE date) to DateTime?
+    /// </summary>
+    private static DateTime? GetRefreshDateSafe(dynamic refreshDate)
+    {
+        if (refreshDate == null)
+            return null;
+
+        if (refreshDate is DateTime dt)
+            return dt;
+
+        if (refreshDate is double dbl)
+            return DateTime.FromOADate(dbl);
+
+        return null;
+    }
 }
+

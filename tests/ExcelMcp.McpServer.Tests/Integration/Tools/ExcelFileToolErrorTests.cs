@@ -137,7 +137,7 @@ public class ExcelFileToolErrorTests : IDisposable
     {
         // Arrange
         var testFile = Path.Combine(_tempDir, "test-file.txt");
-        
+
         // Create file with invalid extension
         File.WriteAllText(testFile, "test content");
 

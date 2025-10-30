@@ -1,9 +1,9 @@
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Security;
-using Sbroenne.ExcelMcp.ComInterop.Session;
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
 
@@ -298,13 +298,13 @@ public class ScriptCommands : IScriptCommands
                 }
 
                 result.Success = true;
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     $"Module has {result.LineCount} lines and {result.Procedures.Count} procedure(s)",
                     "Use 'script-update' to modify the code",
                     "Use 'script-run' to execute procedures",
                     "Use 'script-export' to save code to file"
-                };
+                ];
                 result.WorkflowHint = "VBA code viewed. Next, update or run procedures.";
 
                 return result;

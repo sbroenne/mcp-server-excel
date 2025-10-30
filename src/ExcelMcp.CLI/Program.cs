@@ -340,21 +340,38 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]param-delete[/] file.xlsx param-name           Delete named range");
         AnsiConsole.WriteLine();
 
+        AnsiConsole.MarkupLine("[bold yellow]Table Commands:[/]");
+        AnsiConsole.MarkupLine("  [cyan]table-list[/] file.xlsx                        List all tables");
+        AnsiConsole.MarkupLine("  [cyan]table-create[/] file.xlsx sheet name range    Create table from range");
+        AnsiConsole.MarkupLine("  [cyan]table-info[/] file.xlsx table-name            Get table details");
+        AnsiConsole.MarkupLine("  [cyan]table-rename[/] file.xlsx old-name new-name   Rename table");
+        AnsiConsole.MarkupLine("  [cyan]table-delete[/] file.xlsx table-name          Delete table");
+        AnsiConsole.MarkupLine("  [cyan]table-resize[/] file.xlsx table-name range    Resize table");
+        AnsiConsole.MarkupLine("  [cyan]table-set-style[/] file.xlsx table-name style Change table style");
+        AnsiConsole.MarkupLine("  [cyan]table-toggle-totals[/] file.xlsx table-name true|false  Show/hide totals");
+        AnsiConsole.MarkupLine("  [cyan]table-set-column-total[/] file.xlsx table col func  Set column total function");
+        AnsiConsole.MarkupLine("  [cyan]table-append[/] file.xlsx table-name data.csv Append rows to table");
+        AnsiConsole.MarkupLine("  [cyan]table-add-to-datamodel[/] file.xlsx table-name  Add table to Data Model");
+        AnsiConsole.MarkupLine("  [cyan]table-apply-filter[/] file.xlsx table col criteria  Filter by criteria");
+        AnsiConsole.MarkupLine("  [cyan]table-apply-filter-values[/] file.xlsx table col vals  Filter by values");
+        AnsiConsole.MarkupLine("  [cyan]table-clear-filters[/] file.xlsx table-name   Clear all filters");
+        AnsiConsole.MarkupLine("  [cyan]table-get-filters[/] file.xlsx table-name    Get filter state");
+        AnsiConsole.MarkupLine("  [cyan]table-add-column[/] file.xlsx table col [[pos]]  Add column");
+        AnsiConsole.MarkupLine("  [cyan]table-remove-column[/] file.xlsx table col    Remove column");
+        AnsiConsole.MarkupLine("  [cyan]table-rename-column[/] file.xlsx table old new  Rename column");
+        AnsiConsole.MarkupLine("  [cyan]table-get-structured-reference[/] file.xlsx table region [[col]]  Get ref");
+        AnsiConsole.MarkupLine("  [cyan]table-sort[/] file.xlsx table col [[asc|desc]]  Sort by column");
+        AnsiConsole.MarkupLine("  [cyan]table-sort-multi[/] file.xlsx table col1:asc col2:desc...  Multi-sort");
+        AnsiConsole.WriteLine();
+
         AnsiConsole.MarkupLine("[bold yellow]PivotTable Commands:[/]");
         AnsiConsole.MarkupLine("  [cyan]pivot-list[/] file.xlsx                          List all PivotTables");
         AnsiConsole.MarkupLine("  [cyan]pivot-create-from-range[/] file.xlsx src-sheet src-range dest-sheet dest-cell name");
         AnsiConsole.MarkupLine("    [dim]Example: pivot-create-from-range sales.xlsx Data A1:D100 Analysis A1 SalesPivot[/]");
-        AnsiConsole.MarkupLine("  [cyan]pivot-add-row-field[/] file.xlsx pivot-name field [position]");
-        AnsiConsole.MarkupLine("  [cyan]pivot-add-value-field[/] file.xlsx pivot-name field [function] [custom-name]");
+        AnsiConsole.MarkupLine("  [cyan]pivot-add-row-field[/] file.xlsx pivot-name field [[position]]");
+        AnsiConsole.MarkupLine("  [cyan]pivot-add-value-field[/] file.xlsx pivot-name field [[function]] [[custom-name]]");
         AnsiConsole.MarkupLine("    [dim]Functions: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, VarP[/]");
         AnsiConsole.MarkupLine("  [cyan]pivot-refresh[/] file.xlsx pivot-name           Refresh PivotTable data");
-        AnsiConsole.WriteLine();
-
-        AnsiConsole.MarkupLine("[bold yellow]Cell Commands:[/]");
-        AnsiConsole.MarkupLine("  [cyan]cell-get-value[/] file.xlsx sheet cell         Get cell value");
-        AnsiConsole.MarkupLine("  [cyan]cell-set-value[/] file.xlsx sheet cell value   Set cell value");
-        AnsiConsole.MarkupLine("  [cyan]cell-get-formula[/] file.xlsx sheet cell       Get cell formula");
-        AnsiConsole.MarkupLine("  [cyan]cell-set-formula[/] file.xlsx sheet cell form  Set cell formula");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Connection Commands:[/]");

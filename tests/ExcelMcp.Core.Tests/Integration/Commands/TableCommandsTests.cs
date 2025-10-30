@@ -1,8 +1,8 @@
-using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Commands.Table;
-using Sbroenne.ExcelMcp.Core.Commands.Range;
-using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
+using Sbroenne.ExcelMcp.Core.Commands.Table;
+using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
@@ -375,7 +375,7 @@ public class TableCommandsTests : IDisposable
     {
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
-        var result = await _tableCommands.SortAsync(batch, "SalesTable", new List<TableSortColumn>());
+        var result = await _tableCommands.SortAsync(batch, "SalesTable", []);
 
         // Assert
         Assert.False(result.Success);

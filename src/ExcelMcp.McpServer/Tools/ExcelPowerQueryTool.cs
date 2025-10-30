@@ -132,22 +132,22 @@ public static class ExcelPowerQueryTool
             async (batch) => await commands.ListAsync(batch));
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the Excel file exists and is accessible",
                 "Verify the file path and try again"
-            };
+            ];
             result.WorkflowHint = "List failed. Ensure the file exists and retry.";
             throw new ModelContextProtocol.McpException($"list failed for '{excelPath}': {result.ErrorMessage}");
         }
         else
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Use 'view' to inspect a query's M code",
                 "Use 'import' to add a new Power Query",
                 "Use 'delete' to remove a query"
-            };
+            ];
             result.WorkflowHint = "Power Queries listed. Next, view, import, or delete queries as needed.";
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -165,22 +165,22 @@ public static class ExcelPowerQueryTool
             async (batch) => await commands.ViewAsync(batch, queryName));
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the query name is correct",
                 "Use 'list' to see available queries"
-            };
+            ];
             result.WorkflowHint = "View failed. Ensure the query exists and retry.";
             throw new ModelContextProtocol.McpException($"view failed for '{excelPath}': {result.ErrorMessage}");
         }
         else
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Use 'update' to modify the query's M code",
                 "Use 'set-load-to-table' to load data to worksheet",
                 "Use 'refresh' to update query data"
-            };
+            ];
             result.WorkflowHint = "Query M code viewed. Next, update, load, or refresh as needed.";
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -235,21 +235,21 @@ public static class ExcelPowerQueryTool
             async (batch) => await commands.ExportAsync(batch, queryName, targetPath));
         if (result.Success)
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Edit the exported M code file as needed",
                 "Use 'update' to re-import modified code",
                 "Use 'refresh' to validate changes"
-            };
+            ];
             result.WorkflowHint = "Query exported. Next, edit and update as needed.";
         }
         else
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the target path is valid and writable",
                 "Verify the query name and try again"
-            };
+            ];
             result.WorkflowHint = "Export failed. Ensure the path and query are correct.";
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -283,11 +283,11 @@ public static class ExcelPowerQueryTool
         }
         else
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the source M code file exists and is accessible",
                 "Verify the query name and try again"
-            };
+            ];
             result.WorkflowHint = "Update failed. Ensure the file and query are correct.";
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -305,22 +305,22 @@ public static class ExcelPowerQueryTool
             async (batch) => await commands.RefreshAsync(batch, queryName));
         if (result.Success)
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Use 'view' to inspect the query M code",
                 "Use worksheet 'read' to verify loaded data",
                 "Use 'get-load-config' to check load settings"
-            };
+            ];
             result.WorkflowHint = "Query refreshed successfully. Next, view code or verify data.";
         }
         else
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check the query M code for errors using 'view'",
                 "Verify data source connectivity",
                 "Review privacy level settings if needed"
-            };
+            ];
             result.WorkflowHint = "Refresh failed. Check query code and data source.";
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -338,22 +338,22 @@ public static class ExcelPowerQueryTool
             async (batch) => await commands.DeleteAsync(batch, queryName));
         if (result.Success)
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Use 'list' to verify query was removed",
                 "Use 'import' to add a new query",
                 "Review remaining queries with 'list'"
-            };
+            ];
             result.WorkflowHint = "Query deleted successfully. Next, verify with list.";
         }
         else
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the query name is correct",
                 "Use 'list' to see available queries",
                 "Verify the file is not read-only"
-            };
+            ];
             result.WorkflowHint = "Delete failed. Ensure the query exists and file is writable.";
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -385,12 +385,12 @@ public static class ExcelPowerQueryTool
         }
         else
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the query exists using 'list'",
                 "Verify the target sheet name is correct",
                 "Review privacy level settings if needed"
-            };
+            ];
             result.WorkflowHint = "Set-load-to-table failed. Check query and sheet names.";
         }
 
@@ -424,12 +424,12 @@ public static class ExcelPowerQueryTool
         }
         else
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the query exists using 'list'",
                 "Review privacy level settings if needed",
                 "Verify Data Model is enabled"
-            };
+            ];
             result.WorkflowHint = "Set-load-to-data-model failed. Check query and Data Model status.";
         }
 
@@ -470,21 +470,21 @@ public static class ExcelPowerQueryTool
             async (batch) => await commands.SetConnectionOnlyAsync(batch, queryName));
         if (result.Success)
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Use 'get-load-config' to confirm connection-only setting",
                 "Use 'set-load-to-table' to load data to worksheet later",
                 "Use 'view' to inspect the query M code"
-            };
+            ];
             result.WorkflowHint = "Connection-only configured. Query will not load data automatically.";
         }
         else
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the query exists using 'list'",
                 "Verify the file is not read-only"
-            };
+            ];
             result.WorkflowHint = "Set-connection-only failed. Ensure the query exists.";
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -502,21 +502,21 @@ public static class ExcelPowerQueryTool
             async (batch) => await commands.GetLoadConfigAsync(batch, queryName));
         if (result.Success)
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Use 'set-load-to-table' to change load settings",
                 "Use 'refresh' to update query data",
                 "Use 'view' to inspect the query M code"
-            };
+            ];
             result.WorkflowHint = "Load configuration retrieved. Next, modify settings or refresh data.";
         }
         else
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the query exists using 'list'",
                 "Verify the query name is correct"
-            };
+            ];
             result.WorkflowHint = "Get-load-config failed. Ensure the query exists.";
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);

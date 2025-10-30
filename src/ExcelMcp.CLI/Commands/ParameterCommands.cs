@@ -1,6 +1,6 @@
-using Spectre.Console;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Spectre.Console;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -199,7 +199,7 @@ public class ParameterCommands : IParameterCommands
         else
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-            
+
             if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
             {
                 AnsiConsole.MarkupLine("\n[bold]Suggestions:[/]");
@@ -208,7 +208,7 @@ public class ParameterCommands : IParameterCommands
                     AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
                 }
             }
-            
+
             return 1;
         }
     }

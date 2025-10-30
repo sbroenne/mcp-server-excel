@@ -28,5 +28,5 @@ public class DataModelInfoResult : ResultBase
     /// <summary>
     /// List of table names
     /// </summary>
-    public List<string> TableNames { get; set; } = new();
+    public List<string> TableNames { get; set; } = [];
 }

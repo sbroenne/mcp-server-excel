@@ -1,7 +1,7 @@
+using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
-using Sbroenne.ExcelMcp.ComInterop.Session;
-using System.Text.Json;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Commands;
@@ -398,11 +398,11 @@ public class ConnectionCommandsTests : IDisposable
         // Verify properties were set by reading them back
         await using var verifyBatch = await ExcelSession.BeginBatchAsync(_testFile);
         var propsResult = await _commands.GetPropertiesAsync(verifyBatch, connName);
-        
+
         // Note: Some properties may not be settable for WEB-type connections (Excel limitation)
         // Just verify the operation succeeded - property values may not change
         Assert.True(propsResult.Success, $"GetProperties failed: {propsResult.ErrorMessage}");
-        
+
         // Comment out strict assertions since Excel may not support all properties for type 4 (WEB) connections
         // Assert.False(propsResult.BackgroundQuery);
         // Assert.True(propsResult.RefreshOnFileOpen);

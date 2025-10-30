@@ -11,6 +11,7 @@ public partial class PivotTableCommands
 {
     /// <summary>
     /// Creates a PivotTable from an Excel range
+    /// Following VBA pattern from ReneNyffenegger/about-MS-Office-object-model
     /// </summary>
     #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<PivotTableCreateResult> CreateFromRangeAsync(IExcelBatch batch,
@@ -30,7 +31,7 @@ public partial class PivotTableCommands
 
             try
             {
-                // STEP 1: Validate source data
+                // STEP 1: Validate source range has headers and data
                 sourceWorksheet = ctx.Book.Worksheets.Item(sourceSheet);
                 sourceRangeObj = sourceWorksheet.Range[sourceRange];
 
@@ -39,117 +40,79 @@ public partial class PivotTableCommands
                     throw new InvalidOperationException($"Source range must contain headers and at least one data row. Found {sourceRangeObj.Rows.Count} rows");
                 }
 
-                // Check for headers in first row
-                dynamic? headerRowRange = null;
+                // STEP 2: Create PivotCache from source range
+                // VBA: Set pivot_cache = activeWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:="csv_data", Version:=xlPivotTableVersion14)
+                pivotCaches = ctx.Book.PivotCaches();
+                string sourceDataRef = $"{sourceSheet}!{sourceRange}";
+
+                // xlDatabase = 1, xlPivotTableVersion14 = 4
+                pivotCache = pivotCaches.Create(
+                    SourceType: 1,
+                    SourceData: sourceDataRef,
+                    Version: 4
+                );
+
+                // STEP 3: Create PivotTable from cache
+                // VBA: Set pivot_table = pivot_cache.CreatePivotTable(TableDestination:=pivot_table_upper_left)
+                destWorksheet = ctx.Book.Worksheets.Item(destinationSheet);
+                destRangeObj = destWorksheet.Range[destinationCell];
+
+                pivotTable = pivotCache.CreatePivotTable(
+                    TableDestination: destRangeObj,
+                    TableName: pivotTableName
+                );
+
+                // STEP 4: Refresh to materialize the PivotTable structure
+                pivotTable.RefreshTable();
+
+                // STEP 5: Get available fields from PivotTable (VBA pattern)
+                // VBA: Set pf_col_1 = pivot_table.PivotFields("col_1")
+                // STEP 5: Get available fields from source range headers
+                // These are the fields that CAN be added to the PivotTable
+                var availableFields = new List<string>();
+
+                dynamic? headerRow = null;
                 try
                 {
-                    headerRowRange = sourceRangeObj.Rows[1];
-                    object[,] headerValues = headerRowRange.Value2;
-                    var headers = new List<string>();
-                    
-                    for (int col = 1; col <= headerValues.GetLength(1); col++)
+                    headerRow = sourceRangeObj.Rows[1];
+                    object[,] headers = headerRow.Value2;
+
+                    for (int col = 1; col <= headers.GetLength(1); col++)
                     {
-                        var header = headerValues[1, col]?.ToString();
-                        if (string.IsNullOrWhiteSpace(header))
+                        var header = headers[1, col]?.ToString();
+                        if (!string.IsNullOrWhiteSpace(header))
                         {
-                            throw new InvalidOperationException($"Missing header in column {col}. All columns must have headers.");
-                        }
-                        headers.Add(header);
-                    }
-
-                    // STEP 2: Create PivotCache
-                    pivotCaches = ctx.Book.PivotCaches();
-                    string sourceDataRef = $"{sourceSheet}!{sourceRange}";
-                    
-                    // xlDatabase = 1
-                    pivotCache = pivotCaches.Create(
-                        SourceType: 1,
-                        SourceData: sourceDataRef
-                    );
-
-                    // STEP 3: Create PivotTable
-                    destWorksheet = ctx.Book.Worksheets.Item(destinationSheet);
-                    destRangeObj = destWorksheet.Range[destinationCell];
-
-                    pivotTable = pivotCache.CreatePivotTable(
-                        TableDestination: destRangeObj,
-                        TableName: pivotTableName
-                    );
-
-                    // STEP 4: CRITICAL - Refresh to materialize layout
-                    pivotTable.RefreshTable();
-
-                    // STEP 5: Detect field types for LLM guidance
-                    var numericFields = new List<string>();
-                    var textFields = new List<string>();
-                    var dateFields = new List<string>();
-
-                    // Sample first data row to detect types
-                    if (sourceRangeObj.Rows.Count > 1)
-                    {
-                        dynamic? dataRowRange = null;
-                        try
-                        {
-                            dataRowRange = sourceRangeObj.Rows[2];
-                            object[,] dataValues = dataRowRange.Value2;
-
-                            for (int col = 1; col <= dataValues.GetLength(1); col++)
-                            {
-                                string fieldName = headers[col - 1];
-                                var value = dataValues[1, col];
-
-                                if (value != null)
-                                {
-                                    if (DateTime.TryParse(value.ToString(), out _))
-                                    {
-                                        dateFields.Add(fieldName);
-                                    }
-                                    else if (double.TryParse(value.ToString(), out _))
-                                    {
-                                        numericFields.Add(fieldName);
-                                    }
-                                    else
-                                    {
-                                        textFields.Add(fieldName);
-                                    }
-                                }
-                                else
-                                {
-                                    textFields.Add(fieldName);
-                                }
-                            }
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref dataRowRange);
+                            availableFields.Add(header);
                         }
                     }
 
-                    return new PivotTableCreateResult
+                    if (availableFields.Count == 0)
                     {
-                        Success = true,
-                        PivotTableName = pivotTableName,
-                        SheetName = destinationSheet,
-                        Range = pivotTable.TableRange2.Address,
-                        SourceData = sourceDataRef,
-                        SourceRowCount = sourceRangeObj.Rows.Count - 1, // Exclude headers
-                        AvailableFields = headers,
-                        NumericFields = numericFields,
-                        TextFields = textFields,
-                        DateFields = dateFields,
-                        FilePath = batch.WorkbookPath,
-                        SuggestedNextActions = new List<string>
-                        {
-                            "Add row field(s) using AddRowFieldAsync",
-                            "Add value field(s) using AddValueFieldAsync",
-                            "Add filter field(s) using AddFilterFieldAsync"
-                        }
-                    };
+                        throw new InvalidOperationException($"No field headers found in source range. Header row has {headers.GetLength(1)} columns.");
+                    }
                 }
                 finally
                 {
-                    ComUtilities.Release(ref headerRowRange);
+                    ComUtilities.Release(ref headerRow);
                 }
+
+                return new PivotTableCreateResult
+                {
+                    Success = true,
+                    PivotTableName = pivotTableName,
+                    SheetName = destinationSheet,
+                    Range = pivotTable.TableRange2.Address,
+                    SourceData = sourceDataRef,
+                    SourceRowCount = sourceRangeObj.Rows.Count - 1,
+                    AvailableFields = availableFields,
+                    FilePath = batch.WorkbookPath,
+                    SuggestedNextActions =
+                    [
+                        "Add row field(s) using AddRowFieldAsync",
+                        "Add value field(s) using AddValueFieldAsync",
+                        "Add filter field(s) using AddFilterFieldAsync"
+                    ]
+                };
             }
             catch (Exception ex)
             {
@@ -215,7 +178,7 @@ public partial class PivotTableCommands
                 // Find the table
                 dynamic? sheets = null;
                 bool tableFound = false;
-                
+
                 try
                 {
                     sheets = ctx.Book.Worksheets;
@@ -279,7 +242,7 @@ public partial class PivotTableCommands
                 {
                     tableRange = table.Range;
                     rowCount = tableRange.Rows.Count;
-                    
+
                     if (rowCount < 2)
                     {
                         throw new InvalidOperationException($"Table '{tableName}' must contain at least one data row (has {rowCount} rows including header)");
@@ -291,7 +254,7 @@ public partial class PivotTableCommands
                     {
                         headerRowCol = table.HeaderRowRange;
                         object[,] headerValues = headerRowCol.Value2;
-                        
+
                         for (int col = 1; col <= headerValues.GetLength(1); col++)
                         {
                             var header = headerValues[1, col]?.ToString();
@@ -309,7 +272,7 @@ public partial class PivotTableCommands
                     // Create PivotCache from table
                     pivotCaches = ctx.Book.PivotCaches();
                     string sourceDataRef = $"{table.Parent.Name}!{table.Name}";
-                    
+
                     // xlDatabase = 1
                     pivotCache = pivotCaches.Create(
                         SourceType: 1,
@@ -338,11 +301,11 @@ public partial class PivotTableCommands
                         SourceRowCount = rowCount - 1, // Exclude header
                         AvailableFields = headers,
                         FilePath = batch.WorkbookPath,
-                        SuggestedNextActions = new List<string>
-                        {
+                        SuggestedNextActions =
+                        [
                             "Add row field(s) using AddRowFieldAsync",
                             "Add value field(s) using AddValueFieldAsync"
-                        }
+                        ]
                     };
                 }
                 finally

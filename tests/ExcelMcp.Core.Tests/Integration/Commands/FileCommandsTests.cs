@@ -1,5 +1,5 @@
-using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
@@ -36,7 +36,7 @@ public class FileCommandsTests : IDisposable
         _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_FileTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
 
-        _createdFiles = new List<string>();
+        _createdFiles = [];
     }
 
     /// <summary>

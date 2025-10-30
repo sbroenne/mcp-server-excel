@@ -178,22 +178,22 @@ public static class ExcelDataModelTool
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the Excel file exists and is accessible",
                 "Verify the file contains a Data Model (Power Pivot)",
                 "Use Power Query to add tables to the Data Model"
-            };
+            ];
             result.WorkflowHint = "List failed. Ensure file has Data Model and retry.";
             throw new ModelContextProtocol.McpException($"list-tables failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions = new List<string>
-        {
+        result.SuggestedNextActions =
+        [
             "Use 'list-measures' to see DAX measures",
             "Use 'list-relationships' to view table connections",
             "Use 'refresh' to update table data"
-        };
+        ];
         result.WorkflowHint = "Tables listed. Next, explore measures or relationships.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -210,22 +210,22 @@ public static class ExcelDataModelTool
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the Excel file contains a Data Model",
                 "Verify measures exist in the Data Model",
                 "Use Power Pivot to create measures if none exist"
-            };
+            ];
             result.WorkflowHint = "List failed. Ensure Data Model has measures and retry.";
             throw new ModelContextProtocol.McpException($"list-measures failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions = new List<string>
-        {
+        result.SuggestedNextActions =
+        [
             "Use 'view-measure' to see full DAX formulas",
             "Use 'export-measure' to save DAX to file",
             "Use 'list-tables' to see source tables"
-        };
+        ];
         result.WorkflowHint = "Measures listed. Next, view or export DAX formulas.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -245,22 +245,22 @@ public static class ExcelDataModelTool
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the measure name is correct",
                 "Use 'list-measures' to see available measures",
                 "Verify the Data Model contains this measure"
-            };
+            ];
             result.WorkflowHint = "View failed. Ensure measure exists and retry.";
             throw new ModelContextProtocol.McpException($"view-measure failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions = new List<string>
-        {
+        result.SuggestedNextActions =
+        [
             "Use 'export-measure' to save DAX to file",
             "Analyze DAX formula for optimization",
             "Use 'list-tables' to understand source tables"
-        };
+        ];
         result.WorkflowHint = "Measure viewed. Next, export or analyze DAX formula.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -283,22 +283,22 @@ public static class ExcelDataModelTool
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the measure exists using 'list-measures'",
                 "Verify the output path is writable",
                 "Ensure the Data Model contains this measure"
-            };
+            ];
             result.WorkflowHint = "Export failed. Ensure measure exists and path is valid.";
             throw new ModelContextProtocol.McpException($"export-measure failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions = new List<string>
-        {
+        result.SuggestedNextActions =
+        [
             "Review exported DAX formula",
             "Use exported DAX in other workbooks",
             "Version control the DAX file"
-        };
+        ];
         result.WorkflowHint = "Measure exported. Next, review or reuse DAX formula.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -315,22 +315,22 @@ public static class ExcelDataModelTool
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the Excel file contains a Data Model",
                 "Verify relationships exist between tables",
                 "Use Power Pivot to create relationships if needed"
-            };
+            ];
             result.WorkflowHint = "List failed. Ensure Data Model has relationships and retry.";
             throw new ModelContextProtocol.McpException($"list-relationships failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions = new List<string>
-        {
+        result.SuggestedNextActions =
+        [
             "Use 'list-tables' to see related tables",
             "Use 'list-measures' to see measures using relationships",
             "Verify relationship cardinality and filter direction"
-        };
+        ];
         result.WorkflowHint = "Relationships listed. Next, explore tables or measures.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -347,22 +347,22 @@ public static class ExcelDataModelTool
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the Excel file contains a Data Model",
                 "Verify source connections are valid",
                 "Ensure network connectivity to data sources"
-            };
+            ];
             result.WorkflowHint = "Refresh failed. Ensure connections are valid and retry.";
             throw new ModelContextProtocol.McpException($"refresh failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions = new List<string>
-        {
+        result.SuggestedNextActions =
+        [
             "Use 'list-tables' to verify record counts",
             "Use 'list-measures' to see updated calculations",
             "Validate Data Model integrity"
-        };
+        ];
         result.WorkflowHint = "Data Model refreshed. Next, verify data and calculations.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -386,12 +386,12 @@ public static class ExcelDataModelTool
         {
             if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
             {
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Use 'list-measures' to see available measures",
                     "Check measure name for typos",
                     "Verify the Excel file contains a Data Model"
-                };
+                ];
             }
             result.WorkflowHint = $"Failed to delete measure '{measureName}'. Verify measure exists.";
             throw new ModelContextProtocol.McpException($"delete-measure failed for '{filePath}': {result.ErrorMessage}");
@@ -400,12 +400,12 @@ public static class ExcelDataModelTool
         // Success - add workflow guidance
         if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 $"Measure '{measureName}' deleted successfully",
                 "Use 'list-measures' to verify deletion",
                 "Changes saved to workbook"
-            };
+            ];
         }
         result.WorkflowHint = "Measure deleted. Next, verify remaining measures or create new ones.";
 
@@ -446,12 +446,12 @@ public static class ExcelDataModelTool
         {
             if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
             {
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Use 'list-relationships' to see available relationships",
                     "Check table and column names for typos",
                     "Verify the Excel file contains a Data Model"
-                };
+                ];
             }
             result.WorkflowHint = $"Failed to delete relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn}. Verify relationship exists.";
             throw new ModelContextProtocol.McpException($"delete-relationship failed for '{filePath}': {result.ErrorMessage}");
@@ -460,12 +460,12 @@ public static class ExcelDataModelTool
         // Success - add workflow guidance
         if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} deleted successfully",
                 "Use 'list-relationships' to verify deletion",
                 "Changes saved to workbook"
-            };
+            ];
         }
         result.WorkflowHint = "Relationship deleted. Next, verify remaining relationships or create new ones.";
 
@@ -493,12 +493,12 @@ public static class ExcelDataModelTool
         {
             if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
             {
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Use 'list-tables' to see available tables",
                     "Check table name for typos",
                     "Verify the Excel file contains a Data Model"
-                };
+                ];
             }
             result.WorkflowHint = $"Failed to list columns for table '{tableName}'. Verify table exists.";
             throw new ModelContextProtocol.McpException($"list-columns failed for '{filePath}': {result.ErrorMessage}");
@@ -507,12 +507,12 @@ public static class ExcelDataModelTool
         // Success - add workflow guidance
         if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Use 'view-table' to see table details",
                 "Use 'create-measure' to create calculated measures",
                 "Use 'create-relationship' to link tables"
-            };
+            ];
         }
         result.WorkflowHint = $"Found columns in '{tableName}'. Use these for creating measures or relationships.";
 
@@ -538,12 +538,12 @@ public static class ExcelDataModelTool
         {
             if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
             {
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Use 'list-tables' to see available tables",
                     "Check table name for typos",
                     "Verify the Excel file contains a Data Model"
-                };
+                ];
             }
             result.WorkflowHint = $"Failed to view table '{tableName}'. Verify table exists.";
             throw new ModelContextProtocol.McpException($"view-table failed for '{filePath}': {result.ErrorMessage}");
@@ -552,12 +552,12 @@ public static class ExcelDataModelTool
         // Success - add workflow guidance
         if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Use 'list-columns' to see all columns in detail",
                 "Use 'create-measure' to add calculated measures",
                 "Use 'list-relationships' to see table connections"
-            };
+            ];
         }
         result.WorkflowHint = $"Viewed table '{tableName}'. Use this information for creating measures or relationships.";
 
@@ -577,12 +577,12 @@ public static class ExcelDataModelTool
         {
             if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
             {
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Verify the Excel file contains a Data Model",
                     "Try 'list-tables' to check if tables exist",
                     "Check if file is corrupted"
-                };
+                ];
             }
             result.WorkflowHint = "Failed to get Data Model info. Verify workbook has a Data Model.";
             throw new ModelContextProtocol.McpException($"get-model-info failed for '{filePath}': {result.ErrorMessage}");
@@ -591,12 +591,12 @@ public static class ExcelDataModelTool
         // Success - add workflow guidance
         if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Use 'list-tables' to explore tables",
                 "Use 'list-measures' to see calculated measures",
                 "Use 'list-relationships' to understand table connections"
-            };
+            ];
         }
         result.WorkflowHint = "Got Data Model overview. Use list commands to explore in detail.";
 
@@ -634,13 +634,13 @@ public static class ExcelDataModelTool
         {
             if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
             {
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Verify DAX formula syntax is correct",
                     "Use 'list-tables' to check available tables",
                     "Use 'list-columns' to see available columns",
                     "Check if measure name already exists"
-                };
+                ];
             }
             result.WorkflowHint = $"Failed to create measure '{measureName}'. Check DAX syntax and table existence.";
             throw new ModelContextProtocol.McpException($"create-measure failed for '{filePath}': {result.ErrorMessage}");
@@ -649,13 +649,13 @@ public static class ExcelDataModelTool
         // Success - add workflow guidance
         if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 $"Measure '{measureName}' created successfully in table '{tableName}'",
                 "Use 'view-measure' to verify the formula",
                 "Use 'list-measures' to see all measures",
                 "Changes saved to workbook"
-            };
+            ];
         }
         result.WorkflowHint = "Measure created. Next, test it in a PivotTable or create more measures.";
 
@@ -681,13 +681,13 @@ public static class ExcelDataModelTool
         {
             if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
             {
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Verify measure name exists using 'list-measures'",
                     "Check DAX formula syntax if updating formula",
                     "Use 'view-measure' to see current formula",
                     "Ensure at least one property is provided for update"
-                };
+                ];
             }
             result.WorkflowHint = $"Failed to update measure '{measureName}'. Verify measure exists and DAX syntax.";
             throw new ModelContextProtocol.McpException($"update-measure failed for '{filePath}': {result.ErrorMessage}");
@@ -696,13 +696,13 @@ public static class ExcelDataModelTool
         // Success - add workflow guidance
         if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 $"Measure '{measureName}' updated successfully",
                 "Use 'view-measure' to verify the changes",
                 "Use 'list-measures' to see all measures",
                 "Changes saved to workbook"
-            };
+            ];
         }
         result.WorkflowHint = "Measure updated. Next, test the changes in a PivotTable.";
 
@@ -744,13 +744,13 @@ public static class ExcelDataModelTool
         {
             if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
             {
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Use 'list-tables' to verify both tables exist",
                     "Use 'list-columns' to verify columns exist in both tables",
                     "Check if relationship already exists",
                     "Verify column data types are compatible"
-                };
+                ];
             }
             result.WorkflowHint = $"Failed to create relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn}. Verify tables and columns.";
             throw new ModelContextProtocol.McpException($"create-relationship failed for '{filePath}': {result.ErrorMessage}");
@@ -759,13 +759,13 @@ public static class ExcelDataModelTool
         // Success - add workflow guidance
         if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 $"Relationship created from {fromTable}.{fromColumn} to {toTable}.{toColumn}",
                 "Use 'list-relationships' to verify the relationship",
                 "Create measures that use this relationship",
                 "Changes saved to workbook"
-            };
+            ];
         }
         result.WorkflowHint = "Relationship created. Next, create measures that leverage this relationship.";
 
@@ -812,12 +812,12 @@ public static class ExcelDataModelTool
         {
             if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
             {
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Use 'list-relationships' to verify relationship exists",
                     "Check table and column names for typos",
                     "Verify the Excel file contains a Data Model"
-                };
+                ];
             }
             result.WorkflowHint = $"Failed to update relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn}. Verify relationship exists.";
             throw new ModelContextProtocol.McpException($"update-relationship failed for '{filePath}': {result.ErrorMessage}");
@@ -826,12 +826,12 @@ public static class ExcelDataModelTool
         // Success - add workflow guidance
         if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} updated successfully",
                 "Use 'list-relationships' to verify the changes",
                 "Changes saved to workbook"
-            };
+            ];
         }
         result.WorkflowHint = "Relationship updated. Changes will affect measures using this relationship.";
 
@@ -916,12 +916,12 @@ public static class ExcelDataModelTool
         {
             if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
             {
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Use 'list-measures' to see available measures",
                     "Verify measure name is correct",
                     "Check DAX formula syntax if updating formula"
-                };
+                ];
             }
             throw new ModelContextProtocol.McpException($"update-measure failed for '{filePath}': {result.ErrorMessage}");
         }
@@ -975,12 +975,12 @@ public static class ExcelDataModelTool
         {
             if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
             {
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Verify table and column names",
                     "Check that columns have compatible data types",
                     "Use 'list-tables' to see available tables"
-                };
+                ];
             }
             throw new ModelContextProtocol.McpException($"create-relationship failed for '{filePath}': {result.ErrorMessage}");
         }
@@ -1034,12 +1034,12 @@ public static class ExcelDataModelTool
         {
             if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
             {
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Use 'list-relationships' to see available relationships",
                     "Verify relationship exists",
                     "Check table and column names"
-                };
+                ];
             }
             throw new ModelContextProtocol.McpException($"update-relationship failed for '{filePath}': {result.ErrorMessage}");
         }
@@ -1086,12 +1086,12 @@ public static class ExcelDataModelTool
         {
             if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
             {
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Verify table name is correct",
                     "Check DAX formula syntax",
                     "Ensure data type is valid (String, Integer, Double, Boolean, DateTime)"
-                };
+                ];
             }
             throw new ModelContextProtocol.McpException($"create-column failed for '{filePath}': {result.ErrorMessage}");
         }
@@ -1134,12 +1134,12 @@ public static class ExcelDataModelTool
         {
             if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
             {
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Verify file has Data Model enabled",
                     "Use 'list-tables' to see available tables",
                     "Ensure TOM API connection is available"
-                };
+                ];
             }
             throw new ModelContextProtocol.McpException($"list-columns failed for '{filePath}': {result.ErrorMessage}");
         }
@@ -1171,12 +1171,12 @@ public static class ExcelDataModelTool
         {
             if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
             {
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     $"Use 'list-columns' to see columns in table '{tableName}'",
                     "Check column name spelling",
                     "Verify table exists in Data Model"
-                };
+                ];
             }
             throw new ModelContextProtocol.McpException($"view-column failed for '{filePath}': {result.ErrorMessage}");
         }
@@ -1218,12 +1218,12 @@ public static class ExcelDataModelTool
         {
             if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
             {
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     $"Use 'list-columns' to see columns in table '{tableName}'",
                     "Verify column exists",
                     "Check DAX formula syntax if updating formula"
-                };
+                ];
             }
             throw new ModelContextProtocol.McpException($"update-column failed for '{filePath}': {result.ErrorMessage}");
         }
@@ -1255,12 +1255,12 @@ public static class ExcelDataModelTool
         {
             if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
             {
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     $"Use 'list-columns' to see columns in table '{tableName}'",
                     "Verify column exists",
                     "Check that column is not referenced by other objects"
-                };
+                ];
             }
             throw new ModelContextProtocol.McpException($"delete-column failed for '{filePath}': {result.ErrorMessage}");
         }

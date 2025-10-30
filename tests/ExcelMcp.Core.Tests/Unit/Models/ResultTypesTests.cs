@@ -96,11 +96,11 @@ public class ResultTypesTests
         {
             Success = true,
             FilePath = "parameter-list.xlsx",
-            Parameters = new List<ParameterInfo>
-            {
+            Parameters =
+            [
                 new() { Name = "StartDate", Value = "2024-01-01", RefersTo = "Settings!A1" },
                 new() { Name = "EndDate", Value = "2024-12-31", RefersTo = "Settings!A2" }
-            }
+            ]
         };
 
         // Assert
@@ -137,12 +137,12 @@ public class ResultTypesTests
         {
             Success = true,
             FilePath = "worksheet-list.xlsx",
-            Worksheets = new List<WorksheetInfo>
-            {
+            Worksheets =
+            [
                 new() { Name = "Sheet1", Index = 1, Visible = true },
                 new() { Name = "Hidden", Index = 2, Visible = false },
                 new() { Name = "Data", Index = 3, Visible = true }
-            }
+            ]
         };
 
         // Assert
@@ -163,13 +163,13 @@ public class ResultTypesTests
             FilePath = "worksheet-data.xlsx",
             SheetName = "Data",
             Range = "A1:C3",
-            Headers = new List<string> { "Name", "Age", "City" },
-            Data = new List<List<object?>>
-            {
+            Headers = ["Name", "Age", "City"],
+            Data =
+            [
                 new() { "Alice", 30, "NYC" },
                 new() { "Bob", 25, "LA" },
                 new() { "Charlie", 35, "SF" }
-            },
+            ],
             RowCount = 3,
             ColumnCount = 3
         };
@@ -191,23 +191,23 @@ public class ResultTypesTests
         {
             Success = true,
             FilePath = "script-list.xlsm",
-            Scripts = new List<ScriptInfo>
-            {
+            Scripts =
+            [
                 new()
                 {
                     Name = "Module1",
                     Type = "Standard",
-                    Procedures = new List<string> { "Main", "Helper" },
+                    Procedures = ["Main", "Helper"],
                     LineCount = 150
                 },
                 new()
                 {
                     Name = "Sheet1",
                     Type = "Worksheet",
-                    Procedures = new List<string> { "Worksheet_Change" },
+                    Procedures = ["Worksheet_Change"],
                     LineCount = 45
                 }
-            }
+            ]
         };
 
         // Assert
@@ -225,8 +225,8 @@ public class ResultTypesTests
         {
             Success = true,
             FilePath = "powerquery-list.xlsx",
-            Queries = new List<PowerQueryInfo>
-            {
+            Queries =
+            [
                 new()
                 {
                     Name = "SalesData",
@@ -239,7 +239,7 @@ public class ResultTypesTests
                     Formula = "(x) => x + 1",
                     IsConnectionOnly = true
                 }
-            }
+            ]
         };
 
         // Assert
@@ -278,10 +278,10 @@ public class ResultTypesTests
             Success = true,
             IsTrusted = true,
             ComponentCount = 5,
-            RegistryPathsSet = new List<string>
-            {
+            RegistryPathsSet =
+            [
                 @"HKCU\Software\Microsoft\Office\16.0\Excel\Security\AccessVBOM"
-            },
+            ],
             ManualInstructions = null
         };
 
@@ -301,7 +301,7 @@ public class ResultTypesTests
             Success = false,
             IsTrusted = false,
             ComponentCount = 0,
-            RegistryPathsSet = new List<string>(),
+            RegistryPathsSet = [],
             ManualInstructions = "Please enable Trust access to VBA project in Excel settings"
         };
 

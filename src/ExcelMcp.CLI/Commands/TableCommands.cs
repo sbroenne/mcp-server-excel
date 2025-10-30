@@ -1,7 +1,7 @@
-using Spectre.Console;
-using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
+using Sbroenne.ExcelMcp.Core.Models;
+using Spectre.Console;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -481,13 +481,13 @@ public class CliTableCommands : ITableCommands
         {
             var row = new List<object?>();
             var values = line.Split(',');
-            
+
             foreach (var value in values)
             {
                 var trimmed = value.Trim().Trim('"');
                 row.Add(string.IsNullOrEmpty(trimmed) ? null : trimmed);
             }
-            
+
             rows.Add(row);
         }
 
@@ -557,7 +557,7 @@ public class CliTableCommands : ITableCommands
             {
                 AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
             }
-            
+
             if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
             {
                 AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
@@ -722,8 +722,8 @@ public class CliTableCommands : ITableCommands
                         filter.ColumnName,
                         filter.IsFiltered ? "Yes" : "No",
                         filter.Criteria ?? "-",
-                        filter.FilterValues != null && filter.FilterValues.Any() 
-                            ? string.Join(", ", filter.FilterValues) 
+                        filter.FilterValues != null && filter.FilterValues.Any()
+                            ? string.Join(", ", filter.FilterValues)
                             : "-"
                     );
                 }
@@ -904,9 +904,9 @@ public class CliTableCommands : ITableCommands
             table.AddRow("Column Count", result.ColumnCount.ToString());
 
             AnsiConsole.Write(table);
-            
+
             AnsiConsole.MarkupLine($"\n[dim]Use this structured reference in formulas or with RangeCommands[/]");
-            
+
             return 0;
         }
         else

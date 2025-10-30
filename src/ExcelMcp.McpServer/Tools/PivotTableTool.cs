@@ -146,12 +146,12 @@ public static class PivotTableTool
 
         if (result.PivotTables == null || !result.PivotTables.Any())
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Use 'excel_pivottable create-from-range' to create a PivotTable from data",
                 "PivotTables provide interactive data summarization and cross-tabulation",
                 "Auto-detects field types (numeric, text, date) for appropriate aggregations"
-            };
+            ];
             result.WorkflowHint = "No PivotTables found. Create PivotTables for dynamic data analysis.";
         }
 
@@ -321,7 +321,7 @@ public static class PivotTableTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static async Task<string> AddValueField(PivotTableCommands commands, string filePath, string? pivotTableName, 
+    private static async Task<string> AddValueField(PivotTableCommands commands, string filePath, string? pivotTableName,
         string? fieldName, string? aggregationFunction, string? customName)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "add-value-field");
@@ -393,7 +393,7 @@ public static class PivotTableTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static async Task<string> SetFieldFunction(PivotTableCommands commands, string filePath, string? pivotTableName, 
+    private static async Task<string> SetFieldFunction(PivotTableCommands commands, string filePath, string? pivotTableName,
         string? fieldName, string? aggregationFunction)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "set-field-function");
@@ -421,7 +421,7 @@ public static class PivotTableTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static async Task<string> SetFieldName(PivotTableCommands commands, string filePath, string? pivotTableName, 
+    private static async Task<string> SetFieldName(PivotTableCommands commands, string filePath, string? pivotTableName,
         string? fieldName, string? customName)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "set-field-name");
@@ -443,7 +443,7 @@ public static class PivotTableTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static async Task<string> SetFieldFormat(PivotTableCommands commands, string filePath, string? pivotTableName, 
+    private static async Task<string> SetFieldFormat(PivotTableCommands commands, string filePath, string? pivotTableName,
         string? fieldName, string? numberFormat)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "set-field-format");
@@ -484,7 +484,7 @@ public static class PivotTableTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static async Task<string> SetFieldFilter(PivotTableCommands commands, string filePath, string? pivotTableName, 
+    private static async Task<string> SetFieldFilter(PivotTableCommands commands, string filePath, string? pivotTableName,
         string? fieldName, string? filterValues)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "set-field-filter");
@@ -495,7 +495,7 @@ public static class PivotTableTool
         List<string> values;
         try
         {
-            values = JsonSerializer.Deserialize<List<string>>(filterValues!) ?? new List<string>();
+            values = JsonSerializer.Deserialize<List<string>>(filterValues!) ?? [];
         }
         catch (JsonException ex)
         {
@@ -517,7 +517,7 @@ public static class PivotTableTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static async Task<string> SortField(PivotTableCommands commands, string filePath, string? pivotTableName, 
+    private static async Task<string> SortField(PivotTableCommands commands, string filePath, string? pivotTableName,
         string? fieldName, string? sortDirection)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "sort-field");

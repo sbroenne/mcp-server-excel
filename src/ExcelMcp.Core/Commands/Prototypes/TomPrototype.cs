@@ -18,7 +18,7 @@ public class TomPrototype
         try
         {
             server = new Server();
-            
+
             // Try different connection string formats for Excel
             string[] connectionFormats = new[]
             {
@@ -33,23 +33,23 @@ public class TomPrototype
                 try
                 {
                     server.Connect(connString);
-                    
+
                     if (server.Connected)
                     {
                         Console.WriteLine($"✅ Connected with: {connString}");
                         Console.WriteLine($"   Server Version: {server.Version}");
                         Console.WriteLine($"   Databases: {server.Databases.Count}");
-                        
+
                         if (server.Databases.Count > 0)
                         {
                             Database db = server.Databases[0];
                             Console.WriteLine($"   Database Name: {db.Name}");
                             Console.WriteLine($"   Database ID: {db.ID}");
-                            
+
                             if (db.Model != null)
                             {
                                 Console.WriteLine($"   Model Tables: {db.Model.Tables.Count}");
-                                
+
                                 // Count measures across all tables
                                 int totalMeasures = 0;
                                 foreach (TomTable table in db.Model.Tables)
@@ -60,7 +60,7 @@ public class TomPrototype
                                 Console.WriteLine($"   Model Relationships: {db.Model.Relationships.Count}");
                             }
                         }
-                        
+
                         return true;
                     }
                 }
@@ -77,7 +77,7 @@ public class TomPrototype
                     }
                 }
             }
-            
+
             return false;
         }
         catch (Exception ex)
@@ -257,7 +257,7 @@ public class TomPrototype
     {
         Console.WriteLine("📦 TOM API Capabilities:");
         Console.WriteLine();
-        
+
         Console.WriteLine("Core Types:");
         Console.WriteLine("  - Server: Connection to Analysis Services");
         Console.WriteLine("  - Database: Excel workbook Data Model");
@@ -267,7 +267,7 @@ public class TomPrototype
         Console.WriteLine("  - Measure: DAX measure");
         Console.WriteLine("  - Relationship: Table relationship");
         Console.WriteLine();
-        
+
         Console.WriteLine("Available Operations:");
         Console.WriteLine("  ✅ Connect to Excel Data Model");
         Console.WriteLine("  ✅ Read Model metadata (tables, measures, relationships)");
@@ -279,7 +279,7 @@ public class TomPrototype
         Console.WriteLine("  ✅ Delete relationships");
         Console.WriteLine("  ✅ SaveChanges() to persist to Excel file");
         Console.WriteLine();
-        
+
         Console.WriteLine("Package Info:");
         Console.WriteLine("  - Package: Microsoft.AnalysisServices.NetCore.retail.amd64");
         Console.WriteLine("  - Version: 19.84.1");
