@@ -65,6 +65,18 @@ Validate against [Microsoft docs](https://learn.microsoft.com/office/vba/api/ove
 Code must be complete before commit. No TODO, FIXME, HACK, or XXX markers in source code.
 Delete commented-out code (use git history). Exception: Documentation files only.
 
+
+
+## Rule 9: Search GitHub for Working COM Examples First
+
+**BEFORE** creating new Excel COM Interop code or troubleshooting COM issues:
+- **ALWAYS** search this repository for working examples using `github_repo` tool
+- Search for the COM object/method you need (e.g., "PivotTable", "QueryTable", "ListObject")
+- Study existing patterns in Core commands before writing new code
+- Avoid reinventing solutions - reuse proven COM patterns
+
+**Why:** Excel COM is quirky. Working code examples prevent common pitfalls (1-based indexing, object cleanup, async issues, etc.)
+
 ---
 
 ## Quick Reference
@@ -79,3 +91,4 @@ Delete commented-out code (use git history). Exception: Documentation files only
 | 6. PRs | Always use PRs, never direct commit | Always |
 | 7. COM API | Use Excel COM first, validate docs | Always |
 | 8. TODO markers | Must resolve before commit | 1 min |
+| 9. GitHub search | Search repo for COM examples FIRST | 1-2 min |
