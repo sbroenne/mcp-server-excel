@@ -67,15 +67,16 @@ Delete commented-out code (use git history). Exception: Documentation files only
 
 
 
-## Rule 9: Search GitHub for Working COM Examples First
+## Rule 9: Search Open Source Repositories for Working COM Examples First
 
 **BEFORE** creating new Excel COM Interop code or troubleshooting COM issues:
-- **ALWAYS** search this repository for working examples using `github_repo` tool
-- Search for the COM object/method you need (e.g., "PivotTable", "QueryTable", "ListObject")
-- Study existing patterns in Core commands before writing new code
-- Avoid reinventing solutions - reuse proven COM patterns
+- **ALWAYS** search other open source GitHub repositories for working examples using `github_repo` tool
+- Search for the COM object/method you need (e.g., "microsoft/Excel PivotTable CreatePivotTable", "QueryTable Refresh", "ListObject Range")
+- Look for repositories with Excel automation, VBA conversion, or Office interop projects
+- Study proven patterns from other projects before writing new code
+- Avoid reinventing solutions - learn from working implementations in the wild
 
-**Why:** Excel COM is quirky. Working code examples prevent common pitfalls (1-based indexing, object cleanup, async issues, etc.)
+**Why:** Excel COM is quirky. Real-world examples from other projects prevent common pitfalls (1-based indexing, object cleanup, async issues, variant types, etc.)
 
 
 
@@ -105,5 +106,5 @@ When debugging test failures, **ALWAYS run tests individually** - never run all 
 | 6. PRs | Always use PRs, never direct commit | Always |
 | 7. COM API | Use Excel COM first, validate docs | Always |
 | 8. TODO markers | Must resolve before commit | 1 min |
-| 9. GitHub search | Search repo for COM examples FIRST | 1-2 min |
+| 9. GitHub search | Search other repos for COM examples FIRST | 1-2 min |
 | 10. Test debugging | Run tests one by one, never all together | Per test |
