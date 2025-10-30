@@ -4,248 +4,107 @@ applyTo: "**"
 
 # CRITICAL RULES - MUST FOLLOW
 
-> **⚠️ These are NON-NEGOTIABLE rules for all development work on ExcelMcp**
+> **⚠️ NON-NEGOTIABLE rules for all ExcelMcp development**
 
 ## Rule 1: No Silent Test Failures
 
-**Tests must NEVER silently skip validation or catch exceptions without failing.**
+Tests must fail loudly. Never catch exceptions without re-throwing or use conditional assertions that always pass.
 
-### ❌ FORBIDDEN
 ```csharp
-catch (Exception) { _output.WriteLine("Skipping validation"); }  // WRONG!
-```
+// ❌ WRONG: Silent failure
+catch (Exception) { _output.WriteLine("Skipping"); }
 
-### ✅ CORRECT  
-```csharp
-var result = DoOperation();  // Throws if fails - GOOD!
+// ✅ CORRECT: Fail loudly
 Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
 ```
 
-**Why:** Silent failures hide bugs and create false confidence.
 
----
 
 ## Rule 2: No NotImplementedException
 
-**NotImplementedException is NEVER acceptable in any feature.**
+Every feature must be fully implemented with real Excel COM operations and passing tests. No placeholders.
 
-### Requirements
-- ✅ Full Excel COM interop implementation
-- ✅ Real test data (not mocks or empty workbooks)
-- ✅ All tests pass with actual Excel operations
-- ❌ NO placeholder methods
 
-**Why:** Incomplete implementations waste time and provide zero functionality.
 
----
+## Rule 3: Pool Cleanup Tests
 
-## Rule 3: Always Run Pool Cleanup Tests
+When modifying pool code (`ExcelInstancePool.cs`, `ExcelHelper.cs`), run: `dotnet test --filter "RunType=OnDemand"`
+All tests must pass before commit. Requires Excel installed, takes 3-5 minutes.
 
-**When modifying `ExcelInstancePool.cs` or `ExcelHelper.cs` pooling code:**
 
-```bash
-# MANDATORY before commit
-dotnet test --filter "RunType=OnDemand" --list-tests  # Verify 5 tests
-dotnet test --filter "RunType=OnDemand"              # All must pass
-```
 
-**Why:** Pool bugs cause Excel.exe process leaks in production. OnDemand tests are the ONLY verification.
+## Rule 4: Update Instructions
 
-**Requirements:**
-- ⚠️ Excel installed (local execution only)
-- ⚠️ Takes 3-5 minutes
-- ⚠️ All 5 tests must pass
+After significant work, update `.github/copilot-instructions.md` with lessons learned, architecture changes, and testing insights.
 
----
 
-## Rule 4: Update Instructions After Significant Work
 
-**After completing multi-step tasks, update copilot instructions with:**
-- Lessons learned
-- Architecture changes  
-- Testing insights
-- Bug fixes and prevention strategies
+## Rule 5: COM Object Leak Detection
 
-**Why:** Future AI sessions benefit from accumulated knowledge.
+Before commit: `& "scripts\check-com-leaks.ps1"` must report 0 leaks.
+All `dynamic` COM objects must be released in `finally` blocks using `ComUtilities.Release(ref obj!)`.
+Exception: Session management files (ExcelBatch.cs, ExcelSession.cs).
 
----
 
-## Rule 8: Check for COM Object Leaks Before Commit
 
-**Run COM leak detection script before every commit:**
+## Rule 6: All Changes Via Pull Requests
 
-```bash
-& "scripts\check-com-leaks.ps1"
-```
+Never commit to `main`. Create feature branch → PR → CI/CD + review → merge.
 
-**Requirements:**
-- ✅ Script must report 0 leak files
-- ✅ All files with `dynamic ... = ...COM...` must have `ComUtilities.Release()`
-- ⚠️ Exception: Session management files (ExcelBatch.cs, ExcelSession.cs)
 
-### How to Fix COM Leaks
 
-```csharp
-// ❌ WRONG - COM objects never released
-dynamic connections = workbook.Connections;
-dynamic conn = connections.Item(1);
-// Objects leak when method exits
+## Rule 7: COM API First
 
-// ✅ CORRECT - Proper COM cleanup
-dynamic connections = null!;
-try 
-{
-    connections = workbook.Connections;
-    dynamic conn = null!;
-    try 
-    {
-        conn = connections.Item(1);
-        // Use objects...
-    }
-    finally 
-    {
-        ComUtilities.Release(ref conn!);
-    }
-}
-finally 
-{
-    ComUtilities.Release(ref connections!);
-}
-```
+Use Excel COM API for everything it supports. Only use external libraries (TOM) for features Excel COM doesn't provide.
+Validate against [Microsoft docs](https://learn.microsoft.com/office/vba/api/overview/excel) before adding dependencies.
 
-**Why:** COM object leaks cause Excel process memory bloat and eventual system instability.
 
----
 
-## Rule 5: All Changes Via Pull Requests
+## Rule 8: No TODO/FIXME Markers
 
-**NEVER commit directly to `main` branch.**
+Code must be complete before commit. No TODO, FIXME, HACK, or XXX markers in source code.
+Delete commented-out code (use git history). Exception: Documentation files only.
 
-### Required Process
-1. Create feature branch
-2. Make changes with tests
-3. Create PR with description
-4. Wait for CI/CD + code review
-5. Merge when approved
 
-**Why:** Branch protection enforces quality gates and review.
 
----
+## Rule 9: Search Open Source Repositories for Working COM Examples First
 
-## Rule 6: COM API First - No External Dependencies for Native Capabilities
+**BEFORE** creating new Excel COM Interop code or troubleshooting COM issues:
+- **ALWAYS** search OTHER open source GitHub repositories (NOT this repo) for working examples
+- Look for repositories with Excel automation, VBA code, or Office interop projects
+- Search for the specific COM object/method you need (e.g., "PivotTable CreatePivotTable VBA", "QueryTable Refresh VBA", "ListObject VBA")
+- Study proven patterns from other projects before writing new code
+- Avoid reinventing solutions - learn from working implementations in the wild
 
-**Everything that CAN be implemented via Excel COM API MUST be implemented via COM API.**
+**Why:** Excel COM is quirky. Real-world VBA examples from other projects prevent common pitfalls (1-based indexing, object cleanup, async issues, variant types, etc.)
 
-### Requirements
-- ✅ Use native Excel COM objects and methods
-- ❌ NEVER add external libraries for capabilities Excel already provides
-- ❌ NEVER use third-party APIs when Excel COM supports the operation
-- ⚠️ Only use external libraries (like TOM) for features Excel COM explicitly doesn't support
 
-### Examples
 
-**✅ CORRECT - Use Excel COM API:**
-```csharp
-// CREATE measure - Excel COM fully supports this
-dynamic measures = table.ModelMeasures;
-dynamic newMeasure = measures.Add(
-    MeasureName: "TotalSales",
-    AssociatedTable: table,
-    Formula: "SUM(Sales[Amount])",
-    FormatInformation: model.ModelFormatCurrency,
-    Description: "Total sales amount"
-);
-```
+## Rule 10: Debug Tests One by One
 
-**❌ WRONG - Don't use TOM when Excel COM works:**
-```csharp
-// WRONG - Excel COM already supports measure creation!
-// Don't use TOM API for this
-var tom = new TomServer();
-var measure = new Microsoft.AnalysisServices.Tabular.Measure();
-// ... unnecessary complexity
-```
+When debugging test failures, **ALWAYS run tests individually** - never run all tests at once.
 
-### Validation Process
-1. **Before adding ANY external library:** Search Microsoft official docs for Excel COM capability
-2. **If Excel COM supports it:** Use Excel COM API (no exceptions)
-3. **If Excel COM doesn't support it:** Document why, then consider alternatives
-4. **Always validate against official Microsoft documentation:** https://learn.microsoft.com/en-us/office/vba/api/overview/excel
+**Process:**
+1. List all test methods in the file
+2. Run each test individually using `--filter "FullyQualifiedName=Namespace.Class.Method"`
+3. Identify exact failure for each test before moving to next
+4. Fix issues one test at a time
 
-### Real Example - DataModelCommands
-
-**Original spec claimed:** "Use TOM API for measure creation" ❌ WRONG
-
-**Microsoft official docs proved:** Excel COM fully supports `ModelMeasures.Add()` ✅ CORRECT
-
-**Lesson:** Always validate specs against Microsoft official documentation before architectural decisions.
-
-**Why This Rule Exists:**
-- Simpler code (native operations, no external dependencies)
-- Better performance (direct COM access vs library overhead)
-- Fewer deployment issues (no NuGet packages, no version conflicts)
-- Works offline (no server dependencies)
-- Smaller attack surface (fewer dependencies = fewer vulnerabilities)
-
----
-
-## Rule 7: No TODO/FIXME Markers Before Commit
-
-**Code must be COMPLETE before committing - NO TODO, FIXME, HACK, XXX markers allowed.**
-
-### ❌ FORBIDDEN
-```csharp
-// TODO: Implement error handling
-// FIXME: This is broken
-// HACK: Temporary workaround
-public void Method() { }
-```
-
-### ✅ CORRECT
-```csharp
-// Complete implementation with proper error handling
-public void Method() 
-{
-    try 
-    {
-        // Full implementation
-    }
-    catch (Exception ex)
-    {
-        throw new McpException($"Operation failed: {ex.Message}");
-    }
-}
-```
-
-### Requirements
-- ✅ All functionality FULLY implemented
-- ✅ All known issues FIXED before commit
-- ✅ No placeholder comments
-- ✅ No commented-out code (delete it, use git history if needed)
-- ❌ NO TODO/FIXME/HACK/XXX markers in committed code
-
-**Why:** 
-- TODO markers indicate incomplete work
-- Incomplete work should not be committed
-- If you can't finish it, don't start it in that commit
-- Git history preserves old code - no need to comment it out
-- Professional codebases are clean and complete
-
-**Exception:** Documentation files (like specs or instructions) MAY have TODO sections for future enhancements, but NEVER in source code.
+**Why:** Running all tests together masks which specific test fails and why. Individual execution provides clear, isolated diagnostics.
 
 ---
 
 ## Quick Reference
 
-| Scenario | Action | Time |
-|----------|--------|------|
-| **Writing tests** | Fail loudly, no silent catches | Always |
-| **New feature** | Full implementation, no NotImplementedException | Always |
-| **Pool code change** | Run OnDemand tests | 3-5 min |
-| **Significant task** | Update instructions | 5-10 min |
-| **Any code change** | Create PR, never direct commit | Always |
-| **Before commit** | Search for TODO/FIXME/HACK - all must be resolved | 1 min |
-
----
-
-**💡 Remember:** These rules exist because they prevent production bugs. Follow them religiously.
+| Rule | Action | Time |
+|------|--------|------|
+| 1. Tests | Fail loudly, never silent | Always |
+| 2. NotImplementedException | Never use, full implementation only | Always |
+| 3. Pool code | Run `dotnet test --filter "RunType=OnDemand"` | 3-5 min |
+| 4. Instructions | Update after significant work | 5-10 min |
+| 5. COM leaks | Run `scripts\check-com-leaks.ps1` | 1 min |
+| 6. PRs | Always use PRs, never direct commit | Always |
+| 7. COM API | Use Excel COM first, validate docs | Always |
+| 8. TODO markers | Must resolve before commit | 1 min |
+| 9. GitHub search | Search OTHER repos for VBA/COM examples FIRST | 1-2 min |
+| 10. Test debugging | Run tests one by one, never all together | Per test |

@@ -71,8 +71,8 @@ public partial class RangeCommands
                     result.ColumnCount = 1;
                     string formula = formulaOrArray?.ToString() ?? string.Empty;
                     // Only return actual formulas (starting with =), not values
-                    result.Formulas.Add(new List<string> { formula.StartsWith("=") ? formula : string.Empty });
-                    result.Values.Add(new List<object?> { valueOrArray });
+                    result.Formulas.Add([formula.StartsWith("=") ? formula : string.Empty]);
+                    result.Values.Add([valueOrArray]);
                 }
 
                 result.Success = true;

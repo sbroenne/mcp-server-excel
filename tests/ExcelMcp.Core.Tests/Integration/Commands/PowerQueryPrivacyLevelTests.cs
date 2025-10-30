@@ -1,6 +1,6 @@
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
@@ -120,10 +120,10 @@ in
         {
             Success = false,
             ErrorMessage = "Privacy level required",
-            ExistingPrivacyLevels = new List<QueryPrivacyInfo>
-            {
+            ExistingPrivacyLevels =
+            [
                 new QueryPrivacyInfo("Query1", PowerQueryPrivacyLevel.Private)
-            },
+            ],
             RecommendedPrivacyLevel = PowerQueryPrivacyLevel.Private,
             Explanation = "Test explanation",
             OriginalError = "Original Excel error"

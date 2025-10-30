@@ -14,7 +14,7 @@ public partial class TableCommands
     public async Task<TableListResult> ListAsync(IExcelBatch batch)
     {
         var result = new TableListResult { FilePath = batch.WorkbookPath };
-        
+
         return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? sheets = null;
@@ -141,7 +141,7 @@ public partial class TableCommands
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "create" };
-        
+
         return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? sheet = null;

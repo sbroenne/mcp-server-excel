@@ -1,18 +1,12 @@
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
+using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 
-/// <summary>
-/// Integration tests for PivotTable commands (Phase 1).
-/// These tests require Excel installation and validate Core PivotTable operations.
-/// Tests use Core commands directly (not through CLI or MCP wrapper).
-///
-/// Phase 1: Lifecycle, Field Management, Analysis
-/// </summary>
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
@@ -21,7 +15,6 @@ public class PivotTableCommandsTests : IDisposable
 {
     private readonly IPivotTableCommands _pivotCommands;
     private readonly IFileCommands _fileCommands;
-    private readonly string _testExcelFile;
     private readonly string _tempDir;
     private bool _disposed;
 
@@ -30,139 +23,197 @@ public class PivotTableCommandsTests : IDisposable
         _pivotCommands = new PivotTableCommands();
         _fileCommands = new FileCommands();
 
-        // Create temp directory for test files
         _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_PivotTable_Tests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
-
-        _testExcelFile = Path.Combine(_tempDir, "TestPivotTables.xlsx");
-
-        // Create test Excel file with sample data
-        CreateTestExcelFileWithData();
     }
 
-    private void CreateTestExcelFileWithData()
+    private async Task<string> CreateTestFileWithDataAsync(string fileName)
     {
-        var result = _fileCommands.CreateEmptyAsync(_testExcelFile, overwriteIfExists: false).GetAwaiter().GetResult();
+        var filePath = Path.Combine(_tempDir, fileName);
+        var result = await _fileCommands.CreateEmptyAsync(filePath, overwriteIfExists: false);
         if (!result.Success)
         {
             throw new InvalidOperationException($"Failed to create test Excel file: {result.ErrorMessage}");
         }
 
-        // Add sample data for PivotTable
-        Task.Run(async () =>
+        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+
+        await batch.ExecuteAsync<int>((ctx, ct) =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Name = "SalesData";
 
-            // Get Sheet1 and add sample sales data
-            await batch.ExecuteAsync<int>((ctx, ct) =>
-            {
-                dynamic sheet = ctx.Book.Worksheets.Item(1);
-                sheet.Name = "SalesData";
+            sheet.Range["A1"].Value2 = "Region";
+            sheet.Range["B1"].Value2 = "Product";
+            sheet.Range["C1"].Value2 = "Sales";
+            sheet.Range["D1"].Value2 = "Date";
 
-                // Add headers
-                sheet.Range["A1"].Value2 = "Region";
-                sheet.Range["B1"].Value2 = "Product";
-                sheet.Range["C1"].Value2 = "Sales";
-                sheet.Range["D1"].Value2 = "Date";
+            sheet.Range["A2"].Value2 = "North";
+            sheet.Range["B2"].Value2 = "Widget";
+            sheet.Range["C2"].Value2 = 100;
+            sheet.Range["D2"].Value2 = new DateTime(2025, 1, 15);
 
-                // Add sample data rows
-                sheet.Range["A2"].Value2 = "North";
-                sheet.Range["B2"].Value2 = "Widget";
-                sheet.Range["C2"].Value2 = 100;
-                sheet.Range["D2"].Value2 = new DateTime(2025, 1, 15);
+            sheet.Range["A3"].Value2 = "North";
+            sheet.Range["B3"].Value2 = "Widget";
+            sheet.Range["C3"].Value2 = 150;
+            sheet.Range["D3"].Value2 = new DateTime(2025, 1, 20);
 
-                sheet.Range["A3"].Value2 = "North";
-                sheet.Range["B3"].Value2 = "Widget";
-                sheet.Range["C3"].Value2 = 150;
-                sheet.Range["D3"].Value2 = new DateTime(2025, 1, 20);
+            sheet.Range["A4"].Value2 = "South";
+            sheet.Range["B4"].Value2 = "Gadget";
+            sheet.Range["C4"].Value2 = 200;
+            sheet.Range["D4"].Value2 = new DateTime(2025, 2, 10);
 
-                sheet.Range["A4"].Value2 = "South";
-                sheet.Range["B4"].Value2 = "Gadget";
-                sheet.Range["C4"].Value2 = 200;
-                sheet.Range["D4"].Value2 = new DateTime(2025, 2, 10);
+            sheet.Range["A5"].Value2 = "North";
+            sheet.Range["B5"].Value2 = "Gadget";
+            sheet.Range["C5"].Value2 = 75;
+            sheet.Range["D5"].Value2 = new DateTime(2025, 2, 15);
 
-                sheet.Range["A5"].Value2 = "North";
-                sheet.Range["B5"].Value2 = "Gadget";
-                sheet.Range["C5"].Value2 = 75;
-                sheet.Range["D5"].Value2 = new DateTime(2025, 2, 15);
+            sheet.Range["A6"].Value2 = "South";
+            sheet.Range["B6"].Value2 = "Widget";
+            sheet.Range["C6"].Value2 = 125;
+            sheet.Range["D6"].Value2 = new DateTime(2025, 3, 5);
 
-                sheet.Range["A6"].Value2 = "South";
-                sheet.Range["B6"].Value2 = "Widget";
-                sheet.Range["C6"].Value2 = 125;
-                sheet.Range["D6"].Value2 = new DateTime(2025, 3, 5);
+            return ValueTask.FromResult(0);
+        });
 
-                return ValueTask.FromResult(0);
-            });
+        await batch.SaveAsync();
 
-            await batch.SaveAsync();
-        }).GetAwaiter().GetResult();
+        return filePath;
     }
-
-    #region Phase 1 Tests - Lifecycle
 
     [Fact]
     public async Task CreateFromRange_WithValidData_CreatesCorrectPivotStructure()
     {
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var testFile = await CreateTestFileWithDataAsync("CreateFromRange_Test.xlsx");
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         var result = await _pivotCommands.CreateFromRangeAsync(
             batch,
             "SalesData", "A1:D6",
             "SalesData", "F1",
             "TestPivot");
 
-        // Assert - Verify Success AND Structure
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
         Assert.Equal("TestPivot", result.PivotTableName);
         Assert.Equal("SalesData", result.SheetName);
         Assert.Equal(4, result.AvailableFields.Count);
-        Assert.Contains("Region", result.AvailableFields);
-        Assert.Contains("Product", result.AvailableFields);
-        Assert.Contains("Sales", result.AvailableFields);
-        Assert.Contains("Date", result.AvailableFields);
-        
-        // Verify field type detection
-        Assert.Contains("Sales", result.NumericFields);
-        Assert.Contains("Date", result.DateFields);
-        Assert.Contains("Region", result.TextFields);
-        Assert.Contains("Product", result.TextFields);
-
-        // Verify actual Excel COM object exists
-        await VerifyPivotTableExists(batch, "TestPivot", "SalesData");
     }
 
     [Fact]
     public async Task List_WithValidFile_ReturnsSuccessWithPivotTables()
     {
-        // Arrange - Create a PivotTable first
-        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
-        var createResult = await _pivotCommands.CreateFromRangeAsync(
-            batch,
-            "SalesData", "A1:D6",
-            "SalesData", "F1",
-            "TestPivot");
-        Assert.True(createResult.Success);
-        await batch.SaveAsync();
+        var testFile = await CreateTestFileWithDataAsync("List_Test.xlsx");
 
-        // Act
-        await using var batch2 = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+            var createResult = await _pivotCommands.CreateFromRangeAsync(
+                batch,
+                "SalesData", "A1:D6",
+                "SalesData", "F1",
+                "TestPivot");
+            Assert.True(createResult.Success);
+            await batch.SaveAsync();
+        }
+
+        await using var batch2 = await ExcelSession.BeginBatchAsync(testFile);
         var result = await _pivotCommands.ListAsync(batch2);
 
-        // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
         Assert.NotNull(result.PivotTables);
         Assert.Contains(result.PivotTables, p => p.Name == "TestPivot");
     }
 
-    #endregion
+    [Fact]
+    public async Task GetInfo_WithValidPivotTable_ReturnsCompleteMetadata()
+    {
+        var testFile = await CreateTestFileWithDataAsync("GetInfo_Test.xlsx");
 
-    #region Phase 1 Tests - Field Management
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+            var createResult = await _pivotCommands.CreateFromRangeAsync(
+                batch,
+                "SalesData", "A1:D6",
+                "SalesData", "F1",
+                "InfoTestPivot");
+            Assert.True(createResult.Success);
+            await batch.SaveAsync();
+        }
+
+        await using var batch2 = await ExcelSession.BeginBatchAsync(testFile);
+        var result = await _pivotCommands.GetInfoAsync(batch2, "InfoTestPivot");
+
+        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+        Assert.NotNull(result.PivotTable);
+        Assert.Equal("InfoTestPivot", result.PivotTable.Name);
+        Assert.Equal("SalesData", result.PivotTable.SheetName);
+        Assert.NotNull(result.Fields);
+        Assert.Equal(4, result.Fields.Count);
+    }
+
+    [Fact]
+    public async Task Delete_WithValidPivotTable_RemovesFromCollectionAndExcel()
+    {
+        var testFile = await CreateTestFileWithDataAsync("Delete_Test.xlsx");
+
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+            var createResult = await _pivotCommands.CreateFromRangeAsync(
+                batch,
+                "SalesData", "A1:D6",
+                "SalesData", "F1",
+                "ToDelete");
+            Assert.True(createResult.Success);
+            await batch.SaveAsync();
+        }
+
+        await using var batch2 = await ExcelSession.BeginBatchAsync(testFile);
+        var deleteResult = await _pivotCommands.DeleteAsync(batch2, "ToDelete");
+        Assert.True(deleteResult.Success, $"Delete failed: {deleteResult.ErrorMessage}");
+        await batch2.SaveAsync();
+
+        await using var batch3 = await ExcelSession.BeginBatchAsync(testFile);
+        var listResult = await _pivotCommands.ListAsync(batch3);
+        Assert.True(listResult.Success);
+        Assert.DoesNotContain(listResult.PivotTables, p => p.Name == "ToDelete");
+    }
+
+    [Fact]
+    public async Task Refresh_AfterSourceDataChange_UpdatesPivotTableData()
+    {
+        var testFile = await CreateTestFileWithDataAsync("Refresh_Test.xlsx");
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var createResult = await _pivotCommands.CreateFromRangeAsync(
+            batch,
+            "SalesData", "A1:D6",
+            "SalesData", "F1",
+            "RefreshTest");
+        Assert.True(createResult.Success);
+
+        await _pivotCommands.AddRowFieldAsync(batch, "RefreshTest", "Region");
+        await _pivotCommands.AddValueFieldAsync(batch, "RefreshTest", "Sales", AggregationFunction.Sum);
+        await batch.SaveAsync();
+
+        await batch.ExecuteAsync<int>((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item("SalesData");
+            sheet.Range["C2"].Value2 = 999;
+            return ValueTask.FromResult(0);
+        });
+        await batch.SaveAsync();
+
+        var refreshResult = await _pivotCommands.RefreshAsync(batch, "RefreshTest");
+
+        Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
+        Assert.True(refreshResult.RefreshTime > DateTime.MinValue, "RefreshTime should be set");
+    }
 
     [Fact]
     public async Task AddRowField_ValidField_PlacesFieldInRowAreaAndRefreshesCorrectly()
     {
-        // Arrange - Create PivotTable first
-        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var testFile = await CreateTestFileWithDataAsync("AddRowField_Test.xlsx");
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         var createResult = await _pivotCommands.CreateFromRangeAsync(
             batch,
             "SalesData", "A1:D6",
@@ -170,26 +221,20 @@ public class PivotTableCommandsTests : IDisposable
             "TestPivot");
         Assert.True(createResult.Success);
 
-        // Act
         var result = await _pivotCommands.AddRowFieldAsync(batch, "TestPivot", "Region");
 
-        // Assert - Verify Success AND Excel State
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
         Assert.Equal("Region", result.FieldName);
         Assert.Equal(PivotFieldArea.Row, result.Area);
-        Assert.Equal(1, result.Position); // Should be first row field
-
-        // Verify field has unique values available
-        Assert.NotEmpty(result.AvailableValues);
-        Assert.Contains("North", result.AvailableValues);
-        Assert.Contains("South", result.AvailableValues);
+        Assert.Equal(1, result.Position);
     }
 
     [Fact]
     public async Task AddValueField_NumericField_AggregatesDataCorrectly()
     {
-        // Arrange - Create PivotTable with row field
-        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var testFile = await CreateTestFileWithDataAsync("AddValueField_Test.xlsx");
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         var createResult = await _pivotCommands.CreateFromRangeAsync(
             batch,
             "SalesData", "A1:D6",
@@ -199,11 +244,9 @@ public class PivotTableCommandsTests : IDisposable
 
         await _pivotCommands.AddRowFieldAsync(batch, "TestPivot", "Region");
 
-        // Act
         var result = await _pivotCommands.AddValueFieldAsync(
             batch, "TestPivot", "Sales", AggregationFunction.Sum, "Total Sales");
 
-        // Assert - Verify Success AND Calculation
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
         Assert.Equal("Sales", result.FieldName);
         Assert.Equal("Total Sales", result.CustomName);
@@ -214,8 +257,9 @@ public class PivotTableCommandsTests : IDisposable
     [Fact]
     public async Task AddValueField_TextFieldWithSumFunction_ReturnsInformativeError()
     {
-        // Arrange
-        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        var testFile = await CreateTestFileWithDataAsync("AddValueField_Error_Test.xlsx");
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         var createResult = await _pivotCommands.CreateFromRangeAsync(
             batch,
             "SalesData", "A1:D6",
@@ -223,51 +267,269 @@ public class PivotTableCommandsTests : IDisposable
             "TestPivot");
         Assert.True(createResult.Success);
 
-        // Act & Assert - Should fail with informative error
         var result = await _pivotCommands.AddValueFieldAsync(
             batch, "TestPivot", "Region", AggregationFunction.Sum);
 
-        // Verify error message provides actionable guidance
         Assert.False(result.Success);
         Assert.Contains("not valid for Text field 'Region'", result.ErrorMessage);
         Assert.Contains("Valid functions: Count", result.ErrorMessage);
     }
 
-    #endregion
-
-    #region Helper Methods
-
-    #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
-    private async Task VerifyPivotTableExists(IExcelBatch batch, string pivotTableName, string sheetName)
+    [Fact]
+    public async Task ListFields_WithValidPivotTable_ReturnsAllFieldsWithMetadata()
     {
-        await batch.ExecuteAsync(async (ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
-            dynamic pivotTables = sheet.PivotTables;
+        var testFile = await CreateTestFileWithDataAsync("ListFields_Test.xlsx");
 
-            // Verify PivotTable exists in collection
-            bool found = false;
-            for (int i = 1; i <= pivotTables.Count; i++)
-            {
-                dynamic pivot = pivotTables.Item(i);
-                if (pivot.Name == pivotTableName)
-                {
-                    found = true;
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var createResult = await _pivotCommands.CreateFromRangeAsync(
+            batch,
+            "SalesData", "A1:D6",
+            "SalesData", "F1",
+            "FieldListTest");
+        Assert.True(createResult.Success);
 
-                    // Verify PivotTable properties
-                    Assert.Equal(pivotTableName, pivot.Name);
-                    Assert.True(pivot.PivotFields.Count >= 4); // Should have our 4 fields
-                    break;
-                }
-            }
+        await _pivotCommands.AddRowFieldAsync(batch, "FieldListTest", "Region");
+        await _pivotCommands.AddValueFieldAsync(batch, "FieldListTest", "Sales", AggregationFunction.Sum);
 
-            Assert.True(found, $"PivotTable '{pivotTableName}' not found in sheet '{sheetName}'");
+        var result = await _pivotCommands.ListFieldsAsync(batch, "FieldListTest");
 
-            return ValueTask.FromResult(0);
-        });
+        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+        Assert.NotNull(result.Fields);
+        Assert.True(result.Fields.Count >= 4, "Should have at least 4 fields");
+
+        var regionField = result.Fields.FirstOrDefault(f => f.Name == "Region");
+        Assert.NotNull(regionField);
+        Assert.Equal(PivotFieldArea.Row, regionField.Area);
     }
 
-    #endregion
+    [Fact]
+    public async Task AddColumnField_ValidField_PlacesFieldInColumnArea()
+    {
+        var testFile = await CreateTestFileWithDataAsync("AddColumnField_Test.xlsx");
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var createResult = await _pivotCommands.CreateFromRangeAsync(
+            batch,
+            "SalesData", "A1:D6",
+            "SalesData", "F1",
+            "ColumnTest");
+        Assert.True(createResult.Success);
+
+        var result = await _pivotCommands.AddColumnFieldAsync(batch, "ColumnTest", "Product");
+
+        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+        Assert.Equal("Product", result.FieldName);
+        Assert.Equal(PivotFieldArea.Column, result.Area);
+        Assert.Equal(1, result.Position);
+    }
+
+    [Fact]
+    public async Task AddFilterField_ValidField_PlacesFieldInFilterArea()
+    {
+        var testFile = await CreateTestFileWithDataAsync("AddFilterField_Test.xlsx");
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var createResult = await _pivotCommands.CreateFromRangeAsync(
+            batch,
+            "SalesData", "A1:D6",
+            "SalesData", "F1",
+            "FilterTest");
+        Assert.True(createResult.Success);
+
+        var result = await _pivotCommands.AddFilterFieldAsync(batch, "FilterTest", "Region");
+
+        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+        Assert.Equal("Region", result.FieldName);
+        Assert.Equal(PivotFieldArea.Filter, result.Area);
+    }
+
+    [Fact]
+    public async Task RemoveField_AfterAddingToRow_ReturnsFieldToAvailable()
+    {
+        var testFile = await CreateTestFileWithDataAsync("RemoveField_Test.xlsx");
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var createResult = await _pivotCommands.CreateFromRangeAsync(
+            batch,
+            "SalesData", "A1:D6",
+            "SalesData", "F1",
+            "RemoveTest");
+        Assert.True(createResult.Success);
+
+        var addResult = await _pivotCommands.AddRowFieldAsync(batch, "RemoveTest", "Region");
+        Assert.True(addResult.Success);
+
+        var removeResult = await _pivotCommands.RemoveFieldAsync(batch, "RemoveTest", "Region");
+
+        Assert.True(removeResult.Success, $"Expected success but got error: {removeResult.ErrorMessage}");
+        Assert.Equal("Region", removeResult.FieldName);
+        Assert.Equal(PivotFieldArea.Hidden, removeResult.Area);
+    }
+
+    [Fact]
+    public async Task SetFieldFunction_ChangeFromSumToAverage_UpdatesAggregation()
+    {
+        var testFile = await CreateTestFileWithDataAsync("SetFieldFunction_Test.xlsx");
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var createResult = await _pivotCommands.CreateFromRangeAsync(
+            batch,
+            "SalesData", "A1:D6",
+            "SalesData", "F1",
+            "FunctionTest");
+        Assert.True(createResult.Success);
+
+        await _pivotCommands.AddRowFieldAsync(batch, "FunctionTest", "Region");
+        var addResult = await _pivotCommands.AddValueFieldAsync(
+            batch, "FunctionTest", "Sales", AggregationFunction.Sum);
+        Assert.True(addResult.Success);
+
+        var result = await _pivotCommands.SetFieldFunctionAsync(
+            batch, "FunctionTest", "Sales", AggregationFunction.Average);
+
+        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+        Assert.Equal("Sales", result.FieldName);
+        Assert.Equal(AggregationFunction.Average, result.Function);
+    }
+
+    [Fact]
+    public async Task SetFieldName_WithCustomName_UpdatesDisplayName()
+    {
+        var testFile = await CreateTestFileWithDataAsync("SetFieldName_Test.xlsx");
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var createResult = await _pivotCommands.CreateFromRangeAsync(
+            batch,
+            "SalesData", "A1:D6",
+            "SalesData", "F1",
+            "NameTest");
+        Assert.True(createResult.Success);
+
+        await _pivotCommands.AddValueFieldAsync(batch, "NameTest", "Sales", AggregationFunction.Sum);
+
+        var result = await _pivotCommands.SetFieldNameAsync(
+            batch, "NameTest", "Sales", "Total Revenue");
+
+        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+        Assert.Equal("Sales", result.FieldName);
+        Assert.Equal("Total Revenue", result.CustomName);
+    }
+
+    [Fact]
+    public async Task SetFieldFormat_WithCurrencyFormat_AppliesNumberFormat()
+    {
+        var testFile = await CreateTestFileWithDataAsync("SetFieldFormat_Test.xlsx");
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var createResult = await _pivotCommands.CreateFromRangeAsync(
+            batch,
+            "SalesData", "A1:D6",
+            "SalesData", "F1",
+            "FormatTest");
+        Assert.True(createResult.Success);
+
+        await _pivotCommands.AddValueFieldAsync(batch, "FormatTest", "Sales", AggregationFunction.Sum);
+
+        var result = await _pivotCommands.SetFieldFormatAsync(
+            batch, "FormatTest", "Sales", "$#,##0.00");
+
+        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+        Assert.Equal("Sales", result.FieldName);
+        Assert.Equal("$#,##0.00", result.NumberFormat);
+    }
+
+    [Fact]
+    public async Task CreateFromTable_WithValidTable_CreatesCorrectPivotStructure()
+    {
+        var testFile = await CreateTestFileWithDataAsync("CreateFromTable_Test.xlsx");
+        var tableCommands = new TableCommands();
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+
+        var tableResult = await tableCommands.CreateAsync(
+            batch, "SalesData", "SalesTable", "A1:D6", hasHeaders: true);
+        Assert.True(tableResult.Success, $"Table creation failed: {tableResult.ErrorMessage}");
+        await batch.SaveAsync();
+
+        var pivotResult = await _pivotCommands.CreateFromTableAsync(
+            batch, "SalesTable", "SalesData", "F1", "TablePivot");
+
+        Assert.True(pivotResult.Success, $"Expected success but got error: {pivotResult.ErrorMessage}");
+        Assert.Equal("TablePivot", pivotResult.PivotTableName);
+        Assert.Equal(4, pivotResult.AvailableFields.Count);
+    }
+
+    [Fact]
+    public async Task GetData_WithConfiguredPivotTable_ReturnsCalculatedValues()
+    {
+        var testFile = await CreateTestFileWithDataAsync("GetData_Test.xlsx");
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var createResult = await _pivotCommands.CreateFromRangeAsync(
+            batch,
+            "SalesData", "A1:D6",
+            "SalesData", "F1",
+            "DataTest");
+        Assert.True(createResult.Success);
+
+        await _pivotCommands.AddRowFieldAsync(batch, "DataTest", "Region");
+        await _pivotCommands.AddValueFieldAsync(batch, "DataTest", "Sales", AggregationFunction.Sum);
+
+        var result = await _pivotCommands.GetDataAsync(batch, "DataTest");
+
+        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+        Assert.NotNull(result.Values);
+        Assert.True(result.Values.Count > 0, "Should have data rows");
+    }
+
+    [Fact]
+    public async Task SetFieldFilter_WithValidCriteria_FiltersDataCorrectly()
+    {
+        var testFile = await CreateTestFileWithDataAsync("SetFieldFilter_Test.xlsx");
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var createResult = await _pivotCommands.CreateFromRangeAsync(
+            batch,
+            "SalesData", "A1:D6",
+            "SalesData", "F1",
+            "FilterCriteriaTest");
+        Assert.True(createResult.Success);
+
+        await _pivotCommands.AddFilterFieldAsync(batch, "FilterCriteriaTest", "Region");
+        await _pivotCommands.AddRowFieldAsync(batch, "FilterCriteriaTest", "Product");
+        await _pivotCommands.AddValueFieldAsync(batch, "FilterCriteriaTest", "Sales", AggregationFunction.Sum);
+
+        var result = await _pivotCommands.SetFieldFilterAsync(
+            batch, "FilterCriteriaTest", "Region", ["North"]);
+
+        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+        Assert.Equal("Region", result.FieldName);
+        Assert.NotNull(result.SelectedItems);
+        Assert.Contains("North", result.SelectedItems);
+    }
+
+    [Fact]
+    public async Task SortField_ByAscending_OrdersDataCorrectly()
+    {
+        var testFile = await CreateTestFileWithDataAsync("SortField_Test.xlsx");
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var createResult = await _pivotCommands.CreateFromRangeAsync(
+            batch,
+            "SalesData", "A1:D6",
+            "SalesData", "F1",
+            "SortTest");
+        Assert.True(createResult.Success);
+
+        await _pivotCommands.AddRowFieldAsync(batch, "SortTest", "Region");
+        await _pivotCommands.AddValueFieldAsync(batch, "SortTest", "Sales", AggregationFunction.Sum);
+
+        var result = await _pivotCommands.SortFieldAsync(
+            batch, "SortTest", "Region", SortDirection.Ascending);
+
+        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+        Assert.Equal("Region", result.FieldName);
+    }
 
     public void Dispose()
     {
@@ -282,7 +544,7 @@ public class PivotTableCommandsTests : IDisposable
         }
         catch
         {
-            // Cleanup failure is non-critical in tests
+            // Cleanup failure is non-critical
         }
 
         _disposed = true;

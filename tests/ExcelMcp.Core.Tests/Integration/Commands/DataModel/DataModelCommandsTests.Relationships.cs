@@ -16,7 +16,7 @@ public partial class DataModelCommandsTests
         var result = await _dataModelCommands.ListRelationshipsAsync(batch);
 
         // Assert - MUST succeed (Data Model is always available in Excel 2013+)
-        Assert.True(result.Success, 
+        Assert.True(result.Success,
             $"ListRelationships MUST succeed - Data Model is always available. Error: {result.ErrorMessage}");
         Assert.NotNull(result.Relationships);
     }
@@ -29,7 +29,7 @@ public partial class DataModelCommandsTests
         var result = await _dataModelCommands.ListRelationshipsAsync(batch);
 
         // Assert - MUST succeed (Data Model is always available in Excel 2013+)
-        Assert.True(result.Success, 
+        Assert.True(result.Success,
             $"ListRelationships MUST succeed. Error: {result.ErrorMessage}");
         Assert.NotNull(result.Relationships);
 
@@ -159,7 +159,7 @@ public partial class DataModelCommandsTests
         await batch.SaveAsync();
 
         // Assert - MUST succeed (Data Model is always available in Excel 2013+)
-        Assert.True(createResult.Success, 
+        Assert.True(createResult.Success,
             $"CreateRelationship MUST succeed. Error: {createResult.ErrorMessage}");
         Assert.NotNull(createResult.SuggestedNextActions);
         Assert.Contains(createResult.SuggestedNextActions, s => s.Contains("created successfully"));

@@ -28,7 +28,7 @@ public class DataModelTableViewResult : ResultBase
     /// <summary>
     /// List of columns in the table
     /// </summary>
-    public List<DataModelColumnInfo> Columns { get; set; } = new();
+    public List<DataModelColumnInfo> Columns { get; set; } = [];
 
     /// <summary>
     /// Number of measures defined in this table

@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices;
 using System.Threading.Channels;
-using Sbroenne.ExcelMcp.ComInterop;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Session;
 

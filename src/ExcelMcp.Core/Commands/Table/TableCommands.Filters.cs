@@ -329,7 +329,7 @@ public partial class TableCommands
                                         ColumnIndex = i,
                                         IsFiltered = true,
                                         Criteria = filter.Criteria1?.ToString() ?? "",
-                                        FilterValues = new List<string>() // Could extract from Criteria1 if array
+                                        FilterValues = [] // Could extract from Criteria1 if array
                                     });
                                 }
                                 else

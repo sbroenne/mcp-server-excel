@@ -33,7 +33,7 @@ public partial class PivotTableCommands
                     try
                     {
                         field = pivotFields.Item(i);
-                        int orientation = field.Orientation;
+                        int orientation = Convert.ToInt32(field.Orientation);
 
                         var fieldInfo = new PivotFieldInfo
                         {
@@ -47,14 +47,14 @@ public partial class PivotTableCommands
                                 XlPivotFieldOrientation.xlDataField => PivotFieldArea.Value,
                                 _ => PivotFieldArea.Hidden
                             },
-                            Position = orientation != XlPivotFieldOrientation.xlHidden ? field.Position : 0,
+                            Position = orientation != XlPivotFieldOrientation.xlHidden ? Convert.ToInt32(field.Position) : 0,
                             DataType = DetectFieldDataType(field)
                         };
 
                         // Get function for value fields
                         if (orientation == XlPivotFieldOrientation.xlDataField)
                         {
-                            int comFunction = field.Function;
+                            int comFunction = Convert.ToInt32(field.Function);
                             fieldInfo.Function = GetAggregationFunctionFromCom(comFunction);
                         }
 
@@ -118,7 +118,7 @@ public partial class PivotTableCommands
                 }
 
                 // Check if field is already placed
-                int currentOrientation = field.Orientation;
+                int currentOrientation = Convert.ToInt32(field.Orientation);
                 if (currentOrientation != XlPivotFieldOrientation.xlHidden)
                 {
                     throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
@@ -128,7 +128,7 @@ public partial class PivotTableCommands
                 field.Orientation = XlPivotFieldOrientation.xlRowField;
                 if (position.HasValue)
                 {
-                    field.Position = position.Value;
+                    field.Position = (double)position.Value;
                 }
 
                 // Refresh and validate placement
@@ -147,7 +147,7 @@ public partial class PivotTableCommands
                     FieldName = fieldName,
                     CustomName = field.Caption?.ToString() ?? fieldName,
                     Area = PivotFieldArea.Row,
-                    Position = field.Position,
+                    Position = Convert.ToInt32(field.Position),
                     DataType = DetectFieldDataType(field),
                     AvailableValues = GetFieldUniqueValues(field),
                     FilePath = batch.WorkbookPath
@@ -198,7 +198,7 @@ public partial class PivotTableCommands
                 }
 
                 // Check if field is already placed
-                int currentOrientation = field.Orientation;
+                int currentOrientation = Convert.ToInt32(field.Orientation);
                 if (currentOrientation != XlPivotFieldOrientation.xlHidden)
                 {
                     throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
@@ -208,7 +208,7 @@ public partial class PivotTableCommands
                 field.Orientation = XlPivotFieldOrientation.xlColumnField;
                 if (position.HasValue)
                 {
-                    field.Position = position.Value;
+                    field.Position = (double)position.Value;
                 }
 
                 // Refresh and validate placement
@@ -227,7 +227,7 @@ public partial class PivotTableCommands
                     FieldName = fieldName,
                     CustomName = field.Caption?.ToString() ?? fieldName,
                     Area = PivotFieldArea.Column,
-                    Position = field.Position,
+                    Position = Convert.ToInt32(field.Position),
                     DataType = DetectFieldDataType(field),
                     AvailableValues = GetFieldUniqueValues(field),
                     FilePath = batch.WorkbookPath
@@ -359,7 +359,7 @@ public partial class PivotTableCommands
                 }
 
                 // Check if field is already placed
-                int currentOrientation = field.Orientation;
+                int currentOrientation = Convert.ToInt32(field.Orientation);
                 if (currentOrientation != XlPivotFieldOrientation.xlHidden)
                 {
                     throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
@@ -384,7 +384,7 @@ public partial class PivotTableCommands
                     FieldName = fieldName,
                     CustomName = field.Caption?.ToString() ?? fieldName,
                     Area = PivotFieldArea.Filter,
-                    Position = field.Position,
+                    Position = Convert.ToInt32(field.Position),
                     DataType = DetectFieldDataType(field),
                     AvailableValues = GetFieldUniqueValues(field),
                     FilePath = batch.WorkbookPath
@@ -435,7 +435,7 @@ public partial class PivotTableCommands
                 }
 
                 // Check if field is currently placed
-                int currentOrientation = field.Orientation;
+                int currentOrientation = Convert.ToInt32(field.Orientation);
                 if (currentOrientation == XlPivotFieldOrientation.xlHidden)
                 {
                     throw new InvalidOperationException($"Field '{fieldName}' is not currently placed in any area");
@@ -488,16 +488,36 @@ public partial class PivotTableCommands
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
-                field = pivot.PivotFields.Item(fieldName);
 
-                // Verify field is in Values area
-                if (field.Orientation != XlPivotFieldOrientation.xlDataField)
+                // Try to find field in DataFields collection first (value fields)
+                bool foundInDataFields = false;
+                for (int i = 1; i <= pivot.DataFields.Count; i++)
                 {
-                    throw new InvalidOperationException($"Field '{fieldName}' is not in the Values area. It is in {GetAreaName(field.Orientation)} area.");
+                    dynamic dataField = pivot.DataFields.Item(i);
+                    string sourceName = dataField.SourceName?.ToString() ?? "";
+                    if (sourceName == fieldName)
+                    {
+                        field = dataField;
+                        foundInDataFields = true;
+                        break;
+                    }
                 }
 
-                // Validate function for data type
-                string dataType = DetectFieldDataType(field);
+                // If not found in DataFields, check PivotFields (for error reporting)
+                if (!foundInDataFields)
+                {
+                    field = pivot.PivotFields.Item(fieldName);
+                    int orientation = Convert.ToInt32(field.Orientation);
+                    if (orientation != XlPivotFieldOrientation.xlDataField)
+                    {
+                        throw new InvalidOperationException($"Field '{fieldName}' is not in the Values area. It is in {GetAreaName(orientation)} area.");
+                    }
+                }
+
+                // Get source field for data type detection (DataFields don't have PivotItems)
+                dynamic? sourceField = pivot.PivotFields.Item(fieldName);
+                string dataType = DetectFieldDataType(sourceField);
+                ComUtilities.Release(ref sourceField);
                 if (!IsValidAggregationForDataType(function, dataType))
                 {
                     var validFunctions = GetValidAggregationsForDataType(dataType);
@@ -603,12 +623,30 @@ public partial class PivotTableCommands
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
-                field = pivot.PivotFields.Item(fieldName);
 
-                // Verify field is in Values area
-                if (field.Orientation != XlPivotFieldOrientation.xlDataField)
+                // Try to find field in DataFields collection first (value fields)
+                bool foundInDataFields = false;
+                for (int i = 1; i <= pivot.DataFields.Count; i++)
                 {
-                    throw new InvalidOperationException($"Field '{fieldName}' is not in the Values area. Only value fields can have number formats.");
+                    dynamic dataField = pivot.DataFields.Item(i);
+                    string sourceName = dataField.SourceName?.ToString() ?? "";
+                    if (sourceName == fieldName)
+                    {
+                        field = dataField;
+                        foundInDataFields = true;
+                        break;
+                    }
+                }
+
+                // If not found in DataFields, check PivotFields (for error reporting)
+                if (!foundInDataFields)
+                {
+                    field = pivot.PivotFields.Item(fieldName);
+                    int orientation = Convert.ToInt32(field.Orientation);
+                    if (orientation != XlPivotFieldOrientation.xlDataField)
+                    {
+                        throw new InvalidOperationException($"Field '{fieldName}' is not in the Values area. Only value fields can have number formats.");
+                    }
                 }
 
                 // Set number format

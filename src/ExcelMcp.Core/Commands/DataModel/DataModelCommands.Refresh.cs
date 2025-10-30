@@ -1,7 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.DataModel;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.ComInterop.Session;
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
 
@@ -51,11 +51,11 @@ public partial class DataModelCommands
                     {
                         table.Refresh();
                         result.Success = true;
-                        result.SuggestedNextActions = new List<string>
-                        {
+                        result.SuggestedNextActions =
+                        [
                             $"Table '{tableName}' refreshed successfully",
                             "Use 'model-list-tables' to verify record counts"
-                        };
+                        ];
                     }
                     finally
                     {
@@ -69,11 +69,11 @@ public partial class DataModelCommands
                     {
                         model.Refresh();
                         result.Success = true;
-                        result.SuggestedNextActions = new List<string>
-                        {
+                        result.SuggestedNextActions =
+                        [
                             "All Data Model tables refreshed successfully",
                             "Use 'model-list-tables' to verify record counts"
-                        };
+                        ];
                     }
                     catch (Exception refreshEx)
                     {

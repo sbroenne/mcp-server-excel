@@ -1,6 +1,4 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Commands.Range;
-using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Range;
@@ -20,7 +18,7 @@ public partial class RangeCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Set a value first
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1", new List<List<object?>> { new() { 100 } });
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { 100 }]);
 
         // Act
         var result = await _commands.GetValuesAsync(batch, "Sheet1", "A1");

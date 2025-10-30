@@ -1,7 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Commands.Range;
-using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Range;
@@ -25,11 +23,11 @@ public partial class RangeCommandsTests
         await paramCommands.CreateAsync(batch, "TestData", "Sheet1!$A$1:$B$2");
 
         // Set data in the range
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1:B2", new List<List<object?>>
-        {
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1:B2",
+        [
             new() { 1, 2 },
             new() { 3, 4 }
-        });
+        ]);
 
         // Act - Read using named range (empty sheetName)
         var result = await _commands.GetValuesAsync(batch, "", "TestData");
@@ -54,11 +52,11 @@ public partial class RangeCommandsTests
         await paramCommands.CreateAsync(batch, "SalesData", "Sheet1!$A$1:$C$2");
 
         // Act - Write using named range
-        var result = await _commands.SetValuesAsync(batch, "", "SalesData", new List<List<object?>>
-        {
+        var result = await _commands.SetValuesAsync(batch, "", "SalesData",
+        [
             new() { "Product", "Qty", "Price" },
             new() { "Widget", 10, 29.99 }
-        });
+        ]);
         await batch.SaveAsync();
 
         // Assert
@@ -81,8 +79,8 @@ public partial class RangeCommandsTests
         var paramCommands = new ParameterCommands();
         await paramCommands.CreateAsync(batch, "CalcRange", "Sheet1!$A$1:$B$2");
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1", new List<List<object?>> { new() { 10 } });
-        await _commands.SetFormulasAsync(batch, "Sheet1", "B1", new List<List<string>> { new() { "=A1*2" } });
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { 10 }]);
+        await _commands.SetFormulasAsync(batch, "Sheet1", "B1", [new() { "=A1*2" }]);
 
         // Act - Read formulas using named range
         var result = await _commands.GetFormulasAsync(batch, "", "CalcRange");
@@ -105,11 +103,11 @@ public partial class RangeCommandsTests
         var paramCommands = new ParameterCommands();
         await paramCommands.CreateAsync(batch, "TempData", "Sheet1!$A$1:$B$2");
 
-        await _commands.SetValuesAsync(batch, "", "TempData", new List<List<object?>>
-        {
+        await _commands.SetValuesAsync(batch, "", "TempData",
+        [
             new() { 1, 2 },
             new() { 3, 4 }
-        });
+        ]);
 
         // Act - Clear using named range
         var result = await _commands.ClearContentsAsync(batch, "", "TempData");

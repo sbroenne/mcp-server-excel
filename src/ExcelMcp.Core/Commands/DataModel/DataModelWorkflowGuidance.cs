@@ -17,13 +17,13 @@ public static class DataModelWorkflowGuidance
     {
         if (!success)
         {
-            return new List<string>
-            {
+            return
+            [
                 "Measure creation failed",
                 "Review error message for DAX formula issues",
                 "Verify table name and measure name are valid",
                 "Check DAX syntax and referenced columns exist"
-            };
+            ];
         }
 
         var suggestions = new List<string>
@@ -53,13 +53,13 @@ public static class DataModelWorkflowGuidance
     {
         if (!success)
         {
-            return new List<string>
-            {
+            return
+            [
                 "Relationship creation failed",
                 "Verify both tables and columns exist in Data Model",
                 "Check column data types are compatible",
                 "Ensure relationship doesn't create circular dependencies"
-            };
+            ];
         }
 
         var suggestions = new List<string>
@@ -89,13 +89,13 @@ public static class DataModelWorkflowGuidance
     {
         if (!success)
         {
-            return new List<string>
-            {
+            return
+            [
                 "Calculated column creation failed",
                 "Review DAX formula for syntax errors",
                 "Verify referenced columns exist",
                 "Check data types are compatible for calculations"
-            };
+            ];
         }
 
         var suggestions = new List<string>
@@ -134,7 +134,7 @@ public static class DataModelWorkflowGuidance
         else
         {
             suggestions.Add($"Found {count} {objectType} in Data Model");
-            
+
             if (objectType.Contains("measure", StringComparison.OrdinalIgnoreCase))
             {
                 suggestions.Add("Use 'dm-view-measure' to inspect DAX formulas");
@@ -214,41 +214,41 @@ public static class DataModelWorkflowGuidance
     {
         return errorType switch
         {
-            "DAXSyntax" => new List<string>
-            {
+            "DAXSyntax" =>
+            [
                 "Check DAX formula syntax",
                 "Verify all function names are spelled correctly",
                 "Ensure proper use of commas, parentheses, and brackets",
                 "Test formula in smaller parts to isolate error"
-            },
-            "ColumnNotFound" => new List<string>
-            {
+            ],
+            "ColumnNotFound" =>
+            [
                 "Verify column name and table name are correct",
                 "Check if column exists in the table",
                 "Use 'list-tables' to see available columns",
                 "Ensure column name follows 'TableName[ColumnName]' format"
-            },
-            "CircularDependency" => new List<string>
-            {
+            ],
+            "CircularDependency" =>
+            [
                 "Review relationship directions",
                 "Check if relationship creates a loop in data model",
                 "Consider using different relationship approach",
                 "Use inactive relationships with USERELATIONSHIP function"
-            },
-            "DataTypeIncompatible" => new List<string>
-            {
+            ],
+            "DataTypeIncompatible" =>
+            [
                 "Check that columns have compatible data types",
                 "Verify numeric columns for relationships are same type",
                 "Use FORMAT or VALUE functions to convert types",
                 "Review source data in Power Query"
-            },
-            _ => new List<string>
-            {
+            ],
+            _ =>
+            [
                 "Review error message for specific details",
                 "Check Data Model structure and relationships",
                 "Verify DAX formulas and column references",
                 "Consider simplifying operation to isolate issue"
-            }
+            ]
         };
     }
 }

@@ -6,123 +6,33 @@ applyTo: "src/**/*.cs"
 
 > **Core patterns for ExcelMcp development**
 
-## .NET Class Design Guidelines (MANDATORY)
+## .NET Class Design (MANDATORY)
 
-> **Follow official Microsoft .NET Framework Design Guidelines**
-
-### Official Documentation
-- [Framework Design Guidelines](https://learn.microsoft.com/en-us/dotnet/standard/design-guidelines/)
-- [Names of Classes, Structs, and Interfaces](https://learn.microsoft.com/en-us/dotnet/standard/design-guidelines/names-of-classes-structs-and-interfaces)
-- [Partial Classes and Methods](https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/partial-classes-and-methods)
-- [C# Coding Conventions](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions)
+**Official Docs:** [Framework Design Guidelines](https://learn.microsoft.com/en-us/dotnet/standard/design-guidelines/), [Partial Classes](https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/partial-classes-and-methods)
 
 ### Key Rules
 
-**1. One Public Class Per File**
-```csharp
-// ✅ CORRECT - Each public class in its own file
-// File: RangeCommands.cs
-public class RangeCommands : IRangeCommands { }
+1. **One Public Class Per File** - Standard .NET practice (System.Text.Json, ASP.NET Core, EF Core)
+2. **File Name = Class Name** - `RangeCommands.cs` contains `RangeCommands`
+3. **Partial Classes for Large Implementations** - Split 15+ method classes by feature domain
+4. **Descriptive Names** - No over-optimization (`RangeCommands` ✅, `Commands` ❌)
+5. **Folder = Organization, Not Identity** - `Commands/Range/RangeCommands.cs`
 
-// File: RangeHelpers.cs
-public static class RangeHelpers { }
-```
+### Partial Class Pattern
 
-**Why:** Standard practice in .NET projects (see System.Text.Json, ASP.NET Core, Entity Framework Core). Improves discoverability, reduces merge conflicts, makes navigation easier.
+**When:** Class has 15+ methods, multiple feature domains, team collaboration
 
-**2. File Name Matches Class Name**
-```csharp
-// ✅ CORRECT
-// File: RangeCommands.cs
-public class RangeCommands { }
-
-// ❌ WRONG
-// File: Commands.cs  (too generic!)
-public class RangeCommands { }
-```
-
-**3. Partial Classes for Large Implementations** ([Official Guideline](https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/partial-classes-and-methods))
-```csharp
-// File: RangeCommands.cs (main/constructor)
-public partial class RangeCommands : IRangeCommands
-{
-    public RangeCommands() { }
-}
-
-// File: RangeCommands.Values.cs (feature group)
-public partial class RangeCommands
-{
-    public Task<RangeValueResult> GetValuesAsync(...) { }
-    public Task<OperationResult> SetValuesAsync(...) { }
-}
-
-// File: RangeCommands.Formulas.cs (feature group)
-public partial class RangeCommands
-{
-    public Task<RangeFormulaResult> GetFormulasAsync(...) { }
-    public Task<OperationResult> SetFormulasAsync(...) { }
-}
-```
-
-**4. Keep Descriptive Names - No Over-Optimization**
-```csharp
-// ✅ CORRECT - Clear, unambiguous
-namespace Sbroenne.ExcelMcp.Core.Commands.Range;
-public partial class RangeCommands : IRangeCommands { }
-
-// ❌ WRONG - Too generic, causes ambiguity
-namespace Sbroenne.ExcelMcp.Core.Commands.Range;
-public partial class Commands : IRangeCommands { }  // What kind of commands?
-```
-
-**5. Folder Structure Provides Organization, Not Identity**
-```
-Commands/Range/              ← Organization
-    IRangeCommands.cs        ← Identity: IRangeCommands
-    RangeCommands.cs         ← Identity: RangeCommands
-    RangeCommands.Values.cs  ← Identity: RangeCommands (partial)
-    RangeHelpers.cs          ← Identity: RangeHelpers (separate class)
-```
-
-### Large Command Class Pattern
-
-**When to split using partial classes:**
-- Class has 15+ public methods
-- Multiple feature domains (values, formulas, editing, search)
-- Team collaboration on same class
-- Want git-friendly organization
-
-**How to organize partial files:**
+**Structure:**
 ```
 Commands/Range/
-    IRangeCommands.cs                  ← Interface (full contract)
-    RangeCommands.cs                   ← Partial (constructor, DI, shared state)
-    RangeCommands.Values.cs            ← Partial (Get/Set values)
-    RangeCommands.Formulas.cs          ← Partial (Get/Set formulas)
-    RangeCommands.Editing.cs           ← Partial (Clear, Copy, Insert, Delete)
-    RangeCommands.Search.cs            ← Partial (Find, Replace, Sort)
-    RangeCommands.Discovery.cs         ← Partial (UsedRange, CurrentRegion, RangeInfo)
-    RangeCommands.Hyperlinks.cs        ← Partial (Hyperlink operations)
-    RangeHelpers.cs                    ← Separate static helper class
-
-Tests/Integration/Range/
-    RangeCommandsTests.cs              ← Base test class (shared fixture)
-    RangeCommandsTests.Values.cs       ← Test partial (mirrors implementation)
-    RangeCommandsTests.Formulas.cs
-    RangeCommandsTests.Editing.cs
-    RangeCommandsTests.Search.cs
-    RangeCommandsTests.Discovery.cs
-    RangeCommandsTests.Hyperlinks.cs
-    RangeTestHelpers.cs                ← Test utilities (separate class)
+    IRangeCommands.cs           # Interface
+    RangeCommands.cs            # Partial (constructor, DI)
+    RangeCommands.Values.cs     # Partial (Get/Set values)
+    RangeCommands.Formulas.cs   # Partial (formulas)
+    RangeHelpers.cs             # Separate helper class
 ```
 
-**Benefits:**
-- ✅ Follows .NET Framework patterns (DbContext, Controllers, etc.)
-- ✅ Clear file-to-feature mapping (~100-200 lines per file)
-- ✅ Git-friendly (isolated changes, fewer merge conflicts)
-- ✅ Team-friendly (multiple developers, different features)
-- ✅ Discoverable (obvious where to find code)
-- ✅ Testable (test structure mirrors implementation)
+**Benefits:** Git-friendly, team-friendly, ~100-200 lines per file, mirrors .NET Framework patterns
 
 ---
 
@@ -133,8 +43,6 @@ Tests/Integration/Range/
 Commands/
 ├── IPowerQueryCommands.cs    # Interface
 ├── PowerQueryCommands.cs     # Implementation
-├── ISheetCommands.cs
-├── SheetCommands.cs
 ```
 
 ### Routing (Program.cs)
@@ -142,7 +50,6 @@ Commands/
 return args[0] switch
 {
     "pq-list" => powerQuery.List(args),
-    "pq-view" => powerQuery.View(args),
     "sheet-read" => sheet.Read(args),
     _ => ShowHelp()
 };
@@ -154,7 +61,7 @@ return args[0] switch
 
 ### ExcelHelper.WithExcel()
 
-**✅ ALWAYS use this - never manage Excel lifecycle manually!**
+**✅ ALWAYS use - never manage Excel lifecycle manually**
 
 ```csharp
 public int MyCommand(string[] args)
@@ -164,17 +71,7 @@ public int MyCommand(string[] args)
         dynamic? queries = null;
         try {
             queries = workbook.Queries;
-            
-            for (int i = 1; i <= queries.Count; i++) {
-                dynamic? query = null;
-                try {
-                    query = queries.Item(i);
-                    // Use query...
-                } finally {
-                    ExcelHelper.ReleaseComObject(ref query);  // Release!
-                }
-            }
-            
+            // Use queries...
             return 0;
         } finally {
             ExcelHelper.ReleaseComObject(ref queries);  // Release!
@@ -183,146 +80,80 @@ public int MyCommand(string[] args)
 }
 ```
 
-**Handles:**
-- Excel.Application creation/destruction
-- Workbook.Open()/Close()
-- Excel.Quit()
-- COM cleanup (`Marshal.ReleaseComObject()`)
-- Garbage collection (optimized 2-cycle pattern)
-- Proper null assignment
+**Handles:** Excel.Application creation/destruction, Workbook open/close, COM cleanup, GC collection
 
 ---
 
-## Excel Instance Pooling (MCP Server Only)
+## Excel Instance Pooling (MCP Only)
 
 ### Purpose
-Reuse Excel instances across operations to eliminate ~2-5 second startup overhead.
+Reuse Excel instances to eliminate ~2-5 second startup overhead.
 
 ### Configuration
 ```csharp
-// Program.cs - MCP Server startup
-var pool = new ExcelInstancePool(
-    idleTimeout: TimeSpan.FromSeconds(60), 
-    maxInstances: 10
-);
-ExcelHelper.InstancePool = pool;  // Enable globally
+var pool = new ExcelInstancePool(idleTimeout: TimeSpan.FromSeconds(60), maxInstances: 10);
+ExcelHelper.InstancePool = pool;
 ```
 
 ### Benefits
-- ✅ **~95% faster** for cached workbooks (2-5 sec → <100ms)
-- ✅ **Conversational workflows** - Multiple operations in quick succession
-- ✅ **Auto cleanup** - Idle instances disposed after 60 seconds
-- ✅ **Thread-safe** - Concurrent requests handled correctly
-- ✅ **Resource limits** - Max 10 Excel instances prevents exhaustion
-- ✅ **Zero code changes** - Core commands automatically use pooling
+- **~95% faster** for cached workbooks (2-5 sec → <100ms)
+- **Auto cleanup** after 60 seconds idle
+- **Thread-safe** concurrent requests
+- **Zero code changes** - Core commands automatically use pooling
 
 ### CLI Behavior
-**No pooling** - CLI uses simple single-instance pattern for reliability.
-
-### Capacity Management
-```csharp
-// When pool is full, operations timeout after 5 seconds
-// LLM can free slots:
-excel_file({ 
-  action: "close-workbook", 
-  excelPath: "path/to/file.xlsx" 
-})
-// Returns: "Workbook closed in pool. Instance slot freed."
-```
-
-### Critical Fix: Semaphore Race Condition
-
-**Problem:** TOCTOU bug between `ContainsKey()`, semaphore acquisition, and `GetOrAdd()`.
-
-**Solution:** Atomic lock around entire sequence:
-```csharp
-lock (_instanceCreationLock)  // CRITICAL
-{
-    bool isExistingInstance = _instances.ContainsKey(normalizedPath);
-    
-    if (!isExistingInstance) {
-        _instanceSemaphore.Wait(TimeSpan.FromSeconds(5));
-        semaphoreAcquired = true;
-    }
-    
-    pooledInstance = _instances.GetOrAdd(normalizedPath, _ => CreatePooledInstance(filePath));
-}
-```
-
-**Why:** Without lock, multiple threads can check `ContainsKey()` simultaneously, both acquire semaphore, but only one instance created → semaphore count mismatch.
+**No pooling** - Simple single-instance pattern for reliability
 
 ---
 
 ## MCP Server Resource-Based Tools
 
-### Structure (6 Focused Tools)
-
-1. **`excel_file`** - Excel file operations (1 action)
-2. **`excel_powerquery`** - Power Query M code (11 actions)
-3. **`excel_worksheet`** - Worksheet operations (9 actions)
-4. **`excel_parameter`** - Named ranges (5 actions)
-5. **`excel_cell`** - Individual cells (4 actions)
-6. **`excel_vba`** - VBA macros (6 actions)
+**11 Focused Tools:**
+1. `excel_file` - File operations
+2. `excel_powerquery` - Power Query M code  
+3. `excel_worksheet` - Worksheet lifecycle
+4. `excel_range` - Range operations (values, formulas, hyperlinks)
+5. `excel_parameter` - Named ranges
+6. `excel_table` - Excel Table (ListObject) operations
+7. `excel_connection` - Connection management
+8. `excel_datamodel` - Data Model / Power Pivot
+9. `excel_vba` - VBA macros
+10. `begin_excel_batch` - Start batch session
+11. `commit_excel_batch` - Save/discard batch session
 
 ### Action-Based Routing
 ```csharp
 [McpServerTool]
-public async Task<string> ExcelPowerQuery(
-    string action,
-    string excelPath,
-    string? queryName = null,
-    ...)
+public async Task<string> ExcelPowerQuery(string action, ...)
 {
     return action.ToLowerInvariant() switch
     {
         "list" => ListPowerQueries(...),
         "view" => ViewPowerQuery(...),
-        "import" => await ImportPowerQuery(...),
         _ => throw new McpException($"Unknown action: {action}")
     };
 }
-```
-
-### Error Handling
-```csharp
-// ✅ Throw McpException - framework serializes
-throw new McpException($"{action} failed for '{filePath}': {ex.Message}");
-
-// ❌ Don't return JSON errors
-return JsonSerializer.Serialize(new { error = "..." });  // WRONG
 ```
 
 ---
 
 ## DRY Shared Utilities
 
-### ExcelHelper Utilities
-- `FindConnection()` - Locate connection by name
-- `FindQuery()` - Locate Power Query by name
-- `GetConnectionTypeName()` - Type identification
-- `IsPowerQueryConnection()` - Detection
-- `CreateQueryTable()` - Standard query loading
-- `RemoveConnections()` - Cleanup
-- `SanitizeConnectionString()` - Security (password masking)
+**ExcelHelper Methods:** `FindConnection()`, `FindQuery()`, `GetConnectionTypeName()`, `IsPowerQueryConnection()`, `CreateQueryTable()`, `SanitizeConnectionString()`
 
-### Why This Matters
-Prevents 60+ lines of duplicate code per feature and ensures consistent behavior.
+**Why:** Prevents 60+ lines of duplicate code per feature
 
 ---
 
 ## Security-First Patterns
 
-### Sensitive Data Handling
 ```csharp
 // Always sanitize before output
 string safe = SanitizeConnectionString(connectionString);
-Console.WriteLine(safe);  // Passwords masked
-```
 
-### Defaults
-- `SavePassword = false` - Never export credentials by default
-- Require explicit parameters for security-sensitive operations
-- Clear warnings when affecting security settings
+// Defaults
+SavePassword = false  // Never export credentials by default
+```
 
 ---
 
@@ -332,16 +163,11 @@ Console.WriteLine(safe);  // Passwords masked
 ```csharp
 // ✅ GOOD - Single session
 ExcelHelper.WithExcel(filePath, save, (e, wb) => {
-    Operation1(wb);
-    Operation2(wb);
-    Operation3(wb);
+    Operation1(wb); Operation2(wb); Operation3(wb);
     return 0;
 });
 
-// ❌ AVOID - Multiple sessions
-ExcelHelper.WithExcel(filePath, false, (e, wb) => Operation1(wb));
-ExcelHelper.WithExcel(filePath, false, (e, wb) => Operation2(wb));
-ExcelHelper.WithExcel(filePath, false, (e, wb) => Operation3(wb));
+// ❌ AVOID - Multiple sessions (slow)
 ```
 
 ### Bulk Operations
@@ -350,7 +176,6 @@ ExcelHelper.WithExcel(filePath, false, (e, wb) => Operation3(wb));
 object[,] values = range.Value2;
 
 // ❌ AVOID - Cell-by-cell (slow COM calls)
-for (each cell) value = cell.Value2;
 ```
 
 ---

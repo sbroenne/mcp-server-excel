@@ -1,6 +1,6 @@
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
@@ -140,11 +140,11 @@ in
         {
             var result = await _powerQueryCommands.ListAsync(batch);
 
-        // Assert
-        Assert.True(result.Success);
-        Assert.NotNull(result.Queries);
-        Assert.Single(result.Queries);
-        Assert.Equal("TestQuery", result.Queries[0].Name);
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(result.Queries);
+            Assert.Single(result.Queries);
+            Assert.Equal("TestQuery", result.Queries[0].Name);
         }
     }
 
@@ -170,10 +170,10 @@ in
         {
             var result = await _powerQueryCommands.ViewAsync(batch, "TestQuery");
 
-        // Assert
-        Assert.True(result.Success);
-        Assert.NotNull(result.MCode);
-        Assert.Contains("Source", result.MCode);
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(result.MCode);
+            Assert.Contains("Source", result.MCode);
         }
     }
 
@@ -197,9 +197,9 @@ in
         {
             var result = await _powerQueryCommands.ExportAsync(batch, "TestQuery", exportPath);
 
-        // Assert
-        Assert.True(result.Success);
-        Assert.True(File.Exists(exportPath));
+            // Assert
+            Assert.True(result.Success);
+            Assert.True(File.Exists(exportPath));
         }
     }
 
@@ -225,8 +225,8 @@ in
             var result = await _powerQueryCommands.UpdateAsync(batch, "TestQuery", updateFile);
             await batch.SaveAsync();
 
-        // Assert
-        Assert.True(result.Success);
+            // Assert
+            Assert.True(result.Success);
         }
     }
 
@@ -250,8 +250,8 @@ in
             var result = await _powerQueryCommands.DeleteAsync(batch, "TestQuery");
             await batch.SaveAsync();
 
-        // Assert
-        Assert.True(result.Success);
+            // Assert
+            Assert.True(result.Success);
         }
     }
 
@@ -285,9 +285,9 @@ in
         {
             var result = await _powerQueryCommands.ListAsync(batch);
 
-        // Assert
-        Assert.True(result.Success);
-        Assert.Empty(result.Queries);
+            // Assert
+            Assert.True(result.Success);
+            Assert.Empty(result.Queries);
         }
     }
 
@@ -312,9 +312,9 @@ in
             var result = await _powerQueryCommands.SetConnectionOnlyAsync(batch, "TestConnectionOnly");
             await batch.SaveAsync();
 
-        // Assert
-        Assert.True(result.Success, $"SetConnectionOnly failed: {result.ErrorMessage}");
-        Assert.Equal("pq-set-connection-only", result.Action);
+            // Assert
+            Assert.True(result.Success, $"SetConnectionOnly failed: {result.ErrorMessage}");
+            Assert.Equal("pq-set-connection-only", result.Action);
         }
     }
 

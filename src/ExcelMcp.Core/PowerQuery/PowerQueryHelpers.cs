@@ -1,4 +1,3 @@
-using System;
 using Sbroenne.ExcelMcp.ComInterop;
 
 namespace Sbroenne.ExcelMcp.Core.PowerQuery;

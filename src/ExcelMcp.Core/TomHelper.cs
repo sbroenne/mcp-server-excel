@@ -23,7 +23,7 @@ public static class TomHelper
         try
         {
             server = new Server();
-            
+
             // Try different connection string formats for Excel compatibility
             string[] connectionFormats = new[]
             {
@@ -39,7 +39,7 @@ public static class TomHelper
                 try
                 {
                     server.Connect(connString);
-                    
+
                     if (server.Connected)
                     {
                         if (server.Databases.Count == 0)
@@ -153,7 +153,7 @@ public static class TomHelper
     /// </summary>
     public static Table? FindTable(Model model, string tableName)
     {
-        return model.Tables.FirstOrDefault(t => 
+        return model.Tables.FirstOrDefault(t =>
             t.Name.Equals(tableName, StringComparison.OrdinalIgnoreCase));
     }
 
@@ -164,7 +164,7 @@ public static class TomHelper
     {
         foreach (var table in model.Tables)
         {
-            var measure = table.Measures.FirstOrDefault(m => 
+            var measure = table.Measures.FirstOrDefault(m =>
                 m.Name.Equals(measureName, StringComparison.OrdinalIgnoreCase));
             if (measure != null)
             {
@@ -179,7 +179,7 @@ public static class TomHelper
     /// </summary>
     public static Column? FindColumn(Table table, string columnName)
     {
-        return table.Columns.FirstOrDefault(c => 
+        return table.Columns.FirstOrDefault(c =>
             c.Name.Equals(columnName, StringComparison.OrdinalIgnoreCase));
     }
 

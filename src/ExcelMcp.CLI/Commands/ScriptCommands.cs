@@ -1,5 +1,5 @@
-using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 using Spectre.Console;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
@@ -166,7 +166,7 @@ public class ScriptCommands : IScriptCommands
                 DisplayVbaTrustGuidance(trustError);
                 return 1;
             }
-            
+
             AnsiConsole.MarkupLine($"[red]✗ Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
             return 1;
         }

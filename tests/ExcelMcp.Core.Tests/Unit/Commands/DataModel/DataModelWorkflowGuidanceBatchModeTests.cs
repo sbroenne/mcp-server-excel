@@ -24,7 +24,7 @@ public class DataModelWorkflowGuidanceBatchModeTests
         // Assert
         Assert.NotNull(suggestions);
         Assert.NotEmpty(suggestions);
-        
+
         // First suggestion should be about batch mode
         Assert.Contains(suggestions, s => s.Contains("begin_excel_batch", StringComparison.OrdinalIgnoreCase) ||
                                           s.Contains("batch mode", StringComparison.OrdinalIgnoreCase));
@@ -43,7 +43,7 @@ public class DataModelWorkflowGuidanceBatchModeTests
         // Assert
         Assert.NotNull(suggestions);
         Assert.NotEmpty(suggestions);
-        
+
         // Should NOT suggest batch mode since already using it
         Assert.DoesNotContain(suggestions, s => s.Contains("begin_excel_batch", StringComparison.OrdinalIgnoreCase));
     }
@@ -59,7 +59,7 @@ public class DataModelWorkflowGuidanceBatchModeTests
         // Assert
         Assert.NotNull(suggestions);
         Assert.NotEmpty(suggestions);
-        
+
         // Error scenario - should focus on fixing errors
         Assert.Contains(suggestions, s => s.Contains("failed", StringComparison.OrdinalIgnoreCase) ||
                                           s.Contains("error", StringComparison.OrdinalIgnoreCase));
@@ -76,7 +76,7 @@ public class DataModelWorkflowGuidanceBatchModeTests
         // Assert
         Assert.NotNull(suggestions);
         Assert.NotEmpty(suggestions);
-        
+
         // Should suggest batch mode for multiple relationships
         Assert.Contains(suggestions, s => s.Contains("begin_excel_batch", StringComparison.OrdinalIgnoreCase) ||
                                           s.Contains("batch mode", StringComparison.OrdinalIgnoreCase));
@@ -95,7 +95,7 @@ public class DataModelWorkflowGuidanceBatchModeTests
         // Assert
         Assert.NotNull(suggestions);
         Assert.NotEmpty(suggestions);
-        
+
         // Should NOT suggest batch mode since already using it
         Assert.DoesNotContain(suggestions, s => s.Contains("begin_excel_batch", StringComparison.OrdinalIgnoreCase));
     }
@@ -111,7 +111,7 @@ public class DataModelWorkflowGuidanceBatchModeTests
         // Assert
         Assert.NotNull(suggestions);
         Assert.NotEmpty(suggestions);
-        
+
         // Should suggest batch mode for multiple columns
         Assert.Contains(suggestions, s => s.Contains("begin_excel_batch", StringComparison.OrdinalIgnoreCase) ||
                                           s.Contains("batch mode", StringComparison.OrdinalIgnoreCase));
@@ -185,10 +185,10 @@ public class DataModelWorkflowGuidanceBatchModeTests
         // Assert
         Assert.NotEmpty(daxSyntaxSteps);
         Assert.Contains(daxSyntaxSteps, s => s.Contains("DAX", StringComparison.OrdinalIgnoreCase));
-        
+
         Assert.NotEmpty(columnNotFoundSteps);
         Assert.Contains(columnNotFoundSteps, s => s.Contains("column", StringComparison.OrdinalIgnoreCase));
-        
+
         Assert.NotEmpty(circularDepSteps);
         Assert.Contains(circularDepSteps, s => s.Contains("circular", StringComparison.OrdinalIgnoreCase) ||
                                                s.Contains("relationship", StringComparison.OrdinalIgnoreCase));

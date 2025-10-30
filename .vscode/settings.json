@@ -4,5 +4,6 @@
         "powerquery",
         "Sbroenne",
         "Xunit"
-    ]
+    ],
+    "dotnet.defaultSdkVersion": "8.0.x"
 }
