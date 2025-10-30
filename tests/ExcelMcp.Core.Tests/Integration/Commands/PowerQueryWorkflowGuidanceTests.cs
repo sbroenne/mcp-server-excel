@@ -124,7 +124,7 @@ in
 
         // Act - Use single batch for both operations
         await using var batch = await ExcelSession.BeginBatchAsync(excelFile);
-        var importResult = await _powerQueryCommands.ImportAsync(batch, "ValidQuery", queryFile, loadToWorksheet: false);
+        var importResult = await _powerQueryCommands.ImportAsync(batch, "ValidQuery", queryFile, loadDestination: "connection-only");
         Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
 
         var refreshResult = await _powerQueryCommands.RefreshAsync(batch, "ValidQuery");
@@ -149,7 +149,7 @@ in
         // Act - Use single batch for both operations
         await using var batch = await ExcelSession.BeginBatchAsync(excelFile);
         // Import without loading to worksheet to avoid immediate failure
-        await _powerQueryCommands.ImportAsync(batch, "BrokenQuery", queryFile, loadToWorksheet: false);
+        await _powerQueryCommands.ImportAsync(batch, "BrokenQuery", queryFile, loadDestination: "connection-only");
 
         // Note: Excel may accept syntactically invalid M code and only fail at refresh/execution time
         // This test validates that IF refresh fails, error details are captured properly
@@ -192,7 +192,7 @@ in
 
         // Act - Use single batch for both operations
         await using var batch = await ExcelSession.BeginBatchAsync(excelFile);
-        var importResult = await _powerQueryCommands.ImportAsync(batch, "ConnectionOnlyQuery", queryFile, loadToWorksheet: false);
+        var importResult = await _powerQueryCommands.ImportAsync(batch, "ConnectionOnlyQuery", queryFile, loadDestination: "connection-only");
         Assert.True(importResult.Success);
 
         var refreshResult = await _powerQueryCommands.RefreshAsync(batch, "ConnectionOnlyQuery");
@@ -219,7 +219,7 @@ in
 
         // Act - Use single batch for both operations
         await using var batch = await ExcelSession.BeginBatchAsync(excelFile);
-        await _powerQueryCommands.ImportAsync(batch, "ExistingQuery", queryFile, loadToWorksheet: false);
+        await _powerQueryCommands.ImportAsync(batch, "ExistingQuery", queryFile, loadDestination: "connection-only");
 
         var refreshResult = await _powerQueryCommands.RefreshAsync(batch, "NonExistentQuery");
         await batch.SaveAsync();
@@ -392,7 +392,7 @@ in
         // Import as connection-only (explicitly disable load to worksheet)
         await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
         {
-            var importResult = await _powerQueryCommands.ImportAsync(batch, "ConnectionOnlyUpdate", queryFile, loadToWorksheet: false);
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "ConnectionOnlyUpdate", queryFile, loadDestination: "connection-only");
             Assert.True(importResult.Success);
             await batch.SaveAsync();
         }
@@ -752,7 +752,7 @@ in
         // Act - Step 1: Import broken query as connection-only (no execution)
         await using (var batch = await ExcelSession.BeginBatchAsync(excelFile))
         {
-            var importResult = await _powerQueryCommands.ImportAsync(batch, queryName, brokenQueryFile, loadToWorksheet: false);
+            var importResult = await _powerQueryCommands.ImportAsync(batch, queryName, brokenQueryFile, loadDestination: "connection-only");
 
             // Assert - Step 1: Import should succeed because Excel doesn't validate M code during import
             Assert.True(importResult.Success,

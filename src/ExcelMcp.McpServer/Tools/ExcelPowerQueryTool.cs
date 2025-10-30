@@ -85,11 +85,17 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
 
         [StringLength(31, MinimumLength = 1)]
         [RegularExpression(@"^[^[\]/*?\\:]+$")]
-        [Description("Target worksheet name (for set-load-to-table action)")]
+        [Description("Target worksheet name (when loadDestination is 'worksheet' or 'both', or for set-load-to-table action)")]
         string? targetSheet = null,
 
-        [Description("Automatically load query data to worksheet for validation (default: true). When false, creates connection-only query without validation.")]
-        bool? loadToWorksheet = null,
+        [RegularExpression("^(worksheet|data-model|both|connection-only)$")]
+        [Description(@"Load destination for imported query (for import action only). Options:
+  - 'worksheet': Load to worksheet as table (DEFAULT - users can see/validate data)
+  - 'data-model': Load to Power Pivot Data Model (for DAX measures/relationships)
+  - 'both': Load to both worksheet AND Data Model
+  - 'connection-only': Don't load data (M code imported but not executed)
+Default: 'worksheet'")]
+        string? loadDestination = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
         string? batchId = null)
@@ -105,9 +111,9 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             {
                 "list" => await ListPowerQueriesAsync(powerQueryCommands, excelPath, batchId),
                 "view" => await ViewPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
-                "import" => await ImportPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadToWorksheet, batchId),
+                "import" => await ImportPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, batchId),
                 "export" => await ExportPowerQueryAsync(powerQueryCommands, excelPath, queryName, targetPath, batchId),
-                "update" => await UpdatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadToWorksheet, batchId),
+                "update" => await UpdatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, batchId),
                 "refresh" => await RefreshPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
                 "delete" => await DeletePowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
                 "set-load-to-table" => await SetLoadToTableAsync(powerQueryCommands, excelPath, queryName, targetSheet, batchId),
@@ -193,19 +199,19 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ImportPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, bool? loadToWorksheet, string? batchId)
+    private static async Task<string> ImportPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, string? loadDestination, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(sourcePath))
             throw new ModelContextProtocol.McpException("queryName and sourcePath are required for import action");
 
-        // Default to true if not specified (auto-load for validation)
-        bool shouldLoad = loadToWorksheet ?? true;
+        // Default to "worksheet" if not specified
+        string destination = loadDestination ?? "worksheet";
 
         var result = await ExcelToolsBase.WithBatchAsync(
             batchId,
             excelPath,
             save: true,
-            async (batch) => await commands.ImportAsync(batch, queryName, sourcePath, shouldLoad));
+            async (batch) => await commands.ImportAsync(batch, queryName, sourcePath, destination));
 
         // Core already sets appropriate workflow guidance based on actual load outcome
         // Only enhance guidance if in batch mode
@@ -214,7 +220,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
         if (result.Success && usedBatchMode)
         {
             // Enhance guidance for batch mode (Core doesn't know about batch mode)
-            bool isConnectionOnly = !shouldLoad;
+            bool isConnectionOnly = destination.ToLowerInvariant() == "connection-only";
 
             result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterImport(
                 isConnectionOnly: isConnectionOnly,
@@ -223,7 +229,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
 
             result.WorkflowHint = isConnectionOnly
                 ? "Query imported as connection-only in batch mode. Use set-load-to-table to load data or continue adding operations."
-                : "Query imported in batch mode. Continue adding operations to this batch.";
+                : $"Query imported and loaded to {destination} in batch mode. Continue adding operations to this batch.";
         }
         // Otherwise, Core's guidance is already correct (for both success and failure cases) - don't overwrite it!
 
@@ -262,12 +268,12 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> UpdatePowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, bool? loadToWorksheet, string? batchId)
+    private static async Task<string> UpdatePowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, string? loadDestination, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(sourcePath))
             throw new ModelContextProtocol.McpException("queryName and sourcePath are required for update action");
 
-        // Note: loadToWorksheet parameter is ignored for update - Core preserves existing load configuration
+        // Note: loadDestination parameter is ignored for update - Core preserves existing load configuration
         var result = await ExcelToolsBase.WithBatchAsync(
             batchId,
             excelPath,

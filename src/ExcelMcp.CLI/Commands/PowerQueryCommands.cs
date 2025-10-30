@@ -245,17 +245,33 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         if (args.Length < 4)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-import <file.xlsx> <query-name> <mcode-file> [--connection-only]");
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-import <file.xlsx> <query-name> <mcode-file> [--destination worksheet|data-model|both|connection-only]");
             return 1;
         }
 
         string filePath = args[1];
         string queryName = args[2];
         string mCodeFile = args[3];
-        bool loadToWorksheet = !args.Any(a => a.Equals("--connection-only", StringComparison.OrdinalIgnoreCase));
+        
+        // Parse destination parameter (default: worksheet)
+        string loadDestination = "worksheet";
+        for (int i = 4; i < args.Length; i++)
+        {
+            if (args[i].Equals("--destination", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                loadDestination = args[i + 1];
+                break;
+            }
+            // Legacy: --connection-only flag (for backward compatibility)
+            else if (args[i].Equals("--connection-only", StringComparison.OrdinalIgnoreCase))
+            {
+                loadDestination = "connection-only";
+                break;
+            }
+        }
 
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        var result = await _coreCommands.ImportAsync(batch, queryName, mCodeFile, loadToWorksheet: loadToWorksheet);
+        var result = await _coreCommands.ImportAsync(batch, queryName, mCodeFile, loadDestination: loadDestination);
         await batch.SaveAsync();
 
         if (!result.Success)

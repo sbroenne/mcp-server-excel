@@ -548,13 +548,22 @@ public class PowerQueryCommands : IPowerQueryCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> ImportAsync(IExcelBatch batch, string queryName, string mCodeFile, bool loadToWorksheet = true, string? worksheetName = null)
+    public async Task<OperationResult> ImportAsync(IExcelBatch batch, string queryName, string mCodeFile, string loadDestination = "worksheet", string? worksheetName = null)
     {
         var result = new OperationResult
         {
             FilePath = batch.WorkbookPath,
             Action = "pq-import"
         };
+
+        // Validate loadDestination parameter
+        var validDestinations = new[] { "worksheet", "data-model", "both", "connection-only" };
+        if (!validDestinations.Contains(loadDestination.ToLowerInvariant()))
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Invalid loadDestination: '{loadDestination}'. Valid values: {string.Join(", ", validDestinations)}";
+            return result;
+        }
 
         // Validate and normalize the M code file path to prevent path traversal attacks
         try
@@ -625,56 +634,84 @@ public class PowerQueryCommands : IPowerQueryCommands
             }
         });
 
-        // Auto-load to worksheet if requested (default behavior)
-        if (result.Success && loadToWorksheet)
+        // Auto-load based on loadDestination parameter
+        if (result.Success)
         {
-            string targetSheet = worksheetName ?? queryName;
-            var loadResult = await SetLoadToTableAsync(batch, queryName, targetSheet);
+            var destination = loadDestination.ToLowerInvariant();
+            OperationResult? loadResult = null;
 
-            if (!loadResult.Success)
+            switch (destination)
+            {
+                case "worksheet":
+                    string targetSheet = worksheetName ?? queryName;
+                    loadResult = await SetLoadToTableAsync(batch, queryName, targetSheet);
+                    break;
+
+                case "data-model":
+                    var dmResult = await SetLoadToDataModelAsync(batch, queryName);
+                    loadResult = new OperationResult
+                    {
+                        Success = dmResult.Success,
+                        ErrorMessage = dmResult.ErrorMessage,
+                        FilePath = dmResult.FilePath
+                    };
+                    break;
+
+                case "both":
+                    string targetSheetBoth = worksheetName ?? queryName;
+                    var bothResult = await SetLoadToBothAsync(batch, queryName, targetSheetBoth);
+                    loadResult = new OperationResult
+                    {
+                        Success = bothResult.Success,
+                        ErrorMessage = bothResult.ErrorMessage,
+                        FilePath = bothResult.FilePath
+                    };
+                    break;
+
+                case "connection-only":
+                    // No loading - query imported but not executed
+                    result.SuggestedNextActions =
+                    [
+                        "Query imported as connection-only (NOT validated yet)",
+                        "⚠️ M code has not been executed or validated",
+                        "Use 'set-load-to-table' to validate and load data to worksheet",
+                        "Use 'set-load-to-data-model' to load data to Power Pivot Data Model",
+                        "Use 'view' to review imported M code"
+                    ];
+                    result.WorkflowHint = "Query imported as connection-only (M code not executed or validated).";
+                    return result;
+            }
+
+            // Handle loading result
+            if (loadResult != null && !loadResult.Success)
             {
                 // Loading failed - query is imported but connection-only
                 result.Success = true; // Import itself succeeded
-                result.ErrorMessage = $"Query imported but failed to load to worksheet: {loadResult.ErrorMessage}";
+                result.ErrorMessage = $"Query imported but failed to load to {destination}: {loadResult.ErrorMessage}";
                 result.SuggestedNextActions =
                 [
                     "Query imported as connection-only (auto-load failed)",
-                    $"Try manually: Use 'set-load-to-table' with worksheet name",
+                    $"Try manually: Use appropriate set-load action",
                     "Or use 'view' to review M code for issues"
                 ];
-                result.WorkflowHint = "Query imported but could not be automatically loaded to worksheet";
+                result.WorkflowHint = $"Query imported but could not be automatically loaded to {destination}";
                 return result;
             }
-            else
+            else if (loadResult != null && loadResult.Success)
             {
-                // CRITICAL: Save the workbook to persist the QueryTable changes
-                // SetLoadToTableAsync creates the QueryTable, but changes are lost without explicit save
+                // CRITICAL: Save the workbook to persist changes
                 await batch.SaveAsync();
 
-                // Query was loaded to worksheet successfully - validated via SetLoadToTableAsync execution
+                // Query was loaded successfully
                 result.SuggestedNextActions =
                 [
-                    "Query imported and data loaded successfully",
+                    $"Query imported and data loaded to {destination} successfully",
                     "Use 'view' to inspect M code",
                     "Use 'get-load-config' to verify configuration"
                 ];
-                result.WorkflowHint = "Query imported and loaded to worksheet for validation.";
+                result.WorkflowHint = $"Query imported and loaded to {destination}.";
                 return result;
             }
-        }
-
-        // Connection-only query - M code stored but NOT validated (loadToWorksheet=false)
-        if (result.Success)
-        {
-            result.SuggestedNextActions =
-            [
-                "Query imported as connection-only (NOT validated yet)",
-                "⚠️ M code has not been executed or validated",
-                "Use 'set-load-to-table' to validate and load data",
-                "Or use 'refresh' after loading (refresh only works with loaded queries)",
-                "Use 'view' to review imported M code"
-            ];
-            result.WorkflowHint = "Query imported as connection-only (M code not executed or validated).";
         }
 
         return result;
