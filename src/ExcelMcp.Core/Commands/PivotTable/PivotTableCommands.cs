@@ -143,11 +143,11 @@ public partial class PivotTableCommands : IPivotTableCommands
     {
         return dataType switch
         {
-            "Number" => new List<string> { "Sum", "Count", "Average", "Max", "Min", "Product", "CountNumbers", "StdDev", "StdDevP", "Var", "VarP" },
-            "Date" => new List<string> { "Count", "CountNumbers", "Max", "Min" },
-            "Text" => new List<string> { "Count" },
-            "Boolean" => new List<string> { "Count", "Sum" },
-            _ => new List<string> { "Count" }
+            "Number" => ["Sum", "Count", "Average", "Max", "Min", "Product", "CountNumbers", "StdDev", "StdDevP", "Var", "VarP"],
+            "Date" => ["Count", "CountNumbers", "Max", "Min"],
+            "Text" => ["Count"],
+            "Boolean" => ["Count", "Sum"],
+            _ => ["Count"]
         };
     }
 

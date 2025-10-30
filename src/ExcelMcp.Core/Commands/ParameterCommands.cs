@@ -240,11 +240,11 @@ public class ParameterCommands : IParameterCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Parameter '{paramName}' not found";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         "Use 'param-list' to see available parameters",
                         "Use 'param-create' to create a new named range"
-                    };
+                    ];
                     return result;
                 }
 
@@ -257,12 +257,12 @@ public class ParameterCommands : IParameterCommands
                 nameObj.RefersTo = formattedReference;
 
                 result.Success = true;
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     $"Parameter '{paramName}' reference updated to '{reference}'",
                     "Use 'param-get' to verify new value",
                     "Use 'param-set' to change the value"
-                };
+                ];
                 result.WorkflowHint = "Parameter reference updated. Next, verify or modify the value.";
 
                 return result;
@@ -271,11 +271,11 @@ public class ParameterCommands : IParameterCommands
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error updating parameter: {ex.Message}";
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Check that reference is valid (e.g., 'Sheet1!A1' or '=Sheet1!A1')",
                     "Ensure referenced sheet and cells exist"
-                };
+                ];
                 return result;
             }
             finally

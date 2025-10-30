@@ -47,7 +47,7 @@ public partial class PivotTableCommands
                                 XlPivotFieldOrientation.xlDataField => PivotFieldArea.Value,
                                 _ => PivotFieldArea.Hidden
                             },
-                            Position = orientation != XlPivotFieldOrientation.xlHidden ? field.Position : 0,
+                            Position = orientation != XlPivotFieldOrientation.xlHidden ? Convert.ToInt32(field.Position) : 0,
                             DataType = DetectFieldDataType(field)
                         };
 
@@ -118,7 +118,7 @@ public partial class PivotTableCommands
                 }
 
                 // Check if field is already placed
-                int currentOrientation = field.Orientation;
+                int currentOrientation = Convert.ToInt32(field.Orientation);
                 if (currentOrientation != XlPivotFieldOrientation.xlHidden)
                 {
                     throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
@@ -128,7 +128,7 @@ public partial class PivotTableCommands
                 field.Orientation = XlPivotFieldOrientation.xlRowField;
                 if (position.HasValue)
                 {
-                    field.Position = position.Value;
+                    field.Position = (double)position.Value;
                 }
 
                 // Refresh and validate placement
@@ -147,7 +147,7 @@ public partial class PivotTableCommands
                     FieldName = fieldName,
                     CustomName = field.Caption?.ToString() ?? fieldName,
                     Area = PivotFieldArea.Row,
-                    Position = field.Position,
+                    Position = Convert.ToInt32(field.Position),
                     DataType = DetectFieldDataType(field),
                     AvailableValues = GetFieldUniqueValues(field),
                     FilePath = batch.WorkbookPath
@@ -208,7 +208,7 @@ public partial class PivotTableCommands
                 field.Orientation = XlPivotFieldOrientation.xlColumnField;
                 if (position.HasValue)
                 {
-                    field.Position = position.Value;
+                    field.Position = (double)position.Value;
                 }
 
                 // Refresh and validate placement
@@ -227,7 +227,7 @@ public partial class PivotTableCommands
                     FieldName = fieldName,
                     CustomName = field.Caption?.ToString() ?? fieldName,
                     Area = PivotFieldArea.Column,
-                    Position = field.Position,
+                    Position = Convert.ToInt32(field.Position),
                     DataType = DetectFieldDataType(field),
                     AvailableValues = GetFieldUniqueValues(field),
                     FilePath = batch.WorkbookPath
@@ -384,7 +384,7 @@ public partial class PivotTableCommands
                     FieldName = fieldName,
                     CustomName = field.Caption?.ToString() ?? fieldName,
                     Area = PivotFieldArea.Filter,
-                    Position = field.Position,
+                    Position = Convert.ToInt32(field.Position),
                     DataType = DetectFieldDataType(field),
                     AvailableValues = GetFieldUniqueValues(field),
                     FilePath = batch.WorkbookPath

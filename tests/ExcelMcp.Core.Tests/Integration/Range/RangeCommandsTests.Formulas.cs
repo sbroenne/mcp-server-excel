@@ -18,17 +18,17 @@ public partial class RangeCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Set values and formulas
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3", new List<List<object?>>
-        {
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3",
+        [
             new() { 10 },
             new() { 20 },
             new() { 30 }
-        });
+        ]);
 
-        await _commands.SetFormulasAsync(batch, "Sheet1", "B1", new List<List<string>>
-        {
+        await _commands.SetFormulasAsync(batch, "Sheet1", "B1",
+        [
             new() { "=SUM(A1:A3)" }
-        });
+        ]);
 
         // Act
         var result = await _commands.GetFormulasAsync(batch, "Sheet1", "B1");
@@ -46,12 +46,12 @@ public partial class RangeCommandsTests
         string testFile = CreateTestWorkbook();
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3", new List<List<object?>>
-        {
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3",
+        [
             new() { 5 },
             new() { 10 },
             new() { 15 }
-        });
+        ]);
 
         var formulas = new List<List<string>>
         {
@@ -80,12 +80,12 @@ public partial class RangeCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Set up source data
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3", new List<List<object?>>
-        {
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3",
+        [
             new() { 100 },
             new() { 200 },
             new() { 300 }
-        });
+        ]);
 
         // Simulate MCP framework JSON deserialization
         // MCP receives: {"formulas": [["=SUM(A1:A3)", "=AVERAGE(A1:A3)"]]}

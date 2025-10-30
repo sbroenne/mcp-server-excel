@@ -23,7 +23,7 @@ public abstract class ResultBase
     /// <summary>
     /// Suggested next actions for LLM workflow guidance
     /// </summary>
-    public List<string> SuggestedNextActions { get; set; } = new();
+    public List<string> SuggestedNextActions { get; set; } = [];
 
     /// <summary>
     /// Contextual workflow hint for LLM
@@ -50,7 +50,7 @@ public class WorksheetListResult : ResultBase
     /// <summary>
     /// List of worksheets in the workbook
     /// </summary>
-    public List<WorksheetInfo> Worksheets { get; set; } = new();
+    public List<WorksheetInfo> Worksheets { get; set; } = [];
 }
 
 /// <summary>
@@ -92,12 +92,12 @@ public class WorksheetDataResult : ResultBase
     /// <summary>
     /// Data rows and columns
     /// </summary>
-    public List<List<object?>> Data { get; set; } = new();
+    public List<List<object?>> Data { get; set; } = [];
 
     /// <summary>
     /// Column headers
     /// </summary>
-    public List<string> Headers { get; set; } = new();
+    public List<string> Headers { get; set; } = [];
 
     /// <summary>
     /// Number of rows
@@ -118,7 +118,7 @@ public class PowerQueryListResult : ResultBase
     /// <summary>
     /// List of Power Queries in the workbook
     /// </summary>
-    public List<PowerQueryInfo> Queries { get; set; } = new();
+    public List<PowerQueryInfo> Queries { get; set; } = [];
 }
 
 /// <summary>
@@ -364,7 +364,7 @@ public class ParameterListResult : ResultBase
     /// <summary>
     /// List of named ranges/parameters
     /// </summary>
-    public List<ParameterInfo> Parameters { get; set; } = new();
+    public List<ParameterInfo> Parameters { get; set; } = [];
 }
 
 /// <summary>
@@ -427,7 +427,7 @@ public class ScriptListResult : ResultBase
     /// <summary>
     /// List of VBA scripts
     /// </summary>
-    public List<ScriptInfo> Scripts { get; set; } = new();
+    public List<ScriptInfo> Scripts { get; set; } = [];
 }
 
 /// <summary>
@@ -458,7 +458,7 @@ public class ScriptViewResult : ResultBase
     /// <summary>
     /// List of procedures in the module
     /// </summary>
-    public List<string> Procedures { get; set; } = new();
+    public List<string> Procedures { get; set; } = [];
 }
 
 /// <summary>
@@ -484,7 +484,7 @@ public class ScriptInfo
     /// <summary>
     /// List of procedures in the module
     /// </summary>
-    public List<string> Procedures { get; set; } = new();
+    public List<string> Procedures { get; set; } = [];
 }
 
 /// <summary>
@@ -562,7 +562,7 @@ public class RangeValueResult : ResultBase
     /// <summary>
     /// 2D array of cell values (row-major order)
     /// </summary>
-    public List<List<object?>> Values { get; set; } = new();
+    public List<List<object?>> Values { get; set; } = [];
 
     /// <summary>
     /// Number of rows in the range
@@ -593,12 +593,12 @@ public class RangeFormulaResult : ResultBase
     /// <summary>
     /// 2D array of cell formulas (row-major order, empty string if no formula)
     /// </summary>
-    public List<List<string>> Formulas { get; set; } = new();
+    public List<List<string>> Formulas { get; set; } = [];
 
     /// <summary>
     /// 2D array of cell values (calculated results)
     /// </summary>
-    public List<List<object?>> Values { get; set; } = new();
+    public List<List<object?>> Values { get; set; } = [];
 
     /// <summary>
     /// Number of rows in the range
@@ -634,7 +634,7 @@ public class RangeFindResult : ResultBase
     /// <summary>
     /// List of matching cells
     /// </summary>
-    public List<RangeCell> MatchingCells { get; set; } = new();
+    public List<RangeCell> MatchingCells { get; set; } = [];
 }
 
 /// <summary>
@@ -712,7 +712,7 @@ public class RangeHyperlinkResult : ResultBase
     /// <summary>
     /// List of hyperlinks
     /// </summary>
-    public List<HyperlinkInfo> Hyperlinks { get; set; } = new();
+    public List<HyperlinkInfo> Hyperlinks { get; set; } = [];
 }
 
 /// <summary>
@@ -733,7 +733,7 @@ public class VbaTrustResult : ResultBase
     /// <summary>
     /// Registry paths where trust was set
     /// </summary>
-    public List<string> RegistryPathsSet { get; set; } = new();
+    public List<string> RegistryPathsSet { get; set; } = [];
 
     /// <summary>
     /// Manual setup instructions if automated setup failed
@@ -780,7 +780,7 @@ public class PowerQueryPrivacyErrorResult : OperationResult
     /// <summary>
     /// Privacy levels detected in existing queries
     /// </summary>
-    public List<QueryPrivacyInfo> ExistingPrivacyLevels { get; init; } = new();
+    public List<QueryPrivacyInfo> ExistingPrivacyLevels { get; init; } = [];
 
     /// <summary>
     /// Recommended privacy level based on existing queries
@@ -851,7 +851,7 @@ public class PowerQueryRefreshResult : ResultBase
     /// <summary>
     /// List of error messages detected
     /// </summary>
-    public List<string> ErrorMessages { get; set; } = new();
+    public List<string> ErrorMessages { get; set; } = [];
 
     /// <summary>
     /// When the refresh was attempted
@@ -887,7 +887,7 @@ public class PowerQueryErrorCheckResult : ResultBase
     /// <summary>
     /// List of error messages
     /// </summary>
-    public List<string> ErrorMessages { get; set; } = new();
+    public List<string> ErrorMessages { get; set; } = [];
 
     /// <summary>
     /// Category of error (Authentication, Connectivity, Privacy, Syntax, Permissions, Unknown)
@@ -915,7 +915,7 @@ public class ConnectionListResult : ResultBase
     /// <summary>
     /// List of connections in the workbook
     /// </summary>
-    public List<ConnectionInfo> Connections { get; set; } = new();
+    public List<ConnectionInfo> Connections { get; set; } = [];
 }
 
 /// <summary>
@@ -1043,7 +1043,7 @@ public class DataModelTableListResult : ResultBase
     /// <summary>
     /// List of tables in the Data Model
     /// </summary>
-    public List<DataModelTableInfo> Tables { get; set; } = new();
+    public List<DataModelTableInfo> Tables { get; set; } = [];
 }
 
 /// <summary>
@@ -1080,7 +1080,7 @@ public class DataModelMeasureListResult : ResultBase
     /// <summary>
     /// List of DAX measures in the model
     /// </summary>
-    public List<DataModelMeasureInfo> Measures { get; set; } = new();
+    public List<DataModelMeasureInfo> Measures { get; set; } = [];
 }
 
 /// <summary>
@@ -1153,7 +1153,7 @@ public class DataModelRelationshipListResult : ResultBase
     /// <summary>
     /// List of relationships in the model
     /// </summary>
-    public List<DataModelRelationshipInfo> Relationships { get; set; } = new();
+    public List<DataModelRelationshipInfo> Relationships { get; set; } = [];
 }
 
 /// <summary>
@@ -1216,7 +1216,7 @@ public class DataModelCalculatedColumnListResult : ResultBase
     /// <summary>
     /// List of calculated columns in the model
     /// </summary>
-    public List<DataModelCalculatedColumnInfo> CalculatedColumns { get; set; } = new();
+    public List<DataModelCalculatedColumnInfo> CalculatedColumns { get; set; } = [];
 }
 
 /// <summary>
@@ -1298,7 +1298,7 @@ public class TableListResult : ResultBase
     /// <summary>
     /// List of Excel Tables in the workbook
     /// </summary>
-    public List<TableInfo> Tables { get; set; } = new();
+    public List<TableInfo> Tables { get; set; } = [];
 }
 
 /// <summary>
@@ -1355,7 +1355,7 @@ public class TableInfo
     /// <summary>
     /// Column names (if table has headers)
     /// </summary>
-    public List<string> Columns { get; set; } = new();
+    public List<string> Columns { get; set; } = [];
 
     /// <summary>
     /// Whether the table has a total row
@@ -1376,12 +1376,12 @@ public class TableDataResult : ResultBase
     /// <summary>
     /// Column headers
     /// </summary>
-    public List<string> Headers { get; set; } = new();
+    public List<string> Headers { get; set; } = [];
 
     /// <summary>
     /// Data rows (each row is a list of cell values)
     /// </summary>
-    public List<List<object?>> Data { get; set; } = new();
+    public List<List<object?>> Data { get; set; } = [];
 
     /// <summary>
     /// Number of rows (excluding header)
@@ -1407,7 +1407,7 @@ public class TableFilterResult : ResultBase
     /// <summary>
     /// Filter information for each column
     /// </summary>
-    public List<ColumnFilter> ColumnFilters { get; set; } = new();
+    public List<ColumnFilter> ColumnFilters { get; set; } = [];
 
     /// <summary>
     /// Whether any filters are active
@@ -1587,7 +1587,7 @@ public class HyperlinkListResult : ResultBase
     /// <summary>
     /// List of hyperlinks in the worksheet
     /// </summary>
-    public List<HyperlinkInfo> Hyperlinks { get; set; } = new();
+    public List<HyperlinkInfo> Hyperlinks { get; set; } = [];
 
     /// <summary>
     /// Total count of hyperlinks

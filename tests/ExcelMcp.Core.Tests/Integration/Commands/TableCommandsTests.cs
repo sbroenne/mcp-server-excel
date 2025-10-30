@@ -375,7 +375,7 @@ public class TableCommandsTests : IDisposable
     {
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
-        var result = await _tableCommands.SortAsync(batch, "SalesTable", new List<TableSortColumn>());
+        var result = await _tableCommands.SortAsync(batch, "SalesTable", []);
 
         // Assert
         Assert.False(result.Success);

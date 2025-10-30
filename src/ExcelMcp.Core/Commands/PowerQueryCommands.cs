@@ -654,24 +654,24 @@ public class PowerQueryCommands : IPowerQueryCommands
                 if (!restoreResult.Success)
                 {
                     result.ErrorMessage = $"Query updated but failed to restore load configuration: {restoreResult.ErrorMessage}";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         "Query M code updated successfully",
                         "⚠️ Load configuration could not be restored automatically",
                         $"Manually load with: Use 'set-load-to-table' with worksheet '{targetSheet}'",
                         "Or use 'get-load-config' to check current state"
-                    };
+                    ];
                     return result;
                 }
 
                 // Successfully updated and restored load configuration
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "For multiple updates: Use begin_excel_batch to group operations efficiently",
                     "Query updated successfully, load configuration preserved",
                     "Data automatically refreshed with new M code",
                     "Use 'get-load-config' to verify configuration if needed"
-                };
+                ];
                 result.WorkflowHint = "Query updated successfully. Configuration preserved. For multiple updates, use begin_excel_batch.";
                 return result;
             }
@@ -680,12 +680,12 @@ public class PowerQueryCommands : IPowerQueryCommands
         // Connection-only query or restore not needed
         if (result.Success)
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Query updated successfully (connection-only)",
                 "Use 'set-load-to-table' if you want to load data",
                 "Use 'get-load-config' to verify configuration"
-            };
+            ];
             result.WorkflowHint = "Query updated as connection-only (no data loaded).";
         }
 
@@ -838,12 +838,12 @@ public class PowerQueryCommands : IPowerQueryCommands
                 // Loading failed - query is imported but connection-only
                 result.Success = true; // Import itself succeeded
                 result.ErrorMessage = $"Query imported but failed to load to worksheet: {loadResult.ErrorMessage}";
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Query imported as connection-only (auto-load failed)",
                     $"Try manually: Use 'set-load-to-table' with worksheet name",
                     "Or use 'view' to review M code for issues"
-                };
+                ];
                 result.WorkflowHint = "Query imported but could not be automatically loaded to worksheet";
                 return result;
             }
@@ -854,12 +854,12 @@ public class PowerQueryCommands : IPowerQueryCommands
                 await batch.SaveAsync();
 
                 // Query was loaded to worksheet successfully - validated via SetLoadToTableAsync execution
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Query imported and data loaded successfully",
                     "Use 'view' to inspect M code",
                     "Use 'get-load-config' to verify configuration"
-                };
+                ];
                 result.WorkflowHint = "Query imported and loaded to worksheet for validation.";
                 return result;
             }
@@ -868,14 +868,14 @@ public class PowerQueryCommands : IPowerQueryCommands
         // Connection-only query - M code stored but NOT validated (loadToWorksheet=false)
         if (result.Success)
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Query imported as connection-only (NOT validated yet)",
                 "⚠️ M code has not been executed or validated",
                 "Use 'set-load-to-table' to validate and load data",
                 "Or use 'refresh' after loading (refresh only works with loaded queries)",
                 "Use 'view' to review imported M code"
-            };
+            ];
             result.WorkflowHint = "Query imported as connection-only (M code not executed or validated).";
         }
 
@@ -998,12 +998,12 @@ public class PowerQueryCommands : IPowerQueryCommands
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error refreshing query: {ex.Message}";
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Unexpected error during refresh",
                     "Check that Excel file is not corrupted",
                     "Verify query exists and is accessible"
-                };
+                ];
                 return result;
             }
         });
@@ -1567,7 +1567,7 @@ in
                             try
                             {
                                 var value = name.RefersToRange.Value;
-                                result.Data.Add(new List<object?> { value });
+                                result.Data.Add([value]);
                                 result.RowCount = 1;
                                 result.ColumnCount = 1;
                                 result.Success = true;
@@ -1791,11 +1791,11 @@ in
                     result.Success = false;
                     result.ErrorMessage = $"Query '{queryName}' not found";
                     result.WorkflowStatus = "Failed";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         $"Use 'list' to see available queries",
                         $"Check the query name spelling: '{queryName}'"
-                    };
+                    ];
                     return result;
                 }
 
@@ -1911,12 +1911,12 @@ in
                     result.RowsLoaded = rowsLoaded;
                     result.WorkflowStatus = "Complete";
                     result.WorkflowHint = $"Query '{queryName}' loaded to worksheet '{sheetName}' with {rowsLoaded} rows";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         $"View data in worksheet '{sheetName}'",
                         "Use 'refresh' to reload data from source",
                         "Create Excel tables or PivotTables from the data"
-                    };
+                    ];
                 }
                 else
                 {
@@ -1925,12 +1925,12 @@ in
                     result.RowsLoaded = 0;
                     result.WorkflowStatus = "Partial";
                     result.ErrorMessage = $"Configuration applied but QueryTable not found after refresh";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         "Check if query has valid data source",
                         "Verify privacy level settings",
                         "Use 'errors' action to see query errors"
-                    };
+                    ];
                 }
 
                 return result;
@@ -1955,12 +1955,12 @@ in
                 result.Success = false;
                 result.ErrorMessage = $"Error setting load to table: {ex.Message}";
                 result.WorkflowStatus = "Failed";
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Check query name and worksheet name are valid",
                     "Verify Excel workbook is not corrupted",
                     "Review error message for specific issue"
-                };
+                ];
                 return result;
             }
             finally
@@ -2078,12 +2078,12 @@ in
                         result.Success = true;
                         result.WorkflowStatus = "Complete";
                         result.WorkflowHint = $"Power Query '{queryName}' loaded to Data Model with {rowCount} rows";
-                        result.SuggestedNextActions = new List<string>
-                        {
+                        result.SuggestedNextActions =
+                        [
                             "Create DAX measures using dm-create-measure",
                             "Add relationships using dm-create-relationship",
                             "View Data Model tables using dm-list-tables"
-                        };
+                        ];
                     }
                     else
                     {
@@ -2217,12 +2217,12 @@ in
                     result.Success = false;
                     result.ErrorMessage = $"Refresh failed: {refreshEx.Message}";
                     result.WorkflowStatus = "Partial";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         "Check query syntax and data source connectivity",
                         "Review privacy level settings",
                         "Use 'errors' action to see detailed error information"
-                    };
+                    ];
                     return result;
                 }
 
@@ -2343,48 +2343,48 @@ in
                     result.Success = true;
                     result.WorkflowStatus = "Complete";
                     result.WorkflowHint = $"Query '{queryName}' loaded to both worksheet '{sheetName}' ({tableRows} rows) and Data Model ({modelRows} rows)";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         $"View data in worksheet '{sheetName}'",
                         "Create PivotTables using Data Model",
                         "Use 'refresh' to reload data from source"
-                    };
+                    ];
                 }
                 else if (foundInTable && !foundInDataModel)
                 {
                     result.Success = false;
                     result.WorkflowStatus = "Partial";
                     result.ErrorMessage = "Data loaded to table but not to Data Model";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         "Check Data Model compatibility",
                         "Verify query configuration",
                         "Try refreshing again"
-                    };
+                    ];
                 }
                 else if (!foundInTable && foundInDataModel)
                 {
                     result.Success = false;
                     result.WorkflowStatus = "Partial";
                     result.ErrorMessage = "Data loaded to Data Model but not to table";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         "Check worksheet and QueryTable configuration",
                         "Verify target sheet exists",
                         "Try refreshing again"
-                    };
+                    ];
                 }
                 else
                 {
                     result.Success = false;
                     result.WorkflowStatus = "Failed";
                     result.ErrorMessage = "Data not loaded to either destination";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         "Check query syntax and data source",
                         "Review privacy level settings",
                         "Use 'errors' action to see query errors"
-                    };
+                    ];
                 }
 
                 return result;

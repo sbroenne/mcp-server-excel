@@ -17,8 +17,8 @@ public partial class RangeCommandsTests
         string testFile = CreateTestWorkbook();
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1", new List<List<object?>> { new() { "Start" } });
-        await _commands.SetValuesAsync(batch, "Sheet1", "D10", new List<List<object?>> { new() { "End" } });
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { "Start" }]);
+        await _commands.SetValuesAsync(batch, "Sheet1", "D10", [new() { "End" }]);
 
         // Act
         var result = await _commands.GetUsedRangeAsync(batch, "Sheet1");
@@ -37,12 +37,12 @@ public partial class RangeCommandsTests
         string testFile = CreateTestWorkbook();
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1:C3", new List<List<object?>>
-        {
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1:C3",
+        [
             new() { 1, 2, 3 },
             new() { 4, 5, 6 },
             new() { 7, 8, 9 }
-        });
+        ]);
 
         // Act - Get region from middle cell
         var result = await _commands.GetCurrentRegionAsync(batch, "Sheet1", "B2");
@@ -62,10 +62,10 @@ public partial class RangeCommandsTests
         string testFile = CreateTestWorkbook();
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1:D10", new List<List<object?>>
-        {
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1:D10",
+        [
             new() { 1, 2, 3, 4 }
-        });
+        ]);
 
         // Act
         var result = await _commands.GetRangeInfoAsync(batch, "Sheet1", "A1:D10");

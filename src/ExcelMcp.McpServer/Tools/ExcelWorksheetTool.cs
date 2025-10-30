@@ -9,7 +9,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// <summary>
 /// Excel worksheet lifecycle management tool for MCP server.
 /// Handles worksheet creation, renaming, copying, and deletion.
-/// 
+///
 /// Data operations (read, write, clear) have been moved to ExcelRangeTool for unified range API.
 ///
 /// LLM Usage Patterns:
@@ -88,21 +88,21 @@ public static class ExcelWorksheetTool
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the Excel file exists and is accessible",
                 "Verify the file path is correct"
-            };
+            ];
             result.WorkflowHint = "List failed. Ensure the file exists and retry.";
             throw new ModelContextProtocol.McpException($"list failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions = new List<string>
-        {
+        result.SuggestedNextActions =
+        [
             "Use excel_range tool to read data from a worksheet",
             "Use 'create' to add a new worksheet",
             "Use 'delete' to remove a worksheet"
-        };
+        ];
         result.WorkflowHint = "Worksheets listed. Next, use excel_range for data or manage sheets.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -157,22 +157,22 @@ public static class ExcelWorksheetTool
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the source worksheet exists",
                 "Verify the target name doesn't already exist",
                 "Use 'list' to see available worksheets"
-            };
+            ];
             result.WorkflowHint = "Rename failed. Ensure the source exists and target is unique.";
             throw new ModelContextProtocol.McpException($"rename failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions = new List<string>
-        {
+        result.SuggestedNextActions =
+        [
             "Use 'list' to verify the rename",
             "Use excel_range to access data in the renamed worksheet",
             "Update any formulas referencing the old name"
-        };
+        ];
         result.WorkflowHint = "Worksheet renamed successfully. Next, verify and update references.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -192,22 +192,22 @@ public static class ExcelWorksheetTool
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the source worksheet exists",
                 "Verify the target name doesn't already exist",
                 "Use 'list' to see available worksheets"
-            };
+            ];
             result.WorkflowHint = "Copy failed. Ensure the source exists and target is unique.";
             throw new ModelContextProtocol.McpException($"copy failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions = new List<string>
-        {
+        result.SuggestedNextActions =
+        [
             "Use 'list' to verify the copy",
             "Use excel_range to access data in the copied worksheet",
             "Modify the copied sheet independently using excel_range"
-        };
+        ];
         result.WorkflowHint = "Worksheet copied successfully. Next, verify and modify as needed.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -227,22 +227,22 @@ public static class ExcelWorksheetTool
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the worksheet exists",
                 "Verify the worksheet is not the only sheet in the workbook",
                 "Use 'list' to see available worksheets"
-            };
+            ];
             result.WorkflowHint = "Delete failed. Ensure the worksheet exists and is not the last sheet.";
             throw new ModelContextProtocol.McpException($"delete failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions = new List<string>
-        {
+        result.SuggestedNextActions =
+        [
             "Use 'list' to verify the deletion",
             "Update any formulas referencing the deleted sheet",
             "Review remaining worksheets"
-        };
+        ];
         result.WorkflowHint = "Worksheet deleted successfully. Next, verify and update references.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);

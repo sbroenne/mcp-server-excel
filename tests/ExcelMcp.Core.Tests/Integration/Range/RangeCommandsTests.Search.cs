@@ -18,11 +18,11 @@ public partial class RangeCommandsTests
         string testFile = CreateTestWorkbook();
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1:C2", new List<List<object?>>
-        {
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1:C2",
+        [
             new() { "Apple", "Banana", "Apple" },
             new() { "Cherry", "Apple", "Banana" }
-        });
+        ]);
 
         // Act
         var result = await _commands.FindAsync(batch, "Sheet1", "A1:C2", "Apple", new FindOptions
@@ -43,12 +43,12 @@ public partial class RangeCommandsTests
         string testFile = CreateTestWorkbook();
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3", new List<List<object?>>
-        {
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3",
+        [
             new() { "cat" },
             new() { "dog" },
             new() { "cat" }
-        });
+        ]);
 
         // Act
         var result = await _commands.ReplaceAsync(batch, "Sheet1", "A1:A3", "cat", "bird", new ReplaceOptions
@@ -75,19 +75,19 @@ public partial class RangeCommandsTests
         string testFile = CreateTestWorkbook();
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1:B4", new List<List<object?>>
-        {
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1:B4",
+        [
             new() { "Name", "Age" },
             new() { "Charlie", 30 },
             new() { "Alice", 25 },
             new() { "Bob", 35 }
-        });
+        ]);
 
         // Act - Sort by first column (Name) ascending
-        var result = await _commands.SortAsync(batch, "Sheet1", "A1:B4", new List<SortColumn>
-        {
+        var result = await _commands.SortAsync(batch, "Sheet1", "A1:B4",
+        [
             new() { ColumnIndex = 1, Ascending = true }
-        }, hasHeaders: true);
+        ], hasHeaders: true);
         await batch.SaveAsync();
 
         // Assert

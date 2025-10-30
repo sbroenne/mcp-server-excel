@@ -17,13 +17,13 @@ public static class PowerQueryWorkflowGuidance
     {
         if (hasErrors)
         {
-            return new List<string>
-            {
+            return
+            [
                 "Query import failed validation",
                 "Review error messages and fix issues",
                 "Use 'view' to examine M code",
                 "Check data source connections and credentials"
-            };
+            ];
         }
 
         var suggestions = new List<string>();
@@ -62,13 +62,13 @@ public static class PowerQueryWorkflowGuidance
     {
         if (hasErrors)
         {
-            return new List<string>
-            {
+            return
+            [
                 "Query update failed validation",
                 "Review error messages and fix M code issues",
                 "Use 'view' to examine updated M code",
                 "Revert changes if needed with 'update' using previous version"
-            };
+            ];
         }
 
         var suggestions = new List<string>();
@@ -130,33 +130,33 @@ public static class PowerQueryWorkflowGuidance
     {
         if (hasErrors)
         {
-            return new List<string>
-            {
+            return
+            [
                 "Refresh failed - query has errors",
                 "Review error messages for specific issues",
                 "Use 'view' to examine M code",
                 "Common issues: authentication, connectivity, M syntax, privacy levels"
-            };
+            ];
         }
 
         if (isConnectionOnly)
         {
-            return new List<string>
-            {
+            return
+            [
                 "Query validated successfully (connection-only mode)",
                 "No data loaded - query is set to connection-only",
                 "Use 'set-load-to-table' to load data to a worksheet",
                 "Or use 'set-load-to-data-model' for PowerPivot"
-            };
+            ];
         }
 
-        return new List<string>
-        {
+        return
+        [
             "Data refreshed successfully",
             "Query is working correctly",
             "Use 'get-load-config' to check where data is loaded",
             "Data model is up to date"
-        };
+        ];
     }
 
     /// <summary>
@@ -168,48 +168,48 @@ public static class PowerQueryWorkflowGuidance
     {
         return errorCategory switch
         {
-            "Authentication" => new List<string>
-            {
+            "Authentication" =>
+            [
                 "Check data source credentials",
                 "Verify authentication method in M code",
                 "Update connection strings with valid credentials",
                 "Consider using Excel credential manager"
-            },
-            "Connectivity" => new List<string>
-            {
+            ],
+            "Connectivity" =>
+            [
                 "Verify network connectivity to data source",
                 "Check firewall and proxy settings",
                 "Confirm data source URL or path is correct",
                 "Test connection from Excel manually"
-            },
-            "Privacy" => new List<string>
-            {
+            ],
+            "Privacy" =>
+            [
                 "Privacy level mismatch detected",
                 "Use 'update' with privacyLevel parameter (Private, Organizational, or Public)",
                 "Review M code for data source combinations",
                 "Consider using consistent privacy levels across queries"
-            },
-            "Syntax" => new List<string>
-            {
+            ],
+            "Syntax" =>
+            [
                 "M code syntax error detected",
                 "Use 'view' to examine query formula",
                 "Check for missing commas, parentheses, or quotes",
                 "Validate function names and parameters"
-            },
-            "Permissions" => new List<string>
-            {
+            ],
+            "Permissions" =>
+            [
                 "Check file or data source permissions",
                 "Verify user has read access to data source",
                 "Review folder permissions if using file sources",
                 "Contact administrator if needed"
-            },
-            _ => new List<string>
-            {
+            ],
+            _ =>
+            [
                 "Review error message for details",
                 "Use 'view' to examine M code",
                 "Check Excel query settings",
                 "Consider testing with simplified query first"
-            }
+            ]
         };
     }
 

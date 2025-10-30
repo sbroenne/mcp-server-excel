@@ -57,12 +57,12 @@ public class DataModelTomCommands : IDataModelTomCommands
                     var tableNames = TomHelper.GetTableNames(model);
                     result.Success = false;
                     result.ErrorMessage = $"Table '{tableName}' not found in Data Model.";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         $"Available tables: {string.Join(", ", tableNames)}",
                         "Use 'model-list-tables' to see all tables",
                         "Verify table name spelling and case"
-                    };
+                    ];
                     return result;
                 }
 
@@ -74,12 +74,12 @@ public class DataModelTomCommands : IDataModelTomCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Measure '{measureName}' already exists in table '{tableName}'.";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         $"Use 'tom-update-measure' to modify existing measure",
                         "Choose a different measure name",
                         "Use 'model-list-measures' to see existing measures"
-                    };
+                    ];
                     return result;
                 }
 
@@ -103,13 +103,13 @@ public class DataModelTomCommands : IDataModelTomCommands
                 table.Measures.Add(newMeasure);
 
                 result.Success = true;
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     $"Measure '{measureName}' created successfully in table '{tableName}'",
                     "Use 'model-view-measure' to verify the DAX formula",
                     "Use 'model-refresh' to update calculations",
                     "Changes saved to workbook"
-                };
+                ];
                 result.WorkflowHint = "Measure created. Next, refresh Data Model to apply calculations.";
 
                 return result;
@@ -119,12 +119,12 @@ public class DataModelTomCommands : IDataModelTomCommands
         {
             result.Success = false;
             result.ErrorMessage = $"Error creating measure: {ex.Message}";
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Verify DAX formula syntax is correct",
                 "Check that table references exist in the model",
                 "Ensure file is not locked by Excel"
-            };
+            ];
             return result;
         }
     }
@@ -186,7 +186,7 @@ public class DataModelTomCommands : IDataModelTomCommands
 
                     result.SuggestedNextActions = suggestions.Any()
                         ? suggestions
-                        : new List<string> { "Use 'model-list-measures' to see available measures" };
+                        : ["Use 'model-list-measures' to see available measures"];
 
                     return result;
                 }
@@ -220,13 +220,13 @@ public class DataModelTomCommands : IDataModelTomCommands
                 }
 
                 result.Success = true;
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     $"Measure '{measureName}' updated successfully",
                     "Use 'model-view-measure' to verify changes",
                     "Use 'model-refresh' to update calculations",
                     "Changes saved to workbook"
-                };
+                ];
                 result.WorkflowHint = "Measure updated. Next, refresh Data Model to apply new calculations.";
 
                 return result;
@@ -236,12 +236,12 @@ public class DataModelTomCommands : IDataModelTomCommands
         {
             result.Success = false;
             result.ErrorMessage = $"Error updating measure: {ex.Message}";
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Verify DAX formula syntax is correct",
                 "Check that measure exists in the model",
                 "Ensure file is not locked by Excel"
-            };
+            ];
             return result;
         }
     }
@@ -291,11 +291,11 @@ public class DataModelTomCommands : IDataModelTomCommands
                     var tableNames = TomHelper.GetTableNames(model);
                     result.Success = false;
                     result.ErrorMessage = $"Table not found: {(fromTbl == null ? fromTable : toTable)}";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         $"Available tables: {string.Join(", ", tableNames)}",
                         "Use 'model-list-tables' to see all tables"
-                    };
+                    ];
                     return result;
                 }
 
@@ -307,11 +307,11 @@ public class DataModelTomCommands : IDataModelTomCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Column not found: {(fromCol == null ? $"{fromTable}.{fromColumn}" : $"{toTable}.{toColumn}")}";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         "Verify column names are correct",
                         "Use Power Pivot to view available columns"
-                    };
+                    ];
                     return result;
                 }
 
@@ -321,11 +321,11 @@ public class DataModelTomCommands : IDataModelTomCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} already exists.";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         "Use 'tom-update-relationship' to modify existing relationship",
                         "Use 'model-list-relationships' to see all relationships"
-                    };
+                    ];
                     return result;
                 }
 
@@ -349,12 +349,12 @@ public class DataModelTomCommands : IDataModelTomCommands
                 model.Relationships.Add(relationship);
 
                 result.Success = true;
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     $"Relationship created from {fromTable}.{fromColumn} to {toTable}.{toColumn}",
                     "Use 'model-list-relationships' to verify",
                     "Changes saved to workbook"
-                };
+                ];
                 result.WorkflowHint = "Relationship created. Next, verify with list-relationships.";
 
                 return result;
@@ -364,12 +364,12 @@ public class DataModelTomCommands : IDataModelTomCommands
         {
             result.Success = false;
             result.ErrorMessage = $"Error creating relationship: {ex.Message}";
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Verify table and column names are correct",
                 "Check that columns have compatible data types",
                 "Ensure file is not locked by Excel"
-            };
+            ];
             return result;
         }
     }
@@ -416,11 +416,11 @@ public class DataModelTomCommands : IDataModelTomCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} not found.";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         "Use 'model-list-relationships' to see available relationships",
                         "Verify table and column names are correct"
-                    };
+                    ];
                     return result;
                 }
 
@@ -451,12 +451,12 @@ public class DataModelTomCommands : IDataModelTomCommands
                 }
 
                 result.Success = true;
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} updated",
                     "Use 'model-list-relationships' to verify changes",
                     "Changes saved to workbook"
-                };
+                ];
                 result.WorkflowHint = "Relationship updated. Next, verify with list-relationships.";
 
                 return result;
@@ -466,11 +466,11 @@ public class DataModelTomCommands : IDataModelTomCommands
         {
             result.Success = false;
             result.ErrorMessage = $"Error updating relationship: {ex.Message}";
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Verify relationship exists in the model",
                 "Ensure file is not locked by Excel"
-            };
+            ];
             return result;
         }
     }
@@ -522,11 +522,11 @@ public class DataModelTomCommands : IDataModelTomCommands
                     var tableNames = TomHelper.GetTableNames(model);
                     result.Success = false;
                     result.ErrorMessage = $"Table '{tableName}' not found in Data Model.";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         $"Available tables: {string.Join(", ", tableNames)}",
                         "Use 'model-list-tables' to see all tables"
-                    };
+                    ];
                     return result;
                 }
 
@@ -536,11 +536,11 @@ public class DataModelTomCommands : IDataModelTomCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Column '{columnName}' already exists in table '{tableName}'.";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         "Choose a different column name",
                         "Use Power Pivot to view existing columns"
-                    };
+                    ];
                     return result;
                 }
 
@@ -570,12 +570,12 @@ public class DataModelTomCommands : IDataModelTomCommands
                 table.Columns.Add(newColumn);
 
                 result.Success = true;
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     $"Calculated column '{columnName}' created successfully in table '{tableName}'",
                     "Use 'model-refresh' to populate column values",
                     "Changes saved to workbook"
-                };
+                ];
                 result.WorkflowHint = "Calculated column created. Next, refresh Data Model to populate values.";
 
                 return result;
@@ -585,12 +585,12 @@ public class DataModelTomCommands : IDataModelTomCommands
         {
             result.Success = false;
             result.ErrorMessage = $"Error creating calculated column: {ex.Message}";
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Verify DAX formula syntax is correct",
                 "Check that column references exist in the table",
                 "Ensure file is not locked by Excel"
-            };
+            ];
             return result;
         }
     }
@@ -632,18 +632,18 @@ public class DataModelTomCommands : IDataModelTomCommands
 
             // Use ternary operator for conditional assignment
             result.SuggestedNextActions = isValid
-                ? new List<string>
-                {
+                ?
+                [
                     "DAX formula syntax appears valid",
                     "Create a measure using this formula",
                     "Test the formula with actual data"
-                }
-                : new List<string>
-                {
+                ]
+                :
+                [
                     "Review DAX formula syntax",
                     "Check for balanced parentheses and brackets",
                     "Verify table and column references exist"
-                };
+                ];
 
             return result;
         }
@@ -751,10 +751,10 @@ public class DataModelTomCommands : IDataModelTomCommands
                 // If table name provided, filter to that table
                 var tablesToSearch = string.IsNullOrWhiteSpace(tableName)
                     ? model.Tables.ToList()
-                    : new List<Microsoft.AnalysisServices.Tabular.Table>
-                    {
+                    :
+                    [
                         TomHelper.FindTable(model, tableName) ?? throw new InvalidOperationException($"Table '{tableName}' not found")
-                    };
+                    ];
 
                 // Use LINQ Select to transform columns to info objects
                 var calculatedColumns = tablesToSearch
@@ -775,13 +775,13 @@ public class DataModelTomCommands : IDataModelTomCommands
                 result.CalculatedColumns = calculatedColumns;
 
                 result.Success = true;
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     $"Found {result.CalculatedColumns.Count} calculated column(s)",
                     "Use 'view-column' to see full DAX formula",
                     "Use 'update-column' to modify column properties",
                     "Use 'delete-column' to remove columns"
-                };
+                ];
                 result.WorkflowHint = "Calculated columns listed. Next, view or modify column formulas.";
 
                 return result;
@@ -791,12 +791,12 @@ public class DataModelTomCommands : IDataModelTomCommands
         {
             result.Success = false;
             result.ErrorMessage = $"Error listing calculated columns: {ex.Message}";
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Verify file has Data Model enabled",
                 "Ensure TOM API connection is available",
                 "Check file is not locked by Excel"
-            };
+            ];
             return result;
         }
     }
@@ -843,11 +843,11 @@ public class DataModelTomCommands : IDataModelTomCommands
                     var tableNames = TomHelper.GetTableNames(model);
                     result.Success = false;
                     result.ErrorMessage = $"Table '{tableName}' not found in Data Model.";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         $"Available tables: {string.Join(", ", tableNames)}",
                         "Use 'list-tables' to see all tables"
-                    };
+                    ];
                     return result;
                 }
 
@@ -859,11 +859,11 @@ public class DataModelTomCommands : IDataModelTomCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Calculated column '{columnName}' not found in table '{tableName}'.";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         $"Use 'list-columns' to see columns in table '{tableName}'",
                         "Check column name spelling and case"
-                    };
+                    ];
                     return result;
                 }
 
@@ -874,12 +874,12 @@ public class DataModelTomCommands : IDataModelTomCommands
                 result.CharacterCount = result.DaxFormula.Length;
                 result.Success = true;
 
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     "Use 'update-column' to modify formula or properties",
                     "Use 'delete-column' to remove column",
                     "Use 'model-refresh' to recalculate values"
-                };
+                ];
                 result.WorkflowHint = "Column details viewed. Next, update or analyze the DAX formula.";
 
                 return result;
@@ -889,11 +889,11 @@ public class DataModelTomCommands : IDataModelTomCommands
         {
             result.Success = false;
             result.ErrorMessage = $"Error viewing calculated column: {ex.Message}";
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Verify table and column names",
                 "Ensure file is not locked by Excel"
-            };
+            ];
             return result;
         }
     }
@@ -953,11 +953,11 @@ public class DataModelTomCommands : IDataModelTomCommands
                     var tableNames = TomHelper.GetTableNames(model);
                     result.Success = false;
                     result.ErrorMessage = $"Table '{tableName}' not found in Data Model.";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         $"Available tables: {string.Join(", ", tableNames)}",
                         "Use 'list-tables' to see all tables"
-                    };
+                    ];
                     return result;
                 }
 
@@ -969,11 +969,11 @@ public class DataModelTomCommands : IDataModelTomCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Calculated column '{columnName}' not found in table '{tableName}'.";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         $"Use 'list-columns' to see columns in table '{tableName}'",
                         "Check column name spelling"
-                    };
+                    ];
                     return result;
                 }
 
@@ -1014,13 +1014,13 @@ public class DataModelTomCommands : IDataModelTomCommands
                 }
 
                 result.Success = true;
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     $"Calculated column '{columnName}' in table '{tableName}' updated successfully",
                     "Use 'view-column' to verify changes",
                     "Use 'model-refresh' to recalculate values",
                     "Changes saved to workbook"
-                };
+                ];
                 result.WorkflowHint = "Column updated. Next, refresh Data Model to recalculate values.";
 
                 return result;
@@ -1030,12 +1030,12 @@ public class DataModelTomCommands : IDataModelTomCommands
         {
             result.Success = false;
             result.ErrorMessage = $"Error updating calculated column: {ex.Message}";
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Verify DAX formula syntax is correct",
                 "Check that column exists in the table",
                 "Ensure file is not locked by Excel"
-            };
+            ];
             return result;
         }
     }
@@ -1081,11 +1081,11 @@ public class DataModelTomCommands : IDataModelTomCommands
                     var tableNames = TomHelper.GetTableNames(model);
                     result.Success = false;
                     result.ErrorMessage = $"Table '{tableName}' not found in Data Model.";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         $"Available tables: {string.Join(", ", tableNames)}",
                         "Use 'list-tables' to see all tables"
-                    };
+                    ];
                     return result;
                 }
 
@@ -1097,11 +1097,11 @@ public class DataModelTomCommands : IDataModelTomCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Calculated column '{columnName}' not found in table '{tableName}'.";
-                    result.SuggestedNextActions = new List<string>
-                    {
+                    result.SuggestedNextActions =
+                    [
                         $"Use 'list-columns' to see columns in table '{tableName}'",
                         "Check column name spelling"
-                    };
+                    ];
                     return result;
                 }
 
@@ -1109,12 +1109,12 @@ public class DataModelTomCommands : IDataModelTomCommands
                 table.Columns.Remove(column);
 
                 result.Success = true;
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     $"Calculated column '{columnName}' deleted from table '{tableName}'",
                     "Use 'list-columns' to verify deletion",
                     "Changes saved to workbook"
-                };
+                ];
                 result.WorkflowHint = "Column deleted. Next, verify remaining columns or refresh Data Model.";
 
                 return result;
@@ -1124,12 +1124,12 @@ public class DataModelTomCommands : IDataModelTomCommands
         {
             result.Success = false;
             result.ErrorMessage = $"Error deleting calculated column: {ex.Message}";
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Verify column exists in the table",
                 "Check that column is not referenced by measures or other columns",
                 "Ensure file is not locked by Excel"
-            };
+            ];
             return result;
         }
     }

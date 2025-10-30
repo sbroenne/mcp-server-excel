@@ -104,17 +104,13 @@ public class PivotTableCommands
             AnsiConsole.MarkupLine($"[green]Success:[/] Created PivotTable '{result.PivotTableName}'");
             AnsiConsole.MarkupLine($"[dim]Location:[/] {result.SheetName}!{result.Range}");
             AnsiConsole.MarkupLine($"[dim]Source:[/] {result.SourceData} ({result.SourceRowCount} rows)");
-            
+
             if (result.AvailableFields.Any())
             {
                 AnsiConsole.MarkupLine($"\n[yellow]Available Fields:[/]");
                 foreach (var field in result.AvailableFields)
                 {
-                    string fieldType = "";
-                    if (result.NumericFields.Contains(field)) fieldType = " [dim](numeric)[/]";
-                    else if (result.DateFields.Contains(field)) fieldType = " [dim](date)[/]";
-                    else if (result.TextFields.Contains(field)) fieldType = " [dim](text)[/]";
-                    AnsiConsole.MarkupLine($"  - {field}{fieldType}");
+                    AnsiConsole.MarkupLine($"  - {field}");
                 }
             }
 
@@ -178,7 +174,7 @@ public class PivotTableCommands
         string filePath = Path.GetFullPath(args[1]);
         string pivotTableName = args[2];
         string fieldName = args[3];
-        
+
         AggregationFunction function = AggregationFunction.Sum;
         if (args.Length > 4)
         {
@@ -189,7 +185,7 @@ public class PivotTableCommands
                 return 1;
             }
         }
-        
+
         string? customName = args.Length > 5 ? args[5] : null;
 
         var task = Task.Run(async () =>

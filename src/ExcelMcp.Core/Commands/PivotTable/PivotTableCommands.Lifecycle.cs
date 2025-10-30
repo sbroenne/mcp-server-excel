@@ -42,6 +42,21 @@ public partial class PivotTableCommands
                                 pivot = pivotTablesCol.Item(j);
                                 pivotCache = pivot.PivotCache;
 
+                                // Handle RefreshDate which can be DateTime or double (OLE date)
+                                DateTime? lastRefresh = null;
+                                if (pivotCache.RefreshDate != null)
+                                {
+                                    var refreshDate = pivotCache.RefreshDate;
+                                    if (refreshDate is DateTime dt)
+                                    {
+                                        lastRefresh = dt;
+                                    }
+                                    else if (refreshDate is double dbl)
+                                    {
+                                        lastRefresh = DateTime.FromOADate(dbl);
+                                    }
+                                }
+
                                 var info = new PivotTableInfo
                                 {
                                     Name = pivot.Name,
@@ -52,9 +67,7 @@ public partial class PivotTableCommands
                                     ColumnFieldCount = pivot.ColumnFields.Count,
                                     ValueFieldCount = pivot.DataFields.Count,
                                     FilterFieldCount = pivot.PageFields.Count,
-                                    LastRefresh = pivotCache.RefreshDate != null 
-                                        ? DateTime.FromOADate((double)pivotCache.RefreshDate) 
-                                        : (DateTime?)null
+                                    LastRefresh = lastRefresh
                                 };
 
                                 pivotTables.Add(info);
@@ -125,8 +138,8 @@ public partial class PivotTableCommands
                     ColumnFieldCount = pivot.ColumnFields.Count,
                     ValueFieldCount = pivot.DataFields.Count,
                     FilterFieldCount = pivot.PageFields.Count,
-                    LastRefresh = pivotCache.RefreshDate != null 
-                        ? DateTime.FromOADate((double)pivotCache.RefreshDate) 
+                    LastRefresh = pivotCache.RefreshDate != null
+                        ? DateTime.FromOADate((double)pivotCache.RefreshDate)
                         : (DateTime?)null
                 };
 
@@ -152,7 +165,7 @@ public partial class PivotTableCommands
                                 XlPivotFieldOrientation.xlDataField => PivotFieldArea.Value,
                                 _ => PivotFieldArea.Hidden
                             },
-                            Position = orientation != XlPivotFieldOrientation.xlHidden ? field.Position : 0,
+                            Position = orientation != XlPivotFieldOrientation.xlHidden ? Convert.ToInt32(field.Position) : 0,
                             DataType = DetectFieldDataType(field)
                         };
 
@@ -212,10 +225,10 @@ public partial class PivotTableCommands
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
                 tableRange = pivot.TableRange2;
-                
+
                 // Delete the PivotTable
                 tableRange.Clear();
-                
+
                 return new OperationResult
                 {
                     Success = true,

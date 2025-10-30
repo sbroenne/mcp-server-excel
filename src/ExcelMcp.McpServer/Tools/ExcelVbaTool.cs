@@ -107,22 +107,22 @@ public static class ExcelVbaTool
         // If listing failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Ensure VBA trust is enabled (run setup-vba-trust)",
                 "Check that the file is .xlsm (macro-enabled)",
                 "Verify the file exists and is accessible"
-            };
+            ];
             result.WorkflowHint = "List failed. Ensure VBA trust is enabled and file is .xlsm.";
             throw new ModelContextProtocol.McpException($"list failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions = new List<string>
-        {
+        result.SuggestedNextActions =
+        [
             "Use 'export' to backup VBA code",
             "Use 'run' to execute a VBA procedure",
             "Use 'import' to add new VBA modules"
-        };
+        ];
         result.WorkflowHint = "VBA modules listed. Next, export, run, or import as needed.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -142,23 +142,23 @@ public static class ExcelVbaTool
         // If view failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the module name exists",
                 "Use 'list' to see available modules",
                 "Verify VBA trust is enabled"
-            };
+            ];
             result.WorkflowHint = "View failed. Ensure the module exists and VBA trust is enabled.";
             throw new ModelContextProtocol.McpException($"view failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions = new List<string>
-        {
+        result.SuggestedNextActions =
+        [
             $"Module has {result.LineCount} lines and {result.Procedures.Count} procedure(s)",
             "Use 'update' to modify the code",
             "Use 'run' to execute procedures",
             "Use 'export' to save code to file"
-        };
+        ];
         result.WorkflowHint = "VBA code viewed. Next, update, run, or export as needed.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -178,22 +178,22 @@ public static class ExcelVbaTool
         // If export failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the module name exists",
                 "Verify the target path is writable",
                 "Use 'list' to see available modules"
-            };
+            ];
             result.WorkflowHint = "Export failed. Ensure the module exists and path is writable.";
             throw new ModelContextProtocol.McpException($"export failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions = new List<string>
-        {
+        result.SuggestedNextActions =
+        [
             "Edit the exported VBA code as needed",
             "Use 'update' to re-import modified code",
             "Version control the exported .vba file"
-        };
+        ];
         result.WorkflowHint = "VBA module exported. Next, edit and update as needed.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -213,22 +213,22 @@ public static class ExcelVbaTool
         // If import failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the VBA file exists",
                 "Verify VBA trust is enabled",
                 "Ensure the module name doesn't already exist"
-            };
+            ];
             result.WorkflowHint = "Import failed. Ensure the file exists and module is unique.";
             throw new ModelContextProtocol.McpException($"import failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions = new List<string>
-        {
+        result.SuggestedNextActions =
+        [
             "Use 'list' to verify the import",
             "Use 'run' to execute procedures in the module",
             "Test the imported VBA code"
-        };
+        ];
         result.WorkflowHint = "VBA module imported. Next, verify and test.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -248,22 +248,22 @@ public static class ExcelVbaTool
         // If update failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the module exists",
                 "Verify the VBA file exists and is accessible",
                 "Use 'list' to see available modules"
-            };
+            ];
             result.WorkflowHint = "Update failed. Ensure the module and file exist.";
             throw new ModelContextProtocol.McpException($"update failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions = new List<string>
-        {
+        result.SuggestedNextActions =
+        [
             "Use 'run' to test the updated code",
             "Use 'export' to backup the updated module",
             "Verify the code changes work as expected"
-        };
+        ];
         result.WorkflowHint = "VBA module updated. Next, test and verify.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -290,23 +290,23 @@ public static class ExcelVbaTool
         // If VBA execution failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the procedure exists (format: 'Module.Procedure')",
                 "Verify the parameters are correct",
                 "Review the VBA code for errors",
                 "Ensure VBA trust is enabled"
-            };
+            ];
             result.WorkflowHint = "VBA run failed. Ensure the procedure exists and parameters are correct.";
             throw new ModelContextProtocol.McpException($"run failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions = new List<string>
-        {
+        result.SuggestedNextActions =
+        [
             "Use worksheet 'read' to verify VBA made expected changes",
             "Review output or return values",
             "Run again with different parameters if needed"
-        };
+        ];
         result.WorkflowHint = "VBA executed successfully. Next, verify results.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -326,22 +326,22 @@ public static class ExcelVbaTool
         // If delete failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = new List<string>
-            {
+            result.SuggestedNextActions =
+            [
                 "Check that the module exists",
                 "Use 'list' to see available modules",
                 "Verify the module name is correct"
-            };
+            ];
             result.WorkflowHint = "Delete failed. Ensure the module exists and name is correct.";
             throw new ModelContextProtocol.McpException($"delete failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions = new List<string>
-        {
+        result.SuggestedNextActions =
+        [
             "Use 'list' to verify the deletion",
             "Export other modules for backup",
             "Review remaining VBA code"
-        };
+        ];
         result.WorkflowHint = "VBA module deleted. Next, verify and backup remaining code.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);

@@ -111,11 +111,11 @@ public class ResultSerializationTests
         {
             Success = true,
             FilePath = "worksheet-list.xlsx",
-            Worksheets = new List<WorksheetInfo>
-            {
+            Worksheets =
+            [
                 new() { Name = "Sheet1", Index = 1, Visible = true },
                 new() { Name = "Sheet2", Index = 2, Visible = false }
-            }
+            ]
         };
 
         // Act
@@ -141,12 +141,12 @@ public class ResultSerializationTests
             FilePath = "worksheet-data.xlsx",
             SheetName = "Data",
             Range = "A1:B2",
-            Headers = new List<string> { "Name", "Age" },
-            Data = new List<List<object?>>
-            {
+            Headers = ["Name", "Age"],
+            Data =
+            [
                 new() { "Alice", 30 },
                 new() { "Bob", 25 }
-            },
+            ],
             RowCount = 2,
             ColumnCount = 2
         };
@@ -172,11 +172,11 @@ public class ResultSerializationTests
         {
             Success = true,
             FilePath = "parameter-list.xlsx",
-            Parameters = new List<ParameterInfo>
-            {
+            Parameters =
+            [
                 new() { Name = "StartDate", Value = "2024-01-01", RefersTo = "Config!A1" },
                 new() { Name = "EndDate", Value = "2024-12-31", RefersTo = "Config!A2" }
-            }
+            ]
         };
 
         // Act
@@ -199,16 +199,16 @@ public class ResultSerializationTests
         {
             Success = true,
             FilePath = "script-list.xlsm",
-            Scripts = new List<ScriptInfo>
-            {
+            Scripts =
+            [
                 new()
                 {
                     Name = "Module1",
                     Type = "Standard",
                     LineCount = 150,
-                    Procedures = new List<string> { "Main", "Helper" }
+                    Procedures = ["Main", "Helper"]
                 }
-            }
+            ]
         };
 
         // Act
@@ -232,15 +232,15 @@ public class ResultSerializationTests
         {
             Success = true,
             FilePath = "powerquery-list.xlsx",
-            Queries = new List<PowerQueryInfo>
-            {
+            Queries =
+            [
                 new()
                 {
                     Name = "SalesData",
                     Formula = "let Source = Excel.CurrentWorkbook() in Source",
                     IsConnectionOnly = false
                 }
-            }
+            ]
         };
 
         // Act
@@ -291,7 +291,7 @@ public class ResultSerializationTests
             Success = true,
             IsTrusted = true,
             ComponentCount = 5,
-            RegistryPathsSet = new List<string> { @"HKCU\Software\Microsoft\Office\16.0" },
+            RegistryPathsSet = [@"HKCU\Software\Microsoft\Office\16.0"],
             ManualInstructions = null
         };
 
@@ -362,7 +362,7 @@ public class ResultSerializationTests
         {
             Success = true,
             FilePath = "empty-collections.xlsx",
-            Worksheets = new List<WorksheetInfo>()
+            Worksheets = []
         };
 
         // Act
@@ -385,12 +385,12 @@ public class ResultSerializationTests
             FilePath = "complex-nested.xlsx",
             SheetName = "Complex",
             Range = "A1:C2",
-            Headers = new List<string> { "String", "Number", "Boolean" },
-            Data = new List<List<object?>>
-            {
+            Headers = ["String", "Number", "Boolean"],
+            Data =
+            [
                 new() { "text", 42, true },
                 new() { null, 3.14, false }
-            },
+            ],
             RowCount = 2,
             ColumnCount = 3
         };

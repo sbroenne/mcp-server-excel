@@ -18,7 +18,7 @@ public partial class RangeCommandsTests : IDisposable
     private readonly ITestOutputHelper _output;
     private readonly RangeCommands _commands;
     private readonly string _tempDir;
-    private readonly List<string> _createdFiles = new();
+    private readonly List<string> _createdFiles = [];
 
     public RangeCommandsTests(ITestOutputHelper output)
     {

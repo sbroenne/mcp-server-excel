@@ -120,10 +120,10 @@ in
         {
             Success = false,
             ErrorMessage = "Privacy level required",
-            ExistingPrivacyLevels = new List<QueryPrivacyInfo>
-            {
+            ExistingPrivacyLevels =
+            [
                 new QueryPrivacyInfo("Query1", PowerQueryPrivacyLevel.Private)
-            },
+            ],
             RecommendedPrivacyLevel = PowerQueryPrivacyLevel.Private,
             Explanation = "Test explanation",
             OriginalError = "Original Excel error"

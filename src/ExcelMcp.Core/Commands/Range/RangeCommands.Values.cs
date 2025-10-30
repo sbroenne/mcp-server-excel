@@ -61,7 +61,7 @@ public partial class RangeCommands
                     // Single cell - wrap value in 1x1 array
                     result.RowCount = 1;
                     result.ColumnCount = 1;
-                    result.Values.Add(new List<object?> { valueOrArray });
+                    result.Values.Add([valueOrArray]);
                 }
 
                 result.Success = true;

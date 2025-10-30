@@ -132,13 +132,13 @@ public class TableAddToDataModelTests : IDisposable
 
     private async Task CreateFileWithSimpleTable(string filePath, string tableName)
     {
-        await CreateFileWithData(filePath, tableName, new List<List<object?>>
-        {
+        await CreateFileWithData(filePath, tableName,
+        [
             new() { "Name", "Value", "Date" },
             new() { "Item1", 100, DateTime.Now },
             new() { "Item2", 200, DateTime.Now.AddDays(-1) },
             new() { "Item3", 300, DateTime.Now.AddDays(-2) }
-        }, "A1:C4");
+        ], "A1:C4");
     }
 
     private async Task CreateFileWithLargeTable(string filePath, string tableName, int rowCount)
@@ -146,7 +146,7 @@ public class TableAddToDataModelTests : IDisposable
         var data = new List<List<object?>> { new() { "ID", "Name", "Value" } };
         for (int i = 1; i <= rowCount; i++)
         {
-            data.Add(new List<object?> { i, $"Item{i}", i * 10 });
+            data.Add([i, $"Item{i}", i * 10]);
         }
 
         await CreateFileWithData(filePath, tableName, data, $"A1:C{rowCount + 1}");
@@ -174,22 +174,22 @@ public class TableAddToDataModelTests : IDisposable
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
 
         // Create Table1
-        await _rangeCommands.SetValuesAsync(batch, "Sheet1", "A1:B3", new List<List<object?>>
-        {
+        await _rangeCommands.SetValuesAsync(batch, "Sheet1", "A1:B3",
+        [
             new() { "Name", "Value" },
             new() { "A", 1 },
             new() { "B", 2 }
-        });
+        ]);
         var table1Result = await _tableCommands.CreateAsync(batch, "Sheet1", "Table1", "A1:B3", true);
         Assert.True(table1Result.Success);
 
         // Create Table2
-        await _rangeCommands.SetValuesAsync(batch, "Sheet1", "D1:E3", new List<List<object?>>
-        {
+        await _rangeCommands.SetValuesAsync(batch, "Sheet1", "D1:E3",
+        [
             new() { "Item", "Count" },
             new() { "X", 10 },
             new() { "Y", 20 }
-        });
+        ]);
         var table2Result = await _tableCommands.CreateAsync(batch, "Sheet1", "Table2", "D1:E3", true);
         Assert.True(table2Result.Success);
 

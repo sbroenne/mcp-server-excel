@@ -66,36 +66,36 @@ public static class ExcelCompletionHandler
         // Action parameter completions for Power Query prompts
         if (argumentName == "action" && promptName.Contains("powerquery", StringComparison.OrdinalIgnoreCase))
         {
-            suggestions = new List<string>
-            {
+            suggestions =
+            [
                 "list", "view", "import", "export", "update", "delete", "refresh",
                 "set-load-to-table", "set-load-to-data-model", "set-load-to-both",
                 "set-connection-only", "get-load-config"
-            };
+            ];
         }
         // Action parameter completions for VBA prompts
         else if (argumentName == "action" && promptName.Contains("vba", StringComparison.OrdinalIgnoreCase))
         {
-            suggestions = new List<string>
-            {
+            suggestions =
+            [
                 "list", "view", "export", "import", "update", "run", "delete"
-            };
+            ];
         }
         // Action parameter completions for worksheet prompts
         else if (argumentName == "action" && promptName.Contains("worksheet", StringComparison.OrdinalIgnoreCase))
         {
-            suggestions = new List<string>
-            {
+            suggestions =
+            [
                 "list", "read", "write", "create", "rename", "copy", "delete", "clear", "append"
-            };
+            ];
         }
         // Privacy level completions
         else if (argumentName == "privacyLevel")
         {
-            suggestions = new List<string>
-            {
+            suggestions =
+            [
                 "None", "Private", "Organizational", "Public"
-            };
+            ];
         }
 
         // Filter suggestions based on current value (prefix matching)
@@ -119,12 +119,12 @@ public static class ExcelCompletionHandler
             uri.Contains(".xlsm", StringComparison.OrdinalIgnoreCase))
         {
             // Example suggestions - in a real implementation, could scan common directories
-            suggestions = new List<string>
-            {
+            suggestions =
+            [
                 "C:\\Data\\sales.xlsx",
                 "C:\\Reports\\monthly-report.xlsx",
                 "C:\\Analysis\\budget.xlsx"
-            };
+            ];
         }
 
         return suggestions;

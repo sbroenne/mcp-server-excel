@@ -298,13 +298,13 @@ public class ScriptCommands : IScriptCommands
                 }
 
                 result.Success = true;
-                result.SuggestedNextActions = new List<string>
-                {
+                result.SuggestedNextActions =
+                [
                     $"Module has {result.LineCount} lines and {result.Procedures.Count} procedure(s)",
                     "Use 'script-update' to modify the code",
                     "Use 'script-run' to execute procedures",
                     "Use 'script-export' to save code to file"
-                };
+                ];
                 result.WorkflowHint = "VBA code viewed. Next, update or run procedures.";
 
                 return result;

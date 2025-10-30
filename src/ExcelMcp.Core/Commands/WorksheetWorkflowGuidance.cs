@@ -17,13 +17,13 @@ public static class WorksheetWorkflowGuidance
     {
         if (!success)
         {
-            return new List<string>
-            {
+            return
+            [
                 "Worksheet creation failed",
                 "Check that worksheet name is valid (no special characters: \\ / ? * [ ])",
                 "Verify worksheet name doesn't already exist",
                 "Ensure workbook is not protected"
-            };
+            ];
         }
 
         var suggestions = new List<string>
@@ -52,22 +52,22 @@ public static class WorksheetWorkflowGuidance
     {
         if (!success)
         {
-            return new List<string>
-            {
+            return
+            [
                 "Worksheet rename failed",
                 "Check that new name doesn't already exist",
                 "Verify name is valid (no special characters: \\ / ? * [ ])",
                 "Ensure worksheet is not protected"
-            };
+            ];
         }
 
-        return new List<string>
-        {
+        return
+        [
             "Worksheet renamed successfully",
             "Update any formulas or references using the old sheet name",
             "Update Power Query expressions if they reference this sheet",
             "Named ranges referencing this sheet are automatically updated"
-        };
+        ];
     }
 
     /// <summary>
@@ -80,13 +80,13 @@ public static class WorksheetWorkflowGuidance
     {
         if (!success)
         {
-            return new List<string>
-            {
+            return
+            [
                 "Worksheet copy failed",
                 "Check that source worksheet exists",
                 "Verify new name doesn't already exist",
                 "Ensure sufficient memory for copy operation"
-            };
+            ];
         }
 
         var suggestions = new List<string>

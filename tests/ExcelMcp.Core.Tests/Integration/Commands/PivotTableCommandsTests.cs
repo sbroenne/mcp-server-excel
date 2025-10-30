@@ -120,12 +120,8 @@ public class PivotTableCommandsTests : IDisposable
         Assert.Contains("Product", result.AvailableFields);
         Assert.Contains("Sales", result.AvailableFields);
         Assert.Contains("Date", result.AvailableFields);
-        
-        // Verify field type detection
-        Assert.Contains("Sales", result.NumericFields);
-        Assert.Contains("Date", result.DateFields);
-        Assert.Contains("Region", result.TextFields);
-        Assert.Contains("Product", result.TextFields);
+
+        // Type detection removed - LLM can experiment with fields
 
         // Verify actual Excel COM object exists
         await VerifyPivotTableExists(batch, "TestPivot", "SalesData");
@@ -135,14 +131,16 @@ public class PivotTableCommandsTests : IDisposable
     public async Task List_WithValidFile_ReturnsSuccessWithPivotTables()
     {
         // Arrange - Create a PivotTable first
-        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
-        var createResult = await _pivotCommands.CreateFromRangeAsync(
-            batch,
-            "SalesData", "A1:D6",
-            "SalesData", "F1",
-            "TestPivot");
-        Assert.True(createResult.Success);
-        await batch.SaveAsync();
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+            var createResult = await _pivotCommands.CreateFromRangeAsync(
+                batch,
+                "SalesData", "A1:D6",
+                "SalesData", "F1",
+                "TestPivot");
+            Assert.True(createResult.Success);
+            await batch.SaveAsync();
+        } // Explicitly dispose batch before opening workbook again
 
         // Act
         await using var batch2 = await ExcelSession.BeginBatchAsync(_testExcelFile);
