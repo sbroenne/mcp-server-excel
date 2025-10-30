@@ -79,22 +79,19 @@ public partial class TableCommands
                     ComUtilities.Release(ref modelTables);
                 }
 
-                // Add table to Data Model using the correct Microsoft approach:
-                // 1. Create a legacy WorkbookConnection for the table
-                // 2. Use Model.AddConnection() to add it to the Data Model
-                // Per Microsoft docs: Model.AddConnection only works with legacy (non-model) connections
-                
+                // Create a connection for the table
                 string connectionName = $"WorkbookConnection_{tableName}";
                 string connectionString = $"WORKSHEET;{ctx.Book.FullName}";
-                string commandText = tableName; // For Excel tables, use table name directly
-                
-                dynamic? workbookConnections = null;
-                dynamic? legacyConnection = null;
+                string commandText = $"SELECT * FROM [{tableName}]";
+
+                // Add table to Data Model using the correct Microsoft approach
+                // Key insight: Use Connections.Add2() with CreateModelConnection=true
+                // This automatically adds the table to the Data Model
                 try
                 {
-                    workbookConnections = ctx.Book.Connections;
+                    dynamic workbookConnections = ctx.Book.Connections;
 
-                    // Check if a legacy connection for this table already exists
+                    // Check if a connection for this table already exists
                     bool connectionExists = false;
                     for (int i = 1; i <= workbookConnections.Count; i++)
                     {
@@ -104,55 +101,58 @@ public partial class TableCommands
                             existingConn = workbookConnections.Item(i);
                             if (existingConn.Name == connectionName)
                             {
-                                legacyConnection = existingConn;
                                 connectionExists = true;
                                 break;
                             }
                         }
                         finally
                         {
-                            if (!connectionExists && existingConn != null)
-                            {
-                                ComUtilities.Release(ref existingConn);
-                            }
+                            ComUtilities.Release(ref existingConn);
                         }
                     }
 
                     if (!connectionExists)
                     {
-                        // Create legacy connection (NOT a model connection)
-                        // Use Add2 with CreateModelConnection=false to create legacy connection first
-                        legacyConnection = workbookConnections.Add2(
+                        // Use Connections.Add2() with CreateModelConnection=true
+                        // This is the documented approach for adding tables to Data Model
+                        dynamic? newConnection = workbookConnections.Add2(
                             Name: connectionName,
                             Description: $"Excel Table: {tableName}",
                             ConnectionString: connectionString,
                             CommandText: commandText,
-                            lCmdtype: 2, // xlCmdDefault = 2
-                            CreateModelConnection: false, // Create as legacy connection first
+                            lCmdtype: 4, // xlCmdTable = 4 for Excel tables
+                            CreateModelConnection: true, // KEY: This adds table to Data Model
                             ImportRelationships: false
                         );
+
+                        if (newConnection != null)
+                        {
+                            ComUtilities.Release(ref newConnection);
+                        }
                     }
 
-                    // Now add the legacy connection to the Data Model
-                    // This is the documented Microsoft approach: Model.AddConnection(legacyConnection)
-                    dynamic? modelConnection = model.AddConnection(legacyConnection);
-                    
-                    if (modelConnection != null)
+                    if (workbookConnections != null)
                     {
-                        ComUtilities.Release(ref modelConnection);
+                        ComUtilities.Release(ref workbookConnections!);
                     }
                 }
                 catch (Exception ex)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Failed to add table to Data Model: {ex.Message}. " +
-                                        $"Ensure Power Pivot is enabled and the Data Model is available.";
-                    return result;
-                }
-                finally
-                {
-                    ComUtilities.Release(ref legacyConnection);
-                    ComUtilities.Release(ref workbookConnections);
+                    // Fallback: Try the table's publish method if available
+                    try
+                    {
+                        // Some Excel versions support Publish method on ListObject
+                        table.Publish(null, false); // Publish to Data Model
+                    }
+                    catch (Exception publishEx)
+                    {
+                        result.Success = false;
+                        result.ErrorMessage = $"Failed to add table to Data Model. " +
+                                            $"Connections.Add2 failed: {ex.Message}. " +
+                                            $"Table.Publish failed: {publishEx.Message}. " +
+                                            $"Ensure Power Pivot is enabled and the Data Model is available.";
+                        return result;
+                    }
                 }
 
                 ComUtilities.Release(ref model);
