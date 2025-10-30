@@ -2014,14 +2014,20 @@ in
                 PowerQueryHelpers.RemoveQueryTables(ctx.Book, queryName);
 
                 // Configure Data Model loading using Connections.Add2
-                bool configSuccess = SetQueryLoadToDataModel(ctx.Book, queryName);
+                bool configSuccess = SetQueryLoadToDataModel(ctx.Book, queryName, out string? configError);
                 result.ConfigurationApplied = configSuccess;
 
                 if (!configSuccess)
                 {
                     result.Success = false;
-                    result.ErrorMessage = "Failed to configure query for Data Model loading";
+                    result.ErrorMessage = $"Failed to configure query for Data Model loading: {configError ?? "Unknown error"}";
                     result.WorkflowStatus = "Failed";
+                    result.SuggestedNextActions =
+                    [
+                        "Check that the query exists using 'list'",
+                        "Verify the query has valid data and can refresh",
+                        "Try refreshing the query first with 'refresh' action",
+                    ];
                     return result;
                 }
 
@@ -2227,11 +2233,17 @@ in
                 }
 
                 // Configure query for Data Model loading
-                if (!SetQueryLoadToDataModel(ctx.Book, queryName))
+                if (!SetQueryLoadToDataModel(ctx.Book, queryName, out string? dmConfigError))
                 {
                     result.Success = false;
-                    result.ErrorMessage = "Failed to configure query for Data Model loading";
+                    result.ErrorMessage = $"Failed to configure query for Data Model loading: {dmConfigError ?? "Unknown error"}";
                     result.WorkflowStatus = "Partial";
+                    result.SuggestedNextActions =
+                    [
+                        "Check that the query exists using 'list'",
+                        "Verify the query has valid data",
+                        "Check Excel version supports Data Model (Excel 2013+)"
+                    ];
                     return result;
                 }
 
@@ -2706,11 +2718,13 @@ in
     /// </summary>
     /// <param name="workbook">Excel workbook COM object</param>
     /// <param name="queryName">Name of the query to configure</param>
+    /// <param name="errorMessage">Detailed error message if configuration fails</param>
     /// <returns>True if configuration succeeded, false if exception caught</returns>
-    private static bool SetQueryLoadToDataModel(dynamic workbook, string queryName)
+    private static bool SetQueryLoadToDataModel(dynamic workbook, string queryName, out string? errorMessage)
     {
         dynamic? connections = null;
         dynamic? newConnection = null;
+        errorMessage = null;
 
         try
         {
@@ -2749,7 +2763,8 @@ in
         }
         catch (Exception ex)
         {
-            // Log specific error for debugging
+            // Capture detailed error for user feedback
+            errorMessage = ex.Message;
             System.Diagnostics.Debug.WriteLine($"Failed to configure Data Model loading: {ex.Message}");
             return false;
         }
