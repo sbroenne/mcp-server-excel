@@ -39,10 +39,6 @@
 
 ## 🎯 Development Quick Start
 
-### Before You Start
-1. Read [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) - 5 mandatory rules
-2. Check [Testing Strategy](instructions/testing-strategy.instructions.md) for test execution patterns
-
 ### Common Tasks
 - **Add new command** → Follow patterns in [Architecture Patterns](instructions/architecture-patterns.instructions.md)
 - **Excel COM work** → Reference [Excel COM Interop](instructions/excel-com-interop.instructions.md)
