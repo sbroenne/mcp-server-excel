@@ -57,7 +57,7 @@ Actions: list, get, set, update, create, delete, create-bulk.")]
         [Description("Parameter value (for set action) or cell reference (for create/update actions, e.g., 'Sheet1!A1')")]
         string? value = null,
 
-        [Description("JSON array of parameter definitions for create-bulk action. Format: [{\"name\":\"ParamName\",\"reference\":\"Sheet1!A1\",\"value\":\"initial value\"}]")]
+        [Description("JSON array of parameter definitions for create-bulk action. Example: [{\"name\":\"Start_Date\",\"reference\":\"Sheet1!A1\",\"value\":\"2025-01-01\"}]")]
         string? parametersJson = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]

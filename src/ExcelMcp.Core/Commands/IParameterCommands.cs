@@ -41,5 +41,5 @@ public interface IParameterCommands
     /// <summary>
     /// Creates multiple named ranges with optional initial values in a single operation
     /// </summary>
-    Task<OperationResult> CreateBulkAsync(IExcelBatch batch, List<ParameterDefinition> parameters);
+    Task<OperationResult> CreateBulkAsync(IExcelBatch batch, IEnumerable<ParameterDefinition> parameters);
 }

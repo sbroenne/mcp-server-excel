@@ -347,9 +347,11 @@ public class ParameterCommands : IParameterCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> CreateBulkAsync(IExcelBatch batch, List<ParameterDefinition> parameters)
+    public async Task<OperationResult> CreateBulkAsync(IExcelBatch batch, IEnumerable<ParameterDefinition> parameters)
     {
-        if (parameters == null || parameters.Count == 0)
+        var parameterList = parameters?.ToList();
+        
+        if (parameterList == null || parameterList.Count == 0)
         {
             return new OperationResult
             {
@@ -362,7 +364,7 @@ public class ParameterCommands : IParameterCommands
         var createdCount = 0;
         var errors = new List<string>();
 
-        foreach (var param in parameters)
+        foreach (var param in parameterList)
         {
             // Validate parameter
             if (string.IsNullOrWhiteSpace(param.Name))
@@ -390,7 +392,8 @@ public class ParameterCommands : IParameterCommands
             // Set value if provided
             if (param.Value != null)
             {
-                var setResult = await SetAsync(batch, param.Name, param.Value.ToString() ?? "");
+                var valueStr = Convert.ToString(param.Value) ?? "";
+                var setResult = await SetAsync(batch, param.Name, valueStr);
                 if (!setResult.Success)
                 {
                     errors.Add($"Created '{param.Name}' but failed to set value: {setResult.ErrorMessage}");
@@ -416,10 +419,10 @@ public class ParameterCommands : IParameterCommands
 
         if (errors.Count > 0)
         {
-            result.WorkflowHint = $"Created {createdCount} of {parameters.Count} parameter(s). Partial failures: {string.Join("; ", errors)}";
+            result.WorkflowHint = $"Created {createdCount} of {parameterList.Count} parameter(s). Partial failures: {string.Join("; ", errors)}";
             result.SuggestedNextActions = 
             [
-                $"Successfully created {createdCount} out of {parameters.Count} parameters",
+                $"Successfully created {createdCount} out of {parameterList.Count} parameters",
                 "Review errors to understand which parameters failed",
                 "Use 'list' to verify created parameters"
             ];
