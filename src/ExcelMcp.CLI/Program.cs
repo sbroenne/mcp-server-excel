@@ -344,8 +344,8 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]pivot-list[/] file.xlsx                          List all PivotTables");
         AnsiConsole.MarkupLine("  [cyan]pivot-create-from-range[/] file.xlsx src-sheet src-range dest-sheet dest-cell name");
         AnsiConsole.MarkupLine("    [dim]Example: pivot-create-from-range sales.xlsx Data A1:D100 Analysis A1 SalesPivot[/]");
-        AnsiConsole.MarkupLine("  [cyan]pivot-add-row-field[/] file.xlsx pivot-name field [position]");
-        AnsiConsole.MarkupLine("  [cyan]pivot-add-value-field[/] file.xlsx pivot-name field [function] [custom-name]");
+        AnsiConsole.MarkupLine("  [cyan]pivot-add-row-field[/] file.xlsx pivot-name field [[position]]");
+        AnsiConsole.MarkupLine("  [cyan]pivot-add-value-field[/] file.xlsx pivot-name field [[function]] [[custom-name]]");
         AnsiConsole.MarkupLine("    [dim]Functions: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, VarP[/]");
         AnsiConsole.MarkupLine("  [cyan]pivot-refresh[/] file.xlsx pivot-name           Refresh PivotTable data");
         AnsiConsole.WriteLine();
