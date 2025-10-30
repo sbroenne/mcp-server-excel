@@ -17,7 +17,7 @@ public partial class DataModelCommandsTests
         var result = await _dataModelCommands.ListMeasuresAsync(batch);
 
         // Assert - Data Model is ALWAYS available in Excel 2013+
-        Assert.True(result.Success, 
+        Assert.True(result.Success,
             $"ListMeasures MUST succeed - Data Model is always available in Excel 2013+. Error: {result.ErrorMessage}");
         Assert.NotNull(result.Measures);
     }
@@ -30,7 +30,7 @@ public partial class DataModelCommandsTests
         var result = await _dataModelCommands.ListMeasuresAsync(batch);
 
         // Assert - Data Model is ALWAYS available in Excel 2013+
-        Assert.True(result.Success, 
+        Assert.True(result.Success,
             $"ListMeasures MUST succeed - Data Model is always available in Excel 2013+. Error: {result.ErrorMessage}");
         Assert.NotNull(result.Measures);
 
@@ -67,7 +67,7 @@ public partial class DataModelCommandsTests
         // Should fail because measure doesn't exist (Data Model is always available in Excel 2013+)
         Assert.False(result.Success, "ViewMeasure should fail when measure doesn't exist");
         Assert.NotNull(result.ErrorMessage);
-        Assert.True(result.ErrorMessage.Contains("Measure 'NonExistentMeasure' not found"), 
+        Assert.True(result.ErrorMessage.Contains("Measure 'NonExistentMeasure' not found"),
             $"Expected 'measure not found' error, but got: {result.ErrorMessage}");
     }
 
@@ -80,7 +80,7 @@ public partial class DataModelCommandsTests
 
         // Assert - Data Model is ALWAYS available in Excel 2013+
         // If measure doesn't exist, it's because test fixture didn't create it (separate issue)
-        Assert.True(result.Success, 
+        Assert.True(result.Success,
             $"ViewMeasure MUST succeed if measure exists. Error: {result.ErrorMessage}");
         Assert.NotNull(result.DaxFormula);
         Assert.Contains("SUM", result.DaxFormula, StringComparison.OrdinalIgnoreCase);
@@ -112,7 +112,7 @@ public partial class DataModelCommandsTests
         var result = await _dataModelCommands.ExportMeasureAsync(batch, "Total Sales", exportPath);
 
         // Assert - Data Model is ALWAYS available in Excel 2013+
-        Assert.True(result.Success, 
+        Assert.True(result.Success,
             $"ExportMeasure MUST succeed if measure exists. Error: {result.ErrorMessage}");
         Assert.True(File.Exists(exportPath), "DAX file should be created");
 
@@ -158,7 +158,7 @@ public partial class DataModelCommandsTests
         // Assert - Should fail because measure doesn't exist (Data Model is always available in Excel 2013+)
         Assert.False(result.Success, "DeleteMeasure should fail when measure doesn't exist");
         Assert.NotNull(result.ErrorMessage);
-        Assert.True(result.ErrorMessage.Contains("Measure 'NonExistentMeasure' not found"), 
+        Assert.True(result.ErrorMessage.Contains("Measure 'NonExistentMeasure' not found"),
             $"Expected 'measure not found' error, but got: {result.ErrorMessage}");
     }
 
@@ -188,7 +188,7 @@ public partial class DataModelCommandsTests
         await batch.SaveAsync();
 
         // Assert - Data Model is ALWAYS available in Excel 2013+
-        Assert.True(result.Success, 
+        Assert.True(result.Success,
             $"CreateMeasure MUST succeed with valid parameters. Error: {result.ErrorMessage}");
         Assert.NotNull(result.SuggestedNextActions);
         Assert.Contains(result.SuggestedNextActions, s => s.Contains("created successfully"));
@@ -213,7 +213,7 @@ public partial class DataModelCommandsTests
         await batch.SaveAsync();
 
         // Assert - Data Model is ALWAYS available in Excel 2013+
-        Assert.True(result.Success, 
+        Assert.True(result.Success,
             $"CreateMeasure with format MUST succeed. Error: {result.ErrorMessage}");
         Assert.NotNull(result.SuggestedNextActions);
 
@@ -232,8 +232,8 @@ public partial class DataModelCommandsTests
 
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var firstResult = await _dataModelCommands.CreateMeasureAsync(batch, "Sales", measureName, daxFormula);
-        
-        Assert.True(firstResult.Success, 
+
+        Assert.True(firstResult.Success,
             $"First CreateMeasure MUST succeed. Error: {firstResult.ErrorMessage}");
         await batch.SaveAsync();
 
