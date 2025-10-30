@@ -10,7 +10,7 @@ applyTo: ".github/workflows/**/*.yml,**/*.csproj,global.json"
 
 **⛔ NEVER commit directly to `main`**
 
-Enforced: PR reviews, CI/CD checks, up-to-date branches, no force pushes
+Enforced: PR reviews, CI/CD checks, create a branch first, up-to-date branches, no force pushes
 
 ## Development Process
 
