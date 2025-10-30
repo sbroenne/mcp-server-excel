@@ -67,10 +67,6 @@ public static class ExcelPowerQueryTool
         [Description("Target worksheet name (for set-load-to-table action)")]
         string? targetSheet = null,
 
-        [RegularExpression("^(None|Private|Organizational|Public)$")]
-        [Description("Privacy level for Power Query data combining (optional). If not specified and privacy error occurs, LLM must ask user to choose: None (least secure), Private (most secure), Organizational (internal data), or Public (public data)")]
-        string? privacyLevel = null,
-
         [Description("Automatically load query data to worksheet for validation (default: true). When false, creates connection-only query without validation.")]
         bool? loadToWorksheet = null,
 
@@ -84,28 +80,18 @@ public static class ExcelPowerQueryTool
             var powerQueryCommands = new PowerQueryCommands(dataModelCommands);
             var parameterCommands = new ParameterCommands();
 
-            // Parse privacy level if provided
-            PowerQueryPrivacyLevel? parsedPrivacyLevel = null;
-            if (!string.IsNullOrEmpty(privacyLevel))
-            {
-                if (Enum.TryParse<PowerQueryPrivacyLevel>(privacyLevel, ignoreCase: true, out var level))
-                {
-                    parsedPrivacyLevel = level;
-                }
-            }
-
             return action.ToLowerInvariant() switch
             {
                 "list" => await ListPowerQueriesAsync(powerQueryCommands, excelPath, batchId),
                 "view" => await ViewPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
-                "import" => await ImportPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, parsedPrivacyLevel, loadToWorksheet, batchId),
+                "import" => await ImportPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadToWorksheet, batchId),
                 "export" => await ExportPowerQueryAsync(powerQueryCommands, excelPath, queryName, targetPath, batchId),
-                "update" => await UpdatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, parsedPrivacyLevel, loadToWorksheet, batchId),
+                "update" => await UpdatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadToWorksheet, batchId),
                 "refresh" => await RefreshPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
                 "delete" => await DeletePowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
-                "set-load-to-table" => await SetLoadToTableAsync(powerQueryCommands, excelPath, queryName, targetSheet, parsedPrivacyLevel, batchId),
-                "set-load-to-data-model" => await SetLoadToDataModelAsync(powerQueryCommands, excelPath, queryName, parsedPrivacyLevel, batchId),
-                "set-load-to-both" => await SetLoadToBothAsync(powerQueryCommands, excelPath, queryName, targetSheet, parsedPrivacyLevel, batchId),
+                "set-load-to-table" => await SetLoadToTableAsync(powerQueryCommands, excelPath, queryName, targetSheet, batchId),
+                "set-load-to-data-model" => await SetLoadToDataModelAsync(powerQueryCommands, excelPath, queryName, batchId),
+                "set-load-to-both" => await SetLoadToBothAsync(powerQueryCommands, excelPath, queryName, targetSheet, batchId),
                 "set-connection-only" => await SetConnectionOnlyAsync(powerQueryCommands, excelPath, queryName, batchId),
                 "get-load-config" => await GetLoadConfigAsync(powerQueryCommands, excelPath, queryName, batchId),
                 _ => throw new ModelContextProtocol.McpException(
@@ -178,15 +164,15 @@ public static class ExcelPowerQueryTool
             result.SuggestedNextActions =
             [
                 "Use 'update' to modify the query's M code",
-                "Use 'set-load-to-table' to load data to worksheet",
-                "Use 'refresh' to update query data"
+                "Use 'get-load-config' to check if query is loaded anywhere",
+                "Use 'set-load-to-table' to load data to worksheet"
             ];
-            result.WorkflowHint = "Query M code viewed. Next, update, load, or refresh as needed.";
+            result.WorkflowHint = "Query M code viewed. Check load config or load to destination.";
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ImportPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, PowerQueryPrivacyLevel? privacyLevel, bool? loadToWorksheet, string? batchId)
+    private static async Task<string> ImportPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, bool? loadToWorksheet, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(sourcePath))
             throw new ModelContextProtocol.McpException("queryName and sourcePath are required for import action");
@@ -198,7 +184,7 @@ public static class ExcelPowerQueryTool
             batchId,
             excelPath,
             save: true,
-            async (batch) => await commands.ImportAsync(batch, queryName, sourcePath, privacyLevel, shouldLoad));
+            async (batch) => await commands.ImportAsync(batch, queryName, sourcePath, shouldLoad));
 
         // Core already sets appropriate workflow guidance based on actual load outcome
         // Only enhance guidance if in batch mode
@@ -239,9 +225,9 @@ public static class ExcelPowerQueryTool
             [
                 "Edit the exported M code file as needed",
                 "Use 'update' to re-import modified code",
-                "Use 'refresh' to validate changes"
+                "Use 'get-load-config' to check current load configuration"
             ];
-            result.WorkflowHint = "Query exported. Next, edit and update as needed.";
+            result.WorkflowHint = "Query exported. Edit file, then use 'update' to apply changes.";
         }
         else
         {
@@ -255,7 +241,7 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> UpdatePowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, PowerQueryPrivacyLevel? privacyLevel, bool? loadToWorksheet, string? batchId)
+    private static async Task<string> UpdatePowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, bool? loadToWorksheet, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(sourcePath))
             throw new ModelContextProtocol.McpException("queryName and sourcePath are required for update action");
@@ -265,7 +251,7 @@ public static class ExcelPowerQueryTool
             batchId,
             excelPath,
             save: true,
-            async (batch) => await commands.UpdateAsync(batch, queryName, sourcePath, privacyLevel));
+            async (batch) => await commands.UpdateAsync(batch, queryName, sourcePath));
 
         // Use workflow guidance with batch mode awareness
         bool usedBatchMode = !string.IsNullOrEmpty(batchId);
@@ -359,7 +345,7 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetLoadToTableAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? targetSheet, PowerQueryPrivacyLevel? privacyLevel, string? batchId)
+    private static async Task<string> SetLoadToTableAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? targetSheet, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for set-load-to-table action");
@@ -368,7 +354,7 @@ public static class ExcelPowerQueryTool
             batchId,
             excelPath,
             save: true,
-            async (batch) => await commands.SetLoadToTableAsync(batch, queryName, targetSheet ?? "", privacyLevel));
+            async (batch) => await commands.SetLoadToTableAsync(batch, queryName, targetSheet ?? ""));
 
         // Use workflow guidance with batch mode awareness
         bool usedBatchMode = !string.IsNullOrEmpty(batchId);
@@ -398,7 +384,7 @@ public static class ExcelPowerQueryTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetLoadToDataModelAsync(PowerQueryCommands commands, string excelPath, string? queryName, PowerQueryPrivacyLevel? privacyLevel, string? batchId)
+    private static async Task<string> SetLoadToDataModelAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for set-load-to-data-model action");
@@ -407,7 +393,7 @@ public static class ExcelPowerQueryTool
             batchId,
             excelPath,
             save: true,
-            async (batch) => await commands.SetLoadToDataModelAsync(batch, queryName, privacyLevel));
+            async (batch) => await commands.SetLoadToDataModelAsync(batch, queryName));
 
         // Use workflow guidance with batch mode awareness
         bool usedBatchMode = !string.IsNullOrEmpty(batchId);
@@ -427,17 +413,17 @@ public static class ExcelPowerQueryTool
             result.SuggestedNextActions =
             [
                 "Check that the query exists using 'list'",
-                "Review privacy level settings if needed",
-                "Verify Data Model is enabled"
+                "Review query M code for errors using 'view'",
+                "Verify query data loads successfully with 'refresh'"
             ];
-            result.WorkflowHint = "Set-load-to-data-model failed. Check query and Data Model status.";
+            result.WorkflowHint = "Set-load-to-data-model failed. Check query exists and has valid M code.";
         }
 
         // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetLoadToBothAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? targetSheet, PowerQueryPrivacyLevel? privacyLevel, string? batchId)
+    private static async Task<string> SetLoadToBothAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? targetSheet, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for set-load-to-both action");
@@ -446,7 +432,7 @@ public static class ExcelPowerQueryTool
             batchId,
             excelPath,
             save: true,
-            async (batch) => await commands.SetLoadToBothAsync(batch, queryName, targetSheet ?? "", privacyLevel));
+            async (batch) => await commands.SetLoadToBothAsync(batch, queryName, targetSheet ?? ""));
 
         // Result now includes dual atomic operation verification metrics:
         // RowsLoadedToTable, RowsLoadedToModel, TablesInDataModel, WorkflowStatus (Complete/Partial/Failed)
@@ -504,11 +490,11 @@ public static class ExcelPowerQueryTool
         {
             result.SuggestedNextActions =
             [
-                "Use 'set-load-to-table' to change load settings",
-                "Use 'refresh' to update query data",
+                "Use 'set-load-to-table' or 'set-load-to-data-model' to change load destination",
+                "Use 'refresh' to update data (only works if loaded to table/model)",
                 "Use 'view' to inspect the query M code"
             ];
-            result.WorkflowHint = "Load configuration retrieved. Next, modify settings or refresh data.";
+            result.WorkflowHint = "Load configuration retrieved. Modify settings or refresh if already loaded.";
         }
         else
         {

@@ -743,7 +743,10 @@ public class VbaTrustResult : ResultBase
 
 /// <summary>
 /// Power Query privacy level options for data combining
+/// OBSOLETE: Privacy levels cannot be set programmatically.
+/// Configure manually in Excel: File → Options → Privacy
 /// </summary>
+[Obsolete("Privacy levels not supported. Configure manually in Excel UI: File → Options → Privacy")]
 public enum PowerQueryPrivacyLevel
 {
     /// <summary>
@@ -765,37 +768,6 @@ public enum PowerQueryPrivacyLevel
     /// Publicly available data sources (appropriate for public APIs)
     /// </summary>
     Public
-}
-
-/// <summary>
-/// Information about a query's detected privacy level
-/// </summary>
-public record QueryPrivacyInfo(string QueryName, PowerQueryPrivacyLevel PrivacyLevel);
-
-/// <summary>
-/// Result indicating Power Query operation requires privacy level specification
-/// </summary>
-public class PowerQueryPrivacyErrorResult : OperationResult
-{
-    /// <summary>
-    /// Privacy levels detected in existing queries
-    /// </summary>
-    public List<QueryPrivacyInfo> ExistingPrivacyLevels { get; init; } = [];
-
-    /// <summary>
-    /// Recommended privacy level based on existing queries
-    /// </summary>
-    public PowerQueryPrivacyLevel RecommendedPrivacyLevel { get; init; }
-
-    /// <summary>
-    /// User-friendly explanation of the recommendation
-    /// </summary>
-    public string Explanation { get; init; } = "";
-
-    /// <summary>
-    /// Original error message from Excel
-    /// </summary>
-    public string OriginalError { get; init; } = "";
 }
 
 /// <summary>

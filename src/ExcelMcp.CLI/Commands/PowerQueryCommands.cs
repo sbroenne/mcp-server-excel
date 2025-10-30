@@ -17,68 +17,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         _coreCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
     }
 
-    /// <summary>
-    /// Parses privacy level from command line arguments or environment variable
-    /// </summary>
-    private static PowerQueryPrivacyLevel? ParsePrivacyLevel(string[] args)
-    {
-        // Check for --privacy-level parameter
-        for (int i = 0; i < args.Length - 1; i++)
-        {
-            if (args[i] == "--privacy-level" && i + 1 < args.Length)
-            {
-                if (Enum.TryParse<PowerQueryPrivacyLevel>(args[i + 1], ignoreCase: true, out var level))
-                {
-                    return level;
-                }
-            }
-        }
-
-        // Check environment variable as fallback
-        string? envLevel = Environment.GetEnvironmentVariable("EXCEL_DEFAULT_PRIVACY_LEVEL");
-        if (!string.IsNullOrEmpty(envLevel))
-        {
-            if (Enum.TryParse<PowerQueryPrivacyLevel>(envLevel, ignoreCase: true, out var level))
-            {
-                return level;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Displays privacy consent prompt when PowerQueryPrivacyErrorResult is encountered
-    /// </summary>
-    private static void DisplayPrivacyConsentPrompt(PowerQueryPrivacyErrorResult error)
-    {
-        AnsiConsole.WriteLine();
-
-        var panel = new Panel(new Markup(
-            $"[yellow]Power Query Privacy Level Required[/]\n\n" +
-            $"Your query combines data from multiple sources. Excel requires a privacy level to be specified.\n\n" +
-            (error.ExistingPrivacyLevels.Count > 0
-                ? $"[cyan]Existing queries in this workbook:[/]\n" +
-                  string.Join("\n", error.ExistingPrivacyLevels.Select(q => $"  • {q.QueryName}: {q.PrivacyLevel}")) + "\n\n"
-                : "") +
-            $"[cyan]Recommended:[/] {error.RecommendedPrivacyLevel}\n" +
-            $"{error.Explanation}\n\n" +
-            $"[dim]To proceed, run the command again with:[/]\n" +
-            $"  --privacy-level {error.RecommendedPrivacyLevel}\n\n" +
-            $"[dim]Or choose a different level:[/]\n" +
-            $"  --privacy-level None          (least secure, ignores privacy)\n" +
-            $"  --privacy-level Private       (most secure, prevents combining)\n" +
-            $"  --privacy-level Organizational (internal data sources)\n" +
-            $"  --privacy-level Public        (public data sources)"
-        ));
-        panel.Header = new PanelHeader("[yellow]⚠ User Consent Required[/]");
-        panel.Border = BoxBorder.Rounded;
-        panel.BorderStyle = new Style(Color.Yellow);
-
-        AnsiConsole.Write(panel);
-        AnsiConsole.WriteLine();
-    }
-
     /// <inheritdoc />
     public int List(string[] args)
     {
@@ -230,25 +168,17 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         if (args.Length < 4)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-update <file.xlsx> <query-name> <mcode-file> [--privacy-level <None|Private|Organizational|Public>]");
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-update <file.xlsx> <query-name> <mcode-file>");
             return 1;
         }
 
         string filePath = args[1];
         string queryName = args[2];
         string mCodeFile = args[3];
-        var privacyLevel = ParsePrivacyLevel(args);
 
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        var result = await _coreCommands.UpdateAsync(batch, queryName, mCodeFile, privacyLevel);
+        var result = await _coreCommands.UpdateAsync(batch, queryName, mCodeFile);
         await batch.SaveAsync();
-
-        // Handle privacy error result
-        if (result is PowerQueryPrivacyErrorResult privacyError)
-        {
-            DisplayPrivacyConsentPrompt(privacyError);
-            return 1;
-        }
 
         if (!result.Success)
         {
@@ -315,26 +245,18 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         if (args.Length < 4)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-import <file.xlsx> <query-name> <mcode-file> [--privacy-level <None|Private|Organizational|Public>] [--connection-only]");
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-import <file.xlsx> <query-name> <mcode-file> [--connection-only]");
             return 1;
         }
 
         string filePath = args[1];
         string queryName = args[2];
         string mCodeFile = args[3];
-        var privacyLevel = ParsePrivacyLevel(args);
         bool loadToWorksheet = !args.Any(a => a.Equals("--connection-only", StringComparison.OrdinalIgnoreCase));
 
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        var result = await _coreCommands.ImportAsync(batch, queryName, mCodeFile, privacyLevel, loadToWorksheet: loadToWorksheet);
+        var result = await _coreCommands.ImportAsync(batch, queryName, mCodeFile, loadToWorksheet: loadToWorksheet);
         await batch.SaveAsync();
-
-        // Handle privacy error result
-        if (result is PowerQueryPrivacyErrorResult privacyError)
-        {
-            DisplayPrivacyConsentPrompt(privacyError);
-            return 1;
-        }
 
         if (!result.Success)
         {
@@ -812,21 +734,20 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         if (args.Length < 4)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-load-to-table <file.xlsx> <queryName> <sheetName> [--privacy-level <None|Private|Organizational|Public>]");
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-load-to-table <file.xlsx> <queryName> <sheetName>");
             return 1;
         }
 
         string filePath = args[1];
         string queryName = args[2];
         string sheetName = args[3];
-        var privacyLevel = ParsePrivacyLevel(args);
 
         AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Load to Table mode (atomic operation, sheet: {sheetName})...[/]");
 
         var task = Task.Run(async () =>
         {
             await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var result = await _coreCommands.SetLoadToTableAsync(batch, queryName, sheetName, privacyLevel);
+            var result = await _coreCommands.SetLoadToTableAsync(batch, queryName, sheetName);
             await batch.SaveAsync();
             return result;
         });
@@ -886,20 +807,19 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         if (args.Length < 3)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-load-to-data-model <file.xlsx> <queryName> [--privacy-level <None|Private|Organizational|Public>]");
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-load-to-data-model <file.xlsx> <queryName>");
             return 1;
         }
 
         string filePath = args[1];
         string queryName = args[2];
-        var privacyLevel = ParsePrivacyLevel(args);
 
         AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Load to Data Model mode (atomic operation)...[/]");
 
         var task = Task.Run(async () =>
         {
             await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var result = await _coreCommands.SetLoadToDataModelAsync(batch, queryName, privacyLevel);
+            var result = await _coreCommands.SetLoadToDataModelAsync(batch, queryName);
             await batch.SaveAsync();
             return result;
         });
@@ -959,21 +879,20 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         if (args.Length < 4)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-load-to-both <file.xlsx> <queryName> <sheetName> [--privacy-level <None|Private|Organizational|Public>]");
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-load-to-both <file.xlsx> <queryName> <sheetName>");
             return 1;
         }
 
         string filePath = args[1];
         string queryName = args[2];
         string sheetName = args[3];
-        var privacyLevel = ParsePrivacyLevel(args);
 
         AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Load to Both modes (atomic operation, table + data model, sheet: {sheetName})...[/]");
 
         var task = Task.Run(async () =>
         {
             await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var result = await _coreCommands.SetLoadToBothAsync(batch, queryName, sheetName, privacyLevel);
+            var result = await _coreCommands.SetLoadToBothAsync(batch, queryName, sheetName);
             await batch.SaveAsync();
             return result;
         });
