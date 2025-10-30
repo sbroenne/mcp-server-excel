@@ -17,174 +17,59 @@ public static class ExcelBatchModePrompts
     [Description("Essential guide: When and how to use Excel batch mode for 95% faster operations")]
     public static ChatMessage BatchModeGuide()
     {
-        return new ChatMessage(ChatRole.User, @"# Excel Batch Mode - Performance Critical Pattern
+        return new ChatMessage(ChatRole.User, @"When working with Excel files, you have access to a batch mode that makes multiple operations 95% faster (2-5 seconds per operation → <100ms per operation).
 
-## ⚡ Performance Impact: 95% Faster
+# When to Use Batch Mode
 
-**Without Batch**: 2-5 seconds per operation (Excel startup overhead every time)
-**With Batch**: <100ms per operation (workbook stays open, instance reused)
+Use batch mode when performing 2+ operations on the same Excel file:
+- Importing multiple Power Queries
+- Creating multiple Data Model measures
+- Creating multiple worksheets or tables
+- Any combination of multiple operations on the same file
 
-## 🎯 When to Use Batch Mode
+Do NOT use batch mode for single operations or when working with different files.
 
-**ALWAYS use batch mode when performing 2+ operations on the same workbook:**
+# The Three-Step Pattern
 
-✅ **USE BATCH MODE:**
-- Importing/updating **2+ Power Queries**
-- Creating/updating **2+ Data Model measures**
-- Creating **2+ worksheets**
-- Creating **2+ tables**
-- Any combination of multiple operations on same file
-- User says ""create a workbook with..."" or ""set up..."" or ""import these queries...""
+1. First call begin_excel_batch with the filePath
+2. Pass the returned batchId to all subsequent tool calls on that file
+3. Finally call commit_excel_batch with save: true
 
-❌ **Skip batch mode:**
-- Single operation on a file (e.g., ""just import this one query"")
-- Operations on different workbooks (one batch per workbook)
+Example workflow for importing 3 Power Queries:
 
-**Pattern Recognition Examples:**
-- ""Import these 5 queries"" → **USE BATCH MODE**
-- ""Create measures for TotalSales, AvgPrice, ProductCount"" → **USE BATCH MODE**
-- ""Set up a dashboard with 3 sheets and 2 queries"" → **USE BATCH MODE**
-- ""Just import SalesData query"" → No batch needed (single operation)
+First, start the batch:
+begin_excel_batch(filePath: ""workbook.xlsx"")
+→ Returns { batchId: ""abc123..."" }
 
-## 📋 Three-Step Pattern
+Then perform all operations, passing the batchId each time:
+excel_powerquery(action: ""import"", excelPath: ""workbook.xlsx"", queryName: ""Sales"", sourcePath: ""sales.pq"", batchId: ""abc123..."")
+excel_powerquery(action: ""import"", excelPath: ""workbook.xlsx"", queryName: ""Products"", sourcePath: ""products.pq"", batchId: ""abc123..."")
+excel_powerquery(action: ""import"", excelPath: ""workbook.xlsx"", queryName: ""Customers"", sourcePath: ""customers.pq"", batchId: ""abc123..."")
 
-### Step 1: Start Batch Session
-```typescript
-const batch = await begin_excel_batch({ 
-  filePath: ""workbook.xlsx"" 
-});
-const batchId = batch.batchId;  // Save this ID!
-```
+Finally, commit to save:
+commit_excel_batch(batchId: ""abc123..."", save: true)
 
-### Step 2: Execute Multiple Operations (Super Fast!)
-```typescript
-// All these operations use the SAME open workbook
-await excel_powerquery({ 
-  action: ""import"", 
-  excelPath: ""workbook.xlsx"",
-  queryName: ""SalesData"",
-  sourcePath: ""sales.pq"",
-  batchId: batchId  // ← Pass batch ID here!
-});
+# Critical Rules
 
-await excel_powerquery({ 
-  action: ""import"", 
-  excelPath: ""workbook.xlsx"",
-  queryName: ""CustomersData"",
-  sourcePath: ""customers.pq"",
-  batchId: batchId  // ← Same batch ID!
-});
+1. Always call commit_excel_batch when done (don't leave batches hanging)
+2. Use the same batchId for all operations on the same file
+3. One batch per workbook (can't share batches across different files)
+4. Set save: true to save changes, save: false to discard changes
 
-await excel_datamodel({ 
-  action: ""create-measure"", 
-  excelPath: ""workbook.xlsx"",
-  tableName: ""Sales"",
-  measureName: ""TotalRevenue"",
-  daxFormula: ""SUM(Sales[Amount])"",
-  batchId: batchId  // ← Same batch ID!
-});
-```
+# Recognizing Multi-Operation Requests
 
-### Step 3: Commit and Save
-```typescript
-await commit_excel_batch({ 
-  batchId: batchId, 
-  save: true  // true = save changes, false = discard
-});
-```
+When the user asks to:
+- ""Import these 5 queries"" → Use batch mode
+- ""Create measures for TotalSales, AvgPrice, ProductCount"" → Use batch mode
+- ""Set up a workbook with 3 sheets and data"" → Use batch mode
+- ""Just import this one query"" → Don't use batch mode (single operation)
 
-## ⚠️ Critical Rules
+# Response Hints
 
-1. **One batch per workbook** - Each batch is tied to a specific file
-2. **Always commit** - Don't leave batches hanging (60s auto-cleanup)
-3. **Pass batchId to every tool** - All excel_* tools accept optional batchId parameter
-4. **Match excelPath** - Must use same file path as begin_excel_batch
-5. **save: true by default** - Only use save: false to intentionally discard all changes
+If you see messages in responses like:
+- ""For multiple imports: Use begin_excel_batch to group operations efficiently""
+- ""Creating multiple measures? Use begin_excel_batch to keep Data Model open""
 
-## 🔄 Complete Workflow Example
-
-```typescript
-// User: ""Create a sales workbook with 3 queries and 2 measures""
-
-// 1. Start batch (opens Excel once)
-const batch = await begin_excel_batch({ filePath: ""sales.xlsx"" });
-const bid = batch.batchId;
-
-// 2. Import queries (all super fast, no Excel restarts!)
-await excel_powerquery({ action: ""import"", batchId: bid, queryName: ""Sales"", sourcePath: ""sales.pq"", excelPath: ""sales.xlsx"" });
-await excel_powerquery({ action: ""import"", batchId: bid, queryName: ""Products"", sourcePath: ""products.pq"", excelPath: ""sales.xlsx"" });
-await excel_powerquery({ action: ""import"", batchId: bid, queryName: ""Customers"", sourcePath: ""customers.pq"", excelPath: ""sales.xlsx"" });
-
-// 3. Create measures (still in same batch!)
-await excel_datamodel({ action: ""create-measure"", batchId: bid, tableName: ""Sales"", measureName: ""TotalRevenue"", daxFormula: ""SUM(Sales[Amount])"", excelPath: ""sales.xlsx"" });
-await excel_datamodel({ action: ""create-measure"", batchId: bid, tableName: ""Sales"", measureName: ""AvgOrderValue"", daxFormula: ""AVERAGE(Sales[Amount])"", excelPath: ""sales.xlsx"" });
-
-// 4. Commit (saves and closes)
-await commit_excel_batch({ batchId: bid, save: true });
-
-// Result: 5 operations completed in ~6-7 seconds instead of ~15-25 seconds!
-```
-
-## 💡 API Response Hints
-
-If you see messages like these in tool responses:
-
-> ""For multiple imports: Use begin_excel_batch to group operations efficiently""
-> ""Creating multiple measures? Use begin_excel_batch to keep Data Model open (much faster)""
-> ""Creating multiple sheets? Use begin_excel_batch for complete workbook setup""
-
-**You forgot to use batch mode!** The API is reminding you to use batching for better performance.
-
-## 🚫 Common Mistakes
-
-### ❌ Wrong: Not using batch mode for multiple operations
-```typescript
-// This is SLOW (Excel opens/closes 3 times)
-await excel_powerquery({ action: ""import"", queryName: ""Q1"", ... });
-await excel_powerquery({ action: ""import"", queryName: ""Q2"", ... });
-await excel_powerquery({ action: ""import"", queryName: ""Q3"", ... });
-```
-
-### ✅ Correct: Use batch mode
-```typescript
-const batch = await begin_excel_batch({ filePath: ""workbook.xlsx"" });
-await excel_powerquery({ action: ""import"", queryName: ""Q1"", batchId: batch.batchId, ... });
-await excel_powerquery({ action: ""import"", queryName: ""Q2"", batchId: batch.batchId, ... });
-await excel_powerquery({ action: ""import"", queryName: ""Q3"", batchId: batch.batchId, ... });
-await commit_excel_batch({ batchId: batch.batchId, save: true });
-```
-
-### ❌ Wrong: Forgetting to commit
-```typescript
-const batch = await begin_excel_batch({ filePath: ""workbook.xlsx"" });
-await excel_powerquery({ action: ""import"", batchId: batch.batchId, ... });
-// ❌ Missing commit_excel_batch!
-// Batch will auto-cleanup after 60s but changes may be lost!
-```
-
-### ✅ Correct: Always commit
-```typescript
-const batch = await begin_excel_batch({ filePath: ""workbook.xlsx"" });
-await excel_powerquery({ action: ""import"", batchId: batch.batchId, ... });
-await commit_excel_batch({ batchId: batch.batchId, save: true });  // ✅ Always commit!
-```
-
-## 🎓 Decision Tree
-
-```
-Are you performing 2+ operations on the same Excel file?
-├─ YES → Use batch mode (begin_excel_batch → operations with batchId → commit_excel_batch)
-└─ NO → Skip batch mode (just call the tool directly)
-```
-
-## 📊 Performance Comparison
-
-| Scenario | Without Batch | With Batch | Speedup |
-|----------|---------------|------------|---------|
-| Import 5 queries | ~15 seconds | ~1 second | 15x faster |
-| Create 10 measures | ~25 seconds | ~1.5 seconds | 17x faster |
-| Setup workbook (3 sheets + 2 queries + 2 measures) | ~20 seconds | ~2 seconds | 10x faster |
-
-**Bottom Line:** Batch mode is a game-changer for multi-operation workflows. Always use it when doing 2+ things to the same file!");
+These hints mean you should have used batch mode but didn't. On the next similar request, use the batch pattern from the start.");
     }
 }

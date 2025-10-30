@@ -19,13 +19,19 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Use "update" to modify existing query M code (preserves existing load configuration)
 /// - Use "refresh" to refresh query data from source
 /// - Use "delete" to remove queries
-/// - Use "set-load-to-table" to load query data to worksheet (validates M code via execution)
-/// - Use "set-load-to-data-model" to load to Excel's Power Pivot (Data Model)
-/// - Use "set-load-to-both" to load to both table and Power Pivot
+/// - Use "set-load-to-table" to load query data to worksheet (visible to users, NOT in Data Model)
+/// - Use "set-load-to-data-model" to load to Excel's Power Pivot Data Model (ready for DAX measures)
+/// - Use "set-load-to-both" to load to BOTH worksheet AND Power Pivot Data Model
 /// - Use "set-connection-only" to prevent data loading (M code not validated)
 /// - Use "get-load-config" to check current loading configuration
 ///
-/// IMPORTANT:
+/// IMPORTANT FOR DATA MODEL WORKFLOWS:
+/// - "set-load-to-table" loads data to WORKSHEET ONLY (users see formatted table, but NOT in Power Pivot)
+/// - For Data Model/DAX workflows: Use "set-load-to-data-model" or "set-load-to-both" actions
+/// - Cannot directly add worksheet-only query to Data Model via excel_table tool
+/// - If query is already loaded to worksheet: Use set-load-to-data-model to add to Power Pivot
+///
+/// VALIDATION & EXECUTION:
 /// - Import DEFAULT behavior: Automatically loads to worksheet (validates M code by executing it)
 /// - Validation = Execution: Power Query M code is only validated when data is actually loaded/refreshed
 /// - Connection-only queries are NOT validated until first execution via set-load-to-table or refresh

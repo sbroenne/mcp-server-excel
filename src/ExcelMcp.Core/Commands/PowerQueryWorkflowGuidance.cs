@@ -97,13 +97,35 @@ public static class PowerQueryWorkflowGuidance
     /// <returns>List of suggested actions for LLM</returns>
     public static List<string> GetNextStepsAfterLoadConfig(string loadMode, bool usedBatchMode = false)
     {
-        var suggestions = new List<string>
+        var suggestions = new List<string>();
+
+        // IMPORTANT: Clarify what load mode means for Data Model workflows
+        if (loadMode == "LoadToTable")
         {
-            $"Query configured to load data as: {loadMode}",
-            "Data has been loaded to configured destination",
-            "Use 'refresh' to reload when source data changes",
-            "Use 'view' to review M code if needed"
-        };
+            suggestions.Add("Query data loaded to worksheet (visible to users as formatted table)");
+            suggestions.Add("IMPORTANT: This is NOT loaded to Power Pivot Data Model yet");
+            suggestions.Add("To add to Data Model: Use 'set-load-to-data-model' action (simplest)");
+            suggestions.Add("Alternative: Create Excel Table from range using 'excel_table create', then 'add-to-datamodel'");
+        }
+        else if (loadMode == "LoadToDataModel")
+        {
+            suggestions.Add("Query data loaded to Power Pivot Data Model (ready for DAX)");
+            suggestions.Add("Use 'excel_datamodel' tool for DAX measures and relationships");
+            suggestions.Add("Data is in model but NOT visible in worksheet (connection-only to Data Model)");
+        }
+        else if (loadMode == "LoadToBoth")
+        {
+            suggestions.Add("Query data loaded to BOTH worksheet AND Power Pivot Data Model");
+            suggestions.Add("Data visible in worksheet AND available for DAX measures/relationships");
+            suggestions.Add("Use 'excel_datamodel' tool for DAX operations");
+        }
+        else
+        {
+            suggestions.Add($"Query configured to load data as: {loadMode}");
+        }
+
+        suggestions.Add("Use 'refresh' to reload when source data changes");
+        suggestions.Add("Use 'view' to review M code if needed");
 
         return suggestions;
     }
