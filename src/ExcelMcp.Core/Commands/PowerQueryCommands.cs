@@ -1999,42 +1999,26 @@ in
                 var queryTableOptions = new PowerQueryHelpers.QueryTableOptions
                 {
                     Name = queryName,
-                    RefreshImmediately = false // Don't refresh yet - we'll do it atomically
+                    RefreshImmediately = true // CRITICAL: Refresh synchronously to persist QueryTable properly
                 };
                 PowerQueryHelpers.CreateQueryTable(targetSheet, queryName, queryTableOptions);
 
-                // STEP 5: ATOMIC REFRESH - Use Data Model refresh for atomic operation
-                try
-                {
-                    await _dataModelCommands.RefreshAsync(batch);
-                }
-                catch (Exception refreshEx)
+                // Configure query for Data Model loading
+                if (!SetQueryLoadToDataModel(ctx.Book, queryName, out string? dmConfigError))
                 {
                     result.Success = false;
-                    result.ErrorMessage = $"Refresh failed: {refreshEx.Message}";
+                    result.ErrorMessage = $"Failed to configure query for Data Model loading: {dmConfigError ?? "Unknown error"}";
                     result.WorkflowStatus = "Partial";
                     result.SuggestedNextActions =
                     [
-                        "Check query syntax and data source connectivity",
-                        "Use 'errors' action to see detailed error information"
+                        "Use 'view' to check query M code for syntax errors",
+                        "Try 'set-load-to-table' first to validate query works",
+                        "Verify query data source is accessible and has data"
                     ];
                     return result;
                 }
 
-                // Configure query for Data Model loading
-            if (!SetQueryLoadToDataModel(ctx.Book, queryName, out string? dmConfigError))
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Failed to configure query for Data Model loading: {dmConfigError ?? "Unknown error"}";
-                result.WorkflowStatus = "Partial";
-                result.SuggestedNextActions =
-                [
-                    "Use 'view' to check query M code for syntax errors",
-                    "Try 'set-load-to-table' first to validate query works",
-                    "Verify query data source is accessible and has data"
-                ];
-                return result;
-            }                result.ConfigurationApplied = true;
+                result.ConfigurationApplied = true;
 
                 // STEP 6: VERIFY data loaded to BOTH destinations
                 bool foundInTable = false;
