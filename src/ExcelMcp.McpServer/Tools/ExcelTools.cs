@@ -5,7 +5,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// <summary>
 /// Excel tools documentation and guidance for Model Context Protocol (MCP) server.
 ///
-/// 🔧 Tool Architecture (8 Domain-Focused Tools):
+/// 🔧 Tool Architecture (9 Domain-Focused Tools):
 /// - ExcelFileTool: File operations (create-empty)
 /// - ExcelPowerQueryTool: M code and data loading management
 /// - ExcelWorksheetTool: Sheet lifecycle management (create, rename, copy, delete)
@@ -14,6 +14,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - ExcelVbaTool: VBA macro management and execution
 /// - ExcelDataModelTool: Power Pivot (Data Model) operations - DAX, measures, relationships
 /// - ExcelTableTool: Excel Tables (ListObjects) with filtering and formatting
+/// - ExcelPivotTableTool: PivotTable creation, field management, and analysis
 ///
 /// 🎯 Power Pivot Guidance for LLMs:
 /// If you're thinking "Power Pivot" or "PowerPivot" operations, use ExcelDataModelTool!
@@ -29,6 +30,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// 6. Use ExcelParameterTool for configuration and reusable values
 /// 7. Use ExcelVbaTool for complex automation (requires .xlsm files)
 /// 8. Use ExcelTableTool for structured data with filtering and auto-formatting
+/// 9. Use ExcelPivotTableTool for interactive data summarization and cross-tabulation
 ///
 /// 📝 Parameter Patterns:
 /// - action: Always the first parameter, defines what operation to perform
@@ -50,6 +52,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - ExcelRangeTool.cs: excel_range tool (replaces excel_cell)
 /// - ExcelVbaTool.cs: excel_vba tool
 /// - ExcelDataModelTool.cs: excel_datamodel tool
+/// - ExcelPivotTableTool.cs: excel_pivottable tool
 ///
 /// This prevents duplicate tool registration conflicts in the MCP framework.
 /// </summary>
