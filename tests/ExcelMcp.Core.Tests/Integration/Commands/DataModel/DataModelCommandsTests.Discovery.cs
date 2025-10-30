@@ -16,7 +16,7 @@ public partial class DataModelCommandsTests
         var result = await _dataModelCommands.ListTableColumnsAsync(batch, "Sales");
 
         // Assert - MUST succeed (Data Model is always available in Excel 2013+)
-        Assert.True(result.Success, 
+        Assert.True(result.Success,
             $"ListTableColumns MUST succeed. Error: {result.ErrorMessage}");
         Assert.NotNull(result.Columns);
         Assert.True(result.Columns.Count >= 6, $"Expected at least 6 columns in Sales table, got {result.Columns.Count}");
@@ -59,7 +59,7 @@ public partial class DataModelCommandsTests
         var result = await _dataModelCommands.ViewTableAsync(batch, "Sales");
 
         // Assert - MUST succeed (Data Model is always available in Excel 2013+)
-        Assert.True(result.Success, 
+        Assert.True(result.Success,
             $"ViewTable MUST succeed. Error: {result.ErrorMessage}");
         Assert.Equal("Sales", result.TableName);
         Assert.NotNull(result.SourceName);
@@ -110,9 +110,9 @@ public partial class DataModelCommandsTests
         var result = await _dataModelCommands.GetModelInfoAsync(batch);
 
         // Assert - Demand success (Data Model is always available in Excel 2013+)
-        Assert.True(result.Success, 
+        Assert.True(result.Success,
             $"GetModelInfo MUST succeed - Data Model is always available in Excel 2013+. Error: {result.ErrorMessage}");
-        
+
         // Should have at least 3 tables (Sales, Customers, Products)
         Assert.True(result.TableCount >= 3, $"Expected at least 3 tables, got {result.TableCount}");
 
