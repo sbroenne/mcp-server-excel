@@ -108,13 +108,18 @@ ExcelHelper.InstancePool = pool;
 
 ## MCP Server Resource-Based Tools
 
-**6 Focused Tools:**
+**11 Focused Tools:**
 1. `excel_file` - File operations
 2. `excel_powerquery` - Power Query M code  
-3. `excel_worksheet` - Worksheet operations
-4. `excel_parameter` - Named ranges
-5. `excel_cell` - Individual cells
-6. `excel_vba` - VBA macros
+3. `excel_worksheet` - Worksheet lifecycle
+4. `excel_range` - Range operations (values, formulas, hyperlinks)
+5. `excel_parameter` - Named ranges
+6. `excel_table` - Excel Table (ListObject) operations
+7. `excel_connection` - Connection management
+8. `excel_datamodel` - Data Model / Power Pivot
+9. `excel_vba` - VBA macros
+10. `begin_excel_batch` - Start batch session
+11. `commit_excel_batch` - Save/discard batch session
 
 ### Action-Based Routing
 ```csharp

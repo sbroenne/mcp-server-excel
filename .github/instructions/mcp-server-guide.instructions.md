@@ -9,16 +9,21 @@ applyTo: "src/ExcelMcp.McpServer/**/*.cs"
 ## Purpose
 AI-assisted Excel development (Power Query refactoring, VBA enhancement, code review) - NOT for ETL pipelines.
 
-## Resource-Based Architecture (6 Tools)
+## Resource-Based Architecture (11 Tools)
 
-| Tool | Actions | Purpose |
-|------|---------|---------|
-| **excel_file** | create-empty | Excel file creation |
-| **excel_powerquery** | list, view, import, export, update, delete, set-load-to-*, get-load-config | Power Query lifecycle + optional `privacyLevel` |
-| **excel_worksheet** | list, read, write, create, rename, copy, delete, clear, append | Worksheet operations |
-| **excel_parameter** | list, get, set, create, delete | Named ranges |
-| **excel_cell** | get-value, set-value, get-formula, set-formula | Cell operations |
-| **excel_vba** | list, export, import, update, run, delete | VBA lifecycle + `VbaTrustRequiredResult` |
+| Tool | Purpose |
+|------|---------|
+| **excel_file** | Excel file operations (create-empty, close-workbook, test) |
+| **excel_powerquery** | Power Query lifecycle + optional `privacyLevel` |
+| **excel_worksheet** | Worksheet operations (lifecycle only - data via excel_range) |
+| **excel_range** | Range operations (values, formulas, clear, copy, hyperlinks) |
+| **excel_parameter** | Named ranges |
+| **excel_table** | Excel Table (ListObject) operations |
+| **excel_connection** | Connection management (OLEDB, ODBC, Text, Web, etc.) |
+| **excel_datamodel** | Data Model / Power Pivot operations |
+| **excel_vba** | VBA lifecycle + `VbaTrustRequiredResult` |
+| **begin_excel_batch** | Start batch session (multi-operation performance) |
+| **commit_excel_batch** | Save/discard batch session |
 
 ## Implementation Patterns
 
