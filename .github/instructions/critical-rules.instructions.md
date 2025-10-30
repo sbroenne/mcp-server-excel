@@ -77,6 +77,20 @@ Delete commented-out code (use git history). Exception: Documentation files only
 
 **Why:** Excel COM is quirky. Working code examples prevent common pitfalls (1-based indexing, object cleanup, async issues, etc.)
 
+
+
+## Rule 10: Debug Tests One by One
+
+When debugging test failures, **ALWAYS run tests individually** - never run all tests at once.
+
+**Process:**
+1. List all test methods in the file
+2. Run each test individually using `--filter "FullyQualifiedName=Namespace.Class.Method"`
+3. Identify exact failure for each test before moving to next
+4. Fix issues one test at a time
+
+**Why:** Running all tests together masks which specific test fails and why. Individual execution provides clear, isolated diagnostics.
+
 ---
 
 ## Quick Reference
@@ -92,3 +106,4 @@ Delete commented-out code (use git history). Exception: Documentation files only
 | 7. COM API | Use Excel COM first, validate docs | Always |
 | 8. TODO markers | Must resolve before commit | 1 min |
 | 9. GitHub search | Search repo for COM examples FIRST | 1-2 min |
+| 10. Test debugging | Run tests one by one, never all together | Per test |
