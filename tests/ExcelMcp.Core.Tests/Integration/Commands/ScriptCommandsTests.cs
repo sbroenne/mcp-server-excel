@@ -108,91 +108,65 @@ End Sub";
     [Fact]
     public async Task List_AfterImport_ShowsNewModule()
     {
-        // Arrange
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            await _scriptCommands.ImportAsync(batch, "TestModule", _testVbaFile);
-            await batch.SaveAsync();
-        }
+        // Act - Use single batch for both operations
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        await _scriptCommands.ImportAsync(batch, "TestModule", _testVbaFile);
+        var result = await _scriptCommands.ListAsync(batch);
+        await batch.SaveAsync();
 
-        // Act
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            var result = await _scriptCommands.ListAsync(batch);
-
-            // Assert
-            Assert.True(result.Success);
-            Assert.NotNull(result.Scripts);
-            // Should contain the imported module plus default document modules (ThisWorkbook, Sheet1)
-            Assert.Contains(result.Scripts, s => s.Name == "TestModule");
-            Assert.True(result.Scripts.Count >= 3); // At least TestModule + default document modules
-        }
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Scripts);
+        // Should contain the imported module plus default document modules (ThisWorkbook, Sheet1)
+        Assert.Contains(result.Scripts, s => s.Name == "TestModule");
+        Assert.True(result.Scripts.Count >= 3); // At least TestModule + default document modules
     }
 
     [Fact]
     public async Task Export_WithExistingModule_CreatesFile()
     {
         // Arrange
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            await _scriptCommands.ImportAsync(batch, "TestModule", _testVbaFile);
-            await batch.SaveAsync();
-        }
         var exportPath = Path.Combine(_tempDir, "exported.vba");
 
-        // Act
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            var result = await _scriptCommands.ExportAsync(batch, "TestModule", exportPath);
+        // Act - Use single batch for both operations
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        await _scriptCommands.ImportAsync(batch, "TestModule", _testVbaFile);
+        var result = await _scriptCommands.ExportAsync(batch, "TestModule", exportPath);
+        await batch.SaveAsync();
 
-            // Assert
-            Assert.True(result.Success);
-            Assert.True(File.Exists(exportPath));
-        }
+        // Assert
+        Assert.True(result.Success);
+        Assert.True(File.Exists(exportPath));
     }
 
     [Fact]
     public async Task Update_WithValidVbaCode_ReturnsSuccessResult()
     {
         // Arrange
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            await _scriptCommands.ImportAsync(batch, "TestModule", _testVbaFile);
-            await batch.SaveAsync();
-        }
         var updatedVba = Path.Combine(_tempDir, "updated.vba");
         File.WriteAllText(updatedVba, "Sub UpdatedSub()\nEnd Sub");
 
-        // Act
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            var result = await _scriptCommands.UpdateAsync(batch, "TestModule", updatedVba);
-            await batch.SaveAsync();
+        // Act - Use single batch for both operations
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        await _scriptCommands.ImportAsync(batch, "TestModule", _testVbaFile);
+        var result = await _scriptCommands.UpdateAsync(batch, "TestModule", updatedVba);
+        await batch.SaveAsync();
 
-            // Assert
-            Assert.True(result.Success);
-        }
+        // Assert
+        Assert.True(result.Success);
     }
 
     [Fact]
     public async Task Delete_WithExistingModule_ReturnsSuccessResult()
     {
-        // Arrange
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            await _scriptCommands.ImportAsync(batch, "TestModule", _testVbaFile);
-            await batch.SaveAsync();
-        }
+        // Act - Use single batch for both operations
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        await _scriptCommands.ImportAsync(batch, "TestModule", _testVbaFile);
+        var result = await _scriptCommands.DeleteAsync(batch, "TestModule");
+        await batch.SaveAsync();
 
-        // Act
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            var result = await _scriptCommands.DeleteAsync(batch, "TestModule");
-            await batch.SaveAsync();
-
-            // Assert
-            Assert.True(result.Success);
-        }
+        // Assert
+        Assert.True(result.Success);
     }
 
     [Fact]

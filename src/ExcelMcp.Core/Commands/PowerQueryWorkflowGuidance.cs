@@ -33,19 +33,19 @@ public static class PowerQueryWorkflowGuidance
             suggestions.Add("Query imported as connection-only (no data loaded yet)");
             suggestions.Add("Use 'set-load-to-table' with targetSheet parameter to load data to worksheet");
             suggestions.Add("Or use 'set-load-to-data-model' to load to PowerPivot");
-            suggestions.Add("Then use 'refresh' to validate the query works");
+            suggestions.Add("Loading will validate the query and enable refresh");
+
+            // Suggest batch mode only if planning multiple operations (load + refresh)
+            if (!usedBatchMode)
+            {
+                suggestions.Add("Planning to configure load AND refresh? Use begin_excel_batch to combine operations");
+            }
         }
         else
         {
             suggestions.Add("Query imported and data loaded successfully");
             suggestions.Add("Use 'view' to review M code if needed");
             suggestions.Add("Use 'get-load-config' to check configuration");
-        }
-
-        // Add batch mode suggestion if not already using it
-        if (!usedBatchMode)
-        {
-            suggestions.Insert(0, "For multiple imports: Use begin_excel_batch to group operations efficiently");
         }
 
         return suggestions;
@@ -82,14 +82,8 @@ public static class PowerQueryWorkflowGuidance
         else
         {
             suggestions.Add("Query updated successfully");
-            suggestions.Add("Use 'refresh' to reload data with updated M code");
-            suggestions.Add("Check 'get-load-config' to verify load settings");
-        }
-
-        // Add batch mode suggestion if not already using it
-        if (!usedBatchMode)
-        {
-            suggestions.Insert(0, "For multiple updates: Use begin_excel_batch to group operations efficiently");
+            suggestions.Add("Check 'get-load-config' to see if query is loaded anywhere");
+            suggestions.Add("Use 'set-load-to-table' to load data if connection-only");
         }
 
         return suggestions;
@@ -103,19 +97,35 @@ public static class PowerQueryWorkflowGuidance
     /// <returns>List of suggested actions for LLM</returns>
     public static List<string> GetNextStepsAfterLoadConfig(string loadMode, bool usedBatchMode = false)
     {
-        var suggestions = new List<string>
-        {
-            $"Query configured to load data as: {loadMode}",
-            "Use 'refresh' to load data to configured destination",
-            "Use 'view' to review M code if needed",
-            "Data will now refresh to this location automatically"
-        };
+        var suggestions = new List<string>();
 
-        // Add batch mode suggestion if not already using it
-        if (!usedBatchMode)
+        // IMPORTANT: Clarify what load mode means for Data Model workflows
+        if (loadMode == "LoadToTable")
         {
-            suggestions.Insert(0, "For configuring multiple queries: Use begin_excel_batch to group operations efficiently");
+            suggestions.Add("Query data loaded to worksheet (visible to users as formatted table)");
+            suggestions.Add("IMPORTANT: This is NOT loaded to Power Pivot Data Model yet");
+            suggestions.Add("To add to Data Model: Use 'set-load-to-data-model' action (simplest)");
+            suggestions.Add("Alternative: Create Excel Table from range using 'excel_table create', then 'add-to-datamodel'");
         }
+        else if (loadMode == "LoadToDataModel")
+        {
+            suggestions.Add("Query data loaded to Power Pivot Data Model (ready for DAX)");
+            suggestions.Add("Use 'excel_datamodel' tool for DAX measures and relationships");
+            suggestions.Add("Data is in model but NOT visible in worksheet (connection-only to Data Model)");
+        }
+        else if (loadMode == "LoadToBoth")
+        {
+            suggestions.Add("Query data loaded to BOTH worksheet AND Power Pivot Data Model");
+            suggestions.Add("Data visible in worksheet AND available for DAX measures/relationships");
+            suggestions.Add("Use 'excel_datamodel' tool for DAX operations");
+        }
+        else
+        {
+            suggestions.Add($"Query configured to load data as: {loadMode}");
+        }
+
+        suggestions.Add("Use 'refresh' to reload when source data changes");
+        suggestions.Add("Use 'view' to review M code if needed");
 
         return suggestions;
     }
@@ -170,24 +180,34 @@ public static class PowerQueryWorkflowGuidance
         {
             "Authentication" =>
             [
-                "Check data source credentials",
-                "Verify authentication method in M code",
-                "Update connection strings with valid credentials",
-                "Consider using Excel credential manager"
+                "LLM-Actionable Steps:",
+                "  • Verify credentials are configured in Excel for this data source",
+                "  • Review M code for authentication method used",
+                "Requires User Intervention:",
+                "  • Configure data source credentials in Excel (Data → Queries & Connections → Edit)",
+                "  • Verify username and password are correct",
+                "  • Check if data source requires Windows Authentication vs. Database credentials",
+                "  • Confirm service account has necessary permissions"
             ],
             "Connectivity" =>
             [
-                "Verify network connectivity to data source",
-                "Check firewall and proxy settings",
-                "Confirm data source URL or path is correct",
-                "Test connection from Excel manually"
+                "LLM-Actionable Steps:",
+                "  • Verify data source URL or path in M code is correct",
+                "  • Retry connection with 'pq-refresh' command",
+                "Requires User Intervention:",
+                "  • Verify network connectivity to data source",
+                "  • Check Windows firewall and proxy settings",
+                "  • Test connection manually in Excel UI (Data → Queries & Connections → Edit)"
             ],
             "Privacy" =>
             [
-                "Privacy level mismatch detected",
-                "Use 'update' with privacyLevel parameter (Private, Organizational, or Public)",
-                "Review M code for data source combinations",
-                "Consider using consistent privacy levels across queries"
+                "Formula.Firewall error detected (Power Query privacy levels)",
+                "⚠️ Cannot be automated - requires Excel UI configuration",
+                "User Action Required:",
+                "  1. Open Excel → Data → Queries & Connections",
+                "  2. Right-click query → Properties → Privacy Level",
+                "  3. Set to Private (recommended) or Organizational/Public",
+                "Alternative: Rewrite M code to avoid combining protected sources"
             ],
             "Syntax" =>
             [
@@ -198,10 +218,14 @@ public static class PowerQueryWorkflowGuidance
             ],
             "Permissions" =>
             [
-                "Check file or data source permissions",
-                "Verify user has read access to data source",
-                "Review folder permissions if using file sources",
-                "Contact administrator if needed"
+                "LLM-Actionable Steps:",
+                "  • Verify file path in M code is accessible",
+                "  • Check if data source requires authentication",
+                "Requires User Intervention:",
+                "  • Check file or data source permissions",
+                "  • Verify user has read access to data source",
+                "  • Review folder permissions if using file sources",
+                "  • Contact administrator if needed"
             ],
             _ =>
             [
@@ -228,17 +252,17 @@ public static class PowerQueryWorkflowGuidance
 
         return operation switch
         {
-            "pq-import" => "WORKFLOW: Import → Configure Load → Refresh → Validate",
-            "pq-update" => "WORKFLOW: Update → Auto-Refresh → Verify (config preserved)",
-            "pq-refresh" => "WORKFLOW: Refresh validates query and loads latest data",
-            "pq-set-load-to-table" => "WORKFLOW: Configure → Refresh → Data appears in worksheet",
-            "pq-set-load-to-data-model" => "WORKFLOW: Configure → Refresh → Data available in PowerPivot",
-            "pq-set-load-to-both" => "WORKFLOW: Configure → Refresh → Data in worksheet and PowerPivot",
-            "pq-set-connection-only" => "WORKFLOW: Query set to connection-only (no data loading)",
-            "pq-delete" => "WORKFLOW: Query removed, but data in worksheets may persist",
-            "pq-export" => "WORKFLOW: M code exported for version control",
-            "pq-view" => "WORKFLOW: Review M code before making changes",
-            "pq-list" => "WORKFLOW: List queries to understand workbook structure",
+            "pq-import" => "Query imported (auto-loads to worksheet unless connection-only specified)",
+            "pq-update" => "M code updated, configuration preserved, data NOT refreshed automatically",
+            "pq-refresh" => "Query refreshed - loaded latest data from source",
+            "pq-set-load-to-table" => "Data loaded to worksheet - use 'pq-refresh' to reload when source changes",
+            "pq-set-load-to-data-model" => "Data loaded to PowerPivot - use 'pq-refresh' to reload when source changes",
+            "pq-set-load-to-both" => "Data loaded to both destinations - use 'pq-refresh' to reload when source changes",
+            "pq-set-connection-only" => "Query set to connection-only (no data loading on refresh)",
+            "pq-delete" => "Query removed from workbook (data in worksheets may persist)",
+            "pq-export" => "M code exported for version control or documentation",
+            "pq-view" => "Review M code before making changes",
+            "pq-list" => "Displays all Power Query queries in workbook",
             _ => $"{operation} completed successfully"
         };
     }

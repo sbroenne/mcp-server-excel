@@ -79,102 +79,74 @@ public class SheetCommandsTests : IDisposable
     [Fact]
     public async Task List_AfterCreate_ShowsNewSheet()
     {
-        // Arrange - Create sheet
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            await _sheetCommands.CreateAsync(batch, "TestSheet");
-            await batch.SaveAsync();
-        }
+        // Act - Use single batch for both operations
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        await _sheetCommands.CreateAsync(batch, "TestSheet");
+        var result = await _sheetCommands.ListAsync(batch);
+        await batch.SaveAsync();
 
-        // Act - List sheets
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            var result = await _sheetCommands.ListAsync(batch);
-
-            // Assert
-            Assert.True(result.Success);
-            Assert.Contains(result.Worksheets, w => w.Name == "TestSheet");
-        }
+        // Assert
+        Assert.True(result.Success);
+        Assert.Contains(result.Worksheets, w => w.Name == "TestSheet");
     }
 
     [Fact]
     public async Task Rename_WithValidNames_ReturnsSuccessResult()
     {
-        // Arrange
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            await _sheetCommands.CreateAsync(batch, "OldName");
-            await batch.SaveAsync();
-        }
+        // Act - Use single batch for all operations
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        await _sheetCommands.CreateAsync(batch, "OldName");
+        var result = await _sheetCommands.RenameAsync(batch, "OldName", "NewName");
 
-        // Act
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            var result = await _sheetCommands.RenameAsync(batch, "OldName", "NewName");
-            await batch.SaveAsync();
+        // Assert
+        Assert.True(result.Success);
 
-            // Assert
-            Assert.True(result.Success);
+        // Verify rename actually happened
+        var listResult = await _sheetCommands.ListAsync(batch);
+        Assert.True(listResult.Success);
+        Assert.DoesNotContain(listResult.Worksheets, w => w.Name == "OldName");
+        Assert.Contains(listResult.Worksheets, w => w.Name == "NewName");
 
-            // Verify rename actually happened
-            var listResult = await _sheetCommands.ListAsync(batch);
-            Assert.True(listResult.Success);
-            Assert.DoesNotContain(listResult.Worksheets, w => w.Name == "OldName");
-            Assert.Contains(listResult.Worksheets, w => w.Name == "NewName");
-        }
+        await batch.SaveAsync();
     }
 
     [Fact]
     public async Task Delete_WithExistingSheet_ReturnsSuccessResult()
     {
-        // Arrange
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            await _sheetCommands.CreateAsync(batch, "ToDelete");
-            await batch.SaveAsync();
-        }
+        // Act - Use single batch for all operations
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        await _sheetCommands.CreateAsync(batch, "ToDelete");
+        var result = await _sheetCommands.DeleteAsync(batch, "ToDelete");
 
-        // Act
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            var result = await _sheetCommands.DeleteAsync(batch, "ToDelete");
-            await batch.SaveAsync();
+        // Assert
+        Assert.True(result.Success);
 
-            // Assert
-            Assert.True(result.Success);
+        // Verify sheet is actually gone
+        var listResult = await _sheetCommands.ListAsync(batch);
+        Assert.True(listResult.Success);
+        Assert.DoesNotContain(listResult.Worksheets, w => w.Name == "ToDelete");
 
-            // Verify sheet is actually gone
-            var listResult = await _sheetCommands.ListAsync(batch);
-            Assert.True(listResult.Success);
-            Assert.DoesNotContain(listResult.Worksheets, w => w.Name == "ToDelete");
-        }
+        await batch.SaveAsync();
     }
 
     [Fact]
     public async Task Copy_WithValidNames_ReturnsSuccessResult()
     {
-        // Arrange
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            await _sheetCommands.CreateAsync(batch, "Source");
-            await batch.SaveAsync();
-        }
+        // Act - Use single batch for all operations
+        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        await _sheetCommands.CreateAsync(batch, "Source");
+        var result = await _sheetCommands.CopyAsync(batch, "Source", "Target");
 
-        // Act
-        await using (var batch = await ExcelSession.BeginBatchAsync(_testExcelFile))
-        {
-            var result = await _sheetCommands.CopyAsync(batch, "Source", "Target");
-            await batch.SaveAsync();
+        // Assert
+        Assert.True(result.Success);
 
-            // Assert
-            Assert.True(result.Success);
+        // Verify both source and target sheets exist
+        var listResult = await _sheetCommands.ListAsync(batch);
+        Assert.True(listResult.Success);
+        Assert.Contains(listResult.Worksheets, w => w.Name == "Source");
+        Assert.Contains(listResult.Worksheets, w => w.Name == "Target");
 
-            // Verify both source and target sheets exist
-            var listResult = await _sheetCommands.ListAsync(batch);
-            Assert.True(listResult.Success);
-            Assert.Contains(listResult.Worksheets, w => w.Name == "Source");
-            Assert.Contains(listResult.Worksheets, w => w.Name == "Target");
-        }
+        await batch.SaveAsync();
     }
 
     public void Dispose()

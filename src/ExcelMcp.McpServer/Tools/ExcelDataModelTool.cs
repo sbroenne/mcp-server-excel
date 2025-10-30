@@ -212,11 +212,11 @@ public static class ExcelDataModelTool
         {
             result.SuggestedNextActions =
             [
-                "Check that the Excel file contains a Data Model",
-                "Verify measures exist in the Data Model",
+                "Verify the file contains tables loaded to Data Model",
+                "Use 'list-tables' to check if Data Model has data",
                 "Use Power Pivot to create measures if none exist"
             ];
-            result.WorkflowHint = "List failed. Ensure Data Model has measures and retry.";
+            result.WorkflowHint = "List failed. Ensure Data Model contains tables and measures.";
             throw new ModelContextProtocol.McpException($"list-measures failed for '{filePath}': {result.ErrorMessage}");
         }
 
@@ -249,7 +249,7 @@ public static class ExcelDataModelTool
             [
                 "Check that the measure name is correct",
                 "Use 'list-measures' to see available measures",
-                "Verify the Data Model contains this measure"
+                "Verify the Data Model contains tables with measures"
             ];
             result.WorkflowHint = "View failed. Ensure measure exists and retry.";
             throw new ModelContextProtocol.McpException($"view-measure failed for '{filePath}': {result.ErrorMessage}");
@@ -317,11 +317,11 @@ public static class ExcelDataModelTool
         {
             result.SuggestedNextActions =
             [
-                "Check that the Excel file contains a Data Model",
-                "Verify relationships exist between tables",
+                "Verify the file contains tables loaded to Data Model",
+                "Use 'list-tables' to check if multiple tables exist",
                 "Use Power Pivot to create relationships if needed"
             ];
-            result.WorkflowHint = "List failed. Ensure Data Model has relationships and retry.";
+            result.WorkflowHint = "List failed. Ensure Data Model contains multiple tables with relationships.";
             throw new ModelContextProtocol.McpException($"list-relationships failed for '{filePath}': {result.ErrorMessage}");
         }
 
@@ -349,11 +349,11 @@ public static class ExcelDataModelTool
         {
             result.SuggestedNextActions =
             [
-                "Check that the Excel file contains a Data Model",
-                "Verify source connections are valid",
-                "Ensure network connectivity to data sources"
+                "Verify the file contains tables loaded to Data Model",
+                "Use 'list-tables' to check what tables exist",
+                "Check source connections and network connectivity"
             ];
-            result.WorkflowHint = "Refresh failed. Ensure connections are valid and retry.";
+            result.WorkflowHint = "Refresh failed. Ensure Data Model contains tables and connections are valid.";
             throw new ModelContextProtocol.McpException($"refresh failed for '{filePath}': {result.ErrorMessage}");
         }
 
@@ -390,7 +390,7 @@ public static class ExcelDataModelTool
                 [
                     "Use 'list-measures' to see available measures",
                     "Check measure name for typos",
-                    "Verify the Excel file contains a Data Model"
+                    "Verify the file contains tables loaded to Data Model"
                 ];
             }
             result.WorkflowHint = $"Failed to delete measure '{measureName}'. Verify measure exists.";
@@ -450,7 +450,7 @@ public static class ExcelDataModelTool
                 [
                     "Use 'list-relationships' to see available relationships",
                     "Check table and column names for typos",
-                    "Verify the Excel file contains a Data Model"
+                    "Verify the file contains tables loaded to Data Model"
                 ];
             }
             result.WorkflowHint = $"Failed to delete relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn}. Verify relationship exists.";
@@ -497,7 +497,7 @@ public static class ExcelDataModelTool
                 [
                     "Use 'list-tables' to see available tables",
                     "Check table name for typos",
-                    "Verify the Excel file contains a Data Model"
+                    "Verify the file contains tables loaded to Data Model"
                 ];
             }
             result.WorkflowHint = $"Failed to list columns for table '{tableName}'. Verify table exists.";
@@ -542,7 +542,7 @@ public static class ExcelDataModelTool
                 [
                     "Use 'list-tables' to see available tables",
                     "Check table name for typos",
-                    "Verify the Excel file contains a Data Model"
+                    "Verify the file contains tables loaded to Data Model"
                 ];
             }
             result.WorkflowHint = $"Failed to view table '{tableName}'. Verify table exists.";
@@ -579,7 +579,7 @@ public static class ExcelDataModelTool
             {
                 result.SuggestedNextActions =
                 [
-                    "Verify the Excel file contains a Data Model",
+                    "Verify the file contains tables loaded to Data Model",
                     "Try 'list-tables' to check if tables exist",
                     "Check if file is corrupted"
                 ];
@@ -816,7 +816,7 @@ public static class ExcelDataModelTool
                 [
                     "Use 'list-relationships' to verify relationship exists",
                     "Check table and column names for typos",
-                    "Verify the Excel file contains a Data Model"
+                    "Verify the file contains tables loaded to Data Model"
                 ];
             }
             result.WorkflowHint = $"Failed to update relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn}. Verify relationship exists.";

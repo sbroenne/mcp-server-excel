@@ -27,213 +27,6 @@ public class PowerQueryCommands : IPowerQueryCommands
     }
 
     /// <summary>
-    /// Detects privacy levels from M code
-    /// </summary>
-    private static PowerQueryPrivacyLevel? DetectPrivacyLevelFromMCode(string mCode)
-    {
-        if (mCode.Contains("Privacy.None()", StringComparison.OrdinalIgnoreCase))
-            return PowerQueryPrivacyLevel.None;
-        if (mCode.Contains("Privacy.Private()", StringComparison.OrdinalIgnoreCase))
-            return PowerQueryPrivacyLevel.Private;
-        if (mCode.Contains("Privacy.Organizational()", StringComparison.OrdinalIgnoreCase))
-            return PowerQueryPrivacyLevel.Organizational;
-        if (mCode.Contains("Privacy.Public()", StringComparison.OrdinalIgnoreCase))
-            return PowerQueryPrivacyLevel.Public;
-
-        return null;
-    }
-
-    /// <summary>
-    /// Determines recommended privacy level based on existing queries
-    /// </summary>
-    private static PowerQueryPrivacyLevel DetermineRecommendedPrivacyLevel(List<QueryPrivacyInfo> existingLevels)
-    {
-        if (existingLevels.Count == 0)
-            return PowerQueryPrivacyLevel.Private; // Default to most secure
-
-        // If any query uses Private, recommend Private (most secure)
-        if (existingLevels.Any(q => q.PrivacyLevel == PowerQueryPrivacyLevel.Private))
-            return PowerQueryPrivacyLevel.Private;
-
-        // If all queries use Organizational, recommend Organizational
-        if (existingLevels.All(q => q.PrivacyLevel == PowerQueryPrivacyLevel.Organizational))
-            return PowerQueryPrivacyLevel.Organizational;
-
-        // If any query uses Public, and no Private exists, recommend Public
-        if (existingLevels.Any(q => q.PrivacyLevel == PowerQueryPrivacyLevel.Public))
-            return PowerQueryPrivacyLevel.Public;
-
-        // Default to Private for safety
-        return PowerQueryPrivacyLevel.Private;
-    }
-
-    /// <summary>
-    /// Generates explanation for privacy level recommendation
-    /// </summary>
-    private static string GeneratePrivacyExplanation(List<QueryPrivacyInfo> existingLevels, PowerQueryPrivacyLevel recommended)
-    {
-        if (existingLevels.Count == 0)
-        {
-            return "No existing queries detected with privacy levels. We recommend starting with 'Private' " +
-                   "(most secure) and adjusting if needed.";
-        }
-
-        var levelCounts = existingLevels.GroupBy(q => q.PrivacyLevel)
-                                       .ToDictionary(g => g.Key, g => g.Count());
-
-        string existingSummary = string.Join(", ", levelCounts.Select(kvp => $"{kvp.Value} use {kvp.Key}"));
-
-        return recommended switch
-        {
-            PowerQueryPrivacyLevel.Private =>
-                $"Existing queries: {existingSummary}. We recommend 'Private' for maximum data protection, " +
-                "preventing data from being shared between sources.",
-            PowerQueryPrivacyLevel.Organizational =>
-                $"Existing queries: {existingSummary}. We recommend 'Organizational' to allow data sharing " +
-                "within your organization's data sources.",
-            PowerQueryPrivacyLevel.Public =>
-                $"Existing queries: {existingSummary}. We recommend 'Public' since your queries work with " +
-                "publicly available data sources.",
-            PowerQueryPrivacyLevel.None =>
-                $"Existing queries: {existingSummary}. We recommend 'None' to ignore privacy levels, " +
-                "but be aware this is the least secure option.",
-            _ => existingSummary
-        };
-    }
-
-    /// <summary>
-    /// Detects privacy levels in all queries and creates error result with recommendation
-    /// </summary>
-    private static PowerQueryPrivacyErrorResult DetectPrivacyLevelsAndRecommend(dynamic workbook, string originalError)
-    {
-        var privacyLevels = new List<QueryPrivacyInfo>();
-
-        dynamic? queries = null;
-        try
-        {
-            queries = workbook.Queries;
-
-            for (int i = 1; i <= queries.Count; i++)
-            {
-                dynamic? query = null;
-                try
-                {
-                    query = queries.Item(i);
-                    string name = query.Name ?? $"Query{i}";
-                    string formula = query.Formula ?? "";
-
-                    var detectedLevel = DetectPrivacyLevelFromMCode(formula);
-                    if (detectedLevel.HasValue)
-                    {
-                        privacyLevels.Add(new QueryPrivacyInfo(name, detectedLevel.Value));
-                    }
-                }
-                catch { /* Skip queries that can't be read */ }
-                finally
-                {
-                    ComUtilities.Release(ref query);
-                }
-            }
-        }
-        catch { /* If we can't read queries, just proceed with empty list */ }
-        finally
-        {
-            ComUtilities.Release(ref queries);
-        }
-
-        var recommended = DetermineRecommendedPrivacyLevel(privacyLevels);
-
-        return new PowerQueryPrivacyErrorResult
-        {
-            Success = false,
-            ErrorMessage = "Privacy level required to combine data sources",
-            ExistingPrivacyLevels = privacyLevels,
-            RecommendedPrivacyLevel = recommended,
-            Explanation = GeneratePrivacyExplanation(privacyLevels, recommended),
-            OriginalError = originalError
-        };
-    }
-
-    /// <summary>
-    /// Applies privacy level to workbook for Power Query operations
-    /// </summary>
-    private static void ApplyPrivacyLevel(dynamic workbook, PowerQueryPrivacyLevel privacyLevel)
-    {
-        dynamic? customProps = null;
-        dynamic? application = null;
-
-        try
-        {
-            // In Excel COM, privacy settings are typically applied at the workbook or query level
-            // The most reliable approach is to set the Fast Data Load property
-            // Note: Actual privacy level application may vary by Excel version
-
-            // Try to set privacy via workbook properties if available
-            try
-            {
-                // Some Excel versions support setting privacy through workbook properties
-                customProps = workbook.CustomDocumentProperties;
-                string privacyValue = privacyLevel.ToString();
-
-                // Try to update existing property
-                bool found = false;
-                for (int i = 1; i <= customProps.Count; i++)
-                {
-                    dynamic? prop = null;
-                    try
-                    {
-                        prop = customProps.Item(i);
-                        if (prop.Name == "PowerQueryPrivacyLevel")
-                        {
-                            prop.Value = privacyValue;
-                            found = true;
-                            break;
-                        }
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref prop);
-                    }
-                }
-
-                // Create new property if not found
-                if (!found)
-                {
-                    customProps.Add("PowerQueryPrivacyLevel", false, 4, privacyValue); // 4 = msoPropertyTypeString
-                }
-            }
-            catch { /* Property approach not supported in this Excel version */ }
-            finally
-            {
-                ComUtilities.Release(ref customProps);
-            }
-
-            // The key approach: Set Fast Data Load to false when using privacy levels
-            // This ensures Excel respects privacy settings
-            try
-            {
-                application = workbook.Application;
-                // Set calculation mode that respects privacy
-                if (privacyLevel != PowerQueryPrivacyLevel.None)
-                {
-                    // Enable background query to allow privacy checks
-                    application.DisplayAlerts = false;
-                }
-            }
-            catch { /* Application settings not accessible */ }
-            finally
-            {
-                ComUtilities.Release(ref application);
-            }
-        }
-        catch (Exception)
-        {
-            // Privacy level application is best-effort
-            // If it fails, the operation will still proceed and may trigger privacy error
-        }
-    }
-
-    /// <summary>
     /// Finds the closest matching string using simple Levenshtein distance
     /// </summary>
     private static string? FindClosestMatch(string target, List<string> candidates)
@@ -294,7 +87,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             return "Cannot connect to data source. Check network connectivity.";
         if (message.Contains("privacy level", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("combine data", StringComparison.OrdinalIgnoreCase))
-            return "Privacy level mismatch. Use privacyLevel parameter to resolve.";
+            return "Formula.Firewall error - privacy levels must be configured in Excel UI (cannot be automated)";
         if (message.Contains("syntax", StringComparison.OrdinalIgnoreCase))
             return "M code syntax error. Review query formula.";
         if (message.Contains("permission", StringComparison.OrdinalIgnoreCase) ||
@@ -563,7 +356,7 @@ public class PowerQueryCommands : IPowerQueryCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> UpdateAsync(IExcelBatch batch, string queryName, string mCodeFile, PowerQueryPrivacyLevel? privacyLevel = null)
+    public async Task<OperationResult> UpdateAsync(IExcelBatch batch, string queryName, string mCodeFile)
     {
         var result = new OperationResult
         {
@@ -594,12 +387,6 @@ public class PowerQueryCommands : IPowerQueryCommands
             dynamic? query = null;
             try
             {
-                // Apply privacy level if specified
-                if (privacyLevel.HasValue)
-                {
-                    ApplyPrivacyLevel(ctx.Book, privacyLevel.Value);
-                }
-
                 query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
@@ -622,13 +409,22 @@ public class PowerQueryCommands : IPowerQueryCommands
                 return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("Information is needed in order to combine data") ||
-                                             comEx.Message.Contains("privacy level", StringComparison.OrdinalIgnoreCase))
+                                             comEx.Message.Contains("Formula.Firewall", StringComparison.OrdinalIgnoreCase))
             {
-                // Privacy error detected - return detailed error result for user consent
-                var privacyError = DetectPrivacyLevelsAndRecommend(ctx.Book, comEx.Message);
-                privacyError.FilePath = batch.WorkbookPath;
-                privacyError.Action = "pq-update";
-                return privacyError;
+                // Privacy level error - must be configured manually in Excel UI
+                result.Success = false;
+                result.ErrorMessage = "Privacy level error: This query combines data from multiple sources. " +
+                                    "Open the file in Excel and configure privacy levels manually: " +
+                                    "File → Options → Privacy. See COMMANDS.md for details.";
+                result.SuggestedNextActions =
+                [
+                    "Privacy levels cannot be set programmatically",
+                    "Open file in Excel: File → Options → Privacy",
+                    "Set appropriate privacy level or enable 'Ignore Privacy Levels' for testing",
+                    "See documentation for privacy level guidance"
+                ];
+                result.WorkflowHint = "Privacy levels must be configured manually in Excel UI";
+                return result;
             }
             catch (Exception ex)
             {
@@ -649,7 +445,7 @@ public class PowerQueryCommands : IPowerQueryCommands
                 loadConfigBefore.LoadMode == PowerQueryLoadMode.LoadToBoth)
             {
                 string targetSheet = loadConfigBefore.TargetSheet ?? queryName;
-                var restoreResult = await SetLoadToTableAsync(batch, queryName, targetSheet, privacyLevel);
+                var restoreResult = await SetLoadToTableAsync(batch, queryName, targetSheet);
 
                 if (!restoreResult.Success)
                 {
@@ -667,12 +463,11 @@ public class PowerQueryCommands : IPowerQueryCommands
                 // Successfully updated and restored load configuration
                 result.SuggestedNextActions =
                 [
-                    "For multiple updates: Use begin_excel_batch to group operations efficiently",
                     "Query updated successfully, load configuration preserved",
                     "Data automatically refreshed with new M code",
                     "Use 'get-load-config' to verify configuration if needed"
                 ];
-                result.WorkflowHint = "Query updated successfully. Configuration preserved. For multiple updates, use begin_excel_batch.";
+                result.WorkflowHint = "Query updated successfully. M code changed, configuration preserved, data refreshed automatically.";
                 return result;
             }
         }
@@ -753,7 +548,7 @@ public class PowerQueryCommands : IPowerQueryCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> ImportAsync(IExcelBatch batch, string queryName, string mCodeFile, PowerQueryPrivacyLevel? privacyLevel = null, bool loadToWorksheet = true, string? worksheetName = null)
+    public async Task<OperationResult> ImportAsync(IExcelBatch batch, string queryName, string mCodeFile, bool loadToWorksheet = true, string? worksheetName = null)
     {
         var result = new OperationResult
         {
@@ -782,12 +577,6 @@ public class PowerQueryCommands : IPowerQueryCommands
             dynamic? newQuery = null;
             try
             {
-                // Apply privacy level if specified
-                if (privacyLevel.HasValue)
-                {
-                    ApplyPrivacyLevel(ctx.Book, privacyLevel.Value);
-                }
-
                 // Check if query already exists
                 existingQuery = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (existingQuery != null)
@@ -805,13 +594,22 @@ public class PowerQueryCommands : IPowerQueryCommands
                 return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("Information is needed in order to combine data") ||
-                                             comEx.Message.Contains("privacy level", StringComparison.OrdinalIgnoreCase))
+                                             comEx.Message.Contains("Formula.Firewall", StringComparison.OrdinalIgnoreCase))
             {
-                // Privacy error detected - return detailed error result for user consent
-                var privacyError = DetectPrivacyLevelsAndRecommend(ctx.Book, comEx.Message);
-                privacyError.FilePath = batch.WorkbookPath;
-                privacyError.Action = "pq-import";
-                return privacyError;
+                // Privacy level error - must be configured manually in Excel UI
+                result.Success = false;
+                result.ErrorMessage = "Privacy level error: This query combines data from multiple sources. " +
+                                    "Open the file in Excel and configure privacy levels manually: " +
+                                    "File → Options → Privacy. See COMMANDS.md for details.";
+                result.SuggestedNextActions =
+                [
+                    "Privacy levels cannot be set programmatically",
+                    "Open file in Excel: File → Options → Privacy",
+                    "Set appropriate privacy level or enable 'Ignore Privacy Levels' for testing",
+                    "See documentation for privacy level guidance"
+                ];
+                result.WorkflowHint = "Privacy levels must be configured manually in Excel UI";
+                return result;
             }
             catch (Exception ex)
             {
@@ -831,7 +629,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         if (result.Success && loadToWorksheet)
         {
             string targetSheet = worksheetName ?? queryName;
-            var loadResult = await SetLoadToTableAsync(batch, queryName, targetSheet, privacyLevel);
+            var loadResult = await SetLoadToTableAsync(batch, queryName, targetSheet);
 
             if (!loadResult.Success)
             {
@@ -1764,7 +1562,7 @@ in
     }
 
     /// <inheritdoc />
-    public async Task<PowerQueryLoadToTableResult> SetLoadToTableAsync(IExcelBatch batch, string queryName, string sheetName, PowerQueryPrivacyLevel? privacyLevel = null)
+    public async Task<PowerQueryLoadToTableResult> SetLoadToTableAsync(IExcelBatch batch, string queryName, string sheetName)
     {
         var result = new PowerQueryLoadToTableResult
         {
@@ -1797,12 +1595,6 @@ in
                         $"Check the query name spelling: '{queryName}'"
                     ];
                     return result;
-                }
-
-                // Apply privacy level if specified
-                if (privacyLevel.HasValue)
-                {
-                    ApplyPrivacyLevel(ctx.Book, privacyLevel.Value);
                 }
 
                 // STEP 2: Find or create target sheet
@@ -1936,17 +1728,22 @@ in
                 return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("Information is needed in order to combine data") ||
-                                             comEx.Message.Contains("privacy level", StringComparison.OrdinalIgnoreCase))
+                                             comEx.Message.Contains("Formula.Firewall", StringComparison.OrdinalIgnoreCase))
             {
-                // Privacy error detected - convert to privacy error result
-                var privacyError = DetectPrivacyLevelsAndRecommend(ctx.Book, comEx.Message);
-
-                // Copy privacy error details to our result type
+                // Privacy level error - must be configured manually in Excel UI
                 result.Success = false;
-                result.ErrorMessage = privacyError.ErrorMessage;
+                result.ErrorMessage = "Privacy level error: This query combines data from multiple sources. " +
+                                    "Open the file in Excel and configure privacy levels manually: " +
+                                    "File → Options → Privacy. See COMMANDS.md for details.";
                 result.WorkflowStatus = "Failed";
-                result.WorkflowHint = privacyError.WorkflowHint;
-                result.SuggestedNextActions = privacyError.SuggestedNextActions;
+                result.WorkflowHint = "Privacy levels must be configured manually in Excel UI";
+                result.SuggestedNextActions =
+                [
+                    "Privacy levels cannot be set programmatically",
+                    "Open file in Excel: File → Options → Privacy",
+                    "Set appropriate privacy level or enable 'Ignore Privacy Levels' for testing",
+                    "See documentation for privacy level guidance"
+                ];
 
                 return result;
             }
@@ -1975,7 +1772,7 @@ in
     }
 
     /// <inheritdoc />
-    public async Task<PowerQueryLoadToDataModelResult> SetLoadToDataModelAsync(IExcelBatch batch, string queryName, PowerQueryPrivacyLevel? privacyLevel = null)
+    public async Task<PowerQueryLoadToDataModelResult> SetLoadToDataModelAsync(IExcelBatch batch, string queryName)
     {
         var result = new PowerQueryLoadToDataModelResult
         {
@@ -1994,12 +1791,6 @@ in
             dynamic? query = null;
             try
             {
-                // Apply privacy level if specified
-                if (privacyLevel.HasValue)
-                {
-                    ApplyPrivacyLevel(ctx.Book, privacyLevel.Value);
-                }
-
                 query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
@@ -2025,8 +1816,8 @@ in
                     result.SuggestedNextActions =
                     [
                         "Check that the query exists using 'list'",
-                        "Verify the query has valid data and can refresh",
-                        "Try refreshing the query first with 'refresh' action",
+                        "Use 'view' to check query M code for syntax errors",
+                        "Try 'set-load-to-table' first to validate query works",
                     ];
                     return result;
                 }
@@ -2107,17 +1898,22 @@ in
                 return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("Information is needed in order to combine data") ||
-                                             comEx.Message.Contains("privacy level", StringComparison.OrdinalIgnoreCase))
+                                             comEx.Message.Contains("Formula.Firewall", StringComparison.OrdinalIgnoreCase))
             {
-                // Privacy error detected - return detailed error result for user consent
-                var privacyError = DetectPrivacyLevelsAndRecommend(ctx.Book, comEx.Message);
-
-                // Convert to PowerQueryLoadToDataModelResult
+                // Privacy level error - must be configured manually in Excel UI
                 result.Success = false;
-                result.ErrorMessage = privacyError.ErrorMessage;
+                result.ErrorMessage = "Privacy level error: This query combines data from multiple sources. " +
+                                    "Open the file in Excel and configure privacy levels manually: " +
+                                    "File → Options → Privacy. See COMMANDS.md for details.";
                 result.WorkflowStatus = "Failed";
-                result.WorkflowHint = privacyError.WorkflowHint;
-                result.SuggestedNextActions = privacyError.SuggestedNextActions;
+                result.WorkflowHint = "Privacy levels must be configured manually in Excel UI";
+                result.SuggestedNextActions =
+                [
+                    "Privacy levels cannot be set programmatically",
+                    "Open file in Excel: File → Options → Privacy",
+                    "Set appropriate privacy level or enable 'Ignore Privacy Levels' for testing",
+                    "See documentation for privacy level guidance"
+                ];
 
                 return result;
             }
@@ -2136,7 +1932,7 @@ in
     }
 
     /// <inheritdoc />
-    public async Task<PowerQueryLoadToBothResult> SetLoadToBothAsync(IExcelBatch batch, string queryName, string sheetName, PowerQueryPrivacyLevel? privacyLevel = null)
+    public async Task<PowerQueryLoadToBothResult> SetLoadToBothAsync(IExcelBatch batch, string queryName, string sheetName)
     {
         var result = new PowerQueryLoadToBothResult
         {
@@ -2162,12 +1958,6 @@ in
                     result.ErrorMessage = $"Query '{queryName}' not found";
                     result.WorkflowStatus = "Failed";
                     return result;
-                }
-
-                // Apply privacy level if specified
-                if (privacyLevel.HasValue)
-                {
-                    ApplyPrivacyLevel(ctx.Book, privacyLevel.Value);
                 }
 
                 // STEP 2: Find or create target sheet
@@ -2209,28 +1999,9 @@ in
                 var queryTableOptions = new PowerQueryHelpers.QueryTableOptions
                 {
                     Name = queryName,
-                    RefreshImmediately = false // Don't refresh yet - we'll do it atomically
+                    RefreshImmediately = true // CRITICAL: Refresh synchronously to persist QueryTable properly
                 };
                 PowerQueryHelpers.CreateQueryTable(targetSheet, queryName, queryTableOptions);
-
-                // STEP 5: ATOMIC REFRESH - Use Data Model refresh for atomic operation
-                try
-                {
-                    await _dataModelCommands.RefreshAsync(batch);
-                }
-                catch (Exception refreshEx)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Refresh failed: {refreshEx.Message}";
-                    result.WorkflowStatus = "Partial";
-                    result.SuggestedNextActions =
-                    [
-                        "Check query syntax and data source connectivity",
-                        "Review privacy level settings",
-                        "Use 'errors' action to see detailed error information"
-                    ];
-                    return result;
-                }
 
                 // Configure query for Data Model loading
                 if (!SetQueryLoadToDataModel(ctx.Book, queryName, out string? dmConfigError))
@@ -2240,9 +2011,9 @@ in
                     result.WorkflowStatus = "Partial";
                     result.SuggestedNextActions =
                     [
-                        "Check that the query exists using 'list'",
-                        "Verify the query has valid data",
-                        "Check Excel version supports Data Model (Excel 2013+)"
+                        "Use 'view' to check query M code for syntax errors",
+                        "Try 'set-load-to-table' first to validate query works",
+                        "Verify query data source is accessible and has data"
                     ];
                     return result;
                 }
@@ -2369,9 +2140,9 @@ in
                     result.ErrorMessage = "Data loaded to table but not to Data Model";
                     result.SuggestedNextActions =
                     [
-                        "Check Data Model compatibility",
-                        "Verify query configuration",
-                        "Try refreshing again"
+                        "Verify query refreshed successfully",
+                        "Check query configuration with 'get-load-config'",
+                        "Try refreshing again or reload to Data Model only"
                     ];
                 }
                 else if (!foundInTable && foundInDataModel)
@@ -2383,7 +2154,7 @@ in
                     [
                         "Check worksheet and QueryTable configuration",
                         "Verify target sheet exists",
-                        "Try refreshing again"
+                        "Try 'set-load-to-both' again to load to both destinations"
                     ];
                 }
                 else
@@ -2402,16 +2173,22 @@ in
                 return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("Information is needed in order to combine data") ||
-                                             comEx.Message.Contains("privacy level", StringComparison.OrdinalIgnoreCase))
+                                             comEx.Message.Contains("Formula.Firewall", StringComparison.OrdinalIgnoreCase))
             {
-                // Privacy error detected - convert to our result type
-                var privacyError = DetectPrivacyLevelsAndRecommend(ctx.Book, comEx.Message);
-
+                // Privacy level error - must be configured manually in Excel UI
                 result.Success = false;
-                result.ErrorMessage = privacyError.ErrorMessage;
+                result.ErrorMessage = "Privacy level error: This query combines data from multiple sources. " +
+                                    "Open the file in Excel and configure privacy levels manually: " +
+                                    "File → Options → Privacy. See COMMANDS.md for details.";
                 result.WorkflowStatus = "Failed";
-                result.WorkflowHint = privacyError.WorkflowHint;
-                result.SuggestedNextActions = privacyError.SuggestedNextActions;
+                result.WorkflowHint = "Privacy levels must be configured manually in Excel UI";
+                result.SuggestedNextActions =
+                [
+                    "Privacy levels cannot be set programmatically",
+                    "Open file in Excel: File → Options → Privacy",
+                    "Set appropriate privacy level or enable 'Ignore Privacy Levels' for testing",
+                    "See documentation for privacy level guidance"
+                ];
 
                 return result;
             }
