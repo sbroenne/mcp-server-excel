@@ -198,16 +198,17 @@ public partial class PivotTableCommands : IPivotTableCommands
     /// <summary>
     /// Gets the area name for display purposes
     /// </summary>
-    private static string GetAreaName(int orientation)
+    private static string GetAreaName(dynamic orientation)
     {
-        return orientation switch
+        int orientationValue = Convert.ToInt32(orientation);
+        return orientationValue switch
         {
             XlPivotFieldOrientation.xlHidden => "Hidden",
             XlPivotFieldOrientation.xlRowField => "Row",
             XlPivotFieldOrientation.xlColumnField => "Column",
             XlPivotFieldOrientation.xlPageField => "Filter",
             XlPivotFieldOrientation.xlDataField => "Value",
-            _ => $"Unknown({orientation})"
+            _ => $"Unknown({orientationValue})"
         };
     }
 

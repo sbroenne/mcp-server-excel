@@ -86,22 +86,8 @@ public partial class PivotTableCommands
                 field = pivot.PivotFields.Item(fieldName);
                 pivotItems = field.PivotItems;
 
-                // First, hide all items
-                for (int i = 1; i <= pivotItems.Count; i++)
-                {
-                    dynamic? item = null;
-                    try
-                    {
-                        item = pivotItems.Item(i);
-                        item.Visible = false;
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref item);
-                    }
-                }
-
-                // Then, show only selected items
+                // First, show selected items (must do this before hiding others to avoid Excel error)
+                var selectedSet = new HashSet<string>(selectedValues);
                 foreach (string value in selectedValues)
                 {
                     dynamic? item = null;
@@ -113,6 +99,25 @@ public partial class PivotTableCommands
                     catch
                     {
                         // Item not found, skip
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref item);
+                    }
+                }
+
+                // Then, hide unselected items (never hides the last item because we showed selected ones first)
+                for (int i = 1; i <= pivotItems.Count; i++)
+                {
+                    dynamic? item = null;
+                    try
+                    {
+                        item = pivotItems.Item(i);
+                        string itemName = item.Name?.ToString() ?? string.Empty;
+                        if (!selectedSet.Contains(itemName))
+                        {
+                            item.Visible = false;
+                        }
                     }
                     finally
                     {
@@ -186,7 +191,7 @@ public partial class PivotTableCommands
 
                 // Excel sort order: xlAscending = 1, xlDescending = 2
                 int sortOrder = direction == SortDirection.Ascending ? 1 : 2;
-                
+
                 // AutoSort method: xlManual = -4135, xlAscending = 1, xlDescending = 2
                 field.AutoSort(sortOrder, fieldName);
 

@@ -488,16 +488,36 @@ public partial class PivotTableCommands
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
-                field = pivot.PivotFields.Item(fieldName);
 
-                // Verify field is in Values area
-                if (field.Orientation != XlPivotFieldOrientation.xlDataField)
+                // Try to find field in DataFields collection first (value fields)
+                bool foundInDataFields = false;
+                for (int i = 1; i <= pivot.DataFields.Count; i++)
                 {
-                    throw new InvalidOperationException($"Field '{fieldName}' is not in the Values area. It is in {GetAreaName(field.Orientation)} area.");
+                    dynamic dataField = pivot.DataFields.Item(i);
+                    string sourceName = dataField.SourceName?.ToString() ?? "";
+                    if (sourceName == fieldName)
+                    {
+                        field = dataField;
+                        foundInDataFields = true;
+                        break;
+                    }
                 }
 
-                // Validate function for data type
-                string dataType = DetectFieldDataType(field);
+                // If not found in DataFields, check PivotFields (for error reporting)
+                if (!foundInDataFields)
+                {
+                    field = pivot.PivotFields.Item(fieldName);
+                    int orientation = Convert.ToInt32(field.Orientation);
+                    if (orientation != XlPivotFieldOrientation.xlDataField)
+                    {
+                        throw new InvalidOperationException($"Field '{fieldName}' is not in the Values area. It is in {GetAreaName(orientation)} area.");
+                    }
+                }
+
+                // Get source field for data type detection (DataFields don't have PivotItems)
+                dynamic? sourceField = pivot.PivotFields.Item(fieldName);
+                string dataType = DetectFieldDataType(sourceField);
+                ComUtilities.Release(ref sourceField);
                 if (!IsValidAggregationForDataType(function, dataType))
                 {
                     var validFunctions = GetValidAggregationsForDataType(dataType);
@@ -603,12 +623,30 @@ public partial class PivotTableCommands
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
-                field = pivot.PivotFields.Item(fieldName);
 
-                // Verify field is in Values area
-                if (field.Orientation != XlPivotFieldOrientation.xlDataField)
+                // Try to find field in DataFields collection first (value fields)
+                bool foundInDataFields = false;
+                for (int i = 1; i <= pivot.DataFields.Count; i++)
                 {
-                    throw new InvalidOperationException($"Field '{fieldName}' is not in the Values area. Only value fields can have number formats.");
+                    dynamic dataField = pivot.DataFields.Item(i);
+                    string sourceName = dataField.SourceName?.ToString() ?? "";
+                    if (sourceName == fieldName)
+                    {
+                        field = dataField;
+                        foundInDataFields = true;
+                        break;
+                    }
+                }
+
+                // If not found in DataFields, check PivotFields (for error reporting)
+                if (!foundInDataFields)
+                {
+                    field = pivot.PivotFields.Item(fieldName);
+                    int orientation = Convert.ToInt32(field.Orientation);
+                    if (orientation != XlPivotFieldOrientation.xlDataField)
+                    {
+                        throw new InvalidOperationException($"Field '{fieldName}' is not in the Values area. Only value fields can have number formats.");
+                    }
                 }
 
                 // Set number format
