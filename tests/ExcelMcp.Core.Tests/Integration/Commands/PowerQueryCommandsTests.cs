@@ -364,16 +364,20 @@ in
     [Fact]
     public async Task SetLoadToDataModel_WithExistingQuery_ReturnsSuccessResult()
     {
-        // Arrange - Import a query first
-        await using (var batch = await ExcelSession.BeginBatchAsync(CreateUniqueTestExcelFile()))
+        // Arrange - Create unique test file ONCE, reuse for all operations
+        var testExcelFile = CreateUniqueTestExcelFile();
+        var testQueryFile = CreateUniqueTestQueryFile();
+
+        // Step 1: Import a query
+        await using (var batch = await ExcelSession.BeginBatchAsync(testExcelFile))
         {
-            var importResult = await _powerQueryCommands.ImportAsync(batch, "TestLoadToDataModel", CreateUniqueTestQueryFile());
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "TestLoadToDataModel", testQueryFile);
             await batch.SaveAsync();
             Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
         }
 
-        // Act
-        await using (var batch = await ExcelSession.BeginBatchAsync(CreateUniqueTestExcelFile()))
+        // Step 2: Set load to Data Model
+        await using (var batch = await ExcelSession.BeginBatchAsync(testExcelFile))
         {
             var result = await _powerQueryCommands.SetLoadToDataModelAsync(batch, "TestLoadToDataModel");
             await batch.SaveAsync();
@@ -397,16 +401,20 @@ in
     [Fact]
     public async Task SetLoadToBoth_WithExistingQuery_ReturnsSuccessResult()
     {
-        // Arrange - Import a query first
-        await using (var batch = await ExcelSession.BeginBatchAsync(CreateUniqueTestExcelFile()))
+        // Arrange - Create unique test file ONCE, reuse for all operations
+        var testExcelFile = CreateUniqueTestExcelFile();
+        var testQueryFile = CreateUniqueTestQueryFile();
+
+        // Step 1: Import a query
+        await using (var batch = await ExcelSession.BeginBatchAsync(testExcelFile))
         {
-            var importResult = await _powerQueryCommands.ImportAsync(batch, "TestLoadToBoth", CreateUniqueTestQueryFile());
+            var importResult = await _powerQueryCommands.ImportAsync(batch, "TestLoadToBoth", testQueryFile);
             await batch.SaveAsync();
             Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
         }
 
-        // Act
-        await using (var batch = await ExcelSession.BeginBatchAsync(CreateUniqueTestExcelFile()))
+        // Step 2: Set load to both table and data model
+        await using (var batch = await ExcelSession.BeginBatchAsync(testExcelFile))
         {
             var result = await _powerQueryCommands.SetLoadToBothAsync(batch, "TestLoadToBoth", "TestSheet");
             await batch.SaveAsync();
