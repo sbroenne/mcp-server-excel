@@ -24,8 +24,7 @@ public interface IPowerQueryCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query to update</param>
     /// <param name="mCodeFile">Path to M code file</param>
-    /// <param name="privacyLevel">Optional privacy level for data combining. If not specified and privacy error occurs, operation returns PowerQueryPrivacyErrorResult for user to choose.</param>
-    Task<OperationResult> UpdateAsync(IExcelBatch batch, string queryName, string mCodeFile, PowerQueryPrivacyLevel? privacyLevel = null);
+    Task<OperationResult> UpdateAsync(IExcelBatch batch, string queryName, string mCodeFile);
 
     /// <summary>
     /// Exports a Power Query's M code to a file
@@ -38,10 +37,9 @@ public interface IPowerQueryCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name for the new query</param>
     /// <param name="mCodeFile">Path to M code file</param>
-    /// <param name="privacyLevel">Optional privacy level for data combining. If not specified and privacy error occurs, operation returns PowerQueryPrivacyErrorResult for user to choose.</param>
     /// <param name="loadToWorksheet">Automatically load query data to a worksheet (default: true). When true, validates query by executing it.</param>
     /// <param name="worksheetName">Optional worksheet name to load data to. If not specified, uses query name</param>
-    Task<OperationResult> ImportAsync(IExcelBatch batch, string queryName, string mCodeFile, PowerQueryPrivacyLevel? privacyLevel = null, bool loadToWorksheet = true, string? worksheetName = null);
+    Task<OperationResult> ImportAsync(IExcelBatch batch, string queryName, string mCodeFile, bool loadToWorksheet = true, string? worksheetName = null);
 
     /// <summary>
     /// Refreshes a Power Query to update its data with error detection
@@ -70,9 +68,8 @@ public interface IPowerQueryCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query</param>
     /// <param name="sheetName">Target worksheet name</param>
-    /// <param name="privacyLevel">Optional privacy level for data combining. If not specified and privacy error occurs, operation returns PowerQueryPrivacyErrorResult for user to choose.</param>
     /// <returns>PowerQueryLoadToTableResult with verification of data actually loaded</returns>
-    Task<PowerQueryLoadToTableResult> SetLoadToTableAsync(IExcelBatch batch, string queryName, string sheetName, PowerQueryPrivacyLevel? privacyLevel = null);
+    Task<PowerQueryLoadToTableResult> SetLoadToTableAsync(IExcelBatch batch, string queryName, string sheetName);
 
     /// <summary>
     /// Sets a Power Query to Load to Data Model mode (data loaded to PowerPivot)
@@ -80,9 +77,8 @@ public interface IPowerQueryCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query</param>
-    /// <param name="privacyLevel">Optional privacy level for data combining. If not specified and privacy error occurs, operation returns PowerQueryPrivacyErrorResult for user to choose.</param>
     /// <returns>PowerQueryLoadToDataModelResult with verification of data actually loaded</returns>
-    Task<PowerQueryLoadToDataModelResult> SetLoadToDataModelAsync(IExcelBatch batch, string queryName, PowerQueryPrivacyLevel? privacyLevel = null);
+    Task<PowerQueryLoadToDataModelResult> SetLoadToDataModelAsync(IExcelBatch batch, string queryName);
 
     /// <summary>
     /// Sets a Power Query to Load to Both modes (table + data model)
@@ -91,9 +87,8 @@ public interface IPowerQueryCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query</param>
     /// <param name="sheetName">Target worksheet name</param>
-    /// <param name="privacyLevel">Optional privacy level for data combining. If not specified and privacy error occurs, operation returns PowerQueryPrivacyErrorResult for user to choose.</param>
     /// <returns>PowerQueryLoadToBothResult with verification of data loaded to both table and Data Model</returns>
-    Task<PowerQueryLoadToBothResult> SetLoadToBothAsync(IExcelBatch batch, string queryName, string sheetName, PowerQueryPrivacyLevel? privacyLevel = null);
+    Task<PowerQueryLoadToBothResult> SetLoadToBothAsync(IExcelBatch batch, string queryName, string sheetName);
 
     /// <summary>
     /// Gets the current load configuration of a Power Query

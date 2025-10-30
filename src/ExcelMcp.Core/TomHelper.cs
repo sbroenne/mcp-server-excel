@@ -46,7 +46,8 @@ public static class TomHelper
                         {
                             throw new InvalidOperationException(
                                 "Connected to Excel file but no Data Model database found. " +
-                                "Ensure the file has Power Pivot / Data Model enabled.");
+                                "This workbook does not contain any tables loaded to the Data Model. " +
+                                "Use Power Query or Power Pivot to load data into the Data Model first.");
                         }
 
                         Database db = server.Databases[0];
@@ -84,7 +85,7 @@ public static class TomHelper
             // If we get here, all connection attempts failed
             throw new InvalidOperationException(
                 $"Could not connect to Excel Data Model at '{filePath}'. " +
-                "Ensure the file exists, has Data Model enabled, and is not locked by Excel. " +
+                "Ensure the file exists, is not locked by Excel, and contains tables loaded to the Data Model. " +
                 $"Last error: {lastException?.Message}",
                 lastException);
         }

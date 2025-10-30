@@ -9,7 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 /// Integration tests for Power Query Core operations.
 /// These tests require Excel installation and validate Core Power Query data operations.
 /// Tests use Core commands directly (not through CLI wrapper).
-/// 
+///
 /// For comprehensive workflow tests (mode switching), see PowerQueryLoadConfigWorkflowTests.cs.
 /// </summary>
 [Trait("Layer", "Core")]
@@ -129,23 +129,17 @@ in
         var testExcelFile = CreateUniqueTestExcelFile();
         var testQueryFile = CreateUniqueTestQueryFile();
 
-        await using (var batch = await ExcelSession.BeginBatchAsync(testExcelFile))
-        {
-            await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
-            await batch.SaveAsync();
-        }
+        // Act - Use single batch for both operations
+        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
+        await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
+        var result = await _powerQueryCommands.ListAsync(batch);
+        await batch.SaveAsync();
 
-        // Act
-        await using (var batch = await ExcelSession.BeginBatchAsync(testExcelFile))
-        {
-            var result = await _powerQueryCommands.ListAsync(batch);
-
-            // Assert
-            Assert.True(result.Success);
-            Assert.NotNull(result.Queries);
-            Assert.Single(result.Queries);
-            Assert.Equal("TestQuery", result.Queries[0].Name);
-        }
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Queries);
+        Assert.Single(result.Queries);
+        Assert.Equal("TestQuery", result.Queries[0].Name);
     }
 
     /// <summary>
@@ -159,22 +153,16 @@ in
         var testExcelFile = CreateUniqueTestExcelFile();
         var testQueryFile = CreateUniqueTestQueryFile();
 
-        await using (var batch = await ExcelSession.BeginBatchAsync(testExcelFile))
-        {
-            await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
-            await batch.SaveAsync();
-        }
+        // Act - Use single batch for both operations
+        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
+        await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
+        var result = await _powerQueryCommands.ViewAsync(batch, "TestQuery");
+        await batch.SaveAsync();
 
-        // Act
-        await using (var batch = await ExcelSession.BeginBatchAsync(testExcelFile))
-        {
-            var result = await _powerQueryCommands.ViewAsync(batch, "TestQuery");
-
-            // Assert
-            Assert.True(result.Success);
-            Assert.NotNull(result.MCode);
-            Assert.Contains("Source", result.MCode);
-        }
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.MCode);
+        Assert.Contains("Source", result.MCode);
     }
 
     /// <summary>
@@ -184,23 +172,20 @@ in
     [Fact]
     public async Task Export_WithExistingQuery_CreatesFile()
     {
-        // Arrange
-        await using (var batch = await ExcelSession.BeginBatchAsync(CreateUniqueTestExcelFile()))
-        {
-            await _powerQueryCommands.ImportAsync(batch, "TestQuery", CreateUniqueTestQueryFile());
-            await batch.SaveAsync();
-        }
+        // Arrange - Create unique test file ONCE, reuse for all operations
+        var testExcelFile = CreateUniqueTestExcelFile();
+        var testQueryFile = CreateUniqueTestQueryFile();
         var exportPath = Path.Combine(_tempDir, "exported.pq");
 
-        // Act
-        await using (var batch = await ExcelSession.BeginBatchAsync(CreateUniqueTestExcelFile()))
-        {
-            var result = await _powerQueryCommands.ExportAsync(batch, "TestQuery", exportPath);
+        // Act - Use single batch for both operations
+        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
+        await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
+        var result = await _powerQueryCommands.ExportAsync(batch, "TestQuery", exportPath);
+        await batch.SaveAsync();
 
-            // Assert
-            Assert.True(result.Success);
-            Assert.True(File.Exists(exportPath));
-        }
+        // Assert
+        Assert.True(result.Success);
+        Assert.True(File.Exists(exportPath));
     }
 
     /// <summary>
@@ -210,24 +195,20 @@ in
     [Fact]
     public async Task Update_WithValidMCode_ReturnsSuccessResult()
     {
-        // Arrange
-        await using (var batch = await ExcelSession.BeginBatchAsync(CreateUniqueTestExcelFile()))
-        {
-            await _powerQueryCommands.ImportAsync(batch, "TestQuery", CreateUniqueTestQueryFile());
-            await batch.SaveAsync();
-        }
+        // Arrange - Create unique test file ONCE, reuse for all operations
+        var testExcelFile = CreateUniqueTestExcelFile();
+        var testQueryFile = CreateUniqueTestQueryFile();
         var updateFile = Path.Combine(_tempDir, "updated.pq");
         File.WriteAllText(updateFile, "let\n    UpdatedSource = 1\nin\n    UpdatedSource");
 
-        // Act
-        await using (var batch = await ExcelSession.BeginBatchAsync(CreateUniqueTestExcelFile()))
-        {
-            var result = await _powerQueryCommands.UpdateAsync(batch, "TestQuery", updateFile);
-            await batch.SaveAsync();
+        // Act - Use single batch for both operations
+        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
+        await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
+        var result = await _powerQueryCommands.UpdateAsync(batch, "TestQuery", updateFile);
+        await batch.SaveAsync();
 
-            // Assert
-            Assert.True(result.Success);
-        }
+        // Assert
+        Assert.True(result.Success);
     }
 
     /// <summary>
@@ -237,22 +218,18 @@ in
     [Fact]
     public async Task Delete_WithExistingQuery_ReturnsSuccessResult()
     {
-        // Arrange
-        await using (var batch = await ExcelSession.BeginBatchAsync(CreateUniqueTestExcelFile()))
-        {
-            await _powerQueryCommands.ImportAsync(batch, "TestQuery", CreateUniqueTestQueryFile());
-            await batch.SaveAsync();
-        }
+        // Arrange - Create unique test file ONCE, reuse for all operations
+        var testExcelFile = CreateUniqueTestExcelFile();
+        var testQueryFile = CreateUniqueTestQueryFile();
 
-        // Act
-        await using (var batch = await ExcelSession.BeginBatchAsync(CreateUniqueTestExcelFile()))
-        {
-            var result = await _powerQueryCommands.DeleteAsync(batch, "TestQuery");
-            await batch.SaveAsync();
+        // Act - Use single batch for both operations
+        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
+        await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
+        var result = await _powerQueryCommands.DeleteAsync(batch, "TestQuery");
+        await batch.SaveAsync();
 
-            // Assert
-            Assert.True(result.Success);
-        }
+        // Assert
+        Assert.True(result.Success);
     }
 
     /// <summary>
@@ -298,24 +275,21 @@ in
     [Fact]
     public async Task SetConnectionOnly_WithExistingQuery_ReturnsSuccessResult()
     {
-        // Arrange - Import a query first
-        await using (var batch = await ExcelSession.BeginBatchAsync(CreateUniqueTestExcelFile()))
-        {
-            var importResult = await _powerQueryCommands.ImportAsync(batch, "TestConnectionOnly", CreateUniqueTestQueryFile());
-            await batch.SaveAsync();
-            Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
-        }
+        // Arrange - Create unique test file ONCE
+        var testExcelFile = CreateUniqueTestExcelFile();
+        var testQueryFile = CreateUniqueTestQueryFile();
 
-        // Act
-        await using (var batch = await ExcelSession.BeginBatchAsync(CreateUniqueTestExcelFile()))
-        {
-            var result = await _powerQueryCommands.SetConnectionOnlyAsync(batch, "TestConnectionOnly");
-            await batch.SaveAsync();
+        // Act - Use single batch for both operations
+        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
+        var importResult = await _powerQueryCommands.ImportAsync(batch, "TestConnectionOnly", testQueryFile);
+        Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
 
-            // Assert
-            Assert.True(result.Success, $"SetConnectionOnly failed: {result.ErrorMessage}");
-            Assert.Equal("pq-set-connection-only", result.Action);
-        }
+        var result = await _powerQueryCommands.SetConnectionOnlyAsync(batch, "TestConnectionOnly");
+        await batch.SaveAsync();
+
+        // Assert
+        Assert.True(result.Success, $"SetConnectionOnly failed: {result.ErrorMessage}");
+        Assert.Equal("pq-set-connection-only", result.Action);
     }
 
     /// <summary>
@@ -326,33 +300,47 @@ in
     [Fact]
     public async Task SetLoadToTable_WithExistingQuery_ReturnsSuccessResult()
     {
-        // Arrange - Import a query first
-        await using (var batch = await ExcelSession.BeginBatchAsync(CreateUniqueTestExcelFile()))
+        // Arrange - Create unique test file ONCE
+        var testExcelFile = CreateUniqueTestExcelFile();
+        var testQueryFile = CreateUniqueTestQueryFile();
+
+        // Act - Use single batch for all operations
+        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
+        var importResult = await _powerQueryCommands.ImportAsync(batch, "TestLoadToTable", testQueryFile);
+        Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+
+        var result = await _powerQueryCommands.SetLoadToTableAsync(batch, "TestLoadToTable", "TestSheet");
+
+        // Assert - Verify the operation succeeded
+        Assert.True(result.Success, $"SetLoadToTable failed: {result.ErrorMessage}");
+        Assert.Equal("pq-set-load-to-table", result.Action);
+
+        // Verify the load configuration was actually set
+        var configResult = await _powerQueryCommands.GetLoadConfigAsync(batch, "TestLoadToTable");
+        Assert.True(configResult.Success, $"Failed to get load config: {configResult.ErrorMessage}");
+        Assert.Equal(PowerQueryLoadMode.LoadToTable, configResult.LoadMode);
+
+        // Verify sheet was created
+        var sheetsResult = await _sheetCommands.ListAsync(batch);
+        Assert.True(sheetsResult.Success);
+        Assert.Contains(sheetsResult.Worksheets, w => w.Name == "TestSheet");
+
+        // Verify table/QueryTable exists on worksheet (actual data loaded)
+        await batch.ExecuteAsync<int>((ctx, ct) =>
         {
-            var importResult = await _powerQueryCommands.ImportAsync(batch, "TestLoadToTable", CreateUniqueTestQueryFile());
-            await batch.SaveAsync();
-            Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
-        }
+            dynamic sheet = ctx.Book.Worksheets.Item("TestSheet");
+            dynamic queryTables = sheet.QueryTables;
+            Assert.True(queryTables.Count > 0, "Expected at least one QueryTable on the worksheet");
+            return ValueTask.FromResult(0);
+        });
 
-        // Act
-        await using (var batch = await ExcelSession.BeginBatchAsync(CreateUniqueTestExcelFile()))
-        {
-            var result = await _powerQueryCommands.SetLoadToTableAsync(batch, "TestLoadToTable", "TestSheet");
-            await batch.SaveAsync();
+        // Verify query is NOT in Data Model (LoadToTable only)
+        var dataModelCommands = new DataModelCommands();
+        var tablesResult = await dataModelCommands.ListTablesAsync(batch);
+        Assert.True(tablesResult.Success, $"Failed to list Data Model tables: {tablesResult.ErrorMessage}");
+        Assert.DoesNotContain(tablesResult.Tables, t => t.Name == "TestLoadToTable");
 
-            // Assert
-            Assert.True(result.Success, $"SetLoadToTable failed: {result.ErrorMessage}");
-            Assert.Equal("pq-set-load-to-table", result.Action);
-
-            // Verify the load configuration was actually set
-            var configResult = await _powerQueryCommands.GetLoadConfigAsync(batch, "TestLoadToTable");
-            Assert.True(configResult.Success, $"Failed to get load config: {configResult.ErrorMessage}");
-            Assert.Equal(PowerQueryLoadMode.LoadToTable, configResult.LoadMode);
-
-            // Verify sheet was created if loading worked
-            var sheetsResult = await _sheetCommands.ListAsync(batch);
-            Assert.True(sheetsResult.Success);
-        }
+        await batch.SaveAsync();
     }
 
     /// <summary>
@@ -364,33 +352,47 @@ in
     [Fact]
     public async Task SetLoadToDataModel_WithExistingQuery_ReturnsSuccessResult()
     {
-        // Arrange - Create unique test file ONCE, reuse for all operations
+        // Arrange - Create unique test file ONCE
         var testExcelFile = CreateUniqueTestExcelFile();
         var testQueryFile = CreateUniqueTestQueryFile();
 
-        // Step 1: Import a query
-        await using (var batch = await ExcelSession.BeginBatchAsync(testExcelFile))
+        // Act - Use single batch for all operations
+        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
+        var importResult = await _powerQueryCommands.ImportAsync(batch, "TestLoadToDataModel", testQueryFile);
+        Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+
+        var result = await _powerQueryCommands.SetLoadToDataModelAsync(batch, "TestLoadToDataModel");
+
+        // Assert - Verify the operation succeeded
+        Assert.True(result.Success, $"SetLoadToDataModel failed: {result.ErrorMessage}");
+        Assert.Equal("pq-set-load-to-data-model", result.Action);
+
+        // Verify the load configuration was actually set
+        var configResult = await _powerQueryCommands.GetLoadConfigAsync(batch, "TestLoadToDataModel");
+        Assert.True(configResult.Success, $"Failed to get load config: {configResult.ErrorMessage}");
+        Assert.Equal(PowerQueryLoadMode.LoadToDataModel, configResult.LoadMode);
+
+        // Verify query is in Data Model
+        var dataModelCommands = new DataModelCommands();
+        var tablesResult = await dataModelCommands.ListTablesAsync(batch);
+        Assert.True(tablesResult.Success, $"Failed to list Data Model tables: {tablesResult.ErrorMessage}");
+        Assert.Contains(tablesResult.Tables, t => t.Name == "TestLoadToDataModel");
+
+        // Verify NO QueryTable on any worksheet (LoadToDataModel only, no worksheet table)
+        await batch.ExecuteAsync<int>((ctx, ct) =>
         {
-            var importResult = await _powerQueryCommands.ImportAsync(batch, "TestLoadToDataModel", testQueryFile);
-            await batch.SaveAsync();
-            Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
-        }
+            dynamic sheets = ctx.Book.Worksheets;
+            int sheetCount = sheets.Count;
+            for (int i = 1; i <= sheetCount; i++)
+            {
+                dynamic sheet = sheets.Item(i);
+                dynamic queryTables = sheet.QueryTables;
+                Assert.True(queryTables.Count == 0, $"Expected no QueryTables on sheet '{sheet.Name}' for LoadToDataModel mode");
+            }
+            return ValueTask.FromResult(0);
+        });
 
-        // Step 2: Set load to Data Model
-        await using (var batch = await ExcelSession.BeginBatchAsync(testExcelFile))
-        {
-            var result = await _powerQueryCommands.SetLoadToDataModelAsync(batch, "TestLoadToDataModel");
-            await batch.SaveAsync();
-
-            // Assert
-            Assert.True(result.Success, $"SetLoadToDataModel failed: {result.ErrorMessage}");
-            Assert.Equal("pq-set-load-to-data-model", result.Action);
-
-            // Verify the load configuration was actually set
-            var configResult = await _powerQueryCommands.GetLoadConfigAsync(batch, "TestLoadToDataModel");
-            Assert.True(configResult.Success, $"Failed to get load config: {configResult.ErrorMessage}");
-            Assert.Equal(PowerQueryLoadMode.LoadToDataModel, configResult.LoadMode);
-        }
+        await batch.SaveAsync();
     }
 
     /// <summary>
@@ -401,33 +403,42 @@ in
     [Fact]
     public async Task SetLoadToBoth_WithExistingQuery_ReturnsSuccessResult()
     {
-        // Arrange - Create unique test file ONCE, reuse for all operations
+        // Arrange - Create unique test file ONCE
         var testExcelFile = CreateUniqueTestExcelFile();
         var testQueryFile = CreateUniqueTestQueryFile();
 
-        // Step 1: Import a query
-        await using (var batch = await ExcelSession.BeginBatchAsync(testExcelFile))
+        // Act - Use single batch for all operations
+        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
+        var importResult = await _powerQueryCommands.ImportAsync(batch, "TestLoadToBoth", testQueryFile);
+        Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+
+        var result = await _powerQueryCommands.SetLoadToBothAsync(batch, "TestLoadToBoth", "TestSheet");
+
+        // Assert - Verify the operation succeeded
+        Assert.True(result.Success, $"SetLoadToBoth failed: {result.ErrorMessage}");
+        Assert.Equal("pq-set-load-to-both", result.Action);
+
+        // Verify sheet was created with a table
+        var sheetsResult = await _sheetCommands.ListAsync(batch);
+        Assert.True(sheetsResult.Success);
+        Assert.Contains(sheetsResult.Worksheets, w => w.Name == "TestSheet");
+
+        // Verify table exists on worksheet (QueryTable from Power Query)
+        await batch.ExecuteAsync<int>((ctx, ct) =>
         {
-            var importResult = await _powerQueryCommands.ImportAsync(batch, "TestLoadToBoth", testQueryFile);
-            await batch.SaveAsync();
-            Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
-        }
+            dynamic sheet = ctx.Book.Worksheets.Item("TestSheet");
+            dynamic queryTables = sheet.QueryTables;
+            Assert.True(queryTables.Count > 0, "Expected at least one QueryTable on the worksheet");
+            return ValueTask.FromResult(0);
+        });
 
-        // Step 2: Set load to both table and data model
-        await using (var batch = await ExcelSession.BeginBatchAsync(testExcelFile))
-        {
-            var result = await _powerQueryCommands.SetLoadToBothAsync(batch, "TestLoadToBoth", "TestSheet");
-            await batch.SaveAsync();
+        // Verify query is in Data Model
+        var dataModelCommands = new DataModelCommands();
+        var tablesResult = await dataModelCommands.ListTablesAsync(batch);
+        Assert.True(tablesResult.Success, $"Failed to list Data Model tables: {tablesResult.ErrorMessage}");
+        Assert.Contains(tablesResult.Tables, t => t.Name == "TestLoadToBoth");
 
-            // Assert
-            Assert.True(result.Success, $"SetLoadToBoth failed: {result.ErrorMessage}");
-            Assert.Equal("pq-set-load-to-both", result.Action);
-
-            // Verify the load configuration was actually set
-            var configResult = await _powerQueryCommands.GetLoadConfigAsync(batch, "TestLoadToBoth");
-            Assert.True(configResult.Success, $"Failed to get load config: {configResult.ErrorMessage}");
-            Assert.Equal(PowerQueryLoadMode.LoadToBoth, configResult.LoadMode);
-        }
+        await batch.SaveAsync();
     }
 
     /// <summary>
@@ -465,6 +476,105 @@ in
         var setConnResult = await _powerQueryCommands.SetConnectionOnlyAsync(batch, "NonExistentQuery");
         Assert.False(setConnResult.Success);
         Assert.Contains("not found", setConnResult.ErrorMessage);
+    }
+
+    /// <summary>
+    /// Verifies that a Power Query can successfully reference and load data from another Power Query.
+    /// Tests the common pattern where one query (DerivedQuery) references another query (SourceQuery).
+    /// This validates that:
+    /// 1. The source query loads data successfully
+    /// 2. The derived query can reference the source query
+    /// 3. The derived query loads the expected data from the source
+    /// 4. Both queries are independently accessible and functional
+    /// </summary>
+    [Fact]
+    public async Task Import_QueryReferencingAnotherQuery_LoadsDataSuccessfully()
+    {
+        // Arrange
+        var testExcelFile = CreateUniqueTestExcelFile();
+
+        // Create M code for the source query (base data)
+        string sourceQueryMCode = @"let
+    Source = #table(
+        {""ProductID"", ""ProductName"", ""Price""},
+        {
+            {1, ""Widget"", 10.99},
+            {2, ""Gadget"", 25.50},
+            {3, ""Doohickey"", 15.75}
+        }
+    )
+in
+    Source";
+
+        var sourceQueryFile = Path.Combine(_tempDir, $"SourceQuery_{Guid.NewGuid():N}.pq");
+        File.WriteAllText(sourceQueryFile, sourceQueryMCode);
+
+        // Create M code for the derived query (references the source query)
+        // This query filters products with price > 15
+        string derivedQueryMCode = @"let
+    Source = SourceQuery,
+    FilteredRows = Table.SelectRows(Source, each [Price] > 15)
+in
+    FilteredRows";
+
+        var derivedQueryFile = Path.Combine(_tempDir, $"DerivedQuery_{Guid.NewGuid():N}.pq");
+        File.WriteAllText(derivedQueryFile, derivedQueryMCode);
+
+        // Act & Assert
+        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
+
+        // Step 1: Import the source query (must be imported first)
+        var sourceImportResult = await _powerQueryCommands.ImportAsync(
+            batch,
+            "SourceQuery",
+            sourceQueryFile,
+            loadToWorksheet: true);
+
+        Assert.True(sourceImportResult.Success,
+            $"Source query import failed: {sourceImportResult.ErrorMessage}");
+
+        // Step 2: Import the derived query (references SourceQuery)
+        var derivedImportResult = await _powerQueryCommands.ImportAsync(
+            batch,
+            "DerivedQuery",
+            derivedQueryFile,
+            loadToWorksheet: true);
+
+        Assert.True(derivedImportResult.Success,
+            $"Derived query import failed: {derivedImportResult.ErrorMessage}");
+
+        // Step 3: Verify both queries exist in the workbook
+        var listResult = await _powerQueryCommands.ListAsync(batch);
+        Assert.True(listResult.Success);
+        Assert.Equal(2, listResult.Queries.Count);
+        Assert.Contains(listResult.Queries, q => q.Name == "SourceQuery");
+        Assert.Contains(listResult.Queries, q => q.Name == "DerivedQuery");
+
+        // Step 4: Verify the source query M code
+        var sourceViewResult = await _powerQueryCommands.ViewAsync(batch, "SourceQuery");
+        Assert.True(sourceViewResult.Success);
+        Assert.Equal("SourceQuery", sourceViewResult.QueryName);
+        Assert.Contains("#table", sourceViewResult.MCode);
+        Assert.Contains("ProductID", sourceViewResult.MCode);
+
+        // Step 5: Verify the derived query M code references SourceQuery
+        var derivedViewResult = await _powerQueryCommands.ViewAsync(batch, "DerivedQuery");
+        Assert.True(derivedViewResult.Success);
+        Assert.Equal("DerivedQuery", derivedViewResult.QueryName);
+        Assert.Contains("SourceQuery", derivedViewResult.MCode);
+        Assert.Contains("Table.SelectRows", derivedViewResult.MCode);
+        Assert.Contains("Price", derivedViewResult.MCode);
+
+        // Step 6: Refresh both queries to ensure they execute successfully
+        var sourceRefreshResult = await _powerQueryCommands.RefreshAsync(batch, "SourceQuery");
+        Assert.True(sourceRefreshResult.Success,
+            $"Source query refresh failed: {sourceRefreshResult.ErrorMessage}");
+
+        var derivedRefreshResult = await _powerQueryCommands.RefreshAsync(batch, "DerivedQuery");
+        Assert.True(derivedRefreshResult.Success,
+            $"Derived query refresh failed: {derivedRefreshResult.ErrorMessage}");
+
+        await batch.SaveAsync();
     }
 
     /// <summary>
