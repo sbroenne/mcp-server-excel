@@ -16,10 +16,9 @@ public partial class DataModelCommandsTests
         var result = await _dataModelCommands.RefreshAsync(batch);
         await batch.SaveAsync();
 
-        // Assert
-        // Refresh should either succeed or indicate no Data Model
-        Assert.True(result.Success || result.ErrorMessage?.Contains("does not contain a Data Model") == true,
-            $"Expected success or 'no Data Model' message, but got: {result.ErrorMessage}");
+        // Assert - Demand success (Data Model is always available in Excel 2013+)
+        Assert.True(result.Success,
+            $"Refresh MUST succeed - Data Model is always available in Excel 2013+. Error: {result.ErrorMessage}");
     }
 
     [Fact]
@@ -30,15 +29,12 @@ public partial class DataModelCommandsTests
         var result = await _dataModelCommands.RefreshAsync(batch);
         await batch.SaveAsync();
 
-        // Assert
-        Assert.True(result.Success || result.ErrorMessage?.Contains("does not contain a Data Model") == true,
-            $"Expected success or 'no Data Model' message, but got: {result.ErrorMessage}");
-
-        // If successful, should have refreshed the Data Model
-        if (result.Success)
-        {
-            Assert.NotNull(result.FilePath);
-            Assert.Equal(_testExcelFile, result.FilePath);
-        }
+        // Assert - Demand success (Data Model is always available in Excel 2013+)
+        Assert.True(result.Success,
+            $"Refresh MUST succeed - Data Model is always available in Excel 2013+. Error: {result.ErrorMessage}");
+        
+        // Verify refresh completed with correct file path
+        Assert.NotNull(result.FilePath);
+        Assert.Equal(_testExcelFile, result.FilePath);
     }
 }

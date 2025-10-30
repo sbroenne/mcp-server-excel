@@ -15,14 +15,10 @@ public partial class DataModelCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var result = await _dataModelCommands.ListRelationshipsAsync(batch);
 
-        // Assert
-        Assert.True(result.Success || result.ErrorMessage?.Contains("does not contain a Data Model") == true,
-            $"Expected success or 'no Data Model' message, but got: {result.ErrorMessage}");
-
-        if (result.Success)
-        {
-            Assert.NotNull(result.Relationships);
-        }
+        // Assert - MUST succeed (Data Model is always available in Excel 2013+)
+        Assert.True(result.Success, 
+            $"ListRelationships MUST succeed - Data Model is always available. Error: {result.ErrorMessage}");
+        Assert.NotNull(result.Relationships);
     }
 
     [Fact]
@@ -32,12 +28,13 @@ public partial class DataModelCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
         var result = await _dataModelCommands.ListRelationshipsAsync(batch);
 
-        // Assert
-        Assert.True(result.Success || result.ErrorMessage?.Contains("does not contain a Data Model") == true,
-            $"Expected success or 'no Data Model' message, but got: {result.ErrorMessage}");
+        // Assert - MUST succeed (Data Model is always available in Excel 2013+)
+        Assert.True(result.Success, 
+            $"ListRelationships MUST succeed. Error: {result.ErrorMessage}");
+        Assert.NotNull(result.Relationships);
 
-        // If Data Model was created successfully with relationships, validate them
-        if (result.Success && result.Relationships != null && result.Relationships.Count > 0)
+        // If Data Model has relationships, validate them
+        if (result.Relationships.Count > 0)
         {
             // Should have at least 2 relationships (Sales->Customers, Sales->Products)
             Assert.True(result.Relationships.Count >= 2, $"Expected at least 2 relationships, got {result.Relationships.Count}");
@@ -109,14 +106,11 @@ public partial class DataModelCommandsTests
             "OtherColumn"
         );
 
-        // Assert
-        Assert.False(result.Success);
+        // Assert - Should fail because relationship doesn't exist (Data Model is always available in Excel 2013+)
+        Assert.False(result.Success, "DeleteRelationship should fail when relationship doesn't exist");
         Assert.NotNull(result.ErrorMessage);
-        Assert.True(
-            result.ErrorMessage.Contains("does not contain a Data Model") ||
-            result.ErrorMessage.Contains("not found in Data Model"),
-            $"Expected 'no Data Model' or 'not found' error, but got: {result.ErrorMessage}"
-        );
+        Assert.True(result.ErrorMessage.Contains("not found in Data Model"),
+            $"Expected 'not found' error, but got: {result.ErrorMessage}");
     }
 
     [Fact]
@@ -164,26 +158,18 @@ public partial class DataModelCommandsTests
         );
         await batch.SaveAsync();
 
-        // Assert - Should either succeed or indicate no Data Model
-        if (createResult.Success)
-        {
-            Assert.NotNull(createResult.SuggestedNextActions);
-            Assert.Contains(createResult.SuggestedNextActions, s => s.Contains("created successfully"));
+        // Assert - MUST succeed (Data Model is always available in Excel 2013+)
+        Assert.True(createResult.Success, 
+            $"CreateRelationship MUST succeed. Error: {createResult.ErrorMessage}");
+        Assert.NotNull(createResult.SuggestedNextActions);
+        Assert.Contains(createResult.SuggestedNextActions, s => s.Contains("created successfully"));
 
-            // Verify relationship was created
-            var verifyResult = await _dataModelCommands.ListRelationshipsAsync(batch);
-            Assert.True(verifyResult.Success);
-            Assert.Contains(verifyResult.Relationships, r =>
-                r.FromTable == "Sales" && r.ToTable == "Customers" &&
-                r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID");
-        }
-        else
-        {
-            Assert.True(
-                createResult.ErrorMessage?.Contains("does not contain a Data Model") == true,
-                $"Expected 'no Data Model' error, but got: {createResult.ErrorMessage}"
-            );
-        }
+        // Verify relationship was created
+        var verifyResult = await _dataModelCommands.ListRelationshipsAsync(batch);
+        Assert.True(verifyResult.Success);
+        Assert.Contains(verifyResult.Relationships, r =>
+            r.FromTable == "Sales" && r.ToTable == "Customers" &&
+            r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID");
     }
 
     [Fact]
@@ -277,14 +263,11 @@ public partial class DataModelCommandsTests
             "Column2"
         );
 
-        // Assert
-        Assert.False(result.Success);
+        // Assert - Should fail because table doesn't exist (Data Model is always available in Excel 2013+)
+        Assert.False(result.Success, "CreateRelationship should fail when table doesn't exist");
         Assert.NotNull(result.ErrorMessage);
-        Assert.True(
-            result.ErrorMessage.Contains("does not contain a Data Model") ||
-            result.ErrorMessage.Contains("not found in Data Model"),
-            $"Expected 'no Data Model' or 'table not found' error, but got: {result.ErrorMessage}"
-        );
+        Assert.True(result.ErrorMessage.Contains("not found in Data Model"),
+            $"Expected 'table not found' error, but got: {result.ErrorMessage}");
     }
 
     [Fact]
@@ -300,14 +283,11 @@ public partial class DataModelCommandsTests
             "CustomerID"
         );
 
-        // Assert
-        Assert.False(result.Success);
+        // Assert - Should fail because column doesn't exist (Data Model is always available in Excel 2013+)
+        Assert.False(result.Success, "CreateRelationship should fail when column doesn't exist");
         Assert.NotNull(result.ErrorMessage);
-        Assert.True(
-            result.ErrorMessage.Contains("does not contain a Data Model") ||
-            result.ErrorMessage.Contains("not found"),
-            $"Expected 'no Data Model' or 'column not found' error, but got: {result.ErrorMessage}"
-        );
+        Assert.True(result.ErrorMessage.Contains("not found"),
+            $"Expected 'column not found' error, but got: {result.ErrorMessage}");
     }
 
     [Fact]
@@ -430,13 +410,10 @@ public partial class DataModelCommandsTests
             active: true
         );
 
-        // Assert
-        Assert.False(result.Success);
+        // Assert - Should fail because relationship doesn't exist (Data Model is always available in Excel 2013+)
+        Assert.False(result.Success, "UpdateRelationship should fail when relationship doesn't exist");
         Assert.NotNull(result.ErrorMessage);
-        Assert.True(
-            result.ErrorMessage.Contains("does not contain a Data Model") ||
-            result.ErrorMessage.Contains("not found"),
-            $"Expected 'no Data Model' or 'not found' error, but got: {result.ErrorMessage}"
-        );
+        Assert.True(result.ErrorMessage.Contains("not found"),
+            $"Expected 'relationship not found' error, but got: {result.ErrorMessage}");
     }
 }

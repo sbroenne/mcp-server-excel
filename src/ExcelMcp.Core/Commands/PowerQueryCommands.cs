@@ -2009,22 +2009,13 @@ in
                     return result;
                 }
 
-                // STEP 1: Check Data Model availability
-                if (!DataModelHelpers.HasDataModel(ctx.Book))
-                {
-                    result.Success = false;
-                    result.ErrorMessage = "Data Model not available. Excel requires Power Pivot or Data Model features enabled.";
-                    result.WorkflowStatus = "Failed";
-                    return result;
-                }
-
-                // STEP 2: Configure query to load to data model
+                // STEP 1: Configure query to load to data model
                 // Remove existing table connections
                 ConnectionHelpers.RemoveConnections(ctx.Book, queryName);
                 PowerQueryHelpers.RemoveQueryTables(ctx.Book, queryName);
 
-                // Set LoadToWorksheetModel property
-                bool configSuccess = TrySetQueryLoadToDataModel(query);
+                // Configure Data Model loading using Connections.Add2
+                bool configSuccess = SetQueryLoadToDataModel(ctx.Book, queryName);
                 result.ConfigurationApplied = configSuccess;
 
                 if (!configSuccess)
@@ -2035,18 +2026,7 @@ in
                     return result;
                 }
 
-                // STEP 3: ATOMIC OPERATION - Refresh query to load data
-                var refreshResult = await _dataModelCommands.RefreshAsync(batch);
-
-                if (!refreshResult.Success)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Configuration applied but refresh failed: {refreshResult.ErrorMessage}";
-                    result.WorkflowStatus = "Partial";
-                    return result;
-                }
-
-                // STEP 4: Verify data was actually loaded to Data Model
+                // STEP 2: Verify data was actually loaded to Data Model
                 dynamic? model = null;
                 dynamic? modelTables = null;
                 try
@@ -2185,23 +2165,7 @@ in
                     ApplyPrivacyLevel(ctx.Book, privacyLevel.Value);
                 }
 
-                // STEP 2: Check Data Model availability
-                bool dataModelAvailable = DataModelHelpers.HasDataModel(ctx.Book);
-                if (!dataModelAvailable)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = "Data Model is not available in this workbook. Use SetLoadToTableAsync instead.";
-                    result.WorkflowStatus = "Failed";
-                    result.SuggestedNextActions = new List<string>
-                    {
-                        "Use 'set-load-to-table' to load data to worksheet only",
-                        "Check Excel version supports Data Model (Excel 2013+)",
-                        "Ensure workbook is .xlsx format (not .xls)"
-                    };
-                    return result;
-                }
-
-                // STEP 3: Find or create target sheet
+                // STEP 2: Find or create target sheet
                 sheets = ctx.Book.Worksheets;
 
                 for (int i = 1; i <= sheets.Count; i++)
@@ -2244,17 +2208,6 @@ in
                 };
                 PowerQueryHelpers.CreateQueryTable(targetSheet, queryName, queryTableOptions);
 
-                // Configure query for Data Model loading
-                if (!TrySetQueryLoadToDataModel(query))
-                {
-                    result.Success = false;
-                    result.ErrorMessage = "Failed to configure query for Data Model loading";
-                    result.WorkflowStatus = "Partial";
-                    return result;
-                }
-
-                result.ConfigurationApplied = true;
-
                 // STEP 5: ATOMIC REFRESH - Use Data Model refresh for atomic operation
                 try
                 {
@@ -2273,6 +2226,17 @@ in
                     };
                     return result;
                 }
+
+                // Configure query for Data Model loading
+                if (!SetQueryLoadToDataModel(ctx.Book, queryName))
+                {
+                    result.Success = false;
+                    result.ErrorMessage = "Failed to configure query for Data Model loading";
+                    result.WorkflowStatus = "Partial";
+                    return result;
+                }
+
+                result.ConfigurationApplied = true;
 
                 // STEP 6: VERIFY data loaded to BOTH destinations
                 bool foundInTable = false;
@@ -2737,123 +2701,63 @@ in
     }
 
     /// <summary>
-    /// Try to set a Power Query to load to data model using the correct Excel COM approach
-    /// Based on Microsoft documentation about Power Query Load To settings
+    /// Configures a Power Query to load to Data Model using Excel COM API
+    /// Based on validated VBA pattern using Connections.Add2 method
+    /// Reference: Working VBA code that successfully loads queries to Data Model
     /// </summary>
-    private static bool TrySetQueryLoadToDataModel(dynamic query)
+    /// <param name="workbook">Excel workbook COM object</param>
+    /// <param name="queryName">Name of the query to configure</param>
+    /// <returns>True if configuration succeeded, false if exception caught</returns>
+    private static bool SetQueryLoadToDataModel(dynamic workbook, string queryName)
     {
+        dynamic? connections = null;
+        dynamic? newConnection = null;
+
         try
         {
-            // The correct approach is to configure the query's load settings
-            // rather than trying to manipulate ModelTables directly.
-            // This mimics what Excel does when you check "Add this data to the Data Model"
-            // in the Load To dialog.
+            connections = workbook.Connections;
 
-            // Approach 1: Use the proper LoadToWorksheetModel property (Excel 2016+)
-            try
-            {
-                // Set the query to load data to the Data Model
-                query.LoadToWorksheetModel = true;
-                return true;
-            }
-            catch (Exception ex) when (ex.Message.Contains("does not contain a definition"))
-            {
-                // Property doesn't exist - try alternative approaches
-            }
+            // Remove existing connections for this query to avoid conflicts
+            ConnectionHelpers.RemoveConnections(workbook, queryName);
 
-            // Approach 2: Try connection-based configuration
-            try
-            {
-                // Access the workbook connection associated with this query
-                dynamic workbookConnection = query.Connection;
-                if (workbookConnection != null)
-                {
-                    // Configure the connection for Data Model loading
-                    // This mimics the Excel UI's "Load to Data Model" option
-                    workbookConnection.BackgroundQuery = false;
-                    workbookConnection.RefreshOnFileOpen = true;
-                    return true;
-                }
-            }
-            catch (Exception ex) when (ex.Message.Contains("does not contain a definition"))
-            {
-                // Connection property doesn't exist or not accessible
-            }
+            // Use Connections.Add2 method (Excel 2013+) with Data Model parameters
+            // This is the Microsoft-documented approach for loading Power Query to Data Model
+            // Based on working VBA pattern:
+            // w.Connections.Add2 "Query - " & query.Name, _
+            //     "Connection to the '" & query.Name & "' query in the workbook.", _
+            //     "OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location=" & query.Name, _
+            //     """" & query.Name & """", 6, True, False
 
-            // Approach 3: For older Excel versions, check if already configured
-            try
-            {
-                // Check if the query already has a model connection
-                dynamic modelConnection = query.ModelConnection;
-                return modelConnection != null;
-            }
-            catch
-            {
-                // ModelConnection property doesn't exist - not configured
-            }
+            string connectionName = $"Query - {queryName}";
+            string description = $"Connection to the '{queryName}' query in the workbook.";
+            string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
+            string commandText = $"\"{queryName}\""; // Quoted query name
+            int commandType = 6; // Data Model command type (xlCmdDAX or similar)
+            bool createModelConnection = true; // CRITICAL: This loads to Data Model
+            bool importRelationships = false;
 
+            newConnection = connections.Add2(
+                connectionName,
+                description,
+                connectionString,
+                commandText,
+                commandType,
+                createModelConnection,
+                importRelationships
+            );
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // Log specific error for debugging
+            System.Diagnostics.Debug.WriteLine($"Failed to configure Data Model loading: {ex.Message}");
             return false;
         }
-        catch (Exception)
+        finally
         {
-            // All approaches failed
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Check if the workbook supports Data Model loading
-    /// </summary>
-    private static bool CheckDataModelAvailability(dynamic workbook)
-    {
-        try
-        {
-            // Method 1: Check if workbook has Model property (Excel 2013+)
-            try
-            {
-                dynamic model = workbook.Model;
-                return model != null;
-            }
-            catch
-            {
-                // Model property doesn't exist
-            }
-
-            // Method 2: Check if workbook supports PowerPivot connections
-            try
-            {
-                dynamic connections = workbook.Connections;
-                // If we can access connections, assume data model is available
-                return connections != null;
-            }
-            catch
-            {
-                // Connections not available
-            }
-
-            // Method 3: Check Excel version/capabilities
-            try
-            {
-                dynamic app = workbook.Application;
-                string version = app.Version;
-
-                // Excel 2013+ (version 15.0+) supports Data Model
-                if (double.TryParse(version, out double versionNum))
-                {
-                    return versionNum >= 15.0;
-                }
-            }
-            catch
-            {
-                // Cannot determine version
-            }
-
-            // Default to false if we can't determine data model availability
-            return false;
-        }
-        catch
-        {
-            return false;
+            ComUtilities.Release(ref newConnection);
+            ComUtilities.Release(ref connections);
         }
     }
 
