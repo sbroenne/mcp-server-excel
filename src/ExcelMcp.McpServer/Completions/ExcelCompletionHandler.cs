@@ -73,6 +73,14 @@ public static class ExcelCompletionHandler
                 "set-connection-only", "get-load-config"
             ];
         }
+        // Load destination completions for Power Query
+        else if (argumentName == "loadDestination")
+        {
+            suggestions =
+            [
+                "worksheet", "data-model", "both", "connection-only"
+            ];
+        }
         // Action parameter completions for VBA prompts
         else if (argumentName == "action" && promptName.Contains("vba", StringComparison.OrdinalIgnoreCase))
         {

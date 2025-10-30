@@ -47,7 +47,21 @@ public static class ExcelDataModelTool
     /// Manage Excel Data Model (Power Pivot) - tables, measures, relationships
     /// </summary>
     [McpServerTool(Name = "excel_datamodel")]
-    [Description("Manage Excel Power Pivot (Data Model) operations. KEYWORDS: Power Pivot, PowerPivot, Data Model, DAX, measures, relationships, analytical model. Use this tool for ALL Power Pivot tasks: add tables to Power Pivot, create DAX measures, build relationships between tables, manage the analytical data model, create calculated columns. Common Power Pivot workflows: 1) Load data via excel_powerquery 'set-load-to-data-model' action, 2) Create table relationships using this tool, 3) Create DAX measures for calculations, 4) Add calculated columns. This is THE primary tool for Power Pivot operations - if LLM thinks about 'Power Pivot', use this excel_datamodel tool.")]
+    [Description(@"Manage Excel Power Pivot (Data Model) - DAX measures, relationships, analytical model.
+
+⚡ PERFORMANCE: For creating 2+ measures/relationships, use begin_excel_batch FIRST (75-90% faster):
+  1. batch = begin_excel_batch(excelPath: 'file.xlsx')
+  2. excel_datamodel(action: 'create-measure', ..., batchId: batch.batchId)  // repeat
+  3. commit_excel_batch(batchId: batch.batchId, save: true)
+
+KEYWORDS: Power Pivot, PowerPivot, Data Model, DAX, measures, relationships, calculated columns.
+
+TYPICAL WORKFLOW:
+1. Load data: excel_powerquery(action: 'set-load-to-data-model') ← loads to Power Pivot
+2. Create relationships: excel_datamodel(action: 'create-relationship')
+3. Create DAX measures: excel_datamodel(action: 'create-measure')
+
+Actions: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, list-columns, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship, create-column, view-column, update-column, delete-column, validate-dax.")]
     public static async Task<string> ExcelDataModel(
         [Required]
         [RegularExpression("^(list-tables|list-measures|view-measure|export-measure|list-relationships|refresh|delete-measure|delete-relationship|list-columns|view-table|get-model-info|create-measure|update-measure|create-relationship|update-relationship|create-column|view-column|update-column|delete-column|validate-dax)$")]

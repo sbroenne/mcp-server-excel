@@ -44,7 +44,22 @@ public static class ExcelPowerQueryTool
     /// Manage Power Query operations - M code, data loading, and query lifecycle
     /// </summary>
     [McpServerTool(Name = "excel_powerquery")]
-    [Description("Manage Power Query M code and data loading. Primary tool for loading data into Power Pivot: use 'set-load-to-data-model' action to add data to Power Pivot (Data Model). Supports: list, view, import, export, update, refresh, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config. After loading data to Power Pivot, use excel_datamodel or excel_powerpivot tools for DAX measures and relationships. Optional batchId for batch sessions.")]
+    [Description(@"Manage Power Query M code and data loading.
+
+⚡ PERFORMANCE: For 2+ operations on same file, use begin_excel_batch FIRST (75-90% faster):
+  1. batch = begin_excel_batch(excelPath: 'file.xlsx')
+  2. excel_powerquery(..., batchId: batch.batchId)  // repeat for each operation
+  3. commit_excel_batch(batchId: batch.batchId, save: true)
+
+PRIMARY ACTIONS:
+- import: Add Power Query from .pq file (use loadDestination parameter for data model workflows)
+- set-load-to-data-model: Load query data to Power Pivot Data Model (ready for DAX measures)
+- set-load-to-table: Load query data to worksheet (visible to users, NOT in data model)
+- set-load-to-both: Load to BOTH worksheet AND data model
+
+All actions: list, view, import, export, update, refresh, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config.
+
+After loading to Data Model, use excel_datamodel tool for DAX measures and relationships.")]
     public static async Task<string> ExcelPowerQuery(
         [Required]
         [RegularExpression("^(list|view|import|export|update|refresh|delete|set-load-to-table|set-load-to-data-model|set-load-to-both|set-connection-only|get-load-config)$")]

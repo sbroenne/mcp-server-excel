@@ -28,7 +28,17 @@ public static class ExcelParameterTool
     /// Manage Excel parameters (named ranges) - configuration values and reusable references
     /// </summary>
     [McpServerTool(Name = "excel_parameter")]
-    [Description("Manage Excel named ranges as parameters. Supports: list, get, set, update, create, delete. Optional batchId for batch sessions.")]
+    [Description(@"Manage Excel named ranges as parameters (configuration values).
+
+⚡ PERFORMANCE: For creating 2+ parameters, use begin_excel_batch FIRST (90% faster):
+  1. batch = begin_excel_batch(excelPath: 'file.xlsx')
+  2. excel_parameter(action: 'create', ..., batchId: batch.batchId)  // repeat for each parameter
+  3. commit_excel_batch(batchId: batch.batchId, save: true)
+
+EXAMPLE - Creating 5 parameters efficiently:
+  Instead of 10 separate calls (create + set each), use batch mode for 1 Excel session.
+
+Actions: list, get, set, update, create, delete.")]
     public static async Task<string> ExcelParameter(
         [Required]
         [RegularExpression("^(list|get|set|update|create|delete)$")]
