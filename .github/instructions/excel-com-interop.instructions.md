@@ -70,7 +70,44 @@ qt.Refresh(false);  // CRITICAL: false = synchronous, ensures persistence
 
 **Why:** `RefreshAll()` is async. Individual `qt.Refresh(false)` is synchronous and required for disk persistence.
 
-### 5. Excel Busy Handling
+### 5. Numeric Property Type Conversions
+
+**⚠️ ALL Excel COM numeric properties return `double`, NOT `int`!**
+
+```csharp
+// ❌ WRONG: Implicit conversion fails at runtime
+int orientation = field.Orientation;  // Runtime error: Cannot convert double to int
+int position = field.Position;        // Runtime error: Cannot convert double to int
+int function = field.Function;        // Runtime error: Cannot convert double to int
+
+// ✅ CORRECT: Explicit conversion required
+int orientation = Convert.ToInt32(field.Orientation);
+int position = Convert.ToInt32(field.Position);
+int comFunction = Convert.ToInt32(field.Function);
+```
+
+**Common Properties Affected:**
+- `PivotField.Orientation` → `double` (not `XlPivotFieldOrientation` enum)
+- `PivotField.Position` → `double` (not `int`)
+- `PivotField.Function` → `double` (not `XlConsolidationFunction` enum)
+- `Range.Row`, `Range.Column` → `double` (not `int`)
+- Any numeric property from Excel COM → assume `double`
+
+**Date Properties:**
+```csharp
+// RefreshDate can be DateTime OR double (OLE date)
+private static DateTime? GetRefreshDateSafe(dynamic refreshDate)
+{
+    if (refreshDate == null) return null;
+    if (refreshDate is DateTime dt) return dt;
+    if (refreshDate is double dbl) return DateTime.FromOADate(dbl);
+    return null;
+}
+```
+
+**Why:** Excel COM uses `VARIANT` types internally, which represent numbers as `double`. C# `dynamic` binding preserves this type.
+
+### 6. Excel Busy Handling
 ```csharp
 catch (COMException ex) when (ex.HResult == -2147417851)
 {
@@ -118,5 +155,7 @@ if (connType == 3 || connType == 4) {  // TEXT files report as type 4 (WEB)
 | Missing `=` in ranges | Always prefix with `=` |
 | `ListObjects.Add()` for PQ | Use `QueryTables.Add()` |
 | Not releasing objects | `try/finally` + `ReleaseComObject()` |
+| `int x = field.Property` | Use `Convert.ToInt32()` for ALL numeric properties |
+| Assuming enum types | Numeric properties return `double`, convert to enum |
 
 **📚 Reference:** [Excel Object Model](https://docs.microsoft.com/en-us/office/vba/api/overview/excel)

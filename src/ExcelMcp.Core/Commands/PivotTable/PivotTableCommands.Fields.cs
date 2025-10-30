@@ -33,7 +33,7 @@ public partial class PivotTableCommands
                     try
                     {
                         field = pivotFields.Item(i);
-                        int orientation = field.Orientation;
+                        int orientation = Convert.ToInt32(field.Orientation);
 
                         var fieldInfo = new PivotFieldInfo
                         {
@@ -54,7 +54,7 @@ public partial class PivotTableCommands
                         // Get function for value fields
                         if (orientation == XlPivotFieldOrientation.xlDataField)
                         {
-                            int comFunction = field.Function;
+                            int comFunction = Convert.ToInt32(field.Function);
                             fieldInfo.Function = GetAggregationFunctionFromCom(comFunction);
                         }
 
@@ -198,7 +198,7 @@ public partial class PivotTableCommands
                 }
 
                 // Check if field is already placed
-                int currentOrientation = field.Orientation;
+                int currentOrientation = Convert.ToInt32(field.Orientation);
                 if (currentOrientation != XlPivotFieldOrientation.xlHidden)
                 {
                     throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
@@ -359,7 +359,7 @@ public partial class PivotTableCommands
                 }
 
                 // Check if field is already placed
-                int currentOrientation = field.Orientation;
+                int currentOrientation = Convert.ToInt32(field.Orientation);
                 if (currentOrientation != XlPivotFieldOrientation.xlHidden)
                 {
                     throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
@@ -435,7 +435,7 @@ public partial class PivotTableCommands
                 }
 
                 // Check if field is currently placed
-                int currentOrientation = field.Orientation;
+                int currentOrientation = Convert.ToInt32(field.Orientation);
                 if (currentOrientation == XlPivotFieldOrientation.xlHidden)
                 {
                     throw new InvalidOperationException($"Field '{fieldName}' is not currently placed in any area");
