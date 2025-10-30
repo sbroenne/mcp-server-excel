@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Sbroenne.ExcelMcp.ComInterop;
 
 namespace Sbroenne.ExcelMcp.Core.Connections;

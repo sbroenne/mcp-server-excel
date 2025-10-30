@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-
 namespace Sbroenne.ExcelMcp.Core.Security;
 
 /// <summary>

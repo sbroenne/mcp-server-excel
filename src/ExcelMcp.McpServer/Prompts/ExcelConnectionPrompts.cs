@@ -1,6 +1,6 @@
 using System.ComponentModel;
-using ModelContextProtocol.Server;
 using Microsoft.Extensions.AI;
+using ModelContextProtocol.Server;
 
 namespace Sbroenne.ExcelMcp.McpServer.Prompts;
 

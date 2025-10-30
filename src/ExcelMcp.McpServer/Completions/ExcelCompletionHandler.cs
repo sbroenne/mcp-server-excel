@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace Sbroenne.ExcelMcp.McpServer.Completions;
@@ -26,7 +25,7 @@ public static class ExcelCompletionHandler
 
             var refObj = paramsObj["ref"] as JsonObject;
             var argument = paramsObj["argument"] as JsonObject;
-            
+
             if (refObj == null || argument == null)
             {
                 return CreateEmptyCompletion();
@@ -115,7 +114,7 @@ public static class ExcelCompletionHandler
         var suggestions = new List<string>();
 
         // Suggest Excel file paths for excel:// URIs
-        if (uri.StartsWith("excel://", StringComparison.OrdinalIgnoreCase) || 
+        if (uri.StartsWith("excel://", StringComparison.OrdinalIgnoreCase) ||
             uri.Contains(".xlsx", StringComparison.OrdinalIgnoreCase) ||
             uri.Contains(".xlsm", StringComparison.OrdinalIgnoreCase))
         {

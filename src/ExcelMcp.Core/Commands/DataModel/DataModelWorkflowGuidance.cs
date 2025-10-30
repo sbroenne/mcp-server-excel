@@ -134,7 +134,7 @@ public static class DataModelWorkflowGuidance
         else
         {
             suggestions.Add($"Found {count} {objectType} in Data Model");
-            
+
             if (objectType.Contains("measure", StringComparison.OrdinalIgnoreCase))
             {
                 suggestions.Add("Use 'dm-view-measure' to inspect DAX formulas");

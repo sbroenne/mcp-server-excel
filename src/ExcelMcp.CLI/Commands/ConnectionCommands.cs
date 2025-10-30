@@ -1,6 +1,5 @@
-using Spectre.Console;
-using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Spectre.Console;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -10,7 +9,7 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 public class ConnectionCommands : IConnectionCommands
 {
     private readonly Core.Commands.ConnectionCommands _coreCommands = new();
-    
+
     public int List(string[] args)
     {
         if (args.Length < 2)
@@ -28,7 +27,7 @@ public class ConnectionCommands : IConnectionCommands
             return await _coreCommands.ListAsync(batch);
         });
         var result = task.GetAwaiter().GetResult();
-        
+
         if (result.Success)
         {
             if (result.Connections.Count > 0)
@@ -45,10 +44,10 @@ public class ConnectionCommands : IConnectionCommands
                     string description = conn.Description?.Length > 30 ? conn.Description[..27] + "..." : conn.Description ?? "";
                     string lastRefresh = conn.LastRefresh?.ToString("yyyy-MM-dd HH:mm") ?? "-";
                     string isPQ = conn.IsPowerQuery ? "[green]✓[/]" : "";
-                    
+
                     table.AddRow(
-                        conn.Name.EscapeMarkup(), 
-                        conn.Type.EscapeMarkup(), 
+                        conn.Name.EscapeMarkup(),
+                        conn.Type.EscapeMarkup(),
                         description.EscapeMarkup(),
                         lastRefresh,
                         isPQ
@@ -88,34 +87,34 @@ public class ConnectionCommands : IConnectionCommands
             return await _coreCommands.ViewAsync(batch, connectionName);
         });
         var result = task.GetAwaiter().GetResult();
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[bold cyan]Connection:[/] {result.ConnectionName.EscapeMarkup()}");
             AnsiConsole.MarkupLine($"[bold]Type:[/] {result.Type.EscapeMarkup()}");
-            
+
             if (result.IsPowerQuery)
             {
                 AnsiConsole.MarkupLine($"[yellow]Power Query:[/] Yes - Use pq-* commands for modifications");
             }
-            
+
             if (!string.IsNullOrEmpty(result.ConnectionString))
             {
                 AnsiConsole.MarkupLine($"\n[bold]Connection String:[/]");
                 AnsiConsole.MarkupLine($"[dim]{result.ConnectionString.EscapeMarkup()}[/]");
             }
-            
+
             if (!string.IsNullOrEmpty(result.CommandText))
             {
                 AnsiConsole.MarkupLine($"\n[bold]Command Text:[/]");
                 AnsiConsole.MarkupLine($"[dim]{result.CommandText.EscapeMarkup()}[/]");
             }
-            
+
             if (!string.IsNullOrEmpty(result.CommandType))
             {
                 AnsiConsole.MarkupLine($"[bold]Command Type:[/] {result.CommandType}");
             }
-            
+
             return 0;
         }
         else
@@ -145,7 +144,7 @@ public class ConnectionCommands : IConnectionCommands
             return result;
         });
         var result = task.GetAwaiter().GetResult();
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Imported connection '{connectionName.EscapeMarkup()}'");
@@ -176,7 +175,7 @@ public class ConnectionCommands : IConnectionCommands
             return await _coreCommands.ExportAsync(batch, connectionName, jsonPath);
         });
         var result = task.GetAwaiter().GetResult();
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Exported connection '{connectionName.EscapeMarkup()}' to {Path.GetFileName(jsonPath)}");
@@ -210,7 +209,7 @@ public class ConnectionCommands : IConnectionCommands
             return result;
         });
         var result = task.GetAwaiter().GetResult();
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Updated connection '{connectionName.EscapeMarkup()}'");
@@ -239,7 +238,7 @@ public class ConnectionCommands : IConnectionCommands
             {
                 ctx.Spinner(Spinner.Known.Dots);
                 ctx.SpinnerStyle(Style.Parse("green"));
-                
+
                 var task = Task.Run(async () =>
                 {
                     await using var batch = await ExcelSession.BeginBatchAsync(filePath);
@@ -248,7 +247,7 @@ public class ConnectionCommands : IConnectionCommands
                     return result;
                 });
                 var result = task.GetAwaiter().GetResult();
-                
+
                 if (result.Success)
                 {
                     ctx.Status("[green]✓ Refresh complete[/]");
@@ -263,7 +262,7 @@ public class ConnectionCommands : IConnectionCommands
             return result;
         });
         var finalResult = finalTask.GetAwaiter().GetResult();
-        
+
         if (finalResult.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Refreshed connection '{connectionName.EscapeMarkup()}'");
@@ -302,7 +301,7 @@ public class ConnectionCommands : IConnectionCommands
             return result;
         });
         var result = task.GetAwaiter().GetResult();
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Deleted connection '{connectionName.EscapeMarkup()}'");
@@ -335,7 +334,7 @@ public class ConnectionCommands : IConnectionCommands
             return result;
         });
         var result = task.GetAwaiter().GetResult();
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Loaded connection '{connectionName.EscapeMarkup()}' to sheet '{sheetName.EscapeMarkup()}'");
@@ -365,20 +364,20 @@ public class ConnectionCommands : IConnectionCommands
             return await _coreCommands.GetPropertiesAsync(batch, connectionName);
         });
         var result = task.GetAwaiter().GetResult();
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[bold]Properties for:[/] {result.ConnectionName.EscapeMarkup()}\n");
-            
+
             var table = new Table();
             table.AddColumn("[bold]Property[/]");
             table.AddColumn("[bold]Value[/]");
-            
+
             table.AddRow("Background Query", result.BackgroundQuery ? "[green]Yes[/]" : "[dim]No[/]");
             table.AddRow("Refresh on File Open", result.RefreshOnFileOpen ? "[green]Yes[/]" : "[dim]No[/]");
             table.AddRow("Save Password", result.SavePassword ? "[yellow]Yes[/]" : "[dim]No[/]");
             table.AddRow("Refresh Period (minutes)", result.RefreshPeriod.ToString());
-            
+
             AnsiConsole.Write(table);
             return 0;
         }
@@ -410,10 +409,10 @@ public class ConnectionCommands : IConnectionCommands
         for (int i = 3; i < args.Length; i += 2)
         {
             if (i + 1 >= args.Length) break;
-            
+
             string flag = args[i].ToLower();
             string value = args[i + 1];
-            
+
             switch (flag)
             {
                 case "--bg-query" or "--background-query":
@@ -443,7 +442,7 @@ public class ConnectionCommands : IConnectionCommands
             return result;
         });
         var result = task.GetAwaiter().GetResult();
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Updated properties for connection '{connectionName.EscapeMarkup()}'");
@@ -473,7 +472,7 @@ public class ConnectionCommands : IConnectionCommands
             return await _coreCommands.TestAsync(batch, connectionName);
         });
         var result = task.GetAwaiter().GetResult();
-        
+
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Connection '{connectionName.EscapeMarkup()}' is valid");

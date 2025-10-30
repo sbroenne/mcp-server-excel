@@ -1,8 +1,8 @@
+using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 using Xunit.Abstractions;
-using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Integration.PowerQuery;
 

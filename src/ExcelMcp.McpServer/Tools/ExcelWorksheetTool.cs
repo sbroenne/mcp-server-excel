@@ -48,7 +48,7 @@ public static class ExcelWorksheetTool
         [RegularExpression(@"^[^[\]/*?\\:]+$")]
         [Description("New sheet name (for rename) or source sheet name (for copy)")]
         string? targetName = null,
-        
+
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
         string? batchId = null)
     {
@@ -121,7 +121,7 @@ public static class ExcelWorksheetTool
 
         // Use workflow guidance with batch mode awareness
         bool usedBatchMode = !string.IsNullOrEmpty(batchId);
-        
+
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
@@ -135,7 +135,7 @@ public static class ExcelWorksheetTool
         result.SuggestedNextActions = WorksheetWorkflowGuidance.GetNextStepsAfterCreate(
             success: true,
             usedBatchMode: usedBatchMode);
-        
+
         result.WorkflowHint = usedBatchMode
             ? "Worksheet created in batch mode. Continue adding more sheets or data."
             : WorksheetWorkflowGuidance.GetWorkflowHint("create", true, usedBatchMode);

@@ -1,10 +1,9 @@
-using System.Runtime.InteropServices;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Connections;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
-using Sbroenne.ExcelMcp.ComInterop.Session;
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
 
@@ -1052,8 +1051,8 @@ public class ConnectionCommands : IConnectionCommands
                 Description: definition.Description ?? "",
                 ConnectionString: definition.ConnectionString,
                 CommandText: definition.CommandText ?? ""
-                // Note: Omitting optional parameters (lCmdtype, CreateModelConnection, ImportRelationships)
-                // to let Excel use defaults
+            // Note: Omitting optional parameters (lCmdtype, CreateModelConnection, ImportRelationships)
+            // to let Excel use defaults
             );
 
             // Connection created successfully

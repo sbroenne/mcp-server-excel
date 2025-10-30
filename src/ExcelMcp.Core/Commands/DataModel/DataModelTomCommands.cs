@@ -751,8 +751,8 @@ public class DataModelTomCommands : IDataModelTomCommands
                 // If table name provided, filter to that table
                 var tablesToSearch = string.IsNullOrWhiteSpace(tableName)
                     ? model.Tables.ToList()
-                    : new List<Microsoft.AnalysisServices.Tabular.Table> 
-                    { 
+                    : new List<Microsoft.AnalysisServices.Tabular.Table>
+                    {
                         TomHelper.FindTable(model, tableName) ?? throw new InvalidOperationException($"Table '{tableName}' not found")
                     };
 
@@ -764,8 +764,8 @@ public class DataModelTomCommands : IDataModelTomCommands
                         {
                             Name = column.Name,
                             Table = table.Name,
-                            FormulaPreview = column.Expression?.Length > 60 
-                                ? column.Expression[..57] + "..." 
+                            FormulaPreview = column.Expression?.Length > 60
+                                ? column.Expression[..57] + "..."
                                 : column.Expression ?? "",
                             DataType = column.DataType.ToString(),
                             Description = column.Description

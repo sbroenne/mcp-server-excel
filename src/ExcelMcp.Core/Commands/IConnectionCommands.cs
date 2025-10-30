@@ -1,5 +1,5 @@
-using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -56,8 +56,8 @@ public interface IConnectionCommands
     /// <summary>
     /// Sets connection properties
     /// </summary>
-    Task<OperationResult> SetPropertiesAsync(IExcelBatch batch, string connectionName, 
-        bool? backgroundQuery = null, bool? refreshOnFileOpen = null, 
+    Task<OperationResult> SetPropertiesAsync(IExcelBatch batch, string connectionName,
+        bool? backgroundQuery = null, bool? refreshOnFileOpen = null,
         bool? savePassword = null, int? refreshPeriod = null);
 
     /// <summary>

@@ -46,7 +46,7 @@ public static class ExcelParameterTool
 
         [Description("Parameter value (for set) or cell reference (for create/update, e.g., 'Sheet1!A1')")]
         string? value = null,
-        
+
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
         string? batchId = null)
     {

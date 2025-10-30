@@ -56,7 +56,7 @@ public static class ExcelVbaTool
 
         [Description("Parameters for VBA procedure execution (comma-separated)")]
         string? parameters = null,
-        
+
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
         string? batchId = null)
     {

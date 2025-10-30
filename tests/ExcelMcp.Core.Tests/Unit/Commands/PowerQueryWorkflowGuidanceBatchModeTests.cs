@@ -25,7 +25,7 @@ public class PowerQueryWorkflowGuidanceBatchModeTests
         // Assert
         Assert.NotNull(suggestions);
         Assert.NotEmpty(suggestions);
-        
+
         // First suggestion should be about batch mode
         Assert.Contains(suggestions, s => s.Contains("begin_excel_batch", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(suggestions, s => s.Contains("multiple imports", StringComparison.OrdinalIgnoreCase));
@@ -43,7 +43,7 @@ public class PowerQueryWorkflowGuidanceBatchModeTests
         // Assert
         Assert.NotNull(suggestions);
         Assert.NotEmpty(suggestions);
-        
+
         // Should NOT suggest batch mode since already using it
         Assert.DoesNotContain(suggestions, s => s.Contains("begin_excel_batch", StringComparison.OrdinalIgnoreCase));
     }
@@ -60,10 +60,10 @@ public class PowerQueryWorkflowGuidanceBatchModeTests
         // Assert
         Assert.NotNull(suggestions);
         Assert.NotEmpty(suggestions);
-        
+
         // Error scenario - should focus on fixing errors, not batch mode
         Assert.DoesNotContain(suggestions, s => s.Contains("begin_excel_batch", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(suggestions, s => s.Contains("error", StringComparison.OrdinalIgnoreCase) || 
+        Assert.Contains(suggestions, s => s.Contains("error", StringComparison.OrdinalIgnoreCase) ||
                                           s.Contains("fix", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -79,7 +79,7 @@ public class PowerQueryWorkflowGuidanceBatchModeTests
         // Assert
         Assert.NotNull(suggestions);
         Assert.NotEmpty(suggestions);
-        
+
         // Should suggest batch mode for multiple updates
         Assert.Contains(suggestions, s => s.Contains("begin_excel_batch", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(suggestions, s => s.Contains("multiple updates", StringComparison.OrdinalIgnoreCase));
@@ -97,7 +97,7 @@ public class PowerQueryWorkflowGuidanceBatchModeTests
         // Assert
         Assert.NotNull(suggestions);
         Assert.NotEmpty(suggestions);
-        
+
         // Should NOT suggest batch mode since already using it
         Assert.DoesNotContain(suggestions, s => s.Contains("begin_excel_batch", StringComparison.OrdinalIgnoreCase));
     }
@@ -113,7 +113,7 @@ public class PowerQueryWorkflowGuidanceBatchModeTests
         // Assert
         Assert.NotNull(suggestions);
         Assert.NotEmpty(suggestions);
-        
+
         // Should suggest batch mode for configuring multiple queries
         Assert.Contains(suggestions, s => s.Contains("begin_excel_batch", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(suggestions, s => s.Contains("multiple queries", StringComparison.OrdinalIgnoreCase));
@@ -130,7 +130,7 @@ public class PowerQueryWorkflowGuidanceBatchModeTests
         // Assert
         Assert.NotNull(suggestions);
         Assert.NotEmpty(suggestions);
-        
+
         // Should NOT suggest batch mode since already using it
         Assert.DoesNotContain(suggestions, s => s.Contains("begin_excel_batch", StringComparison.OrdinalIgnoreCase));
     }
@@ -148,7 +148,7 @@ public class PowerQueryWorkflowGuidanceBatchModeTests
 
         // Assert
         Assert.NotNull(suggestions);
-        Assert.True(suggestions.Count >= minimumCount, 
+        Assert.True(suggestions.Count >= minimumCount,
             $"Expected at least {minimumCount} suggestions, got {suggestions.Count}");
     }
 }
