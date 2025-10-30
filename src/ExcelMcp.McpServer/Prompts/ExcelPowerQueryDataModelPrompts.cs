@@ -94,6 +94,39 @@ After set-load-to-both, you'll see:
 - 'Data visible in worksheet AND available for DAX measures/relationships'
 - This tells you: Best of both worlds
 
-REMEMBER: The load destination determines what you can DO with the data, not just where it appears!");
+REMEMBER: The load destination determines what you can DO with the data, not just where it appears!
+
+EXCEL_TABLE VS EXCEL_POWERQUERY - WHEN TO USE EACH:
+
+excel_powerquery tool:
+- For EXTERNAL data sources (databases, web APIs, files, SharePoint, etc.)
+- Loads data FROM outside Excel INTO Excel
+- Creates Power Query connections with M code
+- Examples: Load sales data from SQL Server, import CSV files, pull data from web APIs
+- Actions: import, refresh, set-load-to-data-model, set-load-to-table, etc.
+
+excel_table tool:
+- For data ALREADY in Excel worksheets (ranges of cells)
+- Converts existing ranges to Excel Tables (ListObject)
+- Provides structure: AutoFilter, structured references ([@Column]), dynamic expansion
+- Examples: Convert a range A1:Z100 to a table, add AutoFilter, create structured formulas
+- Actions: create, resize, add-column, apply-filter, sort, add-to-datamodel (for existing tables)
+
+Use excel_powerquery when:
+- Data comes from EXTERNAL sources (not already in Excel)
+- You need to refresh data from source periodically
+- You want Power Query M code transformations
+
+Use excel_table when:
+- Data is ALREADY in Excel worksheet as a range
+- You want to add structure (AutoFilter, formulas with [@Column])
+- You have manually entered data or pasted data that needs table features
+- You want to add an EXISTING table to Data Model (table already exists, just needs to be added)
+
+CRITICAL DISTINCTION:
+- excel_powerquery 'set-load-to-table' does NOT create an Excel Table (ListObject)
+- It creates a QueryTable (Power Query result range that looks like a table but isn't a ListObject)
+- That's why excel_table add-to-datamodel fails after set-load-to-table
+- If you need a real Excel Table from Power Query data: Use set-load-to-both or manually create table from range");
     }
 }
