@@ -326,7 +326,21 @@ public static class ComUtilities
                 try
                 {
                     table = modelTables.Item(t);
-                    measures = table.ModelMeasures;
+                    
+                    try
+                    {
+                        measures = table.ModelMeasures;
+                    }
+                    catch (Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
+                    {
+                        // ModelMeasures property not available on this table (empty Data Model)
+                        continue;
+                    }
+                    catch (System.Runtime.InteropServices.COMException)
+                    {
+                        // ModelMeasures collection not initialized
+                        continue;
+                    }
 
                     for (int m = 1; m <= measures.Count; m++)
                     {
