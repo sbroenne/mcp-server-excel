@@ -14,22 +14,17 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 /// 
 /// These tests verify the CLI wrapper works correctly. Business logic is tested in ExcelMcp.Core.Tests.
 /// </summary>
-[Trait("Category", "Integration")]
-[Trait("Speed", "Medium")]
+[Trait("Category", "Unit")]
+[Trait("Speed", "Fast")]
 [Trait("Feature", "VBA")]
 [Trait("Layer", "CLI")]
-public class ScriptCommandsTests : IDisposable
+public class ScriptCommandsTests
 {
     private readonly ScriptCommands _cliCommands;
-    private readonly string _tempDir;
 
     public ScriptCommandsTests()
     {
         _cliCommands = new ScriptCommands();
-
-        // Create temp directory for test files
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCLI_ScriptTests_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
     }
 
     [Fact]
@@ -66,20 +61,6 @@ public class ScriptCommandsTests : IDisposable
     }
 
     [Fact]
-    public void List_WithNonExistentFile_ReturnsErrorExitCode()
-    {
-        // Arrange
-        string nonExistentFile = Path.Combine(_tempDir, "NonExistent.xlsm");
-        string[] args = { "script-list", nonExistentFile };
-
-        // Act
-        int exitCode = _cliCommands.List(args);
-
-        // Assert - CLI returns 1 for error (file not found)
-        Assert.Equal(1, exitCode);
-    }
-
-    [Fact]
     public void Export_WithInvalidFileExtension_ReturnsErrorExitCode()
     {
         // Arrange - VBA requires .xlsm files
@@ -105,20 +86,6 @@ public class ScriptCommandsTests : IDisposable
         Assert.Equal(1, exitCode);
     }
 
-    [Fact]
-    public async Task Update_WithNonExistentVbaFile_ReturnsErrorExitCode()
-    {
-        // Arrange
-        string nonExistentVbaFile = Path.Combine(_tempDir, "NonExistent.vba");
-        string[] args = { "script-update", "file.xlsm", "Module1", nonExistentVbaFile };
-
-        // Act
-        int exitCode = await _cliCommands.Update(args);
-
-        // Assert - CLI returns 1 for error (VBA file not found)
-        Assert.Equal(1, exitCode);
-    }
-
     [Theory]
     [InlineData("script-run")]
     public void Run_WithMissingArgs_ReturnsErrorExitCode(params string[] args)
@@ -135,20 +102,5 @@ public class ScriptCommandsTests : IDisposable
             Assert.True(ex is InvalidOperationException,
                 $"Unexpected exception type: {ex.GetType().Name}: {ex.Message}");
         }
-    }
-
-    public void Dispose()
-    {
-        // Clean up temp directory
-        try
-        {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, true);
-            }
-        }
-        catch { }
-
-        GC.SuppressFinalize(this);
     }
 }

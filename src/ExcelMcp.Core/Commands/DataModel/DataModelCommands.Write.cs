@@ -27,20 +27,20 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
                 // Find the measure
-                measure = ComUtilities.FindModelMeasure(model, measureName);
+                measure = FindModelMeasure(model, measureName);
                 if (measure == null)
                 {
-                    var measureNames = DataModelHelpers.GetModelMeasureNames(model);
+                    var measureNames = GetModelMeasureNames(model);
                     result.Success = false;
                     result.ErrorMessage = DataModelErrorMessages.MeasureNotFound(measureName);
 
@@ -107,10 +107,10 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
@@ -133,10 +133,10 @@ public partial class DataModelCommands
                             dynamic? fkTable = fkColumn.Parent;
                             dynamic? pkTable = pkColumn.Parent;
 
-                            string currentFromTable = DataModelHelpers.SafeGetString(fkTable, "Name");
-                            string currentFromColumn = DataModelHelpers.SafeGetString(fkColumn, "Name");
-                            string currentToTable = DataModelHelpers.SafeGetString(pkTable, "Name");
-                            string currentToColumn = DataModelHelpers.SafeGetString(pkColumn, "Name");
+                            string currentFromTable = ComInterop.ComUtilities.SafeGetString(fkTable, "Name");
+                            string currentFromColumn = ComInterop.ComUtilities.SafeGetString(fkColumn, "Name");
+                            string currentToTable = ComInterop.ComUtilities.SafeGetString(pkTable, "Name");
+                            string currentToColumn = ComInterop.ComUtilities.SafeGetString(pkColumn, "Name");
 
                             ComUtilities.Release(ref fkTable);
                             ComUtilities.Release(ref pkTable);
@@ -226,17 +226,17 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
                 // Find the table
-                table = ComUtilities.FindModelTable(model, tableName);
+                table = FindModelTable(model, tableName);
                 if (table == null)
                 {
                     result.Success = false;
@@ -245,7 +245,7 @@ public partial class DataModelCommands
                 }
 
                 // Check if measure already exists
-                dynamic? existingMeasure = ComUtilities.FindModelMeasure(model, measureName);
+                dynamic? existingMeasure = FindModelMeasure(model, measureName);
                 if (existingMeasure != null)
                 {
                     ComUtilities.Release(ref existingMeasure);
@@ -260,13 +260,14 @@ public partial class DataModelCommands
                     return result;
                 }
 
-                // Get ModelMeasures collection from table
-                measures = table.ModelMeasures;
+                // Get ModelMeasures collection from MODEL (not from table!)
+                // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
+                measures = model.ModelMeasures;
 
                 // Get format object if specified
                 if (!string.IsNullOrEmpty(formatType))
                 {
-                    formatObject = DataModelHelpers.GetFormatObject(model, formatType);
+                    formatObject = GetFormatObject(model, formatType);
                 }
 
                 // Create the measure using Excel COM API (Office 2016+)
@@ -326,17 +327,17 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
                 // Find the measure
-                measure = ComUtilities.FindModelMeasure(model, measureName);
+                measure = FindModelMeasure(model, measureName);
                 if (measure == null)
                 {
                     result.Success = false;
@@ -357,7 +358,7 @@ public partial class DataModelCommands
                 // Update format if provided
                 if (!string.IsNullOrEmpty(formatType))
                 {
-                    formatObject = DataModelHelpers.GetFormatObject(model, formatType);
+                    formatObject = GetFormatObject(model, formatType);
                     if (formatObject != null)
                     {
                         measure.FormatInformation = formatObject;
@@ -428,17 +429,17 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
                 // Find source table and column
-                fromTableObj = ComUtilities.FindModelTable(model, fromTable);
+                fromTableObj = FindModelTable(model, fromTable);
                 if (fromTableObj == null)
                 {
                     result.Success = false;
@@ -446,7 +447,7 @@ public partial class DataModelCommands
                     return result;
                 }
 
-                fromColumnObj = DataModelHelpers.FindModelTableColumn(fromTableObj, fromColumn);
+                fromColumnObj = FindModelTableColumn(fromTableObj, fromColumn);
                 if (fromColumnObj == null)
                 {
                     result.Success = false;
@@ -455,7 +456,7 @@ public partial class DataModelCommands
                 }
 
                 // Find target table and column
-                toTableObj = ComUtilities.FindModelTable(model, toTable);
+                toTableObj = FindModelTable(model, toTable);
                 if (toTableObj == null)
                 {
                     result.Success = false;
@@ -463,7 +464,7 @@ public partial class DataModelCommands
                     return result;
                 }
 
-                toColumnObj = DataModelHelpers.FindModelTableColumn(toTableObj, toColumn);
+                toColumnObj = FindModelTableColumn(toTableObj, toColumn);
                 if (toColumnObj == null)
                 {
                     result.Success = false;
@@ -472,7 +473,7 @@ public partial class DataModelCommands
                 }
 
                 // Check if relationship already exists
-                dynamic? existingRel = DataModelHelpers.FindRelationship(model, fromTable, fromColumn, toTable, toColumn);
+                dynamic? existingRel = FindRelationship(model, fromTable, fromColumn, toTable, toColumn);
                 if (existingRel != null)
                 {
                     ComUtilities.Release(ref existingRel);
@@ -545,17 +546,17 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
                 // Find the relationship
-                relationship = DataModelHelpers.FindRelationship(model, fromTable, fromColumn, toTable, toColumn);
+                relationship = FindRelationship(model, fromTable, fromColumn, toTable, toColumn);
                 if (relationship == null)
                 {
                     result.Success = false;

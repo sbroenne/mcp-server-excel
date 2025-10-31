@@ -6,11 +6,12 @@ namespace Sbroenne.ExcelMcp.Core.DataModel;
 public static class DataModelErrorMessages
 {
     /// <summary>
-    /// Error message when workbook doesn't have a Data Model
+    /// Error message when Data Model has no tables
+    /// NOTE: Every workbook has a Model object, but it may be empty (no tables)
     /// </summary>
-    public static string NoDataModel()
+    public static string NoDataModelTables()
     {
-        return "This workbook does not contain a Data Model. Load data to Data Model first using Power Query or external data sources.";
+        return "Data Model has no tables. Add a table to the Data Model first using 'table-add-to-datamodel' or load data via Power Query.";
     }
 
     /// <summary>

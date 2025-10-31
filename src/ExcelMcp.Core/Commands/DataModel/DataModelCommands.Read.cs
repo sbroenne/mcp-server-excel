@@ -20,10 +20,10 @@ public partial class DataModelCommands
         return await batch.Execute((ctx, ct) =>
         {
             // Check if workbook has Data Model
-            if (!DataModelHelpers.HasDataModel(ctx.Book))
+            if (!HasDataModelTables(ctx.Book))
             {
                 result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                 return result;
             }
 
@@ -32,7 +32,7 @@ public partial class DataModelCommands
             {
                 model = ctx.Book.Model;
 
-                DataModelHelpers.ForEachTable(model, (Action<dynamic, int>)((table, index) =>
+                ForEachTable(model, (Action<dynamic, int>)((table, index) =>
                 {
                     // Try to get refresh date (may not always be available)
                     DateTime? refreshDate = null;
@@ -44,9 +44,9 @@ public partial class DataModelCommands
 
                     var tableInfo = new DataModelTableInfo
                     {
-                        Name = DataModelHelpers.SafeGetString(table, "Name"),
-                        SourceName = DataModelHelpers.SafeGetString(table, "SourceName"),
-                        RecordCount = DataModelHelpers.SafeGetInt(table, "RecordCount"),
+                        Name = ComInterop.ComUtilities.SafeGetString(table, "Name"),
+                        SourceName = ComInterop.ComUtilities.SafeGetString(table, "SourceName"),
+                        RecordCount = ComInterop.ComUtilities.SafeGetInt(table, "RecordCount"),
                         RefreshDate = refreshDate
                     };
 
@@ -80,40 +80,49 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
-                DataModelHelpers.ForEachTable(model, (Action<dynamic, int>)((table, index) =>
+                // Iterate through all measures (they're at model level)
+                ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
                 {
-                    string currentTableName = DataModelHelpers.SafeGetString(table, "Name");
+                    // Get the table name for this measure
+                    string measureTableName = string.Empty;
+                    dynamic? associatedTable = null;
+                    try
+                    {
+                        associatedTable = measure.AssociatedTable;
+                        measureTableName = associatedTable?.Name?.ToString() ?? string.Empty;
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref associatedTable);
+                    }
 
-                    // Skip if filtering by table and this isn't the table
-                    if (tableName != null && !currentTableName.Equals(tableName, StringComparison.OrdinalIgnoreCase))
+                    // Skip if filtering by table and this measure isn't in that table
+                    if (tableName != null && !measureTableName.Equals(tableName, StringComparison.OrdinalIgnoreCase))
                     {
                         return;
                     }
 
-                    DataModelHelpers.ForEachMeasure(table, (Action<dynamic, int>)((measure, measureIndex) =>
+                    string formula = ComInterop.ComUtilities.SafeGetString(measure, "Formula");
+                    string preview = formula.Length > 80 ? formula[..77] + "..." : formula;
+
+                    var measureInfo = new DataModelMeasureInfo
                     {
-                        string formula = DataModelHelpers.SafeGetString(measure, "Formula");
-                        string preview = formula.Length > 80 ? formula[..77] + "..." : formula;
+                        Name = ComInterop.ComUtilities.SafeGetString(measure, "Name"),
+                        Table = measureTableName,
+                        FormulaPreview = preview,
+                        Description = ComInterop.ComUtilities.SafeGetString(measure, "Description")
+                    };
 
-                        var measureInfo = new DataModelMeasureInfo
-                        {
-                            Name = DataModelHelpers.SafeGetString(measure, "Name"),
-                            Table = currentTableName,
-                            FormulaPreview = preview,
-                            Description = DataModelHelpers.SafeGetString(measure, "Description")
-                        };
-
-                        result.Measures.Add(measureInfo);
-                    }));
+                    result.Measures.Add(measureInfo);
                 }));
 
                 // Check if table filter was specified but not found
@@ -156,20 +165,20 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
                 // Find the measure
-                measure = ComUtilities.FindModelMeasure(model, measureName);
+                measure = FindModelMeasure(model, measureName);
                 if (measure == null)
                 {
-                    var measureNames = DataModelHelpers.GetModelMeasureNames(model);
+                    var measureNames = GetModelMeasureNames(model);
                     result.Success = false;
                     result.ErrorMessage = DataModelErrorMessages.MeasureNotFound(measureName);
 
@@ -193,10 +202,10 @@ public partial class DataModelCommands
                 }
 
                 // Get measure details using safe helpers
-                result.DaxFormula = DataModelHelpers.SafeGetString(measure, "Formula");
-                result.Description = DataModelHelpers.SafeGetString(measure, "Description");
+                result.DaxFormula = ComInterop.ComUtilities.SafeGetString(measure, "Formula");
+                result.Description = ComInterop.ComUtilities.SafeGetString(measure, "Description");
                 result.CharacterCount = result.DaxFormula.Length;
-                result.TableName = DataModelHelpers.GetMeasureTableName(model, measureName) ?? "";
+                result.TableName = GetMeasureTableName(model, measureName) ?? "";
 
                 // Try to get format information
                 try
@@ -262,17 +271,17 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
                 // Find the measure
-                measure = ComUtilities.FindModelMeasure(model, measureName);
+                measure = FindModelMeasure(model, measureName);
                 if (measure == null)
                 {
                     result.Success = false;
@@ -281,9 +290,9 @@ public partial class DataModelCommands
                 }
 
                 // Get measure details using safe helpers
-                string daxFormula = DataModelHelpers.SafeGetString(measure, "Formula");
-                string description = DataModelHelpers.SafeGetString(measure, "Description");
-                string tableName = DataModelHelpers.GetMeasureTableName(model, measureName) ?? "";
+                string daxFormula = ComInterop.ComUtilities.SafeGetString(measure, "Formula");
+                string description = ComInterop.ComUtilities.SafeGetString(measure, "Description");
+                string tableName = GetMeasureTableName(model, measureName) ?? "";
                 string? formatString = null;
 
                 // Try to get format information
@@ -351,23 +360,23 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
-                DataModelHelpers.ForEachRelationship(model, (Action<dynamic, int>)((relationship, index) =>
+                ForEachRelationship(model, (Action<dynamic, int>)((relationship, index) =>
                 {
                     var relInfo = new DataModelRelationshipInfo
                     {
-                        FromTable = DataModelHelpers.SafeGetString(relationship.ForeignKeyColumn?.Parent, "Name"),
-                        FromColumn = DataModelHelpers.SafeGetString(relationship.ForeignKeyColumn, "Name"),
-                        ToTable = DataModelHelpers.SafeGetString(relationship.PrimaryKeyColumn?.Parent, "Name"),
-                        ToColumn = DataModelHelpers.SafeGetString(relationship.PrimaryKeyColumn, "Name"),
+                        FromTable = ComInterop.ComUtilities.SafeGetString(relationship.ForeignKeyColumn?.Parent, "Name"),
+                        FromColumn = ComInterop.ComUtilities.SafeGetString(relationship.ForeignKeyColumn, "Name"),
+                        ToTable = ComInterop.ComUtilities.SafeGetString(relationship.PrimaryKeyColumn?.Parent, "Name"),
+                        ToColumn = ComInterop.ComUtilities.SafeGetString(relationship.PrimaryKeyColumn, "Name"),
                         IsActive = relationship.Active ?? false
                     };
 
@@ -406,17 +415,17 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
                 // Find the table
-                table = ComUtilities.FindModelTable(model, tableName);
+                table = FindModelTable(model, tableName);
                 if (table == null)
                 {
                     result.Success = false;
@@ -425,13 +434,26 @@ public partial class DataModelCommands
                 }
 
                 // Iterate through columns
-                DataModelHelpers.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>
+                ComInterop.ComUtilities.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>
                 {
+                    bool isCalculated = false;
+                    try
+                    {
+                        // IsCalculatedColumn property may not exist in older Excel versions
+                        isCalculated = column.IsCalculatedColumn ?? false;
+                    }
+                    catch (Exception ex) when (ex is Microsoft.CSharp.RuntimeBinder.RuntimeBinderException
+                                            || ex is System.Runtime.InteropServices.COMException)
+                    {
+                        // Ignore - property not available in this Excel version
+                        isCalculated = false;
+                    }
+
                     var columnInfo = new DataModelColumnInfo
                     {
-                        Name = DataModelHelpers.SafeGetString(column, "Name"),
-                        DataType = DataModelHelpers.SafeGetString(column, "DataType"),
-                        IsCalculated = column.IsCalculatedColumn ?? false
+                        Name = ComInterop.ComUtilities.SafeGetString(column, "Name"),
+                        DataType = ComInterop.ComUtilities.SafeGetString(column, "DataType"),
+                        IsCalculated = isCalculated
                     };
 
                     result.Columns.Add(columnInfo);
@@ -470,17 +492,17 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
                 // Find the table
-                table = ComUtilities.FindModelTable(model, tableName);
+                table = FindModelTable(model, tableName);
                 if (table == null)
                 {
                     result.Success = false;
@@ -489,8 +511,8 @@ public partial class DataModelCommands
                 }
 
                 // Get table properties
-                result.SourceName = DataModelHelpers.SafeGetString(table, "SourceName");
-                result.RecordCount = DataModelHelpers.SafeGetInt(table, "RecordCount");
+                result.SourceName = ComInterop.ComUtilities.SafeGetString(table, "SourceName");
+                result.RecordCount = ComInterop.ComUtilities.SafeGetInt(table, "RecordCount");
 
                 // Try to get refresh date (may not always be available)
                 try
@@ -500,13 +522,26 @@ public partial class DataModelCommands
                 catch { /* RefreshDate not always accessible */ }
 
                 // Get columns
-                DataModelHelpers.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>
+                ComInterop.ComUtilities.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>
                 {
+                    bool isCalculated = false;
+                    try
+                    {
+                        // IsCalculatedColumn property may not exist in older Excel versions
+                        isCalculated = column.IsCalculatedColumn ?? false;
+                    }
+                    catch (Exception ex) when (ex is Microsoft.CSharp.RuntimeBinder.RuntimeBinderException
+                                            || ex is System.Runtime.InteropServices.COMException)
+                    {
+                        // Ignore - property not available in this Excel version
+                        isCalculated = false;
+                    }
+
                     var columnInfo = new DataModelColumnInfo
                     {
-                        Name = DataModelHelpers.SafeGetString(column, "Name"),
-                        DataType = DataModelHelpers.SafeGetString(column, "DataType"),
-                        IsCalculated = column.IsCalculatedColumn ?? false
+                        Name = ComInterop.ComUtilities.SafeGetString(column, "Name"),
+                        DataType = ComInterop.ComUtilities.SafeGetString(column, "DataType"),
+                        IsCalculated = isCalculated
                     };
 
                     result.Columns.Add(columnInfo);
@@ -514,9 +549,9 @@ public partial class DataModelCommands
 
                 // Count measures in this table
                 result.MeasureCount = 0;
-                DataModelHelpers.ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
+                ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
                 {
-                    string measureTableName = DataModelHelpers.SafeGetString(measure.AssociatedTable, "Name");
+                    string measureTableName = ComInterop.ComUtilities.SafeGetString(measure.AssociatedTable, "Name");
                     if (string.Equals(measureTableName, tableName, StringComparison.OrdinalIgnoreCase))
                     {
                         result.MeasureCount++;
@@ -551,10 +586,10 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
@@ -562,22 +597,22 @@ public partial class DataModelCommands
 
                 // Count tables and sum rows
                 int totalRows = 0;
-                DataModelHelpers.ForEachTable(model, (Action<dynamic, int>)((table, index) =>
+                ForEachTable(model, (Action<dynamic, int>)((table, index) =>
                 {
                     result.TableCount++;
-                    totalRows += DataModelHelpers.SafeGetInt(table, "RecordCount");
-                    result.TableNames.Add(DataModelHelpers.SafeGetString(table, "Name"));
+                    totalRows += ComInterop.ComUtilities.SafeGetInt(table, "RecordCount");
+                    result.TableNames.Add(ComInterop.ComUtilities.SafeGetString(table, "Name"));
                 }));
                 result.TotalRows = totalRows;
 
                 // Count measures
-                DataModelHelpers.ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
+                ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
                 {
                     result.MeasureCount++;
                 }));
 
                 // Count relationships
-                DataModelHelpers.ForEachRelationship(model, (Action<dynamic, int>)((relationship, index) =>
+                ForEachRelationship(model, (Action<dynamic, int>)((relationship, index) =>
                 {
                     result.RelationshipCount++;
                 }));
