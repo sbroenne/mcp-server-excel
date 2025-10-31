@@ -40,37 +40,30 @@ ExcelMcp requires Microsoft Excel for integration testing. GitHub-hosted runners
 
 **Fastest way to deploy - only manual step is installing Excel!**
 
-```bash
-cd infrastructure/azure
-
-# Generate GitHub runner token first:
-# https://github.com/sbroenne/mcp-server-excel/settings/actions/runners/new
-
-./deploy.sh \
-  rg-excel-runner \
-  "YourSecurePassword123!" \
-  "YOUR_GITHUB_RUNNER_TOKEN"
-
-# Wait 5 minutes, then RDP to install Excel (30 minutes)
-```
-
-📚 **Full automation guide:** [`infrastructure/azure/README.md`](../../infrastructure/azure/README.md)
+📚 **Automated deployment guide:** [`infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md`](../infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md)  
+🔧 **Manual installation guide:** [`MANUAL_RUNNER_INSTALLATION.md`](MANUAL_RUNNER_INSTALLATION.md) (if automation fails)
 
 **What gets automated:**
-- ✅ VM provisioning (Standard_B2s in East US - cheapest)
+- ✅ VM provisioning (Standard_B2ms, 8GB RAM)
 - ✅ .NET 8 SDK installation
 - ✅ GitHub Actions runner installation & configuration
-- ✅ Auto-shutdown schedule (7 PM UTC)
 - ✅ Network security configuration
 - ⏭️ **Manual:** Office 365 Excel installation (you must do this via RDP)
 
-**Cost:** ~$30/month with auto-shutdown
+**Cost:** ~$61/month (24/7 operation in Sweden Central)
 
 ---
 
 ### Option B: Manual Setup (Step-by-Step)
 
-If you prefer manual control or want to customize beyond the automated template:
+**Use this option if:**
+- Automated deployment workflow failed
+- You already have a Windows VM
+- You want complete control over the setup
+
+📚 **Complete manual guide:** [`MANUAL_RUNNER_INSTALLATION.md`](MANUAL_RUNNER_INSTALLATION.md)
+
+**Quick summary:**
 
 ## Prerequisites
 
