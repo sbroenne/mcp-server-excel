@@ -81,6 +81,26 @@ public static class ExcelCompletionHandler
                 "worksheet", "data-model", "both", "connection-only"
             ];
         }
+        // Action parameter completions for Parameter tool
+        else if (argumentName == "action" && promptName.Contains("parameter", StringComparison.OrdinalIgnoreCase))
+        {
+            suggestions =
+            [
+                "list", "get", "set", "update", "create", "delete", "create-bulk"
+            ];
+        }
+        // Action parameter completions for Data Model prompts
+        else if (argumentName == "action" && promptName.Contains("datamodel", StringComparison.OrdinalIgnoreCase))
+        {
+            suggestions =
+            [
+                "list-tables", "list-measures", "view-measure", "export-measure",
+                "list-relationships", "refresh", "delete-measure", "delete-relationship",
+                "list-columns", "view-table", "get-model-info", "create-measure",
+                "update-measure", "create-relationship", "update-relationship",
+                "create-column", "view-column", "update-column", "delete-column", "validate-dax"
+            ];
+        }
         // Action parameter completions for VBA prompts
         else if (argumentName == "action" && promptName.Contains("vba", StringComparison.OrdinalIgnoreCase))
         {
@@ -97,12 +117,44 @@ public static class ExcelCompletionHandler
                 "list", "read", "write", "create", "rename", "copy", "delete", "clear", "append"
             ];
         }
+        // Action parameter completions for range prompts
+        else if (argumentName == "action" && promptName.Contains("range", StringComparison.OrdinalIgnoreCase))
+        {
+            suggestions =
+            [
+                "get-values", "set-values", "get-formulas", "set-formulas",
+                "clear", "copy", "insert", "delete", "find", "replace", "sort"
+            ];
+        }
+        // Action parameter completions for table prompts
+        else if (argumentName == "action" && promptName.Contains("table", StringComparison.OrdinalIgnoreCase))
+        {
+            suggestions =
+            [
+                "list", "create", "resize", "rename", "delete", "add-column",
+                "remove-column", "rename-column", "append-rows", "apply-filter",
+                "clear-filters", "sort", "add-to-datamodel"
+            ];
+        }
         // Privacy level completions
         else if (argumentName == "privacyLevel")
         {
             suggestions =
             [
                 "None", "Private", "Organizational", "Public"
+            ];
+        }
+        // Format string completions for measures
+        else if (argumentName == "formatString")
+        {
+            suggestions =
+            [
+                "#,##0.00",           // Standard number
+                "$#,##0.00",          // Currency
+                "0.00%",              // Percentage
+                "#,##0",              // Whole number
+                "mm/dd/yyyy",         // Short date
+                "General Number"      // General
             ];
         }
 
