@@ -38,7 +38,7 @@ public class PivotTableCommandsTests : IDisposable
 
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
 
-        await batch.ExecuteAsync<int>((ctx, ct) =>
+        await batch.Execute<int>((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item(1);
             sheet.Name = "SalesData";
@@ -73,7 +73,7 @@ public class PivotTableCommandsTests : IDisposable
             sheet.Range["C6"].Value2 = 125;
             sheet.Range["D6"].Value2 = new DateTime(2025, 3, 5);
 
-            return ValueTask.FromResult(0);
+            return 0;
         });
 
         await batch.SaveAsync();
@@ -194,11 +194,11 @@ public class PivotTableCommandsTests : IDisposable
         await _pivotCommands.AddValueFieldAsync(batch, "RefreshTest", "Sales", AggregationFunction.Sum);
         await batch.SaveAsync();
 
-        await batch.ExecuteAsync<int>((ctx, ct) =>
+        await batch.Execute<int>((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item("SalesData");
             sheet.Range["C2"].Value2 = 999;
-            return ValueTask.FromResult(0);
+            return 0;
         });
         await batch.SaveAsync();
 

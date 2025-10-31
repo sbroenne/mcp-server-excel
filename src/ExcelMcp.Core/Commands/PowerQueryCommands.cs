@@ -6,7 +6,6 @@ using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
 using Sbroenne.ExcelMcp.Core.Security;
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -190,7 +189,7 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         var result = new PowerQueryListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? queriesCollection = null;
             try
@@ -297,7 +296,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             QueryName = queryName
         };
 
-        return await batch.ExecuteAsync<PowerQueryViewResult>(async (ctx, ct) =>
+        return await batch.Execute<PowerQueryViewResult>((ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -397,7 +396,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         var loadConfigBefore = await GetLoadConfigAsync(batch, queryName);
 
         // STEP 2: Update the query M code
-        result = await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
+        result = await batch.Execute<OperationResult>((ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -594,7 +593,7 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         string mCode = await File.ReadAllTextAsync(mCodeFile);
 
-        result = await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
+        result = await batch.Execute<OperationResult>((ctx, ct) =>
         {
             dynamic? existingQuery = null;
             dynamic? queriesCollection = null;
@@ -742,7 +741,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             RefreshTime = DateTime.Now
         };
 
-        return await batch.ExecuteAsync<PowerQueryRefreshResult>(async (ctx, ct) =>
+        return await batch.Execute<PowerQueryRefreshResult>((ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -868,7 +867,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             QueryName = queryName
         };
 
-        return await batch.ExecuteAsync<PowerQueryViewResult>(async (ctx, ct) =>
+        return await batch.Execute<PowerQueryViewResult>((ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -940,7 +939,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             Action = "pq-loadto"
         };
 
-        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
+        return await batch.Execute<OperationResult>((ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -1171,7 +1170,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             Action = "pq-delete"
         };
 
-        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
+        return await batch.Execute<OperationResult>((ctx, ct) =>
         {
             dynamic? query = null;
             dynamic? queriesCollection = null;
@@ -1242,7 +1241,7 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         var result = new WorksheetListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.ExecuteAsync<WorksheetListResult>(async (ctx, ct) =>
+        return await batch.Execute<WorksheetListResult>((ctx, ct) =>
         {
             dynamic? worksheets = null;
             dynamic? names = null;
@@ -1338,7 +1337,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             Action = "pq-test"
         };
 
-        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
+        return await batch.Execute<OperationResult>((ctx, ct) =>
         {
             dynamic? queriesCollection = null;
             dynamic? tempQuery = null;
@@ -1397,7 +1396,7 @@ in
             SheetName = sourceName
         };
 
-        return await batch.ExecuteAsync<WorksheetDataResult>(async (ctx, ct) =>
+        return await batch.Execute<WorksheetDataResult>((ctx, ct) =>
         {
             dynamic? names = null;
             dynamic? worksheets = null;
@@ -1520,7 +1519,7 @@ in
             QueryName = "_EvalExpression"
         };
 
-        return await batch.ExecuteAsync<PowerQueryViewResult>(async (ctx, ct) =>
+        return await batch.Execute<PowerQueryViewResult>((ctx, ct) =>
         {
             dynamic? queriesCollection = null;
             dynamic? tempQuery = null;
@@ -1580,7 +1579,7 @@ in
             Action = "pq-set-connection-only"
         };
 
-        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
+        return await batch.Execute<OperationResult>((ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -1625,7 +1624,7 @@ in
             WorkflowStatus = "Failed"
         };
 
-        return await batch.ExecuteAsync<PowerQueryLoadToTableResult>(async (ctx, ct) =>
+        return await batch.Execute<PowerQueryLoadToTableResult>((ctx, ct) =>
         {
             dynamic? query = null;
             dynamic? sheets = null;
@@ -2043,7 +2042,7 @@ in
             WorkflowStatus = "Failed"
         };
 
-        return await batch.ExecuteAsync<PowerQueryLoadToBothResult>(async (ctx, ct) =>
+        return await batch.Execute<PowerQueryLoadToBothResult>((ctx, ct) =>
         {
             dynamic? query = null;
             dynamic? sheets = null;
@@ -2317,7 +2316,7 @@ in
             QueryName = queryName
         };
 
-        return await batch.ExecuteAsync<PowerQueryLoadConfigResult>(async (ctx, ct) =>
+        return await batch.Execute<PowerQueryLoadConfigResult>((ctx, ct) =>
         {
             try
             {

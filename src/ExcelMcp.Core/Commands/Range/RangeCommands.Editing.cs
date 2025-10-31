@@ -2,7 +2,6 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 
@@ -41,7 +40,7 @@ public partial class RangeCommands
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "copy" };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? srcRange = null;
             dynamic? tgtRange = null;
@@ -86,7 +85,7 @@ public partial class RangeCommands
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "copy-values" };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? srcRange = null;
             dynamic? tgtRange = null;
@@ -132,7 +131,7 @@ public partial class RangeCommands
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "copy-formulas" };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? srcRange = null;
             dynamic? tgtRange = null;
@@ -180,7 +179,7 @@ public partial class RangeCommands
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "insert-cells" };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             try
@@ -216,7 +215,7 @@ public partial class RangeCommands
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "delete-cells" };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             try
@@ -252,7 +251,7 @@ public partial class RangeCommands
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "insert-rows" };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             dynamic? rows = null;
@@ -290,7 +289,7 @@ public partial class RangeCommands
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "delete-rows" };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             dynamic? rows = null;
@@ -328,7 +327,7 @@ public partial class RangeCommands
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "insert-columns" };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             dynamic? columns = null;
@@ -366,7 +365,7 @@ public partial class RangeCommands
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "delete-columns" };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             dynamic? columns = null;

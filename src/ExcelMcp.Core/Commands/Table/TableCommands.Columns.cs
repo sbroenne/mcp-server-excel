@@ -10,14 +10,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-#pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<OperationResult> AddColumnAsync(IExcelBatch batch, string tableName, string columnName, int? position = null)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "add-column" };
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? listColumns = null;
@@ -88,14 +87,13 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-#pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<OperationResult> RemoveColumnAsync(IExcelBatch batch, string tableName, string columnName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "remove-column" };
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? listColumns = null;
@@ -165,14 +163,13 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-#pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<OperationResult> RenameColumnAsync(IExcelBatch batch, string tableName, string oldName, string newName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "rename-column" };
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? listColumns = null;
@@ -261,5 +258,4 @@ public partial class TableCommands
             }
         });
     }
-#pragma warning restore CS1998
 }

@@ -3,7 +3,6 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.DataModel;
 using Sbroenne.ExcelMcp.Core.Models;
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -21,7 +20,7 @@ public partial class DataModelCommands
             Action = "model-delete-measure"
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? measure = null;
@@ -100,7 +99,7 @@ public partial class DataModelCommands
             Action = "model-delete-relationship"
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? modelRelationships = null;
@@ -217,7 +216,7 @@ public partial class DataModelCommands
             Action = "model-create-measure"
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? table = null;
@@ -319,7 +318,7 @@ public partial class DataModelCommands
             Action = "model-update-measure"
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? measure = null;
@@ -417,7 +416,7 @@ public partial class DataModelCommands
             Action = "model-create-relationship"
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? relationships = null;
@@ -539,7 +538,7 @@ public partial class DataModelCommands
             Action = "model-update-relationship"
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? relationship = null;

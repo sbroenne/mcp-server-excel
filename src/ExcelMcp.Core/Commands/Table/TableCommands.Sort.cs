@@ -17,7 +17,6 @@ public partial class TableCommands
     /// <summary>
     /// Sorts a table by a single column
     /// </summary>
-#pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<OperationResult> SortAsync(
         IExcelBatch batch,
         string tableName,
@@ -28,7 +27,7 @@ public partial class TableCommands
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "sort-table" };
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? columns = null;
@@ -94,7 +93,6 @@ public partial class TableCommands
     /// <summary>
     /// Sorts a table by multiple columns (up to 3 levels)
     /// </summary>
-#pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<OperationResult> SortAsync(
         IExcelBatch batch,
         string tableName,
@@ -104,7 +102,7 @@ public partial class TableCommands
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "sort-table-multi" };
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             if (sortColumns == null || sortColumns.Count == 0)
             {

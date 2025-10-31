@@ -3,7 +3,6 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.DataModel;
 using Sbroenne.ExcelMcp.Core.Models;
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -21,7 +20,7 @@ public partial class DataModelCommands
             Action = tableName != null ? $"model-refresh-table:{tableName}" : "model-refresh"
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             try

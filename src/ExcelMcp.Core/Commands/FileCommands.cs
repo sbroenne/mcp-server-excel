@@ -2,7 +2,6 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -66,7 +65,7 @@ public class FileCommands : IFileCommands
             // Create Excel workbook using proper resource management
             bool isMacroEnabled = extension == ".xlsm";
 
-            return await ExcelSession.CreateNewAsync<OperationResult>(filePath, isMacroEnabled, async (ctx, ct) =>
+            return await ExcelSession.CreateNew<OperationResult>(filePath, isMacroEnabled, (ctx, ct) =>
             {
                 // Set up a basic structure with proper COM cleanup
                 dynamic? sheet = null;

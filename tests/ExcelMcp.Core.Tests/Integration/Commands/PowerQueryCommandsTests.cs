@@ -326,12 +326,12 @@ in
         Assert.Contains(sheetsResult.Worksheets, w => w.Name == "TestSheet");
 
         // Verify table/QueryTable exists on worksheet (actual data loaded)
-        await batch.ExecuteAsync<int>((ctx, ct) =>
+        await batch.Execute<int>((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item("TestSheet");
             dynamic queryTables = sheet.QueryTables;
             Assert.True(queryTables.Count > 0, "Expected at least one QueryTable on the worksheet");
-            return ValueTask.FromResult(0);
+            return 0;
         });
 
         // Verify query is NOT in Data Model (LoadToTable only)
@@ -379,7 +379,7 @@ in
         Assert.Contains(tablesResult.Tables, t => t.Name == "TestLoadToDataModel");
 
         // Verify NO QueryTable on any worksheet (LoadToDataModel only, no worksheet table)
-        await batch.ExecuteAsync<int>((ctx, ct) =>
+        await batch.Execute<int>((ctx, ct) =>
         {
             dynamic sheets = ctx.Book.Worksheets;
             int sheetCount = sheets.Count;
@@ -389,7 +389,7 @@ in
                 dynamic queryTables = sheet.QueryTables;
                 Assert.True(queryTables.Count == 0, $"Expected no QueryTables on sheet '{sheet.Name}' for LoadToDataModel mode");
             }
-            return ValueTask.FromResult(0);
+            return 0;
         });
 
         await batch.SaveAsync();
@@ -424,12 +424,12 @@ in
         Assert.Contains(sheetsResult.Worksheets, w => w.Name == "TestSheet");
 
         // Verify table exists on worksheet (QueryTable from Power Query)
-        await batch.ExecuteAsync<int>((ctx, ct) =>
+        await batch.Execute<int>((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item("TestSheet");
             dynamic queryTables = sheet.QueryTables;
             Assert.True(queryTables.Count > 0, "Expected at least one QueryTable on the worksheet");
-            return ValueTask.FromResult(0);
+            return 0;
         });
 
         // Verify query is in Data Model

@@ -21,14 +21,21 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// <code>
 /// await using var batch = await ExcelSession.BeginBatchAsync("workbook.xlsx");
 ///
-/// // Multiple operations without reopening Excel
-/// await batch.ExecuteAsync(async (ctx, ct) => {
+/// // Synchronous COM operations
+/// await batch.Execute((ctx, ct) => {
 ///     ctx.Book.Worksheets.Add("Data");
 ///     return 0;
 /// });
 ///
-/// await batch.ExecuteAsync(async (ctx, ct) => {
+/// await batch.Execute((ctx, ct) => {
 ///     ctx.Book.Worksheets["Data"].Range["A1"].Value = "Header";
+///     return 0;
+/// });
+///
+/// // Async I/O operations
+/// await batch.ExecuteAsync(async (ctx, ct) => {
+///     string formula = ctx.Book.Range["A1"].Formula;
+///     await File.WriteAllTextAsync("output.txt", formula, ct);
 ///     return 0;
 /// });
 ///
@@ -44,8 +51,24 @@ public interface IExcelBatch : IAsyncDisposable
     string WorkbookPath { get; }
 
     /// <summary>
-    /// Executes an async operation within this batch.
+    /// Executes a synchronous COM operation within this batch.
     /// The operation receives an ExcelContext with access to the Excel app and workbook.
+    /// Use this for pure COM operations (property access, method calls).
+    /// </summary>
+    /// <typeparam name="T">Return type of the operation</typeparam>
+    /// <param name="operation">Synchronous COM operation to execute</param>
+    /// <param name="cancellationToken">Optional cancellation token</param>
+    /// <returns>Result of the operation</returns>
+    /// <exception cref="ObjectDisposedException">Batch has already been disposed</exception>
+    /// <exception cref="InvalidOperationException">Excel COM error occurred</exception>
+    Task<T> Execute<T>(
+        Func<ExcelContext, CancellationToken, T> operation,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Executes a genuinely async operation within this batch.
+    /// The operation receives an ExcelContext with access to the Excel app and workbook.
+    /// Use this ONLY when the operation performs async I/O (file operations, etc.).
     /// </summary>
     /// <typeparam name="T">Return type of the operation</typeparam>
     /// <param name="operation">Async operation to execute</param>
@@ -54,7 +77,7 @@ public interface IExcelBatch : IAsyncDisposable
     /// <exception cref="ObjectDisposedException">Batch has already been disposed</exception>
     /// <exception cref="InvalidOperationException">Excel COM error occurred</exception>
     Task<T> ExecuteAsync<T>(
-        Func<ExcelContext, CancellationToken, ValueTask<T>> operation,
+        Func<ExcelContext, CancellationToken, Task<T>> operation,
         CancellationToken cancellationToken = default);
 
     /// <summary>
