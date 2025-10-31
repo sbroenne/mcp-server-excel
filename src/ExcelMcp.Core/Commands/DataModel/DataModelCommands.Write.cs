@@ -27,17 +27,17 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!ComInterop.ComUtilities.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
                 // Find the measure
-                measure = ComUtilities.FindModelMeasure(model, measureName);
+                measure = FindModelMeasure(model, measureName);
                 if (measure == null)
                 {
                     var measureNames = GetModelMeasureNames(model);
@@ -107,10 +107,10 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!ComInterop.ComUtilities.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
@@ -226,17 +226,17 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!ComInterop.ComUtilities.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
                 // Find the table
-                table = ComUtilities.FindModelTable(model, tableName);
+                table = FindModelTable(model, tableName);
                 if (table == null)
                 {
                     result.Success = false;
@@ -245,7 +245,7 @@ public partial class DataModelCommands
                 }
 
                 // Check if measure already exists
-                dynamic? existingMeasure = ComUtilities.FindModelMeasure(model, measureName);
+                dynamic? existingMeasure = FindModelMeasure(model, measureName);
                 if (existingMeasure != null)
                 {
                     ComUtilities.Release(ref existingMeasure);
@@ -327,17 +327,17 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!ComInterop.ComUtilities.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
                 // Find the measure
-                measure = ComUtilities.FindModelMeasure(model, measureName);
+                measure = FindModelMeasure(model, measureName);
                 if (measure == null)
                 {
                     result.Success = false;
@@ -429,17 +429,17 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!ComInterop.ComUtilities.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
                 // Find source table and column
-                fromTableObj = ComUtilities.FindModelTable(model, fromTable);
+                fromTableObj = FindModelTable(model, fromTable);
                 if (fromTableObj == null)
                 {
                     result.Success = false;
@@ -456,7 +456,7 @@ public partial class DataModelCommands
                 }
 
                 // Find target table and column
-                toTableObj = ComUtilities.FindModelTable(model, toTable);
+                toTableObj = FindModelTable(model, toTable);
                 if (toTableObj == null)
                 {
                     result.Success = false;
@@ -546,10 +546,10 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!ComInterop.ComUtilities.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 

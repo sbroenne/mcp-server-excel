@@ -20,10 +20,10 @@ public partial class DataModelCommands
         return await batch.Execute((ctx, ct) =>
         {
             // Check if workbook has Data Model
-            if (!ComInterop.ComUtilities.HasDataModel(ctx.Book))
+            if (!HasDataModelTables(ctx.Book))
             {
                 result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                 return result;
             }
 
@@ -32,7 +32,7 @@ public partial class DataModelCommands
             {
                 model = ctx.Book.Model;
 
-                ComInterop.ComUtilities.ForEachTable(model, (Action<dynamic, int>)((table, index) =>
+                ForEachTable(model, (Action<dynamic, int>)((table, index) =>
                 {
                     // Try to get refresh date (may not always be available)
                     DateTime? refreshDate = null;
@@ -80,17 +80,17 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!ComInterop.ComUtilities.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
                 // Iterate through all measures (they're at model level)
-                ComInterop.ComUtilities.ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
+                ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
                 {
                     // Get the table name for this measure
                     string measureTableName = string.Empty;
@@ -165,17 +165,17 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!ComInterop.ComUtilities.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
                 // Find the measure
-                measure = ComUtilities.FindModelMeasure(model, measureName);
+                measure = FindModelMeasure(model, measureName);
                 if (measure == null)
                 {
                     var measureNames = GetModelMeasureNames(model);
@@ -271,17 +271,17 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!ComInterop.ComUtilities.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
                 // Find the measure
-                measure = ComUtilities.FindModelMeasure(model, measureName);
+                measure = FindModelMeasure(model, measureName);
                 if (measure == null)
                 {
                     result.Success = false;
@@ -360,16 +360,16 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!ComInterop.ComUtilities.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
-                ComInterop.ComUtilities.ForEachRelationship(model, (Action<dynamic, int>)((relationship, index) =>
+                ForEachRelationship(model, (Action<dynamic, int>)((relationship, index) =>
                 {
                     var relInfo = new DataModelRelationshipInfo
                     {
@@ -415,17 +415,17 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!ComInterop.ComUtilities.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
                 // Find the table
-                table = ComUtilities.FindModelTable(model, tableName);
+                table = FindModelTable(model, tableName);
                 if (table == null)
                 {
                     result.Success = false;
@@ -492,17 +492,17 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!ComInterop.ComUtilities.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
                 model = ctx.Book.Model;
 
                 // Find the table
-                table = ComUtilities.FindModelTable(model, tableName);
+                table = FindModelTable(model, tableName);
                 if (table == null)
                 {
                     result.Success = false;
@@ -549,7 +549,7 @@ public partial class DataModelCommands
 
                 // Count measures in this table
                 result.MeasureCount = 0;
-                ComInterop.ComUtilities.ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
+                ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
                 {
                     string measureTableName = ComInterop.ComUtilities.SafeGetString(measure.AssociatedTable, "Name");
                     if (string.Equals(measureTableName, tableName, StringComparison.OrdinalIgnoreCase))
@@ -586,10 +586,10 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!ComInterop.ComUtilities.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
@@ -597,7 +597,7 @@ public partial class DataModelCommands
 
                 // Count tables and sum rows
                 int totalRows = 0;
-                ComInterop.ComUtilities.ForEachTable(model, (Action<dynamic, int>)((table, index) =>
+                ForEachTable(model, (Action<dynamic, int>)((table, index) =>
                 {
                     result.TableCount++;
                     totalRows += ComInterop.ComUtilities.SafeGetInt(table, "RecordCount");
@@ -606,13 +606,13 @@ public partial class DataModelCommands
                 result.TotalRows = totalRows;
 
                 // Count measures
-                ComInterop.ComUtilities.ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
+                ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
                 {
                     result.MeasureCount++;
                 }));
 
                 // Count relationships
-                ComInterop.ComUtilities.ForEachRelationship(model, (Action<dynamic, int>)((relationship, index) =>
+                ForEachRelationship(model, (Action<dynamic, int>)((relationship, index) =>
                 {
                     result.RelationshipCount++;
                 }));

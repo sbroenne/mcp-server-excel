@@ -233,4 +233,228 @@ public partial class DataModelCommands
             ComUtilities.Release(ref relationships);
         }
     }
+
+    // ==================== DATA MODEL COM OPERATIONS ====================
+
+
+    /// <summary>
+    /// Checks if the Data Model has any tables
+    /// NOTE: Every workbook has a Model object, but it may be empty
+    /// </summary>
+    private static bool HasDataModelTables(dynamic workbook)
+    {
+        dynamic? model = null;
+        dynamic? modelTables = null;
+        try
+        {
+            model = workbook.Model;
+            modelTables = model.ModelTables;
+            return modelTables != null && modelTables.Count > 0;
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            ComUtilities.Release(ref modelTables);
+            ComUtilities.Release(ref model);
+        }
+    }
+
+    /// <summary>
+    /// Finds a table in the Data Model by name
+    /// </summary>
+    private static dynamic? FindModelTable(dynamic model, string tableName)
+    {
+        dynamic? modelTables = null;
+        try
+        {
+            modelTables = model.ModelTables;
+            for (int i = 1; i <= modelTables.Count; i++)
+            {
+                dynamic? table = null;
+                try
+                {
+                    table = modelTables.Item(i);
+                    string name = table.Name?.ToString() ?? "";
+                    if (name.Equals(tableName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var result = table;
+                        table = null; // Don't release - returning it
+                        return result;
+                    }
+                }
+                finally
+                {
+                    if (table != null) ComUtilities.Release(ref table);
+                }
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref modelTables);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Finds a DAX measure by name across all tables in the model
+    /// </summary>
+    private static dynamic? FindModelMeasure(dynamic model, string measureName)
+    {
+        dynamic? modelTables = null;
+        try
+        {
+            modelTables = model.ModelTables;
+            for (int t = 1; t <= modelTables.Count; t++)
+            {
+                dynamic? table = null;
+                dynamic? measures = null;
+                try
+                {
+                    table = modelTables.Item(t);
+
+                    try
+                    {
+                        measures = table.ModelMeasures;
+                    }
+                    catch (Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
+                    {
+                        // ModelMeasures property not available on this table (empty Data Model)
+                        continue;
+                    }
+                    catch (System.Runtime.InteropServices.COMException)
+                    {
+                        // ModelMeasures collection not initialized
+                        continue;
+                    }
+
+                    for (int m = 1; m <= measures.Count; m++)
+                    {
+                        dynamic? measure = null;
+                        try
+                        {
+                            measure = measures.Item(m);
+                            string name = measure.Name?.ToString() ?? "";
+                            if (name.Equals(measureName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                var result = measure;
+                                measure = null; // Don't release - returning it
+                                return result;
+                            }
+                        }
+                        finally
+                        {
+                            if (measure != null) ComUtilities.Release(ref measure);
+                        }
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref measures);
+                    ComUtilities.Release(ref table);
+                }
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref modelTables);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Safely iterates through all tables in the Data Model
+    /// </summary>
+    private static void ForEachTable(dynamic model, Action<dynamic, int> action)
+    {
+        dynamic? modelTables = null;
+        try
+        {
+            modelTables = model.ModelTables;
+            int count = modelTables.Count;
+
+            for (int i = 1; i <= count; i++)
+            {
+                dynamic? table = null;
+                try
+                {
+                    table = modelTables.Item(i);
+                    action(table, i);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref table);
+                }
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref modelTables);
+        }
+    }
+
+    /// <summary>
+    /// Safely iterates through all measures in the Data Model
+    /// </summary>
+    private static void ForEachMeasure(dynamic model, Action<dynamic, int> action)
+    {
+        dynamic? measures = null;
+        try
+        {
+            // Get measures collection from MODEL (not from table!)
+            measures = model.ModelMeasures;
+            int count = measures.Count;
+
+            for (int i = 1; i <= count; i++)
+            {
+                dynamic? measure = null;
+                try
+                {
+                    measure = measures.Item(i);
+                    action(measure, i);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref measure);
+                }
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref measures);
+        }
+    }
+
+    /// <summary>
+    /// Safely iterates through all relationships in the Data Model
+    /// </summary>
+    private static void ForEachRelationship(dynamic model, Action<dynamic, int> action)
+    {
+        dynamic? relationships = null;
+        try
+        {
+            relationships = model.ModelRelationships;
+            int count = relationships.Count;
+
+            for (int i = 1; i <= count; i++)
+            {
+                dynamic? relationship = null;
+                try
+                {
+                    relationship = relationships.Item(i);
+                    action(relationship, i);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref relationship);
+                }
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref relationships);
+        }
+    }
 }
