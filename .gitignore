@@ -209,3 +209,7 @@ FodyWeavers.xsd
 test_files/
 temp/
 sample_files/
+
+# Bicep generated ARM templates
+infrastructure/**/*.json
+!infrastructure/**/*.parameters.json
