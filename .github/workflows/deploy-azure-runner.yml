@@ -7,6 +7,7 @@ name: Deploy Azure Self-Hosted Runner
 permissions:
   contents: read
   id-token: write # Required for OIDC authentication
+  actions: write # Required for generating runner registration token
 
 on:
   workflow_dispatch:
@@ -19,10 +20,6 @@ on:
         description: 'VM Admin password (secure input)'
         required: true
         type: string
-      github_runner_token:
-        description: 'GitHub runner registration token'
-        required: true
-        type: string
 
 jobs:
   deploy-infrastructure:
@@ -31,6 +28,28 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+    
+    - name: Generate GitHub Runner Registration Token
+      id: runner_token
+      run: |
+        # Generate runner registration token using GitHub API
+        RESPONSE=$(curl -L \
+          -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          https://api.github.com/repos/${{ github.repository }}/actions/runners/registration-token)
+        
+        TOKEN=$(echo $RESPONSE | jq -r '.token')
+        
+        if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+          echo "❌ Failed to generate runner registration token"
+          echo "Response: $RESPONSE"
+          exit 1
+        fi
+        
+        echo "✅ Runner registration token generated successfully"
+        echo "runner_token=$TOKEN" >> $GITHUB_OUTPUT
     
     - name: Azure Login (OIDC)
       uses: azure/login@v1
@@ -55,7 +74,7 @@ jobs:
             location=swedencentral \
             adminPassword='${{ inputs.admin_password }}' \
             githubRepoUrl=https://github.com/${{ github.repository }} \
-            githubRunnerToken='${{ inputs.github_runner_token }}'
+            githubRunnerToken='${{ steps.runner_token.outputs.runner_token }}'
     
     - name: Get Deployment Outputs
       id: outputs
