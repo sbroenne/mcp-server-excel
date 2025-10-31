@@ -38,18 +38,44 @@ az login
 
 ### Resources Created
 
-| Resource | Type | Purpose | Monthly Cost |
-|----------|------|---------|--------------|
-| VM | Standard_B2s (2 vCPUs, 4 GB RAM) | Test runner | ~$25 |
-| OS Disk | Premium SSD 128 GB | Storage | ~$5 |
+| Resource | Type | Purpose | Monthly Cost (Sweden Central) |
+|----------|------|---------|-------------------------------|
+| VM | Standard_B2ms (2 vCPUs, 8 GB RAM) | Test runner | ~$50 (24/7) or ~$25 (12h/day) |
+| OS Disk | Premium SSD 128 GB | Storage | ~$11 |
 | Network | VNet, NIC, NSG, Public IP | Connectivity | <$1 |
-| **Total** | | | **~$30/month** |
+| **Total (24/7)** | | | **~$61/month** |
+| **Total (12h/day)** | | | **~$36/month** |
+
+### ⚠️ Important: GitHub Actions Cannot Auto-Start VMs
+
+**GitHub Actions runners require the VM to be running.** If the VM is stopped:
+- Workflows will queue and wait indefinitely
+- No automatic VM start capability exists
+
+**You have 3 options:**
+
+1. **Keep VM running 24/7** (~$61/month) ⭐ **RECOMMENDED for active development**
+   - Workflows execute immediately
+   - No automation needed
+   - Simplest setup
+
+2. **Manual start/stop** (~$36/month with 12h/day)
+   - Start VM manually each morning
+   - Auto-shutdown at 7 PM
+   - Good for predictable schedules
+
+3. **Azure Automation** (~$36/month with scheduled start)
+   - Use Azure Automation Runbook to start VM at specific times
+   - Auto-shutdown at night
+   - Requires additional setup (see below)
 
 ### Location & VM Size
 
-- **Location:** East US (cheapest region)
-- **VM Size:** Standard_B2s (cheapest burstable VM)
-- **Auto-shutdown:** 7 PM UTC daily (saves ~50%)
+- **Location:** Sweden Central (your preference)
+- **VM Size:** Standard_B2ms (2 vCPUs, 8 GB RAM)
+  - 8GB RAM required for reliable Excel automation
+  - Burstable performance for cost efficiency
+- **Auto-shutdown:** 7 PM UTC daily (optional, saves ~40%)
 
 ### Software Installed Automatically
 
@@ -110,25 +136,24 @@ az deployment group create \
 
 ### VM Size Options
 
-| Size | vCPUs | RAM | Monthly Cost | Use Case |
-|------|-------|-----|--------------|----------|
-| **Standard_B2s** | 2 | 4 GB | ~$30 | Budget (recommended) ⭐ |
-| Standard_B2ms | 2 | 8 GB | ~$60 | More memory |
-| Standard_D2s_v3 | 2 | 8 GB | ~$70 | Better performance |
+| Size | vCPUs | RAM | Monthly Cost (Sweden Central 24/7) | Use Case |
+|------|-------|-----|-----------------------------------|----------|
+| Standard_B2s | 2 | 4 GB | ~$40 | Too small for Excel |
+| **Standard_B2ms** | **2** | **8 GB** | **~$61** | **Recommended** ⭐ |
+| Standard_B4ms | 4 | 16 GB | ~$120 | Overkill for testing |
 
-Edit `vmSize` parameter in `azure-runner.bicep` to change.
+**Note:** 8GB RAM is required for reliable Excel COM automation with multiple test projects.
 
-### Region Options (Cheapest to Most Expensive)
+### Region Options
 
-| Region | Cost Factor |
-|--------|-------------|
-| **East US** | 1.0x (cheapest) ⭐ |
-| South Central US | 1.0x |
-| West US 2 | 1.1x |
-| North Europe | 1.2x |
-| West Europe | 1.2x |
+| Region | Monthly Cost (B2ms, 24/7) | Latency to GitHub | Notes |
+|--------|---------------------------|-------------------|-------|
+| East US | ~$51 | Low | Cheapest |
+| West Europe | ~$58 | Medium | EU data residency |
+| **Sweden Central** | **~$61** | **Medium** | **Your choice** ⭐ |
+| North Europe | ~$58 | Medium | EU alternative |
 
-Edit `location` parameter to change.
+**Selected:** Sweden Central (as per your preference)
 
 ### Auto-Shutdown Schedule
 
@@ -143,24 +168,61 @@ dailyRecurrence: {
 
 ## Cost Optimization
 
-### Current Setup (~$30/month)
+### Recommended: Keep VM Running 24/7 (~$61/month)
 
-- VM runs 12 hours/day (auto-shutdown at 7 PM)
-- Total: ~$30/month
+**Why:** GitHub Actions workflows execute immediately when code changes are pushed.
 
-### Further Optimization
+**Cost:** ~$61/month in Sweden Central
 
-**Scheduled Start/Stop (2 hours/day): ~$5/month**
+**Best for:** Active development with frequent commits
 
-Use Azure Automation to:
-- Start VM at 1:30 AM UTC
-- Run tests at 2:00 AM UTC
-- Stop VM at 3:00 AM UTC
+---
 
-**Weekend Shutdown:**
-- Deallocate VM Friday night
-- Start Monday morning
-- Saves ~$8/month
+### Alternative: Auto-Start with Azure Automation (~$36/month)
+
+If you want to save costs but maintain automation, use Azure Automation:
+
+**Setup Azure Automation (one-time):**
+
+```bash
+# Create Automation Account
+az automation account create \
+  --name "automation-excel-runner" \
+  --resource-group "rg-excel-runner" \
+  --location "swedencentral"
+
+# Create Start-VM Runbook
+# Upload PowerShell script to start VM at 7 AM daily
+```
+
+**PowerShell Runbook (StartVM.ps1):**
+```powershell
+param(
+    [Parameter(Mandatory=$true)]
+    [string]$ResourceGroupName,
+    
+    [Parameter(Mandatory=$true)]
+    [string]$VMName
+)
+
+# Authenticate with Managed Identity
+Connect-AzAccount -Identity
+
+# Start VM
+Start-AzVM -ResourceGroupName $ResourceGroupName -Name $VMName
+```
+
+**Schedule:**
+- Start: 7 AM UTC (Monday-Friday)
+- Stop: 7 PM UTC (auto-shutdown configured in template)
+
+**Cost Breakdown:**
+- VM (12h/day, weekdays): ~$25/month
+- Storage (always): ~$11/month
+- Automation: ~$0.50/month
+- **Total: ~$36/month**
+
+**Tradeoff:** Workflows pushed outside 7 AM - 7 PM will queue until VM starts.
 
 ## Verify Deployment
 

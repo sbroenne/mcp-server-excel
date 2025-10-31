@@ -27,10 +27,6 @@ on:
       - 'src/ExcelMcp.McpServer/**'
       - 'tests/**'
   
-  # Run on schedule (nightly at 2 AM UTC as backup)
-  schedule:
-    - cron: '0 2 * * *'
-  
   # Allow manual trigger from Actions tab
   workflow_dispatch:
 

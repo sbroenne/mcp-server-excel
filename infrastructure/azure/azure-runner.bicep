@@ -1,11 +1,11 @@
 # Azure Bicep Template for Excel Integration Test Runner
 # Automates provisioning of Windows VM with GitHub Actions self-hosted runner
 
-@description('Location for all resources (East US is cheapest)')
-param location string = 'eastus'
+@description('Location for all resources')
+param location string = 'swedencentral'
 
-@description('VM size - B2s is cheapest burstable VM suitable for testing workload')
-param vmSize string = 'Standard_B2s'
+@description('VM size - B2ms provides 8GB RAM needed for Excel automation')
+param vmSize string = 'Standard_B2ms'
 
 @description('Admin username for the VM')
 param adminUsername string = 'azureuser'
@@ -209,4 +209,5 @@ output vmPublicIP string = publicIp.properties.dnsSettings.fqdn
 output vmResourceId string = vm.id
 output vmName string = vmName
 output nextSteps string = 'RDP to VM using output vmPublicIP and install Office 365 Excel manually'
-output monthlyCost string = 'Estimated ~$30/month with auto-shutdown (12h/day)'
+output monthlyCost string = 'Estimated ~$61/month (24/7) or ~$30/month (12h/day with auto-shutdown) in Sweden Central'
+output importantNote string = 'GitHub Actions CANNOT auto-start stopped VMs. VM must be running for workflows to execute. See README for automation options.'

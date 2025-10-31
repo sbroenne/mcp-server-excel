@@ -7,7 +7,7 @@ set -e
 RESOURCE_GROUP=${1:-"rg-excel-runner"}
 ADMIN_PASSWORD=${2}
 GITHUB_RUNNER_TOKEN=${3}
-LOCATION="eastus"
+LOCATION="swedencentral"
 GITHUB_REPO_URL="https://github.com/sbroenne/mcp-server-excel"
 
 if [ -z "$ADMIN_PASSWORD" ] || [ -z "$GITHUB_RUNNER_TOKEN" ]; then
@@ -23,7 +23,8 @@ fi
 echo "🚀 Deploying Excel Integration Test Runner..."
 echo "   Resource Group: $RESOURCE_GROUP"
 echo "   Location: $LOCATION"
-echo "   VM Size: Standard_B2s (~$30/month)"
+echo "   VM Size: Standard_B2ms (2 vCPUs, 8 GB RAM)"
+echo "   Monthly Cost: ~$61 (24/7) or ~$36 (12h/day with auto-shutdown)"
 
 # Create resource group
 echo "📦 Creating resource group..."
@@ -57,7 +58,12 @@ echo "3. Install Office 365 Excel from https://portal.office.com"
 echo "4. Activate Excel with your Office 365 account"
 echo "5. Runner will auto-start after reboot"
 echo ""
-echo "💰 Monthly Cost: ~$30 (with auto-shutdown at 7 PM UTC)"
+echo "⚠️  IMPORTANT: GitHub Actions CANNOT auto-start stopped VMs"
+echo "   - Keep VM running 24/7 for immediate workflow execution (~$61/month)"
+echo "   - OR manually start VM each day (~$36/month with auto-shutdown)"
+echo "   - OR set up Azure Automation for scheduled start (see README)"
+echo ""
+echo "💰 Monthly Cost: ~$61 (24/7) or ~$36 (12h/day) in Sweden Central"
 echo ""
 echo "🔍 Verify runner status:"
 echo "   https://github.com/sbroenne/mcp-server-excel/settings/actions/runners"

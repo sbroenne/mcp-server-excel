@@ -32,7 +32,7 @@ Integration Tests (Category=Integration)
     - Core.Tests (Excel COM operations)
     - CLI.Tests (Command-line interface)
     - McpServer.Tests (MCP protocol)
-    - ComInterop.Tests (COM pooling)
+    - ComInterop.Tests (COM session management)
 ```
 
 ## Implementation Approach
