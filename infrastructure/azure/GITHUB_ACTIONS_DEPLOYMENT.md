@@ -168,12 +168,13 @@ Should show:
 
 **Causes:**
 1. Workflow lacks `actions: write` permission
-2. GitHub API returned an error
+2. GitHub CLI authentication issue
 
 **Solution:**
 - Check workflow logs for "Generate GitHub Runner Registration Token" step
-- Verify repository permissions allow runner registration
-- Re-run the workflow (token is auto-generated on each run)
+- Verify the workflow has `actions: write` permission set in the workflow file
+- Re-run the workflow (token is auto-generated on each run using GitHub CLI)
+- The workflow uses `gh` CLI which handles authentication properly (fixed in recent update)
 
 ### Azure Login failed
 
