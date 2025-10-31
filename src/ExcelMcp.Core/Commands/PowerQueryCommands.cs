@@ -1963,9 +1963,9 @@ in
                         filePath = ExtractFileContentsPath(viewResult.MCode);
                     }
                 }
-                catch
+                catch (COMException)
                 {
-                    // If we can't get M code, continue without file path
+                    // If we can't get M code due to COM error, continue without file path
                 }
 
                 string filePathInfo = !string.IsNullOrEmpty(filePath) 
