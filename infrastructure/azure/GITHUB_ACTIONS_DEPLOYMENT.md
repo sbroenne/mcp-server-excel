@@ -1,6 +1,6 @@
 # GitHub Actions Automated Deployment Setup
 
-This guide shows how to deploy the Azure VM using GitHub Actions with **OIDC (OpenID Connect)** - the secure, modern approach with no secrets stored.
+This guide shows how to deploy the Azure VM using GitHub Actions with **OIDC (OpenID Connect)** for secure Azure authentication.
 
 ## Prerequisites
 
@@ -93,9 +93,21 @@ echo "AZURE_SUBSCRIPTION_ID: $SUBSCRIPTION_ID"
 | `AZURE_TENANT_ID` | Directory (tenant) ID | From Step 1 or Azure AD overview |
 | `AZURE_SUBSCRIPTION_ID` | Subscription ID | From Step 1 or Subscriptions page |
 
-**No client secret needed!** OIDC uses federated credentials instead.
+**No Azure client secret needed!** OIDC uses federated credentials instead.
 
 ## Deployment
+
+### Get GitHub Runner Registration Token
+
+Before deploying, you need a runner registration token:
+
+1. Go to your repository: `https://github.com/sbroenne/mcp-server-excel`
+2. Navigate to **Settings** → **Actions** → **Runners**
+3. Click **New self-hosted runner**
+4. Select **Windows** as the OS
+5. Copy the token from the configuration command (starts with `A...`)
+   - ⚠️ **Important**: Token expires after 1 hour - use it immediately
+   - Token format: Long alphanumeric string (e.g., `A3E7G...`)
 
 ### Deploy via GitHub Actions UI
 
@@ -105,9 +117,8 @@ echo "AZURE_SUBSCRIPTION_ID: $SUBSCRIPTION_ID"
 4. Fill in the parameters:
    - **Resource Group:** `rg-excel-runner` (or your preference)
    - **Admin Password:** Strong password for VM (e.g., `MySecurePass123!`)
+   - **Runner Token:** Paste the token you copied from Settings → Actions → Runners
 5. Click **Run workflow**
-
-**Note:** GitHub runner registration token is now **automatically generated** by the workflow - no manual token creation needed!
 
 **Deployment takes ~5 minutes**
 
@@ -137,21 +148,28 @@ Should show:
 
 ## Why This Approach?
 
-**Security benefits:**
-- ✅ **No secrets stored** - Uses OIDC for Azure, GitHub API for runner tokens
-- ✅ **No credential rotation** - Federated credentials don't expire
-- ✅ **Automatic token generation** - No manual token handling
-- ✅ **Azure-managed** - Azure AD handles authentication
-- ✅ **Audit trail** - Every deployment logged in Azure AD
-- ✅ **Principle of least privilege** - Scoped to specific repository/branch
+**Benefits:**
+- ✅ **Simple** - Just get a runner token and deploy
+- ✅ **Secure Azure authentication** - Uses OIDC (no client secrets)
+- ✅ **No credential rotation** - Azure federated credentials don't expire
+- ✅ **Repeatable** - Same process every time
+- ✅ **Audit trail** - Every deployment logged in GitHub Actions
 
-**vs. Manual Token Generation:**
-- ❌ Manual token generation required
-- ❌ Tokens expire after 1 hour
-- ❌ Error-prone copy/paste process
-- ❌ Cannot be used by coding agents
+**Trade-offs:**
+- ⚠️ **Manual token generation** - Need to get a new token each time (expires after 1 hour)
+- ⚠️ **Not fully automated** - Requires manual step before deployment
+
+**This is the simplest approach for occasional deployments.** If you deploy frequently, consider setting up a GitHub App or PAT for automated token generation.
 
 ## Troubleshooting
+
+### "Invalid runner token" error
+
+**Cause:** Runner token expired (tokens expire after 1 hour)
+
+**Solution:**
+1. Generate a new token from Settings → Actions → Runners → New self-hosted runner
+2. Re-run the workflow with the new token
 
 ### "Deployment failed" error
 
@@ -163,18 +181,6 @@ Should show:
 **View detailed error:**
 - Check workflow logs in Actions tab
 - Look for error messages in "Deploy Bicep Template" step
-
-### "Runner registration failed" error
-
-**Causes:**
-1. Workflow lacks `actions: write` permission
-2. GitHub CLI authentication issue
-
-**Solution:**
-- Check workflow logs for "Generate GitHub Runner Registration Token" step
-- Verify the workflow has `actions: write` permission set in the workflow file
-- Re-run the workflow (token is auto-generated on each run using GitHub CLI)
-- The workflow uses `gh` CLI which handles authentication properly (fixed in recent update)
 
 ### Azure Login failed
 
@@ -200,11 +206,15 @@ Or use Azure Portal → Resource Groups → Delete
 
 ## Security Best Practices
 
-1. **Use OIDC** instead of service principal credentials (more secure)
-2. **Automatic token generation** eliminates manual token handling risks
+1. **Use OIDC for Azure** instead of service principal credentials (more secure)
+2. **Runner Token Security**:
+   - Never commit runner tokens to code
+   - Tokens expire after 1 hour
+   - Generate new token for each deployment
 3. **Limit service principal** to specific resource group
 4. **Enable Azure Security Center** for VM monitoring
 5. **Review permissions** regularly
+6. **Secure VM password** - Use strong password, store securely
 
 ## Support
 
