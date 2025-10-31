@@ -345,4 +345,99 @@ public class ParameterCommands : IParameterCommands
 
         return result;
     }
+
+    /// <inheritdoc />
+    public async Task<OperationResult> CreateBulkAsync(IExcelBatch batch, IEnumerable<ParameterDefinition> parameters)
+    {
+        var parameterList = parameters?.ToList();
+        
+        if (parameterList == null || parameterList.Count == 0)
+        {
+            return new OperationResult
+            {
+                Success = false,
+                ErrorMessage = "No parameters provided",
+                FilePath = batch.WorkbookPath
+            };
+        }
+
+        var createdCount = 0;
+        var errors = new List<string>();
+
+        foreach (var param in parameterList)
+        {
+            // Validate parameter
+            if (string.IsNullOrWhiteSpace(param.Name))
+            {
+                errors.Add($"Parameter with empty name skipped");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(param.Reference))
+            {
+                errors.Add($"Parameter '{param.Name}' has empty reference - skipped");
+                continue;
+            }
+
+            // Create named range
+            var createResult = await CreateAsync(batch, param.Name, param.Reference);
+            if (!createResult.Success)
+            {
+                errors.Add($"Failed to create '{param.Name}': {createResult.ErrorMessage}");
+                continue;
+            }
+
+            createdCount++;
+
+            // Set value if provided
+            if (param.Value != null)
+            {
+                var valueStr = Convert.ToString(param.Value) ?? "";
+                var setResult = await SetAsync(batch, param.Name, valueStr);
+                if (!setResult.Success)
+                {
+                    errors.Add($"Created '{param.Name}' but failed to set value: {setResult.ErrorMessage}");
+                }
+            }
+        }
+
+        if (createdCount == 0)
+        {
+            return new OperationResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to create any parameters. Errors: {string.Join("; ", errors)}",
+                FilePath = batch.WorkbookPath
+            };
+        }
+
+        var result = new OperationResult
+        {
+            Success = true,
+            FilePath = batch.WorkbookPath
+        };
+
+        if (errors.Count > 0)
+        {
+            result.WorkflowHint = $"Created {createdCount} of {parameterList.Count} parameter(s). Partial failures: {string.Join("; ", errors)}";
+            result.SuggestedNextActions = 
+            [
+                $"Successfully created {createdCount} out of {parameterList.Count} parameters",
+                "Review errors to understand which parameters failed",
+                "Use 'list' to verify created parameters"
+            ];
+        }
+        else
+        {
+            result.WorkflowHint = $"Successfully created {createdCount} parameter(s) in bulk operation";
+            result.SuggestedNextActions =
+            [
+                $"All {createdCount} parameters created successfully",
+                "Parameters can now be used in formulas and Power Query code",
+                "Use 'list' to view all parameters"
+            ];
+        }
+
+        return result;
+    }
 }

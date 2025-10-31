@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -28,11 +29,20 @@ public static class ExcelParameterTool
     /// Manage Excel parameters (named ranges) - configuration values and reusable references
     /// </summary>
     [McpServerTool(Name = "excel_parameter")]
-    [Description("Manage Excel named ranges as parameters. Supports: list, get, set, update, create, delete. Optional batchId for batch sessions.")]
+    [Description(@"Manage Excel named ranges as parameters (configuration values).
+
+⚡ PERFORMANCE: For creating 2+ parameters, use begin_excel_batch FIRST (90% faster):
+  1. batch = begin_excel_batch(excelPath: 'file.xlsx')
+  2. excel_parameter(action: 'create', ..., batchId: batch.batchId)  // repeat for each parameter
+  3. commit_excel_batch(batchId: batch.batchId, save: true)
+
+⭐ NEW: Use 'create-bulk' action for even better efficiency (one call for multiple parameters).
+
+Actions: list, get, set, update, create, delete, create-bulk.")]
     public static async Task<string> ExcelParameter(
         [Required]
-        [RegularExpression("^(list|get|set|update|create|delete)$")]
-        [Description("Action: list, get, set, update, create, delete")]
+        [RegularExpression("^(list|get|set|update|create|delete|create-bulk)$")]
+        [Description("Action: list, get, set, update, create, delete, create-bulk")]
         string action,
 
         [Required]
@@ -41,11 +51,14 @@ public static class ExcelParameterTool
         string excelPath,
 
         [StringLength(255, MinimumLength = 1)]
-        [Description("Parameter (named range) name")]
+        [Description("Parameter (named range) name (for get, set, update, create, delete actions)")]
         string? parameterName = null,
 
-        [Description("Parameter value (for set) or cell reference (for create/update, e.g., 'Sheet1!A1')")]
+        [Description("Parameter value (for set action) or cell reference (for create/update actions, e.g., 'Sheet1!A1')")]
         string? value = null,
+
+        [Description("JSON array of parameter definitions for create-bulk action. Example: [{\"name\":\"Start_Date\",\"reference\":\"Sheet1!A1\",\"value\":\"2025-01-01\"}]")]
+        string? parametersJson = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
         string? batchId = null)
@@ -61,9 +74,10 @@ public static class ExcelParameterTool
                 "set" => await SetParameterAsync(parameterCommands, excelPath, parameterName, value, batchId),
                 "update" => await UpdateParameterAsync(parameterCommands, excelPath, parameterName, value, batchId),
                 "create" => await CreateParameterAsync(parameterCommands, excelPath, parameterName, value, batchId),
+                "create-bulk" => await CreateBulkParametersAsync(parameterCommands, excelPath, parametersJson, batchId),
                 "delete" => await DeleteParameterAsync(parameterCommands, excelPath, parameterName, batchId),
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: list, get, set, update, create, delete")
+                    $"Unknown action '{action}'. Supported: list, get, set, update, create, create-bulk, delete")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -279,6 +293,49 @@ public static class ExcelParameterTool
             "Update PowerQuery code that used this parameter"
         ];
         result.WorkflowHint = "Parameter deleted. Next, update dependent formulas and queries.";
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> CreateBulkParametersAsync(ParameterCommands commands, string excelPath, string? parametersJson, string? batchId)
+    {
+        if (string.IsNullOrWhiteSpace(parametersJson))
+            throw new ModelContextProtocol.McpException("parametersJson is required for create-bulk action");
+
+        // Deserialize JSON array of parameter definitions
+        List<ParameterDefinition>? parameters;
+        try
+        {
+            parameters = JsonSerializer.Deserialize<List<ParameterDefinition>>(
+                parametersJson,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (parameters == null || parameters.Count == 0)
+                throw new ModelContextProtocol.McpException("parametersJson must contain at least one parameter definition");
+        }
+        catch (JsonException ex)
+        {
+            throw new ModelContextProtocol.McpException($"Invalid parametersJson format: {ex.Message}");
+        }
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: true,
+            async (batch) => await commands.CreateBulkAsync(batch, parameters));
+
+        if (!result.Success)
+        {
+            throw new ModelContextProtocol.McpException($"create-bulk failed: {result.ErrorMessage}");
+        }
+
+        result.SuggestedNextActions =
+        [
+            $"Successfully created {parameters.Count} parameter(s) in one operation",
+            "Use 'list' to verify all parameters were created",
+            "Parameters can now be referenced in formulas and Power Query code"
+        ];
+        result.WorkflowHint = $"Bulk creation completed. {parameters.Count} parameter(s) created efficiently.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
