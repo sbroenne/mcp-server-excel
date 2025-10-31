@@ -5,9 +5,11 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Analysis Services (TOM - Tabular Object Model) - Updated to non-deprecated packages -->
+    <!-- NOTE: Microsoft.AnalysisServices.NetCore.retail.amd64 is deprecated (retired mid-2024) -->
+    <!-- Migrated to Microsoft.AnalysisServices which is the new multi-runtime package -->
+    <PackageVersion Include="Microsoft.AnalysisServices" Version="19.106.1" />
     <!-- UI Framework -->
-    <PackageVersion Include="Microsoft.AnalysisServices.NetCore.retail.amd64" Version="19.84.1" />
-    <PackageVersion Include="Microsoft.AnalysisServices.Tabular" Version="13.0.2150.3" />
     <PackageVersion Include="Spectre.Console" Version="0.53.0" />
     <!-- Microsoft Extensions for MCP Server -->
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.10" />
