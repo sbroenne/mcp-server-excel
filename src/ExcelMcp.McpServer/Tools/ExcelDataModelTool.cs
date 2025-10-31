@@ -11,34 +11,36 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// Provides access to Power Pivot Data Model operations.
 ///
 /// LLM Usage Patterns:
+///
+/// DISCOVERY:
 /// - Use "list-tables" to see all tables in the Data Model
 /// - Use "list-measures" to view all DAX measures
-/// - Use "view-measure" to inspect DAX formula for a specific measure
-/// - Use "export-measure" to save DAX formula to a file
 /// - Use "list-relationships" to see table relationships
-/// - Use "refresh" to update Data Model data
-/// - Use "create-measure" to add new DAX measures (TOM API)
-/// - Use "update-measure" to modify existing measures (TOM API)
-/// - Use "create-relationship" to define table relationships (TOM API)
-/// - Use "update-relationship" to modify relationships (TOM API)
-/// - Use "create-column" to add calculated columns (TOM API)
-/// - Use "list-columns" to view all calculated columns (TOM API)
-/// - Use "view-column" to see calculated column details (TOM API)
-/// - Use "update-column" to modify calculated columns (TOM API)
-/// - Use "delete-column" to remove calculated columns (TOM API)
-/// - Use "validate-dax" to check DAX syntax (TOM API)
+/// - Use "list-columns" to view columns in a table
+/// - Use "view-table" to see detailed table information
+/// - Use "view-measure" to inspect DAX formula for a specific measure
+/// - Use "get-model-info" to get Data Model overview
 ///
-/// Phase 1 Scope (COM API):
-/// - Tables: List and view metadata
-/// - Measures: List, view, export, and delete DAX formulas
-/// - Relationships: List and delete relationships
-/// - Refresh: Refresh Data Model connections
+/// DAX MEASURES
+/// - Use "create-measure" to add new DAX measures with optional format strings
+/// - Use "update-measure" to modify existing measure formulas or formats
+/// - Use "delete-measure" to remove a measure
+/// - Use "export-measure" to save DAX formula to a file
 ///
-/// Phase 4 Scope (TOM API):
-/// - Measures: Create and update with full DAX support
-/// - Relationships: Create and update with advanced options
-/// - Calculated Columns: Create DAX-based calculated columns
-/// - DAX Validation: Syntax checking before creation
+/// RELATIONSHIPS
+/// - Use "create-relationship" to define table relationships
+/// - Use "update-relationship" to modify relationship active status
+/// - Use "delete-relationship" to remove a relationship
+///
+/// CALCULATED COLUMNS:
+/// - Use "create-column" to add DAX-based calculated columns
+/// - Use "view-column" to see calculated column details
+/// - Use "update-column" to modify calculated columns
+/// - Use "delete-column" to remove calculated columns
+/// - Use "validate-dax" to check DAX syntax before creation
+///
+/// DATA REFRESH:
+/// - Use "refresh" to update Data Model data from source connections
 /// </summary>
 [McpServerToolType]
 public static class ExcelDataModelTool
@@ -138,7 +140,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
 
             return action.ToLowerInvariant() switch
             {
-                // COM API operations (Phase 1 + Phase 2)
+                // Discovery operations
                 "list-tables" => await ListTablesAsync(dataModelCommands, excelPath, batchId),
                 "list-measures" => await ListMeasuresAsync(dataModelCommands, excelPath, batchId),
                 "view-measure" => await ViewMeasureAsync(dataModelCommands, excelPath, measureName, batchId),
@@ -147,19 +149,19 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
                 "refresh" => await RefreshAsync(dataModelCommands, excelPath, batchId),
                 "delete-measure" => await DeleteMeasureAsync(dataModelCommands, excelPath, measureName, batchId),
                 "delete-relationship" => await DeleteRelationshipAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, batchId),
-
-                // Phase 2: Discovery operations (COM API)
                 "list-columns" => await ListTableColumnsAsync(dataModelCommands, excelPath, tableName, batchId),
                 "view-table" => await ViewTableAsync(dataModelCommands, excelPath, tableName, batchId),
                 "get-model-info" => await GetModelInfoAsync(dataModelCommands, excelPath, batchId),
 
-                // Phase 2: CREATE/UPDATE operations (COM API - Office 2016+)
+                // DAX measures (requires Office 2016+)
                 "create-measure" => await CreateMeasureComAsync(dataModelCommands, excelPath, tableName, measureName, daxFormula, formatString, description, batchId),
                 "update-measure" => await UpdateMeasureComAsync(dataModelCommands, excelPath, measureName, daxFormula, formatString, description, batchId),
+
+                // Relationships (requires Office 2016+)
                 "create-relationship" => await CreateRelationshipComAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, batchId),
                 "update-relationship" => await UpdateRelationshipComAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, batchId),
 
-                // TOM API operations (Phase 4 - Future)
+                // Calculated columns
                 "create-column" => await CreateCalculatedColumnAsync(tomCommands, excelPath, tableName, columnName, daxFormula, description, dataType, batchId),
                 "view-column" => await ViewCalculatedColumnAsync(tomCommands, excelPath, tableName, columnName, batchId),
                 "update-column" => await UpdateCalculatedColumnAsync(tomCommands, excelPath, tableName, columnName, daxFormula, description, dataType, batchId),
@@ -194,8 +196,6 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
         {
             result.SuggestedNextActions =
             [
-                "Check that the Excel file exists and is accessible",
-                "Verify the file contains a Data Model (Power Pivot)",
                 "Use Power Query to add tables to the Data Model"
             ];
             result.WorkflowHint = "List failed. Ensure file has Data Model and retry.";
@@ -485,8 +485,6 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
-
-    // Phase 2 COM API Action Handlers (Office 2016+)
 
     private static async Task<string> ListTableColumnsAsync(DataModelCommands commands, string filePath,
         string? tableName, string? batchId)
