@@ -4,6 +4,31 @@ This directory contains Infrastructure as Code (IaC) for automating the deployme
 
 ## Quick Start
 
+**Two deployment options:**
+
+### Option 1: GitHub Actions (Recommended) ⭐
+
+**Deploy directly from GitHub UI - no local Azure CLI needed!**
+
+📚 **Setup Guide:** [`GITHUB_ACTIONS_DEPLOYMENT.md`](GITHUB_ACTIONS_DEPLOYMENT.md)
+
+**Quick steps:**
+1. Create Azure service principal (one-time)
+2. Add `AZURE_CREDENTIALS` to GitHub Secrets
+3. Go to Actions tab → Deploy Azure Self-Hosted Runner
+4. Enter parameters → Run workflow
+5. RDP to VM and install Excel (30 minutes)
+
+**Benefits:**
+- No local tooling required
+- Deploy from browser
+- Audit trail in Actions logs
+- Repeatable and version-controlled
+
+---
+
+### Option 2: Local Deployment (Azure CLI)
+
 ### Prerequisites
 
 - Azure CLI installed (`az --version`)
