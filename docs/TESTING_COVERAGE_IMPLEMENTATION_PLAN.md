@@ -1,8 +1,26 @@
 # Implementation Plan: Improve Testing Coverage with Azure Self-Hosted Runners
 
-**Status:** 📋 Implementation Plan  
+**Status:** ✅ Workflow Fixed - Ready for Deployment  
 **Created:** 2025-10-31  
+**Updated:** 2025-10-31  
 **Issue:** [FEATURE] Improve testing coverage
+
+## Recent Update: Workflow Fix (2025-10-31)
+
+**Problem:** The Azure runner deployment workflow was failing with "Resource not accessible by integration" when trying to generate a GitHub runner registration token.
+
+**Root Cause:** The `GITHUB_TOKEN` cannot create runner registration tokens using direct API calls with curl, even with `actions: write` permission.
+
+**Solution Implemented:** Changed from `curl` to GitHub CLI (`gh`) for token generation. The `gh` CLI properly handles authentication and permissions.
+
+**Files Changed:**
+- `.github/workflows/deploy-azure-runner.yml` - Fixed token generation step
+- `infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md` - Updated troubleshooting
+- `infrastructure/azure/README.md` - Updated description
+
+**Status:** ✅ Workflow syntax validated and ready to use
+
+---
 
 ## Problem Statement
 
@@ -194,6 +212,7 @@ dotnet test --filter "Category=Integration&RunType!=OnDemand"
 - [x] Create integration test workflow
 - [x] Document cost analysis
 - [x] Document testing strategy
+- [x] **Fix workflow token generation issue (2025-10-31)**
 - [ ] Provision Azure Windows VM (requires Azure access)
 - [ ] Install .NET 8 SDK on VM
 - [ ] Install & configure Microsoft Excel
@@ -207,11 +226,12 @@ dotnet test --filter "Category=Integration&RunType!=OnDemand"
 ## Success Criteria
 
 1. ✅ Documentation complete and comprehensive
-2. ⏳ Azure runner deployed and registered
-3. ⏳ Integration tests run successfully on self-hosted runner
-4. ⏳ Nightly scheduled runs execute without intervention
-5. ⏳ Cost stays under $50/month with optimizations
-6. ⏳ Runner maintenance documented and sustainable
+2. ✅ Workflow fixed and ready for deployment (GitHub CLI token generation)
+3. ⏳ Azure runner deployed and registered
+4. ⏳ Integration tests run successfully on self-hosted runner
+5. ⏳ Nightly scheduled runs execute without intervention
+6. ⏳ Cost stays under $50/month with optimizations
+7. ⏳ Runner maintenance documented and sustainable
 
 ## Future Enhancements
 
