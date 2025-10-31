@@ -82,12 +82,20 @@ public partial class DataModelCommandsTests : IDisposable
         // Create sample measures using PRODUCTION command
         if (addSales.Success)
         {
-            await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", "Total Sales",
+            var measure1 = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", "Total Sales",
                 "SUM(SalesTable[Amount])", "Currency", "Total sales revenue");
-            await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", "Average Sale",
+            if (!measure1.Success)
+                throw new InvalidOperationException($"Failed to create 'Total Sales' measure: {measure1.ErrorMessage}");
+
+            var measure2 = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", "Average Sale",
                 "AVERAGE(SalesTable[Amount])", "Currency", "Average sale amount");
-            await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", "Total Customers",
-                "DISTINCTCOUNT(SalesTable[CustomerID])", "General", "Unique customer count");
+            if (!measure2.Success)
+                throw new InvalidOperationException($"Failed to create 'Average Sale' measure: {measure2.ErrorMessage}");
+
+            var measure3 = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", "Total Customers",
+                "DISTINCTCOUNT(SalesTable[CustomerID])", "WholeNumber", "Unique customer count");
+            if (!measure3.Success)
+                throw new InvalidOperationException($"Failed to create 'Total Customers' measure: {measure3.ErrorMessage}");
         }
 
         await batch.SaveAsync();

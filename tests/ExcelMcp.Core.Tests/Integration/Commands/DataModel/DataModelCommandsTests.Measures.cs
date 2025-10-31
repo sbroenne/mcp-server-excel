@@ -186,7 +186,7 @@ public partial class DataModelCommandsTests
         // Assert - Should fail because file has no Data Model
         Assert.False(result.Success, "DeleteMeasure should fail when file has no Data Model");
         Assert.NotNull(result.ErrorMessage);
-        Assert.True(result.ErrorMessage.Contains("does not have a Data Model") || 
+        Assert.True(result.ErrorMessage.Contains("does not have a Data Model") ||
                     result.ErrorMessage.Contains("not found"),
             $"Expected 'no data model' or 'not found' error, but got: {result.ErrorMessage}");
     }
