@@ -14,17 +14,10 @@ public partial class VbaTrustDetectionTests
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_List_HandlesVbaTrustCorrectly), _tempDir);
-
-        // Change extension to .xlsm for macro support
-        var xlsmFile = Path.ChangeExtension(testFile, ".xlsm");
-        if (File.Exists(testFile) && !File.Exists(xlsmFile))
-        {
-            File.Move(testFile, xlsmFile);
-        }
+            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_List_HandlesVbaTrustCorrectly), _tempDir, ".xlsm");
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(xlsmFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         var result = await _scriptCommands.ListAsync(batch);
 
         // Assert
@@ -37,14 +30,7 @@ public partial class VbaTrustDetectionTests
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(VbaTrustDetectionTests), nameof(TestVbaTrustScope_AllowsVbaOperations), _tempDir);
-
-        // Change extension to .xlsm for macro support
-        var xlsmFile = Path.ChangeExtension(testFile, ".xlsm");
-        if (File.Exists(testFile) && !File.Exists(xlsmFile))
-        {
-            File.Move(testFile, xlsmFile);
-        }
+            nameof(VbaTrustDetectionTests), nameof(TestVbaTrustScope_AllowsVbaOperations), _tempDir, ".xlsm");
 
         string vbaFile = Path.Combine(_tempDir, $"TestModule_{Guid.NewGuid():N}.vba");
         string vbaCode = @"Sub TestProcedure()
@@ -55,7 +41,7 @@ End Sub";
         // Act & Assert - VBA operations should work inside the scope
         using (var _ = new TestVbaTrustScope())
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(xlsmFile);
+            await using var batch = await ExcelSession.BeginBatchAsync(testFile);
             var importResult = await _scriptCommands.ImportAsync(batch, "TestModule", vbaFile);
 
             // Should succeed when VBA trust is enabled
@@ -72,21 +58,14 @@ End Sub";
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Export_WithTrust_WorksCorrectly), _tempDir);
-
-        // Change extension to .xlsm for macro support
-        var xlsmFile = Path.ChangeExtension(testFile, ".xlsm");
-        if (File.Exists(testFile) && !File.Exists(xlsmFile))
-        {
-            File.Move(testFile, xlsmFile);
-        }
+            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Export_WithTrust_WorksCorrectly), _tempDir, ".xlsm");
 
         string exportFile = Path.Combine(_tempDir, $"ExportedModule_{Guid.NewGuid():N}.vba");
 
         // Act - Test with VBA trust enabled
         using (var _ = new TestVbaTrustScope())
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(xlsmFile);
+            await using var batch = await ExcelSession.BeginBatchAsync(testFile);
             var result = await _scriptCommands.ExportAsync(batch, "ThisWorkbook", exportFile);
 
             // Assert
@@ -104,14 +83,7 @@ End Sub";
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Import_WithTrust_WorksCorrectly), _tempDir);
-
-        // Change extension to .xlsm for macro support
-        var xlsmFile = Path.ChangeExtension(testFile, ".xlsm");
-        if (File.Exists(testFile) && !File.Exists(xlsmFile))
-        {
-            File.Move(testFile, xlsmFile);
-        }
+            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Import_WithTrust_WorksCorrectly), _tempDir, ".xlsm");
 
         string vbaFile = Path.Combine(_tempDir, $"ImportTestModule_{Guid.NewGuid():N}.vba");
         string vbaCode = @"Sub ImportTestProcedure()
@@ -123,7 +95,7 @@ End Sub";
         // Act - Test with VBA trust enabled
         using (var _ = new TestVbaTrustScope())
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(xlsmFile);
+            await using var batch = await ExcelSession.BeginBatchAsync(testFile);
             var result = await _scriptCommands.ImportAsync(batch, "ImportTestModule", vbaFile);
 
             // Assert
@@ -141,14 +113,7 @@ End Sub";
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Update_WithTrust_WorksCorrectly), _tempDir);
-
-        // Change extension to .xlsm for macro support
-        var xlsmFile = Path.ChangeExtension(testFile, ".xlsm");
-        if (File.Exists(testFile) && !File.Exists(xlsmFile))
-        {
-            File.Move(testFile, xlsmFile);
-        }
+            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Update_WithTrust_WorksCorrectly), _tempDir, ".xlsm");
 
         string vbaFile = Path.Combine(_tempDir, $"UpdateTestModule_{Guid.NewGuid():N}.vba");
         string vbaCode1 = @"Sub UpdateTest1()
@@ -158,7 +123,7 @@ End Sub";
         using (var _ = new TestVbaTrustScope())
         {
             // First import
-            await using (var batch = await ExcelSession.BeginBatchAsync(xlsmFile))
+            await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
             {
                 await _scriptCommands.ImportAsync(batch, "UpdateTestModule", vbaFile);
                 await batch.SaveAsync();
@@ -171,7 +136,7 @@ End Sub";
             File.WriteAllText(vbaFile, vbaCode2);
 
             // Act - Update the module
-            await using (var batch = await ExcelSession.BeginBatchAsync(xlsmFile))
+            await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
             {
                 var result = await _scriptCommands.UpdateAsync(batch, "UpdateTestModule", vbaFile);
 
@@ -186,14 +151,7 @@ End Sub";
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Delete_WithTrust_WorksCorrectly), _tempDir);
-
-        // Change extension to .xlsm for macro support
-        var xlsmFile = Path.ChangeExtension(testFile, ".xlsm");
-        if (File.Exists(testFile) && !File.Exists(xlsmFile))
-        {
-            File.Move(testFile, xlsmFile);
-        }
+            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Delete_WithTrust_WorksCorrectly), _tempDir, ".xlsm");
 
         string vbaFile = Path.Combine(_tempDir, $"DeleteTestModule_{Guid.NewGuid():N}.vba");
         string vbaCode = @"Sub DeleteTest()
@@ -203,14 +161,14 @@ End Sub";
         using (var _ = new TestVbaTrustScope())
         {
             // First import a module
-            await using (var batch = await ExcelSession.BeginBatchAsync(xlsmFile))
+            await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
             {
                 await _scriptCommands.ImportAsync(batch, "DeleteTestModule", vbaFile);
                 await batch.SaveAsync();
             }
 
             // Act - Delete the module
-            await using (var batch = await ExcelSession.BeginBatchAsync(xlsmFile))
+            await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
             {
                 var result = await _scriptCommands.DeleteAsync(batch, "DeleteTestModule");
 
@@ -225,14 +183,7 @@ End Sub";
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Run_WithTrust_WorksCorrectly), _tempDir);
-
-        // Change extension to .xlsm for macro support
-        var xlsmFile = Path.ChangeExtension(testFile, ".xlsm");
-        if (File.Exists(testFile) && !File.Exists(xlsmFile))
-        {
-            File.Move(testFile, xlsmFile);
-        }
+            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Run_WithTrust_WorksCorrectly), _tempDir, ".xlsm");
 
         string vbaFile = Path.Combine(_tempDir, $"RunTestModule_{Guid.NewGuid():N}.vba");
         string vbaCode = @"Sub RunTest()
@@ -245,14 +196,14 @@ End Sub";
         using (var _ = new TestVbaTrustScope())
         {
             // First import a module
-            await using (var batch = await ExcelSession.BeginBatchAsync(xlsmFile))
+            await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
             {
                 await _scriptCommands.ImportAsync(batch, "RunTestModule", vbaFile);
                 await batch.SaveAsync();
             }
 
             // Act - Run the procedure
-            await using (var batch = await ExcelSession.BeginBatchAsync(xlsmFile))
+            await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
             {
                 var result = await _scriptCommands.RunAsync(batch, "RunTestModule.RunTest");
 

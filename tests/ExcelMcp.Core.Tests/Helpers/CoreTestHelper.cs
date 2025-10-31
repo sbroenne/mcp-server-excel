@@ -21,13 +21,13 @@ public static class CoreTestHelper
     /// Usage pattern:
     /// <code>
     /// private readonly string _tempDir;
-    /// 
+    ///
     /// public MyTests()
     /// {
     ///     _tempDir = Path.Combine(Path.GetTempPath(), $"MyTests_{Guid.NewGuid():N}");
     ///     Directory.CreateDirectory(_tempDir);
     /// }
-    /// 
+    ///
     /// [Fact]
     /// public async Task MyTest()
     /// {
@@ -41,10 +41,17 @@ public static class CoreTestHelper
     public static async Task<string> CreateUniqueTestFileAsync(
         string testClassName,
         string testName,
-        string tempDir)
+        string tempDir,
+        string extension = ".xlsx")
     {
-        // Generate unique filename: ClassName_TestName_GUID.xlsx
-        var fileName = $"{testClassName}_{testName}_{Guid.NewGuid():N}.xlsx";
+        // Validate extension
+        if (extension != ".xlsx" && extension != ".xlsm")
+        {
+            throw new ArgumentException("Extension must be .xlsx or .xlsm", nameof(extension));
+        }
+
+        // Generate unique filename: ClassName_TestName_GUID.{extension}
+        var fileName = $"{testClassName}_{testName}_{Guid.NewGuid():N}{extension}";
         var filePath = Path.Combine(tempDir, fileName);
 
         var fileCommands = new FileCommands();
