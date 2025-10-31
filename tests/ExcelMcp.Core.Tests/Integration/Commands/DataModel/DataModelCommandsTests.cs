@@ -100,7 +100,7 @@ public partial class DataModelCommandsTests : IDisposable
     /// </summary>
     private async Task CreateSalesWorksheetAsync(IExcelBatch batch)
     {
-        await batch.ExecuteAsync<int>((ctx, ct) =>
+        await batch.Execute<int>((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -153,7 +153,7 @@ public partial class DataModelCommandsTests : IDisposable
                 ComInterop.ComUtilities.Release(ref range);
                 ComInterop.ComUtilities.Release(ref sheet);
             }
-            return ValueTask.FromResult(0);
+            return 0;
         });
     }
 
@@ -162,7 +162,7 @@ public partial class DataModelCommandsTests : IDisposable
     /// </summary>
     private async Task CreateCustomersWorksheetAsync(IExcelBatch batch)
     {
-        await batch.ExecuteAsync<int>((ctx, ct) =>
+        await batch.Execute<int>((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -208,7 +208,7 @@ public partial class DataModelCommandsTests : IDisposable
                 ComInterop.ComUtilities.Release(ref range);
                 ComInterop.ComUtilities.Release(ref sheet);
             }
-            return ValueTask.FromResult(0);
+            return 0;
         });
     }
 
@@ -217,7 +217,7 @@ public partial class DataModelCommandsTests : IDisposable
     /// </summary>
     private async Task CreateProductsWorksheetAsync(IExcelBatch batch)
     {
-        await batch.ExecuteAsync<int>((ctx, ct) =>
+        await batch.Execute<int>((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -263,7 +263,7 @@ public partial class DataModelCommandsTests : IDisposable
                 ComInterop.ComUtilities.Release(ref range);
                 ComInterop.ComUtilities.Release(ref sheet);
             }
-            return ValueTask.FromResult(0);
+            return 0;
         });
     }
 
