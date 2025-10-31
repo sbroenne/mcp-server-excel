@@ -221,6 +221,8 @@ ExcelMcp also provides a command-line interface for script-based Excel automatio
 | **[Command Reference](docs/COMMANDS.md)** | All 50+ CLI commands |
 | **[Installation Guide](docs/INSTALLATION.md)** | Building from source |
 | **[Development Workflow](docs/DEVELOPMENT.md)** | Contributing guidelines |
+| **[Azure Self-Hosted Runner Setup](docs/AZURE_SELFHOSTED_RUNNER_SETUP.md)** | Enable Excel integration testing in CI/CD |
+| **[Testing Coverage Plan](docs/TESTING_COVERAGE_IMPLEMENTATION_PLAN.md)** | Implementation plan for Azure testing infrastructure |
 | **[Copilot Instructions](instructions/excel-powerquery-vba-copilot-instructions.md)** | AI assistant setup guide |
 
 ### Project Information

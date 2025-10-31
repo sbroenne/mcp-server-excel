@@ -1,0 +1,111 @@
+name: Integration Tests (Excel)
+
+# This workflow runs Excel COM integration tests on a self-hosted Azure VM runner
+# Requires: Azure Windows VM with Microsoft Excel and GitHub Actions runner installed
+# Setup Guide: docs/AZURE_SELFHOSTED_RUNNER_SETUP.md
+
+permissions:
+  contents: read
+
+on:
+  # Run on schedule (nightly at 2 AM UTC)
+  schedule:
+    - cron: '0 2 * * *'
+  
+  # Allow manual trigger from Actions tab
+  workflow_dispatch:
+  
+  # Optional: Run on PR to main (uncomment to block merges on integration test failures)
+  # pull_request:
+  #   branches: [ main ]
+  #   paths:
+  #     - 'src/**'
+  #     - 'tests/**'
+
+jobs:
+  integration-tests:
+    runs-on: [self-hosted, windows, excel]
+    timeout-minutes: 60
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+    
+    - name: Display Excel Version
+      run: |
+        try {
+          $excel = New-Object -ComObject Excel.Application
+          $version = $excel.Version
+          Write-Output "✅ Excel Version: $version"
+          $excel.Quit()
+          [System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null
+          [System.GC]::Collect()
+          [System.GC]::WaitForPendingFinalizers()
+        } catch {
+          Write-Error "❌ Excel not available: $_"
+          exit 1
+        }
+      shell: pwsh
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build
+      run: dotnet build --no-restore --configuration Release
+    
+    - name: Run Integration Tests (Core)
+      run: dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=core-integration-test-results.trx" --verbosity normal
+    
+    - name: Run Integration Tests (CLI)
+      run: dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=cli-integration-test-results.trx" --verbosity normal
+    
+    - name: Run Integration Tests (MCP Server)
+      run: dotnet test tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=mcp-integration-test-results.trx" --verbosity normal
+    
+    - name: Run Integration Tests (ComInterop)
+      run: dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=cominterop-integration-test-results.trx" --verbosity normal
+    
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-test-results-${{ github.run_number }}
+        path: '**/TestResults/*.trx'
+        retention-days: 30
+    
+    - name: Cleanup Excel Processes
+      if: always()
+      run: |
+        Write-Output "🧹 Cleaning up Excel processes..."
+        $excelProcesses = Get-Process excel -ErrorAction SilentlyContinue
+        if ($excelProcesses) {
+          Write-Output "Found $($excelProcesses.Count) Excel process(es) - terminating..."
+          $excelProcesses | Stop-Process -Force
+          Start-Sleep -Seconds 5
+          Write-Output "✅ Cleanup complete"
+        } else {
+          Write-Output "✅ No Excel processes found"
+        }
+        
+        # Force garbage collection
+        [System.GC]::Collect()
+        [System.GC]::WaitForPendingFinalizers()
+        [System.GC]::Collect()
+      shell: pwsh
+    
+    - name: Check for Orphaned Excel Processes
+      if: always()
+      run: |
+        $remainingProcesses = Get-Process excel -ErrorAction SilentlyContinue
+        if ($remainingProcesses) {
+          Write-Warning "⚠️ Warning: $($remainingProcesses.Count) Excel process(es) still running after cleanup"
+          $remainingProcesses | Format-Table Id, ProcessName, StartTime, CPU, WorkingSet -AutoSize
+        } else {
+          Write-Output "✅ No orphaned Excel processes detected"
+        }
+      shell: pwsh
