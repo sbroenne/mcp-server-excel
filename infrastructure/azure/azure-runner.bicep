@@ -1,5 +1,5 @@
-# Azure Bicep Template for Excel Integration Test Runner
-# Automates provisioning of Windows VM with GitHub Actions self-hosted runner
+// Azure Bicep Template for Excel Integration Test Runner
+// Automates provisioning of Windows VM with GitHub Actions self-hosted runner
 
 @description('Location for all resources')
 param location string = 'swedencentral'
