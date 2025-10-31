@@ -4,7 +4,7 @@ using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
+namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Commands.Others;
 
 /// <summary>
 /// Integration tests for VBA Trust Detection functionality.

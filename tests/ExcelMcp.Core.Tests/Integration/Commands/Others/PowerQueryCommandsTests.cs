@@ -3,7 +3,7 @@ using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
+namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Commands.Others;
 
 /// <summary>
 /// Integration tests for Power Query Core operations.

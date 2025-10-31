@@ -2,7 +2,7 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
+namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Commands.Others;
 
 /// <summary>
 /// Core business logic tests for FileCommands - testing Excel operations and Result objects
