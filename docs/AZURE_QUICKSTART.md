@@ -1,101 +1,88 @@
 # Quick Start: Enable Integration Testing
 
-> **For Repository Owner** - 30-minute setup to enable Excel COM integration testing in CI/CD
+> **For Repository Owner** - Enable Excel COM integration testing in CI/CD
+
+## Deployment Steps
+
+**Time:** ~15 minutes setup + 30 minutes Excel installation  
+**Automation:** GitHub Actions workflow handles everything automatically
+
+### Step 1: Setup Azure OIDC (one-time, 10 minutes)
+
+See [infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md](../infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md) for detailed instructions.
+
+**Quick summary:**
+1. Create Azure App Registration with OIDC federation
+2. Assign Contributor role to your subscription
+3. Add three secrets to GitHub repository:
+   - `AZURE_CLIENT_ID`
+   - `AZURE_TENANT_ID`
+   - `AZURE_SUBSCRIPTION_ID`
+
+### Step 2: Run Deployment Workflow (5 minutes)
+
+1. Go to **Actions** tab → **Deploy Azure Self-Hosted Runner**
+2. Click **Run workflow**
+3. Enter:
+   - **Resource Group:** `rg-excel-runner` (or your choice)
+   - **Admin Password:** Strong password for VM access
+4. Click **Run workflow**
+5. Wait ~5 minutes for deployment
+
+**✅ Runner token auto-generated** - no manual token handling required!
+
+### Step 3: Install Excel (30 minutes)
+
+1. RDP to VM (FQDN shown in workflow logs)
+2. Sign in to https://portal.office.com
+3. Install Office 365 Excel
+4. Activate with your Office 365 account
+5. Reboot VM
+
+**✅ Done!** Runner auto-starts, integration tests enabled.
+
+---
 
 ## What This Gives You
 
 - ✅ **Automated Excel testing** in CI/CD (91 integration tests)
 - ✅ **Nightly test runs** catch regressions early
 - ✅ **Manual test triggers** for on-demand validation
-- 💰 **Estimated cost:** $30-65/month (with optimizations)
+- 💰 **Estimated cost:** $61/month (24/7 operation)
 
 ## Prerequisites Checklist
 
 - [ ] Azure subscription with VM creation permissions
 - [ ] Office 365 license (E3/E5 or standalone Excel)
 - [ ] GitHub repository admin access
-- [ ] ~4-7 hours for setup (one-time)
 
-## Setup Steps (High-Level)
+---
 
-### 1. Create Azure VM (30 minutes)
-```powershell
-# Quick Azure CLI setup
-az login
-az group create --name rg-excel-runner --location eastus
-az vm create \
-  --resource-group rg-excel-runner \
-  --name vm-excel-runner-01 \
-  --image Win2022Datacenter \
-  --size Standard_D2s_v3 \
-  --admin-username adminuser \
-  --admin-password 'YourSecurePassword!'
-```
+## Advanced Configuration (Optional)
 
-📚 **Full instructions:** [docs/AZURE_SELFHOSTED_RUNNER_SETUP.md](AZURE_SELFHOSTED_RUNNER_SETUP.md) (Step 1)
+### Cost Optimization
 
-### 2. Connect & Install Prerequisites (1 hour)
+**VM runs 24/7 for immediate test execution.** If you want to reduce costs:
 
-**RDP into VM, then run:**
-```powershell
-# Install .NET 8
-Invoke-WebRequest -Uri https://aka.ms/dotnet/8.0/dotnet-sdk-win-x64.exe -OutFile dotnet-sdk.exe
-Start-Process dotnet-sdk.exe -ArgumentList '/quiet' -Wait
+**Option 1: Auto-shutdown schedule**
+1. Azure Portal → VM → Auto-shutdown
+2. Enable and set shutdown time (e.g., 7 PM)
+3. Saves ~$30/month but delays test runs
 
-# Install Office/Excel (requires Office 365 account)
-# See full guide for Office Deployment Tool instructions
-```
+**Option 2: Start/stop on demand**
+1. Stop VM when not actively developing
+2. Start manually before pushing changes
+3. Saves up to 50% but requires manual management
 
-📚 **Full instructions:** [docs/AZURE_SELFHOSTED_RUNNER_SETUP.md](AZURE_SELFHOSTED_RUNNER_SETUP.md) (Step 2)
+💡 **Recommendation:** Start with 24/7 operation for best developer experience.
 
-### 3. Install GitHub Runner (30 minutes)
+### Test Integration Workflow
 
-**On VM:**
-1. Go to GitHub: `Settings` → `Actions` → `Runners` → `New self-hosted runner`
-2. Copy registration token
-3. Run on VM:
-   ```powershell
-   New-Item -Path "C:\actions-runner" -ItemType Directory
-   Set-Location "C:\actions-runner"
-   # Download runner (see full guide for latest version)
-   # Configure with token
-   # Install as Windows service
-   ```
-
-📚 **Full instructions:** [docs/AZURE_SELFHOSTED_RUNNER_SETUP.md](AZURE_SELFHOSTED_RUNNER_SETUP.md) (Step 3)
-
-### 4. Test Integration Workflow (15 minutes)
-
-**In GitHub:**
 1. Go to `Actions` tab
 2. Select `Integration Tests (Excel)` workflow
-3. Click `Run workflow` → `Run workflow`
-4. Wait for completion (~15 minutes)
+3. Click `Run workflow`
+4. Wait ~15 minutes for completion
 5. Verify ✅ all tests pass
-
-📚 **Full instructions:** [docs/AZURE_SELFHOSTED_RUNNER_SETUP.md](AZURE_SELFHOSTED_RUNNER_SETUP.md) (Step 6)
-
-### 5. Configure Cost Savings (15 minutes)
-
-**In Azure Portal:**
-1. Go to VM → `Auto-shutdown`
-2. Enable: `On`
-3. Time: `19:00` (7 PM)
-4. **Save**
-
-**Result:** ~$65/month (vs ~$91/month 24/7)
-
-📚 **Full instructions:** [docs/AZURE_SELFHOSTED_RUNNER_SETUP.md](AZURE_SELFHOSTED_RUNNER_SETUP.md) (Maintenance section)
-
-## Cost Breakdown
-
-| Operation Mode | Monthly Cost | When to Use |
-|----------------|--------------|-------------|
-| 24/7 | ~$91 | Always available for tests |
-| Auto-shutdown (12h/day) | ~$65 | Standard setup ⭐ |
-| Scheduled only (2h/day) | ~$30 | Budget-conscious |
-
-💡 **Recommendation:** Start with auto-shutdown, optimize later if needed.
 
 ## What Gets Tested
 
@@ -121,21 +108,21 @@ Start-Process dotnet-sdk.exe -ArgumentList '/quiet' -Wait
 
 **Cost monitoring:**
 - Azure Portal: `Cost Management + Billing`
-- Set budget alerts at $50, $75, $100
+- Set budget alerts at $50, $75
 
-## Troubleshooting Quick Links
+## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| Runner offline | [Troubleshooting Guide](AZURE_SELFHOSTED_RUNNER_SETUP.md#runner-shows-offline) |
-| Excel COM errors | [Excel Troubleshooting](AZURE_SELFHOSTED_RUNNER_SETUP.md#excel-com-errors-in-tests) |
-| Tests timeout | [Timeout Guide](AZURE_SELFHOSTED_RUNNER_SETUP.md#tests-timeout) |
-| High costs | [Cost Optimization](AZURE_SELFHOSTED_RUNNER_SETUP.md#cost-optimization-strategies) |
+| Runner offline | Check VM is running in Azure Portal, restart runner service |
+| Excel COM errors | Verify Excel is activated, check test logs |
+| Tests timeout | Check VM resources, verify Excel not showing dialogs |
+| Deployment fails | Check Azure credentials, verify OIDC setup |
 
 ## Support & Documentation
 
 📖 **Complete guides:**
-- [Full Setup Guide](AZURE_SELFHOSTED_RUNNER_SETUP.md) - Step-by-step instructions
+- [Deployment Guide](../infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md) - Detailed setup instructions
 - [Implementation Plan](TESTING_COVERAGE_IMPLEMENTATION_PLAN.md) - Architecture & rationale
 
 🐛 **Issues:**
@@ -148,10 +135,9 @@ After setup, verify:
 - [ ] VM running in Azure Portal
 - [ ] Runner shows "Idle" in GitHub Settings → Actions → Runners
 - [ ] Integration Tests workflow runs successfully
-- [ ] Auto-shutdown configured (saves ~$26/month)
 - [ ] Cost alerts set up in Azure
-- [ ] Team knows how to trigger manual test runs
 
 ---
 
-**Ready to start?** → [Full Setup Guide](AZURE_SELFHOSTED_RUNNER_SETUP.md)
+**Estimated time:** 15 min setup + 30 min Excel install = **45 minutes total**  
+**Monthly cost:** ~$61 (24/7 operation)
