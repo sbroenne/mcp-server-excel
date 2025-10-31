@@ -396,7 +396,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         var loadConfigBefore = await GetLoadConfigAsync(batch, queryName);
 
         // STEP 2: Update the query M code
-        result = await batch.ExecuteAsync<OperationResult>((ctx, ct) =>
+        result = await batch.Execute<OperationResult>((ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -522,7 +522,7 @@ public class PowerQueryCommands : IPowerQueryCommands
             return result;
         }
 
-        return await batch.Execute<OperationResult>((ctx, ct) =>
+        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -593,7 +593,7 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         string mCode = await File.ReadAllTextAsync(mCodeFile);
 
-        result = await batch.ExecuteAsync<OperationResult>((ctx, ct) =>
+        result = await batch.Execute<OperationResult>((ctx, ct) =>
         {
             dynamic? existingQuery = null;
             dynamic? queriesCollection = null;

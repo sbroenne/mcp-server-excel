@@ -499,7 +499,7 @@ public class ScriptCommands : IScriptCommands
 
         string vbaCode = await File.ReadAllTextAsync(vbaFile);
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -601,7 +601,7 @@ public class ScriptCommands : IScriptCommands
 
         string vbaCode = await File.ReadAllTextAsync(vbaFile);
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
