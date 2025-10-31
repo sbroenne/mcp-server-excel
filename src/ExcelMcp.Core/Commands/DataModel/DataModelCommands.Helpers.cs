@@ -1,57 +1,20 @@
 using Sbroenne.ExcelMcp.ComInterop;
+using System;
+using System.Collections.Generic;
 
-namespace Sbroenne.ExcelMcp.Core.DataModel;
+namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Helper methods for Excel Data Model operations
+/// Private helper methods for DataModel commands
 /// </summary>
-public static class DataModelHelpers
+public partial class DataModelCommands
 {
-    /// <summary>
-    /// Checks if a workbook has a Data Model
-    /// </summary>
-    /// <param name="workbook">Excel workbook COM object</param>
-    /// <returns>True if Data Model exists</returns>
-    public static bool HasDataModel(dynamic workbook)
-    {
-        dynamic? model = null;
-        try
-        {
-            model = workbook.Model;
-            if (model == null) return false;
-
-            // Try to access model tables to confirm model is accessible
-            dynamic? modelTables = null;
-            try
-            {
-                modelTables = model.ModelTables;
-                return modelTables != null;
-            }
-            catch
-            {
-                return false;
-            }
-            finally
-            {
-                ComUtilities.Release(ref modelTables);
-            }
-        }
-        catch
-        {
-            return false;
-        }
-        finally
-        {
-            ComUtilities.Release(ref model);
-        }
-    }
-
     /// <summary>
     /// Gets all measure names from the Data Model
     /// </summary>
     /// <param name="model">Model COM object</param>
     /// <returns>List of measure names</returns>
-    public static List<string> GetModelMeasureNames(dynamic model)
+    private static List<string> GetModelMeasureNames(dynamic model)
     {
         var names = new List<string>();
         dynamic? measures = null;
@@ -88,7 +51,7 @@ public static class DataModelHelpers
     /// <param name="model">Model COM object</param>
     /// <param name="measureName">Measure name to find</param>
     /// <returns>Table name if found, null otherwise</returns>
-    public static string? GetMeasureTableName(dynamic model, string measureName)
+    private static string? GetMeasureTableName(dynamic model, string measureName)
     {
         dynamic? measures = null;
         try
@@ -134,163 +97,12 @@ public static class DataModelHelpers
     }
 
     /// <summary>
-    /// Safely iterates through all tables in the Data Model with automatic COM cleanup
-    /// </summary>
-    /// <param name="model">Model COM object</param>
-    /// <param name="action">Action to perform on each table</param>
-    public static void ForEachTable(dynamic model, Action<dynamic, int> action)
-    {
-        dynamic? modelTables = null;
-        try
-        {
-            modelTables = model.ModelTables;
-            int count = modelTables.Count;
-
-            for (int i = 1; i <= count; i++)
-            {
-                dynamic? table = null;
-                try
-                {
-                    table = modelTables.Item(i);
-                    action(table, i);
-                }
-                finally
-                {
-                    ComUtilities.Release(ref table);
-                }
-            }
-        }
-        finally
-        {
-            ComUtilities.Release(ref modelTables);
-        }
-    }
-
-    /// <summary>
-    /// Safely iterates through all measures in the Data Model with automatic COM cleanup
-    /// </summary>
-    /// <param name="model">Model COM object (NOT table!)</param>
-    /// <param name="action">Action to perform on each measure</param>
-    public static void ForEachMeasure(dynamic model, Action<dynamic, int> action)
-    {
-        dynamic? measures = null;
-        try
-        {
-            // Get measures collection from MODEL (not from table!)
-            // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
-            measures = model.ModelMeasures;
-            int count = measures.Count;
-
-            for (int i = 1; i <= count; i++)
-            {
-                dynamic? measure = null;
-                try
-                {
-                    measure = measures.Item(i);
-                    action(measure, i);
-                }
-                finally
-                {
-                    ComUtilities.Release(ref measure);
-                }
-            }
-        }
-        finally
-        {
-            ComUtilities.Release(ref measures);
-        }
-    }
-
-    /// <summary>
-    /// Safely iterates through all relationships in the Data Model with automatic COM cleanup
-    /// </summary>
-    /// <param name="model">Model COM object</param>
-    /// <param name="action">Action to perform on each relationship</param>
-    public static void ForEachRelationship(dynamic model, Action<dynamic, int> action)
-    {
-        dynamic? relationships = null;
-        try
-        {
-            relationships = model.ModelRelationships;
-            int count = relationships.Count;
-
-            for (int i = 1; i <= count; i++)
-            {
-                dynamic? relationship = null;
-                try
-                {
-                    relationship = relationships.Item(i);
-                    action(relationship, i);
-                }
-                finally
-                {
-                    ComUtilities.Release(ref relationship);
-                }
-            }
-        }
-        finally
-        {
-            ComUtilities.Release(ref relationships);
-        }
-    }
-
-    /// <summary>
-    /// Safely gets a string property from a COM object, returning empty string if null
-    /// </summary>
-    /// <param name="obj">COM object</param>
-    /// <param name="propertyName">Property name</param>
-    /// <returns>Property value or empty string</returns>
-    public static string SafeGetString(dynamic obj, string propertyName)
-    {
-        try
-        {
-            var value = propertyName switch
-            {
-                "Name" => obj.Name,
-                "Formula" => obj.Formula,
-                "Description" => obj.Description,
-                "SourceName" => obj.SourceName,
-                _ => null
-            };
-            return value?.ToString() ?? string.Empty;
-        }
-        catch
-        {
-            return string.Empty;
-        }
-    }
-
-    /// <summary>
-    /// Safely gets an integer property from a COM object, returning 0 if null or invalid
-    /// </summary>
-    /// <param name="obj">COM object</param>
-    /// <param name="propertyName">Property name</param>
-    /// <returns>Property value or 0</returns>
-    public static int SafeGetInt(dynamic obj, string propertyName)
-    {
-        try
-        {
-            var value = propertyName switch
-            {
-                "RecordCount" => obj.RecordCount,
-                "Count" => obj.Count,
-                _ => 0
-            };
-            return Convert.ToInt32(value);
-        }
-        catch
-        {
-            return 0;
-        }
-    }
-
-    /// <summary>
     /// Finds a column in a model table by name (case-insensitive)
     /// </summary>
     /// <param name="table">Table COM object</param>
     /// <param name="columnName">Column name to find</param>
     /// <returns>Column COM object or null if not found</returns>
-    public static dynamic? FindModelTableColumn(dynamic table, string columnName)
+    private static dynamic? FindModelTableColumn(dynamic table, string columnName)
     {
         dynamic? columns = null;
         try
@@ -338,7 +150,7 @@ public static class DataModelHelpers
     /// <param name="model">Model COM object</param>
     /// <param name="formatType">Format type (Currency, Decimal, Percentage, General)</param>
     /// <returns>FormatInformation COM object or null for General format</returns>
-    public static dynamic? GetFormatObject(dynamic model, string? formatType)
+    private static dynamic? GetFormatObject(dynamic model, string? formatType)
     {
         if (string.IsNullOrEmpty(formatType) || formatType.Equals("General", StringComparison.OrdinalIgnoreCase))
         {
@@ -363,40 +175,7 @@ public static class DataModelHelpers
     }
 
     /// <summary>
-    /// Safely iterates through all columns in a model table with automatic COM cleanup
-    /// </summary>
-    /// <param name="table">Table COM object</param>
-    /// <param name="action">Action to perform on each column</param>
-    public static void ForEachColumn(dynamic table, Action<dynamic, int> action)
-    {
-        dynamic? columns = null;
-        try
-        {
-            columns = table.ModelTableColumns;
-            int count = columns.Count;
-
-            for (int i = 1; i <= count; i++)
-            {
-                dynamic? column = null;
-                try
-                {
-                    column = columns.Item(i);
-                    action(column, i);
-                }
-                finally
-                {
-                    ComUtilities.Release(ref column);
-                }
-            }
-        }
-        finally
-        {
-            ComUtilities.Release(ref columns);
-        }
-    }
-
-    /// <summary>
-    /// Finds a relationship in the Data Model by table and column names (case-insensitive)
+    /// Finds a relationship between two tables by column names
     /// </summary>
     /// <param name="model">Model COM object</param>
     /// <param name="fromTable">From table name</param>
@@ -404,7 +183,7 @@ public static class DataModelHelpers
     /// <param name="toTable">To table name</param>
     /// <param name="toColumn">To column name</param>
     /// <returns>Relationship COM object or null if not found</returns>
-    public static dynamic? FindRelationship(dynamic model, string fromTable, string fromColumn, string toTable, string toColumn)
+    private static dynamic? FindRelationship(dynamic model, string fromTable, string fromColumn, string toTable, string toColumn)
     {
         dynamic? relationships = null;
         try

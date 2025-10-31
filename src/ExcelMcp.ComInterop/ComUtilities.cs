@@ -361,4 +361,230 @@ public static class ComUtilities
         }
         return null;
     }
+
+    /// <summary>
+    /// Checks if a workbook has a Data Model
+    /// </summary>
+    /// <param name="workbook">Excel workbook COM object</param>
+    /// <returns>True if Data Model exists</returns>
+    public static bool HasDataModel(dynamic workbook)
+    {
+        dynamic? model = null;
+        try
+        {
+            model = workbook.Model;
+            if (model == null) return false;
+
+            // Try to access model tables to confirm model is accessible
+            dynamic? modelTables = null;
+            try
+            {
+                modelTables = model.ModelTables;
+                return modelTables != null;
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                Release(ref modelTables);
+            }
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            Release(ref model);
+        }
+    }
+
+    /// <summary>
+    /// Safely iterates through all tables in the Data Model with automatic COM cleanup
+    /// </summary>
+    /// <param name="model">Model COM object</param>
+    /// <param name="action">Action to perform on each table (receives table and 1-based index)</param>
+    public static void ForEachTable(dynamic model, Action<dynamic, int> action)
+    {
+        dynamic? modelTables = null;
+        try
+        {
+            modelTables = model.ModelTables;
+            int count = modelTables.Count;
+
+            for (int i = 1; i <= count; i++)
+            {
+                dynamic? table = null;
+                try
+                {
+                    table = modelTables.Item(i);
+                    action(table, i);
+                }
+                finally
+                {
+                    Release(ref table);
+                }
+            }
+        }
+        finally
+        {
+            Release(ref modelTables);
+        }
+    }
+
+    /// <summary>
+    /// Safely iterates through all measures in the Data Model with automatic COM cleanup
+    /// </summary>
+    /// <param name="model">Model COM object (NOT table!)</param>
+    /// <param name="action">Action to perform on each measure (receives measure and 1-based index)</param>
+    /// <remarks>
+    /// IMPORTANT: Gets measures from Model.ModelMeasures, not from individual tables.
+    /// Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
+    /// </remarks>
+    public static void ForEachMeasure(dynamic model, Action<dynamic, int> action)
+    {
+        dynamic? measures = null;
+        try
+        {
+            // Get measures collection from MODEL (not from table!)
+            measures = model.ModelMeasures;
+            int count = measures.Count;
+
+            for (int i = 1; i <= count; i++)
+            {
+                dynamic? measure = null;
+                try
+                {
+                    measure = measures.Item(i);
+                    action(measure, i);
+                }
+                finally
+                {
+                    Release(ref measure);
+                }
+            }
+        }
+        finally
+        {
+            Release(ref measures);
+        }
+    }
+
+    /// <summary>
+    /// Safely iterates through all relationships in the Data Model with automatic COM cleanup
+    /// </summary>
+    /// <param name="model">Model COM object</param>
+    /// <param name="action">Action to perform on each relationship (receives relationship and 1-based index)</param>
+    public static void ForEachRelationship(dynamic model, Action<dynamic, int> action)
+    {
+        dynamic? relationships = null;
+        try
+        {
+            relationships = model.ModelRelationships;
+            int count = relationships.Count;
+
+            for (int i = 1; i <= count; i++)
+            {
+                dynamic? relationship = null;
+                try
+                {
+                    relationship = relationships.Item(i);
+                    action(relationship, i);
+                }
+                finally
+                {
+                    Release(ref relationship);
+                }
+            }
+        }
+        finally
+        {
+            Release(ref relationships);
+        }
+    }
+
+    /// <summary>
+    /// Safely iterates through all columns in a model table with automatic COM cleanup
+    /// </summary>
+    /// <param name="table">Model table COM object</param>
+    /// <param name="action">Action to perform on each column (receives column and 1-based index)</param>
+    public static void ForEachColumn(dynamic table, Action<dynamic, int> action)
+    {
+        dynamic? columns = null;
+        try
+        {
+            columns = table.ModelTableColumns;
+            int count = columns.Count;
+
+            for (int i = 1; i <= count; i++)
+            {
+                dynamic? column = null;
+                try
+                {
+                    column = columns.Item(i);
+                    action(column, i);
+                }
+                finally
+                {
+                    Release(ref column);
+                }
+            }
+        }
+        finally
+        {
+            Release(ref columns);
+        }
+    }
+
+    /// <summary>
+    /// Safely gets a string property from a COM object, returning empty string if null
+    /// </summary>
+    /// <param name="obj">COM object</param>
+    /// <param name="propertyName">Property name</param>
+    /// <returns>Property value or empty string</returns>
+    public static string SafeGetString(dynamic obj, string propertyName)
+    {
+        try
+        {
+            var value = propertyName switch
+            {
+                "Name" => obj.Name,
+                "Formula" => obj.Formula,
+                "Description" => obj.Description,
+                "SourceName" => obj.SourceName,
+                _ => null
+            };
+            return value?.ToString() ?? string.Empty;
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Safely gets an integer property from a COM object, returning 0 if null or invalid
+    /// </summary>
+    /// <param name="obj">COM object</param>
+    /// <param name="propertyName">Property name</param>
+    /// <returns>Property value or 0</returns>
+    public static int SafeGetInt(dynamic obj, string propertyName)
+    {
+        try
+        {
+            var value = propertyName switch
+            {
+                "RecordCount" => obj.RecordCount,
+                "Count" => obj.Count,
+                _ => 0
+            };
+            return Convert.ToInt32(value);
+        }
+        catch
+        {
+            return 0;
+        }
+    }
 }

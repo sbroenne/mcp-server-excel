@@ -26,7 +26,7 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                if (!ComInterop.ComUtilities.HasDataModel(ctx.Book))
                 {
                     result.Success = false;
                     result.ErrorMessage = DataModelErrorMessages.NoDataModel();
