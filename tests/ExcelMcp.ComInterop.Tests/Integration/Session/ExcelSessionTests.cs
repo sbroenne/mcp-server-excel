@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit.Session;
 ///
 /// LAYER RESPONSIBILITY:
 /// - ✅ Test ExcelSession.BeginBatchAsync() validation and batch creation
-/// - ✅ Test ExcelSession.CreateNewAsync() file creation
+/// - ✅ Test ExcelSession.CreateNew() file creation
 /// - ✅ Verify Excel.exe process termination (no leaks)
 ///
 /// NOTE: ExcelSession methods handle all GC cleanup automatically.
@@ -118,12 +118,12 @@ public class ExcelSessionTests
             // Act - Create and dispose batch
             await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
             {
-                await batch.ExecuteAsync<int>((ctx, ct) =>
+                await batch.Execute<int>((ctx, ct) =>
                 {
                     dynamic sheet = ctx.Book.Worksheets.Item(1);
                     var value = sheet.Range["A1"].Value2;
                     _output.WriteLine($"Read A1: {value}");
-                    return ValueTask.FromResult(0);
+                    return 0;
                 });
             }
 
@@ -154,10 +154,10 @@ public class ExcelSessionTests
         try
         {
             // Act
-            var result = await ExcelSession.CreateNewAsync(testFile, isMacroEnabled: false, (ctx, ct) =>
+            var result = await ExcelSession.CreateNew(testFile, isMacroEnabled: false, (ctx, ct) =>
             {
                 _output.WriteLine($"✓ Workbook created at: {ctx.WorkbookPath}");
-                return ValueTask.FromResult(0);
+                return 0;
             });
 
             // Assert
@@ -167,11 +167,11 @@ public class ExcelSessionTests
             // Verify we can open it with batch API
             await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
             {
-                await batch.ExecuteAsync<int>((ctx, ct) =>
+                await batch.Execute<int>((ctx, ct) =>
                 {
                     Assert.NotNull(ctx.Book);
                     _output.WriteLine("✓ Can open created workbook with batch API");
-                    return ValueTask.FromResult(0);
+                    return 0;
                 });
             }
         }
@@ -191,10 +191,10 @@ public class ExcelSessionTests
         try
         {
             // Act
-            var result = await ExcelSession.CreateNewAsync(testFile, isMacroEnabled: true, (ctx, ct) =>
+            var result = await ExcelSession.CreateNew(testFile, isMacroEnabled: true, (ctx, ct) =>
             {
                 _output.WriteLine($"✓ Macro-enabled workbook created at: {ctx.WorkbookPath}");
-                return ValueTask.FromResult(0);
+                return 0;
             });
 
             // Assert
@@ -219,9 +219,9 @@ public class ExcelSessionTests
         try
         {
             // Act
-            await ExcelSession.CreateNewAsync(testFile, isMacroEnabled: false, (ctx, ct) =>
+            await ExcelSession.CreateNew(testFile, isMacroEnabled: false, (ctx, ct) =>
             {
-                return ValueTask.FromResult(0);
+                return 0;
             });
 
             // Assert
@@ -249,9 +249,9 @@ public class ExcelSessionTests
         try
         {
             // Act
-            await ExcelSession.CreateNewAsync(testFile, isMacroEnabled: false, (ctx, ct) =>
+            await ExcelSession.CreateNew(testFile, isMacroEnabled: false, (ctx, ct) =>
             {
-                return ValueTask.FromResult(0);
+                return 0;
             });
 
             // Wait for Excel process to fully terminate
@@ -274,10 +274,10 @@ public class ExcelSessionTests
     // Helper method
     private async Task CreateTempTestFileAsync(string filePath)
     {
-        await ExcelSession.CreateNewAsync(filePath, isMacroEnabled: false, (ctx, ct) =>
+        await ExcelSession.CreateNew(filePath, isMacroEnabled: false, (ctx, ct) =>
         {
             // File created, just return
-            return ValueTask.FromResult(0);
+            return 0;
         });
     }
 }

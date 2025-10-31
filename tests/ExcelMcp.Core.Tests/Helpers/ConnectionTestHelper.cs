@@ -15,7 +15,7 @@ public static class ConnectionTestHelper
     public static async Task CreateOleDbConnectionAsync(string filePath, string connectionName, string connectionString)
     {
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        await batch.ExecuteAsync<int>((ctx, ct) =>
+        await batch.Execute<int>((ctx, ct) =>
         {
             try
             {
@@ -43,7 +43,7 @@ public static class ConnectionTestHelper
                     }
                 }
 
-                return ValueTask.FromResult(0); // Success
+                return 0; // Success
             }
             catch (Exception ex)
             {
@@ -59,7 +59,7 @@ public static class ConnectionTestHelper
     public static async Task CreateOdbcConnectionAsync(string filePath, string connectionName, string connectionString)
     {
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        await batch.ExecuteAsync<int>((ctx, ct) =>
+        await batch.Execute<int>((ctx, ct) =>
         {
             try
             {
@@ -73,7 +73,7 @@ public static class ConnectionTestHelper
                     CommandText: ""
                 );
 
-                return ValueTask.FromResult(0); // Success
+                return 0; // Success
             }
             catch (Exception ex)
             {
@@ -90,7 +90,7 @@ public static class ConnectionTestHelper
     public static async Task CreateTextFileConnectionAsync(string filePath, string connectionName, string textFilePath)
     {
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        await batch.ExecuteAsync<int>((ctx, ct) =>
+        await batch.Execute<int>((ctx, ct) =>
         {
             try
             {
@@ -117,7 +117,7 @@ public static class ConnectionTestHelper
                 // Connection created - Excel should handle the rest
                 // If Import works, this should too
 
-                return ValueTask.FromResult(0); // Success
+                return 0; // Success
             }
             catch (Exception ex)
             {
@@ -134,7 +134,7 @@ public static class ConnectionTestHelper
     public static async Task CreateWebConnectionAsync(string filePath, string connectionName, string url)
     {
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        await batch.ExecuteAsync<int>((ctx, ct) =>
+        await batch.Execute<int>((ctx, ct) =>
         {
             try
             {
@@ -155,7 +155,7 @@ public static class ConnectionTestHelper
                 // Connection created - Excel should handle the rest
                 // With the URL; prefix, Excel should recognize this as a Web connection (type 5)
 
-                return ValueTask.FromResult(0); // Success
+                return 0; // Success
             }
             catch (Exception ex)
             {
@@ -171,7 +171,7 @@ public static class ConnectionTestHelper
     public static async Task CreateMultipleConnectionsAsync(string filePath, params (string name, string type, string connectionString)[] connections)
     {
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        await batch.ExecuteAsync<int>((ctx, ct) =>
+        await batch.Execute<int>((ctx, ct) =>
         {
             try
             {
@@ -188,7 +188,7 @@ public static class ConnectionTestHelper
                     );
                 }
 
-                return ValueTask.FromResult(0); // Success
+                return 0; // Success
             }
             catch (Exception ex)
             {

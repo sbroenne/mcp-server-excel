@@ -47,11 +47,11 @@ public class FileCommandsTests : IDisposable
         try
         {
             await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await batch.ExecuteAsync<bool>((ctx, ct) =>
+            return await batch.Execute<bool>((ctx, ct) =>
             {
                 // If we can access the workbook and get worksheets, it's valid
                 dynamic sheets = ctx.Book.Worksheets;
-                return ValueTask.FromResult(sheets.Count >= 1);
+                return sheets.Count >= 1;
             });
         }
         catch

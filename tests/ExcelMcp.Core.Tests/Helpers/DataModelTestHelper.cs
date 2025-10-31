@@ -20,7 +20,7 @@ public static class DataModelTestHelper
         await Task.Delay(100);
 
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        await batch.ExecuteAsync<int>((ctx, ct) =>
+        await batch.Execute<int>((ctx, ct) =>
         {
             try
             {
@@ -38,7 +38,7 @@ public static class DataModelTestHelper
                 // Create relationships
                 CreateRelationships(ctx.Book);
 
-                return ValueTask.FromResult(0);
+                return 0;
             }
             catch (COMException ex) when (ex.HResult == unchecked((int)0x8001010A))
             {
@@ -46,7 +46,7 @@ public static class DataModelTestHelper
                 // This can happen during parallel test execution
                 // Just create basic worksheets without Data Model for this test
                 System.Diagnostics.Debug.WriteLine($"Excel busy during Data Model creation: {ex.Message}");
-                return ValueTask.FromResult(0);
+                return 0;
             }
         });
         await batch.SaveAsync();
@@ -517,7 +517,7 @@ public static class DataModelTestHelper
     public static async Task CreateTestMeasureAsync(string filePath, string measureName, string formula)
     {
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        await batch.ExecuteAsync<int>((ctx, ct) =>
+        await batch.Execute<int>((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? modelTables = null;
@@ -561,7 +561,7 @@ public static class DataModelTestHelper
                 ComUtilities.Release(ref model);
             }
 
-            return ValueTask.FromResult(0);
+            return 0;
         });
         await batch.SaveAsync();
     }
