@@ -12,10 +12,9 @@ public partial class PivotTableCommands
     /// <summary>
     /// Gets the current data from a PivotTable
     /// </summary>
-    #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<PivotTableDataResult> GetDataAsync(IExcelBatch batch, string pivotTableName)
     {
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? tableRange = null;
@@ -70,11 +69,10 @@ public partial class PivotTableCommands
     /// <summary>
     /// Sets filter for a field
     /// </summary>
-    #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<PivotFieldFilterResult> SetFieldFilterAsync(IExcelBatch batch, string pivotTableName,
         string fieldName, List<string> selectedValues)
     {
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? field = null;
@@ -175,11 +173,10 @@ public partial class PivotTableCommands
     /// <summary>
     /// Sorts a field
     /// </summary>
-    #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<PivotFieldResult> SortFieldAsync(IExcelBatch batch, string pivotTableName,
         string fieldName, SortDirection direction = SortDirection.Ascending)
     {
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? field = null;

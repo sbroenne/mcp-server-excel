@@ -3,7 +3,6 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -145,7 +144,7 @@ public class SetupCommands : ISetupCommands
     {
         var result = new VbaTrustResult { FilePath = batch.WorkbookPath };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? vbProject = null;
             dynamic? vbComponents = null;

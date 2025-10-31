@@ -10,14 +10,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-#pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<OperationResult> ApplyFilterAsync(IExcelBatch batch, string tableName, string columnName, string criteria)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "apply-filter" };
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? autoFilter = null;
@@ -116,14 +115,13 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-#pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<OperationResult> ApplyFilterAsync(IExcelBatch batch, string tableName, string columnName, List<string> filterValues)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "apply-filter-values" };
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? autoFilter = null;
@@ -222,14 +220,13 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-#pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<OperationResult> ClearFiltersAsync(IExcelBatch batch, string tableName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "clear-filters" };
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? autoFilter = null;
@@ -270,14 +267,13 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-#pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<TableFilterResult> GetFiltersAsync(IExcelBatch batch, string tableName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new TableFilterResult { FilePath = batch.WorkbookPath, TableName = tableName };
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? autoFilter = null;
@@ -375,5 +371,4 @@ public partial class TableCommands
             }
         });
     }
-#pragma warning restore CS1998
 }

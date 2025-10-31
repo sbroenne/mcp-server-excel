@@ -2,7 +2,6 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 
@@ -16,7 +15,7 @@ public partial class RangeCommands
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "add-hyperlink" };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -75,7 +74,7 @@ public partial class RangeCommands
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "remove-hyperlink" };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             dynamic? hyperlinks = null;
@@ -133,7 +132,7 @@ public partial class RangeCommands
             SheetName = sheetName
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? hyperlinks = null;
@@ -201,7 +200,7 @@ public partial class RangeCommands
             RangeAddress = cellAddress
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;

@@ -5,7 +5,6 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Security;
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -99,7 +98,7 @@ public class ScriptCommands : IScriptCommands
             return result;
         }
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -224,7 +223,7 @@ public class ScriptCommands : IScriptCommands
             return result;
         }
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -702,7 +701,7 @@ public class ScriptCommands : IScriptCommands
             return CreateVbaTrustGuidance();
         }
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -759,7 +758,7 @@ public class ScriptCommands : IScriptCommands
             return CreateVbaTrustGuidance();
         }
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;

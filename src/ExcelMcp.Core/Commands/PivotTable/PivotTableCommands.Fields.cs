@@ -12,10 +12,9 @@ public partial class PivotTableCommands
     /// <summary>
     /// Lists all fields in a PivotTable
     /// </summary>
-    #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<PivotFieldListResult> ListFieldsAsync(IExcelBatch batch, string pivotTableName)
     {
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? pivotFields = null;
@@ -93,11 +92,10 @@ public partial class PivotTableCommands
     /// <summary>
     /// Adds a field to the Row area
     /// </summary>
-    #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<PivotFieldResult> AddRowFieldAsync(IExcelBatch batch, string pivotTableName,
         string fieldName, int? position = null)
     {
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? field = null;
@@ -173,11 +171,10 @@ public partial class PivotTableCommands
     /// <summary>
     /// Adds a field to the Column area
     /// </summary>
-    #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<PivotFieldResult> AddColumnFieldAsync(IExcelBatch batch, string pivotTableName,
         string fieldName, int? position = null)
     {
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? field = null;
@@ -253,12 +250,11 @@ public partial class PivotTableCommands
     /// <summary>
     /// Adds a field to the Values area with aggregation
     /// </summary>
-    #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<PivotFieldResult> AddValueFieldAsync(IExcelBatch batch, string pivotTableName,
         string fieldName, AggregationFunction function = AggregationFunction.Sum,
         string? customName = null)
     {
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? field = null;
@@ -334,11 +330,10 @@ public partial class PivotTableCommands
     /// <summary>
     /// Adds a field to the Filter area
     /// </summary>
-    #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<PivotFieldResult> AddFilterFieldAsync(IExcelBatch batch, string pivotTableName,
         string fieldName)
     {
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? field = null;
@@ -410,11 +405,10 @@ public partial class PivotTableCommands
     /// <summary>
     /// Removes a field from any area
     /// </summary>
-    #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<PivotFieldResult> RemoveFieldAsync(IExcelBatch batch, string pivotTableName,
         string fieldName)
     {
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? field = null;
@@ -476,11 +470,10 @@ public partial class PivotTableCommands
     /// <summary>
     /// Sets the aggregation function for a value field
     /// </summary>
-    #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<PivotFieldResult> SetFieldFunctionAsync(IExcelBatch batch, string pivotTableName,
         string fieldName, AggregationFunction function)
     {
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? field = null;
@@ -562,11 +555,10 @@ public partial class PivotTableCommands
     /// <summary>
     /// Sets custom name for a field
     /// </summary>
-    #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<PivotFieldResult> SetFieldNameAsync(IExcelBatch batch, string pivotTableName,
         string fieldName, string customName)
     {
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? field = null;
@@ -611,11 +603,10 @@ public partial class PivotTableCommands
     /// <summary>
     /// Sets number format for a value field
     /// </summary>
-    #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<PivotFieldResult> SetFieldFormatAsync(IExcelBatch batch, string pivotTableName,
         string fieldName, string numberFormat)
     {
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? field = null;

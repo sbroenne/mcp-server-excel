@@ -4,7 +4,6 @@ using Sbroenne.ExcelMcp.Core.DataModel;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Security;
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -18,7 +17,7 @@ public partial class DataModelCommands
     {
         var result = new DataModelTableListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             // Check if workbook has Data Model
             if (!DataModelHelpers.HasDataModel(ctx.Book))
@@ -75,7 +74,7 @@ public partial class DataModelCommands
     {
         var result = new DataModelMeasureListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             try
@@ -150,7 +149,7 @@ public partial class DataModelCommands
             MeasureName = measureName
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? measure = null;
@@ -256,7 +255,7 @@ public partial class DataModelCommands
             return result;
         }
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? measure = null;
@@ -346,7 +345,7 @@ public partial class DataModelCommands
     {
         var result = new DataModelRelationshipListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             try
@@ -400,7 +399,7 @@ public partial class DataModelCommands
             TableName = tableName
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? table = null;
@@ -464,7 +463,7 @@ public partial class DataModelCommands
             TableName = tableName
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? table = null;
@@ -546,7 +545,7 @@ public partial class DataModelCommands
     {
         var result = new DataModelInfoResult { FilePath = batch.WorkbookPath };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             try

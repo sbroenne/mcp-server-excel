@@ -10,12 +10,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-#pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<TableListResult> ListAsync(IExcelBatch batch)
     {
         var result = new TableListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? sheets = null;
             try
@@ -134,7 +133,6 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-#pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<OperationResult> CreateAsync(IExcelBatch batch, string sheetName, string tableName, string range, bool hasHeaders = true, string? tableStyle = null)
     {
         // Security: Validate table name
@@ -142,7 +140,7 @@ public partial class TableCommands
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "create" };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? rangeObj = null;
@@ -212,7 +210,6 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-#pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<OperationResult> RenameAsync(IExcelBatch batch, string tableName, string newName)
     {
         // Security: Validate table names
@@ -220,7 +217,7 @@ public partial class TableCommands
         ValidateTableName(newName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "rename" };
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             try
@@ -262,14 +259,13 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-#pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<OperationResult> DeleteAsync(IExcelBatch batch, string tableName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "delete" };
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? tableRange = null;
@@ -322,14 +318,13 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-#pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<TableInfoResult> GetInfoAsync(IExcelBatch batch, string tableName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new TableInfoResult { FilePath = batch.WorkbookPath };
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? sheet = null;
@@ -434,5 +429,4 @@ public partial class TableCommands
             }
         });
     }
-#pragma warning restore CS1998
 }

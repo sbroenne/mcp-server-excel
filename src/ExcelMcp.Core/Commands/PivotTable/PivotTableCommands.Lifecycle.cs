@@ -12,10 +12,9 @@ public partial class PivotTableCommands
     /// <summary>
     /// Lists all PivotTables in workbook
     /// </summary>
-    #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<PivotTableListResult> ListAsync(IExcelBatch batch)
     {
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             var pivotTables = new List<PivotTableInfo>();
             dynamic? sheets = null;
@@ -112,10 +111,9 @@ public partial class PivotTableCommands
     /// <summary>
     /// Gets detailed information about a PivotTable
     /// </summary>
-    #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<PivotTableInfoResult> GetInfoAsync(IExcelBatch batch, string pivotTableName)
     {
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? pivotCache = null;
@@ -211,10 +209,9 @@ public partial class PivotTableCommands
     /// <summary>
     /// Deletes a PivotTable
     /// </summary>
-    #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<OperationResult> DeleteAsync(IExcelBatch batch, string pivotTableName)
     {
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? tableRange = null;
@@ -255,10 +252,9 @@ public partial class PivotTableCommands
     /// <summary>
     /// Refreshes a PivotTable
     /// </summary>
-    #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<PivotTableRefreshResult> RefreshAsync(IExcelBatch batch, string pivotTableName)
     {
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? pivotCache = null;
