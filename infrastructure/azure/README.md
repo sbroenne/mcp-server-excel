@@ -4,21 +4,21 @@ This directory contains Infrastructure as Code (IaC) for automating the deployme
 
 ## Quick Start
 
-**Deploy directly from GitHub UI - fully automated!**
+**Deploy directly from GitHub UI!**
 
 📚 **Setup Guide:** [`GITHUB_ACTIONS_DEPLOYMENT.md`](GITHUB_ACTIONS_DEPLOYMENT.md)
 
 **Quick steps:**
 1. Create Azure App Registration with OIDC (one-time, 10 minutes)
-2. Add Azure credentials to GitHub Secrets  
-3. Go to Actions tab → Deploy Azure Self-Hosted Runner
-4. Enter parameters (Resource Group + Admin Password only - **no manual token needed!**)
-5. RDP to VM and install Excel (30 minutes)
+2. Add Azure credentials to GitHub Secrets
+3. Get GitHub runner registration token (Settings → Actions → Runners → New runner)
+4. Go to Actions tab → Deploy Azure Self-Hosted Runner
+5. Enter parameters (Resource Group + Admin Password + Runner Token)
+6. RDP to VM and install Excel (30 minutes)
 
 **Benefits:**
-- ✅ **Fully automated** - runner token auto-generated via GitHub CLI (secure & reliable)
-- ✅ **No local tooling required** - deploy from browser
-- ✅ **Secure OIDC authentication** - no stored secrets
+- ✅ **Simple** - No complex token management
+- ✅ **Secure OIDC authentication** - no Azure client secrets stored
 - ✅ **Audit trail** in Actions logs
 - ✅ **Repeatable and version-controlled**
 

@@ -1,13 +1,13 @@
 name: Deploy Azure Self-Hosted Runner
 
 # This workflow deploys the Azure Windows VM for Excel integration testing
-# Uses OIDC (OpenID Connect) for secure authentication - no secrets stored!
+# Uses OIDC (OpenID Connect) for secure Azure authentication
+# Requires a manually-generated GitHub runner registration token as input
 # Setup guide: infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md
 
 permissions:
   contents: read
-  id-token: write # Required for OIDC authentication
-  actions: write # Required for generating runner registration token
+  id-token: write # Required for OIDC authentication with Azure
 
 on:
   workflow_dispatch:
@@ -20,6 +20,10 @@ on:
         description: 'VM Admin password (secure input)'
         required: true
         type: string
+      runner_token:
+        description: 'GitHub Runner registration token (from Settings > Actions > Runners > New runner)'
+        required: true
+        type: string
 
 jobs:
   deploy-infrastructure:
@@ -28,32 +32,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
-    - name: Generate GitHub Runner Registration Token
-      id: runner_token
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        # Generate runner registration token using GitHub CLI
-        # gh CLI handles authentication and permissions correctly
-        echo "🔑 Generating runner registration token..."
-        
-        TOKEN=$(gh api \
-          --method POST \
-          -H "Accept: application/vnd.github+json" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          /repos/${{ github.repository }}/actions/runners/registration-token \
-          --jq '.token')
-        
-        if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-          echo "❌ Failed to generate runner registration token"
-          echo "This typically means the GITHUB_TOKEN lacks necessary permissions."
-          echo "Ensure the workflow has 'actions: write' permission."
-          exit 1
-        fi
-        
-        echo "✅ Runner registration token generated successfully"
-        echo "runner_token=$TOKEN" >> $GITHUB_OUTPUT
     
     - name: Azure Login (OIDC)
       uses: azure/login@v1
@@ -78,7 +56,7 @@ jobs:
             location=swedencentral \
             adminPassword='${{ inputs.admin_password }}' \
             githubRepoUrl=https://github.com/${{ github.repository }} \
-            githubRunnerToken='${{ steps.runner_token.outputs.runner_token }}'
+            githubRunnerToken='${{ inputs.runner_token }}'
     
     - name: Get Deployment Outputs
       id: outputs
@@ -106,4 +84,10 @@ jobs:
         echo ""
         echo "🔍 Verify runner status:"
         echo "   https://github.com/${{ github.repository }}/settings/actions/runners"
+        echo ""
+        echo "📝 To get a new runner token for future deployments:"
+        echo "   1. Go to Settings > Actions > Runners"
+        echo "   2. Click 'New self-hosted runner'"
+        echo "   3. Copy the token from the configuration command"
+        echo "   4. Token expires after 1 hour"
 
