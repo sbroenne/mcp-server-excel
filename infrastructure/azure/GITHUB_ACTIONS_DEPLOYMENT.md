@@ -10,7 +10,47 @@ This guide shows how to deploy the Azure VM using GitHub Actions with **OIDC (Op
 
 ## Setup (One-Time)
 
-### Step 1: Create Azure App Registration with Federated Credentials (OIDC)
+### Step 1: Create GitHub Personal Access Token (PAT)
+
+The workflow needs a PAT to generate runner registration tokens. The default `GITHUB_TOKEN` lacks this permission.
+
+**Create a Fine-Grained Personal Access Token:**
+
+1. Go to GitHub: **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained tokens**
+2. Click **Generate new token**
+3. Configure the token:
+   - **Token name**: `excel-runner-deployment`
+   - **Expiration**: 90 days (or longer, you'll need to renew it)
+   - **Repository access**: Select "Only select repositories" → Choose `mcp-server-excel`
+   - **Permissions**:
+     - Repository permissions → **Actions**: Read and write
+     - Repository permissions → **Administration**: Read and write (required for self-hosted runners)
+4. Click **Generate token**
+5. **Copy the token immediately** (you won't see it again)
+
+**Add the token to GitHub Secrets:**
+
+1. Go to your repository: `https://github.com/sbroenne/mcp-server-excel`
+2. Navigate to **Settings** → **Secrets and variables** → **Actions**
+3. Click **New repository secret**
+   - Name: `RUNNER_ADMIN_PAT`
+   - Secret: Paste the PAT you just created
+4. Click **Add secret**
+
+**Alternative - Classic Token (simpler but less secure):**
+
+If you prefer a classic token:
+1. Go to **Settings** → **Developer settings** → **Personal access tokens** → **Tokens (classic)**
+2. Generate new token with `repo` scope (includes all repository permissions)
+3. Add as `RUNNER_ADMIN_PAT` secret
+
+⚠️ **Security Note**: This PAT grants significant permissions. Treat it like a password:
+- Never commit it to code
+- Rotate it every 90 days
+- Revoke it if compromised
+- Only grant to repositories you control
+
+### Step 2: Create Azure App Registration with Federated Credentials (OIDC)
 
 **Using Azure CLI:**
 
@@ -81,7 +121,7 @@ echo "AZURE_SUBSCRIPTION_ID: $SUBSCRIPTION_ID"
    - Select: `github-excel-runner-oidc`
    - Click **Review + assign**
 
-### Step 2: Add Azure Information to GitHub Secrets
+### Step 3: Add Azure Information to GitHub Secrets
 
 1. Go to your repository: `https://github.com/sbroenne/mcp-server-excel`
 2. Navigate to **Settings** → **Secrets and variables** → **Actions**
@@ -89,11 +129,14 @@ echo "AZURE_SUBSCRIPTION_ID: $SUBSCRIPTION_ID"
 
 | Secret Name | Value | Where to Find |
 |-------------|-------|---------------|
-| `AZURE_CLIENT_ID` | Application (client) ID | From Step 1 or App Registration overview |
-| `AZURE_TENANT_ID` | Directory (tenant) ID | From Step 1 or Azure AD overview |
-| `AZURE_SUBSCRIPTION_ID` | Subscription ID | From Step 1 or Subscriptions page |
+| `RUNNER_ADMIN_PAT` | Personal Access Token | From Step 1 - the PAT you created |
+| `AZURE_CLIENT_ID` | Application (client) ID | From Step 2 or App Registration overview |
+| `AZURE_TENANT_ID` | Directory (tenant) ID | From Step 2 or Azure AD overview |
+| `AZURE_SUBSCRIPTION_ID` | Subscription ID | From Step 2 or Subscriptions page |
 
-**No client secret needed!** OIDC uses federated credentials instead.
+**Important**: The `RUNNER_ADMIN_PAT` must be created **before** running the deployment workflow.
+
+**No Azure client secret needed!** OIDC uses federated credentials instead.
 
 ## Deployment
 
@@ -138,20 +181,51 @@ Should show:
 ## Why This Approach?
 
 **Security benefits:**
-- ✅ **No secrets stored** - Uses OIDC for Azure, GitHub API for runner tokens
-- ✅ **No credential rotation** - Federated credentials don't expire
-- ✅ **Automatic token generation** - No manual token handling
+- ✅ **Minimal secrets stored** - Uses OIDC for Azure (no client secret), PAT only for runner registration
+- ✅ **No Azure credential rotation** - Federated credentials don't expire (PAT needs 90-day renewal)
+- ✅ **Automatic runner token generation** - No manual token handling during deployment
 - ✅ **Azure-managed** - Azure AD handles authentication
-- ✅ **Audit trail** - Every deployment logged in Azure AD
+- ✅ **Audit trail** - Every deployment logged in Azure AD and GitHub Actions
 - ✅ **Principle of least privilege** - Scoped to specific repository/branch
 
 **vs. Manual Token Generation:**
-- ❌ Manual token generation required
-- ❌ Tokens expire after 1 hour
+- ❌ Manual runner token generation required each time
+- ❌ Runner tokens expire after 1 hour
 - ❌ Error-prone copy/paste process
 - ❌ Cannot be used by coding agents
 
+**Note**: While we do require a PAT for runner registration, this is a one-time setup that GitHub renews automatically during workflow execution. The PAT is more secure than storing runner tokens and allows for automated, repeatable deployments.
+
 ## Troubleshooting
+
+### "RUNNER_ADMIN_PAT secret is not set" error
+
+**Cause:** The required Personal Access Token is missing or not configured.
+
+**Solution:**
+1. Follow Step 1 in this guide to create a PAT
+2. Add it as a repository secret named `RUNNER_ADMIN_PAT`
+3. Re-run the workflow
+
+### "Failed to generate runner registration token" error
+
+**Causes:**
+1. PAT expired or is invalid
+2. PAT lacks required permissions
+3. You don't have admin access to the repository
+
+**Solution:**
+1. Check the PAT expiration date in GitHub Settings → Developer settings → Personal access tokens
+2. Verify PAT has these permissions:
+   - **Fine-grained**: Actions (Read and write) + Administration (Read and write)
+   - **Classic**: `repo` scope
+3. Ensure you're a repository admin
+4. If PAT expired, create a new one and update the `RUNNER_ADMIN_PAT` secret
+5. Re-run the workflow
+
+**Check workflow logs:**
+- Go to Actions tab → Failed workflow run
+- Look at "Generate GitHub Runner Registration Token" step for specific error details
 
 ### "Deployment failed" error
 
@@ -163,18 +237,6 @@ Should show:
 **View detailed error:**
 - Check workflow logs in Actions tab
 - Look for error messages in "Deploy Bicep Template" step
-
-### "Runner registration failed" error
-
-**Causes:**
-1. Workflow lacks `actions: write` permission
-2. GitHub CLI authentication issue
-
-**Solution:**
-- Check workflow logs for "Generate GitHub Runner Registration Token" step
-- Verify the workflow has `actions: write` permission set in the workflow file
-- Re-run the workflow (token is auto-generated on each run using GitHub CLI)
-- The workflow uses `gh` CLI which handles authentication properly (fixed in recent update)
 
 ### Azure Login failed
 
@@ -200,11 +262,26 @@ Or use Azure Portal → Resource Groups → Delete
 
 ## Security Best Practices
 
-1. **Use OIDC** instead of service principal credentials (more secure)
-2. **Automatic token generation** eliminates manual token handling risks
-3. **Limit service principal** to specific resource group
-4. **Enable Azure Security Center** for VM monitoring
-5. **Review permissions** regularly
+1. **Use OIDC for Azure** instead of service principal credentials (more secure)
+2. **PAT Token Management**:
+   - Rotate PAT tokens every 90 days
+   - Use fine-grained tokens with minimum required permissions
+   - Never commit PAT tokens to code
+   - Revoke immediately if compromised
+   - Monitor token usage in GitHub Settings → Developer settings
+3. **Automatic runner token generation** eliminates manual token handling risks
+4. **Limit service principal** to specific resource group
+5. **Enable Azure Security Center** for VM monitoring
+6. **Review permissions** regularly
+
+### PAT Token Rotation Schedule
+
+| Action | Frequency | Steps |
+|--------|-----------|-------|
+| Create new PAT | Every 90 days | Follow Step 1 in Setup section |
+| Update secret | When PAT expires | Update `RUNNER_ADMIN_PAT` in GitHub Secrets |
+| Revoke old PAT | After updating secret | GitHub Settings → Developer settings → Revoke token |
+| Test deployment | After rotation | Run deployment workflow to verify |
 
 ## Support
 

@@ -6,8 +6,7 @@ name: Deploy Azure Self-Hosted Runner
 
 permissions:
   contents: read
-  id-token: write # Required for OIDC authentication
-  actions: write # Required for generating runner registration token
+  id-token: write # Required for OIDC authentication with Azure
 
 on:
   workflow_dispatch:
@@ -32,11 +31,26 @@ jobs:
     - name: Generate GitHub Runner Registration Token
       id: runner_token
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.RUNNER_ADMIN_PAT }}
       run: |
-        # Generate runner registration token using GitHub CLI
-        # gh CLI handles authentication and permissions correctly
+        # Generate runner registration token using GitHub CLI with PAT
+        # Note: GITHUB_TOKEN doesn't have permission to create runner tokens
+        # Requires a PAT with 'Self-hosted runners: Write' permission
         echo "🔑 Generating runner registration token..."
+        
+        if [ -z "$GH_TOKEN" ]; then
+          echo "❌ RUNNER_ADMIN_PAT secret is not set"
+          echo ""
+          echo "Please create a Personal Access Token (PAT) with the following permissions:"
+          echo "  - Fine-grained token: 'Self-hosted runners: Read and write'"
+          echo "  - Or classic token: 'repo' scope"
+          echo ""
+          echo "Then add it as a repository secret named 'RUNNER_ADMIN_PAT'"
+          echo "See: Settings → Secrets and variables → Actions → New repository secret"
+          echo ""
+          echo "Documentation: infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md"
+          exit 1
+        fi
         
         TOKEN=$(gh api \
           --method POST \
@@ -47,8 +61,18 @@ jobs:
         
         if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
           echo "❌ Failed to generate runner registration token"
-          echo "This typically means the GITHUB_TOKEN lacks necessary permissions."
-          echo "Ensure the workflow has 'actions: write' permission."
+          echo ""
+          echo "This typically means:"
+          echo "  1. The PAT token expired or is invalid"
+          echo "  2. The PAT lacks 'Self-hosted runners: Write' permission"
+          echo "  3. You don't have admin access to the repository"
+          echo ""
+          echo "Please verify:"
+          echo "  - PAT is valid and not expired"
+          echo "  - PAT has 'Self-hosted runners: Read and write' permission"
+          echo "  - You are a repository admin"
+          echo ""
+          echo "Documentation: infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md"
           exit 1
         fi
         
