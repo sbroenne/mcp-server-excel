@@ -6,7 +6,8 @@ This directory contains Infrastructure as Code (IaC) for automating the deployme
 
 **Deploy directly from GitHub UI!**
 
-📚 **Setup Guide:** [`GITHUB_ACTIONS_DEPLOYMENT.md`](GITHUB_ACTIONS_DEPLOYMENT.md)
+📚 **Setup Guide:** [`GITHUB_ACTIONS_DEPLOYMENT.md`](GITHUB_ACTIONS_DEPLOYMENT.md)  
+🔧 **Manual Installation:** [`docs/MANUAL_RUNNER_INSTALLATION.md`](../../docs/MANUAL_RUNNER_INSTALLATION.md)
 
 **Quick steps:**
 1. Create Azure App Registration with OIDC (one-time, 10 minutes)
@@ -16,11 +17,14 @@ This directory contains Infrastructure as Code (IaC) for automating the deployme
 5. Enter parameters (Resource Group + Admin Password + Runner Token)
 6. RDP to VM and install Excel (30 minutes)
 
+**If deployment fails:** Use the manual installation guide to configure the runner on an existing VM.
+
 **Benefits:**
 - ✅ **Simple** - No complex token management
 - ✅ **Secure OIDC authentication** - no Azure client secrets stored
 - ✅ **Audit trail** in Actions logs
 - ✅ **Repeatable and version-controlled**
+- ✅ **Improved error handling** - External script with detailed logging
 
 ---
 

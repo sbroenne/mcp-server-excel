@@ -170,7 +170,7 @@ resource vm 'Microsoft.Compute/virtualMachines@2023-07-01' = {
   }
 }
 
-// VM Extension - Install .NET SDK and GitHub runner
+// VM Extension - Install .NET SDK and GitHub runner using external script
 resource vmExtension 'Microsoft.Compute/virtualMachines/extensions@2023-07-01' = {
   parent: vm
   name: 'SetupGitHubRunner'
@@ -180,8 +180,13 @@ resource vmExtension 'Microsoft.Compute/virtualMachines/extensions@2023-07-01' =
     type: 'CustomScriptExtension'
     typeHandlerVersion: '1.10'
     autoUpgradeMinorVersion: true
+    settings: {
+      fileUris: [
+        'https://raw.githubusercontent.com/sbroenne/mcp-server-excel/main/infrastructure/azure/setup-runner.ps1'
+      ]
+    }
     protectedSettings: {
-      commandToExecute: 'powershell -ExecutionPolicy Unrestricted -Command "Invoke-WebRequest -Uri https://aka.ms/dotnet/8.0/dotnet-sdk-win-x64.exe -OutFile C:\\dotnet-sdk.exe; Start-Process C:\\dotnet-sdk.exe -ArgumentList \'/quiet\' -Wait; New-Item -Path C:\\actions-runner -ItemType Directory -Force; Set-Location C:\\actions-runner; Invoke-WebRequest -Uri https://github.com/actions/runner/releases/download/v2.321.0/actions-runner-win-x64-2.321.0.zip -OutFile actions-runner.zip; Expand-Archive actions-runner.zip -Force; .\\config.cmd --url ${githubRepoUrl} --token ${githubRunnerToken} --name azure-excel-runner --labels self-hosted,windows,excel --runnergroup Default --work _work --unattended; .\\svc.cmd install; .\\svc.cmd start"'
+      commandToExecute: 'powershell -ExecutionPolicy Unrestricted -File setup-runner.ps1 -GithubRepoUrl "${githubRepoUrl}" -GithubRunnerToken "${githubRunnerToken}"'
     }
   }
 }
