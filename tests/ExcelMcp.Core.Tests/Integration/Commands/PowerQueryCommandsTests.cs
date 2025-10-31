@@ -528,7 +528,7 @@ in
             batch,
             "SourceQuery",
             sourceQueryFile,
-            loadToWorksheet: true);
+            loadDestination: "worksheet");
 
         Assert.True(sourceImportResult.Success,
             $"Source query import failed: {sourceImportResult.ErrorMessage}");
@@ -538,7 +538,7 @@ in
             batch,
             "DerivedQuery",
             derivedQueryFile,
-            loadToWorksheet: true);
+            loadDestination: "worksheet");
 
         Assert.True(derivedImportResult.Success,
             $"Derived query import failed: {derivedImportResult.ErrorMessage}");

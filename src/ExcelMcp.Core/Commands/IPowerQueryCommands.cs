@@ -37,9 +37,9 @@ public interface IPowerQueryCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name for the new query</param>
     /// <param name="mCodeFile">Path to M code file</param>
-    /// <param name="loadToWorksheet">Automatically load query data to a worksheet (default: true). When true, validates query by executing it.</param>
-    /// <param name="worksheetName">Optional worksheet name to load data to. If not specified, uses query name</param>
-    Task<OperationResult> ImportAsync(IExcelBatch batch, string queryName, string mCodeFile, bool loadToWorksheet = true, string? worksheetName = null);
+    /// <param name="loadDestination">Where to load query data: "worksheet" (default), "data-model", "both", or "connection-only"</param>
+    /// <param name="worksheetName">Optional worksheet name when loadDestination is "worksheet" or "both". If not specified, uses query name</param>
+    Task<OperationResult> ImportAsync(IExcelBatch batch, string queryName, string mCodeFile, string loadDestination = "worksheet", string? worksheetName = null);
 
     /// <summary>
     /// Refreshes a Power Query to update its data with error detection

@@ -37,4 +37,9 @@ public interface IParameterCommands
     /// Deletes a named range
     /// </summary>
     Task<OperationResult> DeleteAsync(IExcelBatch batch, string paramName);
+
+    /// <summary>
+    /// Creates multiple named ranges with optional initial values in a single operation
+    /// </summary>
+    Task<OperationResult> CreateBulkAsync(IExcelBatch batch, IEnumerable<ParameterDefinition> parameters);
 }
