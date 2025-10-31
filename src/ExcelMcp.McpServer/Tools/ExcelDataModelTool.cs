@@ -16,7 +16,6 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Use "list-tables" to see all tables in the Data Model
 /// - Use "list-measures" to view all DAX measures
 /// - Use "list-relationships" to see table relationships
-/// - Use "list-columns" to view columns in a table
 /// - Use "view-table" to see detailed table information
 /// - Use "view-measure" to inspect DAX formula for a specific measure
 /// - Use "get-model-info" to get Data Model overview
@@ -32,15 +31,29 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Use "update-relationship" to modify relationship active status
 /// - Use "delete-relationship" to remove a relationship
 ///
-/// CALCULATED COLUMNS:
-/// - Use "create-column" to add DAX-based calculated columns
-/// - Use "view-column" to see calculated column details
-/// - Use "update-column" to modify calculated columns
-/// - Use "delete-column" to remove calculated columns
-/// - Use "validate-dax" to check DAX syntax before creation
-///
 /// DATA REFRESH:
 /// - Use "refresh" to update Data Model data from source connections
+///
+/// CALCULATED COLUMNS (MANUAL ONLY):
+/// - Calculated columns CANNOT be created via automation
+/// - When user asks to create calculated columns, provide these EXACT instructions:
+///
+///   "To create a calculated column in Excel's Data Model:
+///
+///   1. Click on the Data Model table tab at the bottom of the Excel window
+///   2. OR: Go to Power Pivot tab → Manage Data Model
+///   3. In Power Pivot window, select the table (e.g., 'Sales')
+///   4. Click in the 'Add Column' column header
+///   5. Type your DAX formula (e.g., '=[Revenue] - [Cost]')
+///   6. Press Enter
+///   7. Right-click the column header → Rename Column
+///   8. Set the column name (e.g., 'Profit')
+///   9. Close Power Pivot window to save changes
+///
+///   The calculated column will now be available in PivotTables and DAX measures."
+///
+/// - Alternative approach: Guide user to create DAX measures instead (measures are automated)
+/// - Measures are usually preferred over calculated columns for aggregations
 /// </summary>
 [McpServerToolType]
 public static class ExcelDataModelTool
@@ -58,16 +71,20 @@ public static class ExcelDataModelTool
 
 KEYWORDS: Power Pivot, PowerPivot, Data Model, DAX, measures, relationships, calculated columns.
 
+⚠️ CALCULATED COLUMNS: NOT supported via automation. When user asks to create calculated columns:
+  - Provide step-by-step manual instructions (see LLM Usage Patterns in code comments)
+  - OR suggest using DAX measures instead (measures ARE automated and usually better for aggregations)
+
 TYPICAL WORKFLOW:
 1. Load data: excel_powerquery(action: 'set-load-to-data-model') ← loads to Power Pivot
 2. Create relationships: excel_datamodel(action: 'create-relationship')
 3. Create DAX measures: excel_datamodel(action: 'create-measure')
 
-Actions: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, list-columns, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship, create-column, view-column, update-column, delete-column, validate-dax.")]
+Actions: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship.")]
     public static async Task<string> ExcelDataModel(
         [Required]
-        [RegularExpression("^(list-tables|list-measures|view-measure|export-measure|list-relationships|refresh|delete-measure|delete-relationship|list-columns|view-table|get-model-info|create-measure|update-measure|create-relationship|update-relationship|create-column|view-column|update-column|delete-column|validate-dax)$")]
-        [Description("Action: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, list-columns, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship, create-column, view-column, update-column, delete-column, validate-dax")]
+        [RegularExpression("^(list-tables|list-measures|view-measure|export-measure|list-relationships|refresh|delete-measure|delete-relationship|view-table|get-model-info|create-measure|update-measure|create-relationship|update-relationship)$")]
+        [Description("Action: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship")]
         string action,
 
         [Required]
@@ -84,15 +101,15 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
         string? outputPath = null,
 
         [StringLength(255, MinimumLength = 1)]
-        [Description("Table name (for create-measure, create-column, list-columns, view-column, update-column, delete-column)")]
+        [Description("Table name (for create-measure, view-table)")]
         string? tableName = null,
 
         [StringLength(8000, MinimumLength = 1)]
-        [Description("DAX formula (for create-measure, update-measure, create-column, update-column, validate-dax)")]
+        [Description("DAX formula (for create-measure, update-measure)")]
         string? daxFormula = null,
 
         [StringLength(1000)]
-        [Description("Description (for create-measure, update-measure, create-column, update-column)")]
+        [Description("Description (for create-measure, update-measure)")]
         string? description = null,
 
         [StringLength(255)]
@@ -122,21 +139,12 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
         [Description("Cross-filter direction (for create-relationship, update-relationship): Single (default), Both")]
         string? crossFilterDirection = null,
 
-        [StringLength(255, MinimumLength = 1)]
-        [Description("Column name (for create-column, view-column, update-column, delete-column)")]
-        string? columnName = null,
-
-        [RegularExpression("^(String|Integer|Double|Boolean|DateTime)$")]
-        [Description("Data type (for create-column, update-column): String, Integer, Double, Boolean, DateTime")]
-        string? dataType = null,
-
         [Description("Optional batch ID for grouping operations")]
         string? batchId = null)
     {
         try
         {
             var dataModelCommands = new DataModelCommands();
-            var tomCommands = new DataModelTomCommands();
 
             return action.ToLowerInvariant() switch
             {
@@ -149,7 +157,6 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
                 "refresh" => await RefreshAsync(dataModelCommands, excelPath, batchId),
                 "delete-measure" => await DeleteMeasureAsync(dataModelCommands, excelPath, measureName, batchId),
                 "delete-relationship" => await DeleteRelationshipAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, batchId),
-                "list-columns" => await ListTableColumnsAsync(dataModelCommands, excelPath, tableName, batchId),
                 "view-table" => await ViewTableAsync(dataModelCommands, excelPath, tableName, batchId),
                 "get-model-info" => await GetModelInfoAsync(dataModelCommands, excelPath, batchId),
 
@@ -161,15 +168,8 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
                 "create-relationship" => await CreateRelationshipComAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, batchId),
                 "update-relationship" => await UpdateRelationshipComAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, batchId),
 
-                // Calculated columns
-                "create-column" => await CreateCalculatedColumnAsync(tomCommands, excelPath, tableName, columnName, daxFormula, description, dataType, batchId),
-                "view-column" => await ViewCalculatedColumnAsync(tomCommands, excelPath, tableName, columnName, batchId),
-                "update-column" => await UpdateCalculatedColumnAsync(tomCommands, excelPath, tableName, columnName, daxFormula, description, dataType, batchId),
-                "delete-column" => await DeleteCalculatedColumnAsync(tomCommands, excelPath, tableName, columnName, batchId),
-                "validate-dax" => await ValidateDaxAsync(tomCommands, excelPath, daxFormula, batchId),
-
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, list-columns, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship, create-column, view-column, update-column, delete-column, validate-dax")
+                    $"Unknown action '{action}'. Supported: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -846,226 +846,6 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             ];
         }
         result.WorkflowHint = "Relationship updated. Changes will affect measures using this relationship.";
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-    private static async Task<string> CreateCalculatedColumnAsync(
-        DataModelTomCommands commands,
-        string filePath,
-        string? tableName,
-        string? columnName,
-        string? daxFormula,
-        string? description,
-        string? dataType,
-        string? batchId)
-    {
-        if (string.IsNullOrWhiteSpace(tableName))
-        {
-            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for create-column action");
-        }
-
-        if (string.IsNullOrWhiteSpace(columnName))
-        {
-            throw new ModelContextProtocol.McpException("Parameter 'columnName' is required for create-column action");
-        }
-
-        if (string.IsNullOrWhiteSpace(daxFormula))
-        {
-            throw new ModelContextProtocol.McpException("Parameter 'daxFormula' is required for create-column action");
-        }
-
-        // TOM API doesn't use Excel COM batching - it uses its own Analysis Services connection
-        var result = await Task.Run(() => commands.CreateCalculatedColumn(
-            filePath,
-            tableName,
-            columnName,
-            daxFormula,
-            description,
-            dataType ?? "String"
-        ));
-
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
-            {
-                result.SuggestedNextActions =
-                [
-                    "Verify table name is correct",
-                    "Check DAX formula syntax",
-                    "Ensure data type is valid (String, Integer, Double, Boolean, DateTime)"
-                ];
-            }
-            throw new ModelContextProtocol.McpException($"create-column failed for '{filePath}': {result.ErrorMessage}");
-        }
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> ValidateDaxAsync(
-        DataModelTomCommands commands,
-        string filePath,
-        string? daxFormula,
-        string? batchId)
-    {
-        if (string.IsNullOrWhiteSpace(daxFormula))
-        {
-            throw new ModelContextProtocol.McpException("Parameter 'daxFormula' is required for validate-dax action");
-        }
-
-        // TOM API doesn't use Excel COM batching - it uses its own Analysis Services connection
-        var result = await Task.Run(() => commands.ValidateDax(filePath, daxFormula));
-
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"validate-dax failed for '{filePath}': {result.ErrorMessage}");
-        }
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> ListCalculatedColumnsAsync(
-        DataModelTomCommands commands,
-        string filePath,
-        string? tableName,
-        string? batchId)
-    {
-        // TOM API doesn't use Excel COM batching - it uses its own Analysis Services connection
-        var result = await Task.Run(() => commands.ListCalculatedColumns(filePath, tableName));
-
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
-            {
-                result.SuggestedNextActions =
-                [
-                    "Verify file has Data Model enabled",
-                    "Use 'list-tables' to see available tables",
-                    "Ensure TOM API connection is available"
-                ];
-            }
-            throw new ModelContextProtocol.McpException($"list-columns failed for '{filePath}': {result.ErrorMessage}");
-        }
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> ViewCalculatedColumnAsync(
-        DataModelTomCommands commands,
-        string filePath,
-        string? tableName,
-        string? columnName,
-        string? batchId)
-    {
-        if (string.IsNullOrWhiteSpace(tableName))
-        {
-            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for view-column action");
-        }
-
-        if (string.IsNullOrWhiteSpace(columnName))
-        {
-            throw new ModelContextProtocol.McpException("Parameter 'columnName' is required for view-column action");
-        }
-
-        // TOM API doesn't use Excel COM batching - it uses its own Analysis Services connection
-        var result = await Task.Run(() => commands.ViewCalculatedColumn(filePath, tableName, columnName));
-
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
-            {
-                result.SuggestedNextActions =
-                [
-                    $"Use 'list-columns' to see columns in table '{tableName}'",
-                    "Check column name spelling",
-                    "Verify table exists in Data Model"
-                ];
-            }
-            throw new ModelContextProtocol.McpException($"view-column failed for '{filePath}': {result.ErrorMessage}");
-        }
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> UpdateCalculatedColumnAsync(
-        DataModelTomCommands commands,
-        string filePath,
-        string? tableName,
-        string? columnName,
-        string? daxFormula,
-        string? description,
-        string? dataType,
-        string? batchId)
-    {
-        if (string.IsNullOrWhiteSpace(tableName))
-        {
-            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for update-column action");
-        }
-
-        if (string.IsNullOrWhiteSpace(columnName))
-        {
-            throw new ModelContextProtocol.McpException("Parameter 'columnName' is required for update-column action");
-        }
-
-        // TOM API doesn't use Excel COM batching - it uses its own Analysis Services connection
-        var result = await Task.Run(() => commands.UpdateCalculatedColumn(
-            filePath,
-            tableName,
-            columnName,
-            daxFormula,
-            description,
-            dataType
-        ));
-
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
-            {
-                result.SuggestedNextActions =
-                [
-                    $"Use 'list-columns' to see columns in table '{tableName}'",
-                    "Verify column exists",
-                    "Check DAX formula syntax if updating formula"
-                ];
-            }
-            throw new ModelContextProtocol.McpException($"update-column failed for '{filePath}': {result.ErrorMessage}");
-        }
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> DeleteCalculatedColumnAsync(
-        DataModelTomCommands commands,
-        string filePath,
-        string? tableName,
-        string? columnName,
-        string? batchId)
-    {
-        if (string.IsNullOrWhiteSpace(tableName))
-        {
-            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for delete-column action");
-        }
-
-        if (string.IsNullOrWhiteSpace(columnName))
-        {
-            throw new ModelContextProtocol.McpException("Parameter 'columnName' is required for delete-column action");
-        }
-
-        // TOM API doesn't use Excel COM batching - it uses its own Analysis Services connection
-        var result = await Task.Run(() => commands.DeleteCalculatedColumn(filePath, tableName, columnName));
-
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
-            {
-                result.SuggestedNextActions =
-                [
-                    $"Use 'list-columns' to see columns in table '{tableName}'",
-                    "Verify column exists",
-                    "Check that column is not referenced by other objects"
-                ];
-            }
-            throw new ModelContextProtocol.McpException($"delete-column failed for '{filePath}': {result.ErrorMessage}");
-        }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }

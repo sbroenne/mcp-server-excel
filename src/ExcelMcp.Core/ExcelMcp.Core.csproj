@@ -28,9 +28,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- TOM (Tabular Object Model) for Data Model operations -->
-    <!-- Updated from deprecated Microsoft.AnalysisServices.NetCore.retail.amd64 to Microsoft.AnalysisServices -->
-    <PackageReference Include="Microsoft.AnalysisServices" />
     <PackageReference Include="Microsoft.Extensions.ObjectPool" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers">
       <PrivateAssets>all</PrivateAssets>
