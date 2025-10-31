@@ -32,6 +32,46 @@ ExcelMcp requires Microsoft Excel for integration testing. GitHub-hosted runners
 └─────────────────────────────────────────────────────────┘
 ```
 
+## Quick Start
+
+> **✨ NEW: Automated Deployment** - Use Infrastructure as Code for 5-minute setup!
+
+### Option A: Automated Deployment (Recommended) ⭐
+
+**Fastest way to deploy - only manual step is installing Excel!**
+
+```bash
+cd infrastructure/azure
+
+# Generate GitHub runner token first:
+# https://github.com/sbroenne/mcp-server-excel/settings/actions/runners/new
+
+./deploy.sh \
+  rg-excel-runner \
+  "YourSecurePassword123!" \
+  "YOUR_GITHUB_RUNNER_TOKEN"
+
+# Wait 5 minutes, then RDP to install Excel (30 minutes)
+```
+
+📚 **Full automation guide:** [`infrastructure/azure/README.md`](../../infrastructure/azure/README.md)
+
+**What gets automated:**
+- ✅ VM provisioning (Standard_B2s in East US - cheapest)
+- ✅ .NET 8 SDK installation
+- ✅ GitHub Actions runner installation & configuration
+- ✅ Auto-shutdown schedule (7 PM UTC)
+- ✅ Network security configuration
+- ⏭️ **Manual:** Office 365 Excel installation (you must do this via RDP)
+
+**Cost:** ~$30/month with auto-shutdown
+
+---
+
+### Option B: Manual Setup (Step-by-Step)
+
+If you prefer manual control or want to customize beyond the automated template:
+
 ## Prerequisites
 
 - **Azure Subscription** with permissions to create VMs
@@ -41,21 +81,26 @@ ExcelMcp requires Microsoft Excel for integration testing. GitHub-hosted runners
 
 ## Cost Estimate
 
-**Monthly costs (East US region, pay-as-you-go):**
+**Monthly costs (East US region - cheapest):**
 
 | Resource | Specification | Monthly Cost (USD) |
 |----------|---------------|-------------------|
-| VM (Standard_D2s_v3) | 2 vCPUs, 8 GB RAM | ~$70 |
-| Storage (Premium SSD) | 128 GB P10 | ~$20 |
-| Network Egress | ~10 GB/month | ~$1 |
-| **Total** | | **~$91/month** |
+| VM (Standard_B2s) | 2 vCPUs, 4 GB RAM | ~$25 |
+| Storage (Premium SSD) | 128 GB | ~$5 |
+| Network Egress | ~10 GB/month | <$1 |
+| **Total (with auto-shutdown)** | | **~$30/month** |
+
+**Other VM Options:**
+- Standard_B2ms (2 vCPUs, 8 GB): ~$60/month
+- Standard_D2s_v3 (2 vCPUs, 8 GB): ~$70/month
 
 **Cost Optimization:**
-- Stop VM when not in use: `~$20/month` (storage only)
-- Use B-series burstable VMs: `~$30/month` (2 vCPUs, 4 GB RAM)
-- Auto-shutdown schedules: Configure in Azure Portal
+- ✅ **Automated deployment uses B2s** (cheapest suitable VM)
+- ✅ **East US region** (cheapest region)
+- ✅ **Auto-shutdown at 7 PM** (saves ~50%)
+- Stop VM completely: ~$5/month (storage only)
 
-> 💡 **Tip:** Start VM only for scheduled test runs using Azure Automation or Logic Apps
+> 💡 **Recommended:** Use automated deployment with B2s + auto-shutdown = $30/month
 
 ## Step 1: Create Azure Windows VM
 

@@ -8,19 +8,31 @@ permissions:
   contents: read
 
 on:
-  # Run on schedule (nightly at 2 AM UTC)
+  # Run on changes to Core/ComInterop code
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'src/ExcelMcp.Core/**'
+      - 'src/ExcelMcp.ComInterop/**'
+      - 'tests/ExcelMcp.Core.Tests/**'
+      - 'tests/ExcelMcp.ComInterop.Tests/**'
+  
+  # Run on PRs to main
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/ExcelMcp.Core/**'
+      - 'src/ExcelMcp.ComInterop/**'
+      - 'src/ExcelMcp.CLI/**'
+      - 'src/ExcelMcp.McpServer/**'
+      - 'tests/**'
+  
+  # Run on schedule (nightly at 2 AM UTC as backup)
   schedule:
     - cron: '0 2 * * *'
   
   # Allow manual trigger from Actions tab
   workflow_dispatch:
-  
-  # Optional: Run on PR to main (uncomment to block merges on integration test failures)
-  # pull_request:
-  #   branches: [ main ]
-  #   paths:
-  #     - 'src/**'
-  #     - 'tests/**'
 
 jobs:
   integration-tests:
@@ -69,6 +81,9 @@ jobs:
     
     - name: Run Integration Tests (ComInterop)
       run: dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=cominterop-integration-test-results.trx" --verbosity normal
+    
+    - name: Run OnDemand Tests (Pool Cleanup - Critical)
+      run: dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --no-build --configuration Release --filter "RunType=OnDemand" --logger "trx;LogFileName=ondemand-test-results.trx" --verbosity normal
     
     - name: Upload Test Results
       if: always()
