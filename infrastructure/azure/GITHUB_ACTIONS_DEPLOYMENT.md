@@ -1,16 +1,16 @@
 # GitHub Actions Automated Deployment Setup
 
-This guide shows how to deploy the Azure VM using GitHub Actions instead of running scripts locally.
+This guide shows how to deploy the Azure VM using GitHub Actions with **OIDC (OpenID Connect)** - the secure, modern approach with no secrets stored.
 
 ## Prerequisites
 
-- Azure subscription with permissions to create service principals
+- Azure subscription with permissions to create app registrations
 - GitHub repository admin access
 - Office 365 license for Excel
 
 ## Setup (One-Time)
 
-### Step 1: Create Azure Service Principal
+### Step 1: Create Azure App Registration with Federated Credentials (OIDC)
 
 **Using Azure CLI:**
 
@@ -21,34 +21,79 @@ az login
 # Get your subscription ID
 SUBSCRIPTION_ID=$(az account show --query id --output tsv)
 
-# Create service principal with Contributor role
-az ad sp create-for-rbac \
-  --name "github-excel-runner-deployer" \
+# Create app registration
+APP_ID=$(az ad app create \
+  --display-name "github-excel-runner-oidc" \
+  --query appId \
+  --output tsv)
+
+echo "App ID: $APP_ID"
+
+# Create service principal
+az ad sp create --id $APP_ID
+
+# Add federated credential for GitHub Actions
+az ad app federated-credential create \
+  --id $APP_ID \
+  --parameters "{
+    \"name\": \"github-excel-runner\",
+    \"issuer\": \"https://token.actions.githubusercontent.com\",
+    \"subject\": \"repo:sbroenne/mcp-server-excel:ref:refs/heads/main\",
+    \"audiences\": [\"api://AzureADTokenExchange\"]
+  }"
+
+# Assign Contributor role to subscription
+az role assignment create \
+  --assignee $APP_ID \
   --role Contributor \
-  --scopes /subscriptions/$SUBSCRIPTION_ID \
-  --sdk-auth
+  --scope /subscriptions/$SUBSCRIPTION_ID
+
+# Get tenant ID
+TENANT_ID=$(az account show --query tenantId --output tsv)
+
+echo ""
+echo "✅ Setup complete! Add these to GitHub Secrets:"
+echo "AZURE_CLIENT_ID: $APP_ID"
+echo "AZURE_TENANT_ID: $TENANT_ID"
+echo "AZURE_SUBSCRIPTION_ID: $SUBSCRIPTION_ID"
 ```
 
-**Output (save this JSON):**
-```json
-{
-  "clientId": "xxx",
-  "clientSecret": "xxx",
-  "subscriptionId": "xxx",
-  "tenantId": "xxx",
-  ...
-}
-```
+**Using Azure Portal:**
 
-### Step 2: Add Azure Credentials to GitHub Secrets
+1. Go to **Azure Active Directory** → **App registrations**
+2. Click **New registration**
+   - Name: `github-excel-runner-oidc`
+   - Click **Register**
+3. Note the **Application (client) ID** and **Directory (tenant) ID**
+4. Go to **Certificates & secrets** → **Federated credentials**
+5. Click **Add credential**
+   - Federated credential scenario: **GitHub Actions deploying Azure resources**
+   - Organization: `sbroenne`
+   - Repository: `mcp-server-excel`
+   - Entity type: **Branch**
+   - GitHub branch name: `main`
+   - Name: `github-excel-runner`
+   - Click **Add**
+6. Go to **Subscriptions** → Select your subscription → **Access control (IAM)**
+7. Click **Add role assignment**
+   - Role: **Contributor**
+   - Assign access to: **User, group, or service principal**
+   - Select: `github-excel-runner-oidc`
+   - Click **Review + assign**
+
+### Step 2: Add Azure Information to GitHub Secrets
 
 1. Go to your repository: `https://github.com/sbroenne/mcp-server-excel`
 2. Navigate to **Settings** → **Secrets and variables** → **Actions**
-3. Click **New repository secret**
-4. Create secret:
-   - **Name:** `AZURE_CREDENTIALS`
-   - **Value:** Paste the entire JSON from Step 1
-5. Click **Add secret**
+3. Click **New repository secret** for each:
+
+| Secret Name | Value | Where to Find |
+|-------------|-------|---------------|
+| `AZURE_CLIENT_ID` | Application (client) ID | From Step 1 or App Registration overview |
+| `AZURE_TENANT_ID` | Directory (tenant) ID | From Step 1 or Azure AD overview |
+| `AZURE_SUBSCRIPTION_ID` | Subscription ID | From Step 1 or Subscriptions page |
+
+**No client secret needed!** OIDC uses federated credentials instead.
 
 ### Step 3: Generate GitHub Runner Token
 
@@ -96,45 +141,20 @@ Should show:
 - Status: Idle (green)
 - Labels: `self-hosted`, `windows`, `excel`
 
-## Alternative: OIDC (Federated Credentials)
+## Why OIDC?
 
-For better security (no secrets stored), use OIDC authentication:
+**Security benefits:**
+- ✅ **No secrets stored** - Uses short-lived tokens instead
+- ✅ **No credential rotation** - Federated credentials don't expire
+- ✅ **Azure-managed** - Azure AD handles authentication
+- ✅ **Audit trail** - Every deployment logged in Azure AD
+- ✅ **Principle of least privilege** - Scoped to specific repository/branch
 
-### Setup OIDC
-
-```bash
-# Create app registration
-APP_ID=$(az ad app create --display-name "github-excel-runner-oidc" --query appId -o tsv)
-
-# Create service principal
-az ad sp create --id $APP_ID
-
-# Add federated credential
-az ad app federated-credential create \
-  --id $APP_ID \
-  --parameters '{
-    "name": "github-excel-runner",
-    "issuer": "https://token.actions.githubusercontent.com",
-    "subject": "repo:sbroenne/mcp-server-excel:ref:refs/heads/main",
-    "audiences": ["api://AzureADTokenExchange"]
-  }'
-
-# Assign Contributor role
-SUBSCRIPTION_ID=$(az account show --query id --output tsv)
-az role assignment create \
-  --assignee $APP_ID \
-  --role Contributor \
-  --scope /subscriptions/$SUBSCRIPTION_ID
-```
-
-### GitHub Secrets for OIDC
-
-Create these secrets:
-- `AZURE_CLIENT_ID`: From `$APP_ID`
-- `AZURE_TENANT_ID`: From `az account show --query tenantId -o tsv`
-- `AZURE_SUBSCRIPTION_ID`: From `az account show --query id -o tsv`
-
-Update workflow to use OIDC (commented lines in `deploy-azure-runner.yml`)
+**vs. Service Principal with Secret:**
+- ❌ Client secret stored in GitHub
+- ❌ Secrets must be rotated every 90 days
+- ❌ Secret can be leaked if repository compromised
+- ❌ More attack surface
 
 ## Troubleshooting
 
