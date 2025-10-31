@@ -26,9 +26,9 @@ Every feature must be fully implemented with real Excel COM operations and passi
 
 
 
-## Rule 3: Pool Cleanup Tests
+## Rule 3: Session Cleanup Tests
 
-When modifying pool code (`ExcelInstancePool.cs`, `ExcelHelper.cs`), run: `dotnet test --filter "RunType=OnDemand"`
+When modifying session/batch code (`ExcelSession.cs`, `ExcelBatch.cs`, `ExcelHelper.cs`), run: `dotnet test --filter "RunType=OnDemand"`
 All tests must pass before commit. Requires Excel installed, takes 3-5 minutes.
 
 
@@ -120,7 +120,7 @@ When debugging test failures, **ALWAYS run tests individually** - never run all 
 |------|--------|------|
 | 1. Tests | Fail loudly, never silent | Always |
 | 2. NotImplementedException | Never use, full implementation only | Always |
-| 3. Pool code | Run `dotnet test --filter "RunType=OnDemand"` | 3-5 min |
+| 3. Session code | Run `dotnet test --filter "RunType=OnDemand"` | 3-5 min |
 | 4. Instructions | Update after significant work | 5-10 min |
 | 5. COM leaks | Run `scripts\check-com-leaks.ps1` | 1 min |
 | 6. PRs | Always use PRs, never direct commit | Always |

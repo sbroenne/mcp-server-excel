@@ -10,7 +10,7 @@
 - 🧪 [Testing Strategy](instructions/testing-strategy.instructions.md) - Test architecture, OnDemand pattern, filtering
 - 📊 [Excel COM Interop](instructions/excel-com-interop.instructions.md) - COM patterns, cleanup, best practices
 - 🔌 [Excel Connection Types](instructions/excel-connection-types-guide.instructions.md) - Connection types, COM API limitations, testing strategies
-- 🏗️ [Architecture Patterns](instructions/architecture-patterns.instructions.md) - Command pattern, pooling, resource management
+- 🏗️ [Architecture Patterns](instructions/architecture-patterns.instructions.md) - Command pattern, batch/session management, resource management
 - 🧠 [MCP Server Guide](instructions/mcp-server-guide.instructions.md) - MCP tools, protocol, error handling
 - 🔄 [Development Workflow](instructions/development-workflow.instructions.md) - PR process, CI/CD, security, versioning
 
@@ -42,7 +42,7 @@
 ### Common Tasks
 - **Add new command** → Follow patterns in [Architecture Patterns](instructions/architecture-patterns.instructions.md)
 - **Excel COM work** → Reference [Excel COM Interop](instructions/excel-com-interop.instructions.md)
-- **Modify pool code** → MUST run OnDemand tests (see [CRITICAL-RULES.md](instructions/critical-rules.instructions.md))
+- **Modify session/batch code** → MUST run OnDemand tests (see [CRITICAL-RULES.md](instructions/critical-rules.instructions.md))
 - **Add MCP tool** → Follow [MCP Server Guide](instructions/mcp-server-guide.instructions.md)
 - **Create PR** → Follow [Development Workflow](instructions/development-workflow.instructions.md)
 - **Migrate tests to batch API** → See BATCH-API-MIGRATION-PLAN.md for comprehensive guide
@@ -57,7 +57,7 @@ dotnet test --filter "Category=Unit&RunType!=OnDemand"
 # Pre-commit (requires Excel)
 dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand"
 
-# Pool cleanup (MANDATORY when modifying pool code)
+# Session/batch cleanup (MANDATORY when modifying session/batch code)
 dotnet test --filter "RunType=OnDemand"
 ```
 

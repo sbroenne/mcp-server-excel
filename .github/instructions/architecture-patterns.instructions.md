@@ -84,28 +84,6 @@ public int MyCommand(string[] args)
 
 ---
 
-## Excel Instance Pooling (MCP Only)
-
-### Purpose
-Reuse Excel instances to eliminate ~2-5 second startup overhead.
-
-### Configuration
-```csharp
-var pool = new ExcelInstancePool(idleTimeout: TimeSpan.FromSeconds(60), maxInstances: 10);
-ExcelHelper.InstancePool = pool;
-```
-
-### Benefits
-- **~95% faster** for cached workbooks (2-5 sec → <100ms)
-- **Auto cleanup** after 60 seconds idle
-- **Thread-safe** concurrent requests
-- **Zero code changes** - Core commands automatically use pooling
-
-### CLI Behavior
-**No pooling** - Simple single-instance pattern for reliability
-
----
-
 ## MCP Server Resource-Based Tools
 
 **11 Focused Tools:**
@@ -184,7 +162,7 @@ object[,] values = range.Value2;
 
 1. **WithExcel() for everything** - Never manual lifecycle
 2. **Release intermediate objects** - Prevents Excel hanging
-3. **Pooling for MCP only** - CLI stays simple
+3. **Batch/Session for MCP** - Multiple operations in single session
 4. **Resource-based tools** - 6 tools, not 33+ operations
 5. **DRY utilities** - Share common patterns
 6. **Security defaults** - Never expose credentials

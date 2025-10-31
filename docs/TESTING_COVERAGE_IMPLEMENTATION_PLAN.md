@@ -145,7 +145,7 @@ dotnet test --filter "Category=Unit&RunType!=OnDemand"
 dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand"
 # Result: ~137 tests pass (46 unit + 91 integration)
 
-# Pool cleanup (manual, with Excel)
+# Session cleanup (manual, with Excel)
 dotnet test --filter "RunType=OnDemand"
 # Result: ~5 tests (Excel process cleanup validation)
 ```

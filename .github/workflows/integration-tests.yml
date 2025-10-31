@@ -16,7 +16,7 @@ on:
       - 'src/ExcelMcp.ComInterop/**'
       - 'tests/ExcelMcp.Core.Tests/**'
       - 'tests/ExcelMcp.ComInterop.Tests/**'
-  
+
   # Run on PRs to main
   pull_request:
     branches: [ main ]
@@ -26,7 +26,7 @@ on:
       - 'src/ExcelMcp.CLI/**'
       - 'src/ExcelMcp.McpServer/**'
       - 'tests/**'
-  
+
   # Allow manual trigger from Actions tab
   workflow_dispatch:
 
@@ -34,16 +34,16 @@ jobs:
   integration-tests:
     runs-on: [self-hosted, windows, excel]
     timeout-minutes: 60
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
-    
+
     - name: Display Excel Version
       run: |
         try {
@@ -59,28 +59,28 @@ jobs:
           exit 1
         }
       shell: pwsh
-    
+
     - name: Restore dependencies
       run: dotnet restore
-    
+
     - name: Build
       run: dotnet build --no-restore --configuration Release
-    
+
+    - name: Run Integration Tests (ComInterop - Foundation)
+      run: dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=cominterop-integration-test-results.trx" --verbosity normal
+
+    - name: Run OnDemand Tests (Session Cleanup - Critical)
+      run: dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --no-build --configuration Release --filter "RunType=OnDemand" --logger "trx;LogFileName=ondemand-test-results.trx" --verbosity normal
+
     - name: Run Integration Tests (Core)
       run: dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=core-integration-test-results.trx" --verbosity normal
-    
-    - name: Run Integration Tests (CLI)
-      run: dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=cli-integration-test-results.trx" --verbosity normal
-    
+
     - name: Run Integration Tests (MCP Server)
       run: dotnet test tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=mcp-integration-test-results.trx" --verbosity normal
-    
-    - name: Run Integration Tests (ComInterop)
-      run: dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=cominterop-integration-test-results.trx" --verbosity normal
-    
-    - name: Run OnDemand Tests (Pool Cleanup - Critical)
-      run: dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --no-build --configuration Release --filter "RunType=OnDemand" --logger "trx;LogFileName=ondemand-test-results.trx" --verbosity normal
-    
+
+    - name: Run Integration Tests (CLI)
+      run: dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=cli-integration-test-results.trx" --verbosity normal
+
     - name: Upload Test Results
       if: always()
       uses: actions/upload-artifact@v4
@@ -88,7 +88,7 @@ jobs:
         name: integration-test-results-${{ github.run_number }}
         path: '**/TestResults/*.trx'
         retention-days: 30
-    
+
     - name: Cleanup Excel Processes
       if: always()
       run: |
@@ -102,13 +102,13 @@ jobs:
         } else {
           Write-Output "✅ No Excel processes found"
         }
-        
+
         # Force garbage collection
         [System.GC]::Collect()
         [System.GC]::WaitForPendingFinalizers()
         [System.GC]::Collect()
       shell: pwsh
-    
+
     - name: Check for Orphaned Excel Processes
       if: always()
       run: |
