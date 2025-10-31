@@ -16,7 +16,7 @@ This directory contains Infrastructure as Code (IaC) for automating the deployme
 5. RDP to VM and install Excel (30 minutes)
 
 **Benefits:**
-- ✅ **Fully automated** - runner token auto-generated via GitHub API
+- ✅ **Fully automated** - runner token auto-generated via GitHub CLI (secure & reliable)
 - ✅ **No local tooling required** - deploy from browser
 - ✅ **Secure OIDC authentication** - no stored secrets
 - ✅ **Audit trail** in Actions logs
