@@ -170,24 +170,6 @@ resource vm 'Microsoft.Compute/virtualMachines@2023-07-01' = {
   }
 }
 
-// Auto-shutdown schedule to save costs (7 PM UTC daily)
-resource autoShutdown 'Microsoft.DevTestLab/schedules@2018-09-15' = {
-  name: 'shutdown-computevm-${vmName}'
-  location: location
-  properties: {
-    status: 'Enabled'
-    taskType: 'ComputeVmShutdownTask'
-    dailyRecurrence: {
-      time: '1900'
-    }
-    timeZoneId: 'UTC'
-    notificationSettings: {
-      status: 'Disabled'
-    }
-    targetResourceId: vm.id
-  }
-}
-
 // VM Extension - Install .NET SDK and GitHub runner
 resource vmExtension 'Microsoft.Compute/virtualMachines/extensions@2023-07-01' = {
   parent: vm
@@ -209,5 +191,5 @@ output vmPublicIP string = publicIp.properties.dnsSettings.fqdn
 output vmResourceId string = vm.id
 output vmName string = vmName
 output nextSteps string = 'RDP to VM using output vmPublicIP and install Office 365 Excel manually'
-output monthlyCost string = 'Estimated ~$61/month (24/7) or ~$30/month (12h/day with auto-shutdown) in Sweden Central'
-output importantNote string = 'GitHub Actions CANNOT auto-start stopped VMs. VM must be running for workflows to execute. See README for automation options.'
+output monthlyCost string = 'Estimated ~$61/month (24/7) in Sweden Central'
+output githubCodingAgent string = 'YES - GitHub Coding Agents can use this runner in Agent mode with [self-hosted, windows, excel] labels'

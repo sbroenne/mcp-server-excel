@@ -40,42 +40,34 @@ az login
 
 | Resource | Type | Purpose | Monthly Cost (Sweden Central) |
 |----------|------|---------|-------------------------------|
-| VM | Standard_B2ms (2 vCPUs, 8 GB RAM) | Test runner | ~$50 (24/7) or ~$25 (12h/day) |
+| VM | Standard_B2ms (2 vCPUs, 8 GB RAM) | Test runner | ~$50 |
 | OS Disk | Premium SSD 128 GB | Storage | ~$11 |
 | Network | VNet, NIC, NSG, Public IP | Connectivity | <$1 |
 | **Total (24/7)** | | | **~$61/month** |
-| **Total (12h/day)** | | | **~$36/month** |
 
-### ⚠️ Important: GitHub Actions Cannot Auto-Start VMs
+### GitHub Coding Agent Compatibility
 
-**GitHub Actions runners require the VM to be running.** If the VM is stopped:
-- Workflows will queue and wait indefinitely
-- No automatic VM start capability exists
+**✅ YES** - GitHub Coding Agents can use this runner in Agent mode:
 
-**You have 3 options:**
+1. **Runner labels:** `self-hosted`, `windows`, `excel`
+2. **Available 24/7** for immediate workflow execution
+3. **Coding agents access runner same way as workflows:**
+   - When you push code in VS Code Agent mode
+   - Workflows using `runs-on: [self-hosted, windows, excel]`
+   - Manual workflow triggers via Actions tab
 
-1. **Keep VM running 24/7** (~$61/month) ⭐ **RECOMMENDED for active development**
-   - Workflows execute immediately
-   - No automation needed
-   - Simplest setup
-
-2. **Manual start/stop** (~$36/month with 12h/day)
-   - Start VM manually each morning
-   - Auto-shutdown at 7 PM
-   - Good for predictable schedules
-
-3. **Azure Automation** (~$36/month with scheduled start)
-   - Use Azure Automation Runbook to start VM at specific times
-   - Auto-shutdown at night
-   - Requires additional setup (see below)
+**How it works:**
+- GitHub Coding Agent pushes commits → triggers workflow → runs on your self-hosted runner
+- No difference between coding agent commits and manual commits
+- Runner executes tests automatically on every push
 
 ### Location & VM Size
 
-- **Location:** Sweden Central (your preference)
+- **Location:** Sweden Central
 - **VM Size:** Standard_B2ms (2 vCPUs, 8 GB RAM)
   - 8GB RAM required for reliable Excel automation
   - Burstable performance for cost efficiency
-- **Auto-shutdown:** 7 PM UTC daily (optional, saves ~40%)
+- **Uptime:** 24/7 (VM runs continuously for immediate test execution)
 
 ### Software Installed Automatically
 
@@ -146,83 +138,24 @@ az deployment group create \
 
 ### Region Options
 
-| Region | Monthly Cost (B2ms, 24/7) | Latency to GitHub | Notes |
-|--------|---------------------------|-------------------|-------|
-| East US | ~$51 | Low | Cheapest |
-| West Europe | ~$58 | Medium | EU data residency |
-| **Sweden Central** | **~$61** | **Medium** | **Your choice** ⭐ |
-| North Europe | ~$58 | Medium | EU alternative |
+| Region | Monthly Cost (B2ms, 24/7) | Notes |
+|--------|---------------------------|-------|
+| East US | ~$51 | Cheapest |
+| West Europe | ~$58 | EU data residency |
+| **Sweden Central** | **~$61** | **Selected** ⭐ |
+| North Europe | ~$58 | EU alternative |
 
-**Selected:** Sweden Central (as per your preference)
+**Cost:** ~$61/month for 24/7 operation in Sweden Central
 
 ### Auto-Shutdown Schedule
 
-Default: 7 PM UTC (19:00)
+**Removed** - Auto-shutdown disabled for 24/7 availability.
 
-Edit in `azure-runner.bicep`:
-```bicep
-dailyRecurrence: {
-  time: '1900' // Change to '2000' for 8 PM, etc.
-}
-```
-
-## Cost Optimization
-
-### Recommended: Keep VM Running 24/7 (~$61/month)
-
-**Why:** GitHub Actions workflows execute immediately when code changes are pushed.
-
-**Cost:** ~$61/month in Sweden Central
-
-**Best for:** Active development with frequent commits
-
----
-
-### Alternative: Auto-Start with Azure Automation (~$36/month)
-
-If you want to save costs but maintain automation, use Azure Automation:
-
-**Setup Azure Automation (one-time):**
-
-```bash
-# Create Automation Account
-az automation account create \
-  --name "automation-excel-runner" \
-  --resource-group "rg-excel-runner" \
-  --location "swedencentral"
-
-# Create Start-VM Runbook
-# Upload PowerShell script to start VM at 7 AM daily
-```
-
-**PowerShell Runbook (StartVM.ps1):**
-```powershell
-param(
-    [Parameter(Mandatory=$true)]
-    [string]$ResourceGroupName,
-    
-    [Parameter(Mandatory=$true)]
-    [string]$VMName
-)
-
-# Authenticate with Managed Identity
-Connect-AzAccount -Identity
-
-# Start VM
-Start-AzVM -ResourceGroupName $ResourceGroupName -Name $VMName
-```
-
-**Schedule:**
-- Start: 7 AM UTC (Monday-Friday)
-- Stop: 7 PM UTC (auto-shutdown configured in template)
-
-**Cost Breakdown:**
-- VM (12h/day, weekdays): ~$25/month
-- Storage (always): ~$11/month
-- Automation: ~$0.50/month
-- **Total: ~$36/month**
-
-**Tradeoff:** Workflows pushed outside 7 AM - 7 PM will queue until VM starts.
+VM runs continuously to ensure:
+- Immediate workflow execution on every commit
+- No queued workflows waiting for VM start
+- Best experience for GitHub Coding Agents
+- Simplified operation (no manual VM starts)
 
 ## Verify Deployment
 
