@@ -22,18 +22,7 @@ public partial class DataModelCommands
         {
             // Get measures collection from MODEL (not from tables!)
             // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
-            try
-            {
-                measures = model.ModelMeasures;
-            }
-            catch (Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
-            {
-                // ModelMeasures API not available (requires Office 2016+)
-                throw new InvalidOperationException(
-                    "DAX measures are not supported in this version of Excel. " +
-                    "The ModelMeasures API requires Microsoft Office 2016 or later. " +
-                    "Please upgrade Excel to use measure operations.");
-            }
+            measures = model.ModelMeasures;
 
             for (int m = 1; m <= measures.Count; m++)
             {

@@ -436,11 +436,24 @@ public partial class DataModelCommands
                 // Iterate through columns
                 ComInterop.ComUtilities.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>
                 {
+                    bool isCalculated = false;
+                    try
+                    {
+                        // IsCalculatedColumn property may not exist in older Excel versions
+                        isCalculated = column.IsCalculatedColumn ?? false;
+                    }
+                    catch (Exception ex) when (ex is Microsoft.CSharp.RuntimeBinder.RuntimeBinderException
+                                            || ex is System.Runtime.InteropServices.COMException)
+                    {
+                        // Ignore - property not available in this Excel version
+                        isCalculated = false;
+                    }
+
                     var columnInfo = new DataModelColumnInfo
                     {
                         Name = ComInterop.ComUtilities.SafeGetString(column, "Name"),
                         DataType = ComInterop.ComUtilities.SafeGetString(column, "DataType"),
-                        IsCalculated = column.IsCalculatedColumn ?? false
+                        IsCalculated = isCalculated
                     };
 
                     result.Columns.Add(columnInfo);
@@ -511,11 +524,24 @@ public partial class DataModelCommands
                 // Get columns
                 ComInterop.ComUtilities.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>
                 {
+                    bool isCalculated = false;
+                    try
+                    {
+                        // IsCalculatedColumn property may not exist in older Excel versions
+                        isCalculated = column.IsCalculatedColumn ?? false;
+                    }
+                    catch (Exception ex) when (ex is Microsoft.CSharp.RuntimeBinder.RuntimeBinderException
+                                            || ex is System.Runtime.InteropServices.COMException)
+                    {
+                        // Ignore - property not available in this Excel version
+                        isCalculated = false;
+                    }
+
                     var columnInfo = new DataModelColumnInfo
                     {
                         Name = ComInterop.ComUtilities.SafeGetString(column, "Name"),
                         DataType = ComInterop.ComUtilities.SafeGetString(column, "DataType"),
-                        IsCalculated = column.IsCalculatedColumn ?? false
+                        IsCalculated = isCalculated
                     };
 
                     result.Columns.Add(columnInfo);

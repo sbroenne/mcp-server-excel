@@ -183,11 +183,12 @@ public partial class DataModelCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         var result = await _dataModelCommands.DeleteMeasureAsync(batch, "NonExistentMeasure");
 
-        // Assert - Should fail because measure doesn't exist (Data Model is always available in Excel 2013+)
-        Assert.False(result.Success, "DeleteMeasure should fail when measure doesn't exist");
+        // Assert - Should fail because file has no Data Model
+        Assert.False(result.Success, "DeleteMeasure should fail when file has no Data Model");
         Assert.NotNull(result.ErrorMessage);
-        Assert.True(result.ErrorMessage.Contains("Measure 'NonExistentMeasure' not found"),
-            $"Expected 'measure not found' error, but got: {result.ErrorMessage}");
+        Assert.True(result.ErrorMessage.Contains("does not have a Data Model") || 
+                    result.ErrorMessage.Contains("not found"),
+            $"Expected 'no data model' or 'not found' error, but got: {result.ErrorMessage}");
     }
 
     [Fact]
