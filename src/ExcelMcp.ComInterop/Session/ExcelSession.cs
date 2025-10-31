@@ -24,14 +24,13 @@ public static class ExcelSession
     /// <code>
     /// await using var batch = await ExcelSession.BeginBatchAsync(filePath);
     ///
-    /// // Operation 1
-    /// await batch.ExecuteAsync(async (ctx, ct) => {
+    /// // Synchronous COM operations
+    /// await batch.Execute((ctx, ct) => {
     ///     ctx.Book.Worksheets.Add("Sales");
     ///     return 0;
     /// });
     ///
-    /// // Operation 2
-    /// await batch.ExecuteAsync(async (ctx, ct) => {
+    /// await batch.Execute((ctx, ct) => {
     ///     ctx.Book.Worksheets.Add("Expenses");
     ///     return 0;
     /// });
@@ -67,8 +66,100 @@ public static class ExcelSession
     }
 
     /// <summary>
-    /// Creates a new Excel workbook at the specified path.
+    /// Creates a new Excel workbook at the specified path with a synchronous COM operation.
     /// Creates a minimal workbook then allows executing an operation before saving.
+    /// </summary>
+    /// <typeparam name="T">Return type of the operation</typeparam>
+    /// <param name="filePath">Path where to save the new Excel file</param>
+    /// <param name="isMacroEnabled">Whether to create a macro-enabled workbook (.xlsm)</param>
+    /// <param name="operation">Synchronous COM operation to execute with ExcelContext</param>
+    /// <param name="timeout">Optional timeout for the operation (ignored for now, reserved for future use)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Result of the operation</returns>
+    [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
+    public static async Task<T> CreateNew<T>(
+        string filePath,
+        bool isMacroEnabled,
+        Func<ExcelContext, CancellationToken, T> operation,
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default)
+    {
+        string fullPath = Path.GetFullPath(filePath);
+        string? directory = Path.GetDirectoryName(fullPath);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        // Create temporary empty workbook by launching Excel briefly
+        await Task.Run(() =>
+        {
+            dynamic? excel = null;
+            dynamic? workbook = null;
+
+            try
+            {
+                var excelType = Type.GetTypeFromProgID("Excel.Application");
+                if (excelType == null)
+                {
+                    throw new InvalidOperationException("Excel is not installed or not properly registered.");
+                }
+
+#pragma warning disable IL2072
+                excel = Activator.CreateInstance(excelType);
+#pragma warning restore IL2072
+
+                excel.Visible = false;
+                excel.DisplayAlerts = false;
+
+                workbook = excel.Workbooks.Add();
+
+                // Save immediately to create the file
+                if (isMacroEnabled)
+                {
+                    workbook.SaveAs(fullPath, 52); // xlOpenXMLWorkbookMacroEnabled
+                }
+                else
+                {
+                    workbook.SaveAs(fullPath, 51); // xlOpenXMLWorkbook
+                }
+            }
+            finally
+            {
+                if (workbook != null)
+                {
+                    try { workbook.Close(false); } catch { }
+                    try { Marshal.FinalReleaseComObject(workbook); } catch { }
+                }
+
+                if (excel != null)
+                {
+                    // CodeQL suppression: Safe COM interop - excel is guaranteed to be Excel.Application type with Quit() method
+                    // The dynamic type is intentional for late-binding COM automation
+#pragma warning disable CS8602 // Dereference of a possibly null reference
+                    try { excel.Quit(); } catch { }
+#pragma warning restore CS8602
+                    try { Marshal.FinalReleaseComObject(excel); } catch { }
+                }
+
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+            }
+        });
+
+        // Now use batch API to execute the operation
+        await using var batch = await BeginBatchAsync(fullPath, cancellationToken);
+        var result = await batch.Execute(operation);
+        await batch.SaveAsync();
+
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new Excel workbook at the specified path with an async operation.
+    /// Creates a minimal workbook then allows executing an operation before saving.
+    /// Use this ONLY when the operation performs async I/O (file operations).
     /// </summary>
     /// <typeparam name="T">Return type of the operation</typeparam>
     /// <param name="filePath">Path where to save the new Excel file</param>
@@ -77,14 +168,11 @@ public static class ExcelSession
     /// <param name="timeout">Optional timeout for the operation (ignored for now, reserved for future use)</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Result of the operation</returns>
-    /// <remarks>
-    /// This creates an empty workbook,saves it, then uses batch API to execute the operation.
-    /// </remarks>
     [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
     public static async Task<T> CreateNewAsync<T>(
         string filePath,
         bool isMacroEnabled,
-        Func<ExcelContext, CancellationToken, ValueTask<T>> operation,
+        Func<ExcelContext, CancellationToken, Task<T>> operation,
         TimeSpan? timeout = null,
         CancellationToken cancellationToken = default)
     {

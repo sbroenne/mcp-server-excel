@@ -12,7 +12,6 @@ public partial class TableCommands
     /// <summary>
     /// Gets structured reference information for a table region or column
     /// </summary>
-#pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<TableStructuredReferenceResult> GetStructuredReferenceAsync(
         IExcelBatch batch,
         string tableName,
@@ -23,7 +22,7 @@ public partial class TableCommands
         ValidateTableName(tableName);
 
         var result = new TableStructuredReferenceResult { FilePath = batch.WorkbookPath };
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             try

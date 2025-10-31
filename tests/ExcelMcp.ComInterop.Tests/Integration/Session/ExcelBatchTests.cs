@@ -39,10 +39,10 @@ public class ExcelBatchTests
     private async Task<string> CreateTempTestFileAsync()
     {
         string testFile = Path.Combine(Path.GetTempPath(), $"batch-test-{Guid.NewGuid():N}.xlsx");
-        await ExcelSession.CreateNewAsync(testFile, isMacroEnabled: false, (ctx, ct) =>
+        await ExcelSession.CreateNew(testFile, isMacroEnabled: false, (ctx, ct) =>
         {
             // File created, just return
-            return ValueTask.FromResult(0);
+            return 0;
         });
         return testFile;
     }
@@ -62,7 +62,7 @@ public class ExcelBatchTests
 
             for (int i = 0; i < 5; i++)
             {
-                await batch.ExecuteAsync<int>((ctx, ct) =>
+                await batch.Execute<int>((ctx, ct) =>
                 {
                     operationCount++;
                     _output.WriteLine($"Batch operation {operationCount}");
@@ -71,7 +71,7 @@ public class ExcelBatchTests
                     Assert.NotNull(ctx.App);
                     Assert.NotNull(ctx.Book);
 
-                    return ValueTask.FromResult(operationCount);
+                    return operationCount;
                 });
             }
 
@@ -101,11 +101,11 @@ public class ExcelBatchTests
             // Act
             var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-            await batch.ExecuteAsync<int>((ctx, ct) =>
+            await batch.Execute<int>((ctx, ct) =>
             {
                 dynamic sheet = ctx.Book.Worksheets.Item(1);
                 var value = sheet.Range["A1"].Value2;
-                return ValueTask.FromResult(0);
+                return 0;
             });
 
             await batch.DisposeAsync();
@@ -141,11 +141,11 @@ public class ExcelBatchTests
             // Act - Write and save
             await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
             {
-                await batch.ExecuteAsync<int>((ctx, ct) =>
+                await batch.Execute<int>((ctx, ct) =>
                 {
                     dynamic sheet = ctx.Book.Worksheets.Item(1);
                     sheet.Range["A1"].Value2 = testValue;
-                    return ValueTask.FromResult(0);
+                    return 0;
                 });
 
                 await batch.SaveAsync();
@@ -158,7 +158,7 @@ public class ExcelBatchTests
             string readValue;
             await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
             {
-                readValue = await batch.ExecuteAsync<string>((ctx, ct) =>
+                readValue = await batch.Execute<string>((ctx, ct) =>
                 {
                     dynamic sheet = ctx.Book.Worksheets.Item(1);
                     var value = sheet.Range["A1"].Value2;
@@ -214,17 +214,17 @@ public class ExcelBatchTests
             await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
             {
                 // Step 1: Create new worksheet
-                await batch.ExecuteAsync<int>((ctx, ct) =>
+                await batch.Execute<int>((ctx, ct) =>
                 {
                     dynamic sheets = ctx.Book.Worksheets;
                     dynamic newSheet = sheets.Add();
                     newSheet.Name = sheetName;
                     _output.WriteLine($"✓ Created worksheet: {sheetName}");
-                    return ValueTask.FromResult(0);
+                    return 0;
                 });
 
                 // Step 2: Write data to cells
-                await batch.ExecuteAsync<int>((ctx, ct) =>
+                await batch.Execute<int>((ctx, ct) =>
                 {
                     dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
                     sheet.Range["A1"].Value2 = testValue1;
@@ -232,21 +232,21 @@ public class ExcelBatchTests
                     sheet.Range["B1"].Value2 = "Header2";
                     sheet.Range["B2"].Formula = "=LEN(A2)";
                     _output.WriteLine($"✓ Wrote data to cells A1, A2, B1, B2");
-                    return ValueTask.FromResult(0);
+                    return 0;
                 });
 
                 // Step 3: Create named range
-                await batch.ExecuteAsync<int>((ctx, ct) =>
+                await batch.Execute<int>((ctx, ct) =>
                 {
                     dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
                     dynamic names = ctx.Book.Names;
                     names.Add(namedRangeName, $"={sheetName}!$A$1:$B$2");
                     _output.WriteLine($"✓ Created named range: {namedRangeName}");
-                    return ValueTask.FromResult(0);
+                    return 0;
                 });
 
                 // Step 4: Read data back to verify
-                var readData = await batch.ExecuteAsync((ctx, ct) =>
+                var readData = await batch.Execute((ctx, ct) =>
                 {
                     dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
                     string a1 = sheet.Range["A1"].Value2?.ToString() ?? "";
@@ -254,7 +254,7 @@ public class ExcelBatchTests
                     string b1 = sheet.Range["B1"].Value2?.ToString() ?? "";
                     double b2 = Convert.ToDouble(sheet.Range["B2"].Value2); // Formula result
                     _output.WriteLine($"✓ Read back: A1={a1}, A2={a2}, B1={b1}, B2={b2}");
-                    return ValueTask.FromResult((a1, a2, b1, b2));
+                    return (a1, a2, b1, b2);
                 });
 
                 // Verify intermediate state
@@ -264,12 +264,12 @@ public class ExcelBatchTests
                 Assert.Equal(6.0, Convert.ToDouble(readData.b2)); // LEN("Value1") = 6
 
                 // Step 5: Modify existing data
-                await batch.ExecuteAsync<int>((ctx, ct) =>
+                await batch.Execute<int>((ctx, ct) =>
                 {
                     dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
                     sheet.Range["A2"].Value2 = "Modified";
                     _output.WriteLine("✓ Modified A2 cell");
-                    return ValueTask.FromResult(0);
+                    return 0;
                 });
 
                 // Step 6: Save all changes
@@ -283,7 +283,7 @@ public class ExcelBatchTests
             // Verify - Open in new batch and check all changes persisted
             await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
             {
-                var verifyData = await batch.ExecuteAsync((ctx, ct) =>
+                var verifyData = await batch.Execute((ctx, ct) =>
                 {
                     // Check worksheet exists
                     bool sheetExists = false;
@@ -317,7 +317,7 @@ public class ExcelBatchTests
                         }
                     }
 
-                    return ValueTask.FromResult((sheetExists, a1, a2, b2, namedRangeExists));
+                    return (sheetExists, a1, a2, b2, namedRangeExists);
                 });
 
                 // Assert - All changes persisted
@@ -363,11 +363,11 @@ public class ExcelBatchTests
                 // Perform multiple operations per batch
                 for (int op = 0; op < 3; op++)
                 {
-                    await batch.ExecuteAsync<int>((ctx, ct) =>
+                    await batch.Execute<int>((ctx, ct) =>
                     {
                         dynamic sheet = ctx.Book.Worksheets.Item(1);
                         sheet.Range[$"A{op + 1}"].Value2 = $"Batch{index}-Op{op}";
-                        return ValueTask.FromResult(0);
+                        return 0;
                     });
                 }
 
@@ -428,11 +428,11 @@ public class ExcelBatchTests
             {
                 await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-                await batch.ExecuteAsync<int>((ctx, ct) =>
+                await batch.Execute<int>((ctx, ct) =>
                 {
                     dynamic sheet = ctx.Book.Worksheets.Item(1);
                     sheet.Range["A1"].Value2 = expectedValues[testFile];
-                    return ValueTask.FromResult(0);
+                    return 0;
                 });
 
                 await batch.SaveAsync();
@@ -449,11 +449,11 @@ public class ExcelBatchTests
             {
                 await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-                var value = await batch.ExecuteAsync((ctx, ct) =>
+                var value = await batch.Execute((ctx, ct) =>
                 {
                     dynamic sheet = ctx.Book.Worksheets.Item(1);
                     string cellValue = sheet.Range["A1"].Value2?.ToString() ?? "";
-                    return ValueTask.FromResult(cellValue);
+                    return cellValue;
                 });
 
                 return (testFile, value);

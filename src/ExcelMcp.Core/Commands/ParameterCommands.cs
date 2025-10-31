@@ -2,7 +2,6 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -16,7 +15,7 @@ public class ParameterCommands : IParameterCommands
     {
         var result = new ParameterListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? namesCollection = null;
             try
@@ -93,7 +92,7 @@ public class ParameterCommands : IParameterCommands
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-parameter" };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? nameObj = null;
             dynamic? refersToRange = null;
@@ -145,7 +144,7 @@ public class ParameterCommands : IParameterCommands
     {
         var result = new ParameterValueResult { FilePath = batch.WorkbookPath, ParameterName = paramName };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? nameObj = null;
             dynamic? refersToRange = null;
@@ -185,7 +184,7 @@ public class ParameterCommands : IParameterCommands
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "create-parameter" };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? existing = null;
             dynamic? namesCollection = null;
@@ -230,7 +229,7 @@ public class ParameterCommands : IParameterCommands
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "update-parameter" };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? nameObj = null;
             try
@@ -290,7 +289,7 @@ public class ParameterCommands : IParameterCommands
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "delete-parameter" };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? nameObj = null;
             try

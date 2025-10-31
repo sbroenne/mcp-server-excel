@@ -13,13 +13,12 @@ public partial class PivotTableCommands
     /// Creates a PivotTable from an Excel range
     /// Following VBA pattern from ReneNyffenegger/about-MS-Office-object-model
     /// </summary>
-    #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<PivotTableCreateResult> CreateFromRangeAsync(IExcelBatch batch,
         string sourceSheet, string sourceRange,
         string destinationSheet, string destinationCell,
         string pivotTableName)
     {
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? sourceWorksheet = null;
             dynamic? sourceRangeObj = null;
@@ -158,13 +157,12 @@ public partial class PivotTableCommands
     /// <summary>
     /// Creates a PivotTable from an Excel Table
     /// </summary>
-    #pragma warning disable CS1998 // Async method lacks await operators (synchronous COM interop)
     public async Task<PivotTableCreateResult> CreateFromTableAsync(IExcelBatch batch,
         string tableName,
         string destinationSheet, string destinationCell,
         string pivotTableName)
     {
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? destWorksheet = null;

@@ -58,7 +58,7 @@ public class TableCommandsTests : IDisposable
             await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
 
             // Get Sheet1 and add sample data
-            await batch.ExecuteAsync<int>((ctx, ct) =>
+            await batch.Execute<int>((ctx, ct) =>
             {
                 dynamic sheet = ctx.Book.Worksheets.Item(1);
                 sheet.Name = "Sales";
@@ -90,7 +90,7 @@ public class TableCommandsTests : IDisposable
                 sheet.Range["C5"].Value2 = 300;
                 sheet.Range["D5"].Value2 = new DateTime(2025, 1, 25);
 
-                return ValueTask.FromResult(0);
+                return 0;
             });
 
             // Create table from range A1:D5

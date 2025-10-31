@@ -132,8 +132,41 @@ internal sealed class ExcelBatch : IExcelBatch
 
     public string WorkbookPath => _workbookPath;
 
+    // Synchronous COM operations
+    public async Task<T> Execute<T>(
+        Func<ExcelContext, CancellationToken, T> operation,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, nameof(ExcelBatch));
+
+        var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        // Post operation to STA thread
+        await _workQueue.Writer.WriteAsync(() =>
+        {
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var result = operation(_context!, cancellationToken);
+                tcs.SetResult(result);
+            }
+            catch (OperationCanceledException oce)
+            {
+                tcs.TrySetCanceled(oce.CancellationToken);
+            }
+            catch (Exception ex)
+            {
+                tcs.TrySetException(ex);
+            }
+            return Task.CompletedTask;
+        }, cancellationToken);
+
+        return await tcs.Task;
+    }
+
+    // Genuinely async operations (file I/O, etc.)
     public async Task<T> ExecuteAsync<T>(
-        Func<ExcelContext, CancellationToken, ValueTask<T>> operation,
+        Func<ExcelContext, CancellationToken, Task<T>> operation,
         CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(ExcelBatch));

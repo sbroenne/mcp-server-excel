@@ -2,7 +2,6 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 
@@ -27,7 +26,7 @@ public partial class RangeCommands
             SearchValue = searchValue
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             dynamic? foundCell = null;
@@ -94,7 +93,7 @@ public partial class RangeCommands
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "replace" };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             try
@@ -144,7 +143,7 @@ public partial class RangeCommands
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "sort" };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             dynamic? key1 = null;

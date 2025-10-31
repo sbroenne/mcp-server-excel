@@ -5,7 +5,6 @@ using Sbroenne.ExcelMcp.Core.Connections;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators - intentional for COM synchronous operations
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -22,7 +21,7 @@ public class ConnectionCommands : IConnectionCommands
     {
         var result = new ConnectionListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? connections = null;
 
@@ -88,7 +87,7 @@ public class ConnectionCommands : IConnectionCommands
             ConnectionName = connectionName
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -173,7 +172,7 @@ public class ConnectionCommands : IConnectionCommands
                 return result;
             }
 
-            return await batch.ExecuteAsync(async (ctx, ct) =>
+            return await batch.Execute((ctx, ct) =>
             {
                 try
                 {
@@ -219,7 +218,7 @@ public class ConnectionCommands : IConnectionCommands
             Action = "export"
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -307,7 +306,7 @@ public class ConnectionCommands : IConnectionCommands
                 return result;
             }
 
-            return await batch.ExecuteAsync(async (ctx, ct) =>
+            return await batch.Execute((ctx, ct) =>
             {
                 try
                 {
@@ -361,7 +360,7 @@ public class ConnectionCommands : IConnectionCommands
             Action = "refresh"
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -400,7 +399,7 @@ public class ConnectionCommands : IConnectionCommands
             Action = "delete"
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -450,7 +449,7 @@ public class ConnectionCommands : IConnectionCommands
             Action = "loadto"
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? conn = null;
             dynamic? sheets = null;
@@ -544,7 +543,7 @@ public class ConnectionCommands : IConnectionCommands
             ConnectionName = connectionName
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -587,7 +586,7 @@ public class ConnectionCommands : IConnectionCommands
             Action = "set-properties"
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -637,7 +636,7 @@ public class ConnectionCommands : IConnectionCommands
             Action = "test"
         };
 
-        return await batch.ExecuteAsync(async (ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             try
             {
