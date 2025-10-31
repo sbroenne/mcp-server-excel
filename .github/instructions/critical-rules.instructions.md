@@ -26,9 +26,9 @@ Every feature must be fully implemented with real Excel COM operations and passi
 
 
 
-## Rule 3: Pool Cleanup Tests
+## Rule 3: Session Cleanup Tests
 
-When modifying pool code (`ExcelInstancePool.cs`, `ExcelHelper.cs`), run: `dotnet test --filter "RunType=OnDemand"`
+When modifying session/batch code (`ExcelSession.cs`, `ExcelBatch.cs`, `ExcelHelper.cs`), run: `dotnet test --filter "RunType=OnDemand"`
 All tests must pass before commit. Requires Excel installed, takes 3-5 minutes.
 
 
@@ -92,6 +92,26 @@ When debugging test failures, **ALWAYS run tests individually** - never run all 
 
 **Why:** Running all tests together masks which specific test fails and why. Individual execution provides clear, isolated diagnostics.
 
+
+
+## Rule 11: Production Code NEVER References Tests
+
+**Production code (Core, CLI, MCP Server) must NEVER reference test projects or test helpers.**
+
+**Violations:**
+- ❌ `<InternalsVisibleTo Include="*.Tests" />` in production `.csproj`
+- ❌ `using Sbroenne.ExcelMcp.*.Tests` in production code
+- ❌ Production code calling test helper methods
+- ❌ Production business logic in helper classes that tests use
+
+**Correct Architecture:**
+- ✅ **COM utilities** → `ComInterop/ComUtilities.cs` (low-level COM helpers like SafeGetString, ForEach iterators)
+- ✅ **Business logic** → Private methods inside production Commands classes
+- ✅ **Test helpers** → Call production commands, never duplicate logic
+- ✅ `InternalsVisibleTo` only for production-to-production (e.g., Core → MCP Server)
+
+**Why:** Tests depend on production code, not the reverse. Production code with test dependencies is broken architecture.
+
 ---
 
 ## Quick Reference
@@ -100,7 +120,7 @@ When debugging test failures, **ALWAYS run tests individually** - never run all 
 |------|--------|------|
 | 1. Tests | Fail loudly, never silent | Always |
 | 2. NotImplementedException | Never use, full implementation only | Always |
-| 3. Pool code | Run `dotnet test --filter "RunType=OnDemand"` | 3-5 min |
+| 3. Session code | Run `dotnet test --filter "RunType=OnDemand"` | 3-5 min |
 | 4. Instructions | Update after significant work | 5-10 min |
 | 5. COM leaks | Run `scripts\check-com-leaks.ps1` | 1 min |
 | 6. PRs | Always use PRs, never direct commit | Always |
@@ -108,3 +128,4 @@ When debugging test failures, **ALWAYS run tests individually** - never run all 
 | 8. TODO markers | Must resolve before commit | 1 min |
 | 9. GitHub search | Search OTHER repos for VBA/COM examples FIRST | 1-2 min |
 | 10. Test debugging | Run tests one by one, never all together | Per test |
+| 11. No test refs | Production NEVER references tests | Always |

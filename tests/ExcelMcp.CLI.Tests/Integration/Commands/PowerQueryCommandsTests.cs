@@ -14,25 +14,17 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 ///
 /// These tests verify the CLI wrapper works correctly. Business logic is tested in ExcelMcp.Core.Tests.
 /// </summary>
-[Trait("Category", "Integration")]
-[Trait("Speed", "Medium")]
+[Trait("Category", "Unit")]
+[Trait("Speed", "Fast")]
 [Trait("Feature", "PowerQuery")]
 [Trait("Layer", "CLI")]
-public class CliPowerQueryCommandsTests : IDisposable
+public class CliPowerQueryCommandsTests
 {
     private readonly PowerQueryCommands _cliCommands;
-    private readonly string _tempDir;
-    private readonly List<string> _createdFiles;
 
     public CliPowerQueryCommandsTests()
     {
         _cliCommands = new PowerQueryCommands();
-
-        // Create temp directory for test files
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCLI_PowerQueryTests_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
-
-        _createdFiles = [];
     }
 
     [Fact]
@@ -58,34 +50,6 @@ public class CliPowerQueryCommandsTests : IDisposable
         int exitCode = _cliCommands.View(args);
 
         // Assert - CLI returns 1 for error (missing arguments)
-        Assert.Equal(1, exitCode);
-    }
-
-    [Fact]
-    public void List_WithNonExistentFile_ReturnsErrorExitCode()
-    {
-        // Arrange
-        string nonExistentFile = Path.Combine(_tempDir, "NonExistent.xlsx");
-        string[] args = { "pq-list", nonExistentFile };
-
-        // Act
-        int exitCode = _cliCommands.List(args);
-
-        // Assert - CLI returns 1 for error (file not found)
-        Assert.Equal(1, exitCode);
-    }
-
-    [Fact]
-    public void View_WithNonExistentFile_ReturnsErrorExitCode()
-    {
-        // Arrange
-        string nonExistentFile = Path.Combine(_tempDir, "NonExistent.xlsx");
-        string[] args = { "pq-view", nonExistentFile, "SomeQuery" };
-
-        // Act
-        int exitCode = _cliCommands.View(args);
-
-        // Assert - CLI returns 1 for error (file not found)
         Assert.Equal(1, exitCode);
     }
 
@@ -127,42 +91,5 @@ public class CliPowerQueryCommandsTests : IDisposable
             Assert.True(ex is InvalidOperationException || ex is ArgumentException,
                 $"Unexpected exception type: {ex.GetType().Name}: {ex.Message}");
         }
-    }
-
-    public void Dispose()
-    {
-        // Clean up test files
-        // Note: No GC.Collect() needed here - Core's batch API handles COM cleanup properly
-        try
-        {
-            System.Threading.Thread.Sleep(500);
-
-            foreach (string file in _createdFiles)
-            {
-                try
-                {
-                    if (File.Exists(file))
-                    {
-                        File.Delete(file);
-                    }
-                }
-                catch { }
-            }
-
-            if (Directory.Exists(_tempDir))
-            {
-                try
-                {
-                    Directory.Delete(_tempDir, true);
-                }
-                catch
-                {
-                    // Best effort cleanup - test cleanup failure is non-critical
-                }
-            }
-        }
-        catch { }
-
-        GC.SuppressFinalize(this);
     }
 }

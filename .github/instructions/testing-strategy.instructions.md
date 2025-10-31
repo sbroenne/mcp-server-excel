@@ -4,7 +4,7 @@ applyTo: "tests/**/*.cs"
 
 # Testing Strategy
 
-> **Three-tier testing: Unit (fast) → Integration (Excel) → OnDemand (pool cleanup)**
+> **Three-tier testing: Unit (fast) → Integration (Excel) → OnDemand (session cleanup)**
 
 ## Test Architecture
 
@@ -29,7 +29,7 @@ tests/
 [Trait("Speed", "Medium")]
 [Trait("RequiresExcel", "true")]
 
-// OnDemand Tests (pool cleanup, stress tests)
+// OnDemand Tests (session cleanup, stress tests)
 [Trait("RunType", "OnDemand")]
 [Trait("Speed", "Slow")]
 ```
@@ -43,7 +43,7 @@ dotnet test --filter "Category=Unit&RunType!=OnDemand"
 # Pre-commit validation
 dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand"
 
-# Pool code changes (MANDATORY - see CRITICAL-RULES.md)
+# Session/batch code changes (MANDATORY - see CRITICAL-RULES.md)
 dotnet test --filter "RunType=OnDemand"
 ```
 
@@ -178,7 +178,7 @@ Assert.True(result.Success);
 **Purpose:** Verify Excel.exe process cleanup (requires Excel, 3-5 min)
 
 **When to run:**
-- ✅ Modifying `ExcelInstancePool.cs` or `ExcelHelper.cs`
+- ✅ Modifying `ExcelSession.cs`, `ExcelBatch.cs`, or `ExcelHelper.cs`
 - ❌ Never in CI/CD (no Excel)
 
 ```bash

@@ -72,7 +72,7 @@ Using `async Task` throughout provides:
 - Channel write: Lock-free, very fast
 
 **Excel COM overhead:**
-- Process spawn: 2-5 seconds (mitigated by instance pooling)
+- Process spawn: 2-5 seconds (mitigated by session batching)
 - Workbook open: 50-500ms
 - COM method calls: 0.1-10ms each
 

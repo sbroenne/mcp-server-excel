@@ -19,6 +19,7 @@ public partial class TableCommands
         return await batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
+            dynamic? model = null;
             dynamic? modelTables = null;
             try
             {
@@ -31,7 +32,7 @@ public partial class TableCommands
                 }
 
                 // Data Model is always available in Excel 2013+ (no need to check)
-                dynamic model = ctx.Book.Model;
+                model = ctx.Book.Model;
                 modelTables = model.ModelTables;
 
                 // Check if table is already in the Data Model via ModelTables
@@ -119,10 +120,13 @@ public partial class TableCommands
                     ComUtilities.Release(ref workbookConnections);
                 }
 
+                // Table is immediately available in Data Model - no refresh needed
+                // Connections.Add2() makes the table accessible for relationships/measures instantly
+
                 result.Success = true;
                 result.SuggestedNextActions.Add("Use 'dm-list-tables' to verify the table is in the Data Model");
                 result.SuggestedNextActions.Add($"Use 'dm-create-measure' to add DAX measures based on '{tableName}'");
-                result.SuggestedNextActions.Add("Use 'dm-refresh' to refresh the Data Model");
+                result.SuggestedNextActions.Add("Use 'dm-create-relationship' to create relationships with other tables");
                 result.WorkflowHint = $"Table '{tableName}' added to Power Pivot Data Model.";
 
                 return result;
@@ -137,6 +141,7 @@ public partial class TableCommands
             {
                 // Release COM objects
                 ComUtilities.Release(ref modelTables);
+                ComUtilities.Release(ref model);
                 ComUtilities.Release(ref table);
             }
         });

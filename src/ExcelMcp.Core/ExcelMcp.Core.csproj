@@ -23,21 +23,11 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
   </PropertyGroup>
-
-  <!-- Expose internals only to MCP Server and pool-specific tests -->
-  <ItemGroup>
-    <InternalsVisibleTo Include="Sbroenne.ExcelMcp.McpServer" />
-    <InternalsVisibleTo Include="Sbroenne.ExcelMcp.Core.Tests" />
-  </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\ExcelMcp.ComInterop\ExcelMcp.ComInterop.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- TOM (Tabular Object Model) for Data Model operations -->
-    <!-- Updated from deprecated Microsoft.AnalysisServices.NetCore.retail.amd64 to Microsoft.AnalysisServices -->
-    <PackageReference Include="Microsoft.AnalysisServices" />
     <PackageReference Include="Microsoft.Extensions.ObjectPool" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers">
       <PrivateAssets>all</PrivateAssets>

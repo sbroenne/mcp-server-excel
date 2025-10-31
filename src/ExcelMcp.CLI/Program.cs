@@ -45,7 +45,6 @@ class Program
             var file = new FileCommands();
             var connection = new ConnectionCommands();
             var dataModel = new DataModelCommands();  // Used for dm-* commands
-            var dataModelTom = new DataModelTomCommands();
             var table = new CliTableCommands();
             var pivot = new PivotTableCommands();
 
@@ -173,13 +172,6 @@ class Program
                 "dm-update-measure" => dataModel.UpdateMeasure(args),
                 "dm-create-relationship" => dataModel.CreateRelationship(args),
                 "dm-update-relationship" => dataModel.UpdateRelationship(args),
-
-                // Data Model TOM (Tabular Object Model) commands - Advanced CRUD operations (future)
-                "dm-create-column" => dataModelTom.CreateCalculatedColumn(args),
-                "dm-view-column" => dataModelTom.ViewCalculatedColumn(args),
-                "dm-update-column" => dataModelTom.UpdateCalculatedColumn(args),
-                "dm-delete-column" => dataModelTom.DeleteCalculatedColumn(args),
-                "dm-validate-dax" => dataModelTom.ValidateDax(args),
 
                 "--help" or "-h" => ShowHelp(),
                 _ => ShowHelp()
@@ -408,17 +400,11 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]dm-delete-relationship[/] file.xlsx from-tbl from-col to-tbl to-col  Delete relationship");
         AnsiConsole.WriteLine();
 
-        AnsiConsole.MarkupLine("[bold yellow]Data Model TOM Commands (Advanced CRUD):[/]");
+        AnsiConsole.MarkupLine("[bold yellow]Data Model Commands:[/]");
         AnsiConsole.MarkupLine("  [cyan]dm-create-measure[/] file.xlsx table name formula  Create DAX measure");
         AnsiConsole.MarkupLine("  [cyan]dm-update-measure[/] file.xlsx name [[options]]      Update DAX measure");
         AnsiConsole.MarkupLine("  [cyan]dm-create-relationship[/] file.xlsx from to        Create table relationship");
         AnsiConsole.MarkupLine("  [cyan]dm-update-relationship[/] file.xlsx from to [[opts]] Update relationship");
-        AnsiConsole.MarkupLine("  [cyan]dm-create-column[/] file.xlsx table name formula   Create calculated column");
-        AnsiConsole.MarkupLine("  [cyan]dm-list-columns[/] file.xlsx [[table]]               List calculated columns");
-        AnsiConsole.MarkupLine("  [cyan]dm-view-column[/] file.xlsx table column           View column details");
-        AnsiConsole.MarkupLine("  [cyan]dm-update-column[/] file.xlsx table column [[opts]]  Update calculated column");
-        AnsiConsole.MarkupLine("  [cyan]dm-delete-column[/] file.xlsx table column         Delete calculated column");
-        AnsiConsole.MarkupLine("  [cyan]dm-validate-dax[/] file.xlsx formula               Validate DAX syntax");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold green]Examples:[/]");

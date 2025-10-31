@@ -269,96 +269,85 @@ public static class ComUtilities
     }
 
     /// <summary>
-    /// Finds a Data Model table by name
+    /// Safely iterates through all columns in a model table with automatic COM cleanup
     /// </summary>
-    /// <param name="model">Model COM object</param>
-    /// <param name="tableName">Table name to find</param>
-    /// <returns>Table COM object if found, null otherwise</returns>
-    public static dynamic? FindModelTable(dynamic model, string tableName)
+    /// <param name="table">Model table COM object</param>
+    /// <param name="action">Action to perform on each column (receives column and 1-based index)</param>
+    public static void ForEachColumn(dynamic table, Action<dynamic, int> action)
     {
-        dynamic? modelTables = null;
+        dynamic? columns = null;
         try
         {
-            modelTables = model.ModelTables;
-            for (int i = 1; i <= modelTables.Count; i++)
+            columns = table.ModelTableColumns;
+            int count = columns.Count;
+
+            for (int i = 1; i <= count; i++)
             {
-                dynamic? table = null;
+                dynamic? column = null;
                 try
                 {
-                    table = modelTables.Item(i);
-                    string name = table.Name?.ToString() ?? "";
-                    if (name.Equals(tableName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        var result = table;
-                        table = null; // Don't release - returning it
-                        return result;
-                    }
+                    column = columns.Item(i);
+                    action(column, i);
                 }
                 finally
                 {
-                    if (table != null) Release(ref table);
+                    Release(ref column);
                 }
             }
         }
         finally
         {
-            Release(ref modelTables);
+            Release(ref columns);
         }
-        return null;
     }
 
     /// <summary>
-    /// Finds a DAX measure by name across all tables in the model
+    /// Safely gets a string property from a COM object, returning empty string if null
     /// </summary>
-    /// <param name="model">Model COM object</param>
-    /// <param name="measureName">Measure name to find</param>
-    /// <returns>Measure COM object if found, null otherwise</returns>
-    public static dynamic? FindModelMeasure(dynamic model, string measureName)
+    /// <param name="obj">COM object</param>
+    /// <param name="propertyName">Property name</param>
+    /// <returns>Property value or empty string</returns>
+    public static string SafeGetString(dynamic obj, string propertyName)
     {
-        dynamic? modelTables = null;
         try
         {
-            modelTables = model.ModelTables;
-            for (int t = 1; t <= modelTables.Count; t++)
+            var value = propertyName switch
             {
-                dynamic? table = null;
-                dynamic? measures = null;
-                try
-                {
-                    table = modelTables.Item(t);
-                    measures = table.ModelMeasures;
-
-                    for (int m = 1; m <= measures.Count; m++)
-                    {
-                        dynamic? measure = null;
-                        try
-                        {
-                            measure = measures.Item(m);
-                            string name = measure.Name?.ToString() ?? "";
-                            if (name.Equals(measureName, StringComparison.OrdinalIgnoreCase))
-                            {
-                                var result = measure;
-                                measure = null; // Don't release - returning it
-                                return result;
-                            }
-                        }
-                        finally
-                        {
-                            if (measure != null) Release(ref measure);
-                        }
-                    }
-                }
-                finally
-                {
-                    Release(ref measures);
-                    Release(ref table);
-                }
-            }
+                "Name" => obj.Name,
+                "Formula" => obj.Formula,
+                "Description" => obj.Description,
+                "SourceName" => obj.SourceName,
+                _ => null
+            };
+            return value?.ToString() ?? string.Empty;
         }
-        finally
+        catch
         {
-            Release(ref modelTables);
+            return string.Empty;
         }
-        return null;
+    }
+
+    /// <summary>
+    /// Safely gets an integer property from a COM object, returning 0 if null or invalid
+    /// </summary>
+    /// <param name="obj">COM object</param>
+    /// <param name="propertyName">Property name</param>
+    /// <returns>Property value or 0</returns>
+    public static int SafeGetInt(dynamic obj, string propertyName)
+    {
+        try
+        {
+            var value = propertyName switch
+            {
+                "RecordCount" => obj.RecordCount,
+                "Count" => obj.Count,
+                _ => 0
+            };
+            return Convert.ToInt32(value);
+        }
+        catch
+        {
+            return 0;
+        }
     }
 }

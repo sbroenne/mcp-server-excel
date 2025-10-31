@@ -26,10 +26,10 @@ public partial class DataModelCommands
             try
             {
                 // Check if workbook has Data Model
-                if (!DataModelHelpers.HasDataModel(ctx.Book))
+                if (!HasDataModelTables(ctx.Book))
                 {
                     result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModel();
+                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
                     return result;
                 }
 
@@ -38,7 +38,7 @@ public partial class DataModelCommands
                 if (tableName != null)
                 {
                     // Refresh specific table
-                    dynamic? table = ComUtilities.FindModelTable(model, tableName);
+                    dynamic? table = FindModelTable(model, tableName);
                     if (table == null)
                     {
                         result.Success = false;

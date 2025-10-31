@@ -28,7 +28,7 @@ dotnet test --filter "Category=Unit&RunType!=OnDemand"
 # Pre-commit (comprehensive)
 dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand"
 
-# Pool code changes (MANDATORY)
+# Session/batch code changes (MANDATORY)
 dotnet test --filter "RunType=OnDemand"
 
 # CI/CD (no Excel)
