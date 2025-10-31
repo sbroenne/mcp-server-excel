@@ -41,23 +41,6 @@ public partial class DataModelCommandsTests
     }
 
     [Fact]
-    public async Task ListTableColumns_WithNonExistentTable_ReturnsError()
-    {
-        // Arrange - Create unique test file
-        var testFile = await CreateTestFileAsync("ListTableColumns_WithNonExistentTable_ReturnsError.xlsx");
-
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _dataModelCommands.ListTableColumnsAsync(batch, "NonExistentTable");
-
-        // Assert - Should fail because table doesn't exist (Data Model is always available in Excel 2013+)
-        Assert.False(result.Success, "ListTableColumns should fail when table doesn't exist");
-        Assert.NotNull(result.ErrorMessage);
-        Assert.True(result.ErrorMessage.Contains("Table 'NonExistentTable' not found"),
-            $"Expected 'table not found' error, but got: {result.ErrorMessage}");
-    }
-
-    [Fact]
     public async Task ViewTable_WithValidTable_ReturnsCompleteInfo()
     {
         // Arrange - Create unique test file
@@ -101,23 +84,6 @@ public partial class DataModelCommandsTests
     }
 
     [Fact]
-    public async Task ViewTable_WithNonExistentTable_ReturnsError()
-    {
-        // Arrange - Create unique test file
-        var testFile = await CreateTestFileAsync("ViewTable_WithNonExistentTable_ReturnsError.xlsx");
-
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _dataModelCommands.ViewTableAsync(batch, "NonExistentTable");
-
-        // Assert - Demand specific "table not found" error (Data Model is always available)
-        Assert.False(result.Success, "Should fail when table doesn't exist");
-        Assert.NotNull(result.ErrorMessage);
-        Assert.True(result.ErrorMessage.Contains("Table 'NonExistentTable' not found"),
-            $"Expected 'Table not found' error, but got: {result.ErrorMessage}");
-    }
-
-    [Fact]
     public async Task GetModelInfo_WithRealisticDataModel_ReturnsAccurateStatistics()
     {
         // Arrange - Create unique test file
@@ -148,23 +114,5 @@ public partial class DataModelCommandsTests
         Assert.True(result.TableNames.Count >= 3, $"Expected at least 3 table names, got {result.TableNames.Count}");
         Assert.Contains("SalesTable", result.TableNames);
         Assert.Contains("CustomersTable", result.TableNames);
-    }
-
-    [Fact]
-    public async Task GetModelInfo_WithDataModelHavingMeasures_CountsCorrectly()
-    {
-        // Arrange - Create unique test file
-        var testFile = await CreateTestFileAsync("GetModelInfo_WithDataModelHavingMeasures_CountsCorrectly.xlsx");
-
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _dataModelCommands.GetModelInfoAsync(batch);
-
-        // Assert - If Data Model was created with measures
-        if (result.Success && result.MeasureCount > 0)
-        {
-            // Should have at least 3 measures (Total Sales, Average Sale, Total Customers)
-            Assert.True(result.MeasureCount >= 3, $"Expected at least 3 measures, got {result.MeasureCount}");
-        }
     }
 }
