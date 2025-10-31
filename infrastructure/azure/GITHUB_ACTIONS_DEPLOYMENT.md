@@ -2,6 +2,8 @@
 
 This guide shows how to deploy the Azure VM using GitHub Actions with **OIDC (OpenID Connect)** for secure Azure authentication.
 
+> **💡 Alternative:** If automated deployment fails, use the manual installation guide: [`docs/MANUAL_RUNNER_INSTALLATION.md`](../../docs/MANUAL_RUNNER_INSTALLATION.md)
+
 ## Prerequisites
 
 - Azure subscription with permissions to create app registrations
@@ -171,7 +173,7 @@ Should show:
 1. Generate a new token from Settings → Actions → Runners → New self-hosted runner
 2. Re-run the workflow with the new token
 
-### "Deployment failed" error
+### "Deployment failed" or "Runner setup failed" error
 
 **Check:**
 1. Azure credentials are correct
@@ -181,6 +183,23 @@ Should show:
 **View detailed error:**
 - Check workflow logs in Actions tab
 - Look for error messages in "Deploy Bicep Template" step
+
+**Check VM extension logs (via RDP):**
+If the VM was created but runner setup failed, RDP to the VM and check:
+```powershell
+# View setup script log
+Get-Content C:\runner-setup.log
+
+# Check CustomScriptExtension logs
+Get-Content C:\WindowsAzure\Logs\Plugins\Microsoft.Compute.CustomScriptExtension\*\*.log
+```
+
+**Common causes:**
+- Runner token expired (regenerate and retry)
+- Network connectivity issues (check NSG rules)
+- GitHub rate limiting (wait and retry)
+
+**Fallback:** Use manual installation guide: [`docs/MANUAL_RUNNER_INSTALLATION.md`](../../docs/MANUAL_RUNNER_INSTALLATION.md)
 
 ### Azure Login failed
 
