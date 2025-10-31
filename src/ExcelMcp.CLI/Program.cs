@@ -45,7 +45,6 @@ class Program
             var file = new FileCommands();
             var connection = new ConnectionCommands();
             var dataModel = new DataModelCommands();  // Used for dm-* commands
-            var dataModelTom = new DataModelTomCommands();
             var table = new CliTableCommands();
             var pivot = new PivotTableCommands();
 
@@ -174,12 +173,12 @@ class Program
                 "dm-create-relationship" => dataModel.CreateRelationship(args),
                 "dm-update-relationship" => dataModel.UpdateRelationship(args),
 
-                // Data Model TOM (Tabular Object Model) commands - Advanced CRUD operations (future)
-                "dm-create-column" => dataModelTom.CreateCalculatedColumn(args),
-                "dm-view-column" => dataModelTom.ViewCalculatedColumn(args),
-                "dm-update-column" => dataModelTom.UpdateCalculatedColumn(args),
-                "dm-delete-column" => dataModelTom.DeleteCalculatedColumn(args),
-                "dm-validate-dax" => dataModelTom.ValidateDax(args),
+                // Data Model TOM (Tabular Object Model) commands - TODO: Implement CLI wrappers
+                // "dm-create-column" => ...,
+                // "dm-view-column" => ...,
+                // "dm-update-column" => ...,
+                // "dm-delete-column" => ...,
+                // "dm-validate-dax" => ...,
 
                 "--help" or "-h" => ShowHelp(),
                 _ => ShowHelp()
