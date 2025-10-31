@@ -4,60 +4,25 @@ This directory contains Infrastructure as Code (IaC) for automating the deployme
 
 ## Quick Start
 
-**Two deployment options:**
-
-### Option 1: GitHub Actions (Recommended) ⭐
-
-**Deploy directly from GitHub UI - no local Azure CLI needed!**
+**Deploy directly from GitHub UI - fully automated!**
 
 📚 **Setup Guide:** [`GITHUB_ACTIONS_DEPLOYMENT.md`](GITHUB_ACTIONS_DEPLOYMENT.md)
 
 **Quick steps:**
-1. Create Azure service principal (one-time)
-2. Add `AZURE_CREDENTIALS` to GitHub Secrets
+1. Create Azure App Registration with OIDC (one-time, 10 minutes)
+2. Add Azure credentials to GitHub Secrets  
 3. Go to Actions tab → Deploy Azure Self-Hosted Runner
-4. Enter parameters → Run workflow
+4. Enter parameters (Resource Group + Admin Password only - **no manual token needed!**)
 5. RDP to VM and install Excel (30 minutes)
 
 **Benefits:**
-- No local tooling required
-- Deploy from browser
-- Audit trail in Actions logs
-- Repeatable and version-controlled
+- ✅ **Fully automated** - runner token auto-generated via GitHub API
+- ✅ **No local tooling required** - deploy from browser
+- ✅ **Secure OIDC authentication** - no stored secrets
+- ✅ **Audit trail** in Actions logs
+- ✅ **Repeatable and version-controlled**
 
 ---
-
-### Option 2: Local Deployment (Azure CLI)
-
-### Prerequisites
-
-- Azure CLI installed (`az --version`)
-- Azure subscription with VM creation permissions
-- GitHub repository admin access
-- Office 365 E3/E5 license or standalone Excel
-
-### Deploy in 5 Minutes
-
-```bash
-cd infrastructure/azure
-
-# Login to Azure
-az login
-
-# Generate GitHub runner token
-# Go to: https://github.com/sbroenne/mcp-server-excel/settings/actions/runners/new
-# Select: Windows
-# Copy the token from the configuration command
-
-# Deploy (replace with your values)
-./deploy.sh \
-  rg-excel-runner \
-  "YourSecureVMPassword123!" \
-  "YOUR_GITHUB_RUNNER_TOKEN_HERE"
-
-# RDP to VM and install Office 365 Excel (30 minutes)
-# Runner auto-starts after reboot
-```
 
 ## What Gets Deployed
 
@@ -114,40 +79,10 @@ az login
 
 ```
 infrastructure/azure/
-├── azure-runner.bicep              # Main Bicep template
-├── azure-runner.parameters.json    # Parameters (optional)
-├── deploy.sh                       # Deployment script
-└── README.md                       # This file
+├── azure-runner.bicep                # Main Bicep template
+├── GITHUB_ACTIONS_DEPLOYMENT.md      # Setup and deployment guide
+└── README.md                         # This file
 ```
-
-## Deployment Options
-
-### Option 1: Bash Script (Recommended)
-
-```bash
-./deploy.sh rg-excel-runner "Password123!" "GITHUB_TOKEN"
-```
-
-### Option 2: Azure CLI Direct
-
-```bash
-az group create --name rg-excel-runner --location eastus
-
-az deployment group create \
-  --resource-group rg-excel-runner \
-  --template-file azure-runner.bicep \
-  --parameters \
-    adminPassword="YourPassword123!" \
-    githubRepoUrl="https://github.com/sbroenne/mcp-server-excel" \
-    githubRunnerToken="YOUR_TOKEN"
-```
-
-### Option 3: Azure Portal
-
-1. Upload `azure-runner.bicep` to Azure Portal
-2. Fill in parameters
-3. Review + Create
-4. Deploy
 
 ## Configuration
 

@@ -95,13 +95,6 @@ echo "AZURE_SUBSCRIPTION_ID: $SUBSCRIPTION_ID"
 
 **No client secret needed!** OIDC uses federated credentials instead.
 
-### Step 3: Generate GitHub Runner Token
-
-1. Go to `https://github.com/sbroenne/mcp-server-excel/settings/actions/runners`
-2. Click **New self-hosted runner**
-3. Select **Windows**
-4. Copy the registration token (valid for 1 hour)
-
 ## Deployment
 
 ### Deploy via GitHub Actions UI
@@ -112,8 +105,9 @@ echo "AZURE_SUBSCRIPTION_ID: $SUBSCRIPTION_ID"
 4. Fill in the parameters:
    - **Resource Group:** `rg-excel-runner` (or your preference)
    - **Admin Password:** Strong password for VM (e.g., `MySecurePass123!`)
-   - **GitHub Runner Token:** Paste token from Step 3 above
 5. Click **Run workflow**
+
+**Note:** GitHub runner registration token is now **automatically generated** by the workflow - no manual token creation needed!
 
 **Deployment takes ~5 minutes**
 
@@ -141,20 +135,21 @@ Should show:
 - Status: Idle (green)
 - Labels: `self-hosted`, `windows`, `excel`
 
-## Why OIDC?
+## Why This Approach?
 
 **Security benefits:**
-- ✅ **No secrets stored** - Uses short-lived tokens instead
+- ✅ **No secrets stored** - Uses OIDC for Azure, GitHub API for runner tokens
 - ✅ **No credential rotation** - Federated credentials don't expire
+- ✅ **Automatic token generation** - No manual token handling
 - ✅ **Azure-managed** - Azure AD handles authentication
 - ✅ **Audit trail** - Every deployment logged in Azure AD
 - ✅ **Principle of least privilege** - Scoped to specific repository/branch
 
-**vs. Service Principal with Secret:**
-- ❌ Client secret stored in GitHub
-- ❌ Secrets must be rotated every 90 days
-- ❌ Secret can be leaked if repository compromised
-- ❌ More attack surface
+**vs. Manual Token Generation:**
+- ❌ Manual token generation required
+- ❌ Tokens expire after 1 hour
+- ❌ Error-prone copy/paste process
+- ❌ Cannot be used by coding agents
 
 ## Troubleshooting
 
@@ -172,12 +167,13 @@ Should show:
 ### "Runner registration failed" error
 
 **Causes:**
-1. GitHub runner token expired (valid 1 hour)
-2. Token was already used
+1. Workflow lacks `actions: write` permission
+2. GitHub API returned an error
 
 **Solution:**
-- Generate new token from repository settings
-- Re-run workflow with new token
+- Check workflow logs for "Generate GitHub Runner Registration Token" step
+- Verify repository permissions allow runner registration
+- Re-run the workflow (token is auto-generated on each run)
 
 ### Azure Login failed
 
@@ -204,7 +200,7 @@ Or use Azure Portal → Resource Groups → Delete
 ## Security Best Practices
 
 1. **Use OIDC** instead of service principal credentials (more secure)
-2. **Rotate secrets** every 90 days
+2. **Automatic token generation** eliminates manual token handling risks
 3. **Limit service principal** to specific resource group
 4. **Enable Azure Security Center** for VM monitoring
 5. **Review permissions** regularly
