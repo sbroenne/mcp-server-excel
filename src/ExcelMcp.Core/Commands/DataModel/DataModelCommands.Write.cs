@@ -262,7 +262,18 @@ public partial class DataModelCommands
 
                 // Get ModelMeasures collection from MODEL (not from table!)
                 // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
-                measures = model.ModelMeasures;
+                try
+                {
+                    measures = model.ModelMeasures;
+                }
+                catch (Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = "DAX measures are not supported in this version of Excel. " +
+                                        "The ModelMeasures API requires Microsoft Office 2016 or later. " +
+                                        "Please upgrade Excel to use measure operations.";
+                    return result;
+                }
 
                 // Get format object if specified
                 if (!string.IsNullOrEmpty(formatType))

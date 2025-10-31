@@ -65,12 +65,12 @@ public partial class DataModelCommandsTests
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _dataModelCommands.ViewTableAsync(batch, "Sales");
+        var result = await _dataModelCommands.ViewTableAsync(batch, "SalesTable");
 
         // Assert - MUST succeed (Data Model is always available in Excel 2013+)
         Assert.True(result.Success,
             $"ViewTable MUST succeed. Error: {result.ErrorMessage}");
-        Assert.Equal("Sales", result.TableName);
+        Assert.Equal("SalesTable", result.TableName);
         Assert.NotNull(result.SourceName);
         Assert.True(result.RecordCount >= 10, $"Expected at least 10 records in Sales table, got {result.RecordCount}");
 
@@ -90,13 +90,13 @@ public partial class DataModelCommandsTests
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _dataModelCommands.ViewTableAsync(batch, "Sales");
+        var result = await _dataModelCommands.ViewTableAsync(batch, "SalesTable");
 
         // Assert - If Data Model was created with measures
         if (result.Success && result.MeasureCount > 0)
         {
-            // Sales table should have at least 2 measures (Total Sales, Average Sale)
-            Assert.True(result.MeasureCount >= 2, $"Expected at least 2 measures for Sales table, got {result.MeasureCount}");
+            // SalesTable should have at least 2 measures (Total Sales, Average Sale)
+            Assert.True(result.MeasureCount >= 2, $"Expected at least 2 measures for SalesTable, got {result.MeasureCount}");
         }
     }
 
@@ -146,8 +146,8 @@ public partial class DataModelCommandsTests
         // Should have table names
         Assert.NotNull(result.TableNames);
         Assert.True(result.TableNames.Count >= 3, $"Expected at least 3 table names, got {result.TableNames.Count}");
-        Assert.Contains("Sales", result.TableNames);
-        Assert.Contains("Customers", result.TableNames);
+        Assert.Contains("SalesTable", result.TableNames);
+        Assert.Contains("CustomersTable", result.TableNames);
     }
 
     [Fact]
