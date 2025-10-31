@@ -89,31 +89,40 @@ public partial class DataModelCommands
 
                 model = ctx.Book.Model;
 
-                DataModelHelpers.ForEachTable(model, (Action<dynamic, int>)((table, index) =>
+                // Iterate through all measures (they're at model level)
+                DataModelHelpers.ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
                 {
-                    string currentTableName = DataModelHelpers.SafeGetString(table, "Name");
+                    // Get the table name for this measure
+                    string measureTableName = string.Empty;
+                    dynamic? associatedTable = null;
+                    try
+                    {
+                        associatedTable = measure.AssociatedTable;
+                        measureTableName = associatedTable?.Name?.ToString() ?? string.Empty;
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref associatedTable);
+                    }
 
-                    // Skip if filtering by table and this isn't the table
-                    if (tableName != null && !currentTableName.Equals(tableName, StringComparison.OrdinalIgnoreCase))
+                    // Skip if filtering by table and this measure isn't in that table
+                    if (tableName != null && !measureTableName.Equals(tableName, StringComparison.OrdinalIgnoreCase))
                     {
                         return;
                     }
 
-                    DataModelHelpers.ForEachMeasure(table, (Action<dynamic, int>)((measure, measureIndex) =>
+                    string formula = DataModelHelpers.SafeGetString(measure, "Formula");
+                    string preview = formula.Length > 80 ? formula[..77] + "..." : formula;
+
+                    var measureInfo = new DataModelMeasureInfo
                     {
-                        string formula = DataModelHelpers.SafeGetString(measure, "Formula");
-                        string preview = formula.Length > 80 ? formula[..77] + "..." : formula;
+                        Name = DataModelHelpers.SafeGetString(measure, "Name"),
+                        Table = measureTableName,
+                        FormulaPreview = preview,
+                        Description = DataModelHelpers.SafeGetString(measure, "Description")
+                    };
 
-                        var measureInfo = new DataModelMeasureInfo
-                        {
-                            Name = DataModelHelpers.SafeGetString(measure, "Name"),
-                            Table = currentTableName,
-                            FormulaPreview = preview,
-                            Description = DataModelHelpers.SafeGetString(measure, "Description")
-                        };
-
-                        result.Measures.Add(measureInfo);
-                    }));
+                    result.Measures.Add(measureInfo);
                 }));
 
                 // Check if table filter was specified but not found

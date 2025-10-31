@@ -260,8 +260,9 @@ public partial class DataModelCommands
                     return result;
                 }
 
-                // Get ModelMeasures collection from table
-                measures = table.ModelMeasures;
+                // Get ModelMeasures collection from MODEL (not from table!)
+                // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
+                measures = model.ModelMeasures;
 
                 // Get format object if specified
                 if (!string.IsNullOrEmpty(formatType))

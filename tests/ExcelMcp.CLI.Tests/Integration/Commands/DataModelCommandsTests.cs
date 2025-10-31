@@ -1,5 +1,4 @@
 using Sbroenne.ExcelMcp.CLI.Commands;
-using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
@@ -52,16 +51,9 @@ public class CliDataModelCommandsTests : IDisposable
             throw new InvalidOperationException("Failed to create test Excel file using CLI command");
         }
 
-        // Create realistic Data Model with sample data
-        try
-        {
-            DataModelTestHelper.CreateSampleDataModelAsync(_testExcelFile).GetAwaiter().GetResult();
-        }
-        catch (Exception ex)
-        {
-            // Data Model creation may fail on some Excel versions - tests will handle gracefully
-            System.Diagnostics.Debug.WriteLine($"Could not create sample Data Model: {ex.Message}");
-        }
+        // NOTE: CLI tests focus on argument parsing and exit codes.
+        // Data Model operations are tested in ExcelMcp.Core.Tests.
+        // Tests will work with an empty workbook (Data Model is always available in Excel 2013+).
     }
 
     #region Argument Validation Tests
@@ -293,13 +285,12 @@ public class CliDataModelCommandsTests : IDisposable
         Assert.Equal(1, exitCode);
     }
 
-    [Fact(Skip = "Data Model test helper requires specific Excel version/configuration. May fail on some environments due to Data Model availability.")]
-    public async Task DeleteMeasure_WithValidMeasure_ReturnsSuccess()
+    [Fact(Skip = "Requires Data Model setup - tested in ExcelMcp.Core.Tests")]
+    public void DeleteMeasure_WithValidMeasure_ReturnsSuccess()
     {
-        // Arrange - Create a test measure first
+        // Arrange - This test requires Data Model setup which is tested in Core
+        // CLI layer only tests argument parsing and exit codes
         var measureName = "TestMeasure_" + Guid.NewGuid().ToString("N")[..8];
-
-        await DataModelTestHelper.CreateTestMeasureAsync(_testExcelFile, measureName, "SUM(Sales[Amount])");
 
         string[] args = { "dm-delete-measure", _testExcelFile, measureName };
 

@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Commands.DataModel;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Xunit;
@@ -20,6 +21,7 @@ public class TableAddToDataModelTests : IDisposable
     private readonly ITableCommands _tableCommands;
     private readonly IRangeCommands _rangeCommands;
     private readonly IFileCommands _fileCommands;
+    private readonly IDataModelCommands _dataModelCommands;
     private readonly string _tempDir;
     private readonly ITestOutputHelper _output;
     private bool _disposed;
@@ -30,6 +32,7 @@ public class TableAddToDataModelTests : IDisposable
         _tableCommands = new TableCommands();
         _rangeCommands = new RangeCommands();
         _fileCommands = new FileCommands();
+        _dataModelCommands = new DataModelCommands();
 
         // Create temp directory for test files
         _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_DataModel_Tests_{Guid.NewGuid():N}");
@@ -81,25 +84,41 @@ public class TableAddToDataModelTests : IDisposable
     }
 
     /// <summary>
-    /// Test adding a table when the workbook already has other tables in Data Model.
-    /// Data Model is always available, so this MUST succeed.
+    /// Test adding tables and immediately creating a relationship between them.
+    /// This verifies that Model.Refresh() is called internally by AddToDataModelAsync,
+    /// making tables immediately available for relationships without manual refresh.
     /// </summary>
     [Fact]
     public async Task AddToDataModel_WhenOtherTablesExist_MustSucceed()
     {
         // Arrange
         var testFile = Path.Combine(_tempDir, "MultipleTable.xlsx");
-        await CreateFileWithMultipleTables(testFile);
+        await CreateFileWithRelatedTables(testFile);
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-        // Act - Try to add both tables
-        var result1 = await _tableCommands.AddToDataModelAsync(batch, "Table1");
-        var result2 = await _tableCommands.AddToDataModelAsync(batch, "Table2");
+        // Act - Add both tables to Data Model
+        var result1 = await _tableCommands.AddToDataModelAsync(batch, "Customers");
+        var result2 = await _tableCommands.AddToDataModelAsync(batch, "Orders");
 
         // Assert - Both MUST succeed
-        Assert.True(result1.Success, $"AddToDataModelAsync failed for Table1. Error: {result1.ErrorMessage}");
-        Assert.True(result2.Success, $"AddToDataModelAsync failed for Table2. Error: {result2.ErrorMessage}");
+        Assert.True(result1.Success, $"AddToDataModelAsync failed for Customers. Error: {result1.ErrorMessage}");
+        Assert.True(result2.Success, $"AddToDataModelAsync failed for Orders. Error: {result2.ErrorMessage}");
+
+        // Verify tables are in the Data Model
+        var listResult = await _dataModelCommands.ListTablesAsync(batch);
+        Assert.True(listResult.Success, $"ListTables failed: {listResult.ErrorMessage}");
+        _output.WriteLine($"Tables in Data Model: {string.Join(", ", listResult.Tables.Select(t => t.Name))}");
+
+        // Act - Immediately create a relationship (proves Model.Refresh() worked)
+        var relationshipResult = await _dataModelCommands.CreateRelationshipAsync(
+            batch, "Orders", "CustomerID", "Customers", "CustomerID", active: true);
+
+        // Assert - Relationship creation MUST succeed without manual refresh
+        Assert.True(relationshipResult.Success,
+            $"Creating relationship failed - Model.Refresh() may not have been called or saved. Error: {relationshipResult.ErrorMessage}");
+
+        await batch.SaveAsync();
     }
 
     /// <summary>
@@ -192,6 +211,39 @@ public class TableAddToDataModelTests : IDisposable
         ]);
         var table2Result = await _tableCommands.CreateAsync(batch, "Sheet1", "Table2", "D1:E3", true);
         Assert.True(table2Result.Success);
+
+        await batch.SaveAsync();
+    }
+
+    private async Task CreateFileWithRelatedTables(string filePath)
+    {
+        var createResult = await _fileCommands.CreateEmptyAsync(filePath);
+        Assert.True(createResult.Success);
+
+        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+
+        // Create Customers table
+        await _rangeCommands.SetValuesAsync(batch, "Sheet1", "A1:B4",
+        [
+            new() { "CustomerID", "Name" },
+            new() { 101, "Acme Corp" },
+            new() { 102, "TechStart Inc" },
+            new() { 103, "Global Solutions" }
+        ]);
+        var customersResult = await _tableCommands.CreateAsync(batch, "Sheet1", "Customers", "A1:B4", true);
+        Assert.True(customersResult.Success);
+
+        // Create Orders table with CustomerID foreign key
+        await _rangeCommands.SetValuesAsync(batch, "Sheet1", "D1:F5",
+        [
+            new() { "OrderID", "CustomerID", "Amount" },
+            new() { 1, 101, 1500.00 },
+            new() { 2, 102, 2200.00 },
+            new() { 3, 101, 3000.00 },
+            new() { 4, 103, 750.00 }
+        ]);
+        var ordersResult = await _tableCommands.CreateAsync(batch, "Sheet1", "Orders", "D1:F5", true);
+        Assert.True(ordersResult.Success);
 
         await batch.SaveAsync();
     }

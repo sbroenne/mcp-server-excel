@@ -23,13 +23,6 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
   </PropertyGroup>
-
-  <!-- Expose internals only to MCP Server and pool-specific tests -->
-  <ItemGroup>
-    <InternalsVisibleTo Include="Sbroenne.ExcelMcp.McpServer" />
-    <InternalsVisibleTo Include="Sbroenne.ExcelMcp.Core.Tests" />
-  </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\ExcelMcp.ComInterop\ExcelMcp.ComInterop.csproj" />
   </ItemGroup>

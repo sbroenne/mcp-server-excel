@@ -11,8 +11,11 @@ public partial class DataModelCommandsTests
     [Fact]
     public async Task ListTableColumns_WithValidTable_ReturnsColumns()
     {
+        // Arrange - Create unique test file
+        var testFile = await CreateTestFileAsync("ListTableColumns_WithValidTable_ReturnsColumns.xlsx");
+
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         var result = await _dataModelCommands.ListTableColumnsAsync(batch, "Sales");
 
         // Assert - MUST succeed (Data Model is always available in Excel 2013+)
@@ -40,8 +43,11 @@ public partial class DataModelCommandsTests
     [Fact]
     public async Task ListTableColumns_WithNonExistentTable_ReturnsError()
     {
+        // Arrange - Create unique test file
+        var testFile = await CreateTestFileAsync("ListTableColumns_WithNonExistentTable_ReturnsError.xlsx");
+
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         var result = await _dataModelCommands.ListTableColumnsAsync(batch, "NonExistentTable");
 
         // Assert - Should fail because table doesn't exist (Data Model is always available in Excel 2013+)
@@ -54,8 +60,11 @@ public partial class DataModelCommandsTests
     [Fact]
     public async Task ViewTable_WithValidTable_ReturnsCompleteInfo()
     {
+        // Arrange - Create unique test file
+        var testFile = await CreateTestFileAsync("ViewTable_WithValidTable_ReturnsCompleteInfo.xlsx");
+
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         var result = await _dataModelCommands.ViewTableAsync(batch, "Sales");
 
         // Assert - MUST succeed (Data Model is always available in Excel 2013+)
@@ -76,8 +85,11 @@ public partial class DataModelCommandsTests
     [Fact]
     public async Task ViewTable_WithTableHavingMeasures_CountsMeasuresCorrectly()
     {
+        // Arrange - Create unique test file
+        var testFile = await CreateTestFileAsync("ViewTable_WithTableHavingMeasures_CountsMeasuresCorrectly.xlsx");
+
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         var result = await _dataModelCommands.ViewTableAsync(batch, "Sales");
 
         // Assert - If Data Model was created with measures
@@ -91,8 +103,11 @@ public partial class DataModelCommandsTests
     [Fact]
     public async Task ViewTable_WithNonExistentTable_ReturnsError()
     {
+        // Arrange - Create unique test file
+        var testFile = await CreateTestFileAsync("ViewTable_WithNonExistentTable_ReturnsError.xlsx");
+
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         var result = await _dataModelCommands.ViewTableAsync(batch, "NonExistentTable");
 
         // Assert - Demand specific "table not found" error (Data Model is always available)
@@ -105,8 +120,11 @@ public partial class DataModelCommandsTests
     [Fact]
     public async Task GetModelInfo_WithRealisticDataModel_ReturnsAccurateStatistics()
     {
+        // Arrange - Create unique test file
+        var testFile = await CreateTestFileAsync("GetModelInfo_WithRealisticDataModel_ReturnsAccurateStatistics.xlsx");
+
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         var result = await _dataModelCommands.GetModelInfoAsync(batch);
 
         // Assert - Demand success (Data Model is always available in Excel 2013+)
@@ -135,8 +153,11 @@ public partial class DataModelCommandsTests
     [Fact]
     public async Task GetModelInfo_WithDataModelHavingMeasures_CountsCorrectly()
     {
+        // Arrange - Create unique test file
+        var testFile = await CreateTestFileAsync("GetModelInfo_WithDataModelHavingMeasures_CountsCorrectly.xlsx");
+
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         var result = await _dataModelCommands.GetModelInfoAsync(batch);
 
         // Assert - If Data Model was created with measures

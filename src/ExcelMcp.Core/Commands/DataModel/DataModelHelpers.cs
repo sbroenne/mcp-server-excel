@@ -54,43 +54,30 @@ public static class DataModelHelpers
     public static List<string> GetModelMeasureNames(dynamic model)
     {
         var names = new List<string>();
-        dynamic? modelTables = null;
+        dynamic? measures = null;
         try
         {
-            modelTables = model.ModelTables;
-            for (int t = 1; t <= modelTables.Count; t++)
+            // Get measures collection from MODEL (not from tables!)
+            // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
+            measures = model.ModelMeasures;
+
+            for (int m = 1; m <= measures.Count; m++)
             {
-                dynamic? table = null;
-                dynamic? measures = null;
+                dynamic? measure = null;
                 try
                 {
-                    table = modelTables.Item(t);
-                    measures = table.ModelMeasures;
-
-                    for (int m = 1; m <= measures.Count; m++)
-                    {
-                        dynamic? measure = null;
-                        try
-                        {
-                            measure = measures.Item(m);
-                            names.Add(measure.Name?.ToString() ?? "");
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref measure);
-                        }
-                    }
+                    measure = measures.Item(m);
+                    names.Add(measure.Name?.ToString() ?? "");
                 }
                 finally
                 {
-                    ComUtilities.Release(ref measures);
-                    ComUtilities.Release(ref table);
+                    ComUtilities.Release(ref measure);
                 }
             }
         }
         finally
         {
-            ComUtilities.Release(ref modelTables);
+            ComUtilities.Release(ref measures);
         }
         return names;
     }
@@ -103,48 +90,45 @@ public static class DataModelHelpers
     /// <returns>Table name if found, null otherwise</returns>
     public static string? GetMeasureTableName(dynamic model, string measureName)
     {
-        dynamic? modelTables = null;
+        dynamic? measures = null;
         try
         {
-            modelTables = model.ModelTables;
-            for (int t = 1; t <= modelTables.Count; t++)
+            // Get measures collection from MODEL (not from table!)
+            // All measures are at model level with AssociatedTable property
+            // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
+            measures = model.ModelMeasures;
+
+            for (int m = 1; m <= measures.Count; m++)
             {
-                dynamic? table = null;
-                dynamic? measures = null;
+                dynamic? measure = null;
                 try
                 {
-                    table = modelTables.Item(t);
-                    string tableName = table.Name?.ToString() ?? "";
-                    measures = table.ModelMeasures;
-
-                    for (int m = 1; m <= measures.Count; m++)
+                    measure = measures.Item(m);
+                    string name = measure.Name?.ToString() ?? "";
+                    if (name.Equals(measureName, StringComparison.OrdinalIgnoreCase))
                     {
-                        dynamic? measure = null;
+                        // Get the associated table name
+                        dynamic? associatedTable = null;
                         try
                         {
-                            measure = measures.Item(m);
-                            string name = measure.Name?.ToString() ?? "";
-                            if (name.Equals(measureName, StringComparison.OrdinalIgnoreCase))
-                            {
-                                return tableName;
-                            }
+                            associatedTable = measure.AssociatedTable;
+                            return associatedTable?.Name?.ToString() ?? string.Empty;
                         }
                         finally
                         {
-                            ComUtilities.Release(ref measure);
+                            ComUtilities.Release(ref associatedTable);
                         }
                     }
                 }
                 finally
                 {
-                    ComUtilities.Release(ref measures);
-                    ComUtilities.Release(ref table);
+                    ComUtilities.Release(ref measure);
                 }
             }
         }
         finally
         {
-            ComUtilities.Release(ref modelTables);
+            ComUtilities.Release(ref measures);
         }
         return null;
     }
@@ -183,16 +167,18 @@ public static class DataModelHelpers
     }
 
     /// <summary>
-    /// Safely iterates through all measures in a table with automatic COM cleanup
+    /// Safely iterates through all measures in the Data Model with automatic COM cleanup
     /// </summary>
-    /// <param name="table">Table COM object</param>
+    /// <param name="model">Model COM object (NOT table!)</param>
     /// <param name="action">Action to perform on each measure</param>
-    public static void ForEachMeasure(dynamic table, Action<dynamic, int> action)
+    public static void ForEachMeasure(dynamic model, Action<dynamic, int> action)
     {
         dynamic? measures = null;
         try
         {
-            measures = table.ModelMeasures;
+            // Get measures collection from MODEL (not from table!)
+            // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
+            measures = model.ModelMeasures;
             int count = measures.Count;
 
             for (int i = 1; i <= count; i++)
@@ -322,11 +308,15 @@ public static class DataModelHelpers
 
                     if (currentName.Equals(columnName, StringComparison.OrdinalIgnoreCase))
                     {
-                        return column;  // Don't release - caller will use it
+                        // Found match - don't release, caller will use it
+                        var foundColumn = column;
+                        column = null;  // Prevent release in finally
+                        return foundColumn;
                     }
                 }
                 finally
                 {
+                    // Only release if we didn't return it
                     if (column != null)
                     {
                         ComUtilities.Release(ref column);
@@ -441,11 +431,15 @@ public static class DataModelHelpers
                         currentToTable.Equals(toTable, StringComparison.OrdinalIgnoreCase) &&
                         currentToColumn.Equals(toColumn, StringComparison.OrdinalIgnoreCase))
                     {
-                        return relationship;  // Don't release - caller will use it
+                        // Found match - don't release, caller will use it
+                        var foundRelationship = relationship;
+                        relationship = null;  // Prevent release in finally
+                        return foundRelationship;
                     }
                 }
                 finally
                 {
+                    // Only release if we didn't return it
                     if (relationship != null)
                     {
                         ComUtilities.Release(ref relationship);

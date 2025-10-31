@@ -11,8 +11,11 @@ public partial class DataModelCommandsTests
     [Fact]
     public async Task Refresh_WithValidFile_ReturnsSuccessResult()
     {
+        // Arrange - Create unique test file
+        var testFile = await CreateTestFileAsync("Refresh_WithValidFile_ReturnsSuccessResult.xlsx");
+
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         var result = await _dataModelCommands.RefreshAsync(batch);
         await batch.SaveAsync();
 
@@ -24,8 +27,11 @@ public partial class DataModelCommandsTests
     [Fact]
     public async Task Refresh_WithRealisticDataModel_SucceedsOrIndicatesNoModel()
     {
+        // Arrange - Create unique test file
+        var testFile = await CreateTestFileAsync("Refresh_WithRealisticDataModel_SucceedsOrIndicatesNoModel.xlsx");
+
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(_testExcelFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         var result = await _dataModelCommands.RefreshAsync(batch);
         await batch.SaveAsync();
 
@@ -35,6 +41,6 @@ public partial class DataModelCommandsTests
 
         // Verify refresh completed with correct file path
         Assert.NotNull(result.FilePath);
-        Assert.Equal(_testExcelFile, result.FilePath);
+        Assert.Equal(testFile, result.FilePath);
     }
 }
