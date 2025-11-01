@@ -133,9 +133,9 @@ public class DataModelAssetBuilderTests
             var measuresResult = await commands.ListMeasuresAsync(batch);
             Assert.True(measuresResult.Success, $"Failed to list measures: {measuresResult.ErrorMessage}");
             Assert.Equal(3, measuresResult.Measures.Count);
-            Assert.Contains(measuresResult.Measures, m => m.Name == "Total Sales");
-            Assert.Contains(measuresResult.Measures, m => m.Name == "Average Sale");
-            Assert.Contains(measuresResult.Measures, m => m.Name == "Total Customers");
+            Assert.Contains("Total Sales", measuresResult.Measures.Select(m => m.Name));
+            Assert.Contains("Average Sale", measuresResult.Measures.Select(m => m.Name));
+            Assert.Contains("Total Customers", measuresResult.Measures.Select(m => m.Name));
         }
         finally
         {

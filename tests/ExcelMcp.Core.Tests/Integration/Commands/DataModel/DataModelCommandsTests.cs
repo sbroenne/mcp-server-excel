@@ -58,20 +58,21 @@ public partial class DataModelCommandsTests : IClassFixture<TempDirectoryFixture
     /// </summary>
     private async Task<string> CreateFromTemplateAsync(string filePath)
     {
-        // Path to pre-built Data Model template
-        var templatePath = Path.Join(
-            Path.GetDirectoryName(typeof(DataModelCommandsTests).Assembly.Location)!,
-            "TestAssets",
-            "DataModelTemplate.xlsx");
+        // Path to pre-built Data Model template (in source tree, committed to repo)
+        var solutionRoot = Path.GetFullPath(Path.Join(AppContext.BaseDirectory, "../../../../.."));
+        var templatePath = Path.Join(solutionRoot, "tests/ExcelMcp.Core.Tests/TestAssets/DataModelTemplate.xlsx");
 
-        // If template doesn't exist, create it once (one-time setup)
+        // If template doesn't exist, fail with helpful message
         if (!File.Exists(templatePath))
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(templatePath)!);
-            await CreateFreshDataModelFileAsync(templatePath);
+            throw new FileNotFoundException(
+                $"Data Model template not found. Generate it once by running:\n" +
+                $"  dotnet script tests/ExcelMcp.Core.Tests/BuildAsset.csx\n" +
+                $"Or copy from another environment. Expected path:\n" +
+                $"  {templatePath}");
         }
 
-        // Copy template to test file location (fast - just file copy ~100ms)
+        // Copy template to test file location (fast - just file copy ~100ms vs 60-120s build)
         File.Copy(templatePath, filePath, overwrite: true);
         
         // Ensure the copied file is writable
@@ -81,7 +82,7 @@ public partial class DataModelCommandsTests : IClassFixture<TempDirectoryFixture
             fileInfo.IsReadOnly = false;
         }
 
-        return filePath;
+        return await Task.FromResult(filePath);
     }
 
     /// <summary>

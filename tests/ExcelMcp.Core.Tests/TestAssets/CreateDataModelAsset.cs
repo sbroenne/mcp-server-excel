@@ -9,10 +9,21 @@ namespace Sbroenne.ExcelMcp.Core.Tests.TestAssets;
 
 /// <summary>
 /// Builder for pre-configured Data Model test asset.
-/// Run this once to create DataModelTemplate.xlsx with tables, relationships, and measures.
+/// Run this to create/regenerate DataModelTemplate.xlsx with tables, relationships, and measures.
 /// </summary>
 public static class DataModelAssetBuilder
 {
+    /// <summary>
+    /// Current version of the Data Model template schema.
+    /// Update this when making structural changes to the template.
+    /// </summary>
+    public const string ASSET_VERSION = "1.0.0";
+    
+    /// <summary>
+    /// Creates a Data Model template file with pre-configured tables, relationships, and measures.
+    /// </summary>
+    /// <param name="targetPath">Path where the template will be created</param>
+    /// <returns>Path to the created template</returns>
     public static async Task<string> CreateDataModelAssetAsync(string targetPath)
     {
         Console.WriteLine($"Creating Data Model test asset: {targetPath}");
@@ -126,10 +137,27 @@ public static class DataModelAssetBuilder
         await dataModelCommands.CreateMeasureAsync(batch, "SalesTable", "Average Sale", "AVERAGE(SalesTable[Amount])", "Currency", "Average sale amount");
         await dataModelCommands.CreateMeasureAsync(batch, "SalesTable", "Total Customers", "DISTINCTCOUNT(SalesTable[CustomerID])", "WholeNumber", "Unique customer count");
 
+        // Add version metadata to file properties
+        Console.WriteLine("  Adding version metadata...");
+        await batch.Execute<int>((ctx, ct) =>
+        {
+            try
+            {
+                dynamic props = ctx.Book.BuiltinDocumentProperties;
+                props.Item("Comments").Value = $"DataModelTemplate v{ASSET_VERSION} - Generated {DateTime.UtcNow:O}";
+            }
+            catch
+            {
+                // Ignore if Comments property not available
+            }
+            return 0;
+        });
+
         await batch.SaveAsync();
         sw.Stop();
 
         Console.WriteLine($"✅ Asset created in {sw.Elapsed.TotalSeconds:F1}s: {targetPath}");
+        Console.WriteLine($"   Version: {ASSET_VERSION}");
         return targetPath;
     }
 }
