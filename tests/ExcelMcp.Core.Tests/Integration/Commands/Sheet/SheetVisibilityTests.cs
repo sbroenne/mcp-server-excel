@@ -49,6 +49,7 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
         Assert.Equal(SheetVisibility.Hidden, getResult.Visibility);
         Assert.Equal("Hidden", getResult.VisibilityName);
 
+        // Save changes
         await batch.SaveAsync();
     }
 
@@ -75,6 +76,7 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
         Assert.Equal(SheetVisibility.VeryHidden, getResult.Visibility);
         Assert.Equal("VeryHidden", getResult.VisibilityName);
 
+        // Save changes
         await batch.SaveAsync();
     }
 
@@ -104,6 +106,7 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
         var visibleCheck = await _sheetCommands.GetVisibilityAsync(batch, "ShowTest");
         Assert.Equal(SheetVisibility.Visible, visibleCheck.Visibility);
 
+        // Save changes
         await batch.SaveAsync();
     }
 
@@ -133,6 +136,7 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
         var visibleCheck = await _sheetCommands.GetVisibilityAsync(batch, "VeryHideShowTest");
         Assert.Equal(SheetVisibility.Visible, visibleCheck.Visibility);
 
+        // Save changes
         await batch.SaveAsync();
     }
 
@@ -157,6 +161,7 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
         var getResult = await _sheetCommands.GetVisibilityAsync(batch, "HideMe");
         Assert.Equal(SheetVisibility.Hidden, getResult.Visibility);
 
+        // Save changes
         await batch.SaveAsync();
     }
 
@@ -181,6 +186,7 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
         var getResult = await _sheetCommands.GetVisibilityAsync(batch, "VeryHideMe");
         Assert.Equal(SheetVisibility.VeryHidden, getResult.Visibility);
 
+        // Save changes
         await batch.SaveAsync();
     }
 
@@ -257,6 +263,7 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
         var check4 = await _sheetCommands.GetVisibilityAsync(batch, "Workflow");
         Assert.Equal(SheetVisibility.Visible, check4.Visibility);
 
+        // Save changes
         await batch.SaveAsync();
     }
 }

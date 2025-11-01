@@ -33,8 +33,9 @@ public partial class SheetCommandsTests
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests), nameof(Create_WithValidName_ReturnsSuccessResult), _tempDir);
 
-        // Act - Use single batch for create and verify
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        
+        // Act
         var result = await _sheetCommands.CreateAsync(batch, "TestSheet");
 
         // Assert
@@ -45,6 +46,7 @@ public partial class SheetCommandsTests
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Worksheets, w => w.Name == "TestSheet");
 
+        // Save changes
         await batch.SaveAsync();
     }
 
@@ -55,9 +57,10 @@ public partial class SheetCommandsTests
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests), nameof(Rename_WithValidNames_ReturnsSuccessResult), _tempDir);
 
-        // Act - Use single batch for all operations
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         await _sheetCommands.CreateAsync(batch, "OldName");
+        
+        // Act
         var result = await _sheetCommands.RenameAsync(batch, "OldName", "NewName");
 
         // Assert
@@ -69,6 +72,7 @@ public partial class SheetCommandsTests
         Assert.DoesNotContain(listResult.Worksheets, w => w.Name == "OldName");
         Assert.Contains(listResult.Worksheets, w => w.Name == "NewName");
 
+        // Save changes
         await batch.SaveAsync();
     }
 
@@ -79,9 +83,10 @@ public partial class SheetCommandsTests
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests), nameof(Delete_WithExistingSheet_ReturnsSuccessResult), _tempDir);
 
-        // Act - Use single batch for all operations
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         await _sheetCommands.CreateAsync(batch, "ToDelete");
+        
+        // Act
         var result = await _sheetCommands.DeleteAsync(batch, "ToDelete");
 
         // Assert
@@ -92,6 +97,7 @@ public partial class SheetCommandsTests
         Assert.True(listResult.Success);
         Assert.DoesNotContain(listResult.Worksheets, w => w.Name == "ToDelete");
 
+        // Save changes
         await batch.SaveAsync();
     }
 
@@ -102,9 +108,10 @@ public partial class SheetCommandsTests
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests), nameof(Copy_WithValidNames_ReturnsSuccessResult), _tempDir);
 
-        // Act - Use single batch for all operations
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         await _sheetCommands.CreateAsync(batch, "Source");
+        
+        // Act
         var result = await _sheetCommands.CopyAsync(batch, "Source", "Target");
 
         // Assert
@@ -116,6 +123,7 @@ public partial class SheetCommandsTests
         Assert.Contains(listResult.Worksheets, w => w.Name == "Source");
         Assert.Contains(listResult.Worksheets, w => w.Name == "Target");
 
+        // Save changes
         await batch.SaveAsync();
     }
 }
