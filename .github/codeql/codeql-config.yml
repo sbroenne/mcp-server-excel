@@ -51,6 +51,14 @@ query-filters:
       id: cs/reflection
       reason: "External libraries may use reflection"
 
+  # GC.Collect is required for COM interop cleanup
+  - exclude:
+      id: cs/call-to-gc
+      reason: "Explicit GC.Collect() required for COM object cleanup in Excel automation. See COM cleanup pattern in ExcelBatch/ExcelSession."
+      paths:
+        - 'src/ExcelMcp.ComInterop/Session/**'
+        - 'tests/**/Session/**'
+
   # Test-specific exclusions (note-severity only)
   # Tests often use patterns that are acceptable in test context
 
@@ -60,7 +68,6 @@ query-filters:
       reason: "COMException is the most specific exception for Excel COM interop. No more specific types available."
       paths:
         - 'src/**/DataModel/**'
-        - 'src/**/Commands/**'
 
   # Generic Exception catch in test helpers is acceptable with explanatory comments
   - exclude:
@@ -70,12 +77,14 @@ query-filters:
         - 'tests/**/Helpers/**'
         - 'tests/**/Fixtures/**'
 
-  # Empty catch blocks in tests are used for cleanup that may fail
+  # Empty catch blocks only allowed in test fixtures/cleanup code
   - exclude:
       id: cs/empty-catch-block
-      reason: "Test cleanup may intentionally ignore failures"
+      reason: "Test fixture disposal/cleanup may intentionally ignore failures"
       paths:
-        - 'tests/**'
+        - 'tests/**/Fixtures/**'
+        - 'tests/**/IAsyncLifetime.cs'
+        - 'tests/**/IDisposable.cs'
 
   # Path.Combine has been replaced with Path.Join across the codebase
   # No exclusions needed - all instances fixed
@@ -94,12 +103,14 @@ query-filters:
       paths:
         - 'tests/**'
 
-  # Useless assignments in tests may be intentional for clarity
+  # Useless assignments are legitimate in test setup for clarity/debugging
+  # Already fixed: using statements no longer use discard variables
   - exclude:
       id: cs/useless-assignment-to-local
-      reason: "Test code may assign for debugging/clarity"
+      reason: "Test setup may assign variables for clarity even if unused"
       paths:
-        - 'tests/**'
+        - 'tests/**/Fixtures/**'
+        - 'tests/**/Helpers/**'
 
 # External data sources (for taint tracking)
 # external-repository-token: ${{ secrets.GITHUB_TOKEN }}
