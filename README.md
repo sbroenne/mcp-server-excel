@@ -12,100 +12,146 @@
 
 **A Model Context Protocol (MCP) server that gives AI assistants full control over Microsoft Excel through native COM automation.**
 
-Control Power Query M code, Data Models with DAX measures, VBA macros, Excel Tables, connections, ranges, and worksheets through conversational AI. Also includes a CLI for direct human automation.
+Control Power Query M code, Power Pivot (Data Model with DAX measures and relationships), VBA macros, Excel Tables, PivotTables, connections, ranges, and worksheets through conversational AI. Also includes a CLI for direct human automation.
+
+## 🤔 What is This?
+
+**ExcelMcp lets you control Excel using conversational AI (like GitHub Copilot or Claude).**
+
+Instead of clicking through Excel menus or writing complex VBA, you can simply ask:
+- *"Create a Power Query that combines Sales.csv and Products.csv on ProductID"*
+- *"Add a DAX measure in Power Pivot calculating year-over-year revenue growth"*
+- *"Create a PivotTable showing sales by region and product category"*
+- *"Export all VBA modules to separate files for Git version control"*
+- *"Create a table with filters and sort by Revenue descending"*
+
+The AI assistant uses this MCP server to execute your requests **directly in your Excel application** - no manual clicking required.
+
+**Quick Example:**
+
+```
+You: "Create a Power Query named 'SalesData' that loads from data.csv"
+
+AI Assistant uses ExcelMcp to:
+1. Create/open an Excel workbook
+2. Add the Power Query with proper M code
+3. Load the data to a worksheet
+4. Save and return confirmation
+
+Result: A working Excel file with the query ready to use
+```
+
+**🛡️ 100% Safe - Uses Excel's Native API**
+
+Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), ExcelMcp uses **Excel's official COM API**. This ensures:
+- ✅ **Zero risk of document corruption** - Excel handles all file operations safely
+- ✅ **Interactive development** - See changes in real-time as you work with live Excel files
+- ✅ **Growing feature set** - Currently supports 80+ operations across Power Query, Power Pivot, VBA, PivotTables, Tables, and more (active development)
+
+## 👥 Who Should Use This?
+
+**Perfect for:**
+- ✅ **Data analysts** automating repetitive Excel workflows
+- ✅ **Developers** building Excel-based data solutions
+- ✅ **Business users** managing complex Excel workbooks
+- ✅ **Teams** maintaining Power Query/VBA/DAX code in Git
+
+**Not suitable for:**
+- ❌ Server-side data processing (use libraries like ClosedXML, EPPlus instead)
+- ❌ Linux/macOS users (Windows + Excel installation required)
+- ❌ High-volume batch operations (consider Excel-free alternatives)
 
 ## 🎯 What You Can Do
 
-**Power Query & M Code:**
+**Development & Automation:**
+- 🔄 **Power Query** - Create/edit M code, manage data transformations, set privacy levels
+- 📊 **Power Pivot (Data Model)** - Build DAX measures, manage relationships, export to .dax files
+- 🎨 **Excel Tables** - Automate formatting, filtering, sorting, structured references
+- 📈 **PivotTables** - Create and configure PivotTables for interactive analysis
+- 📝 **VBA Macros** - Export/import/run VBA code, integrate with version control
+- 📋 **Ranges & Data** - 30+ operations for values, formulas, copy/paste, find/replace
+- 🔌 **Connections** - Manage OLEDB, ODBC, Text, Web data sources
+
+**AI-Powered Workflows:**
+- 💬 Talk to Excel in natural language through GitHub Copilot or Claude
+- 🤖 Automate repetitive Excel tasks with conversational commands
+- 📦 Version control Excel code artifacts (Power Query, VBA, DAX measures)
+- 🔄 Build data pipelines with AI assistance
+
+<details>
+<summary>📚 <strong>See Complete Feature List (80+ Operations)</strong></summary>
+
+### Power Query & M Code
 - Create, read, update, delete Power Query transformations
 - Export/import M code for version control
 - Manage query load destinations (worksheet/data model/connection-only)
 - Set privacy levels for data source combinations
 
-**Data Model & DAX:**
+### Data Model & DAX (Power Pivot)
 - Create/update/delete DAX measures with format types (Currency, Percentage, Decimal, General)
 - Manage table relationships (create, toggle active/inactive, delete)
 - Discover model structure (tables, columns, measures, relationships)
 - Export measures to .dax files for Git workflows
+- **Note:** DAX calculated columns are not supported (use Excel UI for calculated columns)
 
-**Excel Tables (ListObjects):**
+### Excel Tables (ListObjects)
 - 22 operations: create, resize, rename, delete, style
 - Column management: add, remove, rename columns
 - Data operations: append rows, apply filters (criteria/values), sort (single/multi-column)
 - Advanced features: structured references, totals row, Data Model integration
 
-**VBA Macros:**
+### PivotTables
+- 20 operations: create from ranges or Excel Tables
+- Field management: add/remove fields to Row, Column, Value, Filter areas
+- Aggregation functions: Sum, Average, Count, Min, Max, etc. with validation
+- Advanced features: field filters, sorting, custom field names, number formatting
+- Extract PivotTable data as 2D arrays for further analysis
+
+### VBA Macros
 - List, view, export, import, update VBA modules
 - Execute macros with parameters
 - Version control VBA code through file exports
 
-**Ranges & Worksheets:**
+### Ranges & Worksheets
 - 30+ range operations: get/set values/formulas, clear, copy, insert/delete, find/replace, sort
 - Manage hyperlinks and range properties
 - Worksheet lifecycle: create, rename, copy, delete
 
-**Data Connections:**
+### Data Connections
 - Manage OLEDB, ODBC, Text, Web connections
 - Update connection strings and properties
 - Test connections and troubleshoot issues
 
-## 🔧 How It Works - COM Interop Architecture
+</details>
 
-**ExcelMcp uses Windows COM automation to control the actual Excel application (not just .xlsx files).**
-
-**✅ Benefits:**
-- **Full Excel Feature Access** - Power Query engine, VBA runtime, Data Model, calculation engine, charts, pivot tables
-- **True Compatibility** - Works exactly like Excel UI, no feature limitations
-- **Live Data Refresh** - Can refresh Power Query, connections, Data Model in real workbooks
-- **REPL Development** - Interactive development with immediate Excel feedback
-- **No File Format Restrictions** - Handles .xlsx, .xlsm, .xlsb, legacy formats
-
-**⚠️ Requirements:**
-- **Windows Only** - COM interop is Windows-specific technology
-- **Excel Installation Required** - Must have Microsoft Excel installed (2016 or later)
-- **Desktop Automation** - Controls actual Excel process (not suitable for server-side processing)
-
-**💡 When to Use:**
-- Excel development and automation workflows
-- Power Query/VBA/Data Model management
-- Interactive Excel operations with AI assistance
-- Version control integration for Excel code artifacts
-
-**❌ When NOT to Use:**
-- Server-side data processing (use file-based libraries instead)
-- Linux/macOS environments (Excel not available)
-- High-volume batch processing (consider Excel-free alternatives)
-
-## 🚀 Quick Start
+## 🚀 Quick Start (2 Minutes)
 
 **Requirements:** Windows OS + Microsoft Excel 2016+
 
-### Option 1: VS Code Extension (Easiest - Recommended) ⭐
+### ⭐ Recommended: VS Code Extension (One-Click Setup)
 
-**One-click installation with automatic setup:**
+**Fastest way to get started - everything configured automatically:**
 
-1. **Open VS Code** → Extensions panel (`Ctrl+Shift+X`)
-2. **Search** for "ExcelMcp"
-3. **Click Install**
-4. **Done!** Extension automatically:
-   - Installs .NET 8 runtime (via .NET Install Tool)
-   - Includes bundled ExcelMcp MCP server (no separate installation needed)
-   - Registers MCP server for AI assistants
-   - Shows welcome message with quick start guide
+1. **Install Extension**
+   - Open VS Code → Extensions (`Ctrl+Shift+X`)
+   - Search for **"ExcelMcp"**
+   - Click **Install**
 
-**Verify:** Ask GitHub Copilot: `List all available Excel MCP tools`
+2. **Automatic Setup** (no manual steps!)
+   - ✅ Installs .NET 8 runtime
+   - ✅ Includes bundled MCP server
+   - ✅ Registers with AI assistants
+   - ✅ Shows quick start guide
 
-You should see 10 Excel tools available immediately!
-
-> 📚 **Alternative:** Download the VSIX from [Releases](https://github.com/sbroenne/mcp-server-excel/releases) → Install from VSIX in VS Code
+3. **Start Using It**
+   
+   The extension opens automatically after installation with a quick start guide!
 
 ---
 
-### Option 2: Manual Configuration
+### Manual Installation (Advanced Users)
 
 **For non-VS Code environments or manual setup:**
-
-**Option A: Global Tool Installation**
 
 ```powershell
 # Install .NET 8 SDK
@@ -113,15 +159,14 @@ winget install Microsoft.DotNet.SDK.8
 
 # Install ExcelMcp MCP server as a global tool
 dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+
+# To update to the latest version later:
+dotnet tool update --global Sbroenne.ExcelMcp.McpServer
 ```
 
-**Option B: Standalone Executable**
+**Configure Your AI Assistant**
 
-Download the standalone MCP server executable from [Releases](https://github.com/sbroenne/mcp-server-excel/releases) (no .NET SDK required, just .NET 8 runtime).
-
-**2. Configure Your AI Assistant**
-
-**For GitHub Copilot** - Create `.vscode/mcp.json` in your workspace:
+**For GitHub Copilot in VS Code** - Create `.vscode/mcp.json` in your workspace:
 
 ```json
 {
@@ -134,13 +179,14 @@ Download the standalone MCP server executable from [Releases](https://github.com
 }
 ```
 
-*Or with standalone executable:*
+**For GitHub Copilot in Visual Studio** - Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
+
 ```json
 {
   "servers": {
     "excel": {
-      "command": "path/to/Sbroenne.ExcelMcp.McpServer.exe",
-      "args": []
+      "command": "dotnet",
+      "args": ["tool", "run", "mcp-excel"]
     }
   }
 }
@@ -159,43 +205,48 @@ Download the standalone MCP server executable from [Releases](https://github.com
 }
 ```
 
-*Or with standalone executable:*
-```json
-{
-  "mcpServers": {
-    "excel": {
-      "command": "path/to/Sbroenne.ExcelMcp.McpServer.exe",
-      "args": []
-    }
-  }
-}
+**Test It Out**
+
+Try a practical example - ask your AI assistant:
+```
+Create an empty Excel file called "test.xlsx" and add a Power Query that loads data from a CSV file
 ```
 
-**3. Verify Setup**
+The AI will guide you through the process and execute the commands directly!
 
-Ask your AI assistant:
-```
-List all available Excel MCP tools
-```
+---
 
-You should see 10 Excel tools: `excel_file`, `excel_powerquery`, `excel_connection`, `excel_worksheet`, `excel_range`, `excel_parameter`, `excel_vba`, `excel_datamodel`, `excel_table`, `excel_version`.
+## 🔧 How It Works - COM Interop Architecture
 
-> 💡 **First-time Setup Helper:** Download [excel-powerquery-vba-copilot-instructions.md](https://raw.githubusercontent.com/sbroenne/mcp-server-excel/main/instructions/excel-powerquery-vba-copilot-instructions.md) and save to `YourProject/.github/` for AI assistant guidance, or ask GitHub Copilot to set up everything automatically.
+**ExcelMcp uses Windows COM automation to control the actual Excel application (not just .xlsx files).**
+
+This means you get:
+- ✅ **Full Excel Feature Access** - Power Query engine, VBA runtime, Data Model, calculation engine, pivot tables
+- ✅ **True Compatibility** - Works exactly like Excel UI, no feature limitations
+- ✅ **Live Data Operations** - Refresh Power Query, connections, Data Model in real workbooks
+- ✅ **Interactive Development** - Immediate Excel feedback as AI makes changes
+- ✅ **All File Formats** - .xlsx, .xlsm, .xlsb, even legacy formats
+
+**Technical Requirements:**
+- ⚠️ **Windows Only** - COM interop is Windows-specific
+- ⚠️ **Excel Required** - Microsoft Excel 2016 or later must be installed
+- ⚠️ **Desktop Environment** - Controls actual Excel process (not for server-side processing)
 
 ## 🔟 MCP Tools Overview
 
-**10 specialized tools for comprehensive Excel automation:**
+**11 specialized tools for comprehensive Excel automation:**
 
 1. **excel_powerquery** (11 actions) - Power Query M code: create, view, import, export, update, delete, manage load destinations, privacy levels
-2. **excel_datamodel** (15 actions) - Data Model & DAX: CRUD measures/relationships, discover structure, export to .dax files *[Phase 2: Full CRUD]*
-3. **table** (22 actions) - Excel Tables: lifecycle, columns, filters, sorts, structured references, totals, Data Model integration *[Phase 2: Advanced]*
-4. **excel_range** (30+ actions) - Ranges: get/set values/formulas, clear, copy, insert/delete, find/replace, sort, hyperlinks
-5. **excel_vba** (7 actions) - VBA: list, view, export, import, update, run, delete modules
-6. **excel_connection** (11 actions) - Connections: OLEDB/ODBC/Text/Web management, properties, refresh, test
-7. **excel_worksheet** (5 actions) - Worksheets: list, create, rename, copy, delete
-8. **excel_parameter** (6 actions) - Named ranges: list, get, set, create, delete, update
-9. **excel_file** (1 action) - File creation: create empty .xlsx/.xlsm workbooks
-10. **excel_version** (1 action) - Update checking from NuGet.org
+2. **excel_datamodel** (14 actions) - Power Pivot (Data Model): CRUD DAX measures/relationships, discover structure, export to .dax files
+3. **excel_table** (22 actions) - Excel Tables: lifecycle, columns, filters, sorts, structured references, totals, Data Model integration
+4. **excel_pivottable** (20 actions) - PivotTables: create from ranges/tables, field management (row/column/value/filter), aggregations, filters, sorting, extract data
+5. **excel_range** (30+ actions) - Ranges: get/set values/formulas, clear, copy, insert/delete, find/replace, sort, hyperlinks
+6. **excel_vba** (7 actions) - VBA: list, view, export, import, update, run, delete modules
+7. **excel_connection** (11 actions) - Connections: OLEDB/ODBC/Text/Web management, properties, refresh, test
+8. **excel_worksheet** (5 actions) - Worksheets: list, create, rename, copy, delete
+9. **excel_parameter** (6 actions) - Named ranges: list, get, set, create, delete, update
+10. **excel_file** (1 action) - File creation: create empty .xlsx/.xlsm workbooks
+11. **Batch Session Tools** (3 actions) - Multi-operation performance: begin-batch, execute-in-batch, commit-batch
 
 > 📚 **[Complete MCP Server Guide →](src/ExcelMcp.McpServer/README.md)** - Detailed tool documentation and examples
 
@@ -205,25 +256,7 @@ You should see 10 Excel tools: `excel_file`, `excel_powerquery`, `excel_connecti
 
 ### CLI for Direct Automation
 
-ExcelMcp also provides a command-line interface for script-based Excel automation (no AI required):
-
-- **[ExcelMcp.CLI Guide](docs/CLI.md)** - Complete CLI documentation
-- **[Command Reference](docs/COMMANDS.md)** - All 50+ CLI commands
-- **Use Cases:** CI/CD pipelines, batch processing, scheduled tasks, PowerShell scripts
-
-### Documentation
-
-| Document | Description |
-|----------|-------------|
-| **[MCP Server Guide](src/ExcelMcp.McpServer/README.md)** | MCP setup, AI integration, examples |
-| **[MCP Registry Publishing](docs/MCP_REGISTRY_PUBLISHING.md)** | How the server is published to MCP Registry |
-| **[CLI Guide](docs/CLI.md)** | Command-line interface for automation |
-| **[Command Reference](docs/COMMANDS.md)** | All 50+ CLI commands |
-| **[Installation Guide](docs/INSTALLATION.md)** | Building from source |
-| **[Development Workflow](docs/DEVELOPMENT.md)** | Contributing guidelines |
-| **[Azure Self-Hosted Runner Setup](docs/AZURE_SELFHOSTED_RUNNER_SETUP.md)** | Enable Excel integration testing in CI/CD |
-| **[Testing Coverage Plan](docs/TESTING_COVERAGE_IMPLEMENTATION_PLAN.md)** | Implementation plan for Azure testing infrastructure |
-| **[Copilot Instructions](instructions/excel-powerquery-vba-copilot-instructions.md)** | AI assistant setup guide |
+ExcelMcp also provides a command-line interface for script-based Excel automation (no AI required). See **[CLI Guide](docs/CLI.md)** for complete documentation.
 
 ### Project Information
 
@@ -242,4 +275,4 @@ ExcelMcp also provides a command-line interface for script-based Excel automatio
 
 ### SEO & Discovery
 
-`MCP Server` • `Model Context Protocol` • `Excel Automation` • `GitHub Copilot` • `AI Excel` • `Power Query` • `DAX Measures` • `Data Model` • `VBA Macros` • `Excel Tables` • `COM Interop` • `Windows Excel` • `Excel Development`
+`MCP Server` • `Model Context Protocol` • `Excel Automation` • `GitHub Copilot` • `AI Excel` • `Power Query` • `Power Pivot` • `DAX Measures` • `Data Model` • `PivotTables` • `VBA Macros` • `Excel Tables` • `COM Interop` • `Windows Excel` • `Excel Development`

@@ -14,11 +14,8 @@ public partial class ScriptCommandsTests
     public async Task List_WithValidFile_ReturnsSuccessResult()
     {
         // Arrange - Create .xlsm file for macro support
-        var fileName = $"{nameof(ScriptCommandsTests)}_{nameof(List_WithValidFile_ReturnsSuccessResult)}_{Guid.NewGuid():N}.xlsm";
-        var testFile = Path.Combine(_tempDir, fileName);
-        var fileCommands = new FileCommands();
-        var createResult = await fileCommands.CreateEmptyAsync(testFile);
-        Assert.True(createResult.Success, $"Failed to create test file: {createResult.ErrorMessage}");
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(ScriptCommandsTests), nameof(List_WithValidFile_ReturnsSuccessResult), _tempDir, ".xlsm");
 
         // Check VBA trust before running test
         await using var trustBatch = await ExcelSession.BeginBatchAsync(testFile);
@@ -44,12 +41,8 @@ public partial class ScriptCommandsTests
     public async Task Import_WithValidVbaCode_ReturnsSuccessResult()
     {
         // Arrange - Create .xlsm file and VBA code
-        var fileName = $"{nameof(ScriptCommandsTests)}_{nameof(Import_WithValidVbaCode_ReturnsSuccessResult)}_{Guid.NewGuid():N}.xlsm";
-        var testFile = Path.Combine(_tempDir, fileName);
-        var fileCommands = new FileCommands();
-        var createResult = await fileCommands.CreateEmptyAsync(testFile);
-        Assert.True(createResult.Success, $"Failed to create test file: {createResult.ErrorMessage}");
-
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(ScriptCommandsTests), nameof(Import_WithValidVbaCode_ReturnsSuccessResult), _tempDir, ".xlsm");
         var testVbaFile = CreateTestVbaFile($"Import_{Guid.NewGuid():N}.vba");
 
         // Check VBA trust
@@ -79,12 +72,8 @@ public partial class ScriptCommandsTests
     public async Task Export_WithExistingModule_CreatesFile()
     {
         // Arrange
-        var fileName = $"{nameof(ScriptCommandsTests)}_{nameof(Export_WithExistingModule_CreatesFile)}_{Guid.NewGuid():N}.xlsm";
-        var testFile = Path.Combine(_tempDir, fileName);
-        var fileCommands = new FileCommands();
-        var createResult = await fileCommands.CreateEmptyAsync(testFile);
-        Assert.True(createResult.Success);
-
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(ScriptCommandsTests), nameof(Export_WithExistingModule_CreatesFile), _tempDir, ".xlsm");
         var testVbaFile = CreateTestVbaFile($"Export_{Guid.NewGuid():N}.vba");
         var exportPath = Path.Combine(_tempDir, $"exported_{Guid.NewGuid():N}.vba");
 
@@ -112,12 +101,8 @@ public partial class ScriptCommandsTests
     public async Task Delete_WithExistingModule_ReturnsSuccessResult()
     {
         // Arrange
-        var fileName = $"{nameof(ScriptCommandsTests)}_{nameof(Delete_WithExistingModule_ReturnsSuccessResult)}_{Guid.NewGuid():N}.xlsm";
-        var testFile = Path.Combine(_tempDir, fileName);
-        var fileCommands = new FileCommands();
-        var createResult = await fileCommands.CreateEmptyAsync(testFile);
-        Assert.True(createResult.Success);
-
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(ScriptCommandsTests), nameof(Delete_WithExistingModule_ReturnsSuccessResult), _tempDir, ".xlsm");
         var testVbaFile = CreateTestVbaFile($"Delete_{Guid.NewGuid():N}.vba");
 
         // Check VBA trust
@@ -148,12 +133,8 @@ public partial class ScriptCommandsTests
     public async Task Export_WithNonExistentModule_ReturnsErrorResult()
     {
         // Arrange
-        var fileName = $"{nameof(ScriptCommandsTests)}_{nameof(Export_WithNonExistentModule_ReturnsErrorResult)}_{Guid.NewGuid():N}.xlsm";
-        var testFile = Path.Combine(_tempDir, fileName);
-        var fileCommands = new FileCommands();
-        var createResult = await fileCommands.CreateEmptyAsync(testFile);
-        Assert.True(createResult.Success);
-
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(ScriptCommandsTests), nameof(Export_WithNonExistentModule_ReturnsErrorResult), _tempDir, ".xlsm");
         var exportPath = Path.Combine(_tempDir, $"nonexistent_{Guid.NewGuid():N}.vba");
 
         // Check VBA trust

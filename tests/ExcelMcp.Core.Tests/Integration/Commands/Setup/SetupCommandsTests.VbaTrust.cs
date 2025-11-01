@@ -14,11 +14,8 @@ public partial class SetupCommandsTests
     public async Task CheckVbaTrust_ReturnsResult()
     {
         // Arrange - Use .xlsm for macro-enabled file
-        var fileName = $"{nameof(SetupCommandsTests)}_{nameof(CheckVbaTrust_ReturnsResult)}_{Guid.NewGuid():N}.xlsm";
-        var testFile = Path.Combine(_tempDir, fileName);
-        var fileCommands = new FileCommands();
-        var createResult = await fileCommands.CreateEmptyAsync(testFile);
-        Assert.True(createResult.Success, $"Failed to create test file: {createResult.ErrorMessage}");
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(SetupCommandsTests), nameof(CheckVbaTrust_ReturnsResult), _tempDir, ".xlsm");
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);

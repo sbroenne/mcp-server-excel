@@ -112,6 +112,26 @@ When debugging test failures, **ALWAYS run tests individually** - never run all 
 
 **Why:** Tests depend on production code, not the reverse. Production code with test dependencies is broken architecture.
 
+
+
+## Rule 12: Test Class Compliance Checklist
+
+**Every new test class MUST pass the compliance checklist before PR submission.**
+
+**Verify:**
+- ✅ Uses `IClassFixture<TempDirectoryFixture>` (NOT manual IDisposable)
+- ✅ Each test creates unique file via `CoreTestHelper.CreateUniqueTestFileAsync()`
+- ✅ NEVER shares test files between tests
+- ✅ VBA tests use `.xlsm` extension (NOT .xlsx renamed)
+- ✅ Binary assertions only (NO "accept both" patterns)
+- ✅ All required traits present (Category, Speed, Layer, RequiresExcel, Feature)
+- ✅ Batch API pattern used correctly (no ValueTask.FromResult wrapper)
+- ✅ NO duplicate helper methods (use CoreTestHelper)
+
+**Why:** Systematic compliance prevents test pollution, file lock issues, silent failures, and maintenance nightmares. See [testing-strategy.instructions.md](testing-strategy.instructions.md) for complete checklist.
+
+**Enforcement:** PR reviewers MUST check compliance before approval.
+
 ---
 
 ## Quick Reference
@@ -129,3 +149,4 @@ When debugging test failures, **ALWAYS run tests individually** - never run all 
 | 9. GitHub search | Search OTHER repos for VBA/COM examples FIRST | 1-2 min |
 | 10. Test debugging | Run tests one by one, never all together | Per test |
 | 11. No test refs | Production NEVER references tests | Always |
+| 12. Test compliance | Pass checklist before PR submission | 2-3 min |
