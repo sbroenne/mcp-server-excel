@@ -43,6 +43,14 @@ applyTo: "tests/**/*.cs"
 - [ ] Include descriptive failure messages in assertions
 - [ ] Use `Skip` attribute if test requires unavailable features, not conditional returns
 
+### ✅ Integration Test Validation (Result Verification)
+- [ ] **ALWAYS verify actual Excel state** after create/update operations
+- [ ] **NEVER test only success status** - verify the action actually worked
+- [ ] For CREATE operations: Verify object exists (e.g., create table → list tables, verify it's there)
+- [ ] For UPDATE operations: Verify changes persisted (e.g., update measure → view measure, verify formula)
+- [ ] For DELETE operations: Verify object removed (e.g., delete connection → list connections, verify gone)
+- [ ] Use round-trip validation: Create/Update → Read back → Assert actual state matches expected
+
 ### ✅ Required Traits
 - [ ] `[Trait("Category", "Integration")]` or `[Trait("Category", "Unit")]`
 - [ ] `[Trait("Speed", "Medium")]` or `[Trait("Speed", "Fast")]`
@@ -288,6 +296,118 @@ if (!featureAvailable)
 }
 Assert.True(result.Success);
 ```
+
+## ⚠️ CRITICAL: Integration Test Result Validation
+
+### Test Philosophy: Verify Actual Results, Not Just Success Status
+
+Integration tests MUST verify that operations actually changed Excel state, not just return success codes.
+
+### ❌ WRONG - Testing Only Success Status
+
+```csharp
+[Fact]
+public async Task CreateTable_WithValidData_ReturnsSuccess()
+{
+    var result = await _commands.CreateAsync(batch, "Sheet1", "TestTable", "A1:D10", true);
+    Assert.True(result.Success); // ❌ Only tests success flag - doesn't verify table exists!
+}
+```
+
+**Problem**: Test passes even if table creation silently fails in Excel COM.
+
+### ✅ CORRECT - Testing Actual Excel State
+
+```csharp
+[Fact]
+public async Task CreateTable_WithValidData_CreatesTableInExcel()
+{
+    // Arrange
+    var testFile = await CreateTestFileAsync(nameof(CreateTable_WithValidData_CreatesTableInExcel));
+    
+    // Act - Create table
+    await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+    var result = await _commands.CreateAsync(batch, "Sheet1", "TestTable", "A1:D10", true);
+    
+    // Assert - Verify success
+    Assert.True(result.Success, $"Create failed: {result.ErrorMessage}");
+    
+    // Verify table actually exists in Excel
+    var listResult = await _commands.ListAsync(batch);
+    Assert.True(listResult.Success);
+    Assert.Contains(listResult.Tables, t => t.Name == "TestTable");
+    
+    await batch.SaveAsync();
+}
+```
+
+### Round-Trip Validation Pattern
+
+**CREATE operations**: Create → List → Verify present
+```csharp
+// Create measure
+var createResult = await _commands.CreateMeasureAsync(batch, "Sales", "TotalRevenue", "SUM(Sales[Amount])");
+Assert.True(createResult.Success);
+
+// Verify measure exists
+var viewResult = await _commands.ViewMeasureAsync(batch, "TotalRevenue");
+Assert.True(viewResult.Success);
+Assert.Equal("TotalRevenue", viewResult.MeasureName);
+Assert.Equal("SUM(Sales[Amount])", viewResult.Formula);
+```
+
+**UPDATE operations**: Update → Read back → Verify changes
+```csharp
+// Update measure formula
+var updateResult = await _commands.UpdateMeasureAsync(batch, "TotalRevenue", "CALCULATE(SUM(Sales[Amount]))");
+Assert.True(updateResult.Success);
+
+// Verify formula changed
+var viewResult = await _commands.ViewMeasureAsync(batch, "TotalRevenue");
+Assert.True(viewResult.Success);
+Assert.Equal("CALCULATE(SUM(Sales[Amount]))", viewResult.Formula);
+```
+
+**DELETE operations**: Delete → List → Verify absent
+```csharp
+// Delete connection
+var deleteResult = await _commands.DeleteAsync(batch, "TestConnection");
+Assert.True(deleteResult.Success);
+
+// Verify connection removed
+var listResult = await _commands.ListAsync(batch);
+Assert.True(listResult.Success);
+Assert.DoesNotContain(listResult.Connections, c => c.Name == "TestConnection");
+```
+
+### When Excel COM Verification is Required
+
+For operations that modify Excel state, verify using Excel COM:
+```csharp
+// Verify PivotTable exists in Excel COM
+await batch.ExecuteAsync(async (ctx, ct) =>
+{
+    dynamic sheet = ctx.Book.Worksheets.Item("Summary");
+    dynamic pivotTables = sheet.PivotTables;
+    
+    bool found = false;
+    for (int i = 1; i <= pivotTables.Count; i++)
+    {
+        if (pivotTables.Item(i).Name == "TestPivot")
+        {
+            found = true;
+            break;
+        }
+    }
+    Assert.True(found, "PivotTable 'TestPivot' not found in Excel");
+    
+    return ValueTask.FromResult(0);
+});
+```
+
+### Key Principle
+
+**Success status alone is NOT sufficient** - integration tests must prove the operation modified Excel correctly.
 
 ## OnDemand Tests
 
