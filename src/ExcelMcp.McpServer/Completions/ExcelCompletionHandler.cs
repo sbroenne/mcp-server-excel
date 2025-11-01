@@ -47,7 +47,7 @@ public static class ExcelCompletionHandler
             if (refType == "ref/resource")
             {
                 var uri = refObj["uri"]?.ToString() ?? "";
-                var suggestions = GetResourceUriCompletions(uri);
+                var suggestions = GetResourceUriCompletions(uri, argumentValue);
                 return CreateCompletionResult(suggestions);
             }
 
@@ -123,7 +123,14 @@ public static class ExcelCompletionHandler
             suggestions =
             [
                 "get-values", "set-values", "get-formulas", "set-formulas",
-                "clear", "copy", "insert", "delete", "find", "replace", "sort"
+                "clear-all", "clear-contents", "clear-formats",
+                "copy", "copy-values", "copy-formulas",
+                "insert-cells", "delete-cells", "insert-rows", "delete-rows",
+                "insert-columns", "delete-columns",
+                "find", "replace", "sort",
+                "get-used-range", "get-current-region", "get-range-info",
+                "add-hyperlink", "remove-hyperlink", "list-hyperlinks", "get-hyperlink",
+                "format-range", "validate-range", "set-number-format", "get-number-formats"
             ];
         }
         // Action parameter completions for table prompts
@@ -144,17 +151,125 @@ public static class ExcelCompletionHandler
                 "None", "Private", "Organizational", "Public"
             ];
         }
-        // Format string completions for measures
-        else if (argumentName == "formatString")
+        // Format string completions for measures and ranges
+        else if (argumentName == "formatString" || argumentName == "formatCode")
         {
             suggestions =
             [
                 "#,##0.00",           // Standard number
-                "$#,##0.00",          // Currency
+                "$#,##0.00",          // Currency with decimals
+                "$#,##0",             // Currency no decimals
                 "0.00%",              // Percentage
-                "#,##0",              // Whole number
+                "#,##0",              // Whole number with thousands
                 "mm/dd/yyyy",         // Short date
-                "General Number"      // General
+                "m/d/yyyy",           // Short date no leading zero
+                "dddd, mmmm dd, yyyy", // Long date
+                "h:mm AM/PM",         // Time
+                "General Number",     // General
+                "@"                   // Text
+            ];
+        }
+        // Range address completions
+        else if (argumentName == "rangeAddress")
+        {
+            suggestions =
+            [
+                "A1:Z100",     // Common data range
+                "A1:E50",      // Medium table
+                "A1:D10",      // Small table
+                "A1",          // Single cell
+                "A1:A1000",    // Single column
+                "1:1",         // Entire first row
+                "A:A",         // Entire column A
+                "SalesData",   // Named range example
+                "DataRange"    // Named range example
+            ];
+        }
+        // Sheet name completions
+        else if (argumentName == "sheetName" || argumentName == "targetSheet" || argumentName == "sourceSheet")
+        {
+            suggestions =
+            [
+                "Sheet1", "Data", "Report", "Summary", "Analysis",
+                "Sales", "Products", "Customers", "Dashboard", "Settings"
+            ];
+        }
+        // Validation type completions
+        else if (argumentName == "validationType")
+        {
+            suggestions =
+            [
+                "list", "decimal", "whole", "date", "time", "textLength", "custom"
+            ];
+        }
+        // Validation operator completions
+        else if (argumentName == "validationOperator")
+        {
+            suggestions =
+            [
+                "between", "notBetween", "equal", "notEqual",
+                "greaterThan", "lessThan", "greaterThanOrEqual", "lessThanOrEqual"
+            ];
+        }
+        // Error style completions
+        else if (argumentName == "errorStyle")
+        {
+            suggestions =
+            [
+                "stop", "warning", "information"
+            ];
+        }
+        // Alignment completions
+        else if (argumentName == "horizontalAlignment")
+        {
+            suggestions =
+            [
+                "left", "center", "right", "justify", "distributed"
+            ];
+        }
+        else if (argumentName == "verticalAlignment")
+        {
+            suggestions =
+            [
+                "top", "center", "bottom", "justify", "distributed"
+            ];
+        }
+        // Border style completions
+        else if (argumentName == "borderStyle")
+        {
+            suggestions =
+            [
+                "none", "continuous", "dash", "dot", "double", "dashDot", "dashDotDot"
+            ];
+        }
+        // Border weight completions
+        else if (argumentName == "borderWeight")
+        {
+            suggestions =
+            [
+                "hairline", "thin", "medium", "thick"
+            ];
+        }
+        // Color completions (common Excel theme colors)
+        else if (argumentName == "fontColor" || argumentName == "fillColor" || argumentName == "borderColor")
+        {
+            suggestions =
+            [
+                "#000000",  // Black
+                "#FFFFFF",  // White
+                "#FF0000",  // Red
+                "#00FF00",  // Green
+                "#0000FF",  // Blue
+                "#FFFF00",  // Yellow
+                "#FFA500",  // Orange
+                "#800080",  // Purple
+                "#4472C4",  // Excel blue (headers)
+                "#70AD47",  // Excel green
+                "#ED7D31",  // Excel orange
+                "#FFC000",  // Excel yellow
+                "#5B9BD5",  // Light blue
+                "#A5A5A5",  // Gray
+                "#D3D3D3"   // Light gray
             ];
         }
 
@@ -169,21 +284,57 @@ public static class ExcelCompletionHandler
         return suggestions;
     }
 
-    private static List<string> GetResourceUriCompletions(string uri)
+    private static List<string> GetResourceUriCompletions(string uri, string currentValue)
     {
         var suggestions = new List<string>();
 
-        // Suggest Excel file paths for excel:// URIs
+        // Suggest Excel file paths for excel:// URIs or when completing file paths
         if (uri.StartsWith("excel://", StringComparison.OrdinalIgnoreCase) ||
-            uri.Contains(".xlsx", StringComparison.OrdinalIgnoreCase) ||
-            uri.Contains(".xlsm", StringComparison.OrdinalIgnoreCase))
+            currentValue.Contains(".xlsx", StringComparison.OrdinalIgnoreCase) ||
+            currentValue.Contains(".xlsm", StringComparison.OrdinalIgnoreCase) ||
+            currentValue.Contains(":\\", StringComparison.OrdinalIgnoreCase))
         {
-            // Example suggestions - in a real implementation, could scan common directories
+            // Scan common directories for Excel files
+            var commonPaths = new[]
+            {
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Desktop"),
+                Environment.CurrentDirectory
+            };
+
+            foreach (var basePath in commonPaths)
+            {
+                try
+                {
+                    if (Directory.Exists(basePath))
+                    {
+                        var excelFiles = Directory.GetFiles(basePath, "*.xlsx", SearchOption.TopDirectoryOnly)
+                            .Concat(Directory.GetFiles(basePath, "*.xlsm", SearchOption.TopDirectoryOnly))
+                            .Take(5)
+                            .ToList();
+
+                        suggestions.AddRange(excelFiles);
+                    }
+                }
+                catch
+                {
+                    // Ignore access denied or other errors
+                }
+            }
+        }
+
+        // Remove duplicates and limit to 15 suggestions
+        suggestions = suggestions.Distinct().Take(15).ToList();
+
+        // If no files found, provide example paths
+        if (suggestions.Count == 0)
+        {
             suggestions =
             [
-                "C:\\Data\\sales.xlsx",
-                "C:\\Reports\\monthly-report.xlsx",
-                "C:\\Analysis\\budget.xlsx"
+                "C:\\Data\\workbook.xlsx",
+                "C:\\Reports\\analysis.xlsx",
+                "C:\\Projects\\dashboard.xlsx"
             ];
         }
 
