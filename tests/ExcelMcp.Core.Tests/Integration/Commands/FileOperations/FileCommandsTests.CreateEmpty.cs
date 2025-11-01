@@ -24,8 +24,9 @@ public partial class FileCommandsTests
                 return sheets.Count >= 1;
             });
         }
-        catch
+        catch (Exception)
         {
+            // Test helper - any Excel error means file is invalid
             return false;
         }
     }

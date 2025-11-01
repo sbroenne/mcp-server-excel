@@ -104,6 +104,14 @@ class Program
                 "range-clear-all" => range.ClearAll(args),
                 "range-clear-contents" => range.ClearContents(args),
                 "range-clear-formats" => range.ClearFormats(args),
+                
+                // Range number formatting commands
+                "range-get-number-formats" => range.GetNumberFormats(args),
+                "range-set-number-format" => range.SetNumberFormat(args),
+                
+                // Range visual formatting and validation commands
+                "range-format" => range.FormatRange(args),
+                "range-validate" => range.ValidateRange(args),
 
                 // Parameter commands
                 "param-list" => param.List(args),

@@ -35,8 +35,9 @@ public partial class VbaTrustDetectionTests : IClassFixture<TempDirectoryFixture
             var value = key?.GetValue("AccessVBOM");
             return value != null && (int)value == 1;
         }
-        catch
+        catch (Exception)
         {
+            // Test helper - registry access may fail
             return false;
         }
     }
