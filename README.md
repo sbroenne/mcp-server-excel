@@ -12,7 +12,7 @@
 
 **A Model Context Protocol (MCP) server that gives AI assistants full control over Microsoft Excel through native COM automation.**
 
-Control Power Query M code, Power Pivot (Data Model with DAX measures and relationships), VBA macros, Excel Tables, PivotTables, connections, ranges, and worksheets through conversational AI. Also includes a CLI for direct human automation.
+Control Power Query M code, Power Pivot (Data Model with DAX measures and relationships), VBA macros, Excel Tables, PivotTables, connections, ranges, and worksheets through conversational AI. Also includes a CLI for direct human automation and for tools that do not support using a MCP Server.
 
 ## 🤔 What is This?
 
@@ -64,13 +64,15 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 ## 🎯 What You Can Do
 
 **Development & Automation:**
-- 🔄 **Power Query** - Create/edit M code, manage data transformations, set privacy levels
-- 📊 **Power Pivot (Data Model)** - Build DAX measures, manage relationships, export to .dax files
-- 🎨 **Excel Tables** - Automate formatting, filtering, sorting, structured references
-- 📈 **PivotTables** - Create and configure PivotTables for interactive analysis
-- 📝 **VBA Macros** - Export/import/run VBA code, integrate with version control
-- 📋 **Ranges & Data** - 30+ operations for values, formulas, copy/paste, find/replace
-- 🔌 **Connections** - Manage OLEDB, ODBC, Text, Web data sources
+- 🔄 **Power Query** - 12 operations: create/edit M code, manage transformations, load configurations (worksheet, data model, connection only)
+- 📊 **Power Pivot (Data Model)** - 13 operations: build DAX measures, manage relationships, export to .dax files
+- 🎨 **Excel Tables** - 24 operations: automate formatting, filtering, sorting, structured references, number formats
+- 📈 **PivotTables** - 17 operations: create and configure PivotTables for interactive analysis
+- 📝 **VBA Macros** - 7 operations: export/import/run VBA code, integrate with version control
+- 📋 **Ranges & Data** - 31 operations: values, formulas, copy/paste, find/replace, formatting, validation
+- 📄 **Worksheets** - 12 operations: lifecycle management, tab colors, visibility controls
+- 🔌 **Connections** - 11 operations: manage OLEDB, ODBC, Text, Web data sources
+- 🏷️ **Parameters** - 7 operations: named range management and bulk operations
 
 **AI-Powered Workflows:**
 - 💬 Talk to Excel in natural language through GitHub Copilot or Claude
@@ -79,52 +81,73 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 - 🔄 Build data pipelines with AI assistance
 
 <details>
-<summary>📚 <strong>See Complete Feature List (80+ Operations)</strong></summary>
+<summary>📚 <strong>See Complete Feature List (100+ Operations)</strong></summary>
 
-### Power Query & M Code
+### Power Query & M Code (12 operations)
 - Create, read, update, delete Power Query transformations
 - Export/import M code for version control
-- Manage query load destinations (worksheet/data model/connection-only)
+- Manage query load destinations (worksheet/data model/connection-only/both)
 - Set privacy levels for data source combinations
+- Get load configuration for existing queries
 
-### Data Model & DAX (Power Pivot)
+### Data Model & DAX (Power Pivot) (13 operations)
 - Create/update/delete DAX measures with format types (Currency, Percentage, Decimal, General)
 - Manage table relationships (create, toggle active/inactive, delete)
 - Discover model structure (tables, columns, measures, relationships)
 - Export measures to .dax files for Git workflows
+- Get comprehensive model information
 - **Note:** DAX calculated columns are not supported (use Excel UI for calculated columns)
 
-### Excel Tables (ListObjects)
-- 22 operations: create, resize, rename, delete, style
+### Excel Tables (ListObjects) (24 operations)
+- Lifecycle: create, resize, rename, delete, get info
+- Styling: apply table styles, toggle totals row, set column totals
 - Column management: add, remove, rename columns
-- Data operations: append rows, apply filters (criteria/values), sort (single/multi-column)
-- Advanced features: structured references, totals row, Data Model integration
+- Data operations: append rows, apply filters (criteria/values), clear filters, get filter state
+- Sorting: single-column sort, multi-column sort (up to 3 levels)
+- Number formatting: get/set column number formats
+- Advanced features: structured references, Data Model integration
 
-### PivotTables
-- 20 operations: create from ranges or Excel Tables
+### PivotTables (17 operations)
+- Creation: create from ranges or Excel Tables
 - Field management: add/remove fields to Row, Column, Value, Filter areas
 - Aggregation functions: Sum, Average, Count, Min, Max, etc. with validation
 - Advanced features: field filters, sorting, custom field names, number formatting
-- Extract PivotTable data as 2D arrays for further analysis
+- Data extraction: get PivotTable data as 2D arrays for further analysis
+- Lifecycle: list, get info, delete, refresh
 
-### VBA Macros
-- List, view, export, import, update VBA modules
+### VBA Macros (7 operations)
+- List all VBA modules and procedures
+- View module code without exporting
+- Export/import VBA modules to/from files
+- Update existing modules
 - Execute macros with parameters
+- Delete modules
 - Version control VBA code through file exports
 
 ### Ranges & Worksheets
-- **Data Operations** (10+ actions): get/set values/formulas, clear (all/contents/formats), copy/paste, insert/delete rows/columns, find/replace, sort
-- **Number Formatting** (2 actions): get formats as CSV, apply format codes (currency, percentage, date, text, custom)
+- **Data Operations** (10 actions): get/set values/formulas, clear (all/contents/formats), copy/paste (all/values/formulas), insert/delete rows/columns/cells, find/replace, sort
+- **Number Formatting** (3 actions): get formats as 2D arrays, apply uniform format, set individual cell formats
 - **Visual Formatting** (1 action): font (name, size, bold, italic, underline, color), fill color, borders (style, weight, color), alignment (horizontal, vertical, wrap text, orientation)
 - **Data Validation** (1 action): dropdown lists, number/date/text rules, operators (Between, Greater, Equal, etc.), input messages, error alerts
-- **Hyperlinks & Properties**: manage hyperlinks, get UsedRange, CurrentRegion, row/column metadata
-- **38+ operations total** covering all common Excel range manipulation needs
-- Worksheet lifecycle: create, rename, copy, delete
+- **Hyperlinks** (4 actions): add, remove, list all, get specific hyperlink
+- **Smart Range Operations** (3 actions): UsedRange, CurrentRegion, get range info (address, dimensions, format)
+- **31 range operations total** covering all common Excel range manipulation needs
+- **Worksheet management** (12 actions): lifecycle (create, rename, copy, delete), tab colors (set, get, clear), visibility controls (show, hide, very-hide, get status)
 
-### Data Connections
+### Data Connections (11 operations)
 - Manage OLEDB, ODBC, Text, Web connections
+- Import/export connections via .odc files
 - Update connection strings and properties
-- Test connections and troubleshoot issues
+- Refresh connections and test connectivity
+- Load connection-only connections to worksheet tables
+- Get/set connection properties (refresh settings, background query, etc.)
+
+### Named Ranges/Parameters (7 operations)
+- List all named ranges with references
+- Get/set single values
+- Create/delete named ranges
+- Update cell references
+- Bulk create multiple parameters
 
 </details>
 
