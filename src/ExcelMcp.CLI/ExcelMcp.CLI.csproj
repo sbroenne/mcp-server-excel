@@ -3,6 +3,9 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
+
+    <!-- Suppress CS0618 (Obsolete) for SuggestedNextActions/WorkflowHint during migration -->
+    <NoWarn>$(NoWarn);CS0618</NoWarn>
     <PublishAot>false</PublishAot>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>

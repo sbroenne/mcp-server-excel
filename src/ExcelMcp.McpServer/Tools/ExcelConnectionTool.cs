@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -36,9 +37,8 @@ public static class ExcelConnectionTool
     [Description("Manage Excel data connections. Supports: list, view, import, export, update, refresh, delete, loadto, properties, set-properties, test.")]
     public static async Task<string> ExcelConnection(
         [Required]
-        [RegularExpression("^(list|view|import|export|update|refresh|delete|loadto|properties|set-properties|test)$")]
-        [Description("Action: list, view, import, export, update, refresh, delete, loadto, properties, set-properties, test")]
-        string action,
+        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+        ConnectionAction action,
 
         [Required]
         [FileExtensions(Extensions = "xlsx,xlsm")]
@@ -71,7 +71,9 @@ public static class ExcelConnectionTool
         {
             var connectionCommands = new ConnectionCommands();
 
-            return action.ToLowerInvariant() switch
+            var actionString = action.ToActionString();
+
+            return actionString switch
             {
                 "list" => await ListConnectionsAsync(connectionCommands, excelPath, batchId),
                 "view" => await ViewConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
@@ -86,7 +88,7 @@ public static class ExcelConnectionTool
                     backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod, batchId),
                 "test" => await TestConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: list, view, import, export, update, refresh, delete, loadto, properties, set-properties, test")
+                    $"Unknown action '{actionString}'. Supported: list, view, import, export, update, refresh, delete, loadto, properties, set-properties, test")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -95,7 +97,7 @@ public static class ExcelConnectionTool
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action, excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
             throw; // Unreachable but satisfies compiler
         }
     }

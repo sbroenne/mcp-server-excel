@@ -46,25 +46,30 @@ SPECIFIC EXAMPLES THAT REQUIRE BATCH MODE:
 # Complete Example: Import 4 Power Queries to Data Model
 
 **WRONG WAY (what LLMs naturally do - 8 calls, 8 Excel sessions, 16-24 seconds):**
-excel_powerquery(action: 'import', excelPath: 'workbook.xlsx', queryName: 'Sales', sourcePath: 'sales.pq', loadToWorksheet: false)
-excel_powerquery(action: 'set-load-to-data-model', excelPath: 'workbook.xlsx', queryName: 'Sales')
-excel_powerquery(action: 'import', excelPath: 'workbook.xlsx', queryName: 'Products', sourcePath: 'products.pq', loadToWorksheet: false)
-excel_powerquery(action: 'set-load-to-data-model', excelPath: 'workbook.xlsx', queryName: 'Products')
+excel_powerquery(action: Import, excelPath: 'workbook.xlsx', queryName: 'Sales', sourcePath: 'sales.pq')
+excel_powerquery(action: SetLoadToDataModel, excelPath: 'workbook.xlsx', queryName: 'Sales')
+excel_powerquery(action: Import, excelPath: 'workbook.xlsx', queryName: 'Products', sourcePath: 'products.pq')
+excel_powerquery(action: SetLoadToDataModel, excelPath: 'workbook.xlsx', queryName: 'Products')
 ... (4 more calls for 2 more queries)
 
-**RIGHT WAY (batch mode - 6 calls, 1 Excel session, 3-4 seconds):**
+**BETTER WAY (using loadDestination - still slow without batch):**
+excel_powerquery(action: Import, excelPath: 'workbook.xlsx', queryName: 'Sales', sourcePath: 'sales.pq', loadDestination: 'data-model')
+excel_powerquery(action: Import, excelPath: 'workbook.xlsx', queryName: 'Products', sourcePath: 'products.pq', loadDestination: 'data-model')
+... (2 more imports)
+→ 4 calls, 4 Excel sessions, 8-12 seconds
+
+**BEST WAY (batch mode with loadDestination - FASTEST):**
 batch = begin_excel_batch(excelPath: 'workbook.xlsx')
 → Returns { batchId: 'abc123...' }
 
-excel_powerquery(action: 'import', excelPath: 'workbook.xlsx', queryName: 'Sales', sourcePath: 'sales.pq', loadToWorksheet: false, batchId: 'abc123...')
-excel_powerquery(action: 'set-load-to-data-model', excelPath: 'workbook.xlsx', queryName: 'Sales', batchId: 'abc123...')
-excel_powerquery(action: 'import', excelPath: 'workbook.xlsx', queryName: 'Products', sourcePath: 'products.pq', loadToWorksheet: false, batchId: 'abc123...')
-excel_powerquery(action: 'set-load-to-data-model', excelPath: 'workbook.xlsx', queryName: 'Products', batchId: 'abc123...')
-... (2 more imports + loads)
+excel_powerquery(action: Import, excelPath: 'workbook.xlsx', queryName: 'Sales', sourcePath: 'sales.pq', loadDestination: 'data-model', batchId: 'abc123...')
+excel_powerquery(action: Import, excelPath: 'workbook.xlsx', queryName: 'Products', sourcePath: 'products.pq', loadDestination: 'data-model', batchId: 'abc123...')
+excel_powerquery(action: Import, excelPath: 'workbook.xlsx', queryName: 'Customers', sourcePath: 'customers.pq', loadDestination: 'data-model', batchId: 'abc123...')
+excel_powerquery(action: Import, excelPath: 'workbook.xlsx', queryName: 'Regions', sourcePath: 'regions.pq', loadDestination: 'data-model', batchId: 'abc123...')
 
 commit_excel_batch(batchId: 'abc123...', save: true)
 
-**SAVINGS: 75% faster (3-4 seconds vs 16-24 seconds)**
+**SAVINGS: 95% faster (1-2 seconds vs 16-24 seconds)**
 
 # Critical Rules
 

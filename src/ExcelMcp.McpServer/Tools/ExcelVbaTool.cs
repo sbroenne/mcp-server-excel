@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -33,9 +34,8 @@ public static class ExcelVbaTool
     [Description("Manage Excel VBA scripts and macros (requires .xlsm files). Supports: list, view, export, import, update, run, delete. Optional batchId for batch sessions.")]
     public static async Task<string> ExcelVba(
         [Required]
-        [RegularExpression("^(list|view|export|import|update|run|delete)$")]
-        [Description("Action: list, view, export, import, update, run, delete")]
-        string action,
+        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+        VbaAction action,
 
         [Required]
         [FileExtensions(Extensions = "xlsm")]
@@ -63,8 +63,9 @@ public static class ExcelVbaTool
         try
         {
             var scriptCommands = new ScriptCommands();
+            var actionString = action.ToActionString();
 
-            switch (action.ToLowerInvariant())
+            switch (actionString)
             {
                 case "list":
                     return await ListVbaScriptsAsync(scriptCommands, excelPath, batchId);
@@ -81,7 +82,7 @@ public static class ExcelVbaTool
                 case "delete":
                     return await DeleteVbaScriptAsync(scriptCommands, excelPath, moduleName, batchId);
                 default:
-                    ExcelToolsBase.ThrowUnknownAction(action, "list", "view", "export", "import", "update", "run", "delete");
+                    ExcelToolsBase.ThrowUnknownAction(actionString, "list", "view", "export", "import", "update", "run", "delete");
                     throw new InvalidOperationException(); // Never reached
             }
         }
@@ -91,7 +92,7 @@ public static class ExcelVbaTool
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action, excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
             throw;
         }
     }

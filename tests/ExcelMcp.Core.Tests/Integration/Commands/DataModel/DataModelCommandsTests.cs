@@ -66,15 +66,15 @@ public partial class DataModelCommandsTests : IClassFixture<TempDirectoryFixture
         if (!File.Exists(templatePath))
         {
             throw new FileNotFoundException(
-                $"Data Model template not found. Generate it once by running:\n" +
-                $"  dotnet script tests/ExcelMcp.Core.Tests/BuildAsset.csx\n" +
-                $"Or copy from another environment. Expected path:\n" +
-                $"  {templatePath}");
+                $"Data Model template not found. Generate it once by running from tests/ExcelMcp.Core.Tests:\n" +
+                $"  dotnet build -c Debug\n" +
+                $"  dotnet script BuildDataModelTemplate.csx\n" +
+                $"Expected path: {templatePath}");
         }
 
         // Copy template to test file location (fast - just file copy ~100ms vs 60-120s build)
         File.Copy(templatePath, filePath, overwrite: true);
-        
+
         // Ensure the copied file is writable
         var fileInfo = new FileInfo(filePath);
         if (fileInfo.IsReadOnly)

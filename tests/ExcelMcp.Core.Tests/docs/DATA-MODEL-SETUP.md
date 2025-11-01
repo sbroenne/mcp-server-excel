@@ -31,9 +31,8 @@ Data Model tests use a **pre-built template file** for fast setup:
 - 3 Excel Tables: Sales, Customers, Products
 - 2 Relationships: Sales→Customers, Sales→Products
 - 3 DAX Measures: Total Sales, Average Sale, Total Customers
-- Versioned with metadata for validation
 
-**Status**: ⚠️ Template file NOT generated yet - needs to be created
+**Status**: ✅ Template file is stored in git and ready to use
 
 ## Using the Test Fixtures
 
@@ -97,28 +96,42 @@ public partial class DataModelWriteTests : IClassFixture<DataModelWriteTestsFixt
 
 ## Generating the Template
 
-### ⚠️ TODO: Template Not Yet Generated
+### 📝 Template is Stored in Git
 
-The template file doesn't exist yet. To generate it:
+The template file (`DataModelTemplate.xlsx`) is checked into git and rarely needs regeneration.
+
+**Only regenerate if:**
+- You need to change the table structure
+- You need to add/modify relationships
+- You need to add/modify measures
+
+### How to Regenerate (Rarely Needed)
 
 ```bash
-# Option 1: Run the asset builder test (if it exists)
-dotnet test tests/ExcelMcp.Core.Tests --filter "FullyQualifiedName~BuildDataModelAsset"
+# Run from tests/ExcelMcp.Core.Tests directory
 
-# Option 2: Manually create using DataModelAssetBuilder
-# (Implementation details in DataModelAssetBuilder.cs)
+# 1. Build the test project (needed for the builder)
+dotnet build -c Debug
+
+# 2. Run the generator script
+dotnet script BuildDataModelTemplate.csx
+
+# 3. Commit the updated template
+git add TestAssets/DataModelTemplate.xlsx
+git commit -m "test: Update Data Model template structure"
 ```
+
+**That's it!** No need to edit test files.
 
 ### Template Requirements
 
-The template MUST contain:
+The template contains:
 - ✅ 3 tables loaded into Data Model: Sales, Customers, Products
 - ✅ 2 relationships: Sales[CustomerID]→Customers[ID], Sales[ProductID]→Products[ID]
 - ✅ 3 measures with different format types:
   - Total Sales (Currency)
   - Average Sale (Decimal)
   - Total Customers (WholeNumber)
-- ✅ Version metadata in document properties
 
 ## Performance Expectations
 
@@ -133,37 +146,16 @@ The template MUST contain:
 
 ### When to Regenerate Template
 
-Regenerate the template when:
-1. Data Model schema changes (new tables, relationships, measures)
-2. Test requirements change (different data needed)
-3. Template becomes corrupted or outdated
+Regenerate the template **only when** you need to change:
+1. Table structure (add/remove columns)
+2. Relationships (add/remove/modify)
+3. Measures (add/remove/modify DAX)
 
 ### How to Regenerate
 
-```bash
-# 1. Delete old template
-Remove-Item tests/ExcelMcp.Core.Tests/TestAssets/DataModelTemplate.xlsx -Force
+See "Generating the Template" section above for complete instructions.
 
-# 2. Generate new template
-dotnet test tests/ExcelMcp.Core.Tests --filter "FullyQualifiedName~BuildDataModelAsset"
-
-# 3. Verify template
-dotnet test tests/ExcelMcp.Core.Tests --filter "FullyQualifiedName~DataModelTemplate_HasExpectedStructure"
-
-# 4. Commit to repo
-git add tests/ExcelMcp.Core.Tests/TestAssets/DataModelTemplate.xlsx
-git commit -m "test: Regenerate Data Model template (vX.Y.Z)"
-```
-
-### Template Versioning
-
-Template includes version metadata:
-```csharp
-// Stored in BuiltinDocumentProperties.Comments
-"DataModelTemplate v1.0.0 - Generated 2025-11-01T12:00:00Z"
-```
-
-CI tests verify template version matches expected version.
+The template is stored in git, so regeneration is rarely needed.
 
 ## Troubleshooting
 
@@ -173,9 +165,11 @@ CI tests verify template version matches expected version.
 FileNotFoundException: Data Model template not found.
 ```
 
-**Cause**: Template file hasn't been generated yet.
+**Cause**: Template file is missing from the repository.
 
-**Solution**: Generate the template (see "Generating the Template" above).
+**Solution**: 
+1. Check if the file exists in git: `git ls-files | grep DataModelTemplate.xlsx`
+2. If missing, restore from git history or regenerate (see above)
 
 ### Tests Still Slow
 
@@ -185,11 +179,14 @@ FileNotFoundException: Data Model template not found.
 - READ tests: Use `IClassFixture<DataModelReadTestsFixture>`
 - WRITE tests: Use `IClassFixture<DataModelWriteTestsFixture>`
 
-### Template Corruption
+### Template Locked by Excel
 
-**Cause**: Template file damaged or Excel process crash during generation.
+**Cause**: Excel has the template file open.
 
-**Solution**: Delete and regenerate the template.
+**Solution**: Close Excel or kill the process:
+```powershell
+taskkill /F /IM EXCEL.EXE
+```
 
 ## Files
 
@@ -197,12 +194,12 @@ FileNotFoundException: Data Model template not found.
 |------|---------|
 | `Helpers/DataModelReadTestsFixture.cs` | Copies template for READ tests |
 | `Helpers/DataModelWriteTestsFixture.cs` | Creates fresh file for WRITE tests |
-| `TestAssets/DataModelTemplate.xlsx` | Pre-built template (⚠️ not yet generated) |
-| `TestAssets/DataModelAssetBuilder.cs` | Builder for generating template |
+| `TestAssets/DataModelTemplate.xlsx` | Pre-built template (stored in git) |
+| `TestAssets/CreateDataModelAsset.cs` | Builder for regenerating template (rarely used) |
 
-## Next Steps
+## Summary
 
-1. ⚠️ **Generate the template file** - Currently missing
-2. Update `DataModelCommandsTests.cs` to use `DataModelReadTestsFixture`
-3. Measure actual performance improvement
-4. Add CI verification for template existence and version
+- ✅ Template is stored in git - just use it
+- ✅ Regeneration is rarely needed (only for structural changes)
+- ✅ READ tests are fast (~0.5s setup via template copy)
+- ✅ WRITE tests create fresh files (~60-120s setup)

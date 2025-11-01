@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
+using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -41,9 +42,8 @@ public static class ExcelRangeTool
     [Description("Excel range operations: get-values, set-values, get-formulas, set-formulas, get-number-formats, set-number-format, set-number-formats, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink, format-range, validate-range. Optional batchId for batch sessions.")]
     public static async Task<string> ExcelRange(
         [Required]
-        [RegularExpression("^(get-values|set-values|get-formulas|set-formulas|get-number-formats|set-number-format|set-number-formats|clear-all|clear-contents|clear-formats|copy|copy-values|copy-formulas|insert-cells|delete-cells|insert-rows|delete-rows|insert-columns|delete-columns|find|replace|sort|get-used-range|get-current-region|get-range-info|add-hyperlink|remove-hyperlink|list-hyperlinks|get-hyperlink|format-range|validate-range)$")]
-        [Description("Action: get-values, set-values, get-formulas, set-formulas, get-number-formats, set-number-format, set-number-formats, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink, format-range, validate-range")]
-        string action,
+        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+        RangeAction action,
 
         [Required]
         [FileExtensions(Extensions = "xlsx,xlsm")]
@@ -214,7 +214,9 @@ public static class ExcelRangeTool
         {
             var rangeCommands = new RangeCommands();
 
-            return action.ToLowerInvariant() switch
+            var actionString = action.ToActionString();
+
+            return actionString switch
             {
                 "get-values" => await GetValuesAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
                 "set-values" => await SetValuesAsync(rangeCommands, excelPath, sheetName, rangeAddress, values, batchId),
@@ -248,7 +250,7 @@ public static class ExcelRangeTool
                 "format-range" => await FormatRangeAsync(rangeCommands, excelPath, sheetName, rangeAddress, fontName, fontSize, bold, italic, underline, fontColor, fillColor, borderStyle, borderColor, borderWeight, horizontalAlignment, verticalAlignment, wrapText, orientation, batchId),
                 "validate-range" => await ValidateRangeAsync(rangeCommands, excelPath, sheetName, rangeAddress, validationType, validationOperator, validationFormula1, validationFormula2, showInputMessage, inputTitle, inputMessage, showErrorAlert, errorStyle, errorTitle, errorMessage, ignoreBlank, showDropdown, batchId),
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: get-values, set-values, get-formulas, set-formulas, get-number-formats, set-number-format, set-number-formats, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink, format-range, validate-range")
+                    $"Unknown action '{actionString}'. Supported: get-values, set-values, get-formulas, set-formulas, get-number-formats, set-number-format, set-number-formats, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink, format-range, validate-range")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -257,7 +259,7 @@ public static class ExcelRangeTool
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action, excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
             throw; // Unreachable but satisfies compiler
         }
     }

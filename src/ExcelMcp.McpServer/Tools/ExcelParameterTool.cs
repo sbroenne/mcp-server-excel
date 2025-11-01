@@ -4,6 +4,7 @@ using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -38,12 +39,11 @@ public static class ExcelParameterTool
 
 ⭐ NEW: Use 'create-bulk' action for even better efficiency (one call for multiple parameters).
 
-Actions: list, get, set, update, create, delete, create-bulk.")]
+Actions available as dropdown in MCP clients.")]
     public static async Task<string> ExcelParameter(
         [Required]
-        [RegularExpression("^(list|get|set|update|create|delete|create-bulk)$")]
-        [Description("Action: list, get, set, update, create, delete, create-bulk")]
-        string action,
+        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+        ParameterAction action,
 
         [Required]
         [FileExtensions(Extensions = "xlsx,xlsm")]
@@ -51,14 +51,11 @@ Actions: list, get, set, update, create, delete, create-bulk.")]
         string excelPath,
 
         [StringLength(255, MinimumLength = 1)]
-        [Description("Parameter (named range) name (for get, set, update, create, delete actions)")]
+        [Description("Parameter (named range) name (for get, set, create, delete actions)")]
         string? parameterName = null,
 
-        [Description("Parameter value (for set action) or cell reference (for create/update actions, e.g., 'Sheet1!A1')")]
+        [Description("Parameter value (for set action) or cell reference (for create actions, e.g., 'Sheet1!A1')")]
         string? value = null,
-
-        [Description("JSON array of parameter definitions for create-bulk action. Example: [{\"name\":\"Start_Date\",\"reference\":\"Sheet1!A1\",\"value\":\"2025-01-01\"}]")]
-        string? parametersJson = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
         string? batchId = null)
@@ -66,18 +63,16 @@ Actions: list, get, set, update, create, delete, create-bulk.")]
         try
         {
             var parameterCommands = new ParameterCommands();
+            var actionString = action.ToActionString();
 
-            return action.ToLowerInvariant() switch
+            return actionString switch
             {
                 "list" => await ListParametersAsync(parameterCommands, excelPath, batchId),
                 "get" => await GetParameterAsync(parameterCommands, excelPath, parameterName, batchId),
                 "set" => await SetParameterAsync(parameterCommands, excelPath, parameterName, value, batchId),
-                "update" => await UpdateParameterAsync(parameterCommands, excelPath, parameterName, value, batchId),
                 "create" => await CreateParameterAsync(parameterCommands, excelPath, parameterName, value, batchId),
-                "create-bulk" => await CreateBulkParametersAsync(parameterCommands, excelPath, parametersJson, batchId),
                 "delete" => await DeleteParameterAsync(parameterCommands, excelPath, parameterName, batchId),
-                _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: list, get, set, update, create, create-bulk, delete")
+                _ => throw new ModelContextProtocol.McpException($"Unknown action '{actionString}'")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -86,7 +81,7 @@ Actions: list, get, set, update, create, delete, create-bulk.")]
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action, excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
             throw; // Unreachable but satisfies compiler
         }
     }

@@ -4,6 +4,7 @@ using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -40,9 +41,8 @@ public static class PivotTableTool
     [Description("Manage Excel PivotTables for interactive data summarization. Create PivotTables from ranges or tables, add fields to Row/Column/Value/Filter areas, configure aggregations, apply filters, and extract results. Auto-detects field types (numeric, text, date) for LLM guidance. Supports: list, get-info, create-from-range, create-from-table, delete, refresh, list-fields, add-row-field, add-column-field, add-value-field, add-filter-field, remove-field, set-field-function, set-field-name, set-field-format, get-data, set-field-filter, sort-field.")]
     public static async Task<string> PivotTable(
         [Required]
-        [RegularExpression("^(list|get-info|create-from-range|create-from-table|delete|refresh|list-fields|add-row-field|add-column-field|add-value-field|add-filter-field|remove-field|set-field-function|set-field-name|set-field-format|get-data|set-field-filter|sort-field)$")]
-        [Description("Action: list, get-info, create-from-range, create-from-table, delete, refresh, list-fields, add-row-field, add-column-field, add-value-field, add-filter-field, remove-field, set-field-function, set-field-name, set-field-format, get-data, set-field-filter, sort-field")]
-        string action,
+        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+        PivotTableAction action,
 
         [Required]
         [FileExtensions(Extensions = "xlsx,xlsm")]
@@ -95,7 +95,9 @@ public static class PivotTableTool
         {
             var pivotCommands = new PivotTableCommands();
 
-            return action.ToLowerInvariant() switch
+            var actionString = action.ToActionString();
+
+            return actionString switch
             {
                 "list" => await ListPivotTables(pivotCommands, excelPath),
                 "get-info" => await GetPivotTableInfo(pivotCommands, excelPath, pivotTableName),
@@ -116,7 +118,7 @@ public static class PivotTableTool
                 "set-field-filter" => await SetFieldFilter(pivotCommands, excelPath, pivotTableName, fieldName, filterValues),
                 "sort-field" => await SortField(pivotCommands, excelPath, pivotTableName, fieldName, sortDirection),
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: list, get-info, create-from-range, create-from-table, delete, refresh, list-fields, add-row-field, add-column-field, add-value-field, add-filter-field, remove-field, set-field-function, set-field-name, set-field-format, get-data, set-field-filter, sort-field")
+                    $"Unknown action '{actionString}'. Supported: list, get-info, create-from-range, create-from-table, delete, refresh, list-fields, add-row-field, add-column-field, add-value-field, add-filter-field, remove-field, set-field-function, set-field-name, set-field-format, get-data, set-field-filter, sort-field")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -125,7 +127,7 @@ public static class PivotTableTool
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action, excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
             throw; // Unreachable but satisfies compiler
         }
     }

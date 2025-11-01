@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
+using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -35,9 +36,8 @@ public static class TableTool
     [Description("Manage Excel Tables (ListObjects). Tables provide AutoFilter, structured references, dynamic expansion, and visual formatting. Can be used standalone or referenced in Power Query. Use 'add-to-datamodel' action to add existing tables to Power Pivot. For Power Pivot workflows: create table here → use excel_powerquery to load external data to Power Pivot → use excel_datamodel/excel_powerpivot for DAX measures and relationships. Supports: list, create, info, rename, delete, resize, toggle-totals, set-column-total, append, set-style, add-to-datamodel, apply-filter, apply-filter-values, clear-filters, get-filters, add-column, remove-column, rename-column, get-structured-reference, sort, sort-multi, get-column-number-format, set-column-number-format.")]
     public static async Task<string> Table(
         [Required]
-        [RegularExpression("^(list|create|info|rename|delete|resize|toggle-totals|set-column-total|append|set-style|add-to-datamodel|apply-filter|apply-filter-values|clear-filters|get-filters|add-column|remove-column|rename-column|get-structured-reference|sort|sort-multi|get-column-number-format|set-column-number-format)$")]
-        [Description("Action: list, create, info, rename, delete, resize, toggle-totals, set-column-total, append, set-style, add-to-datamodel, apply-filter, apply-filter-values, clear-filters, get-filters, add-column, remove-column, rename-column, get-structured-reference, sort, sort-multi, get-column-number-format, set-column-number-format")]
-        string action,
+        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+        TableAction action,
 
         [Required]
         [FileExtensions(Extensions = "xlsx,xlsm")]
@@ -81,7 +81,9 @@ public static class TableTool
         {
             var tableCommands = new TableCommands();
 
-            return action.ToLowerInvariant() switch
+            var actionString = action.ToActionString();
+
+            return actionString switch
             {
                 "list" => await ListTables(tableCommands, excelPath),
                 "create" => await CreateTable(tableCommands, excelPath, sheetName, tableName, range, hasHeaders, tableStyle),
@@ -107,7 +109,7 @@ public static class TableTool
                 "get-column-number-format" => await GetColumnNumberFormat(tableCommands, excelPath, tableName, newName),
                 "set-column-number-format" => await SetColumnNumberFormat(tableCommands, excelPath, tableName, newName, formatCode),
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: list, create, info, rename, delete, resize, toggle-totals, set-column-total, append, set-style, add-to-datamodel, apply-filter, apply-filter-values, clear-filters, get-filters, add-column, remove-column, rename-column, get-structured-reference, sort, sort-multi, get-column-number-format, set-column-number-format")
+                    $"Unknown action '{actionString}'. Supported: list, create, info, rename, delete, resize, toggle-totals, set-column-total, append, set-style, add-to-datamodel, apply-filter, apply-filter-values, clear-filters, get-filters, add-column, remove-column, rename-column, get-structured-reference, sort, sort-multi, get-column-number-format, set-column-number-format")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -116,7 +118,7 @@ public static class TableTool
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action, excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
             throw; // Unreachable but satisfies compiler
         }
     }

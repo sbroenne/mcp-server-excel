@@ -3,6 +3,10 @@ namespace Sbroenne.ExcelMcp.McpServer.Models;
 /// <summary>
 /// Actions available for excel_file tool
 /// </summary>
+/// <remarks>
+/// IMPORTANT: Keep enum values synchronized with ExcelFileTool.cs switch cases.
+/// Enum names are PascalCase (CreateEmpty), converted to kebab-case (create-empty) via ActionExtensions.
+/// </remarks>
 public enum FileAction
 {
     CreateEmpty,

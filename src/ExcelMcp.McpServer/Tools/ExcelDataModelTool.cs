@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -83,9 +84,8 @@ TYPICAL WORKFLOW:
 Actions: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship.")]
     public static async Task<string> ExcelDataModel(
         [Required]
-        [RegularExpression("^(list-tables|list-measures|view-measure|export-measure|list-relationships|refresh|delete-measure|delete-relationship|view-table|get-model-info|create-measure|update-measure|create-relationship|update-relationship)$")]
-        [Description("Action: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship")]
-        string action,
+        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+        DataModelAction action,
 
         [Required]
         [FileExtensions(Extensions = "xlsx,xlsm")]
@@ -146,7 +146,9 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
         {
             var dataModelCommands = new DataModelCommands();
 
-            return action.ToLowerInvariant() switch
+            var actionString = action.ToActionString();
+
+            return actionString switch
             {
                 // Discovery operations
                 "list-tables" => await ListTablesAsync(dataModelCommands, excelPath, batchId),
@@ -169,7 +171,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
                 "update-relationship" => await UpdateRelationshipComAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, batchId),
 
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship")
+                    $"Unknown action '{actionString}'. Supported: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -178,7 +180,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action, excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
             throw; // Unreachable but satisfies compiler
         }
     }

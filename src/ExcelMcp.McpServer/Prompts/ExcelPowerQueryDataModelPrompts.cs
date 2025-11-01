@@ -45,16 +45,16 @@ RECOMMENDED WORKFLOW - Load to Data Model in ONE CALL:
 
 User says: 'Import these 4 queries to Data Model for DAX measures'
 
-✅ RIGHT approach (NEW - using loadDestination parameter):
-excel_powerquery(action: 'import', queryName: 'Sales', sourcePath: 'sales.pq', loadDestination: 'data-model')
-excel_powerquery(action: 'import', queryName: 'Products', sourcePath: 'products.pq', loadDestination: 'data-model')
-excel_powerquery(action: 'import', queryName: 'Customers', sourcePath: 'customers.pq', loadDestination: 'data-model')
-excel_powerquery(action: 'import', queryName: 'Regions', sourcePath: 'regions.pq', loadDestination: 'data-model')
+✅ RIGHT approach (using loadDestination parameter):
+excel_powerquery(action: Import, queryName: 'Sales', sourcePath: 'sales.pq', loadDestination: 'data-model')
+excel_powerquery(action: Import, queryName: 'Products', sourcePath: 'products.pq', loadDestination: 'data-model')
+excel_powerquery(action: Import, queryName: 'Customers', sourcePath: 'customers.pq', loadDestination: 'data-model')
+excel_powerquery(action: Import, queryName: 'Regions', sourcePath: 'regions.pq', loadDestination: 'data-model')
 → 4 calls total, data ready for DAX immediately
 
 ❌ DEPRECATED approach (OLD - don't use):
-excel_powerquery(action: 'import', queryName: 'Sales', sourcePath: 'sales.pq', loadToWorksheet: false)
-excel_powerquery(action: 'set-load-to-data-model', queryName: 'Sales')
+excel_powerquery(action: Import, queryName: 'Sales', sourcePath: 'sales.pq')
+excel_powerquery(action: SetLoadToDataModel, queryName: 'Sales')
 ... (repeat for 3 more queries)
 → 8 calls total - INEFFICIENT!
 
@@ -82,14 +82,14 @@ Use 'connection-only' when:
 CHANGING LOAD DESTINATION:
 
 If you already loaded to worksheet and user NOW wants Data Model:
-- excel_powerquery(action: 'set-load-to-data-model', queryName: 'Sales')
+- excel_powerquery(action: SetLoadToDataModel, queryName: 'Sales')
 - No need to delete and recreate anything
 - Power Query can change load destination anytime
 
-REFRESH WITH LOAD DESTINATION (NEW):
+REFRESH WITH LOAD DESTINATION:
 
 If query is connection-only and user wants to refresh AND load data:
-- excel_powerquery(action: 'refresh', queryName: 'Sales', loadDestination: 'worksheet')
+- excel_powerquery(action: Refresh, queryName: 'Sales', loadDestination: 'worksheet')
 - ONE call instead of two (set-load + refresh)
 - Applies load configuration then refreshes data
 - Also works with: loadDestination: 'data-model' or 'both'

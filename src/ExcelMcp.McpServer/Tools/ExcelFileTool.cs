@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -20,10 +21,10 @@ public static class ExcelFileTool
     /// Create new Excel files for automation workflows
     /// </summary>
     [McpServerTool(Name = "excel_file")]
-    [Description("Manage Excel files. Supports: create-empty, close-workbook, test. Optional batchId for batch sessions.")]
+    [Description("Manage Excel files. Actions available as dropdown: CreateEmpty, CloseWorkbook, Test. Optional batchId for batch sessions.")]
     public static async Task<string> ExcelFile(
-        [Description("Action to perform: create-empty, close-workbook, test")]
-        string action,
+        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+        FileAction action,
 
         [Description("Excel file path (.xlsx or .xlsm extension)")]
         string excelPath,
@@ -34,8 +35,9 @@ public static class ExcelFileTool
         try
         {
             var fileCommands = new FileCommands();
+            var actionString = action.ToActionString();
 
-            switch (action.ToLowerInvariant())
+            switch (actionString)
             {
                 case "create-empty":
                     // Determine if macro-enabled based on file extension
@@ -49,7 +51,7 @@ public static class ExcelFileTool
                     return await TestFileAsync(fileCommands, excelPath);
 
                 default:
-                    throw new ModelContextProtocol.McpException($"Unknown action '{action}'. Supported: create-empty, close-workbook, test");
+                    throw new ModelContextProtocol.McpException($"Unknown action '{actionString}'");
             }
         }
         catch (ModelContextProtocol.McpException)
@@ -58,7 +60,7 @@ public static class ExcelFileTool
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action, excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
             throw; // Unreachable but satisfies compiler
         }
     }

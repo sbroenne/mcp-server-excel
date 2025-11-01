@@ -4,6 +4,7 @@ using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -34,12 +35,11 @@ public static class ExcelWorksheetTool
     /// Manage Excel worksheet lifecycle and appearance
     /// </summary>
     [McpServerTool(Name = "excel_worksheet")]
-    [Description("Manage Excel worksheets: lifecycle (list|create|rename|copy|delete), tab colors (set-tab-color|get-tab-color|clear-tab-color), visibility (set-visibility|get-visibility|show|hide|very-hide). Optional batchId for batch sessions.")]
+    [Description("Manage Excel worksheets: lifecycle, tab colors, visibility. Actions available as dropdown. Optional batchId for batch sessions.")]
     public static async Task<string> ExcelWorksheet(
         [Required]
-        [RegularExpression("^(list|create|rename|copy|delete|set-tab-color|get-tab-color|clear-tab-color|set-visibility|get-visibility|show|hide|very-hide)$")]
-        [Description("Action: list, create, rename, copy, delete, set-tab-color, get-tab-color, clear-tab-color, set-visibility, get-visibility, show, hide, very-hide")]
-        string action,
+        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+        WorksheetAction action,
 
         [Required]
         [FileExtensions(Extensions = "xlsx,xlsm")]
@@ -78,8 +78,9 @@ public static class ExcelWorksheetTool
         try
         {
             var sheetCommands = new SheetCommands();
+            var actionString = action.ToActionString();
 
-            return action.ToLowerInvariant() switch
+            return actionString switch
             {
                 "list" => await ListWorksheetsAsync(sheetCommands, excelPath, batchId),
                 "create" => await CreateWorksheetAsync(sheetCommands, excelPath, sheetName, batchId),
@@ -104,7 +105,8 @@ public static class ExcelWorksheetTool
         }
         catch (Exception ex)
         {
-            throw new ModelContextProtocol.McpException($"Unexpected error in excel_worksheet action '{action}': {ex.Message}");
+            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
+            throw;
         }
     }
 

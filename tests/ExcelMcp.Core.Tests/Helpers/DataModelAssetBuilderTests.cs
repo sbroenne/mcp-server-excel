@@ -2,18 +2,16 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Tests.TestAssets;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
 /// <summary>
-/// Tests for building and verifying the Data Model template asset.
-/// Run these manually to generate/regenerate the template file.
+/// Tests for verifying the Data Model template asset exists.
+/// To regenerate template, run: dotnet script BuildDataModelTemplate.csx
 /// </summary>
 [Trait("Category", "Asset")]
-[Trait("RunType", "Manual")]
 public class DataModelAssetBuilderTests
 {
     private readonly ITestOutputHelper _output;
@@ -24,79 +22,32 @@ public class DataModelAssetBuilderTests
     }
 
     /// <summary>
-    /// Builds the Data Model template file.
-    /// Run this when:
-    /// - First time setting up tests
-    /// - Data Model schema changes
-    /// - Template needs regeneration
-    /// 
-    /// Command: dotnet test --filter "FullyQualifiedName~BuildDataModelAsset_GeneratesTemplate"
-    /// </summary>
-    [Fact(Skip = "Manual - run explicitly to generate template")]
-    public async Task BuildDataModelAsset_GeneratesTemplate()
-    {
-        var solutionRoot = Path.GetFullPath(Path.Join(AppContext.BaseDirectory, "../../../../.."));
-        var targetPath = Path.Join(solutionRoot, "tests/ExcelMcp.Core.Tests/TestAssets/DataModelTemplate.xlsx");
-
-        _output.WriteLine($"Generating Data Model template...");
-        _output.WriteLine($"Target: {targetPath}");
-        _output.WriteLine($"Version: {DataModelAssetBuilder.ASSET_VERSION}");
-        _output.WriteLine("");
-
-        var result = await DataModelAssetBuilder.CreateDataModelAssetAsync(targetPath);
-
-        Assert.True(File.Exists(result), $"Template file should exist at {result}");
-        _output.WriteLine($"✅ Template generated successfully");
-        _output.WriteLine($"   Commit this file to source control:");
-        _output.WriteLine($"   git add tests/ExcelMcp.Core.Tests/TestAssets/DataModelTemplate.xlsx");
-        _output.WriteLine($"   git commit -m \"test: Regenerate Data Model template (v{DataModelAssetBuilder.ASSET_VERSION})\"");
-    }
-
-    /// <summary>
-    /// Verifies the Data Model template exists and has correct version.
-    /// This test runs in CI to ensure template is present and current.
+    /// Verifies the Data Model template exists.
+    /// This test runs in CI to ensure template is present.
+    /// Template is stored in git - regenerate only if structure changes.
     /// </summary>
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Speed", "Fast")]
     [Trait("RequiresExcel", "true")]
-    public async Task DataModelTemplate_ExistsAndIsCurrentVersion()
+    public async Task DataModelTemplate_Exists()
     {
         var solutionRoot = Path.GetFullPath(Path.Join(AppContext.BaseDirectory, "../../../../.."));
         var templatePath = Path.Join(solutionRoot, "tests/ExcelMcp.Core.Tests/TestAssets/DataModelTemplate.xlsx");
 
         // Verify file exists
-        Assert.True(File.Exists(templatePath), 
-            $"Data Model template not found. Generate it by running:\n" +
-            $"dotnet test --filter \"FullyQualifiedName~BuildDataModelAsset_GeneratesTemplate\" /p:DefineConstants=MANUAL_TESTS\n" +
-            $"Expected path: {templatePath}");
+        Assert.True(File.Exists(templatePath),
+            $"Data Model template not found at: {templatePath}\n" +
+            $"This file should be in git. If missing, see tests/ExcelMcp.Core.Tests/docs/DATA-MODEL-SETUP.md");
 
-        // Verify version matches expected
+        // Verify it can be opened (basic sanity check)
         await using var batch = await ExcelSession.BeginBatchAsync(templatePath);
-        var version = await batch.Execute<string>((ctx, ct) =>
+        var result = await batch.Execute<int>((ctx, ct) =>
         {
-            try
-            {
-                dynamic props = ctx.Book.BuiltinDocumentProperties;
-                var comments = props.Item("Comments").Value?.ToString() ?? "";
-                return comments;
-            }
-            catch
-            {
-                return "";
-            }
+            return ctx.Book.Worksheets.Count;
         });
 
-        _output.WriteLine($"Template version: {version}");
-        _output.WriteLine($"Expected version: {DataModelAssetBuilder.ASSET_VERSION}");
-
-        Assert.Contains(DataModelAssetBuilder.ASSET_VERSION, version);
-        
-        if (version != DataModelAssetBuilder.ASSET_VERSION)
-        {
-            _output.WriteLine($"Template version mismatch. Expected v{DataModelAssetBuilder.ASSET_VERSION}.");
-            _output.WriteLine("Regenerate template by running BuildDataModelAsset_GeneratesTemplate test.");
-        }
+        Assert.True(result > 0, "Template should have at least one worksheet");
     }
 
     /// <summary>
