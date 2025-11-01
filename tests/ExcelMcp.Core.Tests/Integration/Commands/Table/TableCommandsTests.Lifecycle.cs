@@ -182,7 +182,5 @@ public partial class TableCommandsTests
         Assert.True(updatedInfo.Success);
         Assert.Equal(initialColumnCount + 1, updatedInfo.Table!.Columns!.Count);
         Assert.Contains("NewColumn", updatedInfo.Table.Columns);
-
-        await batch.SaveAsync();
     }
 }
