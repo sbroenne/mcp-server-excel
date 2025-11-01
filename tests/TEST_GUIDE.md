@@ -5,14 +5,17 @@
 ## Quick Start
 
 ```bash
-# Development (fast feedback, no Excel required)
-dotnet test --filter "Category=Unit&RunType!=OnDemand"
+# Development (fast feedback, no Excel required - excludes VBA)
+dotnet test --filter "Category=Unit&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
-# Pre-commit (comprehensive, requires Excel)
-dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand"
+# Pre-commit (comprehensive, requires Excel - excludes VBA)
+dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
 # Session/batch code changes (MANDATORY when modifying session/batch code)
 dotnet test --filter "RunType=OnDemand"
+
+# VBA tests only (manual, requires VBA trust enabled)
+dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
 ```
 
 ---
@@ -439,14 +442,14 @@ dotnet test --filter "RunType=OnDemand"
 
 ### Daily Development
 ```bash
-# Fast feedback (2-5 seconds)
-dotnet test --filter "Category=Unit&RunType!=OnDemand"
+# Fast feedback (2-5 seconds - excludes VBA)
+dotnet test --filter "Category=Unit&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 ```
 
 ### Before Commit
 ```bash
-# Comprehensive validation (10-20 minutes)
-dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand"
+# Comprehensive validation (10-20 minutes - excludes VBA)
+dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 ```
 
 ### Session/Batch Code Changes
@@ -455,9 +458,15 @@ dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand"
 dotnet test --filter "RunType=OnDemand"
 ```
 
+### VBA Development (Manual Only)
+```bash
+# Test VBA features only (requires VBA trust enabled)
+dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
+```
+
 ### Specific Feature Development
 ```bash
-# Test only what you're working on
+# Test only what you're working on (e.g., PowerQuery)
 dotnet test --filter "Feature=PowerQuery&Category=Integration"
 ```
 

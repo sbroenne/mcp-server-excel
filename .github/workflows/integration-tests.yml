@@ -75,14 +75,14 @@ jobs:
     - name: Run OnDemand Tests (Session Cleanup - Critical)
       run: dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --no-build --configuration Release --filter "RunType=OnDemand" --logger "trx;LogFileName=ondemand-test-results.trx" --verbosity normal
 
-    - name: Run Integration Tests (Core)
-      run: dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=core-integration-test-results.trx" --verbosity normal
+    - name: Run Integration Tests (Core - Excluding VBA)
+      run: dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust" --logger "trx;LogFileName=core-integration-test-results.trx" --verbosity normal
 
-    - name: Run Integration Tests (MCP Server)
-      run: dotnet test tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=mcp-integration-test-results.trx" --verbosity normal
+    - name: Run Integration Tests (MCP Server - Excluding VBA)
+      run: dotnet test tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust" --logger "trx;LogFileName=mcp-integration-test-results.trx" --verbosity normal
 
-    - name: Run Integration Tests (CLI)
-      run: dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=cli-integration-test-results.trx" --verbosity normal
+    - name: Run Integration Tests (CLI - Excluding VBA)
+      run: dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust" --logger "trx;LogFileName=cli-integration-test-results.trx" --verbosity normal
 
     - name: Upload Test Results
       if: always()

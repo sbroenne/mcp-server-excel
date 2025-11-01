@@ -22,17 +22,20 @@ Enforced: PR reviews, CI/CD checks, create a branch first, up-to-date branches, 
 ## Test Execution
 
 ```bash
-# Development (fast)
-dotnet test --filter "Category=Unit&RunType!=OnDemand"
+# Development (fast - excludes VBA tests)
+dotnet test --filter "Category=Unit&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
-# Pre-commit (comprehensive)
-dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand"
+# Pre-commit (comprehensive - excludes VBA tests)
+dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
 # Session/batch code changes (MANDATORY)
 dotnet test --filter "RunType=OnDemand"
 
-# CI/CD (no Excel)
-dotnet test --filter "Category=Unit&RunType!=OnDemand"
+# VBA tests (manual only - requires VBA trust enabled)
+dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
+
+# CI/CD (no Excel, no VBA)
+dotnet test --filter "Category=Unit&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 ```
 
 ## Workflow Config Updates

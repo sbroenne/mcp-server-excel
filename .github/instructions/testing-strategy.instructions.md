@@ -82,14 +82,17 @@ public partial class FeatureCommandsTests : IClassFixture<TempDirectoryFixture>
 ## Test Execution
 
 ```bash
-# Development (fast feedback)
-dotnet test --filter "Category=Unit&RunType!=OnDemand"
+# Development (fast feedback - excludes VBA tests)
+dotnet test --filter "Category=Unit&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
-# Pre-commit (comprehensive)
-dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand"
+# Pre-commit (comprehensive - excludes VBA tests)
+dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
 # Session/batch changes (MANDATORY - see CRITICAL-RULES.md Rule 3)
 dotnet test --filter "RunType=OnDemand"
+
+# VBA tests (run manually when needed - requires VBA trust enabled)
+dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
 ```
 
 ## Common Mistakes
