@@ -1702,6 +1702,7 @@ public class RangeNumberFormatResult : ResultBase
 }
 
 #endregion
+
 #region Validation Results
 
 /// <summary>
@@ -1709,21 +1710,80 @@ public class RangeNumberFormatResult : ResultBase
 /// </summary>
 public class RangeValidationResult : ResultBase
 {
+    /// <summary>
+    /// Sheet name
+    /// </summary>
     public string SheetName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Range address
+    /// </summary>
     public string RangeAddress { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Whether the range has validation
+    /// </summary>
     public bool HasValidation { get; set; }
+    
+    /// <summary>
+    /// Validation type (list, whole, decimal, date, time, textlength, custom)
+    /// </summary>
     public string? ValidationType { get; set; }
+    
+    /// <summary>
+    /// Validation operator (between, equal, greaterthan, etc.)
+    /// </summary>
     public string? ValidationOperator { get; set; }
+    
+    /// <summary>
+    /// First formula/value
+    /// </summary>
     public string? Formula1 { get; set; }
+    
+    /// <summary>
+    /// Second formula/value (for Between operator)
+    /// </summary>
     public string? Formula2 { get; set; }
+    
+    /// <summary>
+    /// Whether to ignore blank cells
+    /// </summary>
     public bool IgnoreBlank { get; set; }
+    
+    /// <summary>
+    /// Whether to show input message
+    /// </summary>
     public bool ShowInputMessage { get; set; }
+    
+    /// <summary>
+    /// Input message title
+    /// </summary>
     public string? InputTitle { get; set; }
+    
+    /// <summary>
+    /// Input message text
+    /// </summary>
     public string? InputMessage { get; set; }
+    
+    /// <summary>
+    /// Whether to show error alert
+    /// </summary>
     public bool ShowErrorAlert { get; set; }
+    
+    /// <summary>
+    /// Error alert style (stop, warning, information)
+    /// </summary>
     public string? ErrorStyle { get; set; }
+    
+    /// <summary>
+    /// Error alert title
+    /// </summary>
     public string? ErrorTitle { get; set; }
-    public string? ErrorMessage { get; set; }
+    
+    /// <summary>
+    /// Error alert message text
+    /// </summary>
+    public string? ValidationErrorMessage { get; set; }
 }
 
 #endregion
@@ -1735,8 +1795,19 @@ public class RangeValidationResult : ResultBase
 /// </summary>
 public class RangeMergeInfoResult : ResultBase
 {
+    /// <summary>
+    /// Sheet name
+    /// </summary>
     public string SheetName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Range address
+    /// </summary>
     public string RangeAddress { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Whether the range contains merged cells
+    /// </summary>
     public bool IsMerged { get; set; }
 }
 
@@ -1745,10 +1816,20 @@ public class RangeMergeInfoResult : ResultBase
 /// </summary>
 public class RangeLockInfoResult : ResultBase
 {
+    /// <summary>
+    /// Sheet name
+    /// </summary>
     public string SheetName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Range address
+    /// </summary>
     public string RangeAddress { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Whether the cells are locked
+    /// </summary>
     public bool IsLocked { get; set; }
 }
 
 #endregion
-}

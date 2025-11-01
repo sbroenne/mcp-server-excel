@@ -223,7 +223,7 @@ public partial class RangeCommands
                     ShowErrorAlert = validation.ShowError ?? true,
                     ErrorStyle = GetErrorStyleName(validation.AlertStyle),
                     ErrorTitle = validation.ErrorTitle?.ToString() ?? string.Empty,
-                    ErrorMessage = validation.ErrorMessage?.ToString() ?? string.Empty
+                    ValidationErrorMessage = validation.ErrorMessage?.ToString() ?? string.Empty
                 };
             }
             catch (Exception ex)
