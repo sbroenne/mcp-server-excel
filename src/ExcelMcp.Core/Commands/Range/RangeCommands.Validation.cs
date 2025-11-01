@@ -156,4 +156,184 @@ public partial class RangeCommands
             _ => throw new ArgumentException($"Invalid error style: {style}")
         };
     }
+
+    /// <inheritdoc />
+    public async Task<RangeValidationResult> GetValidationAsync(
+        IExcelBatch batch,
+        string sheetName,
+        string rangeAddress)
+    {
+        return await batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+            dynamic? range = null;
+            dynamic? validation = null;
+
+            try
+            {
+                // Get sheet
+                sheet = string.IsNullOrEmpty(sheetName)
+                    ? ctx.Book.ActiveSheet
+                    : ctx.Book.Worksheets.Item(sheetName);
+
+                // Get range
+                range = sheet.Range[rangeAddress];
+
+                // Try to get validation
+                validation = range.Validation;
+
+                // Check if validation exists
+                var hasValidation = true;
+                try
+                {
+                    var testType = validation.Type;
+                }
+                catch
+                {
+                    hasValidation = false;
+                }
+
+                if (!hasValidation)
+                {
+                    return new RangeValidationResult
+                    {
+                        Success = true,
+                        FilePath = batch.WorkbookPath,
+                        SheetName = sheetName,
+                        RangeAddress = rangeAddress,
+                        HasValidation = false
+                    };
+                }
+
+                return new RangeValidationResult
+                {
+                    Success = true,
+                    FilePath = batch.WorkbookPath,
+                    SheetName = sheetName,
+                    RangeAddress = rangeAddress,
+                    HasValidation = true,
+                    ValidationType = GetValidationTypeName(validation.Type),
+                    ValidationOperator = GetValidationOperatorName(validation.Operator),
+                    Formula1 = validation.Formula1?.ToString() ?? string.Empty,
+                    Formula2 = validation.Formula2?.ToString() ?? string.Empty,
+                    IgnoreBlank = validation.IgnoreBlank ?? true,
+                    ShowInputMessage = validation.ShowInput ?? false,
+                    InputTitle = validation.InputTitle?.ToString() ?? string.Empty,
+                    InputMessage = validation.InputMessage?.ToString() ?? string.Empty,
+                    ShowErrorAlert = validation.ShowError ?? true,
+                    ErrorStyle = GetErrorStyleName(validation.AlertStyle),
+                    ErrorTitle = validation.ErrorTitle?.ToString() ?? string.Empty,
+                    ErrorMessage = validation.ErrorMessage?.ToString() ?? string.Empty
+                };
+            }
+            catch (Exception ex)
+            {
+                return new RangeValidationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to get validation for range '{rangeAddress}': {ex.Message}",
+                    FilePath = batch.WorkbookPath
+                };
+            }
+            finally
+            {
+                ComUtilities.Release(ref validation!);
+                ComUtilities.Release(ref range!);
+                ComUtilities.Release(ref sheet!);
+            }
+        });
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResult> RemoveValidationAsync(
+        IExcelBatch batch,
+        string sheetName,
+        string rangeAddress)
+    {
+        return await batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+            dynamic? range = null;
+            dynamic? validation = null;
+
+            try
+            {
+                // Get sheet
+                sheet = string.IsNullOrEmpty(sheetName)
+                    ? ctx.Book.ActiveSheet
+                    : ctx.Book.Worksheets.Item(sheetName);
+
+                // Get range
+                range = sheet.Range[rangeAddress];
+
+                // Get validation and delete
+                validation = range.Validation;
+                validation.Delete();
+
+                return new OperationResult
+                {
+                    Success = true,
+                    FilePath = batch.WorkbookPath
+                };
+            }
+            catch (Exception ex)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to remove validation from range '{rangeAddress}': {ex.Message}",
+                    FilePath = batch.WorkbookPath
+                };
+            }
+            finally
+            {
+                ComUtilities.Release(ref validation!);
+                ComUtilities.Release(ref range!);
+                ComUtilities.Release(ref sheet!);
+            }
+        });
+    }
+
+    private static string GetValidationTypeName(int type)
+    {
+        return type switch
+        {
+            0 => "any",
+            1 => "whole",
+            2 => "decimal",
+            3 => "list",
+            4 => "date",
+            5 => "time",
+            6 => "textlength",
+            7 => "custom",
+            _ => "unknown"
+        };
+    }
+
+    private static string GetValidationOperatorName(int op)
+    {
+        return op switch
+        {
+            1 => "between",
+            2 => "notbetween",
+            3 => "equal",
+            4 => "notequal",
+            5 => "greaterthan",
+            6 => "lessthan",
+            7 => "greaterthanorequal",
+            8 => "lessthanorequal",
+            _ => "unknown"
+        };
+    }
+
+    private static string GetErrorStyleName(int style)
+    {
+        return style switch
+        {
+            1 => "stop",
+            2 => "warning",
+            3 => "information",
+            _ => "unknown"
+        };
+    }
 }

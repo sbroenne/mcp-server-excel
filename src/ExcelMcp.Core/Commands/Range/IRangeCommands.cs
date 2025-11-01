@@ -267,6 +267,87 @@ public interface IRangeCommands
         string? errorMessage,
         bool? ignoreBlank,
         bool? showDropdown);
+
+    /// <summary>
+    /// Gets data validation settings from first cell in range
+    /// Excel COM: Range.Validation
+    /// </summary>
+    Task<RangeValidationResult> GetValidationAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+
+    /// <summary>
+    /// Removes data validation from range
+    /// Excel COM: Range.Validation.Delete()
+    /// </summary>
+    Task<OperationResult> RemoveValidationAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+
+    // === AUTO-FIT OPERATIONS ===
+
+    /// <summary>
+    /// Auto-fits column widths to content
+    /// Excel COM: Range.Columns.AutoFit()
+    /// </summary>
+    Task<OperationResult> AutoFitColumnsAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+
+    /// <summary>
+    /// Auto-fits row heights to content
+    /// Excel COM: Range.Rows.AutoFit()
+    /// </summary>
+    Task<OperationResult> AutoFitRowsAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+
+    // === MERGE OPERATIONS ===
+
+    /// <summary>
+    /// Merges cells in range into a single cell
+    /// Excel COM: Range.Merge()
+    /// </summary>
+    Task<OperationResult> MergeCellsAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+
+    /// <summary>
+    /// Unmerges previously merged cells
+    /// Excel COM: Range.UnMerge()
+    /// </summary>
+    Task<OperationResult> UnmergeCellsAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+
+    /// <summary>
+    /// Checks if range contains merged cells
+    /// Excel COM: Range.MergeCells
+    /// </summary>
+    Task<RangeMergeInfoResult> GetMergeInfoAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+
+    // === CONDITIONAL FORMATTING OPERATIONS ===
+
+    /// <summary>
+    /// Adds conditional formatting rule to range
+    /// Excel COM: Range.FormatConditions.Add()
+    /// </summary>
+    Task<OperationResult> AddConditionalFormattingAsync(
+        IExcelBatch batch,
+        string sheetName,
+        string rangeAddress,
+        string ruleType,
+        string? formula1,
+        string? formula2,
+        string? formatStyle);
+
+    /// <summary>
+    /// Removes all conditional formatting from range
+    /// Excel COM: Range.FormatConditions.Delete()
+    /// </summary>
+    Task<OperationResult> ClearConditionalFormattingAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+
+    // === CELL PROTECTION OPERATIONS ===
+
+    /// <summary>
+    /// Locks or unlocks cells (requires worksheet protection to take effect)
+    /// Excel COM: Range.Locked
+    /// </summary>
+    Task<OperationResult> SetCellLockAsync(IExcelBatch batch, string sheetName, string rangeAddress, bool locked);
+
+    /// <summary>
+    /// Gets lock status of first cell in range
+    /// Excel COM: Range.Locked
+    /// </summary>
+    Task<RangeLockInfoResult> GetCellLockAsync(IExcelBatch batch, string sheetName, string rangeAddress);
 }
 
 // === SUPPORTING TYPES ===

@@ -1702,3 +1702,53 @@ public class RangeNumberFormatResult : ResultBase
 }
 
 #endregion
+#region Validation Results
+
+/// <summary>
+/// Result for range validation operations
+/// </summary>
+public class RangeValidationResult : ResultBase
+{
+    public string SheetName { get; set; } = string.Empty;
+    public string RangeAddress { get; set; } = string.Empty;
+    public bool HasValidation { get; set; }
+    public string? ValidationType { get; set; }
+    public string? ValidationOperator { get; set; }
+    public string? Formula1 { get; set; }
+    public string? Formula2 { get; set; }
+    public bool IgnoreBlank { get; set; }
+    public bool ShowInputMessage { get; set; }
+    public string? InputTitle { get; set; }
+    public string? InputMessage { get; set; }
+    public bool ShowErrorAlert { get; set; }
+    public string? ErrorStyle { get; set; }
+    public string? ErrorTitle { get; set; }
+    public string? ErrorMessage { get; set; }
+}
+
+#endregion
+
+#region Cell Merge and Protection Results
+
+/// <summary>
+/// Result for range merge information
+/// </summary>
+public class RangeMergeInfoResult : ResultBase
+{
+    public string SheetName { get; set; } = string.Empty;
+    public string RangeAddress { get; set; } = string.Empty;
+    public bool IsMerged { get; set; }
+}
+
+/// <summary>
+/// Result for cell lock information
+/// </summary>
+public class RangeLockInfoResult : ResultBase
+{
+    public string SheetName { get; set; } = string.Empty;
+    public string RangeAddress { get; set; } = string.Empty;
+    public bool IsLocked { get; set; }
+}
+
+#endregion
+}
