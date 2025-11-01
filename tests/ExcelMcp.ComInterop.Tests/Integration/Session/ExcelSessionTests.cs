@@ -71,7 +71,7 @@ public class ExcelSessionTests : IAsyncLifetime
     public async Task BeginBatchAsync_WithValidFile_CreatesBatch()
     {
         // Arrange
-        string testFile = Path.Combine(Path.GetTempPath(), $"session-test-{Guid.NewGuid():N}.xlsx");
+        string testFile = Path.Join(Path.GetTempPath(), $"session-test-{Guid.NewGuid():N}.xlsx");
         await CreateTempTestFileAsync(testFile);
 
         try
@@ -96,7 +96,7 @@ public class ExcelSessionTests : IAsyncLifetime
     public async Task BeginBatchAsync_WithNonExistentFile_ThrowsFileNotFoundException()
     {
         // Arrange
-        string nonExistentFile = Path.Combine(Path.GetTempPath(), $"does-not-exist-{Guid.NewGuid():N}.xlsx");
+        string nonExistentFile = Path.Join(Path.GetTempPath(), $"does-not-exist-{Guid.NewGuid():N}.xlsx");
 
         // Act & Assert
         await Assert.ThrowsAsync<FileNotFoundException>(async () =>
@@ -112,7 +112,7 @@ public class ExcelSessionTests : IAsyncLifetime
     public async Task BeginBatchAsync_WithInvalidExtension_ThrowsArgumentException()
     {
         // Arrange
-        string invalidFile = Path.Combine(Path.GetTempPath(), $"test-{Guid.NewGuid():N}.txt");
+        string invalidFile = Path.Join(Path.GetTempPath(), $"test-{Guid.NewGuid():N}.txt");
         File.WriteAllText(invalidFile, "dummy");
 
         try
@@ -137,7 +137,7 @@ public class ExcelSessionTests : IAsyncLifetime
     public async Task BeginBatchAsync_DisposesCorrectly_NoExcelProcessLeak()
     {
         // Arrange
-        string testFile = Path.Combine(Path.GetTempPath(), $"session-test-{Guid.NewGuid():N}.xlsx");
+        string testFile = Path.Join(Path.GetTempPath(), $"session-test-{Guid.NewGuid():N}.xlsx");
         await CreateTempTestFileAsync(testFile);
 
         var startingProcesses = Process.GetProcessesByName("EXCEL");
@@ -180,7 +180,7 @@ public class ExcelSessionTests : IAsyncLifetime
     public async Task CreateNewAsync_CreatesNewWorkbook()
     {
         // Arrange
-        string testFile = Path.Combine(Path.GetTempPath(), $"new-workbook-{Guid.NewGuid():N}.xlsx");
+        string testFile = Path.Join(Path.GetTempPath(), $"new-workbook-{Guid.NewGuid():N}.xlsx");
 
         try
         {
@@ -217,7 +217,7 @@ public class ExcelSessionTests : IAsyncLifetime
     public async Task CreateNewAsync_WithMacroEnabled_CreatesXlsmFile()
     {
         // Arrange
-        string testFile = Path.Combine(Path.GetTempPath(), $"new-macro-workbook-{Guid.NewGuid():N}.xlsm");
+        string testFile = Path.Join(Path.GetTempPath(), $"new-macro-workbook-{Guid.NewGuid():N}.xlsm");
 
         try
         {
@@ -244,8 +244,8 @@ public class ExcelSessionTests : IAsyncLifetime
     public async Task CreateNewAsync_CreatesDirectoryIfNeeded()
     {
         // Arrange
-        string testDir = Path.Combine(Path.GetTempPath(), $"testdir-{Guid.NewGuid():N}");
-        string testFile = Path.Combine(testDir, "newfile.xlsx");
+        string testDir = Path.Join(Path.GetTempPath(), $"testdir-{Guid.NewGuid():N}");
+        string testFile = Path.Join(testDir, "newfile.xlsx");
 
         try
         {
@@ -271,7 +271,7 @@ public class ExcelSessionTests : IAsyncLifetime
     public async Task CreateNewAsync_NoExcelProcessLeak()
     {
         // Arrange
-        string testFile = Path.Combine(Path.GetTempPath(), $"new-workbook-{Guid.NewGuid():N}.xlsx");
+        string testFile = Path.Join(Path.GetTempPath(), $"new-workbook-{Guid.NewGuid():N}.xlsx");
 
         var startingProcesses = Process.GetProcessesByName("EXCEL");
         int startingCount = startingProcesses.Length;

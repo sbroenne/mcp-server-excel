@@ -19,7 +19,7 @@ public class ExcelFileToolErrorTests : IDisposable
     public ExcelFileToolErrorTests(ITestOutputHelper output)
     {
         _output = output;
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelFile_Error_Tests_{Guid.NewGuid():N}");
+        _tempDir = Path.Join(Path.GetTempPath(), $"ExcelFile_Error_Tests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
     }
 
@@ -43,7 +43,7 @@ public class ExcelFileToolErrorTests : IDisposable
     public async Task ExcelFile_CreateEmpty_ShouldWork()
     {
         // Arrange
-        var testFile = Path.Combine(_tempDir, "test-file.xlsx");
+        var testFile = Path.Join(_tempDir, "test-file.xlsx");
 
         _output.WriteLine($"Testing file creation at: {testFile}");
 
@@ -65,7 +65,7 @@ public class ExcelFileToolErrorTests : IDisposable
     public async Task ExcelFile_WithInvalidAction_ShouldReturnError()
     {
         // Arrange
-        var testFile = Path.Combine(_tempDir, "test-file.xlsx");
+        var testFile = Path.Join(_tempDir, "test-file.xlsx");
 
         // Act & Assert - Should throw McpException for invalid action
         var exception = await Assert.ThrowsAsync<ModelContextProtocol.McpException>(async () =>
@@ -81,7 +81,7 @@ public class ExcelFileToolErrorTests : IDisposable
     public async Task ExcelFile_TestAction_WithExistingFile_ShouldReturnSuccess()
     {
         // Arrange
-        var testFile = Path.Combine(_tempDir, "test-validation.xlsx");
+        var testFile = Path.Join(_tempDir, "test-validation.xlsx");
 
         // Create a dummy file (test action doesn't need a real Excel file, just checks existence and extension)
         File.WriteAllText(testFile, "dummy Excel content");
@@ -111,7 +111,7 @@ public class ExcelFileToolErrorTests : IDisposable
     public async Task ExcelFile_TestAction_WithNonExistentFile_ShouldReturnFailure()
     {
         // Arrange
-        var testFile = Path.Combine(_tempDir, "nonexistent.xlsx");
+        var testFile = Path.Join(_tempDir, "nonexistent.xlsx");
 
         _output.WriteLine($"Testing non-existent file at: {testFile}");
 
@@ -136,7 +136,7 @@ public class ExcelFileToolErrorTests : IDisposable
     public async Task ExcelFile_TestAction_WithInvalidExtension_ShouldReturnFailure()
     {
         // Arrange
-        var testFile = Path.Combine(_tempDir, "test-file.txt");
+        var testFile = Path.Join(_tempDir, "test-file.txt");
 
         // Create file with invalid extension
         File.WriteAllText(testFile, "test content");

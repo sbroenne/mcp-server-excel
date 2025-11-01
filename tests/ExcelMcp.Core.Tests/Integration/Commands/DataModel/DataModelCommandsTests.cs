@@ -39,7 +39,7 @@ public partial class DataModelCommandsTests : IClassFixture<TempDirectoryFixture
     /// <param name="requiresWritableDataModel">If true, creates fresh Data Model instead of using template (needed for Create/Update/Delete tests)</param>
     protected async Task<string> CreateTestFileAsync(string fileName, bool requiresWritableDataModel = false)
     {
-        var filePath = Path.Combine(_tempDir, fileName);
+        var filePath = Path.Join(_tempDir, fileName);
 
         if (requiresWritableDataModel)
         {
@@ -59,7 +59,7 @@ public partial class DataModelCommandsTests : IClassFixture<TempDirectoryFixture
     private async Task<string> CreateFromTemplateAsync(string filePath)
     {
         // Path to pre-built Data Model template
-        var templatePath = Path.Combine(
+        var templatePath = Path.Join(
             Path.GetDirectoryName(typeof(DataModelCommandsTests).Assembly.Location)!,
             "TestAssets",
             "DataModelTemplate.xlsx");

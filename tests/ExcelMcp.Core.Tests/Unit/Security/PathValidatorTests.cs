@@ -81,7 +81,7 @@ public class PathValidatorTests
     public void ValidateExistingFile_WithNonExistentFile_ThrowsFileNotFoundException()
     {
         // Arrange
-        string nonExistentPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".txt");
+        string nonExistentPath = Path.Join(Path.GetTempPath(), Guid.NewGuid().ToString() + ".txt");
 
         // Act & Assert
         Assert.Throws<FileNotFoundException>(() =>
@@ -142,7 +142,7 @@ public class PathValidatorTests
     public void ValidateOutputFile_WithValidPath_ReturnsNormalizedPath()
     {
         // Arrange
-        string outputPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "output.txt");
+        string outputPath = Path.Join(Path.GetTempPath(), Guid.NewGuid().ToString(), "output.txt");
 
         try
         {

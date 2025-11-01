@@ -75,7 +75,7 @@ public partial class ScriptCommandsTests
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(ScriptCommandsTests), nameof(Export_WithExistingModule_CreatesFile), _tempDir, ".xlsm");
         var testVbaFile = CreateTestVbaFile($"Export_{Guid.NewGuid():N}.vba");
-        var exportPath = Path.Combine(_tempDir, $"exported_{Guid.NewGuid():N}.vba");
+        var exportPath = Path.Join(_tempDir, $"exported_{Guid.NewGuid():N}.vba");
 
         // Check VBA trust
         await using var trustBatch = await ExcelSession.BeginBatchAsync(testFile);
@@ -135,7 +135,7 @@ public partial class ScriptCommandsTests
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(ScriptCommandsTests), nameof(Export_WithNonExistentModule_ReturnsErrorResult), _tempDir, ".xlsm");
-        var exportPath = Path.Combine(_tempDir, $"nonexistent_{Guid.NewGuid():N}.vba");
+        var exportPath = Path.Join(_tempDir, $"nonexistent_{Guid.NewGuid():N}.vba");
 
         // Check VBA trust
         await using var trustBatch = await ExcelSession.BeginBatchAsync(testFile);

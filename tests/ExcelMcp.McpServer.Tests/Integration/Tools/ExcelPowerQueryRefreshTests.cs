@@ -20,7 +20,7 @@ public class ExcelPowerQueryRefreshTests : IDisposable
 
     public ExcelPowerQueryRefreshTests()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), $"PQ_Refresh_Tests_{Guid.NewGuid():N}");
+        _tempDir = Path.Join(Path.GetTempPath(), $"PQ_Refresh_Tests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
     }
 
@@ -45,7 +45,7 @@ public class ExcelPowerQueryRefreshTests : IDisposable
     /// </summary>
     private string CreateTestQueryFile(string testName)
     {
-        var queryFile = Path.Combine(_tempDir, $"{testName}_{Guid.NewGuid():N}.pq");
+        var queryFile = Path.Join(_tempDir, $"{testName}_{Guid.NewGuid():N}.pq");
         File.WriteAllText(queryFile, "let\n    Source = {1, 2, 3}\nin\n    Source");
         return queryFile;
     }
@@ -58,7 +58,7 @@ public class ExcelPowerQueryRefreshTests : IDisposable
     public async Task Refresh_WithLoadDestinationWorksheet_ConvertsConnectionOnlyToLoaded()
     {
         // Arrange - Create empty workbook
-        var testFile = Path.Combine(_tempDir, $"{nameof(Refresh_WithLoadDestinationWorksheet_ConvertsConnectionOnlyToLoaded)}.xlsx");
+        var testFile = Path.Join(_tempDir, $"{nameof(Refresh_WithLoadDestinationWorksheet_ConvertsConnectionOnlyToLoaded)}.xlsx");
         var createResult = await ExcelFileTool.ExcelFile("create-empty", testFile);
         var createData = JsonSerializer.Deserialize<OperationResult>(createResult);
         Assert.NotNull(createData);
@@ -122,7 +122,7 @@ public class ExcelPowerQueryRefreshTests : IDisposable
     public async Task Refresh_WithLoadDestinationDataModel_LoadsToDataModel()
     {
         // Arrange
-        var testFile = Path.Combine(_tempDir, $"{nameof(Refresh_WithLoadDestinationDataModel_LoadsToDataModel)}.xlsx");
+        var testFile = Path.Join(_tempDir, $"{nameof(Refresh_WithLoadDestinationDataModel_LoadsToDataModel)}.xlsx");
         var createResult = await ExcelFileTool.ExcelFile("create-empty", testFile);
         var createData = JsonSerializer.Deserialize<OperationResult>(createResult);
         Assert.NotNull(createData);
@@ -173,7 +173,7 @@ public class ExcelPowerQueryRefreshTests : IDisposable
     public async Task Refresh_WithLoadDestinationBoth_LoadsToBothDestinations()
     {
         // Arrange
-        var testFile = Path.Combine(_tempDir, $"{nameof(Refresh_WithLoadDestinationBoth_LoadsToBothDestinations)}.xlsx");
+        var testFile = Path.Join(_tempDir, $"{nameof(Refresh_WithLoadDestinationBoth_LoadsToBothDestinations)}.xlsx");
         var createResult = await ExcelFileTool.ExcelFile("create-empty", testFile);
         var createData = JsonSerializer.Deserialize<OperationResult>(createResult);
         Assert.NotNull(createData);
@@ -225,7 +225,7 @@ public class ExcelPowerQueryRefreshTests : IDisposable
     public async Task Refresh_WithoutLoadDestination_MaintainsExistingBehavior()
     {
         // Arrange - Create query loaded to worksheet
-        var testFile = Path.Combine(_tempDir, $"{nameof(Refresh_WithoutLoadDestination_MaintainsExistingBehavior)}.xlsx");
+        var testFile = Path.Join(_tempDir, $"{nameof(Refresh_WithoutLoadDestination_MaintainsExistingBehavior)}.xlsx");
         var createResult = await ExcelFileTool.ExcelFile("create-empty", testFile);
         var createData = JsonSerializer.Deserialize<OperationResult>(createResult);
         Assert.NotNull(createData);
@@ -265,7 +265,7 @@ public class ExcelPowerQueryRefreshTests : IDisposable
     public async Task Refresh_ConnectionOnlyWithoutLoadDestination_RemainsConnectionOnly()
     {
         // Arrange
-        var testFile = Path.Combine(_tempDir, $"{nameof(Refresh_ConnectionOnlyWithoutLoadDestination_RemainsConnectionOnly)}.xlsx");
+        var testFile = Path.Join(_tempDir, $"{nameof(Refresh_ConnectionOnlyWithoutLoadDestination_RemainsConnectionOnly)}.xlsx");
         var createResult = await ExcelFileTool.ExcelFile("create-empty", testFile);
         var createData = JsonSerializer.Deserialize<OperationResult>(createResult);
         Assert.NotNull(createData);
@@ -305,7 +305,7 @@ public class ExcelPowerQueryRefreshTests : IDisposable
     public async Task Refresh_WithCustomTargetSheet_CreatesCorrectSheet()
     {
         // Arrange
-        var testFile = Path.Combine(_tempDir, $"{nameof(Refresh_WithCustomTargetSheet_CreatesCorrectSheet)}.xlsx");
+        var testFile = Path.Join(_tempDir, $"{nameof(Refresh_WithCustomTargetSheet_CreatesCorrectSheet)}.xlsx");
         var createResult = await ExcelFileTool.ExcelFile("create-empty", testFile);
         var createData = JsonSerializer.Deserialize<OperationResult>(createResult);
         Assert.NotNull(createData);

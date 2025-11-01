@@ -38,7 +38,7 @@ public class ExcelBatchTests
 
     private async Task<string> CreateTempTestFileAsync()
     {
-        string testFile = Path.Combine(Path.GetTempPath(), $"batch-test-{Guid.NewGuid():N}.xlsx");
+        string testFile = Path.Join(Path.GetTempPath(), $"batch-test-{Guid.NewGuid():N}.xlsx");
         await ExcelSession.CreateNew(testFile, isMacroEnabled: false, (ctx, ct) =>
         {
             // File created, just return

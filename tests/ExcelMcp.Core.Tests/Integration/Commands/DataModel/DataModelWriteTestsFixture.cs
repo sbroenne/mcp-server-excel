@@ -18,7 +18,7 @@ public class DataModelWriteTestsFixture : IAsyncLifetime
     public DataModelWriteTestsFixture()
     {
         // Create temp directory for this fixture
-        _tempDir = Path.Combine(Path.GetTempPath(), $"DataModelWriteTests_{Guid.NewGuid():N}");
+        _tempDir = Path.Join(Path.GetTempPath(), $"DataModelWriteTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
     }
 
@@ -31,7 +31,7 @@ public class DataModelWriteTestsFixture : IAsyncLifetime
         Console.WriteLine("Creating shared Data Model file for write tests (60-120 seconds)...");
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
-        TestFilePath = Path.Combine(_tempDir, "SharedDataModelForWriteTests.xlsx");
+        TestFilePath = Path.Join(_tempDir, "SharedDataModelForWriteTests.xlsx");
 
         var fileCommands = new FileCommands();
         var tableCommands = new TableCommands();

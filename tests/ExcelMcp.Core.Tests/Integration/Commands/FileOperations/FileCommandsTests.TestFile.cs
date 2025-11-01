@@ -31,7 +31,7 @@ public partial class FileCommandsTests
     public async Task TestFile_NonExistent_ReturnsFailure()
     {
         // Arrange
-        string testFile = Path.Combine(_tempDir, $"NonExistent_{Guid.NewGuid():N}.xlsx");
+        string testFile = Path.Join(_tempDir, $"NonExistent_{Guid.NewGuid():N}.xlsx");
 
         // Act
         var result = await _fileCommands.TestFileAsync(testFile);
@@ -51,7 +51,7 @@ public partial class FileCommandsTests
     public async Task TestFile_InvalidExtension_ReturnsFailure(string fileName, string expectedExt)
     {
         // Arrange
-        string testFile = Path.Combine(_tempDir, $"{Guid.NewGuid():N}_{fileName}");
+        string testFile = Path.Join(_tempDir, $"{Guid.NewGuid():N}_{fileName}");
 
         // Create file with invalid extension
         File.WriteAllText(testFile, "test content");

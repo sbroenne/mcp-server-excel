@@ -44,7 +44,7 @@ public static class CoreTestHelper
     {
         // Generate unique filename: ClassName_TestName_GUID.{extension}
         var fileName = $"{testClassName}_{testName}_{Guid.NewGuid():N}{extension}";
-        var filePath = Path.Combine(tempDir, fileName);
+        var filePath = Path.Join(tempDir, fileName);
 
         // Handle Excel files (.xlsx, .xlsm)
         if (extension == ".xlsx" || extension == ".xlsm")

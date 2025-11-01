@@ -22,7 +22,7 @@ public class McpClientIntegrationTests : IDisposable
     public McpClientIntegrationTests(ITestOutputHelper output)
     {
         _output = output;
-        _tempDir = Path.Combine(Path.GetTempPath(), $"MCPClient_Tests_{Guid.NewGuid():N}");
+        _tempDir = Path.Join(Path.GetTempPath(), $"MCPClient_Tests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
     }
 
@@ -150,7 +150,7 @@ public class McpClientIntegrationTests : IDisposable
         // Arrange
         var server = StartMcpServer();
         await InitializeServer(server);
-        var testFile = Path.Combine(_tempDir, "mcp-test.xlsx");
+        var testFile = Path.Join(_tempDir, "mcp-test.xlsx");
 
         // Act - Call excel_file tool to create empty file
         var toolCallRequest = new
@@ -222,7 +222,7 @@ public class McpClientIntegrationTests : IDisposable
         // Arrange
         var server = StartMcpServer();
         await InitializeServer(server);
-        var testFile = Path.Combine(_tempDir, "worksheet-test.xlsx");
+        var testFile = Path.Join(_tempDir, "worksheet-test.xlsx");
 
         // First create file
         await CallExcelTool(server, "excel_file", new { action = "create-empty", excelPath = testFile });
@@ -242,9 +242,9 @@ public class McpClientIntegrationTests : IDisposable
         // Arrange
         var server = StartMcpServer();
         await InitializeServer(server);
-        var testFile = Path.Combine(_tempDir, "powerquery-test.xlsx");
+        var testFile = Path.Join(_tempDir, "powerquery-test.xlsx");
         var queryName = "TestQuery";
-        var mCodeFile = Path.Combine(_tempDir, "test-query.pq");
+        var mCodeFile = Path.Join(_tempDir, "test-query.pq");
 
         // Create a simple M code query
         var mCode = @"let
@@ -341,7 +341,7 @@ in
     // Helper Methods
     private Process StartMcpServer()
     {
-        var serverExePath = Path.Combine(
+        var serverExePath = Path.Join(
             Directory.GetCurrentDirectory(),
             "..", "..", "..", "..", "..", "src", "ExcelMcp.McpServer", "bin", "Debug", "net9.0",
             "Sbroenne.ExcelMcp.McpServer.exe"
@@ -351,7 +351,7 @@ in
         if (!File.Exists(serverExePath))
         {
             // Fallback to DLL execution
-            serverExePath = Path.Combine(
+            serverExePath = Path.Join(
                 Directory.GetCurrentDirectory(),
                 "..", "..", "..", "..", "..", "src", "ExcelMcp.McpServer", "bin", "Debug", "net9.0",
                 "Sbroenne.ExcelMcp.McpServer.dll"

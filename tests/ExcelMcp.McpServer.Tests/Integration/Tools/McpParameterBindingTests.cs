@@ -21,7 +21,7 @@ public class McpParameterBindingTests : IDisposable
     public McpParameterBindingTests(ITestOutputHelper output)
     {
         _output = output;
-        _tempDir = Path.Combine(Path.GetTempPath(), $"MCPBinding_Tests_{Guid.NewGuid():N}");
+        _tempDir = Path.Join(Path.GetTempPath(), $"MCPBinding_Tests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
     }
 
@@ -64,7 +64,7 @@ public class McpParameterBindingTests : IDisposable
         var server = StartMcpServer();
         await InitializeServer(server);
 
-        var testFile = Path.Combine(_tempDir, "binding-test.xlsx");
+        var testFile = Path.Join(_tempDir, "binding-test.xlsx");
 
         // Act & Assert
         _output.WriteLine("=== MCP Parameter Binding Test ===");
@@ -150,14 +150,14 @@ public class McpParameterBindingTests : IDisposable
         // Find the workspace root directory
         var currentDir = Directory.GetCurrentDirectory();
         var workspaceRoot = currentDir;
-        while (!File.Exists(Path.Combine(workspaceRoot, "Sbroenne.ExcelMcp.sln")))
+        while (!File.Exists(Path.Join(workspaceRoot, "Sbroenne.ExcelMcp.sln")))
         {
             var parent = Directory.GetParent(workspaceRoot);
             if (parent == null) break;
             workspaceRoot = parent.FullName;
         }
 
-        var serverPath = Path.Combine(workspaceRoot, "src", "ExcelMcp.McpServer", "bin", "Debug", "net9.0", "Sbroenne.ExcelMcp.McpServer.exe");
+        var serverPath = Path.Join(workspaceRoot, "src", "ExcelMcp.McpServer", "bin", "Debug", "net9.0", "Sbroenne.ExcelMcp.McpServer.exe");
         _output.WriteLine($"Looking for server at: {serverPath}");
 
         if (!File.Exists(serverPath))

@@ -24,9 +24,9 @@ public class ExcelFileMcpErrorReproTests
     public async Task ExcelFile_ExactMcpTestScenario_ShouldWork()
     {
         // Arrange - Use exact path pattern from failing test
-        var tempDir = Path.Combine(Path.GetTempPath(), $"MCPClient_Tests_{Guid.NewGuid():N}");
+        var tempDir = Path.Join(Path.GetTempPath(), $"MCPClient_Tests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
-        var testFile = Path.Combine(tempDir, "roundtrip-test.xlsx");
+        var testFile = Path.Join(tempDir, "roundtrip-test.xlsx");
 
         try
         {

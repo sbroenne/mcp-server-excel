@@ -35,7 +35,7 @@ public partial class FileCommandsTests
     public async Task CreateEmpty_ValidXlsx_ReturnsSuccess()
     {
         // Arrange
-        string testFile = Path.Combine(_tempDir, $"{nameof(CreateEmpty_ValidXlsx_ReturnsSuccess)}_{Guid.NewGuid():N}.xlsx");
+        string testFile = Path.Join(_tempDir, $"{nameof(CreateEmpty_ValidXlsx_ReturnsSuccess)}_{Guid.NewGuid():N}.xlsx");
 
         // Act
         var result = await _fileCommands.CreateEmptyAsync(testFile);
@@ -56,7 +56,7 @@ public partial class FileCommandsTests
     public async Task CreateEmpty_ValidXlsm_ReturnsSuccess()
     {
         // Arrange
-        string testFile = Path.Combine(_tempDir, $"{nameof(CreateEmpty_ValidXlsm_ReturnsSuccess)}_{Guid.NewGuid():N}.xlsm");
+        string testFile = Path.Join(_tempDir, $"{nameof(CreateEmpty_ValidXlsm_ReturnsSuccess)}_{Guid.NewGuid():N}.xlsm");
 
         // Act
         var result = await _fileCommands.CreateEmptyAsync(testFile);
@@ -78,7 +78,7 @@ public partial class FileCommandsTests
     public async Task CreateEmpty_InvalidExtension_ReturnsError(string fileName)
     {
         // Arrange
-        string testFile = Path.Combine(_tempDir, $"{Guid.NewGuid():N}_{fileName}");
+        string testFile = Path.Join(_tempDir, $"{Guid.NewGuid():N}_{fileName}");
 
         // Act
         var result = await _fileCommands.CreateEmptyAsync(testFile);

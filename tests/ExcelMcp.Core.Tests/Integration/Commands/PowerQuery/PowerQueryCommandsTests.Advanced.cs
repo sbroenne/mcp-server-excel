@@ -69,7 +69,7 @@ public partial class PowerQueryCommandsTests
 in
     Source";
 
-        var sourceQueryFile = Path.Combine(_tempDir, $"SourceQuery_{Guid.NewGuid():N}.pq");
+        var sourceQueryFile = Path.Join(_tempDir, $"SourceQuery_{Guid.NewGuid():N}.pq");
         File.WriteAllText(sourceQueryFile, sourceQueryMCode);
 
         // Create M code for the derived query (references the source query)
@@ -79,7 +79,7 @@ in
 in
     FilteredRows";
 
-        var derivedQueryFile = Path.Combine(_tempDir, $"DerivedQuery_{Guid.NewGuid():N}.pq");
+        var derivedQueryFile = Path.Join(_tempDir, $"DerivedQuery_{Guid.NewGuid():N}.pq");
         File.WriteAllText(derivedQueryFile, derivedQueryMCode);
 
         // Act & Assert

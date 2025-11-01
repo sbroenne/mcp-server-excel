@@ -33,7 +33,7 @@ public class TempDirectoryFixture : IDisposable
     /// </summary>
     public TempDirectoryFixture()
     {
-        TempDir = Path.Combine(Path.GetTempPath(), $"ExcelMcp_Tests_{Guid.NewGuid():N}");
+        TempDir = Path.Join(Path.GetTempPath(), $"ExcelMcp_Tests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(TempDir);
     }
 

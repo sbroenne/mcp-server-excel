@@ -27,9 +27,9 @@ public class DetailedErrorMessageTests : IDisposable
     public DetailedErrorMessageTests(ITestOutputHelper output)
     {
         _output = output;
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelMcp_DetailedErrorTests_{Guid.NewGuid():N}");
+        _tempDir = Path.Join(Path.GetTempPath(), $"ExcelMcp_DetailedErrorTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
-        _testExcelFile = Path.Combine(_tempDir, "test-errors.xlsx");
+        _testExcelFile = Path.Join(_tempDir, "test-errors.xlsx");
     }
 
     public void Dispose()
@@ -50,7 +50,7 @@ public class DetailedErrorMessageTests : IDisposable
     public async Task ExcelWorksheet_WithNonExistentFile_ShouldThrowDetailedError()
     {
         // Arrange
-        string nonExistentFile = Path.Combine(_tempDir, "nonexistent.xlsx");
+        string nonExistentFile = Path.Join(_tempDir, "nonexistent.xlsx");
 
         // Act & Assert - Should throw McpException with detailed error message
         var exception = await Assert.ThrowsAsync<McpException>(async () =>
@@ -75,7 +75,7 @@ public class DetailedErrorMessageTests : IDisposable
     public async Task ExcelParameter_WithNonExistentFile_ShouldThrowDetailedError()
     {
         // Arrange
-        string nonExistentFile = Path.Combine(_tempDir, "nonexistent-param.xlsx");
+        string nonExistentFile = Path.Join(_tempDir, "nonexistent-param.xlsx");
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<McpException>(async () =>
@@ -95,7 +95,7 @@ public class DetailedErrorMessageTests : IDisposable
     public async Task ExcelPowerQuery_WithNonExistentFile_ShouldThrowDetailedError()
     {
         // Arrange
-        string nonExistentFile = Path.Combine(_tempDir, "nonexistent-pq.xlsx");
+        string nonExistentFile = Path.Join(_tempDir, "nonexistent-pq.xlsx");
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<McpException>(async () =>
@@ -136,7 +136,7 @@ public class DetailedErrorMessageTests : IDisposable
     public async Task ExcelVba_WithMissingModuleName_ShouldThrowDetailedError()
     {
         // Arrange - Create macro-enabled file
-        string xlsmFile = Path.Combine(_tempDir, "test-vba.xlsm");
+        string xlsmFile = Path.Join(_tempDir, "test-vba.xlsm");
         await ExcelFileTool.ExcelFile("create-empty", xlsmFile);
 
         // Act & Assert - Run requires moduleName

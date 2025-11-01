@@ -20,10 +20,10 @@ public class ExcelMcpServerTests : IDisposable
     public ExcelMcpServerTests()
     {
         // Create temp directory for test files
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCLI_MCP_Tests_{Guid.NewGuid():N}");
+        _tempDir = Path.Join(Path.GetTempPath(), $"ExcelCLI_MCP_Tests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
 
-        _testExcelFile = Path.Combine(_tempDir, "MCPTestWorkbook.xlsx");
+        _testExcelFile = Path.Join(_tempDir, "MCPTestWorkbook.xlsx");
     }
 
     public void Dispose()
@@ -117,7 +117,7 @@ public class ExcelMcpServerTests : IDisposable
         // Arrange
         await ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
         var queryName = "ToolTestQuery";
-        var mCodeFile = Path.Combine(_tempDir, "tool-test-query.pq");
+        var mCodeFile = Path.Join(_tempDir, "tool-test-query.pq");
         var mCode = @"let
     Source = ""Tool Test Power Query"",
     Result = Source & "" - Modified""

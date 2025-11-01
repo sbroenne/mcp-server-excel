@@ -42,7 +42,7 @@ Public Sub TestSubroutine()
     MsgBox ""Test VBA""
 End Sub";
 
-        var vbaFile = Path.Combine(_tempDir, fileName);
+        var vbaFile = Path.Join(_tempDir, fileName);
         File.WriteAllText(vbaFile, vbaCode);
         return vbaFile;
     }
