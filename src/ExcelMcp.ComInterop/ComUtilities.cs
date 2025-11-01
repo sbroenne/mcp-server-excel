@@ -350,4 +350,32 @@ public static class ComUtilities
             return 0;
         }
     }
+
+    /// <summary>
+    /// Safely gets a DateTime property from a COM object, returning null if unavailable
+    /// </summary>
+    /// <param name="obj">COM object</param>
+    /// <param name="propertyName">Property name</param>
+    /// <returns>Property value or null if not available</returns>
+    public static DateTime? SafeGetDateTime(dynamic obj, string propertyName)
+    {
+        try
+        {
+            var value = propertyName switch
+            {
+                "RefreshDate" => obj.RefreshDate,
+                _ => null
+            };
+            
+            if (value == null) return null;
+            if (value is DateTime dt) return dt;
+            if (value is double dbl) return DateTime.FromOADate(dbl);
+            
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }

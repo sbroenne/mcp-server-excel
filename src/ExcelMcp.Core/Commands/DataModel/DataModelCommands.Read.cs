@@ -34,27 +34,12 @@ public partial class DataModelCommands
 
                 ForEachTable(model, (Action<dynamic, int>)((table, index) =>
                 {
-                    // Try to get refresh date (may not always be available)
-                    DateTime? refreshDate = null;
-                    try
-                    {
-                        refreshDate = table.RefreshDate;
-                    }
-                    catch (Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
-                    {
-                        /* RefreshDate property not available in this Excel version */
-                    }
-                    catch (System.Runtime.InteropServices.COMException)
-                    {
-                        /* RefreshDate not always accessible via COM */
-                    }
-
                     var tableInfo = new DataModelTableInfo
                     {
                         Name = ComInterop.ComUtilities.SafeGetString(table, "Name"),
                         SourceName = ComInterop.ComUtilities.SafeGetString(table, "SourceName"),
                         RecordCount = ComInterop.ComUtilities.SafeGetInt(table, "RecordCount"),
-                        RefreshDate = refreshDate
+                        RefreshDate = ComInterop.ComUtilities.SafeGetDateTime(table, "RefreshDate")
                     };
 
                     result.Tables.Add(tableInfo);
@@ -520,20 +505,7 @@ public partial class DataModelCommands
                 // Get table properties
                 result.SourceName = ComInterop.ComUtilities.SafeGetString(table, "SourceName");
                 result.RecordCount = ComInterop.ComUtilities.SafeGetInt(table, "RecordCount");
-
-                // Try to get refresh date (may not always be available)
-                try
-                {
-                    result.RefreshDate = table.RefreshDate;
-                }
-                catch (Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
-                {
-                    /* RefreshDate property not available in this Excel version */
-                }
-                catch (System.Runtime.InteropServices.COMException)
-                {
-                    /* RefreshDate not always accessible via COM */
-                }
+                result.RefreshDate = ComInterop.ComUtilities.SafeGetDateTime(table, "RefreshDate");
 
                 // Get columns
                 ComInterop.ComUtilities.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>
