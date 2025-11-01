@@ -85,9 +85,6 @@ public partial class TableCommandsTests : IClassFixture<TempDirectoryFixture>
         {
             throw new InvalidOperationException($"Failed to create test table: {createResult.ErrorMessage}");
         }
-
-        await batch.SaveAsync();
-
         return testFile;
     }
 }

@@ -77,8 +77,6 @@ public partial class RangeCommandsTests
 
         // Act
         var result = await _commands.SetValuesAsync(batch, "Sheet1", "A1:B3", testData);
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 
@@ -114,8 +112,6 @@ public partial class RangeCommandsTests
 
         // Act
         var result = await _commands.SetValuesAsync(batch, "Sheet1", "A1:D1", testData);
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success, $"SetValuesAsync failed: {result.ErrorMessage}");
 
@@ -153,8 +149,6 @@ public partial class RangeCommandsTests
 
         // Act
         var result = await _commands.SetValuesAsync(batch, "Sheet1", "A1:D1", testData);
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success, $"SetValuesAsync failed: {result.ErrorMessage}");
 

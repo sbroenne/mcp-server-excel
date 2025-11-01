@@ -85,7 +85,6 @@ public partial class DataModelCommandsTests
         {
             // Delete existing relationship to allow creating it fresh
             await _dataModelCommands.DeleteRelationshipAsync(batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");
-            await batch.SaveAsync();
         }
 
         // Act - Create the relationship
@@ -96,8 +95,6 @@ public partial class DataModelCommandsTests
             "CustomersTable",
             "CustomerID"
         );
-        await batch.SaveAsync();
-
         // Assert - MUST succeed (Data Model is always available in Excel 2013+)
         Assert.True(createResult.Success,
             $"CreateRelationship MUST succeed. Error: {createResult.ErrorMessage}");
@@ -135,8 +132,6 @@ public partial class DataModelCommandsTests
             "CustomersTable",
             "CustomerID"
         );
-        await batch.SaveAsync();
-
         // Assert - MUST succeed (Data Model is always available in Excel 2013+)
         Assert.True(deleteResult.Success,
             $"DeleteRelationship MUST succeed. Error: {deleteResult.ErrorMessage}");

@@ -113,8 +113,6 @@ public partial class DataModelCommandsTests
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         var result = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, daxFormula);
-        await batch.SaveAsync();
-
         // Assert - Data Model is ALWAYS available in Excel 2013+
         Assert.True(result.Success,
             $"CreateMeasure MUST succeed with valid parameters. Error: {result.ErrorMessage}");
@@ -141,8 +139,6 @@ public partial class DataModelCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         var result = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, daxFormula,
                                                                  formatType: "Currency", description: "Test measure with currency format");
-        await batch.SaveAsync();
-
         // Assert - Data Model is ALWAYS available in Excel 2013+
         Assert.True(result.Success,
             $"CreateMeasure with format MUST succeed. Error: {result.ErrorMessage}");
@@ -170,12 +166,8 @@ public partial class DataModelCommandsTests
 
         if (createResult.Success)
         {
-            await batch.SaveAsync();
-
             // Act - Update the formula
             var updateResult = await _dataModelCommands.UpdateMeasureAsync(batch, measureName, daxFormula: updatedFormula);
-            await batch.SaveAsync();
-
             // Assert
             Assert.True(updateResult.Success, $"Expected success but got error: {updateResult.ErrorMessage}");
             Assert.NotNull(updateResult.SuggestedNextActions);

@@ -58,8 +58,6 @@ public partial class RangeCommandsTests
             new() { "Product", "Qty", "Price" },
             new() { "Widget", 10, 29.99 }
         ]);
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 
@@ -112,8 +110,6 @@ public partial class RangeCommandsTests
 
         // Act - Clear using named range
         var result = await _commands.ClearContentsAsync(batch, "", "TempData");
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 

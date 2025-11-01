@@ -74,9 +74,6 @@ public partial class PivotTableCommandsTests : IClassFixture<TempDirectoryFixtur
 
             return 0;
         });
-
-        await batch.SaveAsync();
-
         return testFile;
     }
 }

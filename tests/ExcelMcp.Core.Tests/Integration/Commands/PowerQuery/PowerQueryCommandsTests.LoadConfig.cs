@@ -74,8 +74,8 @@ public partial class PowerQueryCommandsTests
         var tablesResult = await dataModelCommands.ListTablesAsync(batch);
         Assert.True(tablesResult.Success, $"Failed to list Data Model tables: {tablesResult.ErrorMessage}");
         Assert.DoesNotContain(tablesResult.Tables, t => t.Name == "TestLoadToTable");
-
-        await batch.SaveAsync();
+        
+        // No SaveAsync needed - test verifies in-memory state only
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public partial class PowerQueryCommandsTests
             return 0;
         });
 
-        await batch.SaveAsync();
+        // No SaveAsync needed - test verifies in-memory state only
     }
 
     [Fact]
@@ -162,6 +162,6 @@ public partial class PowerQueryCommandsTests
         Assert.True(tablesResult.Success, $"Failed to list Data Model tables: {tablesResult.ErrorMessage}");
         Assert.Contains(tablesResult.Tables, t => t.Name == "TestLoadToBoth");
 
-        await batch.SaveAsync();
+        // No SaveAsync needed - test verifies in-memory state only
     }
 }

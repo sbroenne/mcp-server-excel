@@ -57,8 +57,6 @@ public partial class PivotTableCommandsTests
         Assert.Equal("TablePivot", result.PivotTableName);
         Assert.Equal("SalesData", result.SheetName);
         Assert.Equal(4, result.AvailableFields.Count);
-
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -81,8 +79,6 @@ public partial class PivotTableCommandsTests
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
         Assert.Equal("Region", result.FieldName);
-
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -106,7 +102,5 @@ public partial class PivotTableCommandsTests
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
         Assert.NotNull(result.Fields);
         Assert.True(result.Fields.Count >= 4); // Region, Product, Sales, Date
-
-        await batch.SaveAsync();
     }
 }

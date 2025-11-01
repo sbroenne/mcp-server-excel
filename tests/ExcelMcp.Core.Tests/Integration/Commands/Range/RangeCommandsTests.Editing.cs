@@ -22,8 +22,6 @@ public partial class RangeCommandsTests
 
         // Act
         var result = await _commands.ClearAllAsync(batch, "Sheet1", "A1");
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 
@@ -46,8 +44,6 @@ public partial class RangeCommandsTests
 
         // Act
         var result = await _commands.ClearContentsAsync(batch, "Sheet1", "A1:B2");
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 
@@ -74,8 +70,6 @@ public partial class RangeCommandsTests
 
         // Act
         var result = await _commands.CopyAsync(batch, "Sheet1", "A1:B2", "Sheet1", "D1:E2");
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 
@@ -96,8 +90,6 @@ public partial class RangeCommandsTests
 
         // Act
         var result = await _commands.CopyValuesAsync(batch, "Sheet1", "B1", "Sheet1", "C1");
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 

@@ -39,8 +39,6 @@ public partial class RangeCommandsTests
         Assert.Single(result.Formats[0]);
         // Excel might normalize format codes slightly
         Assert.Contains("$", result.Formats[0][0]); // Currency format present
-
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -78,8 +76,6 @@ public partial class RangeCommandsTests
         Assert.Contains("$", result.Formats[0][0]);
         Assert.Contains("%", result.Formats[0][1]);
         Assert.Contains("%", result.Formats[1][1]);
-
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -109,8 +105,6 @@ public partial class RangeCommandsTests
         Assert.True(verifyResult.Success);
         Assert.Equal(3, verifyResult.Formats.Count);
         Assert.All(verifyResult.Formats, row => Assert.Contains("$", row[0])); // Currency symbol present
-
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -137,8 +131,6 @@ public partial class RangeCommandsTests
         var verifyResult = await _commands.GetNumberFormatsAsync(batch, "Sheet1", "B1:B2");
         Assert.True(verifyResult.Success);
         Assert.All(verifyResult.Formats, row => Assert.Contains("%", row[0])); // Percentage symbol present
-
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -167,8 +159,6 @@ public partial class RangeCommandsTests
         Assert.True(verifyResult.Success);
         // Date formats contain d, m, or y characters
         Assert.Matches(@"[dmy]", verifyResult.Formats[0][0].ToLower());
-
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -206,8 +196,6 @@ public partial class RangeCommandsTests
         Assert.Contains("$", verifyResult.Formats[1][0]); // Currency
         Assert.Contains("%", verifyResult.Formats[1][1]); // Percentage
         Assert.Matches(@"[dmy]", verifyResult.Formats[1][2].ToLower()); // Date format
-
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -257,7 +245,5 @@ public partial class RangeCommandsTests
         // Assert
         Assert.True(result.Success);
         Assert.Contains("@", result.Formats[0][0]); // Text format (@)
-
-        await batch.SaveAsync();
     }
 }

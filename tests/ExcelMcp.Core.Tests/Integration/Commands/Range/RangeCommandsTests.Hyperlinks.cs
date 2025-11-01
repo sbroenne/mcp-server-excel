@@ -26,8 +26,6 @@ public partial class RangeCommandsTests
             "https://www.example.com",
             "Example Site",
             "Click to visit");
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 
@@ -50,8 +48,6 @@ public partial class RangeCommandsTests
 
         // Act
         var result = await _commands.RemoveHyperlinkAsync(batch, "Sheet1", "A1");
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 

@@ -50,7 +50,6 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
         Assert.Equal("Hidden", getResult.VisibilityName);
 
         // Save changes
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -77,7 +76,6 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
         Assert.Equal("VeryHidden", getResult.VisibilityName);
 
         // Save changes
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -107,7 +105,6 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
         Assert.Equal(SheetVisibility.Visible, visibleCheck.Visibility);
 
         // Save changes
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -137,7 +134,6 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
         Assert.Equal(SheetVisibility.Visible, visibleCheck.Visibility);
 
         // Save changes
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -162,7 +158,6 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
         Assert.Equal(SheetVisibility.Hidden, getResult.Visibility);
 
         // Save changes
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -187,7 +182,6 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
         Assert.Equal(SheetVisibility.VeryHidden, getResult.Visibility);
 
         // Save changes
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -264,6 +258,5 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
         Assert.Equal(SheetVisibility.Visible, check4.Visibility);
 
         // Save changes
-        await batch.SaveAsync();
     }
 }

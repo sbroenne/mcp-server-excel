@@ -42,8 +42,6 @@ public partial class PowerQueryCommandsTests
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         var result = await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
     }
@@ -63,8 +61,6 @@ public partial class PowerQueryCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
         var result = await _powerQueryCommands.ListAsync(batch);
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Queries);
@@ -87,8 +83,6 @@ public partial class PowerQueryCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
         var result = await _powerQueryCommands.ViewAsync(batch, "TestQuery");
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.MCode);
@@ -111,8 +105,6 @@ public partial class PowerQueryCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
         var result = await _powerQueryCommands.ExportAsync(batch, "TestQuery", exportPath);
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
         Assert.True(File.Exists(exportPath));
@@ -135,8 +127,6 @@ public partial class PowerQueryCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
         var result = await _powerQueryCommands.UpdateAsync(batch, "TestQuery", updateFile);
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
     }
@@ -156,8 +146,6 @@ public partial class PowerQueryCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
         var result = await _powerQueryCommands.DeleteAsync(batch, "TestQuery");
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
     }
@@ -177,14 +165,12 @@ public partial class PowerQueryCommandsTests
         await using (var batch = await ExcelSession.BeginBatchAsync(testExcelFile))
         {
             await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
-            await batch.SaveAsync();
         }
 
         // Act - Delete
         await using (var batch = await ExcelSession.BeginBatchAsync(testExcelFile))
         {
             await _powerQueryCommands.DeleteAsync(batch, "TestQuery");
-            await batch.SaveAsync();
         }
 
         // Act - List and verify

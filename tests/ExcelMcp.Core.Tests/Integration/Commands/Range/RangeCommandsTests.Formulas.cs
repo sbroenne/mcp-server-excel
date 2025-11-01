@@ -61,8 +61,6 @@ public partial class RangeCommandsTests
 
         // Act
         var result = await _commands.SetFormulasAsync(batch, "Sheet1", "B1:D1", formulas);
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 
@@ -108,8 +106,6 @@ public partial class RangeCommandsTests
 
         // Act - Should handle JsonElement conversion internally
         var result = await _commands.SetFormulasAsync(batch, "Sheet1", "B1:C1", testFormulas);
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success, $"SetFormulasAsync failed: {result.ErrorMessage}");
 

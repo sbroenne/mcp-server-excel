@@ -43,8 +43,6 @@ public partial class ParameterCommandsTests
         var listResult = await _parameterCommands.ListAsync(batch);
         Assert.True(listResult.Success, $"Failed to list parameters: {listResult.ErrorMessage}");
         Assert.Contains(listResult.Parameters, p => p.Name == "TestParam");
-
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -69,8 +67,6 @@ public partial class ParameterCommandsTests
         var listResult = await _parameterCommands.ListAsync(batch);
         Assert.True(listResult.Success, $"Failed to list parameters: {listResult.ErrorMessage}");
         Assert.DoesNotContain(listResult.Parameters, p => p.Name == "DeleteTestParam");
-
-        await batch.SaveAsync();
     }
 
     [Fact]

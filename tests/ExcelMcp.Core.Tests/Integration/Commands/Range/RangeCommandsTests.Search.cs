@@ -56,8 +56,6 @@ public partial class RangeCommandsTests
         {
             ReplaceAll = true
         });
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 
@@ -89,8 +87,6 @@ public partial class RangeCommandsTests
         [
             new() { ColumnIndex = 1, Ascending = true }
         ], hasHeaders: true);
-        await batch.SaveAsync();
-
         // Assert
         if (!result.Success)
         {

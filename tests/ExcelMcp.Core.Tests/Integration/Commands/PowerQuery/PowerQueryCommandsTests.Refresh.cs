@@ -29,8 +29,6 @@ public partial class PowerQueryCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         var importResult = await _powerQueryCommands.ImportAsync(batch, "TestRefresh", testQueryFile, "worksheet");
         Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
-        await batch.SaveAsync();
-
         // Act - Refresh without loadDestination parameter
         await using var refreshBatch = await ExcelSession.BeginBatchAsync(testExcelFile);
         var result = await _powerQueryCommands.RefreshAsync(refreshBatch, "TestRefresh");
@@ -59,8 +57,6 @@ public partial class PowerQueryCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         var importResult = await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile, "connection-only");
         Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
-        await batch.SaveAsync();
-
         // Verify it's connection-only
         await using var verifyBatch = await ExcelSession.BeginBatchAsync(testExcelFile);
         var configBefore = await _powerQueryCommands.GetLoadConfigAsync(verifyBatch, "TestQuery");
@@ -117,8 +113,6 @@ public partial class PowerQueryCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         var importResult = await _powerQueryCommands.ImportAsync(batch, "TestDMQuery", testQueryFile, "connection-only");
         Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
-        await batch.SaveAsync();
-
         // Act - Apply load configuration and refresh
         await using var refreshBatch = await ExcelSession.BeginBatchAsync(testExcelFile);
         var setLoadResult = await _powerQueryCommands.SetLoadToDataModelAsync(refreshBatch, "TestDMQuery");
@@ -154,8 +148,6 @@ public partial class PowerQueryCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         var importResult = await _powerQueryCommands.ImportAsync(batch, "TestBothQuery", testQueryFile, "connection-only");
         Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
-        await batch.SaveAsync();
-
         // Act - Apply load configuration and refresh
         await using var refreshBatch = await ExcelSession.BeginBatchAsync(testExcelFile);
         var setLoadResult = await _powerQueryCommands.SetLoadToBothAsync(refreshBatch, "TestBothQuery", "TestBothQuery");
@@ -206,8 +198,6 @@ public partial class PowerQueryCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         var importResult = await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile, "connection-only");
         Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
-        await batch.SaveAsync();
-
         // Act - Refresh without loadDestination parameter
         await using var refreshBatch = await ExcelSession.BeginBatchAsync(testExcelFile);
         var result = await _powerQueryCommands.RefreshAsync(refreshBatch, "TestQuery");
@@ -239,8 +229,6 @@ public partial class PowerQueryCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         var importResult = await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile, "connection-only");
         Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
-        await batch.SaveAsync();
-
         // Act - Apply load configuration with custom sheet name
         await using var refreshBatch = await ExcelSession.BeginBatchAsync(testExcelFile);
         var setLoadResult = await _powerQueryCommands.SetLoadToTableAsync(refreshBatch, "TestQuery", "CustomSheetName");

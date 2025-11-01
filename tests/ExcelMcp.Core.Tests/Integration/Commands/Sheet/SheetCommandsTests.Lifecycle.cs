@@ -47,7 +47,6 @@ public partial class SheetCommandsTests
         Assert.Contains(listResult.Worksheets, w => w.Name == "TestSheet");
 
         // Save changes
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -73,7 +72,6 @@ public partial class SheetCommandsTests
         Assert.Contains(listResult.Worksheets, w => w.Name == "NewName");
 
         // Save changes
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -98,7 +96,6 @@ public partial class SheetCommandsTests
         Assert.DoesNotContain(listResult.Worksheets, w => w.Name == "ToDelete");
 
         // Save changes
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -124,6 +121,5 @@ public partial class SheetCommandsTests
         Assert.Contains(listResult.Worksheets, w => w.Name == "Target");
 
         // Save changes
-        await batch.SaveAsync();
     }
 }

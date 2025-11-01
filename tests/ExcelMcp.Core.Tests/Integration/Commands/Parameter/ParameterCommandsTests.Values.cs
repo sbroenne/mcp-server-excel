@@ -31,8 +31,6 @@ public partial class ParameterCommandsTests
         var getResult = await _parameterCommands.GetAsync(batch, "SetTestParam");
         Assert.True(getResult.Success, $"Failed to get parameter: {getResult.ErrorMessage}");
         Assert.Equal("TestValue", getResult.Value?.ToString());
-
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -59,8 +57,6 @@ public partial class ParameterCommandsTests
         // Assert
         Assert.True(getResult.Success, $"Failed to get parameter: {getResult.ErrorMessage}");
         Assert.Equal(testValue, getResult.Value?.ToString());
-
-        await batch.SaveAsync();
     }
 
     [Fact]

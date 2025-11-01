@@ -135,7 +135,5 @@ in
         var derivedRefreshResult = await _powerQueryCommands.RefreshAsync(batch, "DerivedQuery");
         Assert.True(derivedRefreshResult.Success,
             $"Derived query refresh failed: {derivedRefreshResult.ErrorMessage}");
-
-        await batch.SaveAsync();
     }
 }

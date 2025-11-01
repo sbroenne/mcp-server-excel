@@ -53,7 +53,6 @@ public class SheetTabColorTests : IClassFixture<TempDirectoryFixture>
         Assert.Equal("#FF0000", getResult.HexColor);
 
         // Save changes
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -97,7 +96,6 @@ public class SheetTabColorTests : IClassFixture<TempDirectoryFixture>
         Assert.Equal(255, blueColor.Blue);
 
         // Save changes
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -152,7 +150,6 @@ public class SheetTabColorTests : IClassFixture<TempDirectoryFixture>
         Assert.False(afterClear.HasColor);
 
         // Save changes
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -223,6 +220,5 @@ public class SheetTabColorTests : IClassFixture<TempDirectoryFixture>
         Assert.Equal("#800080", result.HexColor);
 
         // Save changes
-        await batch.SaveAsync();
     }
 }

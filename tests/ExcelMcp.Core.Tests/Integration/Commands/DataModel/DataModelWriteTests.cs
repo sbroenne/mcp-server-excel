@@ -36,8 +36,6 @@ public class DataModelWriteTests : IClassFixture<DataModelWriteTestsFixture>
         // Act - Work on shared file
         await using var batch = await ExcelSession.BeginBatchAsync(_sharedTestFile);
         var result = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, daxFormula);
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success, $"CreateMeasure MUST succeed with valid parameters. Error: {result.ErrorMessage}");
         Assert.NotNull(result.SuggestedNextActions);
@@ -61,8 +59,6 @@ public class DataModelWriteTests : IClassFixture<DataModelWriteTestsFixture>
         {
             var result = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, daxFormula,
                                                                      formatType: "Currency", description: "Test measure with currency format");
-            await batch.SaveAsync();
-
             // Assert - CreateMeasure should succeed
             Assert.True(result.Success, $"CreateMeasure with format MUST succeed. Error: {result.ErrorMessage}");
             Assert.NotNull(result.SuggestedNextActions);
@@ -94,12 +90,8 @@ public class DataModelWriteTests : IClassFixture<DataModelWriteTestsFixture>
         // Create the measure
         var createResult = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, originalFormula);
         Assert.True(createResult.Success, $"Setup failed: {createResult.ErrorMessage}");
-        await batch.SaveAsync();
-
         // Act - Update the formula
         var updateResult = await _dataModelCommands.UpdateMeasureAsync(batch, measureName, daxFormula: updatedFormula);
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(updateResult.Success, $"Expected success but got error: {updateResult.ErrorMessage}");
 
@@ -120,12 +112,8 @@ public class DataModelWriteTests : IClassFixture<DataModelWriteTestsFixture>
         // Create the measure
         var createResult = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, "SUM(SalesTable[Amount])");
         Assert.True(createResult.Success, $"Setup failed: {createResult.ErrorMessage}");
-        await batch.SaveAsync();
-
         // Act - Delete the measure
         var result = await _dataModelCommands.DeleteMeasureAsync(batch, measureName);
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
         Assert.NotNull(result.SuggestedNextActions);
@@ -177,8 +165,6 @@ public class DataModelWriteTests : IClassFixture<DataModelWriteTestsFixture>
         // Act - Delete the relationship
         var result = await _dataModelCommands.DeleteRelationshipAsync(batch,
             relationship.FromTable, relationship.FromColumn, relationship.ToTable, relationship.ToColumn);
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
     }

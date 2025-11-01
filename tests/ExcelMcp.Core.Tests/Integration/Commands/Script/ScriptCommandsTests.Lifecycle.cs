@@ -64,8 +64,6 @@ public partial class ScriptCommandsTests
         var listResult = await _scriptCommands.ListAsync(batch);
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Scripts, s => s.Name == "TestModule");
-
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -93,8 +91,6 @@ public partial class ScriptCommandsTests
         // Assert
         Assert.True(result.Success, $"Export failed: {result.ErrorMessage}");
         Assert.True(File.Exists(exportPath));
-
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -125,8 +121,6 @@ public partial class ScriptCommandsTests
         var listResult = await _scriptCommands.ListAsync(batch);
         Assert.True(listResult.Success);
         Assert.DoesNotContain(listResult.Scripts, s => s.Name == "TestModule");
-
-        await batch.SaveAsync();
     }
 
     [Fact]
@@ -152,5 +146,46 @@ public partial class ScriptCommandsTests
         // Assert
         Assert.False(result.Success);
         Assert.NotNull(result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Update_WithExistingModule_UpdatesCodeSuccessfully()
+    {
+        // Arrange - Create .xlsm file and initial VBA code
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(ScriptCommandsTests), nameof(Update_WithExistingModule_UpdatesCodeSuccessfully), _tempDir, ".xlsm");
+        var initialVbaFile = CreateTestVbaFile($"Initial_{Guid.NewGuid():N}.vba");
+        
+        // Create updated VBA code file
+        var updatedVbaCode = @"Sub UpdatedProcedure()
+    MsgBox ""This is the updated version""
+End Sub";
+        var updatedVbaFile = Path.Join(_tempDir, $"Updated_{Guid.NewGuid():N}.vba");
+        File.WriteAllText(updatedVbaFile, updatedVbaCode);
+
+        // Check VBA trust
+        await using var trustBatch = await ExcelSession.BeginBatchAsync(testFile);
+        var trustResult = await _setupCommands.CheckVbaTrustAsync(trustBatch);
+        if (!trustResult.IsTrusted)
+        {
+            return; // Skip test
+        }
+
+        // Act - Import module, then update it
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        
+        // Import initial module
+        var importResult = await _scriptCommands.ImportAsync(batch, "TestModule", initialVbaFile);
+        Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
+        
+        // Update the module with new code
+        var updateResult = await _scriptCommands.UpdateAsync(batch, "TestModule", updatedVbaFile);
+        Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
+        
+        // Verify the code was updated by viewing it
+        var viewResult = await _scriptCommands.ViewAsync(batch, "TestModule");
+        Assert.True(viewResult.Success, $"View failed: {viewResult.ErrorMessage}");
+        Assert.Contains("UpdatedProcedure", viewResult.Code);
+        Assert.Contains("This is the updated version", viewResult.Code);
     }
 }
