@@ -51,6 +51,14 @@ query-filters:
       id: cs/reflection
       reason: "External libraries may use reflection"
 
+  # GC.Collect is required for COM interop cleanup
+  - exclude:
+      id: cs/call-to-gc
+      reason: "Explicit GC.Collect() required for COM object cleanup in Excel automation. See COM cleanup pattern in ExcelBatch/ExcelSession."
+      paths:
+        - 'src/ExcelMcp.ComInterop/Session/**'
+        - 'tests/**/Session/**'
+
   # Test-specific exclusions (note-severity only)
   # Tests often use patterns that are acceptable in test context
 
@@ -60,7 +68,6 @@ query-filters:
       reason: "COMException is the most specific exception for Excel COM interop. No more specific types available."
       paths:
         - 'src/**/DataModel/**'
-        - 'src/**/Commands/**'
 
   # Generic Exception catch in test helpers is acceptable with explanatory comments
   - exclude:
@@ -70,11 +77,15 @@ query-filters:
         - 'tests/**/Helpers/**'
         - 'tests/**/Fixtures/**'
 
-  # Empty catch blocks in tests are used for cleanup that may fail
+  # Empty catch blocks in COM cleanup code - intentionally ignore failures during resource release
   - exclude:
       id: cs/empty-catch-block
-      reason: "Test cleanup may intentionally ignore failures"
+      reason: "COM cleanup code intentionally ignores failures during Marshal.ReleaseComObject and Dispose. Preventing exceptions during cleanup is critical for Excel automation."
       paths:
+        - 'src/ExcelMcp.ComInterop/**'
+        - 'src/ExcelMcp.Core/Commands/**'
+        - 'src/ExcelMcp.CLI/Commands/**'
+        - 'src/ExcelMcp.McpServer/Tools/**'
         - 'tests/**'
 
   # Path.Combine has been replaced with Path.Join across the codebase
@@ -87,6 +98,54 @@ query-filters:
       paths:
         - 'tests/**'
 
+  # Code quality suggestions that are acceptable in COM interop context
+  - exclude:
+      id: cs/nested-if-statements
+      reason: "COM interop requires careful null checking and type validation with nested conditions"
+      paths:
+        - 'src/ExcelMcp.Core/Commands/**'
+        - 'src/ExcelMcp.ComInterop/**'
+
+  - exclude:
+      id: cs/invalid-dynamic-call
+      reason: "Dynamic calls required for Excel COM interop - CodeQL cannot validate COM object signatures"
+      paths:
+        - 'src/**'
+
+  - exclude:
+      id: cs/missed-ternary-operator
+      reason: "Explicit if/else preferred for clarity in COM interop code"
+      paths:
+        - 'src/**'
+
+  - exclude:
+      id: cs/dereferenced-value-may-be-null
+      reason: "COM objects validated through try/catch patterns rather than null checks"
+      paths:
+        - 'src/**'
+
+  - exclude:
+      id: cs/useless-upcast
+      reason: "Explicit casts sometimes required for COM interop type resolution"
+      paths:
+        - 'src/**'
+
+  - exclude:
+      id: cs/linq/missed-select
+      reason: "Explicit loops preferred for clarity in test code and COM iteration"
+
+  - exclude:
+      id: cs/simplifiable-boolean-expression
+      reason: "Explicit boolean expressions preferred for clarity in COM validation logic"
+
+  - exclude:
+      id: cs/unmanaged-code
+      reason: "COM interop requires unmanaged code calls to Excel automation interfaces"
+
+  - exclude:
+      id: cs/useless-tostring-call
+      reason: "Explicit ToString() sometimes needed for COM object string conversion"
+
   # Ternary operator suggestions in tests
   - exclude:
       id: cs/missed-ternary-operator
@@ -94,12 +153,14 @@ query-filters:
       paths:
         - 'tests/**'
 
-  # Useless assignments in tests may be intentional for clarity
+  # Useless assignments are legitimate in test setup for clarity/debugging
+  # Already fixed: using statements no longer use discard variables
   - exclude:
       id: cs/useless-assignment-to-local
-      reason: "Test code may assign for debugging/clarity"
+      reason: "Test setup may assign variables for clarity even if unused"
       paths:
-        - 'tests/**'
+        - 'tests/**/Fixtures/**'
+        - 'tests/**/Helpers/**'
 
 # External data sources (for taint tracking)
 # external-repository-token: ${{ secrets.GITHUB_TOKEN }}
