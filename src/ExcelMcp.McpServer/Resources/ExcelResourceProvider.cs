@@ -7,8 +7,10 @@ namespace Sbroenne.ExcelMcp.McpServer.Resources;
 /// <summary>
 /// MCP resources for documenting available Excel workbook URIs.
 /// Resources help LLMs understand what can be inspected in Excel workbooks.
-/// Note: Actual data retrieval should use tools (excel_powerquery list, etc.)
-/// These resources serve as URI documentation and discovery aids.
+/// 
+/// NOTE: MCP SDK 0.4.0-preview.2 does NOT support McpServerResourceTemplate yet.
+/// Dynamic URI patterns (excel://{path}/queries/{name}) will be added when SDK supports it.
+/// For now, use tools (excel_powerquery list, etc.) for actual data retrieval.
 /// </summary>
 [McpServerResourceType]
 public static class ExcelResourceProvider
@@ -30,54 +32,55 @@ public static class ExcelResourceProvider
         {
             title = "Excel Workbook Resources",
             description = "URI patterns for inspecting Excel workbooks",
+            note = "Use excel_* tools to retrieve actual data (MCP SDK resource templates not yet supported)",
             resourceTypes = new[]
             {
                 new
                 {
                     type = "Power Queries",
-                    uriPattern = "Use excel_powerquery tool with action='list' to see all queries",
+                    toolAction = "Use excel_powerquery tool with action='list' to see all queries",
                     example = "excel_powerquery(action: 'list', excelPath: 'workbook.xlsx')"
                 },
                 new
                 {
                     type = "Worksheets",
-                    uriPattern = "Use excel_worksheet tool with action='list' to see all worksheets",
+                    toolAction = "Use excel_worksheet tool with action='list' to see all worksheets",
                     example = "excel_worksheet(action: 'list', excelPath: 'workbook.xlsx')"
                 },
                 new
                 {
                     type = "Parameters (Named Ranges)",
-                    uriPattern = "Use excel_parameter tool with action='list' to see all parameters",
+                    toolAction = "Use excel_parameter tool with action='list' to see all parameters",
                     example = "excel_parameter(action: 'list', excelPath: 'workbook.xlsx')"
                 },
                 new
                 {
                     type = "Data Model Tables",
-                    uriPattern = "Use excel_datamodel tool with action='list-tables'",
+                    toolAction = "Use excel_datamodel tool with action='list-tables'",
                     example = "excel_datamodel(action: 'list-tables', excelPath: 'workbook.xlsx')"
                 },
                 new
                 {
                     type = "DAX Measures",
-                    uriPattern = "Use excel_datamodel tool with action='list-measures'",
+                    toolAction = "Use excel_datamodel tool with action='list-measures'",
                     example = "excel_datamodel(action: 'list-measures', excelPath: 'workbook.xlsx')"
                 },
                 new
                 {
                     type = "VBA Modules",
-                    uriPattern = "Use excel_vba tool with action='list'",
+                    toolAction = "Use excel_vba tool with action='list'",
                     example = "excel_vba(action: 'list', excelPath: 'workbook.xlsm')"
                 },
                 new
                 {
                     type = "Excel Tables",
-                    uriPattern = "Use excel_table tool with action='list'",
+                    toolAction = "Use excel_table tool with action='list'",
                     example = "excel_table(action: 'list', excelPath: 'workbook.xlsx')"
                 },
                 new
                 {
                     type = "Connections",
-                    uriPattern = "Use excel_connection tool with action='list'",
+                    toolAction = "Use excel_connection tool with action='list'",
                     example = "excel_connection(action: 'list', excelPath: 'workbook.xlsx')"
                 }
             },
@@ -86,7 +89,8 @@ public static class ExcelResourceProvider
                 discovery = "Use tool 'list' actions to discover workbook contents",
                 inspection = "Use tool 'view' actions to examine specific items",
                 modification = "Use other tool actions to create/update/delete items"
-            }
+            },
+            futureEnhancements = "Dynamic resource templates (excel://{path}/queries/{name}) will be added when MCP SDK supports McpServerResourceTemplate"
         };
 
         return Task.FromResult(JsonSerializer.Serialize(guide, JsonOptions));
