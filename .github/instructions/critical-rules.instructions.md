@@ -67,12 +67,13 @@ Delete commented-out code (use git history). Exception: Documentation files only
 
 
 
-## Rule 9: Search Open Source Repositories for Working COM Examples First
+## Rule 9: Search External GitHub Repositories for Working Examples First
 
 **BEFORE** creating new Excel COM Interop code or troubleshooting COM issues:
-- **ALWAYS** search OTHER open source GitHub repositories (NOT this repo) for working examples
+- **ALWAYS** search OTHER open source GitHub repositories for working examples
+- **NEVER** search your own repository - only search external projects
 - Look for repositories with Excel automation, VBA code, or Office interop projects
-- Search for the specific COM object/method you need (e.g., "PivotTable CreatePivotTable VBA", "QueryTable Refresh VBA", "ListObject VBA")
+- Search for the specific COM object/method you need (e.g., "PivotTable CreatePivotTable VBA", "QueryTable Refresh VBA", "ModelMeasures.Add VBA")
 - Study proven patterns from other projects before writing new code
 - Avoid reinventing solutions - learn from working implementations in the wild
 
@@ -134,6 +135,26 @@ When debugging test failures, **ALWAYS run tests individually** - never run all 
 
 ---
 
+## Rule 13: Comprehensive Bug Fixes
+
+**Every bug fix MUST include all 6 components before PR submission.**
+
+**Required Components:**
+1. ✅ **Code Fix** - Minimal surgical changes to fix root cause
+2. ✅ **Tests** - Minimum 5-8 new tests (regression + edge cases + backwards compat)
+3. ✅ **Documentation** - Update 3+ files (tool docs, user docs, prompts)
+4. ✅ **Workflow Hints** - Update SuggestedNextActions and error messages
+5. ✅ **Quality Verification** - Build passes, all tests green, 0 warnings
+6. ✅ **Summary Docs** - Create BUG-FIX-*.md, TESTS-*.md, DOCS-*.md
+
+**Process:** Follow [bug-fixing-checklist.instructions.md](bug-fixing-checklist.instructions.md) for complete 6-step process.
+
+**Why:** Incomplete bug fixes lead to regressions, confusion, and wasted time. Comprehensive fixes prevent future issues.
+
+**Example:** Refresh + loadDestination bug = 1 code file + 13 tests + 5 doc files + 3 summaries = complete fix.
+
+---
+
 ## Quick Reference
 
 | Rule | Action | Time |
@@ -150,3 +171,4 @@ When debugging test failures, **ALWAYS run tests individually** - never run all 
 | 10. Test debugging | Run tests one by one, never all together | Per test |
 | 11. No test refs | Production NEVER references tests | Always |
 | 12. Test compliance | Pass checklist before PR submission | 2-3 min |
+| 13. Bug fixes | Complete 6-step process (fix, test, doc, hints, verify, summarize) | 30-60 min |

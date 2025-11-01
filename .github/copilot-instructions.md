@@ -13,6 +13,7 @@
 - 🏗️ [Architecture Patterns](instructions/architecture-patterns.instructions.md) - Command pattern, batch/session management, resource management
 - 🧠 [MCP Server Guide](instructions/mcp-server-guide.instructions.md) - MCP tools, protocol, error handling
 - 🔄 [Development Workflow](instructions/development-workflow.instructions.md) - PR process, CI/CD, security, versioning
+- 🐛 [Bug Fixing Checklist](instructions/bug-fixing-checklist.instructions.md) - Complete bug fix process (6 steps: analyze, fix, test, document, verify, summarize)
 
 ---
 
@@ -45,6 +46,7 @@
 - **Modify session/batch code** → MUST run OnDemand tests (see [CRITICAL-RULES.md](instructions/critical-rules.instructions.md))
 - **Add MCP tool** → Follow [MCP Server Guide](instructions/mcp-server-guide.instructions.md)
 - **Create PR** → Follow [Development Workflow](instructions/development-workflow.instructions.md)
+- **Fix bug** → Use [Bug Fixing Checklist](instructions/bug-fixing-checklist.instructions.md) (6-step process)
 - **Migrate tests to batch API** → See BATCH-API-MIGRATION-PLAN.md for comprehensive guide
 - **Create simple tests** → Use ConnectionCommandsSimpleTests.cs or SetupCommandsSimpleTests.cs as template
 - **Range API implementation** → See [Range API Specification](../specs/RANGE-API-SPECIFICATION.md) for complete design (38 methods, MCP-first, breaking changes acceptable)

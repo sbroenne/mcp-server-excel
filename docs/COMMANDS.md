@@ -84,6 +84,17 @@ Update an existing Power Query with new M code. If the query combines data from 
 excelcli pq-refresh <file.xlsx> <query-name>
 ```
 
+Refreshes an existing Power Query to reload data from its source. If the query is connection-only (not loaded anywhere), use the MCP Server `excel_powerquery` tool with the `loadDestination` parameter to apply load configuration during refresh:
+
+```javascript
+// MCP Server usage - Apply load destination while refreshing
+excel_powerquery(action: "refresh", queryName: "Sales", loadDestination: "worksheet")
+excel_powerquery(action: "refresh", queryName: "Sales", loadDestination: "data-model")
+excel_powerquery(action: "refresh", queryName: "Sales", loadDestination: "both")
+```
+
+For CLI users, use `pq-loadto` before `pq-refresh` to configure where data should load.
+
 **pq-loadto** - Load connection-only query to worksheet
 
 ```powershell

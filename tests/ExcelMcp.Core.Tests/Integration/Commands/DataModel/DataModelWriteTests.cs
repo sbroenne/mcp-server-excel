@@ -56,20 +56,29 @@ public class DataModelWriteTests : IClassFixture<DataModelWriteTestsFixture>
         var measureName = "FormattedMeasure_" + Guid.NewGuid().ToString("N")[..8];
         var daxFormula = "SUM(SalesTable[Amount])";
 
-        // Act - Work on shared file
-        await using var batch = await ExcelSession.BeginBatchAsync(_sharedTestFile);
-        var result = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, daxFormula,
-                                                                 formatType: "Currency", description: "Test measure with currency format");
-        await batch.SaveAsync();
+        // Act - Create measure in first batch
+        await using (var batch = await ExcelSession.BeginBatchAsync(_sharedTestFile))
+        {
+            var result = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, daxFormula,
+                                                                     formatType: "Currency", description: "Test measure with currency format");
+            await batch.SaveAsync();
 
-        // Assert
-        Assert.True(result.Success, $"CreateMeasure with format MUST succeed. Error: {result.ErrorMessage}");
-        Assert.NotNull(result.SuggestedNextActions);
+            // Assert - CreateMeasure should succeed
+            Assert.True(result.Success, $"CreateMeasure with format MUST succeed. Error: {result.ErrorMessage}");
+            Assert.NotNull(result.SuggestedNextActions);
+        } // Close and save the batch
 
-        // Verify measure exists
-        var viewResult = await _dataModelCommands.ViewMeasureAsync(batch, measureName);
-        Assert.True(viewResult.Success);
-        Assert.Equal(measureName, viewResult.MeasureName);
+        // Verify measure exists in NEW batch (after file is closed and reopened)
+        await using (var verifyBatch = await ExcelSession.BeginBatchAsync(_sharedTestFile))
+        {
+            var viewResult = await _dataModelCommands.ViewMeasureAsync(verifyBatch, measureName);
+            if (!viewResult.Success)
+            {
+                throw new Exception($"ViewMeasure FAILED - ErrorMessage: '{viewResult.ErrorMessage}', MeasureName: {measureName}");
+            }
+            Assert.True(viewResult.Success);
+            Assert.Equal(measureName, viewResult.MeasureName);
+        }
     }
 
     [Fact]
@@ -81,7 +90,7 @@ public class DataModelWriteTests : IClassFixture<DataModelWriteTestsFixture>
         var updatedFormula = "AVERAGE(SalesTable[Amount])";
 
         await using var batch = await ExcelSession.BeginBatchAsync(_sharedTestFile);
-        
+
         // Create the measure
         var createResult = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, originalFormula);
         Assert.True(createResult.Success, $"Setup failed: {createResult.ErrorMessage}");
@@ -107,7 +116,7 @@ public class DataModelWriteTests : IClassFixture<DataModelWriteTestsFixture>
         var measureName = "DeleteTest_" + Guid.NewGuid().ToString("N")[..8];
 
         await using var batch = await ExcelSession.BeginBatchAsync(_sharedTestFile);
-        
+
         // Create the measure
         var createResult = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, "SUM(SalesTable[Amount])");
         Assert.True(createResult.Success, $"Setup failed: {createResult.ErrorMessage}");
@@ -156,7 +165,7 @@ public class DataModelWriteTests : IClassFixture<DataModelWriteTestsFixture>
         // Get existing relationships first
         var listResult = await _dataModelCommands.ListRelationshipsAsync(batch);
         Assert.True(listResult.Success);
-        
+
         if (listResult.Relationships.Count == 0)
         {
             // Skip if no relationships exist

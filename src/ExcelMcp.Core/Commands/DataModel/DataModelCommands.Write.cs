@@ -264,21 +264,19 @@ public partial class DataModelCommands
                 // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
                 measures = model.ModelMeasures;
 
-                // Get format object if specified
-                if (!string.IsNullOrEmpty(formatType))
-                {
-                    formatObject = GetFormatObject(model, formatType);
-                }
+                // Get format object - ALWAYS returns a valid format object (never null)
+                // Fixed: Always provide format object to avoid failures on reopened Data Model files
+                formatObject = GetFormatObject(model, formatType);
 
                 // Create the measure using Excel COM API (Office 2016+)
                 // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.modelmeasures.add
-                // BUG: This fails on reopened Data Model files with "Value does not fall within expected range"
-                // See: docs/KNOWN-ISSUES.md for investigation details
+                // FIXED: FormatInformation is REQUIRED (not optional as docs state)
+                // See: docs/KNOWN-ISSUES.md for details
                 newMeasure = measures.Add(
                     measureName,                                        // MeasureName (required)
                     table,                                              // AssociatedTable (required)
                     daxFormula,                                         // Formula (required) - must be valid DAX
-                    formatObject ?? Type.Missing,                       // FormatInformation (optional)
+                    formatObject,                                       // FormatInformation (required) - NEVER null/Type.Missing
                     string.IsNullOrEmpty(description) ? Type.Missing : description  // Description (optional)
                 );
 
@@ -299,7 +297,8 @@ public partial class DataModelCommands
             }
             finally
             {
-                ComUtilities.Release(ref formatObject);
+                // Note: formatObject is a property reference from the model (not a new object)
+                // Do NOT release formatObject - it's owned by the model
                 ComUtilities.Release(ref newMeasure);
                 ComUtilities.Release(ref measures);
                 ComUtilities.Release(ref table);
@@ -399,7 +398,8 @@ public partial class DataModelCommands
             }
             finally
             {
-                ComUtilities.Release(ref formatObject);
+                // Note: formatObject is a property reference from the model (not a new object)
+                // Do NOT release formatObject - it's owned by the model
                 ComUtilities.Release(ref measure);
                 ComUtilities.Release(ref model);
             }

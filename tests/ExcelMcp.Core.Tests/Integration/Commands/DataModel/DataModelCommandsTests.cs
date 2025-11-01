@@ -68,7 +68,7 @@ public partial class DataModelCommandsTests : IClassFixture<TempDirectoryFixture
         if (!File.Exists(templatePath))
         {
             Directory.CreateDirectory(Path.GetDirectoryName(templatePath)!);
-            await TestAssets.DataModelAssetBuilder.CreateDataModelAssetAsync(templatePath);
+            await CreateFreshDataModelFileAsync(templatePath);
         }
 
         // Copy template to test file location (fast - just file copy ~100ms)

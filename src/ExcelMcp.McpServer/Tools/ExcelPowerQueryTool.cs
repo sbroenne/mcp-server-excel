@@ -14,16 +14,21 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// LLM Usage Patterns:
 /// - Use "list" to see all Power Queries in a workbook
 /// - Use "view" to examine M code for a specific query
-/// - Use "import" to add new queries from .pq files (DEFAULT: auto-loads to worksheet for validation)
+/// - Use "import" to add new queries from .pq files (use loadDestination parameter: worksheet|data-model|both|connection-only)
 /// - Use "export" to save M code to files for version control
 /// - Use "update" to modify existing query M code (preserves existing load configuration)
-/// - Use "refresh" to refresh query data from source
+/// - Use "refresh" to refresh query data from source (optionally specify loadDestination to apply load config while refreshing)
 /// - Use "delete" to remove queries
 /// - Use "set-load-to-table" to load query data to worksheet (visible to users, NOT in Data Model)
 /// - Use "set-load-to-data-model" to load to Excel's Power Pivot Data Model (ready for DAX measures)
 /// - Use "set-load-to-both" to load to BOTH worksheet AND Power Pivot Data Model
 /// - Use "set-connection-only" to prevent data loading (M code not validated)
 /// - Use "get-load-config" to check current loading configuration
+///
+/// REFRESH WITH LOAD DESTINATION (NEW):
+/// - Refresh connection-only query AND apply load config in one call: refresh(loadDestination: 'worksheet')
+/// - Eliminates need for two calls: set-load-to-table + refresh
+/// - Example: excel_powerquery(action: 'refresh', queryName: 'Sales', loadDestination: 'data-model')
 ///
 /// IMPORTANT FOR DATA MODEL WORKFLOWS:
 /// - "set-load-to-table" loads data to WORKSHEET ONLY (users see formatted table, but NOT in Power Pivot)
@@ -89,12 +94,12 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
         string? targetSheet = null,
 
         [RegularExpression("^(worksheet|data-model|both|connection-only)$")]
-        [Description(@"Load destination for imported query (for import action only). Options:
+        [Description(@"Load destination for query (for import/refresh actions). Options:
   - 'worksheet': Load to worksheet as table (DEFAULT - users can see/validate data)
   - 'data-model': Load to Power Pivot Data Model (for DAX measures/relationships)
   - 'both': Load to both worksheet AND Data Model
   - 'connection-only': Don't load data (M code imported but not executed)
-Default: 'worksheet'")]
+For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is connection-only.")]
         string? loadDestination = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
@@ -114,7 +119,7 @@ Default: 'worksheet'")]
                 "import" => await ImportPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, batchId),
                 "export" => await ExportPowerQueryAsync(powerQueryCommands, excelPath, queryName, targetPath, batchId),
                 "update" => await UpdatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, batchId),
-                "refresh" => await RefreshPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
+                "refresh" => await RefreshPowerQueryAsync(powerQueryCommands, excelPath, queryName, loadDestination, targetSheet, batchId),
                 "delete" => await DeletePowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
                 "set-load-to-table" => await SetLoadToTableAsync(powerQueryCommands, excelPath, queryName, targetSheet, batchId),
                 "set-load-to-data-model" => await SetLoadToDataModelAsync(powerQueryCommands, excelPath, queryName, batchId),
@@ -306,10 +311,91 @@ Default: 'worksheet'")]
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RefreshPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
+    private static async Task<string> RefreshPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? loadDestination, string? targetSheet, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for refresh action");
+
+        // If loadDestination is specified, apply load configuration first
+        if (!string.IsNullOrEmpty(loadDestination))
+        {
+            var destination = loadDestination.ToLowerInvariant();
+            OperationResult? loadResult = null;
+
+            // Apply load configuration before refresh
+            switch (destination)
+            {
+                case "worksheet":
+                    string sheet = targetSheet ?? queryName;
+                    loadResult = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: true,
+                        async (batch) => await commands.SetLoadToTableAsync(batch, queryName, sheet));
+                    break;
+
+                case "data-model":
+                    var dmResult = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: true,
+                        async (batch) => await commands.SetLoadToDataModelAsync(batch, queryName));
+                    loadResult = new OperationResult
+                    {
+                        Success = dmResult.Success,
+                        ErrorMessage = dmResult.ErrorMessage,
+                        FilePath = dmResult.FilePath
+                    };
+                    break;
+
+                case "both":
+                    string sheetBoth = targetSheet ?? queryName;
+                    var bothResult = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: true,
+                        async (batch) => await commands.SetLoadToBothAsync(batch, queryName, sheetBoth));
+                    loadResult = new OperationResult
+                    {
+                        Success = bothResult.Success,
+                        ErrorMessage = bothResult.ErrorMessage,
+                        FilePath = bothResult.FilePath
+                    };
+                    break;
+
+                case "connection-only":
+                    loadResult = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: true,
+                        async (batch) => await commands.SetConnectionOnlyAsync(batch, queryName));
+                    break;
+            }
+
+            // If load configuration failed, return error
+            if (loadResult != null && !loadResult.Success)
+            {
+                var errorResult = new PowerQueryRefreshResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to apply load configuration '{destination}': {loadResult.ErrorMessage}",
+                    FilePath = excelPath,
+                    QueryName = queryName,
+                    RefreshTime = DateTime.Now,
+                    SuggestedNextActions =
+                    [
+                        "Check that the query exists using 'list'",
+                        "Use 'view' to verify query M code is valid",
+                        $"Try 'set-load-to-{destination}' separately to diagnose the issue"
+                    ],
+                    WorkflowHint = $"Failed to configure query to load to {destination}"
+                };
+                return JsonSerializer.Serialize(errorResult, ExcelToolsBase.JsonOptions);
+            }
+
+            // Load configuration applied successfully, now the refresh will use it
+            // Continue to refresh below (SetLoadToTable/DataModel already refreshes, but we'll ensure it's fresh)
+        }
 
         var result = await ExcelToolsBase.WithBatchAsync(
             batchId,
@@ -318,13 +404,25 @@ Default: 'worksheet'")]
             async (batch) => await commands.RefreshAsync(batch, queryName));
         if (result.Success)
         {
-            result.SuggestedNextActions =
-            [
-                "Use 'view' to inspect the query M code",
-                "Use worksheet 'read' to verify loaded data",
-                "Use 'get-load-config' to check load settings"
-            ];
-            result.WorkflowHint = "Query refreshed successfully. Next, view code or verify data.";
+            // Update workflow hints based on whether loadDestination was applied
+            bool loadDestinationApplied = !string.IsNullOrEmpty(loadDestination);
+            
+            result.SuggestedNextActions = loadDestinationApplied
+                ? [
+                    $"Query refreshed and loaded to {loadDestination}",
+                    "Use 'view' to inspect the query M code",
+                    "Use worksheet 'read' to verify loaded data",
+                    "Use 'get-load-config' to confirm load settings"
+                  ]
+                : [
+                    "Use 'view' to inspect the query M code",
+                    "Use worksheet 'read' to verify loaded data",
+                    "Use 'get-load-config' to check load settings"
+                  ];
+            
+            result.WorkflowHint = loadDestinationApplied
+                ? $"Query refreshed and configured to load to {loadDestination}. Data is now available."
+                : "Query refreshed successfully. Next, view code or verify data.";
         }
         else
         {
@@ -332,7 +430,8 @@ Default: 'worksheet'")]
             [
                 "Check the query M code for errors using 'view'",
                 "Verify data source connectivity",
-                "Review privacy level settings if needed"
+                "Review privacy level settings if needed",
+                "Try using loadDestination parameter to apply load configuration during refresh"
             ];
             result.WorkflowHint = "Refresh failed. Check query code and data source.";
         }

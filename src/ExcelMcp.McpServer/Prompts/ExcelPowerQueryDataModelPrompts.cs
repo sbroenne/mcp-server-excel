@@ -86,6 +86,14 @@ If you already loaded to worksheet and user NOW wants Data Model:
 - No need to delete and recreate anything
 - Power Query can change load destination anytime
 
+REFRESH WITH LOAD DESTINATION (NEW):
+
+If query is connection-only and user wants to refresh AND load data:
+- excel_powerquery(action: 'refresh', queryName: 'Sales', loadDestination: 'worksheet')
+- ONE call instead of two (set-load + refresh)
+- Applies load configuration then refreshes data
+- Also works with: loadDestination: 'data-model' or 'both'
+
 WORKFLOW RESPONSES (what to expect):
 
 After loadDestination: 'worksheet', you'll see:
