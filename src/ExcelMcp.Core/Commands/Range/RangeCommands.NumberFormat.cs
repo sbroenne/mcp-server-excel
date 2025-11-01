@@ -37,14 +37,11 @@ public partial class RangeCommands
                 // Get actual address from Excel
                 result.RangeAddress = range.Address;
 
-                // Get number formats as 2D array
+                // Get number formats - Excel COM behavior:
+                // - Single cell: returns string
+                // - Multiple cells, all same format: returns string
+                // - Multiple cells, mixed formats: returns DBNull (must read cell-by-cell)
                 object numberFormats = range.NumberFormat;
-                
-                // Handle DBNull (happens when no format is set)
-                if (numberFormats == null || numberFormats is System.DBNull)
-                {
-                    numberFormats = "General";
-                }
                 
                 // Get dimensions
                 int rowCount = Convert.ToInt32(range.Rows.Count);
@@ -53,75 +50,65 @@ public partial class RangeCommands
                 result.RowCount = rowCount;
                 result.ColumnCount = columnCount;
 
-                if (rowCount == 1 && columnCount == 1)
+                // Check if we have mixed formats (DBNull or null)
+                if (numberFormats == null || numberFormats is System.DBNull)
                 {
-                    // Single cell - numberFormats is a string
-                    result.Formats.Add(new List<string> { numberFormats?.ToString() ?? "General" });
-                }
-                else if (rowCount == 1 || columnCount == 1)
-                {
-                    // Single row or column - might be a string or 1D array
-                    if (numberFormats is string formatStr)
+                    // Mixed formats - must read cell-by-cell
+                    dynamic? cells = null;
+                    try
                     {
-                        // All cells have same format
-                        for (int i = 0; i < rowCount; i++)
-                        {
-                            var rowList = new List<string>();
-                            for (int j = 0; j < columnCount; j++)
-                            {
-                                rowList.Add(formatStr);
-                            }
-                            result.Formats.Add(rowList);
-                        }
-                    }
-                    else
-                    {
-                        // Multiple cells - numberFormats is an array
-                        object[,] formats = (object[,])numberFormats;
-                        
+                        cells = range.Cells;
                         for (int row = 1; row <= rowCount; row++)
                         {
                             var rowList = new List<string>();
                             for (int col = 1; col <= columnCount; col++)
                             {
-                                var format = formats[row, col]?.ToString() ?? "General";
-                                rowList.Add(format);
+                                dynamic? cell = null;
+                                try
+                                {
+                                    cell = cells[row, col];
+                                    var format = cell.NumberFormat?.ToString() ?? "General";
+                                    rowList.Add(format);
+                                }
+                                finally
+                                {
+                                    ComUtilities.Release(ref cell);
+                                }
                             }
                             result.Formats.Add(rowList);
                         }
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref cells);
+                    }
+                }
+                else if (numberFormats is string formatStr)
+                {
+                    // All cells have same format
+                    for (int row = 0; row < rowCount; row++)
+                    {
+                        var rowList = new List<string>();
+                        for (int col = 0; col < columnCount; col++)
+                        {
+                            rowList.Add(formatStr);
+                        }
+                        result.Formats.Add(rowList);
                     }
                 }
                 else
                 {
-                    // Multiple rows and columns - numberFormats could be string (all same) or 2D array
-                    if (numberFormats is string formatStr)
+                    // Should be a 2D array (rare case)
+                    object[,] formats = (object[,])numberFormats;
+                    for (int row = 0; row < rowCount; row++)
                     {
-                        // All cells have same format
-                        for (int row = 0; row < rowCount; row++)
+                        var rowList = new List<string>();
+                        for (int col = 0; col < columnCount; col++)
                         {
-                            var rowList = new List<string>();
-                            for (int col = 0; col < columnCount; col++)
-                            {
-                                rowList.Add(formatStr);
-                            }
-                            result.Formats.Add(rowList);
+                            var format = formats[row, col]?.ToString() ?? "General";
+                            rowList.Add(format);
                         }
-                    }
-                    else
-                    {
-                        // Multiple rows and columns - numberFormats is a 2D array
-                        object[,] formats = (object[,])numberFormats;
-                        
-                        for (int row = 1; row <= rowCount; row++)
-                        {
-                            var rowList = new List<string>();
-                            for (int col = 1; col <= columnCount; col++)
-                            {
-                                var format = formats[row, col]?.ToString() ?? "General";
-                                rowList.Add(format);
-                            }
-                            result.Formats.Add(rowList);
-                        }
+                        result.Formats.Add(rowList);
                     }
                 }
 
@@ -241,18 +228,41 @@ public partial class RangeCommands
                     }
                 }
 
-                // Convert List<List<string>> to 2D array (1-based for Excel COM)
-                object[,] formatArray = new object[rowCount, columnCount];
-                for (int row = 1; row <= rowCount; row++)
+                // If single row or column, can't use 2D array - must set cell by cell
+                if (rowCount == 1 || columnCount == 1)
                 {
-                    for (int col = 1; col <= columnCount; col++)
+                    for (int row = 1; row <= rowCount; row++)
                     {
-                        formatArray[row - 1, col - 1] = formats[row - 1][col - 1];  // Convert to 0-based indexing for our List, but array is used 1-based by Excel
+                        for (int col = 1; col <= columnCount; col++)
+                        {
+                            dynamic? cell = null;
+                            try
+                            {
+                                cell = range.Cells[row, col];
+                                cell.NumberFormat = formats[row - 1][col - 1];
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref cell);
+                            }
+                        }
                     }
                 }
+                else
+                {
+                    // For multi-row, multi-column ranges, Excel COM expects 1-based 2D array
+                    object[,] formatArray = new object[rowCount, columnCount];
+                    for (int row = 0; row < rowCount; row++)
+                    {
+                        for (int col = 0; col < columnCount; col++)
+                        {
+                            formatArray[row, col] = formats[row][col];
+                        }
+                    }
 
-                // Set number formats cell-by-cell
-                range.NumberFormat = formatArray;
+                    // Set number formats via 2D array
+                    range.NumberFormat = formatArray;
+                }
 
                 result.Success = true;
                 result.SuggestedNextActions =

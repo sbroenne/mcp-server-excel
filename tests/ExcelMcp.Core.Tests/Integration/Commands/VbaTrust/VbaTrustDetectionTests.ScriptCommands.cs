@@ -39,7 +39,7 @@ End Sub";
         File.WriteAllText(vbaFile, vbaCode);
 
         // Act & Assert - VBA operations should work inside the scope
-        using (var _ = new TestVbaTrustScope())
+        using (new TestVbaTrustScope())
         {
             await using var batch = await ExcelSession.BeginBatchAsync(testFile);
             var importResult = await _scriptCommands.ImportAsync(batch, "TestModule", vbaFile);
@@ -63,7 +63,7 @@ End Sub";
         string exportFile = Path.Combine(_tempDir, $"ExportedModule_{Guid.NewGuid():N}.vba");
 
         // Act - Test with VBA trust enabled
-        using (var _ = new TestVbaTrustScope())
+        using (new TestVbaTrustScope())
         {
             await using var batch = await ExcelSession.BeginBatchAsync(testFile);
             var result = await _scriptCommands.ExportAsync(batch, "ThisWorkbook", exportFile);
@@ -93,7 +93,7 @@ End Sub";
         File.WriteAllText(vbaFile, vbaCode);
 
         // Act - Test with VBA trust enabled
-        using (var _ = new TestVbaTrustScope())
+        using (new TestVbaTrustScope())
         {
             await using var batch = await ExcelSession.BeginBatchAsync(testFile);
             var result = await _scriptCommands.ImportAsync(batch, "ImportTestModule", vbaFile);
@@ -120,7 +120,7 @@ End Sub";
 End Sub";
         File.WriteAllText(vbaFile, vbaCode1);
 
-        using (var _ = new TestVbaTrustScope())
+        using (new TestVbaTrustScope())
         {
             // First import
             await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
@@ -158,7 +158,7 @@ End Sub";
 End Sub";
         File.WriteAllText(vbaFile, vbaCode);
 
-        using (var _ = new TestVbaTrustScope())
+        using (new TestVbaTrustScope())
         {
             // First import a module
             await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
@@ -193,7 +193,7 @@ End Sub";
 End Sub";
         File.WriteAllText(vbaFile, vbaCode);
 
-        using (var _ = new TestVbaTrustScope())
+        using (new TestVbaTrustScope())
         {
             // First import a module
             await using (var batch = await ExcelSession.BeginBatchAsync(testFile))

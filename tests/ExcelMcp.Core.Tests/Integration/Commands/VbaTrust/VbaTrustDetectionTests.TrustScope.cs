@@ -49,7 +49,7 @@ public partial class VbaTrustDetectionTests
         bool initialTrustState = IsVbaTrustEnabled();
 
         // Act - Use TestVbaTrustScope
-        using (var trustScope = new TestVbaTrustScope())
+        using (new TestVbaTrustScope())
         {
             // Inside the scope, VBA trust should be enabled
             Assert.True(IsVbaTrustEnabled(), "VBA trust should be enabled inside TestVbaTrustScope");
