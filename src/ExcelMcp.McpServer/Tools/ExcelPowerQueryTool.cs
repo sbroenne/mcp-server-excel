@@ -4,6 +4,7 @@ using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -57,19 +58,16 @@ public static class ExcelPowerQueryTool
   3. commit_excel_batch(batchId: batch.batchId, save: true)
 
 PRIMARY ACTIONS:
-- import: Add Power Query from .pq file (use loadDestination parameter for data model workflows)
-- set-load-to-data-model: Load query data to Power Pivot Data Model (ready for DAX measures)
-- set-load-to-table: Load query data to worksheet (visible to users, NOT in data model)
-- set-load-to-both: Load to BOTH worksheet AND data model
-
-All actions: list, view, import, export, update, refresh, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config.
+- Import: Add Power Query from .pq file (use loadDestination parameter for data model workflows)
+- SetLoadToDataModel: Load query data to Power Pivot Data Model (ready for DAX measures)
+- SetLoadToTable: Load query data to worksheet (visible to users, NOT in data model)
+- SetLoadToBoth: Load to BOTH worksheet AND data model
 
 After loading to Data Model, use excel_datamodel tool for DAX measures and relationships.")]
     public static async Task<string> ExcelPowerQuery(
         [Required]
-        [RegularExpression("^(list|view|import|export|update|refresh|delete|set-load-to-table|set-load-to-data-model|set-load-to-both|set-connection-only|get-load-config)$")]
-        [Description("Action: list, view, import, export, update, refresh, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config")]
-        string action,
+        [Description("Action to perform (enum values displayed as dropdown in MCP clients)")]
+        PowerQueryAction action,
 
         [Required]
         [FileExtensions(Extensions = "xlsx,xlsm")]
@@ -112,7 +110,10 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             var powerQueryCommands = new PowerQueryCommands(dataModelCommands);
             var parameterCommands = new ParameterCommands();
 
-            return action.ToLowerInvariant() switch
+            // Convert enum to action string
+            var actionString = action.ToActionString();
+            
+            return actionString switch
             {
                 "list" => await ListPowerQueriesAsync(powerQueryCommands, excelPath, batchId),
                 "view" => await ViewPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
@@ -126,8 +127,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
                 "set-load-to-both" => await SetLoadToBothAsync(powerQueryCommands, excelPath, queryName, targetSheet, batchId),
                 "set-connection-only" => await SetConnectionOnlyAsync(powerQueryCommands, excelPath, queryName, batchId),
                 "get-load-config" => await GetLoadConfigAsync(powerQueryCommands, excelPath, queryName, batchId),
-                _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: list, view, import, export, update, refresh, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config")
+                _ => throw new ModelContextProtocol.McpException($"Unknown action '{actionString}'")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -136,7 +136,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action, excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
             throw; // Unreachable but satisfies compiler
         }
     }
