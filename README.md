@@ -113,7 +113,7 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 - Version control VBA code through file exports
 
 ### Ranges & Worksheets
-- 30+ range operations: get/set values/formulas, clear, copy, insert/delete, find/replace, sort
+- 38+ range operations: get/set values/formulas, number formatting, visual formatting (font, fill, border, alignment), data validation, clear, copy, insert/delete, find/replace, sort
 - Manage hyperlinks and range properties
 - Worksheet lifecycle: create, rename, copy, delete
 
@@ -240,7 +240,7 @@ This means you get:
 2. **excel_datamodel** (14 actions) - Power Pivot (Data Model): CRUD DAX measures/relationships, discover structure, export to .dax files
 3. **excel_table** (22 actions) - Excel Tables: lifecycle, columns, filters, sorts, structured references, totals, Data Model integration
 4. **excel_pivottable** (20 actions) - PivotTables: create from ranges/tables, field management (row/column/value/filter), aggregations, filters, sorting, extract data
-5. **excel_range** (30+ actions) - Ranges: get/set values/formulas, clear, copy, insert/delete, find/replace, sort, hyperlinks
+5. **excel_range** (38+ actions) - Ranges: get/set values/formulas, number formatting, visual formatting (font, fill, border, alignment), data validation, clear, copy, insert/delete, find/replace, sort, hyperlinks
 6. **excel_vba** (7 actions) - VBA: list, view, export, import, update, run, delete modules
 7. **excel_connection** (11 actions) - Connections: OLEDB/ODBC/Text/Web management, properties, refresh, test
 8. **excel_worksheet** (13 actions) - Worksheets: lifecycle (list, create, rename, copy, delete), tab colors (set-tab-color, get-tab-color, clear-tab-color), visibility (set-visibility, get-visibility, show, hide, very-hide)
