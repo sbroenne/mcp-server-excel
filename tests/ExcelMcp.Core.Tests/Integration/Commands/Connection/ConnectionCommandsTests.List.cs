@@ -33,7 +33,8 @@ public partial class ConnectionCommandsTests
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(ConnectionCommandsTests), nameof(List_WithTextConnection_ReturnsConnection), _tempDir);
-        var csvFile = CreateTestCsvFile($"List_{Guid.NewGuid():N}.csv");
+        var csvFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(ConnectionCommandsTests), nameof(List_WithTextConnection_ReturnsConnection), _tempDir, ".csv", "Name,Value\nTest1,100\nTest2,200");
         string connName = "TestText";
 
         await ConnectionTestHelper.CreateTextFileConnectionAsync(testFile, connName, csvFile);

@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
@@ -14,7 +15,7 @@ public partial class PowerQueryCommandsTests
     public async Task SetConnectionOnly_WithExistingQuery_ReturnsSuccessResult()
     {
         // Arrange
-        var testExcelFile = CreateUniqueTestExcelFile(nameof(SetConnectionOnly_WithExistingQuery_ReturnsSuccessResult));
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(SetConnectionOnly_WithExistingQuery_ReturnsSuccessResult), _tempDir);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(SetConnectionOnly_WithExistingQuery_ReturnsSuccessResult));
 
         // Act
@@ -34,7 +35,7 @@ public partial class PowerQueryCommandsTests
     public async Task SetLoadToTable_WithExistingQuery_ReturnsSuccessResult()
     {
         // Arrange
-        var testExcelFile = CreateUniqueTestExcelFile(nameof(SetLoadToTable_WithExistingQuery_ReturnsSuccessResult));
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(SetLoadToTable_WithExistingQuery_ReturnsSuccessResult), _tempDir);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(SetLoadToTable_WithExistingQuery_ReturnsSuccessResult));
 
         // Act
@@ -80,7 +81,7 @@ public partial class PowerQueryCommandsTests
     public async Task SetLoadToDataModel_WithExistingQuery_ReturnsSuccessResult()
     {
         // Arrange
-        var testExcelFile = CreateUniqueTestExcelFile(nameof(SetLoadToDataModel_WithExistingQuery_ReturnsSuccessResult));
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(SetLoadToDataModel_WithExistingQuery_ReturnsSuccessResult), _tempDir);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(SetLoadToDataModel_WithExistingQuery_ReturnsSuccessResult));
 
         // Act
@@ -126,7 +127,7 @@ public partial class PowerQueryCommandsTests
     public async Task SetLoadToBoth_WithExistingQuery_ReturnsSuccessResult()
     {
         // Arrange
-        var testExcelFile = CreateUniqueTestExcelFile(nameof(SetLoadToBoth_WithExistingQuery_ReturnsSuccessResult));
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(SetLoadToBoth_WithExistingQuery_ReturnsSuccessResult), _tempDir);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(SetLoadToBoth_WithExistingQuery_ReturnsSuccessResult));
 
         // Act

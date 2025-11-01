@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Range;
 
@@ -14,7 +15,7 @@ public partial class RangeCommandsTests
     public async Task AddHyperlinkAsync_CreatesHyperlink()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Act
@@ -42,7 +43,7 @@ public partial class RangeCommandsTests
     public async Task RemoveHyperlinkAsync_DeletesHyperlink()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.AddHyperlinkAsync(batch, "Sheet1", "A1", "https://www.example.com");
@@ -62,7 +63,7 @@ public partial class RangeCommandsTests
     public async Task ListHyperlinksAsync_ReturnsAllHyperlinks()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.AddHyperlinkAsync(batch, "Sheet1", "A1", "https://site1.com");

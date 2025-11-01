@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Range;
@@ -14,7 +15,7 @@ public partial class RangeCommandsTests
     public async Task GetFormulasAsync_ReturnsFormulasAndValues()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetFormulasAsync_ReturnsFormulasAndValues), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Set values and formulas
@@ -43,7 +44,7 @@ public partial class RangeCommandsTests
     public async Task SetFormulasAsync_WritesFormulasToRange()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(SetFormulasAsync_WritesFormulasToRange), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3",
@@ -76,7 +77,7 @@ public partial class RangeCommandsTests
     public async Task SetFormulasAsync_WithJsonElementFormulas_WritesFormulasCorrectly()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(SetFormulasAsync_WithJsonElementFormulas_WritesFormulasCorrectly), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Set up source data

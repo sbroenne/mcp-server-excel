@@ -14,43 +14,8 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
 [Trait("Layer", "Core")]
 [Trait("Feature", "Connections")]
 [Trait("RequiresExcel", "true")]
-public partial class ConnectionCommandsTests : IDisposable
+public partial class ConnectionCommandsTests(TempDirectoryFixture fixture) : IClassFixture<TempDirectoryFixture>
 {
-    private readonly ConnectionCommands _commands;
-    private readonly string _tempDir;
-    private bool _disposed;
-
-    public ConnectionCommandsTests()
-    {
-        _commands = new ConnectionCommands();
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelMcp_Conn_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
-    }
-
-    /// <summary>
-    /// Helper to create a test CSV file for text connections
-    /// </summary>
-    private string CreateTestCsvFile(string fileName = "data.csv")
-    {
-        var csvFile = Path.Combine(_tempDir, fileName);
-        File.WriteAllText(csvFile, "Name,Value\nTest1,100\nTest2,200");
-        return csvFile;
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-
-        try
-        {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, recursive: true);
-            }
-        }
-        catch { /* Cleanup failure is non-critical */ }
-
-        _disposed = true;
-        GC.SuppressFinalize(this);
-    }
+    private readonly ConnectionCommands _commands = new();
+    private readonly string _tempDir = fixture.TempDir;
 }

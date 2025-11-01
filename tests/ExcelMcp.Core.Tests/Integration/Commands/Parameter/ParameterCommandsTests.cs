@@ -14,36 +14,14 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Parameter;
 [Trait("Speed", "Fast")]
 [Trait("Feature", "Parameters")]
 [Trait("RequiresExcel", "true")]
-public partial class ParameterCommandsTests : IDisposable
+public partial class ParameterCommandsTests : IClassFixture<TempDirectoryFixture>
 {
     private readonly IParameterCommands _parameterCommands;
     private readonly string _tempDir;
-    private bool _disposed;
 
-    public ParameterCommandsTests()
+    public ParameterCommandsTests(TempDirectoryFixture fixture)
     {
         _parameterCommands = new ParameterCommands();
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_ParamTests_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-
-        try
-        {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, recursive: true);
-            }
-        }
-        catch
-        {
-            // Ignore cleanup errors
-        }
-
-        _disposed = true;
-        GC.SuppressFinalize(this);
+        _tempDir = fixture.TempDir;
     }
 }

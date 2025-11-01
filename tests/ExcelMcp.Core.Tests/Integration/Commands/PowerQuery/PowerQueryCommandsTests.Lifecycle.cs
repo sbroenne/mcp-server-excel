@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
@@ -15,7 +16,7 @@ public partial class PowerQueryCommandsTests
     public async Task List_WithValidFile_ReturnsSuccessResult()
     {
         // Arrange
-        var testExcelFile = CreateUniqueTestExcelFile(nameof(List_WithValidFile_ReturnsSuccessResult));
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(List_WithValidFile_ReturnsSuccessResult), _tempDir);
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
@@ -35,7 +36,7 @@ public partial class PowerQueryCommandsTests
     public async Task Import_WithValidMCode_ReturnsSuccessResult()
     {
         // Arrange
-        var testExcelFile = CreateUniqueTestExcelFile(nameof(Import_WithValidMCode_ReturnsSuccessResult));
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(Import_WithValidMCode_ReturnsSuccessResult), _tempDir);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Import_WithValidMCode_ReturnsSuccessResult));
 
         // Act
@@ -55,7 +56,7 @@ public partial class PowerQueryCommandsTests
     public async Task List_AfterImport_ShowsNewQuery()
     {
         // Arrange
-        var testExcelFile = CreateUniqueTestExcelFile(nameof(List_AfterImport_ShowsNewQuery));
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(List_AfterImport_ShowsNewQuery), _tempDir);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(List_AfterImport_ShowsNewQuery));
 
         // Act - Use single batch for both operations
@@ -79,7 +80,7 @@ public partial class PowerQueryCommandsTests
     public async Task View_WithExistingQuery_ReturnsMCode()
     {
         // Arrange
-        var testExcelFile = CreateUniqueTestExcelFile(nameof(View_WithExistingQuery_ReturnsMCode));
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(View_WithExistingQuery_ReturnsMCode), _tempDir);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(View_WithExistingQuery_ReturnsMCode));
 
         // Act - Use single batch for both operations
@@ -102,7 +103,7 @@ public partial class PowerQueryCommandsTests
     public async Task Export_WithExistingQuery_CreatesFile()
     {
         // Arrange
-        var testExcelFile = CreateUniqueTestExcelFile(nameof(Export_WithExistingQuery_CreatesFile));
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(Export_WithExistingQuery_CreatesFile), _tempDir);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Export_WithExistingQuery_CreatesFile));
         var exportPath = Path.Combine(_tempDir, $"exported_{Guid.NewGuid():N}.pq");
 
@@ -125,7 +126,7 @@ public partial class PowerQueryCommandsTests
     public async Task Update_WithValidMCode_ReturnsSuccessResult()
     {
         // Arrange
-        var testExcelFile = CreateUniqueTestExcelFile(nameof(Update_WithValidMCode_ReturnsSuccessResult));
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(Update_WithValidMCode_ReturnsSuccessResult), _tempDir);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Update_WithValidMCode_ReturnsSuccessResult));
         var updateFile = Path.Combine(_tempDir, $"updated_{Guid.NewGuid():N}.pq");
         File.WriteAllText(updateFile, "let\n    UpdatedSource = 1\nin\n    UpdatedSource");
@@ -148,7 +149,7 @@ public partial class PowerQueryCommandsTests
     public async Task Delete_WithExistingQuery_ReturnsSuccessResult()
     {
         // Arrange
-        var testExcelFile = CreateUniqueTestExcelFile(nameof(Delete_WithExistingQuery_ReturnsSuccessResult));
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(Delete_WithExistingQuery_ReturnsSuccessResult), _tempDir);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Delete_WithExistingQuery_ReturnsSuccessResult));
 
         // Act - Use single batch for both operations
@@ -169,7 +170,7 @@ public partial class PowerQueryCommandsTests
     public async Task Import_ThenDelete_ThenList_ShowsEmpty()
     {
         // Arrange
-        var testExcelFile = CreateUniqueTestExcelFile(nameof(Import_ThenDelete_ThenList_ShowsEmpty));
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(Import_ThenDelete_ThenList_ShowsEmpty), _tempDir);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Import_ThenDelete_ThenList_ShowsEmpty));
 
         // Act - Import

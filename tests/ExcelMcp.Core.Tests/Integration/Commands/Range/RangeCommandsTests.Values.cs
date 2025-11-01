@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Range;
 
@@ -14,7 +15,7 @@ public partial class RangeCommandsTests
     public async Task GetValuesAsync_SingleCell_Returns1x1Array()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Set a value first
@@ -36,7 +37,7 @@ public partial class RangeCommandsTests
     public async Task GetValuesAsync_Range_Returns2DArray()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         var testData = new List<List<object?>>
@@ -64,7 +65,7 @@ public partial class RangeCommandsTests
     public async Task SetValuesAsync_WritesDataToRange()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         var testData = new List<List<object?>>
@@ -91,7 +92,7 @@ public partial class RangeCommandsTests
     public async Task SetValuesAsync_WithJsonElementValues_WritesDataCorrectly()
     {
         // Arrange - Simulate MCP Server scenario where JSON deserialization creates JsonElement objects
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Simulate MCP JSON: [["Azure Region Code", "Azure Region Name", "Geography", "Country"]]
@@ -130,7 +131,7 @@ public partial class RangeCommandsTests
     public async Task SetValuesAsync_WithJsonElementMixedTypes_WritesDataCorrectly()
     {
         // Arrange - Test different JSON value types (string, number, boolean, null)
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Simulate MCP JSON: [["Text", 123, true, null]]

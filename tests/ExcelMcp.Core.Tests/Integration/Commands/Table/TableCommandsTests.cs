@@ -20,19 +20,17 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Table;
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "Tables")]
-public partial class TableCommandsTests : IDisposable
+public partial class TableCommandsTests : IClassFixture<TempDirectoryFixture>
 {
     private readonly ITableCommands _tableCommands;
     private readonly IRangeCommands _rangeCommands;
     private readonly string _tempDir;
-    private bool _disposed;
 
-    public TableCommandsTests()
+    public TableCommandsTests(TempDirectoryFixture fixture)
     {
         _tableCommands = new TableCommands();
         _rangeCommands = new RangeCommands();
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_Table_Tests_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
+        _tempDir = fixture.TempDir;
     }
 
     /// <summary>
@@ -91,25 +89,5 @@ public partial class TableCommandsTests : IDisposable
         await batch.SaveAsync();
 
         return testFile;
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-
-        try
-        {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, recursive: true);
-            }
-        }
-        catch
-        {
-            // Ignore cleanup errors
-        }
-
-        _disposed = true;
-        GC.SuppressFinalize(this);
     }
 }

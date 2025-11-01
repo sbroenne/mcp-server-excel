@@ -13,17 +13,15 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.VbaTrust;
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "VBATrust")]
-public partial class VbaTrustDetectionTests : IDisposable
+public partial class VbaTrustDetectionTests : IClassFixture<TempDirectoryFixture>
 {
     private readonly IScriptCommands _scriptCommands;
     private readonly string _tempDir;
-    private bool _disposed;
 
-    public VbaTrustDetectionTests()
+    public VbaTrustDetectionTests(TempDirectoryFixture fixture)
     {
         _scriptCommands = new ScriptCommands();
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_VBATrust_Tests_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
+        _tempDir = fixture.TempDir;
     }
 
     /// <summary>
@@ -41,25 +39,5 @@ public partial class VbaTrustDetectionTests : IDisposable
         {
             return false;
         }
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-
-        try
-        {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, recursive: true);
-            }
-        }
-        catch
-        {
-            // Cleanup failures shouldn't fail tests
-        }
-
-        _disposed = true;
-        GC.SuppressFinalize(this);
     }
 }

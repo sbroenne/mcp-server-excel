@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
@@ -15,38 +16,20 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "PowerQuery")]
-public partial class PowerQueryCommandsTests : IDisposable
+public partial class PowerQueryCommandsTests : IClassFixture<TempDirectoryFixture>
 {
     protected readonly IPowerQueryCommands _powerQueryCommands;
     protected readonly IFileCommands _fileCommands;
     protected readonly ISheetCommands _sheetCommands;
     protected readonly string _tempDir;
-    private bool _disposed;
 
-    public PowerQueryCommandsTests()
+    public PowerQueryCommandsTests(TempDirectoryFixture fixture)
     {
         var dataModelCommands = new DataModelCommands();
         _powerQueryCommands = new PowerQueryCommands(dataModelCommands);
         _fileCommands = new FileCommands();
         _sheetCommands = new SheetCommands();
-
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_PQ_Tests_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
-    }
-
-    /// <summary>
-    /// Creates a unique Excel file for a test to avoid parallel execution conflicts.
-    /// Each test gets its own isolated file.
-    /// </summary>
-    protected string CreateUniqueTestExcelFile(string testName)
-    {
-        var uniqueFile = Path.Combine(_tempDir, $"{testName}_{Guid.NewGuid():N}.xlsx");
-        var result = _fileCommands.CreateEmptyAsync(uniqueFile, overwriteIfExists: false).GetAwaiter().GetResult();
-        if (!result.Success)
-        {
-            throw new InvalidOperationException($"Failed to create test Excel file: {result.ErrorMessage}. Excel may not be installed.");
-        }
-        return uniqueFile;
+        _tempDir = fixture.TempDir;
     }
 
     /// <summary>
@@ -70,25 +53,5 @@ in
 
         File.WriteAllText(uniqueFile, mCode);
         return uniqueFile;
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-
-        try
-        {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, recursive: true);
-            }
-        }
-        catch
-        {
-            // Ignore cleanup errors
-        }
-
-        _disposed = true;
-        GC.SuppressFinalize(this);
     }
 }

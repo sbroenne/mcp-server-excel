@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Xunit;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Range;
 
@@ -15,7 +16,7 @@ public partial class RangeCommandsTests
     public async Task GetValuesAsync_WithNamedRange_ResolvesProperly()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create a named range pointing to A1:B2
@@ -44,7 +45,7 @@ public partial class RangeCommandsTests
     public async Task SetValuesAsync_WithNamedRange_WritesProperly()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create a named range
@@ -72,7 +73,7 @@ public partial class RangeCommandsTests
     public async Task GetFormulasAsync_WithNamedRange_ReturnsFormulas()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create named range and set data + formula
@@ -96,7 +97,7 @@ public partial class RangeCommandsTests
     public async Task ClearContentsAsync_WithNamedRange_ClearsData()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create named range and populate

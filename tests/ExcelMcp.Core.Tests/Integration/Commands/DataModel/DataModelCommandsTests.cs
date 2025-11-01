@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.DataModel;
@@ -14,34 +15,80 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.DataModel;
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "DataModel")]
-public partial class DataModelCommandsTests : IDisposable
+public partial class DataModelCommandsTests : IClassFixture<TempDirectoryFixture>
 {
     protected readonly IDataModelCommands _dataModelCommands;
     protected readonly IFileCommands _fileCommands;
     protected readonly ITableCommands _tableCommands;
     protected readonly string _tempDir;
-    private bool _disposed;
 
-    public DataModelCommandsTests()
+    public DataModelCommandsTests(TempDirectoryFixture fixture)
     {
         _dataModelCommands = new DataModelCommands();
         _fileCommands = new FileCommands();
         _tableCommands = new TableCommands();
-
-        // Create temp directory for test files
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_DM_Tests_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
+        _tempDir = fixture.TempDir;
     }
 
     /// <summary>
     /// Creates a unique test file with Data Model for each test.
     /// Each test gets its own isolated Excel file to prevent test pollution.
-    /// Uses PRODUCTION commands to create realistic Data Model structure.
+    /// Uses pre-built template for READ-ONLY tests (fast), builds fresh Data Model for WRITE tests (slower but necessary).
     /// </summary>
-    protected async Task<string> CreateTestFileAsync(string fileName)
+    /// <param name="fileName">Name of the test file to create</param>
+    /// <param name="requiresWritableDataModel">If true, creates fresh Data Model instead of using template (needed for Create/Update/Delete tests)</param>
+    protected async Task<string> CreateTestFileAsync(string fileName, bool requiresWritableDataModel = false)
     {
         var filePath = Path.Combine(_tempDir, fileName);
 
+        if (requiresWritableDataModel)
+        {
+            // WRITE tests: Build fresh Data Model (slower but supports modifications)
+            return await CreateFreshDataModelFileAsync(filePath);
+        }
+        else
+        {
+            // READ tests: Use pre-built template (fast - just file copy)
+            return await CreateFromTemplateAsync(filePath);
+        }
+    }
+
+    /// <summary>
+    /// Creates a test file by copying the pre-built template (fast, for READ-ONLY tests)
+    /// </summary>
+    private async Task<string> CreateFromTemplateAsync(string filePath)
+    {
+        // Path to pre-built Data Model template
+        var templatePath = Path.Combine(
+            Path.GetDirectoryName(typeof(DataModelCommandsTests).Assembly.Location)!,
+            "TestAssets",
+            "DataModelTemplate.xlsx");
+
+        // If template doesn't exist, create it once (one-time setup)
+        if (!File.Exists(templatePath))
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(templatePath)!);
+            await TestAssets.DataModelAssetBuilder.CreateDataModelAssetAsync(templatePath);
+        }
+
+        // Copy template to test file location (fast - just file copy ~100ms)
+        File.Copy(templatePath, filePath, overwrite: true);
+        
+        // Ensure the copied file is writable
+        var fileInfo = new FileInfo(filePath);
+        if (fileInfo.IsReadOnly)
+        {
+            fileInfo.IsReadOnly = false;
+        }
+
+        return filePath;
+    }
+
+    /// <summary>
+    /// Creates a test file with fresh Data Model built from scratch (slower, but supports WRITE operations)
+    /// </summary>
+    private async Task<string> CreateFreshDataModelFileAsync(string filePath)
+    {
         // Create an empty workbook first
         var result = await _fileCommands.CreateEmptyAsync(filePath, overwriteIfExists: false);
         if (!result.Success)
@@ -273,40 +320,5 @@ public partial class DataModelCommandsTests : IDisposable
             }
             return 0;
         });
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-
-        try
-        {
-            if (Directory.Exists(_tempDir))
-            {
-                // Give Excel time to release file locks
-                System.Threading.Thread.Sleep(100);
-
-                // Retry cleanup a few times if needed
-                for (int i = 0; i < 3; i++)
-                {
-                    try
-                    {
-                        Directory.Delete(_tempDir, recursive: true);
-                        break;
-                    }
-                    catch (IOException) when (i < 2)
-                    {
-                        System.Threading.Thread.Sleep(500);
-                    }
-                }
-            }
-        }
-        catch
-        {
-            // Best effort cleanup
-        }
-
-        _disposed = true;
-        GC.SuppressFinalize(this);
     }
 }

@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Range;
@@ -14,7 +15,7 @@ public partial class RangeCommandsTests
     public async Task GetUsedRangeAsync_ReturnsAllNonEmptyCells()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetUsedRangeAsync_ReturnsAllNonEmptyCells), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { "Start" }]);
@@ -34,7 +35,7 @@ public partial class RangeCommandsTests
     public async Task GetCurrentRegionAsync_ReturnsContiguousBlock()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetCurrentRegionAsync_ReturnsContiguousBlock), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:C3",
@@ -59,7 +60,7 @@ public partial class RangeCommandsTests
     public async Task GetRangeInfoAsync_ReturnsMetadata()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetRangeInfoAsync_ReturnsMetadata), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:D10",

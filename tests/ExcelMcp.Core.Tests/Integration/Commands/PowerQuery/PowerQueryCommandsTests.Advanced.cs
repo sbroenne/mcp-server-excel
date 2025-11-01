@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
@@ -16,7 +17,7 @@ public partial class PowerQueryCommandsTests
     public async Task Operations_WithNonExistentQuery_ReturnNotFoundError()
     {
         // Arrange
-        var testExcelFile = CreateUniqueTestExcelFile(nameof(Operations_WithNonExistentQuery_ReturnNotFoundError));
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(Operations_WithNonExistentQuery_ReturnNotFoundError), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
 
         // Act & Assert - Test multiple operations return "not found" error
@@ -53,7 +54,7 @@ public partial class PowerQueryCommandsTests
     public async Task Import_QueryReferencingAnotherQuery_LoadsDataSuccessfully()
     {
         // Arrange
-        var testExcelFile = CreateUniqueTestExcelFile(nameof(Import_QueryReferencingAnotherQuery_LoadsDataSuccessfully));
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(Import_QueryReferencingAnotherQuery_LoadsDataSuccessfully), _tempDir);
 
         // Create M code for the source query (base data)
         string sourceQueryMCode = @"let

@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.FileOperations;
@@ -7,7 +8,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.FileOperations;
 /// Integration tests for File Core operations using Excel COM automation.
 /// Tests Core layer directly (not through CLI wrapper).
 /// Each test uses a unique Excel file for complete test isolation.
-/// 
+///
 /// WHAT LLMs NEED TO KNOW:
 /// 1. CreateEmpty creates .xlsx or .xlsm files (valid extensions)
 /// 2. CreateEmpty fails on invalid extensions (.xls, .csv, .txt, etc.)
@@ -27,36 +28,14 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.FileOperations;
 [Trait("Speed", "Medium")]
 [Trait("Feature", "Files")]
 [Trait("RequiresExcel", "true")]
-public partial class FileCommandsTests : IDisposable
+public partial class FileCommandsTests : IClassFixture<TempDirectoryFixture>
 {
     private readonly IFileCommands _fileCommands;
     private readonly string _tempDir;
-    private bool _disposed;
 
-    public FileCommandsTests()
+    public FileCommandsTests(TempDirectoryFixture fixture)
     {
         _fileCommands = new FileCommands();
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_File_Tests_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-
-        try
-        {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, recursive: true);
-            }
-        }
-        catch
-        {
-            // Ignore cleanup errors
-        }
-
-        _disposed = true;
-        GC.SuppressFinalize(this);
+        _tempDir = fixture.TempDir;
     }
 }

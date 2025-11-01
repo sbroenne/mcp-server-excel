@@ -15,36 +15,14 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Sheet;
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "Worksheets")]
-public partial class SheetCommandsTests : IDisposable
+public partial class SheetCommandsTests : IClassFixture<TempDirectoryFixture>
 {
     private readonly ISheetCommands _sheetCommands;
     private readonly string _tempDir;
-    private bool _disposed;
 
-    public SheetCommandsTests()
+    public SheetCommandsTests(TempDirectoryFixture fixture)
     {
         _sheetCommands = new SheetCommands();
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_Sheet_Tests_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-
-        try
-        {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, recursive: true);
-            }
-        }
-        catch
-        {
-            // Ignore cleanup failures
-        }
-
-        _disposed = true;
-        GC.SuppressFinalize(this);
+        _tempDir = fixture.TempDir;
     }
 }

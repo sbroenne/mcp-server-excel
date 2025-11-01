@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Range;
@@ -14,7 +15,7 @@ public partial class RangeCommandsTests
     public async Task ClearAllAsync_RemovesEverything()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(ClearAllAsync_RemovesEverything), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { "Test" }]);
@@ -34,7 +35,7 @@ public partial class RangeCommandsTests
     public async Task ClearContentsAsync_PreservesFormatting()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(ClearContentsAsync_PreservesFormatting), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:B2",
@@ -60,7 +61,7 @@ public partial class RangeCommandsTests
     public async Task CopyAsync_CopiesRangeToNewLocation()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(CopyAsync_CopiesRangeToNewLocation), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         var sourceData = new List<List<object?>>
@@ -87,7 +88,7 @@ public partial class RangeCommandsTests
     public async Task CopyValuesAsync_CopiesOnlyValues()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(CopyValuesAsync_CopiesOnlyValues), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { 10 }]);

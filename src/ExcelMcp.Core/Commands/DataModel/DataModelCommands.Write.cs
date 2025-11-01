@@ -272,12 +272,14 @@ public partial class DataModelCommands
 
                 // Create the measure using Excel COM API (Office 2016+)
                 // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.modelmeasures.add
+                // BUG: This fails on reopened Data Model files with "Value does not fall within expected range"
+                // See: docs/KNOWN-ISSUES.md for investigation details
                 newMeasure = measures.Add(
-                    MeasureName: measureName,
-                    AssociatedTable: table,
-                    Formula: daxFormula,
-                    FormatInformation: formatObject,
-                    Description: description ?? ""
+                    measureName,                                        // MeasureName (required)
+                    table,                                              // AssociatedTable (required)
+                    daxFormula,                                         // Formula (required) - must be valid DAX
+                    formatObject ?? Type.Missing,                       // FormatInformation (optional)
+                    string.IsNullOrEmpty(description) ? Type.Missing : description  // Description (optional)
                 );
 
                 result.Success = true;

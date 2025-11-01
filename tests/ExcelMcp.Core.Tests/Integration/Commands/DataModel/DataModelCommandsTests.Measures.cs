@@ -108,11 +108,11 @@ public partial class DataModelCommandsTests
 
         // Arrange
         var measureName = "TestMeasure_" + Guid.NewGuid().ToString("N")[..8];
-        var daxFormula = "SUM(Sales[Amount])";
+        var daxFormula = "SUM(SalesTable[Amount])";
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _dataModelCommands.CreateMeasureAsync(batch, "Sales", measureName, daxFormula);
+        var result = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, daxFormula);
         await batch.SaveAsync();
 
         // Assert - Data Model is ALWAYS available in Excel 2013+
@@ -135,11 +135,11 @@ public partial class DataModelCommandsTests
 
         // Arrange
         var measureName = "FormattedMeasure_" + Guid.NewGuid().ToString("N")[..8];
-        var daxFormula = "SUM(Sales[Amount])";
+        var daxFormula = "SUM(SalesTable[Amount])";
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _dataModelCommands.CreateMeasureAsync(batch, "Sales", measureName, daxFormula,
+        var result = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, daxFormula,
                                                                  formatType: "Currency", description: "Test measure with currency format");
         await batch.SaveAsync();
 
@@ -162,11 +162,11 @@ public partial class DataModelCommandsTests
 
         // Arrange - Create a measure first
         var measureName = "UpdateTest_" + Guid.NewGuid().ToString("N")[..8];
-        var originalFormula = "SUM(Sales[Amount])";
-        var updatedFormula = "AVERAGE(Sales[Amount])";
+        var originalFormula = "SUM(SalesTable[Amount])";
+        var updatedFormula = "AVERAGE(SalesTable[Amount])";
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var createResult = await _dataModelCommands.CreateMeasureAsync(batch, "Sales", measureName, originalFormula);
+        var createResult = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, originalFormula);
 
         if (createResult.Success)
         {

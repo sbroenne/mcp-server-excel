@@ -16,17 +16,15 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "PivotTables")]
-public partial class PivotTableCommandsTests : IDisposable
+public partial class PivotTableCommandsTests : IClassFixture<TempDirectoryFixture>
 {
     private readonly IPivotTableCommands _pivotCommands;
     private readonly string _tempDir;
-    private bool _disposed;
 
-    public PivotTableCommandsTests()
+    public PivotTableCommandsTests(TempDirectoryFixture fixture)
     {
         _pivotCommands = new PivotTableCommands();
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_PivotTable_Tests_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
+        _tempDir = fixture.TempDir;
     }
 
     /// <summary>
@@ -80,25 +78,5 @@ public partial class PivotTableCommandsTests : IDisposable
         await batch.SaveAsync();
 
         return testFile;
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-
-        try
-        {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, recursive: true);
-            }
-        }
-        catch
-        {
-            // Ignore cleanup errors
-        }
-
-        _disposed = true;
-        GC.SuppressFinalize(this);
     }
 }

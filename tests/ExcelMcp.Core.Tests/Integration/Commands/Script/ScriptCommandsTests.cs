@@ -14,19 +14,17 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Script;
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "VBA")]
-public partial class ScriptCommandsTests : IDisposable
+public partial class ScriptCommandsTests : IClassFixture<TempDirectoryFixture>
 {
     private readonly IScriptCommands _scriptCommands;
     private readonly ISetupCommands _setupCommands;
     private readonly string _tempDir;
-    private bool _disposed;
 
-    public ScriptCommandsTests()
+    public ScriptCommandsTests(TempDirectoryFixture fixture)
     {
         _scriptCommands = new ScriptCommands();
         _setupCommands = new SetupCommands();
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_VBA_Tests_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
+        _tempDir = fixture.TempDir;
     }
 
     /// <summary>
@@ -47,25 +45,5 @@ End Sub";
         var vbaFile = Path.Combine(_tempDir, fileName);
         File.WriteAllText(vbaFile, vbaCode);
         return vbaFile;
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-
-        try
-        {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, recursive: true);
-            }
-        }
-        catch
-        {
-            // Ignore cleanup errors
-        }
-
-        _disposed = true;
-        GC.SuppressFinalize(this);
     }
 }

@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -13,63 +14,16 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Range;
 [Trait("Speed", "Medium")]
 [Trait("Feature", "Range")]
 [Trait("RequiresExcel", "true")]
-public partial class RangeCommandsTests : IDisposable
+public partial class RangeCommandsTests : IClassFixture<TempDirectoryFixture>
 {
     private readonly ITestOutputHelper _output;
     private readonly RangeCommands _commands;
     private readonly string _tempDir;
-    private readonly List<string> _createdFiles = [];
 
-    public RangeCommandsTests(ITestOutputHelper output)
+    public RangeCommandsTests(ITestOutputHelper output, TempDirectoryFixture fixture)
     {
         _output = output;
         _commands = new RangeCommands();
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelMcpRangeTests_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
-    }
-
-    public void Dispose()
-    {
-        foreach (var file in _createdFiles)
-        {
-            try
-            {
-                if (File.Exists(file))
-                {
-                    File.Delete(file);
-                }
-            }
-            catch
-            {
-                // Cleanup is best-effort
-            }
-        }
-
-        try
-        {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, recursive: true);
-            }
-        }
-        catch
-        {
-            // Cleanup is best-effort
-        }
-
-        GC.SuppressFinalize(this);
-    }
-
-    private string CreateTestWorkbook(string name = "test.xlsx")
-    {
-        string path = Path.Combine(_tempDir, name);
-        var fileCommands = new FileCommands();
-        var task = Task.Run(async () =>
-        {
-            await fileCommands.CreateEmptyAsync(path);
-        });
-        task.Wait();
-        _createdFiles.Add(path);
-        return path;
+        _tempDir = fixture.TempDir;
     }
 }
