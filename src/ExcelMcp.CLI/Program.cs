@@ -346,13 +346,25 @@ class Program
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Range Commands (Data Operations):[/]");
-        AnsiConsole.MarkupLine("  [cyan]range-get-values[/] file.xlsx sheet range      Read values from range (output: CSV)");
-        AnsiConsole.MarkupLine("  [cyan]range-set-values[/] file.xlsx sheet range csv  Write CSV data to range");
-        AnsiConsole.MarkupLine("  [cyan]range-get-formulas[/] file.xlsx sheet range    Read formulas from range");
-        AnsiConsole.MarkupLine("  [cyan]range-set-formulas[/] file.xlsx sheet range csv Set formulas from CSV");
-        AnsiConsole.MarkupLine("  [cyan]range-clear-all[/] file.xlsx sheet range       Clear all (values, formulas, formats)");
-        AnsiConsole.MarkupLine("  [cyan]range-clear-contents[/] file.xlsx sheet range  Clear contents (preserve formats)");
-        AnsiConsole.MarkupLine("  [cyan]range-clear-formats[/] file.xlsx sheet range   Clear formats (preserve values)");
+        AnsiConsole.MarkupLine("  [cyan]range-get-values[/] file.xlsx sheet range           Read values from range (output: CSV)");
+        AnsiConsole.MarkupLine("  [cyan]range-set-values[/] file.xlsx sheet range csv       Write CSV data to range");
+        AnsiConsole.MarkupLine("  [cyan]range-get-formulas[/] file.xlsx sheet range         Read formulas from range");
+        AnsiConsole.MarkupLine("  [cyan]range-set-formulas[/] file.xlsx sheet range csv     Set formulas from CSV");
+        AnsiConsole.MarkupLine("  [cyan]range-clear-all[/] file.xlsx sheet range            Clear all (values, formulas, formats)");
+        AnsiConsole.MarkupLine("  [cyan]range-clear-contents[/] file.xlsx sheet range       Clear contents (preserve formats)");
+        AnsiConsole.MarkupLine("  [cyan]range-clear-formats[/] file.xlsx sheet range        Clear formats (preserve values)");
+        AnsiConsole.WriteLine();
+        
+        AnsiConsole.MarkupLine("[bold yellow]Range Formatting Commands:[/]");
+        AnsiConsole.MarkupLine("  [cyan]range-get-number-formats[/] file.xlsx sheet range   Get number format codes (CSV output)");
+        AnsiConsole.MarkupLine("  [cyan]range-set-number-format[/] file.xlsx sheet range fmt Apply number format ($#,##0.00, 0.00%, m/d/yyyy)");
+        AnsiConsole.MarkupLine("  [cyan]range-format[/] file.xlsx sheet range [options]     Apply visual formatting");
+        AnsiConsole.MarkupLine("    [dim]--font-name, --font-size, --bold, --italic, --underline, --font-color #RRGGBB[/]");
+        AnsiConsole.MarkupLine("    [dim]--fill-color #RRGGBB, --border-style, --border-weight, --border-color #RRGGBB[/]");
+        AnsiConsole.MarkupLine("    [dim]--h-align Left|Center|Right, --v-align Top|Center|Bottom, --wrap-text, --orientation DEGREES[/]");
+        AnsiConsole.MarkupLine("  [cyan]range-validate[/] file.xlsx sheet range type formula [options]  Add data validation");
+        AnsiConsole.MarkupLine("    [dim]Types: List (dropdown), WholeNumber, Decimal, Date, Time, TextLength, Custom[/]");
+        AnsiConsole.MarkupLine("    [dim]Example: range-validate data.xlsx Sheet1 F2:F100 List \"Active,Inactive,Pending\"[/]");
         AnsiConsole.MarkupLine("  [dim]Note: Single cell = 1x1 range (e.g., A1). Named ranges: use empty sheet \"\"[/]");
         AnsiConsole.WriteLine();
 

@@ -113,8 +113,12 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 - Version control VBA code through file exports
 
 ### Ranges & Worksheets
-- 38+ range operations: get/set values/formulas, number formatting, visual formatting (font, fill, border, alignment), data validation, clear, copy, insert/delete, find/replace, sort
-- Manage hyperlinks and range properties
+- **Data Operations** (10+ actions): get/set values/formulas, clear (all/contents/formats), copy/paste, insert/delete rows/columns, find/replace, sort
+- **Number Formatting** (2 actions): get formats as CSV, apply format codes (currency, percentage, date, text, custom)
+- **Visual Formatting** (1 action): font (name, size, bold, italic, underline, color), fill color, borders (style, weight, color), alignment (horizontal, vertical, wrap text, orientation)
+- **Data Validation** (1 action): dropdown lists, number/date/text rules, operators (Between, Greater, Equal, etc.), input messages, error alerts
+- **Hyperlinks & Properties**: manage hyperlinks, get UsedRange, CurrentRegion, row/column metadata
+- **38+ operations total** covering all common Excel range manipulation needs
 - Worksheet lifecycle: create, rename, copy, delete
 
 ### Data Connections

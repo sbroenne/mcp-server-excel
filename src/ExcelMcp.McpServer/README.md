@@ -46,7 +46,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 2. **Power Pivot / Data Model** (14 actions) - Build DAX measures, manage relationships, export to .dax files for Git workflows
 3. **Excel Tables** (22 actions) - Automate table creation, filtering, sorting, column management, structured references
 4. **PivotTables** (20 actions) - Create and configure PivotTables for interactive data analysis
-5. **Ranges & Data** (38+ actions) - Get/set values/formulas, number formatting, visual formatting (font, fill, border, alignment), data validation, find/replace, sort, insert/delete, hyperlinks
+5. **Ranges & Data** (38+ actions) - Get/set values/formulas, number formatting (currency, percentage, date), visual formatting (font, fill, border, alignment, wrap text), data validation (dropdowns, rules), find/replace, sort, insert/delete, hyperlinks
 6. **VBA Macros** (7 actions) - Export, import, run VBA code with version control integration
 7. **Data Connections** (11 actions) - Manage OLEDB, ODBC, Text, Web connections and properties
 8. **Worksheets** (5 actions) - Create, rename, copy, delete worksheets
