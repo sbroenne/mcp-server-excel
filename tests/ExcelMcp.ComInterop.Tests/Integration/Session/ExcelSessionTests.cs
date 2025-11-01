@@ -26,13 +26,44 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit.Session;
 [Trait("Feature", "ExcelSession")]
 [Trait("RunType", "OnDemand")]
 [Collection("Sequential")] // Disable parallelization to avoid COM interference
-public class ExcelSessionTests
+public class ExcelSessionTests : IAsyncLifetime
 {
     private readonly ITestOutputHelper _output;
 
     public ExcelSessionTests(ITestOutputHelper output)
     {
         _output = output;
+    }
+
+    /// <summary>
+    /// Runs before each test to ensure clean Excel process state
+    /// </summary>
+    public async Task InitializeAsync()
+    {
+        // Kill any existing Excel processes to ensure clean state
+        try
+        {
+            var existingProcesses = Process.GetProcessesByName("EXCEL");
+            if (existingProcesses.Length > 0)
+            {
+                _output.WriteLine($"Cleaning up {existingProcesses.Length} existing Excel processes...");
+                foreach (var p in existingProcesses)
+                {
+                    try { p.Kill(); p.WaitForExit(2000); } catch { }
+                }
+                await Task.Delay(2000); // Wait for cleanup
+                _output.WriteLine("Excel processes cleaned up");
+            }
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// Runs after each test
+    /// </summary>
+    public Task DisposeAsync()
+    {
+        return Task.CompletedTask;
     }
 
     [Fact]
@@ -254,8 +285,13 @@ public class ExcelSessionTests
                 return 0;
             });
 
+            // Force garbage collection to help COM cleanup
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
             // Wait for Excel process to fully terminate
-            await Task.Delay(5000);
+            await Task.Delay(7000); // Increased from 5000
 
             // Assert
             var endingProcesses = Process.GetProcessesByName("EXCEL");
