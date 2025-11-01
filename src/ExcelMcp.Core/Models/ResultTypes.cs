@@ -75,6 +75,74 @@ public class WorksheetInfo
 }
 
 /// <summary>
+/// Sheet visibility levels (maps to Excel XlSheetVisibility)
+/// </summary>
+public enum SheetVisibility
+{
+    /// <summary>
+    /// Sheet is visible (xlSheetVisible = -1)
+    /// </summary>
+    Visible = -1,
+    
+    /// <summary>
+    /// Sheet is hidden but user can unhide via Excel UI (xlSheetHidden = 0)
+    /// </summary>
+    Hidden = 0,
+    
+    /// <summary>
+    /// Sheet is very hidden, requires code to unhide (xlSheetVeryHidden = 2)
+    /// </summary>
+    VeryHidden = 2
+}
+
+/// <summary>
+/// Result for getting worksheet tab color
+/// </summary>
+public class TabColorResult : ResultBase
+{
+    /// <summary>
+    /// Whether the sheet has a tab color set
+    /// </summary>
+    public bool HasColor { get; set; }
+    
+    /// <summary>
+    /// Red component (0-255), null if no color
+    /// </summary>
+    public int? Red { get; set; }
+    
+    /// <summary>
+    /// Green component (0-255), null if no color
+    /// </summary>
+    public int? Green { get; set; }
+    
+    /// <summary>
+    /// Blue component (0-255), null if no color
+    /// </summary>
+    public int? Blue { get; set; }
+    
+    /// <summary>
+    /// Hex color string (#RRGGBB), null if no color
+    /// </summary>
+    public string? HexColor { get; set; }
+}
+
+/// <summary>
+/// Result for getting worksheet visibility
+/// </summary>
+public class SheetVisibilityResult : ResultBase
+{
+    /// <summary>
+    /// Visibility level
+    /// </summary>
+    public SheetVisibility Visibility { get; set; }
+    
+    /// <summary>
+    /// Visibility name (Visible, Hidden, VeryHidden)
+    /// </summary>
+    public string VisibilityName { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Result for reading worksheet data
 /// </summary>
 public class WorksheetDataResult : ResultBase
