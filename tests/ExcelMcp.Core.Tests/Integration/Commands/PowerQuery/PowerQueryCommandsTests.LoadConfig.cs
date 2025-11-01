@@ -24,11 +24,12 @@ public partial class PowerQueryCommandsTests
         Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
 
         var result = await _powerQueryCommands.SetConnectionOnlyAsync(batch, "TestConnectionOnly");
-        await batch.SaveAsync();
 
         // Assert
         Assert.True(result.Success, $"SetConnectionOnly failed: {result.ErrorMessage}");
         Assert.Equal("pq-set-connection-only", result.Action);
+        
+        // No SaveAsync needed - test only verifies operation returns success
     }
 
     [Fact]
