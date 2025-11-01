@@ -155,6 +155,51 @@ When debugging test failures, **ALWAYS run tests individually** - never run all 
 
 ---
 
+## Rule 14: No SaveAsync Unless Testing Persistence
+
+**Tests must NOT call `batch.SaveAsync()` unless explicitly testing persistence.**
+
+**When SaveAsync is FORBIDDEN:**
+- ❌ Test only verifies operation returns success/error
+- ❌ Test only checks in-memory state (lists, views, metadata)
+- ❌ Test doesn't re-open the file to verify changes persisted
+- ❌ SaveAsync called before assertions (breaks subsequent operations)
+- ❌ SaveAsync called multiple times in same test
+
+**When SaveAsync is REQUIRED:**
+- ✅ Round-trip test: Create/Update → Save → Re-open → Verify persistence
+- ✅ Integration test explicitly validating save behavior
+- ✅ Test verifying data survives workbook close/reopen
+
+**Correct Pattern:**
+```csharp
+// ❌ WRONG: Unnecessary save, slows down test
+await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+var result = await _commands.CreateAsync(batch, "Test");
+await batch.SaveAsync();  // ❌ Not needed!
+Assert.True(result.Success);
+
+// ✅ CORRECT: No save, batch auto-disposes
+await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+var result = await _commands.CreateAsync(batch, "Test");
+Assert.True(result.Success);  // ✅ Batch disposes without saving
+
+// ✅ CORRECT: Persistence test with round-trip
+await using var batch1 = await ExcelSession.BeginBatchAsync(testFile);
+await _commands.CreateAsync(batch1, "Test");
+await batch1.SaveAsync();  // ✅ Save for persistence
+
+await using var batch2 = await ExcelSession.BeginBatchAsync(testFile);  
+var result = await _commands.ListAsync(batch2);
+Assert.Contains(result.Items, i => i.Name == "Test");  // ✅ Verify persisted
+```
+
+**Why:** SaveAsync is slow (~2-5s per call) and unnecessary for most tests. Tests should verify business logic, not save behavior. Removing unnecessary saves makes test suite 50%+ faster.
+
+**Audit Command:** `git grep "await batch.SaveAsync()" -- tests/ | wc -l` should trend toward zero.
+
+---
+
 ## Quick Reference
 
 | Rule | Action | Time |
@@ -172,3 +217,4 @@ When debugging test failures, **ALWAYS run tests individually** - never run all 
 | 11. No test refs | Production NEVER references tests | Always |
 | 12. Test compliance | Pass checklist before PR submission | 2-3 min |
 | 13. Bug fixes | Complete 6-step process (fix, test, doc, hints, verify, summarize) | 30-60 min |
+| 14. No SaveAsync | Remove unless testing persistence | Per test |
