@@ -22,12 +22,16 @@ public abstract class ResultBase
 
     /// <summary>
     /// Suggested next actions for LLM workflow guidance
+    /// DEPRECATED: Will be removed in v2.0. MCP Server and CLI now generate their own suggestions using ActionRegistry.
     /// </summary>
+    [Obsolete("Will be removed in v2.0. MCP Server and CLI generate suggestions using ActionRegistry.", false)]
     public List<string> SuggestedNextActions { get; set; } = [];
 
     /// <summary>
     /// Contextual workflow hint for LLM
+    /// DEPRECATED: Will be removed in v2.0. Use structured suggestions from ActionRegistry instead.
     /// </summary>
+    [Obsolete("Will be removed in v2.0. Use structured suggestions from ActionRegistry instead.", false)]
     public string? WorkflowHint { get; set; }
 }
 
