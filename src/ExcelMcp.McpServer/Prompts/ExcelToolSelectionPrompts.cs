@@ -54,13 +54,16 @@ Choose the RIGHT tool for each Excel task. This guide helps you pick the most ef
   - Keywords: DAX, measure, relationship, Power Pivot, Data Model, analytics
 
 **Working with EXISTING DATA in WORKSHEET:**
-→ **excel_range** (cell values, formulas)
+→ **excel_range** (cell values, formulas, formatting, validation)
   - Get/set cell values
   - Get/set formulas
+  - Number formatting (currency, percentage, date, etc.)
+  - Visual formatting (font, fill, border, alignment)
+  - Data validation (dropdowns, number ranges, date ranges)
   - Clear ranges
   - Copy/paste data
   - Find/replace
-  - Keywords: cells, values, formulas, range, A1:Z100
+  - Keywords: cells, values, formulas, range, A1:Z100, format, validate
 
 → **excel_table** (ListObject structure)
   - Convert range to structured table
@@ -121,6 +124,18 @@ Choose the RIGHT tool for each Excel task. This guide helps you pick the most ef
 3. excel_datamodel: create-relationship × 3 → build model
 4. excel_datamodel: create-measure × 5 → add calculations
 5. commit_excel_batch → save all
+
+**Scenario 6: Format data entry form**
+1. excel_range: set-values → create headers
+2. excel_range: format-range → style headers (bold, background color)
+3. excel_range: validate-range → add dropdowns for status/category
+4. excel_range: set-number-format → format currency/date columns
+
+**Scenario 7: Build formatted financial report**
+1. excel_range: set-values → headers and labels
+2. excel_range: set-formulas → calculations
+3. excel_range: set-number-format → currency/percentage formats
+4. excel_range: format-range → visual styling (colors, alignment, borders)
 
 ## ANTI-PATTERNS (DON'T DO THIS)
 
