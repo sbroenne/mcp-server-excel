@@ -162,7 +162,8 @@ public class ExcelBatchTests
                 {
                     dynamic sheet = ctx.Book.Worksheets.Item(1);
                     var value = sheet.Range["A1"].Value2;
-                    return value?.ToString() ?? "";
+                    string result = value?.ToString() ?? "";
+                    return result;
                 });
             }
 

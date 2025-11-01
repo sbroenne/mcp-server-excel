@@ -83,6 +83,18 @@ class Program
                 "sheet-delete" => sheet.Delete(args),
                 "sheet-create" => sheet.Create(args),
                 "sheet-rename" => sheet.Rename(args),
+                
+                // Sheet tab color commands
+                "sheet-set-tab-color" => sheet.SetTabColor(args),
+                "sheet-get-tab-color" => sheet.GetTabColor(args),
+                "sheet-clear-tab-color" => sheet.ClearTabColor(args),
+                
+                // Sheet visibility commands
+                "sheet-set-visibility" => sheet.SetVisibility(args),
+                "sheet-get-visibility" => sheet.GetVisibility(args),
+                "sheet-show" => sheet.Show(args),
+                "sheet-hide" => sheet.Hide(args),
+                "sheet-very-hide" => sheet.VeryHide(args),
 
                 // Range commands (data operations - replaces sheet-read/write/clear/append from Phase 1A)
                 "range-get-values" => range.GetValues(args),
@@ -303,13 +315,26 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]pq-get-load-config[/] file.xlsx query        Get current load configuration");
         AnsiConsole.WriteLine();
 
-        AnsiConsole.MarkupLine("[bold yellow]Sheet Commands (Lifecycle Management):[/]");
-        AnsiConsole.MarkupLine("  [cyan]sheet-list[/] file.xlsx                         List all worksheets");
-        AnsiConsole.MarkupLine("  [cyan]sheet-copy[/] file.xlsx src-sheet new-sheet     Copy worksheet");
-        AnsiConsole.MarkupLine("  [cyan]sheet-delete[/] file.xlsx sheet-name            Delete worksheet");
-        AnsiConsole.MarkupLine("  [cyan]sheet-create[/] file.xlsx sheet-name            Create new worksheet");
-        AnsiConsole.MarkupLine("  [cyan]sheet-rename[/] file.xlsx old-name new-name     Rename worksheet");
-        AnsiConsole.MarkupLine("  [dim]Note: Data operations (read, write, clear) moved to range-* commands[/]");
+        AnsiConsole.MarkupLine("[bold yellow]Sheet Commands:[/]");
+        AnsiConsole.MarkupLine("  [bold]Lifecycle:[/]");
+        AnsiConsole.MarkupLine("  [cyan]sheet-list[/] file.xlsx                           List all worksheets");
+        AnsiConsole.MarkupLine("  [cyan]sheet-create[/] file.xlsx sheet-name              Create new worksheet");
+        AnsiConsole.MarkupLine("  [cyan]sheet-rename[/] file.xlsx old-name new-name       Rename worksheet");
+        AnsiConsole.MarkupLine("  [cyan]sheet-copy[/] file.xlsx src-sheet new-sheet       Copy worksheet");
+        AnsiConsole.MarkupLine("  [cyan]sheet-delete[/] file.xlsx sheet-name              Delete worksheet");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [bold]Tab Colors:[/]");
+        AnsiConsole.MarkupLine("  [cyan]sheet-set-tab-color[/] file.xlsx sheet R G B      Set tab color (RGB 0-255)");
+        AnsiConsole.MarkupLine("  [cyan]sheet-get-tab-color[/] file.xlsx sheet            Get tab color");
+        AnsiConsole.MarkupLine("  [cyan]sheet-clear-tab-color[/] file.xlsx sheet          Remove tab color");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [bold]Visibility:[/]");
+        AnsiConsole.MarkupLine("  [cyan]sheet-set-visibility[/] file.xlsx sheet level     Set visibility (visible|hidden|veryhidden)");
+        AnsiConsole.MarkupLine("  [cyan]sheet-get-visibility[/] file.xlsx sheet           Get visibility level");
+        AnsiConsole.MarkupLine("  [cyan]sheet-show[/] file.xlsx sheet                     Show hidden sheet");
+        AnsiConsole.MarkupLine("  [cyan]sheet-hide[/] file.xlsx sheet                     Hide sheet (user can unhide)");
+        AnsiConsole.MarkupLine("  [cyan]sheet-very-hide[/] file.xlsx sheet                Very hide (requires code)");
+        AnsiConsole.MarkupLine("  [dim]Note: Data operations (read, write, clear) are in range-* commands[/]");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Range Commands (Data Operations):[/]");

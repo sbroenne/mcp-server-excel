@@ -243,7 +243,7 @@ This means you get:
 5. **excel_range** (30+ actions) - Ranges: get/set values/formulas, clear, copy, insert/delete, find/replace, sort, hyperlinks
 6. **excel_vba** (7 actions) - VBA: list, view, export, import, update, run, delete modules
 7. **excel_connection** (11 actions) - Connections: OLEDB/ODBC/Text/Web management, properties, refresh, test
-8. **excel_worksheet** (5 actions) - Worksheets: list, create, rename, copy, delete
+8. **excel_worksheet** (13 actions) - Worksheets: lifecycle (list, create, rename, copy, delete), tab colors (set-tab-color, get-tab-color, clear-tab-color), visibility (set-visibility, get-visibility, show, hide, very-hide)
 9. **excel_parameter** (6 actions) - Named ranges: list, get, set, create, delete, update
 10. **excel_file** (1 action) - File creation: create empty .xlsx/.xlsm workbooks
 11. **Batch Session Tools** (3 actions) - Multi-operation performance: begin-batch, execute-in-batch, commit-batch

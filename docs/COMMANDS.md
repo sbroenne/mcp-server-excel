@@ -109,7 +109,7 @@ excelcli pq-delete <file.xlsx> <query-name>
 
 ## Sheet Commands (`sheet-*`)
 
-Manage worksheet lifecycle (create, rename, copy, delete). For data operations, use `range-*` commands.
+Manage worksheet lifecycle (create, rename, copy, delete), tab colors, and visibility. For data operations, use `range-*` commands.
 
 **sheet-list** - List all worksheets
 
@@ -139,6 +139,75 @@ excelcli sheet-copy <file.xlsx> <source-sheet> <new-sheet>
 
 ```powershell
 excelcli sheet-delete <file.xlsx> <sheet-name>
+```
+
+**sheet-set-tab-color** - Set worksheet tab color (RGB 0-255)
+
+```powershell
+excelcli sheet-set-tab-color <file.xlsx> <sheet-name> <red> <green> <blue>
+
+# Examples
+excelcli sheet-set-tab-color "Report.xlsx" "Sales" 255 0 0        # Red
+excelcli sheet-set-tab-color "Report.xlsx" "Expenses" 0 255 0    # Green
+excelcli sheet-set-tab-color "Report.xlsx" "Summary" 0 0 255     # Blue
+```
+
+**sheet-get-tab-color** - Get worksheet tab color
+
+```powershell
+excelcli sheet-get-tab-color <file.xlsx> <sheet-name>
+
+# Example output
+# Sheet: Sales
+# Color: #FF0000 (Red: 255, Green: 0, Blue: 0)
+```
+
+**sheet-clear-tab-color** - Remove worksheet tab color
+
+```powershell
+excelcli sheet-clear-tab-color <file.xlsx> <sheet-name>
+```
+
+**sheet-set-visibility** - Set worksheet visibility level
+
+```powershell
+excelcli sheet-set-visibility <file.xlsx> <sheet-name> <visible|hidden|veryhidden>
+
+# Examples
+excelcli sheet-set-visibility "Report.xlsx" "Data" hidden          # User can unhide via UI
+excelcli sheet-set-visibility "Report.xlsx" "Calculations" veryhidden  # Requires code to unhide
+excelcli sheet-set-visibility "Report.xlsx" "Summary" visible      # Make visible
+```
+
+**sheet-get-visibility** - Get worksheet visibility level
+
+```powershell
+excelcli sheet-get-visibility <file.xlsx> <sheet-name>
+
+# Example output
+# Sheet: Data
+# Visibility: Hidden
+```
+
+**sheet-show** - Show a hidden worksheet
+
+```powershell
+excelcli sheet-show <file.xlsx> <sheet-name>
+```
+
+**sheet-hide** - Hide a worksheet (user can unhide via UI)
+
+```powershell
+excelcli sheet-hide <file.xlsx> <sheet-name>
+```
+
+**sheet-very-hide** - Very hide a worksheet (requires code to unhide)
+
+```powershell
+excelcli sheet-very-hide <file.xlsx> <sheet-name>
+
+# Example - protect calculations from users
+excelcli sheet-very-hide "Model.xlsx" "Formulas"
 ```
 
 ## Range Commands (`range-*`)
