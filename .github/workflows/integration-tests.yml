@@ -10,7 +10,7 @@ permissions:
 on:
   # Run on changes to Core/ComInterop code
   push:
-    branches: [ main, develop ]
+    # Run on all branches
     paths:
       - 'src/ExcelMcp.Core/**'
       - 'src/ExcelMcp.ComInterop/**'
