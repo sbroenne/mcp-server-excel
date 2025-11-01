@@ -1,5 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Threading.Channels;
+using Polly;
+using Polly.Retry;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
@@ -14,6 +16,18 @@ internal sealed class ExcelBatch : IExcelBatch
     private readonly Thread _staThread;
     private readonly CancellationTokenSource _shutdownCts;
     private bool _disposed;
+
+    // Polly retry pipeline for transient save errors
+    private static readonly ResiliencePipeline _saveRetryPipeline = new ResiliencePipelineBuilder()
+        .AddRetry(new RetryStrategyOptions
+        {
+            ShouldHandle = new PredicateBuilder().Handle<COMException>(ex => IsTransientSaveError(ex)),
+            MaxRetryAttempts = 3,
+            Delay = TimeSpan.FromMilliseconds(100),
+            BackoffType = DelayBackoffType.Exponential,
+            UseJitter = true
+        })
+        .Build();
 
     // COM state (STA thread only)
     private dynamic? _excel;
@@ -204,54 +218,42 @@ internal sealed class ExcelBatch : IExcelBatch
         // Post save operation to STA thread
         _workQueue.Writer.TryWrite(async () =>
         {
-            // Retry logic for Excel temp file conflicts during concurrent saves
-            const int maxRetries = 3;
-            int retryDelayMs = 100;
-
-            for (int attempt = 0; attempt <= maxRetries; attempt++)
+            try
             {
-                try
+                // Use Polly retry pipeline for transient Excel temp file conflicts
+                await _saveRetryPipeline.ExecuteAsync(async ct =>
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
+                    ct.ThrowIfCancellationRequested();
                     _workbook!.Save();
-                    tcs.SetResult();
-                    return;
-                }
-                catch (COMException ex) when (attempt < maxRetries && IsTransientSaveError(ex))
-                {
-                    // Transient error during concurrent save - retry with exponential backoff
-                    await Task.Delay(retryDelayMs, cancellationToken);
-                    retryDelayMs *= 2; // Exponential backoff
-                    continue;
-                }
-                catch (COMException ex)
-                {
-                    // Map common Excel COM error codes to meaningful messages
-                    string errorMessage = ex.HResult switch
-                    {
-                        unchecked((int)0x800A03EC) => 
-                            $"Cannot save '{Path.GetFileName(_workbookPath)}'. " +
-                            "The file may be read-only, locked by another process, or the path may not exist.",
-                        unchecked((int)0x800AC472) => 
-                            $"Cannot save '{Path.GetFileName(_workbookPath)}'. " +
-                            "The file is locked for editing by another user or process.",
-                        _ => $"Failed to save workbook '{Path.GetFileName(_workbookPath)}': {ex.Message}"
-                    };
+                    await Task.CompletedTask;
+                }, cancellationToken);
 
-                    tcs.SetException(new InvalidOperationException(errorMessage, ex));
-                    return;
-                }
-                catch (OperationCanceledException oce)
+                tcs.SetResult();
+            }
+            catch (COMException ex)
+            {
+                // Map common Excel COM error codes to meaningful messages
+                string errorMessage = ex.HResult switch
                 {
-                    tcs.TrySetCanceled(oce.CancellationToken);
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    tcs.SetException(new InvalidOperationException(
-                        $"Unexpected error saving workbook '{Path.GetFileName(_workbookPath)}': {ex.Message}", ex));
-                    return;
-                }
+                    unchecked((int)0x800A03EC) => 
+                        $"Cannot save '{Path.GetFileName(_workbookPath)}'. " +
+                        "The file may be read-only, locked by another process, or the path may not exist.",
+                    unchecked((int)0x800AC472) => 
+                        $"Cannot save '{Path.GetFileName(_workbookPath)}'. " +
+                        "The file is locked for editing by another user or process.",
+                    _ => $"Failed to save workbook '{Path.GetFileName(_workbookPath)}': {ex.Message}"
+                };
+
+                tcs.SetException(new InvalidOperationException(errorMessage, ex));
+            }
+            catch (OperationCanceledException oce)
+            {
+                tcs.TrySetCanceled(oce.CancellationToken);
+            }
+            catch (Exception ex)
+            {
+                tcs.SetException(new InvalidOperationException(
+                    $"Unexpected error saving workbook '{Path.GetFileName(_workbookPath)}': {ex.Message}", ex));
             }
 
             await Task.CompletedTask;
@@ -264,7 +266,7 @@ internal sealed class ExcelBatch : IExcelBatch
     {
         // Excel temp file access errors during concurrent saves (transient)
         // "Microsoft Excel cannot access the file 'C:\...\Temp\...'..."
-        if (ex.Message.Contains("Temp") && 
+        if (ex.Message.Contains("Temp", StringComparison.OrdinalIgnoreCase) && 
             (ex.Message.Contains("cannot access") || ex.Message.Contains("being used by another program")))
         {
             return true;

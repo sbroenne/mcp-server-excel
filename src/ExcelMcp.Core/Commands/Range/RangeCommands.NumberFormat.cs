@@ -34,6 +34,9 @@ public partial class RangeCommands
                     return result;
                 }
 
+                // Get actual address from Excel
+                result.RangeAddress = range.Address;
+
                 // Get number formats as 2D array
                 object numberFormats = range.NumberFormat;
                 
@@ -49,9 +52,42 @@ public partial class RangeCommands
                     // Single cell - numberFormats is a string
                     result.Formats.Add(new List<string> { numberFormats?.ToString() ?? "General" });
                 }
+                else if (rowCount == 1 || columnCount == 1)
+                {
+                    // Single row or column - might be a string or 1D array
+                    if (numberFormats is string formatStr)
+                    {
+                        // All cells have same format
+                        for (int i = 0; i < rowCount; i++)
+                        {
+                            var rowList = new List<string>();
+                            for (int j = 0; j < columnCount; j++)
+                            {
+                                rowList.Add(formatStr);
+                            }
+                            result.Formats.Add(rowList);
+                        }
+                    }
+                    else
+                    {
+                        // Multiple cells - numberFormats is an array
+                        object[,] formats = (object[,])numberFormats;
+                        
+                        for (int row = 1; row <= rowCount; row++)
+                        {
+                            var rowList = new List<string>();
+                            for (int col = 1; col <= columnCount; col++)
+                            {
+                                var format = formats[row, col]?.ToString() ?? "General";
+                                rowList.Add(format);
+                            }
+                            result.Formats.Add(rowList);
+                        }
+                    }
+                }
                 else
                 {
-                    // Multiple cells - numberFormats is an array
+                    // Multiple rows and columns - numberFormats is a 2D array
                     object[,] formats = (object[,])numberFormats;
                     
                     for (int row = 1; row <= rowCount; row++)
@@ -182,13 +218,13 @@ public partial class RangeCommands
                     }
                 }
 
-                // Convert List<List<string>> to 2D array
+                // Convert List<List<string>> to 2D array (0-based for Excel COM)
                 object[,] formatArray = new object[rowCount, columnCount];
                 for (int row = 0; row < rowCount; row++)
                 {
                     for (int col = 0; col < columnCount; col++)
                     {
-                        formatArray[row + 1, col + 1] = formats[row][col];
+                        formatArray[row, col] = formats[row][col];  // 0-based array
                     }
                 }
 
