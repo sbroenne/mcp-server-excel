@@ -218,6 +218,55 @@ public interface IRangeCommands
     /// <param name="rangeAddress">Range address (e.g., "A1:D10")</param>
     /// <param name="formats">2D array of format codes matching range dimensions</param>
     Task<OperationResult> SetNumberFormatsAsync(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>> formats);
+
+    // === FORMATTING OPERATIONS ===
+
+    /// <summary>
+    /// Applies visual formatting to range (font, fill, border, alignment)
+    /// Excel COM: Range.Font, Range.Interior, Range.Borders, Range.HorizontalAlignment, etc.
+    /// </summary>
+    Task<OperationResult> FormatRangeAsync(
+        IExcelBatch batch,
+        string sheetName,
+        string rangeAddress,
+        string? fontName,
+        double? fontSize,
+        bool? bold,
+        bool? italic,
+        bool? underline,
+        string? fontColor,
+        string? fillColor,
+        string? borderStyle,
+        string? borderColor,
+        string? borderWeight,
+        string? horizontalAlignment,
+        string? verticalAlignment,
+        bool? wrapText,
+        int? orientation);
+
+    // === VALIDATION OPERATIONS ===
+
+    /// <summary>
+    /// Adds data validation rules to range
+    /// Excel COM: Range.Validation.Add()
+    /// </summary>
+    Task<OperationResult> ValidateRangeAsync(
+        IExcelBatch batch,
+        string sheetName,
+        string rangeAddress,
+        string validationType,
+        string? validationOperator,
+        string? formula1,
+        string? formula2,
+        bool? showInputMessage,
+        string? inputTitle,
+        string? inputMessage,
+        bool? showErrorAlert,
+        string? errorStyle,
+        string? errorTitle,
+        string? errorMessage,
+        bool? ignoreBlank,
+        bool? showDropdown);
 }
 
 // === SUPPORTING TYPES ===
