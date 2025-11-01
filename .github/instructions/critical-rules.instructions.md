@@ -6,6 +6,37 @@ applyTo: "**"
 
 > **⚠️ NON-NEGOTIABLE rules for all ExcelMcp development**
 
+## Rule 0: Success Flag Must Match Reality (CRITICAL - NEW)
+
+**NEVER set `Success = true` when `ErrorMessage` is set. This is EXTREMELY serious!**
+
+```csharp
+// ❌ CRITICAL BUG: Confuses LLMs and users
+result.Success = true;
+result.ErrorMessage = "Query imported but failed to load...";
+
+// ✅ CORRECT: Success only when NO errors
+if (!loadResult.Success) {
+    result.Success = false;  // MUST be false!
+    result.ErrorMessage = $"Failed: {loadResult.ErrorMessage}";
+}
+```
+
+**Invariant:** `Success == true` ⟹ `ErrorMessage == null || ErrorMessage == ""`
+
+**Why Critical:** LLMs see Success=true and assume operation worked, causing workflow failures and silent data corruption.
+
+**Enforcement:**
+- Regression tests verify this invariant (PowerQuerySuccessErrorRegressionTests)
+- Code review MUST check every `Success = ` assignment
+- Search pattern: `Success.*true.*ErrorMessage`
+
+**Examples of bugs found:**
+- PowerQueryCommands.ImportAsync: Success=true when load to data model failed
+- PowerQueryCommands.TestConnectionAsync: Success=true when refresh failed
+
+ rules for all ExcelMcp development**
+
 ## Rule 1: No Silent Test Failures
 
 Tests must fail loudly. Never catch exceptions without re-throwing or use conditional assertions that always pass.
@@ -218,3 +249,44 @@ Assert.Contains(result.Items, i => i.Name == "Test");  // ✅ Verify persisted
 | 12. Test compliance | Pass checklist before PR submission | 2-3 min |
 | 13. Bug fixes | Complete 6-step process (fix, test, doc, hints, verify, summarize) | 30-60 min |
 | 14. No SaveAsync | Remove unless testing persistence | Per test |
+
+
+
+---
+
+## Rule 15: Complete Enum Mappings (CRITICAL)
+
+**Every enum value MUST have a mapping in ToActionString(). Missing mappings cause unhandled exceptions.**
+
+```csharp
+// ❌ WRONG: Incomplete mapping
+public static string ToActionString(this RangeAction action) => action switch
+{
+    RangeAction.GetValues => "get-values",
+    RangeAction.SetValues => "set-values",
+    // Missing GetUsedRange, GetCurrentRegion, etc. → ArgumentException!
+    _ => throw new ArgumentException($"Unknown RangeAction: {action}")
+};
+
+// ✅ CORRECT: All enum values mapped
+public static string ToActionString(this RangeAction action) => action switch
+{
+    RangeAction.GetValues => "get-values",
+    RangeAction.SetValues => "set-values",
+    RangeAction.GetUsedRange => "get-used-range",  // ✅ All values
+    RangeAction.GetCurrentRegion => "get-current-region",
+    // ... all other values
+    _ => throw new ArgumentException($"Unknown RangeAction: {action}")
+};
+```
+
+**Why Critical:** Missing mappings cause MCP Server to throw exceptions instead of returning JSON, confusing LLMs.
+
+**Enforcement:**
+- Regression tests for all enum mappings
+- When adding enum value, add mapping immediately
+- Code review MUST verify completeness
+
+**Example Bug:** `GetUsedRange` missing → "An error occurred invoking 'excel_range'" (not JSON!)
+
+---

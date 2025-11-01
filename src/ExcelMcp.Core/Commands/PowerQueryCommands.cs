@@ -653,8 +653,8 @@ public class PowerQueryCommands : IPowerQueryCommands
             // Handle loading result
             if (loadResult != null && !loadResult.Success)
             {
-                // Loading failed - query is imported but connection-only
-                result.Success = true; // Import itself succeeded
+                // Loading failed - this is a FAILURE, not success
+                result.Success = false;
                 result.ErrorMessage = $"Query imported but failed to load to {destination}: {loadResult.ErrorMessage}";
                 return result;
             }
@@ -1289,7 +1289,8 @@ in
                 // Clean up
                 tempQuery.Delete();
 
-                result.Success = true;
+                // If refresh failed, this is a failure
+                result.Success = refreshSuccess;
                 if (!refreshSuccess)
                 {
                     result.ErrorMessage = "Source exists but could not refresh (may need data source configuration)";
