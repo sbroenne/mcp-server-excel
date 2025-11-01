@@ -6,6 +6,8 @@ name: Integration Tests (Excel)
 
 permissions:
   contents: read
+  checks: write  # Required for test reporter
+  pull-requests: write  # Required for PR comments
 
 on:
   # Run on PRs to main - this triggers on PR open and every push to the PR branch
@@ -89,6 +91,16 @@ jobs:
         name: integration-test-results-${{ github.run_number }}
         path: '**/TestResults/*.trx'
         retention-days: 30
+
+    - name: Publish Test Results
+      if: always()
+      uses: dorny/test-reporter@v1
+      with:
+        name: Integration Test Results
+        path: '**/TestResults/*.trx'
+        reporter: dotnet-trx
+        fail-on-error: true
+        max-annotations: 50
 
     - name: Cleanup Excel Processes
       if: always()
