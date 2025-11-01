@@ -1105,11 +1105,6 @@ public class DataModelTableInfo
     /// Number of rows in the table
     /// </summary>
     public int RecordCount { get; init; }
-
-    /// <summary>
-    /// Last refresh date/time (if available)
-    /// </summary>
-    public DateTime? RefreshDate { get; init; }
 }
 
 /// <summary>

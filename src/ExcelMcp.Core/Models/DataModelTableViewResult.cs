@@ -21,11 +21,6 @@ public class DataModelTableViewResult : ResultBase
     public int RecordCount { get; set; }
 
     /// <summary>
-    /// Last refresh date/time (if available)
-    /// </summary>
-    public DateTime? RefreshDate { get; set; }
-
-    /// <summary>
     /// List of columns in the table
     /// </summary>
     public List<DataModelColumnInfo> Columns { get; set; } = [];

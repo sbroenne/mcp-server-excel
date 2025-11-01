@@ -38,8 +38,7 @@ public partial class DataModelCommands
                     {
                         Name = ComInterop.ComUtilities.SafeGetString(table, "Name"),
                         SourceName = ComInterop.ComUtilities.SafeGetString(table, "SourceName"),
-                        RecordCount = ComInterop.ComUtilities.SafeGetInt(table, "RecordCount"),
-                        RefreshDate = ComInterop.ComUtilities.SafeGetDateTime(table, "RefreshDate")
+                        RecordCount = ComInterop.ComUtilities.SafeGetInt(table, "RecordCount")
                     };
 
                     result.Tables.Add(tableInfo);
@@ -505,7 +504,6 @@ public partial class DataModelCommands
                 // Get table properties
                 result.SourceName = ComInterop.ComUtilities.SafeGetString(table, "SourceName");
                 result.RecordCount = ComInterop.ComUtilities.SafeGetInt(table, "RecordCount");
-                result.RefreshDate = ComInterop.ComUtilities.SafeGetDateTime(table, "RefreshDate");
 
                 // Get columns
                 ComInterop.ComUtilities.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>

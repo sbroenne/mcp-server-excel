@@ -615,7 +615,6 @@ public class DataModelCommands : IDataModelCommands
             infoTable.AddRow("Table Name", result.TableName.EscapeMarkup());
             infoTable.AddRow("Source", result.SourceName?.EscapeMarkup() ?? "[dim]N/A[/]");
             infoTable.AddRow("Record Count", result.RecordCount.ToString());
-            infoTable.AddRow("Last Refresh", result.RefreshDate?.ToString("yyyy-MM-dd HH:mm:ss") ?? "[dim]N/A[/]");
             infoTable.AddRow("Column Count", result.Columns?.Count.ToString() ?? "0");
             infoTable.AddRow("Measure Count", result.MeasureCount.ToString());
 
