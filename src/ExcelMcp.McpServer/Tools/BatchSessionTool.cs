@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -9,7 +10,8 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// Manages Excel batch sessions for MCP clients.
 /// Allows LLMs to control the lifecycle of Excel workbook sessions for high-performance multi-operation workflows.
 /// </summary>
-public class BatchSessionTool
+[McpServerToolType]
+public static class BatchSessionTool
 {
     private static readonly ConcurrentDictionary<string, IExcelBatch> _activeBatches = new();
     private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -19,7 +21,10 @@ public class BatchSessionTool
     /// Opens the workbook and keeps it in memory for subsequent operations.
     /// </summary>
     [McpServerTool(Name = "begin_excel_batch")]
-    public static async Task<string> BeginExcelBatch(string filePath)
+    [Description("Start a batch session for high-performance multi-operation workflows. Opens workbook once, reuses for all operations (75-90% faster). Returns batchId to pass to other tools. Always commit when done to save and release resources.")]
+    public static async Task<string> BeginExcelBatch(
+        [Description("Full path to Excel file (.xlsx or .xlsm)")]
+        string filePath)
     {
         try
         {
@@ -84,7 +89,12 @@ public class BatchSessionTool
     /// Saves the workbook (if requested), closes it, and releases resources.
     /// </summary>
     [McpServerTool(Name = "commit_excel_batch")]
-    public static async Task<string> CommitExcelBatch(string batchId, bool save = true)
+    [Description("End a batch session. Saves changes (if save=true) and closes workbook. REQUIRED after begin_excel_batch to prevent resource leaks. Set save=false to discard all changes made during the batch.")]
+    public static async Task<string> CommitExcelBatch(
+        [Description("Batch ID returned from begin_excel_batch")]
+        string batchId, 
+        [Description("Save changes before closing? Default true. Set false to discard all changes.")]
+        bool save = true)
     {
         try
         {
@@ -148,6 +158,7 @@ public class BatchSessionTool
     /// Useful for debugging or cleanup.
     /// </summary>
     [McpServerTool(Name = "list_excel_batches")]
+    [Description("List all active batch sessions. Shows batchId and file path for each open session. Use to debug resource leaks or check which files have uncommitted batches. Always commit active batches when done.")]
     public static string ListExcelBatches()
     {
         var batches = _activeBatches.Select(kvp => new
@@ -204,3 +215,4 @@ public class BatchSessionTool
         }
     }
 }
+
