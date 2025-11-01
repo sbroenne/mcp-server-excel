@@ -105,7 +105,7 @@ public partial class PowerQueryCommandsTests
         // Arrange
         var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(Export_WithExistingQuery_CreatesFile), _tempDir);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Export_WithExistingQuery_CreatesFile));
-        var exportPath = Path.Combine(_tempDir, $"exported_{Guid.NewGuid():N}.pq");
+        var exportPath = Path.Join(_tempDir, $"exported_{Guid.NewGuid():N}.pq");
 
         // Act - Use single batch for both operations
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
@@ -128,7 +128,7 @@ public partial class PowerQueryCommandsTests
         // Arrange
         var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(Update_WithValidMCode_ReturnsSuccessResult), _tempDir);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Update_WithValidMCode_ReturnsSuccessResult));
-        var updateFile = Path.Combine(_tempDir, $"updated_{Guid.NewGuid():N}.pq");
+        var updateFile = Path.Join(_tempDir, $"updated_{Guid.NewGuid():N}.pq");
         File.WriteAllText(updateFile, "let\n    UpdatedSource = 1\nin\n    UpdatedSource");
 
         // Act - Use single batch for both operations

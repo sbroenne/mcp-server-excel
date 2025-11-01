@@ -41,3 +41,4 @@ public partial class VbaTrustDetectionTests : IClassFixture<TempDirectoryFixture
         }
     }
 }
+

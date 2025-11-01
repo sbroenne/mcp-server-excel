@@ -38,7 +38,7 @@ public partial class PowerQueryCommandsTests : IClassFixture<TempDirectoryFixtur
     /// </summary>
     protected string CreateUniqueTestQueryFile(string testName)
     {
-        var uniqueFile = Path.Combine(_tempDir, $"{testName}_{Guid.NewGuid():N}.pq");
+        var uniqueFile = Path.Join(_tempDir, $"{testName}_{Guid.NewGuid():N}.pq");
         string mCode = @"let
     Source = #table(
         {""Column1"", ""Column2"", ""Column3""},

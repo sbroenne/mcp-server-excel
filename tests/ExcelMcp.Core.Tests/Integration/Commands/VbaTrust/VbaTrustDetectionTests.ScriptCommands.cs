@@ -32,7 +32,7 @@ public partial class VbaTrustDetectionTests
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(VbaTrustDetectionTests), nameof(TestVbaTrustScope_AllowsVbaOperations), _tempDir, ".xlsm");
 
-        string vbaFile = Path.Combine(_tempDir, $"TestModule_{Guid.NewGuid():N}.vba");
+        string vbaFile = Path.Join(_tempDir, $"TestModule_{Guid.NewGuid():N}.vba");
         string vbaCode = @"Sub TestProcedure()
     MsgBox ""Test""
 End Sub";
@@ -60,7 +60,7 @@ End Sub";
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Export_WithTrust_WorksCorrectly), _tempDir, ".xlsm");
 
-        string exportFile = Path.Combine(_tempDir, $"ExportedModule_{Guid.NewGuid():N}.vba");
+        string exportFile = Path.Join(_tempDir, $"ExportedModule_{Guid.NewGuid():N}.vba");
 
         // Act - Test with VBA trust enabled
         using (new TestVbaTrustScope())
@@ -85,7 +85,7 @@ End Sub";
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Import_WithTrust_WorksCorrectly), _tempDir, ".xlsm");
 
-        string vbaFile = Path.Combine(_tempDir, $"ImportTestModule_{Guid.NewGuid():N}.vba");
+        string vbaFile = Path.Join(_tempDir, $"ImportTestModule_{Guid.NewGuid():N}.vba");
         string vbaCode = @"Sub ImportTestProcedure()
     Dim x As Integer
     x = 42
@@ -115,7 +115,7 @@ End Sub";
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Update_WithTrust_WorksCorrectly), _tempDir, ".xlsm");
 
-        string vbaFile = Path.Combine(_tempDir, $"UpdateTestModule_{Guid.NewGuid():N}.vba");
+        string vbaFile = Path.Join(_tempDir, $"UpdateTestModule_{Guid.NewGuid():N}.vba");
         string vbaCode1 = @"Sub UpdateTest1()
 End Sub";
         File.WriteAllText(vbaFile, vbaCode1);
@@ -153,7 +153,7 @@ End Sub";
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Delete_WithTrust_WorksCorrectly), _tempDir, ".xlsm");
 
-        string vbaFile = Path.Combine(_tempDir, $"DeleteTestModule_{Guid.NewGuid():N}.vba");
+        string vbaFile = Path.Join(_tempDir, $"DeleteTestModule_{Guid.NewGuid():N}.vba");
         string vbaCode = @"Sub DeleteTest()
 End Sub";
         File.WriteAllText(vbaFile, vbaCode);
@@ -185,7 +185,7 @@ End Sub";
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Run_WithTrust_WorksCorrectly), _tempDir, ".xlsm");
 
-        string vbaFile = Path.Combine(_tempDir, $"RunTestModule_{Guid.NewGuid():N}.vba");
+        string vbaFile = Path.Join(_tempDir, $"RunTestModule_{Guid.NewGuid():N}.vba");
         string vbaCode = @"Sub RunTest()
     ' Simple procedure that does nothing
     Dim x As Integer
@@ -213,3 +213,4 @@ End Sub";
         }
     }
 }
+
