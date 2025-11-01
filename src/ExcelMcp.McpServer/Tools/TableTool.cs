@@ -32,11 +32,11 @@ public static class TableTool
     /// Manage Excel Tables (ListObjects) - comprehensive table management including Power Pivot integration
     /// </summary>
     [McpServerTool(Name = "excel_table")]
-    [Description("Manage Excel Tables (ListObjects). Tables provide AutoFilter, structured references, dynamic expansion, and visual formatting. Can be used standalone or referenced in Power Query. Use 'add-to-datamodel' action to add existing tables to Power Pivot. For Power Pivot workflows: create table here → use excel_powerquery to load external data to Power Pivot → use excel_datamodel/excel_powerpivot for DAX measures and relationships. Supports: list, create, info, rename, delete, resize, toggle-totals, set-column-total, append, set-style, add-to-datamodel, apply-filter, apply-filter-values, clear-filters, get-filters, add-column, remove-column, rename-column, get-structured-reference, sort, sort-multi.")]
+    [Description("Manage Excel Tables (ListObjects). Tables provide AutoFilter, structured references, dynamic expansion, and visual formatting. Can be used standalone or referenced in Power Query. Use 'add-to-datamodel' action to add existing tables to Power Pivot. For Power Pivot workflows: create table here → use excel_powerquery to load external data to Power Pivot → use excel_datamodel/excel_powerpivot for DAX measures and relationships. Supports: list, create, info, rename, delete, resize, toggle-totals, set-column-total, append, set-style, add-to-datamodel, apply-filter, apply-filter-values, clear-filters, get-filters, add-column, remove-column, rename-column, get-structured-reference, sort, sort-multi, get-column-number-format, set-column-number-format.")]
     public static async Task<string> Table(
         [Required]
-        [RegularExpression("^(list|create|info|rename|delete|resize|toggle-totals|set-column-total|append|set-style|add-to-datamodel|apply-filter|apply-filter-values|clear-filters|get-filters|add-column|remove-column|rename-column|get-structured-reference|sort|sort-multi)$")]
-        [Description("Action: list, create, info, rename, delete, resize, toggle-totals, set-column-total, append, set-style, add-to-datamodel, apply-filter, apply-filter-values, clear-filters, get-filters, add-column, remove-column, rename-column, get-structured-reference, sort, sort-multi")]
+        [RegularExpression("^(list|create|info|rename|delete|resize|toggle-totals|set-column-total|append|set-style|add-to-datamodel|apply-filter|apply-filter-values|clear-filters|get-filters|add-column|remove-column|rename-column|get-structured-reference|sort|sort-multi|get-column-number-format|set-column-number-format)$")]
+        [Description("Action: list, create, info, rename, delete, resize, toggle-totals, set-column-total, append, set-style, add-to-datamodel, apply-filter, apply-filter-values, clear-filters, get-filters, add-column, remove-column, rename-column, get-structured-reference, sort, sort-multi, get-column-number-format, set-column-number-format")]
         string action,
 
         [Required]
@@ -72,7 +72,10 @@ public static class TableTool
         string? filterCriteria = null,
 
         [Description("JSON array of filter values (e.g., '[\"Value1\",\"Value2\"]') for apply-filter-values")]
-        string? filterValues = null)
+        string? filterValues = null,
+
+        [Description("Excel format code for set-column-number-format (e.g., '$#,##0.00', '0.00%', 'm/d/yyyy')")]
+        string? formatCode = null)
     {
         try
         {
@@ -101,8 +104,10 @@ public static class TableTool
                 "get-structured-reference" => await GetStructuredReference(tableCommands, excelPath, tableName, filterCriteria, newName),
                 "sort" => await SortTable(tableCommands, excelPath, tableName, newName, hasHeaders),
                 "sort-multi" => await SortTableMulti(tableCommands, excelPath, tableName, filterValues),
+                "get-column-number-format" => await GetColumnNumberFormat(tableCommands, excelPath, tableName, newName),
+                "set-column-number-format" => await SetColumnNumberFormat(tableCommands, excelPath, tableName, newName, formatCode),
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: list, create, info, rename, delete, resize, toggle-totals, set-column-total, append, set-style, add-to-datamodel, apply-filter, apply-filter-values, clear-filters, get-filters, add-column, remove-column, rename-column, get-structured-reference, sort, sort-multi")
+                    $"Unknown action '{action}'. Supported: list, create, info, rename, delete, resize, toggle-totals, set-column-total, append, set-style, add-to-datamodel, apply-filter, apply-filter-values, clear-filters, get-filters, add-column, remove-column, rename-column, get-structured-reference, sort, sort-multi, get-column-number-format, set-column-number-format")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -728,6 +733,54 @@ public static class TableTool
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
             throw new ModelContextProtocol.McpException($"sort-multi failed for table '{tableName}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    // === NUMBER FORMAT OPERATIONS ===
+
+    private static async Task<string> GetColumnNumberFormat(TableCommands commands, string filePath, string? tableName, string? columnName)
+    {
+        if (string.IsNullOrEmpty(tableName))
+            ExcelToolsBase.ThrowMissingParameter("tableName", "get-column-number-format");
+        if (string.IsNullOrEmpty(columnName))
+            ExcelToolsBase.ThrowMissingParameter("columnName", "get-column-number-format");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            null, // batchId
+            filePath,
+            save: false,
+            async (batch) => await commands.GetColumnNumberFormatAsync(batch, tableName!, columnName!)
+        );
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"get-column-number-format failed for table '{tableName}' column '{columnName}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> SetColumnNumberFormat(TableCommands commands, string filePath, string? tableName, string? columnName, string? formatCode)
+    {
+        if (string.IsNullOrEmpty(tableName))
+            ExcelToolsBase.ThrowMissingParameter("tableName", "set-column-number-format");
+        if (string.IsNullOrEmpty(columnName))
+            ExcelToolsBase.ThrowMissingParameter("columnName", "set-column-number-format");
+        if (string.IsNullOrEmpty(formatCode))
+            ExcelToolsBase.ThrowMissingParameter("formatCode", "set-column-number-format");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            null, // batchId
+            filePath,
+            save: true,
+            async (batch) => await commands.SetColumnNumberFormatAsync(batch, tableName!, columnName!, formatCode!)
+        );
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-column-number-format failed for table '{tableName}' column '{columnName}': {result.ErrorMessage}");
         }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);

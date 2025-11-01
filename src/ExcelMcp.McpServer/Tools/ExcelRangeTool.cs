@@ -32,15 +32,15 @@ public static class ExcelRangeTool
 {
     /// <summary>
     /// Unified Excel range operations - comprehensive data manipulation API.
-    /// Supports: values, formulas, clear, copy, insert/delete, find/replace, sort, discovery, hyperlinks.
+    /// Supports: values, formulas, number formats, clear, copy, insert/delete, find/replace, sort, discovery, hyperlinks.
     /// Optional batchId for batch sessions.
     /// </summary>
     [McpServerTool(Name = "excel_range")]
-    [Description("Excel range operations: get-values, set-values, get-formulas, set-formulas, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink. Optional batchId for batch sessions.")]
+    [Description("Excel range operations: get-values, set-values, get-formulas, set-formulas, get-number-formats, set-number-format, set-number-formats, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink. Optional batchId for batch sessions.")]
     public static async Task<string> ExcelRange(
         [Required]
-        [RegularExpression("^(get-values|set-values|get-formulas|set-formulas|clear-all|clear-contents|clear-formats|copy|copy-values|copy-formulas|insert-cells|delete-cells|insert-rows|delete-rows|insert-columns|delete-columns|find|replace|sort|get-used-range|get-current-region|get-range-info|add-hyperlink|remove-hyperlink|list-hyperlinks|get-hyperlink)$")]
-        [Description("Action: get-values, set-values, get-formulas, set-formulas, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink")]
+        [RegularExpression("^(get-values|set-values|get-formulas|set-formulas|get-number-formats|set-number-format|set-number-formats|clear-all|clear-contents|clear-formats|copy|copy-values|copy-formulas|insert-cells|delete-cells|insert-rows|delete-rows|insert-columns|delete-columns|find|replace|sort|get-used-range|get-current-region|get-range-info|add-hyperlink|remove-hyperlink|list-hyperlinks|get-hyperlink)$")]
+        [Description("Action: get-values, set-values, get-formulas, set-formulas, get-number-formats, set-number-format, set-number-formats, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink")]
         string action,
 
         [Required]
@@ -114,6 +114,12 @@ public static class ExcelRangeTool
         [Description("Hyperlink tooltip (for add-hyperlink, optional)")]
         string? tooltip = null,
 
+        [Description("Excel format code for set-number-format (e.g., '$#,##0.00', '0.00%', 'm/d/yyyy')")]
+        string? formatCode = null,
+
+        [Description("2D array of format codes for set-number-formats (JSON array of arrays, e.g., [['$#,##0','0.00%'],['m/d/yyyy','General']])")]
+        List<List<string>>? formats = null,
+
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
         string? batchId = null)
     {
@@ -127,6 +133,9 @@ public static class ExcelRangeTool
                 "set-values" => await SetValuesAsync(rangeCommands, excelPath, sheetName, rangeAddress, values, batchId),
                 "get-formulas" => await GetFormulasAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
                 "set-formulas" => await SetFormulasAsync(rangeCommands, excelPath, sheetName, rangeAddress, formulas, batchId),
+                "get-number-formats" => await GetNumberFormatsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                "set-number-format" => await SetNumberFormatAsync(rangeCommands, excelPath, sheetName, rangeAddress, formatCode, batchId),
+                "set-number-formats" => await SetNumberFormatsAsync(rangeCommands, excelPath, sheetName, rangeAddress, formats, batchId),
                 "clear-all" => await ClearAllAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
                 "clear-contents" => await ClearContentsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
                 "clear-formats" => await ClearFormatsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
@@ -150,7 +159,7 @@ public static class ExcelRangeTool
                 "list-hyperlinks" => await ListHyperlinksAsync(rangeCommands, excelPath, sheetName, batchId),
                 "get-hyperlink" => await GetHyperlinkAsync(rangeCommands, excelPath, sheetName, cellAddress, batchId),
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: get-values, set-values, get-formulas, set-formulas, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink")
+                    $"Unknown action '{action}'. Supported: get-values, set-values, get-formulas, set-formulas, get-number-formats, set-number-format, set-number-formats, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -243,6 +252,69 @@ public static class ExcelRangeTool
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
             throw new ModelContextProtocol.McpException($"set-formulas failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    // === NUMBER FORMAT OPERATIONS ===
+
+    private static async Task<string> GetNumberFormatsAsync(RangeCommands commands, string filePath, string? sheetName, string? rangeAddress, string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-number-formats");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.GetNumberFormatsAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"get-number-formats failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> SetNumberFormatAsync(RangeCommands commands, string filePath, string? sheetName, string? rangeAddress, string? formatCode, string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-number-format");
+        if (string.IsNullOrEmpty(formatCode))
+            ExcelToolsBase.ThrowMissingParameter("formatCode", "set-number-format");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.SetNumberFormatAsync(batch, sheetName ?? "", rangeAddress!, formatCode!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-number-format failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> SetNumberFormatsAsync(RangeCommands commands, string filePath, string? sheetName, string? rangeAddress, List<List<string>>? formats, string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-number-formats");
+        if (formats == null || formats.Count == 0)
+            ExcelToolsBase.ThrowMissingParameter("formats", "set-number-formats");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.SetNumberFormatsAsync(batch, sheetName ?? "", rangeAddress!, formats!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-number-formats failed for '{filePath}': {result.ErrorMessage}");
         }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);

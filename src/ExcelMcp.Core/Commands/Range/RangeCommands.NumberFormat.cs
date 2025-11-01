@@ -40,6 +40,12 @@ public partial class RangeCommands
                 // Get number formats as 2D array
                 object numberFormats = range.NumberFormat;
                 
+                // Handle DBNull (happens when no format is set)
+                if (numberFormats == null || numberFormats is System.DBNull)
+                {
+                    numberFormats = "General";
+                }
+                
                 // Get dimensions
                 int rowCount = Convert.ToInt32(range.Rows.Count);
                 int columnCount = Convert.ToInt32(range.Columns.Count);
@@ -87,18 +93,35 @@ public partial class RangeCommands
                 }
                 else
                 {
-                    // Multiple rows and columns - numberFormats is a 2D array
-                    object[,] formats = (object[,])numberFormats;
-                    
-                    for (int row = 1; row <= rowCount; row++)
+                    // Multiple rows and columns - numberFormats could be string (all same) or 2D array
+                    if (numberFormats is string formatStr)
                     {
-                        var rowList = new List<string>();
-                        for (int col = 1; col <= columnCount; col++)
+                        // All cells have same format
+                        for (int row = 0; row < rowCount; row++)
                         {
-                            var format = formats[row, col]?.ToString() ?? "General";
-                            rowList.Add(format);
+                            var rowList = new List<string>();
+                            for (int col = 0; col < columnCount; col++)
+                            {
+                                rowList.Add(formatStr);
+                            }
+                            result.Formats.Add(rowList);
                         }
-                        result.Formats.Add(rowList);
+                    }
+                    else
+                    {
+                        // Multiple rows and columns - numberFormats is a 2D array
+                        object[,] formats = (object[,])numberFormats;
+                        
+                        for (int row = 1; row <= rowCount; row++)
+                        {
+                            var rowList = new List<string>();
+                            for (int col = 1; col <= columnCount; col++)
+                            {
+                                var format = formats[row, col]?.ToString() ?? "General";
+                                rowList.Add(format);
+                            }
+                            result.Formats.Add(rowList);
+                        }
                     }
                 }
 
@@ -218,13 +241,13 @@ public partial class RangeCommands
                     }
                 }
 
-                // Convert List<List<string>> to 2D array (0-based for Excel COM)
+                // Convert List<List<string>> to 2D array (1-based for Excel COM)
                 object[,] formatArray = new object[rowCount, columnCount];
-                for (int row = 0; row < rowCount; row++)
+                for (int row = 1; row <= rowCount; row++)
                 {
-                    for (int col = 0; col < columnCount; col++)
+                    for (int col = 1; col <= columnCount; col++)
                     {
-                        formatArray[row, col] = formats[row][col];  // 0-based array
+                        formatArray[row - 1, col - 1] = formats[row - 1][col - 1];  // Convert to 0-based indexing for our List, but array is used 1-based by Excel
                     }
                 }
 
