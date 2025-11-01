@@ -26,6 +26,8 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Use "get-current-region" to find contiguous data blocks
 /// - Use "get-range-info" to inspect range properties
 /// - Use "add-hyperlink"/"remove-hyperlink"/"list-hyperlinks"/"get-hyperlink" for hyperlink management
+/// - Use "format-range" to apply visual formatting (font, fill, border, alignment)
+/// - Use "validate-range" to add data validation rules
 /// </summary>
 [McpServerToolType]
 public static class ExcelRangeTool
@@ -36,11 +38,11 @@ public static class ExcelRangeTool
     /// Optional batchId for batch sessions.
     /// </summary>
     [McpServerTool(Name = "excel_range")]
-    [Description("Excel range operations: get-values, set-values, get-formulas, set-formulas, get-number-formats, set-number-format, set-number-formats, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink. Optional batchId for batch sessions.")]
+    [Description("Excel range operations: get-values, set-values, get-formulas, set-formulas, get-number-formats, set-number-format, set-number-formats, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink, format-range, validate-range. Optional batchId for batch sessions.")]
     public static async Task<string> ExcelRange(
         [Required]
-        [RegularExpression("^(get-values|set-values|get-formulas|set-formulas|get-number-formats|set-number-format|set-number-formats|clear-all|clear-contents|clear-formats|copy|copy-values|copy-formulas|insert-cells|delete-cells|insert-rows|delete-rows|insert-columns|delete-columns|find|replace|sort|get-used-range|get-current-region|get-range-info|add-hyperlink|remove-hyperlink|list-hyperlinks|get-hyperlink)$")]
-        [Description("Action: get-values, set-values, get-formulas, set-formulas, get-number-formats, set-number-format, set-number-formats, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink")]
+        [RegularExpression("^(get-values|set-values|get-formulas|set-formulas|get-number-formats|set-number-format|set-number-formats|clear-all|clear-contents|clear-formats|copy|copy-values|copy-formulas|insert-cells|delete-cells|insert-rows|delete-rows|insert-columns|delete-columns|find|replace|sort|get-used-range|get-current-region|get-range-info|add-hyperlink|remove-hyperlink|list-hyperlinks|get-hyperlink|format-range|validate-range)$")]
+        [Description("Action: get-values, set-values, get-formulas, set-formulas, get-number-formats, set-number-format, set-number-formats, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink, format-range, validate-range")]
         string action,
 
         [Required]
@@ -120,6 +122,91 @@ public static class ExcelRangeTool
         [Description("2D array of format codes for set-number-formats (JSON array of arrays, e.g., [['$#,##0','0.00%'],['m/d/yyyy','General']])")]
         List<List<string>>? formats = null,
 
+        // === FORMATTING PARAMETERS ===
+
+        [Description("Font name (for format-range, e.g., 'Arial', 'Calibri')")]
+        string? fontName = null,
+
+        [Description("Font size (for format-range, e.g., 11, 12, 14)")]
+        double? fontSize = null,
+
+        [Description("Bold font (for format-range)")]
+        bool? bold = null,
+
+        [Description("Italic font (for format-range)")]
+        bool? italic = null,
+
+        [Description("Underline font (for format-range)")]
+        bool? underline = null,
+
+        [Description("Font color (for format-range, #RRGGBB or color index)")]
+        string? fontColor = null,
+
+        [Description("Fill color (for format-range, #RRGGBB or color index)")]
+        string? fillColor = null,
+
+        [Description("Border style (for format-range: none, continuous, dash, dot, double, etc.)")]
+        string? borderStyle = null,
+
+        [Description("Border color (for format-range, #RRGGBB or color index)")]
+        string? borderColor = null,
+
+        [Description("Border weight (for format-range: hairline, thin, medium, thick)")]
+        string? borderWeight = null,
+
+        [Description("Horizontal alignment (for format-range: left, center, right, justify, distributed)")]
+        string? horizontalAlignment = null,
+
+        [Description("Vertical alignment (for format-range: top, center, bottom, justify, distributed)")]
+        string? verticalAlignment = null,
+
+        [Description("Wrap text in cells (for format-range)")]
+        bool? wrapText = null,
+
+        [Description("Text orientation in degrees (for format-range, 0-90 or -90)")]
+        int? orientation = null,
+
+        // === VALIDATION PARAMETERS ===
+
+        [Description("Data validation type (for validate-range: list, whole, decimal, date, time, textLength, custom)")]
+        string? validationType = null,
+
+        [Description("Data validation operator (for validate-range: between, notBetween, equal, notEqual, greaterThan, lessThan, greaterThanOrEqual, lessThanOrEqual)")]
+        string? validationOperator = null,
+
+        [Description("Validation formula1 (for validate-range, first value/formula)")]
+        string? validationFormula1 = null,
+
+        [Description("Validation formula2 (for validate-range, second value/formula for between/notBetween)")]
+        string? validationFormula2 = null,
+
+        [Description("Show input message (for validate-range)")]
+        bool? showInputMessage = null,
+
+        [Description("Input message title (for validate-range)")]
+        string? inputTitle = null,
+
+        [Description("Input message text (for validate-range)")]
+        string? inputMessage = null,
+
+        [Description("Show error alert (for validate-range)")]
+        bool? showErrorAlert = null,
+
+        [Description("Error alert style (for validate-range: stop, warning, information)")]
+        string? errorStyle = null,
+
+        [Description("Error alert title (for validate-range)")]
+        string? errorTitle = null,
+
+        [Description("Error alert message (for validate-range)")]
+        string? errorMessage = null,
+
+        [Description("Ignore blank cells in validation (for validate-range)")]
+        bool? ignoreBlank = null,
+
+        [Description("Show dropdown for list validation (for validate-range)")]
+        bool? showDropdown = null,
+
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
         string? batchId = null)
     {
@@ -158,8 +245,10 @@ public static class ExcelRangeTool
                 "remove-hyperlink" => await RemoveHyperlinkAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
                 "list-hyperlinks" => await ListHyperlinksAsync(rangeCommands, excelPath, sheetName, batchId),
                 "get-hyperlink" => await GetHyperlinkAsync(rangeCommands, excelPath, sheetName, cellAddress, batchId),
+                "format-range" => await FormatRangeAsync(rangeCommands, excelPath, sheetName, rangeAddress, fontName, fontSize, bold, italic, underline, fontColor, fillColor, borderStyle, borderColor, borderWeight, horizontalAlignment, verticalAlignment, wrapText, orientation, batchId),
+                "validate-range" => await ValidateRangeAsync(rangeCommands, excelPath, sheetName, rangeAddress, validationType, validationOperator, validationFormula1, validationFormula2, showInputMessage, inputTitle, inputMessage, showErrorAlert, errorStyle, errorTitle, errorMessage, ignoreBlank, showDropdown, batchId),
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: get-values, set-values, get-formulas, set-formulas, get-number-formats, set-number-format, set-number-formats, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink")
+                    $"Unknown action '{action}'. Supported: get-values, set-values, get-formulas, set-formulas, get-number-formats, set-number-format, set-number-formats, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink, format-range, validate-range")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -802,6 +891,94 @@ public static class ExcelRangeTool
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
             throw new ModelContextProtocol.McpException($"get-hyperlink failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    // === FORMATTING OPERATIONS ===
+
+    private static async Task<string> FormatRangeAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? fontName,
+        double? fontSize,
+        bool? bold,
+        bool? italic,
+        bool? underline,
+        string? fontColor,
+        string? fillColor,
+        string? borderStyle,
+        string? borderColor,
+        string? borderWeight,
+        string? horizontalAlignment,
+        string? verticalAlignment,
+        bool? wrapText,
+        int? orientation,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "format-range");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.FormatRangeAsync(batch, sheetName ?? "", rangeAddress!,
+                fontName, fontSize, bold, italic, underline, fontColor,
+                fillColor, borderStyle, borderColor, borderWeight,
+                horizontalAlignment, verticalAlignment, wrapText, orientation));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"format-range failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    // === VALIDATION OPERATIONS ===
+
+    private static async Task<string> ValidateRangeAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? validationType,
+        string? validationOperator,
+        string? validationFormula1,
+        string? validationFormula2,
+        bool? showInputMessage,
+        string? inputTitle,
+        string? inputMessage,
+        bool? showErrorAlert,
+        string? errorStyle,
+        string? errorTitle,
+        string? errorMessage,
+        bool? ignoreBlank,
+        bool? showDropdown,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "validate-range");
+        if (string.IsNullOrEmpty(validationType))
+            ExcelToolsBase.ThrowMissingParameter("validationType", "validate-range");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.ValidateRangeAsync(batch, sheetName ?? "", rangeAddress!,
+                validationType!, validationOperator, validationFormula1, validationFormula2,
+                showInputMessage, inputTitle, inputMessage,
+                showErrorAlert, errorStyle, errorTitle, errorMessage,
+                ignoreBlank, showDropdown));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"validate-range failed for '{filePath}': {result.ErrorMessage}");
         }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
