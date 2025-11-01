@@ -271,6 +271,101 @@ excelcli range-clear-contents <file.xlsx> <sheet-name> <range>
 excelcli range-clear-formats <file.xlsx> <sheet-name> <range>
 ```
 
+### Number Formatting
+
+**range-get-number-formats** - Get number format codes from range as CSV
+
+```powershell
+excelcli range-get-number-formats <file.xlsx> <sheet-name> <range>
+
+# Example
+excelcli range-get-number-formats "Sales.xlsx" "Sheet1" "A1:D10"
+# Output (CSV): "$#,##0.00","0.00%","m/d/yyyy","General"
+```
+
+**range-set-number-format** - Apply uniform number format to range
+
+```powershell
+excelcli range-set-number-format <file.xlsx> <sheet-name> <range> <format-code>
+
+# Examples
+excelcli range-set-number-format "Sales.xlsx" "Sheet1" "D2:D100" "$#,##0.00"  # Currency
+excelcli range-set-number-format "Sales.xlsx" "Sheet1" "E2:E100" "0.00%"      # Percentage
+excelcli range-set-number-format "Sales.xlsx" "Sheet1" "A2:A100" "m/d/yyyy"   # Date
+excelcli range-set-number-format "Sales.xlsx" "Sheet1" "B2:B100" "@"          # Text
+```
+
+### Visual Formatting
+
+**range-format** - Apply visual formatting (font, fill, border, alignment)
+
+```powershell
+excelcli range-format <file.xlsx> <sheet-name> <range> [options]
+
+# Font options
+  --font-name NAME           Font family (e.g., Arial, Calibri)
+  --font-size SIZE           Font size in points
+  --bold                     Make text bold
+  --italic                   Make text italic
+  --underline                Underline text
+  --font-color #RRGGBB       Font color in hex (e.g., #FF0000 for red)
+
+# Fill options
+  --fill-color #RRGGBB       Background color in hex
+
+# Border options
+  --border-style STYLE       Border style: Continuous, Dashed, Dotted, Double
+  --border-weight WEIGHT     Border weight: Thin, Medium, Thick, Hairline
+  --border-color #RRGGBB     Border color in hex
+
+# Alignment options
+  --h-align ALIGN            Horizontal: Left, Center, Right, Justify
+  --v-align ALIGN            Vertical: Top, Center, Bottom
+  --wrap-text                Enable text wrapping
+  --orientation DEGREES      Text rotation (-90 to 90)
+
+# Examples
+excelcli range-format "Report.xlsx" "Sheet1" "A1:E1" --bold --font-size 12 --h-align Center  # Headers
+excelcli range-format "Report.xlsx" "Sheet1" "D2:D100" --fill-color "#FFFF00"  # Yellow highlight
+excelcli range-format "Report.xlsx" "Sheet1" "A1:E100" --border-style Continuous --border-weight Thin
+```
+
+### Data Validation
+
+**range-validate** - Add data validation rules to range
+
+```powershell
+excelcli range-validate <file.xlsx> <sheet-name> <range> <type> <formula1> [formula2] [options]
+
+# Validation types
+  List            Dropdown list
+  WholeNumber     Integer validation
+  Decimal         Decimal number validation
+  Date            Date validation
+  Time            Time validation
+  TextLength      Character length validation
+  Custom          Custom formula validation
+
+# Operators (for numeric/date validations)
+  --operator OPERATOR        Between, NotBetween, Equal, NotEqual, Greater, Less, GreaterOrEqual, LessOrEqual
+
+# Optional parameters
+  --show-input               Show input message when cell selected
+  --input-title TITLE        Input message title
+  --input-message MSG        Input message text
+  --error-title TITLE        Error alert title
+  --error-message MSG        Error alert text
+  --error-style STYLE        Stop, Warning, Information
+  --ignore-blank             Ignore blank cells
+  --show-dropdown            Show dropdown arrow
+
+# Examples
+excelcli range-validate "Data.xlsx" "Sheet1" "F2:F100" List "Active,Inactive,Pending"  # Dropdown
+excelcli range-validate "Data.xlsx" "Sheet1" "E2:E100" WholeNumber "1" "999" --operator Between  # Number range
+excelcli range-validate "Data.xlsx" "Sheet1" "C2:C100" TextLength "100" --operator LessOrEqual  # Max length
+excelcli range-validate "Data.xlsx" "Sheet1" "A2:A100" Date "1/1/2025" --operator GreaterOrEqual  # Min date
+```
+
 ### Migration from Sheet Commands
 
 | Old Command | New Command | Notes |
