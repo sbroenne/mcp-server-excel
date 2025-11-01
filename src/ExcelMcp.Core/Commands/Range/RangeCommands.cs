@@ -16,4 +16,5 @@ public partial class RangeCommands : IRangeCommands
     // - RangeCommands.Search.cs (Find, Replace, Sort)
     // - RangeCommands.Discovery.cs (GetUsedRange, GetCurrentRegion, GetRangeInfo)
     // - RangeCommands.Hyperlinks.cs (Add, Remove, List, Get hyperlinks)
+    // - RangeCommands.NumberFormat.cs (Get, Set number formats)
 }

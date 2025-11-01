@@ -1667,3 +1667,38 @@ public class HyperlinkInfoResult : ResultBase
 }
 
 #endregion
+
+#region Number Formatting Results
+
+/// <summary>
+/// Result for range number format operations
+/// </summary>
+public class RangeNumberFormatResult : ResultBase
+{
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range address (e.g., A1:D10)
+    /// </summary>
+    public string RangeAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 2D array of number format codes (matches range dimensions)
+    /// </summary>
+    public List<List<string>> Formats { get; set; } = [];
+
+    /// <summary>
+    /// Number of rows in the range
+    /// </summary>
+    public int RowCount { get; set; }
+
+    /// <summary>
+    /// Number of columns in the range
+    /// </summary>
+    public int ColumnCount { get; set; }
+}
+
+#endregion

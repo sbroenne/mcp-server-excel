@@ -183,6 +183,41 @@ public interface IRangeCommands
     /// Excel COM: Range.Hyperlink
     /// </summary>
     Task<RangeHyperlinkResult> GetHyperlinkAsync(IExcelBatch batch, string sheetName, string cellAddress);
+
+    // === NUMBER FORMAT OPERATIONS ===
+
+    /// <summary>
+    /// Gets number format codes from range (2D array matching range dimensions)
+    /// Excel COM: Range.NumberFormat
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name</param>
+    /// <param name="rangeAddress">Range address (e.g., "A1:D10")</param>
+    /// <returns>2D array of format codes (e.g., [["$#,##0.00", "0.00%"], ["m/d/yyyy", "General"]])</returns>
+    Task<RangeNumberFormatResult> GetNumberFormatsAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+
+    /// <summary>
+    /// Sets uniform number format for entire range
+    /// Excel COM: Range.NumberFormat = formatCode
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name</param>
+    /// <param name="rangeAddress">Range address (e.g., "A1:D10")</param>
+    /// <param name="formatCode">
+    /// Excel format code (e.g., "$#,##0.00", "0.00%", "m/d/yyyy", "General", "@")
+    /// See NumberFormatPresets class for common patterns
+    /// </param>
+    Task<OperationResult> SetNumberFormatAsync(IExcelBatch batch, string sheetName, string rangeAddress, string formatCode);
+
+    /// <summary>
+    /// Sets number formats cell-by-cell from 2D array
+    /// Excel COM: Range.NumberFormat (per cell)
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name</param>
+    /// <param name="rangeAddress">Range address (e.g., "A1:D10")</param>
+    /// <param name="formats">2D array of format codes matching range dimensions</param>
+    Task<OperationResult> SetNumberFormatsAsync(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>> formats);
 }
 
 // === SUPPORTING TYPES ===

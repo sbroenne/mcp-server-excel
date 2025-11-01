@@ -204,42 +204,79 @@ internal sealed class ExcelBatch : IExcelBatch
         // Post save operation to STA thread
         _workQueue.Writer.TryWrite(async () =>
         {
-            try
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                _workbook!.Save();
-                tcs.SetResult();
-            }
-            catch (COMException ex)
-            {
-                // Map common Excel COM error codes to meaningful messages
-                string errorMessage = ex.HResult switch
-                {
-                    unchecked((int)0x800A03EC) => 
-                        $"Cannot save '{Path.GetFileName(_workbookPath)}'. " +
-                        "The file may be read-only, locked by another process, or the path may not exist.",
-                    unchecked((int)0x800AC472) => 
-                        $"Cannot save '{Path.GetFileName(_workbookPath)}'. " +
-                        "The file is locked for editing by another user or process.",
-                    _ => $"Failed to save workbook '{Path.GetFileName(_workbookPath)}': {ex.Message}"
-                };
+            // Retry logic for Excel temp file conflicts during concurrent saves
+            const int maxRetries = 3;
+            int retryDelayMs = 100;
 
-                tcs.SetException(new InvalidOperationException(errorMessage, ex));
-            }
-            catch (OperationCanceledException oce)
+            for (int attempt = 0; attempt <= maxRetries; attempt++)
             {
-                tcs.TrySetCanceled(oce.CancellationToken);
-            }
-            catch (Exception ex)
-            {
-                tcs.SetException(new InvalidOperationException(
-                    $"Unexpected error saving workbook '{Path.GetFileName(_workbookPath)}': {ex.Message}", ex));
+                try
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    _workbook!.Save();
+                    tcs.SetResult();
+                    return;
+                }
+                catch (COMException ex) when (attempt < maxRetries && IsTransientSaveError(ex))
+                {
+                    // Transient error during concurrent save - retry with exponential backoff
+                    await Task.Delay(retryDelayMs, cancellationToken);
+                    retryDelayMs *= 2; // Exponential backoff
+                    continue;
+                }
+                catch (COMException ex)
+                {
+                    // Map common Excel COM error codes to meaningful messages
+                    string errorMessage = ex.HResult switch
+                    {
+                        unchecked((int)0x800A03EC) => 
+                            $"Cannot save '{Path.GetFileName(_workbookPath)}'. " +
+                            "The file may be read-only, locked by another process, or the path may not exist.",
+                        unchecked((int)0x800AC472) => 
+                            $"Cannot save '{Path.GetFileName(_workbookPath)}'. " +
+                            "The file is locked for editing by another user or process.",
+                        _ => $"Failed to save workbook '{Path.GetFileName(_workbookPath)}': {ex.Message}"
+                    };
+
+                    tcs.SetException(new InvalidOperationException(errorMessage, ex));
+                    return;
+                }
+                catch (OperationCanceledException oce)
+                {
+                    tcs.TrySetCanceled(oce.CancellationToken);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(new InvalidOperationException(
+                        $"Unexpected error saving workbook '{Path.GetFileName(_workbookPath)}': {ex.Message}", ex));
+                    return;
+                }
             }
 
             await Task.CompletedTask;
         });
 
         return tcs.Task;
+    }
+
+    private static bool IsTransientSaveError(COMException ex)
+    {
+        // Excel temp file access errors during concurrent saves (transient)
+        // "Microsoft Excel cannot access the file 'C:\...\Temp\...'..."
+        if (ex.Message.Contains("Temp") && 
+            (ex.Message.Contains("cannot access") || ex.Message.Contains("being used by another program")))
+        {
+            return true;
+        }
+
+        // Common transient error codes
+        return ex.HResult switch
+        {
+            unchecked((int)0x800A03EC) => true,  // VBA Error 1004 (can be transient during concurrent ops)
+            unchecked((int)0x800AC472) => true,  // File locked (can be transient)
+            _ => false
+        };
     }
 
     /// <summary>
