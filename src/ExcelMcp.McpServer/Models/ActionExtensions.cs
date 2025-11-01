@@ -56,7 +56,7 @@ public static class ActionExtensions
         RangeAction.SetFormulas => "set-formulas",
         RangeAction.ClearContents => "clear-contents",
         RangeAction.ClearAll => "clear-all",
-        RangeAction.GetInfo => "get-info",
+        RangeAction.GetRangeInfo => "get-info",
         RangeAction.Copy => "copy",
         RangeAction.CopyValues => "copy-values",
         RangeAction.Find => "find",
@@ -67,7 +67,7 @@ public static class ActionExtensions
         RangeAction.SetNumberFormats => "set-number-formats",
         RangeAction.AddHyperlink => "add-hyperlink",
         RangeAction.RemoveHyperlink => "remove-hyperlink",
-        RangeAction.GetHyperlinks => "get-hyperlinks",
+        RangeAction.ListHyperlinks => "get-hyperlinks",
         _ => throw new ArgumentException($"Unknown RangeAction: {action}")
     };
 
@@ -150,3 +150,4 @@ public static class ActionExtensions
         _ => throw new ArgumentException($"Unknown PivotTableAction: {action}")
     };
 }
+

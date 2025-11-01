@@ -58,24 +58,58 @@ public enum WorksheetAction
 /// </summary>
 public enum RangeAction
 {
+    // Values & Formulas
     GetValues,
     SetValues,
     GetFormulas,
     SetFormulas,
-    ClearContents,
-    ClearAll,
-    GetInfo,
-    Copy,
-    CopyValues,
-    Find,
-    Replace,
-    Sort,
+    
+    // Number Formats
     GetNumberFormats,
     SetNumberFormat,
     SetNumberFormats,
+    
+    // Clear Operations
+    ClearAll,
+    ClearContents,
+    ClearFormats,
+    
+    // Copy Operations
+    Copy,
+    CopyValues,
+    CopyFormulas,
+    
+    // Insert/Delete Cell Operations
+    InsertCells,
+    DeleteCells,
+    
+    // Insert/Delete Row Operations
+    InsertRows,
+    DeleteRows,
+    
+    // Insert/Delete Column Operations
+    InsertColumns,
+    DeleteColumns,
+    
+    // Search & Sort
+    Find,
+    Replace,
+    Sort,
+    
+    // Discovery Operations
+    GetUsedRange,
+    GetCurrentRegion,
+    GetRangeInfo,
+    
+    // Hyperlink Operations
     AddHyperlink,
     RemoveHyperlink,
-    GetHyperlinks
+    ListHyperlinks,
+    GetHyperlink,
+    
+    // Formatting & Validation
+    FormatRange,
+    ValidateRange
 }
 
 /// <summary>
@@ -168,3 +202,4 @@ public enum PivotTableAction
     AddFilterField,
     Refresh
 }
+

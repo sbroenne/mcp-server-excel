@@ -122,15 +122,34 @@ public static class ExcelCompletionHandler
         {
             suggestions =
             [
+                // Values & Formulas
                 "get-values", "set-values", "get-formulas", "set-formulas",
+                
+                // Number Formats
+                "get-number-formats", "set-number-format", "set-number-formats",
+                
+                // Clear Operations
                 "clear-all", "clear-contents", "clear-formats",
+                
+                // Copy Operations
                 "copy", "copy-values", "copy-formulas",
-                "insert-cells", "delete-cells", "insert-rows", "delete-rows",
+                
+                // Insert/Delete Operations
+                "insert-cells", "delete-cells",
+                "insert-rows", "delete-rows",
                 "insert-columns", "delete-columns",
+                
+                // Search & Sort
                 "find", "replace", "sort",
+                
+                // Discovery
                 "get-used-range", "get-current-region", "get-range-info",
+                
+                // Hyperlinks
                 "add-hyperlink", "remove-hyperlink", "list-hyperlinks", "get-hyperlink",
-                "format-range", "validate-range", "set-number-format", "get-number-formats"
+                
+                // Formatting & Validation
+                "format-range", "validate-range"
             ];
         }
         // Action parameter completions for table prompts
@@ -369,3 +388,4 @@ public static class ExcelCompletionHandler
         };
     }
 }
+
