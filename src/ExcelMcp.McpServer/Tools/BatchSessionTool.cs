@@ -18,7 +18,7 @@ public class BatchSessionTool
     /// Begin a new Excel batch session.
     /// Opens the workbook and keeps it in memory for subsequent operations.
     /// </summary>
-    [McpServerTool]
+    [McpServerTool(Name = "begin_excel_batch")]
     public static async Task<string> BeginExcelBatch(string filePath)
     {
         try
@@ -83,7 +83,7 @@ public class BatchSessionTool
     /// Commit or discard an Excel batch session.
     /// Saves the workbook (if requested), closes it, and releases resources.
     /// </summary>
-    [McpServerTool]
+    [McpServerTool(Name = "commit_excel_batch")]
     public static async Task<string> CommitExcelBatch(string batchId, bool save = true)
     {
         try
@@ -147,7 +147,7 @@ public class BatchSessionTool
     /// List all active batch sessions.
     /// Useful for debugging or cleanup.
     /// </summary>
-    [McpServerTool]
+    [McpServerTool(Name = "list_excel_batches")]
     public static string ListExcelBatches()
     {
         var batches = _activeBatches.Select(kvp => new
