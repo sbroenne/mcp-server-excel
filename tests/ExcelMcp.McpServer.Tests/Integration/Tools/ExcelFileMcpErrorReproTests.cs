@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.McpServer.Models;
 using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
 using Xunit.Abstractions;
@@ -36,7 +37,7 @@ public class ExcelFileMcpErrorReproTests
             _output.WriteLine($"Directory exists: {Directory.Exists(tempDir)}");
 
             // Act - Call the tool with exact parameters from MCP test
-            var result = await ExcelFileTool.ExcelFile("create-empty", testFile);
+            var result = await ExcelFileTool.ExcelFile(FileAction.CreateEmpty, testFile);
 
             _output.WriteLine($"Tool result: {result}");
 
@@ -88,3 +89,4 @@ public class ExcelFileMcpErrorReproTests
         }
     }
 }
+

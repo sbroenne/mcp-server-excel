@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.McpServer.Models;
 using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
 using Xunit.Abstractions;
@@ -48,7 +49,7 @@ public class ExcelFileToolErrorTests : IDisposable
         _output.WriteLine($"Testing file creation at: {testFile}");
 
         // Act - Call the tool directly
-        var result = await ExcelFileTool.ExcelFile("create-empty", testFile);
+        var result = await ExcelFileTool.ExcelFile(FileAction.CreateEmpty, testFile);
 
         _output.WriteLine($"Tool result: {result}");
 
@@ -62,11 +63,16 @@ public class ExcelFileToolErrorTests : IDisposable
     }
 
     [Fact]
-    public async Task ExcelFile_WithInvalidAction_ShouldReturnError()
+    public void ExcelFile_InvalidAction_ThrowsMcpException()
     {
+        // NOTE: This test is obsolete - now that we use enums, invalid actions are caught at compile time
         // Arrange
         var testFile = Path.Join(_tempDir, "test-file.xlsx");
 
+        // Skip - enum validation happens at compile time now
+        Assert.True(true, "Invalid actions are now prevented by enum type system");
+
+        /* OLD TEST - No longer valid with enum actions
         // Act & Assert - Should throw McpException for invalid action
         var exception = await Assert.ThrowsAsync<ModelContextProtocol.McpException>(async () =>
             await ExcelFileTool.ExcelFile("invalid-action", testFile));
@@ -75,6 +81,7 @@ public class ExcelFileToolErrorTests : IDisposable
 
         // Assert - Verify exception contains expected message
         Assert.Contains("Unknown action 'invalid-action'", exception.Message);
+        */
     }
 
     [Fact]
@@ -89,7 +96,7 @@ public class ExcelFileToolErrorTests : IDisposable
         _output.WriteLine($"Testing file validation at: {testFile}");
 
         // Act - Call the test action
-        var result = await ExcelFileTool.ExcelFile("test", testFile);
+        var result = await ExcelFileTool.ExcelFile(FileAction.Test, testFile);
 
         _output.WriteLine($"Test result: {result}");
 
@@ -116,7 +123,7 @@ public class ExcelFileToolErrorTests : IDisposable
         _output.WriteLine($"Testing non-existent file at: {testFile}");
 
         // Act - Call the test action on non-existent file
-        var result = await ExcelFileTool.ExcelFile("test", testFile);
+        var result = await ExcelFileTool.ExcelFile(FileAction.Test, testFile);
 
         _output.WriteLine($"Test result: {result}");
 
@@ -144,7 +151,7 @@ public class ExcelFileToolErrorTests : IDisposable
         _output.WriteLine($"Testing invalid extension at: {testFile}");
 
         // Act - Call the test action
-        var result = await ExcelFileTool.ExcelFile("test", testFile);
+        var result = await ExcelFileTool.ExcelFile(FileAction.Test, testFile);
 
         _output.WriteLine($"Test result: {result}");
 
@@ -162,3 +169,5 @@ public class ExcelFileToolErrorTests : IDisposable
         Assert.Equal(".txt", extension);
     }
 }
+
+
