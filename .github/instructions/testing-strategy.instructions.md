@@ -430,6 +430,14 @@ dotnet test --filter "RunType=OnDemand"
 
 ## Batch API Pattern
 
+**⚠️ CRITICAL RULE: `await batch.SaveAsync()` MUST be called ONLY at the END of the test!**
+- ✅ Call SaveAsync ONLY at the END of the test
+- ✅ Call SaveAsync ONLY ONCE per test
+- ✅ Call SaveAsync ONLY if test modifies data that needs persistence verification
+- ❌ NEVER call SaveAsync in the middle of a test (prevents subsequent operations)
+- ❌ NEVER call SaveAsync multiple times in a single test
+- ❌ Read-only operations do NOT need SaveAsync
+
 ```csharp
 // Core Commands
 public async Task<OperationResult> MethodAsync(IExcelBatch batch, string arg)
@@ -455,14 +463,6 @@ public async Task TestMethod()
     await batch.SaveAsync();
 }
 ```
-
-**⚠️ CRITICAL SaveAsync Rules:**
-- ✅ Call SaveAsync ONLY at the END of the test
-- ✅ Call SaveAsync ONLY ONCE per test
-- ✅ Call SaveAsync ONLY if you need to persist modifications
-- ❌ NEVER call SaveAsync in the middle of a test
-- ❌ NEVER call SaveAsync multiple times
-- ❌ Read-only operations do NOT need SaveAsync
 
 ## Layer Separation
 
@@ -659,6 +659,9 @@ public async Task Test2()
 ```
 
 ### 7. ❌ Calling SaveAsync in the Middle of a Test
+
+**⚠️ CRITICAL MISTAKE - This breaks ALL subsequent operations in the test!**
+
 ```csharp
 // WRONG: SaveAsync called mid-test prevents subsequent operations
 [Fact]
@@ -699,6 +702,12 @@ public async Task Test_CorrectPattern()
     await batch.SaveAsync();  // ✅ CORRECT - after all operations
 }
 ```
+
+**Why This Matters:**
+- SaveAsync commits and closes the batch transaction
+- No operations can be performed after SaveAsync
+- Tests should verify all operations, THEN save once at the end
+- If you need to verify persistence, open a NEW batch session to read back
 
 **Why This Matters:**
 - SaveAsync commits and closes the batch transaction
