@@ -8,17 +8,18 @@ permissions:
   contents: read
 
 on:
-  # Run on changes to Core/ComInterop code
-  push:
-    # Run on all branches
+  # Run on PRs to main - this triggers on PR open and every push to the PR branch
+  pull_request:
+    branches: [ main ]
     paths:
       - 'src/ExcelMcp.Core/**'
       - 'src/ExcelMcp.ComInterop/**'
-      - 'tests/ExcelMcp.Core.Tests/**'
-      - 'tests/ExcelMcp.ComInterop.Tests/**'
+      - 'src/ExcelMcp.CLI/**'
+      - 'src/ExcelMcp.McpServer/**'
+      - 'tests/**'
 
-  # Run on PRs to main
-  pull_request:
+  # Run on push to main only (after merge, for main branch protection)
+  push:
     branches: [ main ]
     paths:
       - 'src/ExcelMcp.Core/**'
