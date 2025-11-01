@@ -69,7 +69,10 @@ applyTo: "tests/**/*.cs"
 - [ ] All Core commands accept `IExcelBatch batch` as first parameter
 - [ ] Tests create batch with `await ExcelSession.BeginBatchAsync(testFile)`
 - [ ] Use `await using var batch` for automatic disposal
-- [ ] Call `await batch.SaveAsync()` only if test modifies data
+- [ ] **CRITICAL:** `await batch.SaveAsync()` MUST be called ONLY at the END of the test
+- [ ] **NEVER** call `SaveAsync()` in the middle of a test (prevents subsequent operations)
+- [ ] **NEVER** call `SaveAsync()` multiple times in a single test
+- [ ] Only call `SaveAsync()` if test modifies data that needs persistence verification
 
 ### ✅ Async/Await Patterns
 - [ ] Test methods use `async Task` (not `async void`)
@@ -126,6 +129,9 @@ public partial class FeatureCommandsTests : IClassFixture<TempDirectoryFixture>
         // Assert
         Assert.True(result.Success, $"Operation failed: {result.ErrorMessage}");
         Assert.NotNull(result.Data);
+        
+        // Save only at the end if modifications made
+        await batch.SaveAsync();
     }
 }
 ```
@@ -435,15 +441,28 @@ public async Task<OperationResult> MethodAsync(IExcelBatch batch, string arg)
     });
 }
 
-// Tests
+// Tests - CORRECT Pattern
 [Fact]
 public async Task TestMethod()
 {
     await using var batch = await ExcelSession.BeginBatchAsync(_testFile);
+    
+    // Perform all operations
     var result = await _commands.MethodAsync(batch, arg);
     Assert.True(result.Success);
+    
+    // Save ONLY at the end (if modifications need to be persisted)
+    await batch.SaveAsync();
 }
 ```
+
+**⚠️ CRITICAL SaveAsync Rules:**
+- ✅ Call SaveAsync ONLY at the END of the test
+- ✅ Call SaveAsync ONLY ONCE per test
+- ✅ Call SaveAsync ONLY if you need to persist modifications
+- ❌ NEVER call SaveAsync in the middle of a test
+- ❌ NEVER call SaveAsync multiple times
+- ❌ Read-only operations do NOT need SaveAsync
 
 ## Layer Separation
 
@@ -639,7 +658,55 @@ public async Task Test2()
 }
 ```
 
-### 7. ❌ Missing Required Content for Data Files
+### 7. ❌ Calling SaveAsync in the Middle of a Test
+```csharp
+// WRONG: SaveAsync called mid-test prevents subsequent operations
+[Fact]
+public async Task Test_WrongPattern()
+{
+    var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        nameof(MyTests), nameof(Test_WrongPattern), _tempDir);
+    
+    await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+    
+    // First operation
+    var result1 = await _commands.CreateAsync(batch, "Sheet1");
+    await batch.SaveAsync();  // ❌ WRONG - too early!
+    
+    // Second operation will fail - batch is already saved/closed
+    var result2 = await _commands.RenameAsync(batch, "Sheet1", "NewName");  // FAILS!
+}
+```
+
+**✅ CORRECT: SaveAsync only at the end**
+```csharp
+[Fact]
+public async Task Test_CorrectPattern()
+{
+    var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        nameof(MyTests), nameof(Test_CorrectPattern), _tempDir);
+    
+    await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+    
+    // All operations
+    var result1 = await _commands.CreateAsync(batch, "Sheet1");
+    Assert.True(result1.Success);
+    
+    var result2 = await _commands.RenameAsync(batch, "Sheet1", "NewName");
+    Assert.True(result2.Success);
+    
+    // Save ONLY at the end
+    await batch.SaveAsync();  // ✅ CORRECT - after all operations
+}
+```
+
+**Why This Matters:**
+- SaveAsync commits and closes the batch transaction
+- No operations can be performed after SaveAsync
+- Tests should verify all operations, THEN save once at the end
+- If you need to verify persistence, open a NEW batch session to read back
+
+### 8. ❌ Missing Required Content for Data Files
 ```csharp
 // WRONG: CSV file created without content
 var csvFile = await CoreTestHelper.CreateUniqueTestFileAsync(
