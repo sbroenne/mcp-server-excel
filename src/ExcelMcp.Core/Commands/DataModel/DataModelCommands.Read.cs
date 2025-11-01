@@ -40,9 +40,13 @@ public partial class DataModelCommands
                     {
                         refreshDate = table.RefreshDate;
                     }
-                    catch (System.Runtime.InteropServices.COMException) 
-                    { 
-                        /* RefreshDate not always accessible via COM */ 
+                    catch (Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
+                    {
+                        /* RefreshDate property not available in this Excel version */
+                    }
+                    catch (System.Runtime.InteropServices.COMException)
+                    {
+                        /* RefreshDate not always accessible via COM */
                     }
 
                     var tableInfo = new DataModelTableInfo
@@ -522,9 +526,13 @@ public partial class DataModelCommands
                 {
                     result.RefreshDate = table.RefreshDate;
                 }
-                catch (System.Runtime.InteropServices.COMException) 
-                { 
-                    /* RefreshDate not always accessible via COM */ 
+                catch (Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
+                {
+                    /* RefreshDate property not available in this Excel version */
+                }
+                catch (System.Runtime.InteropServices.COMException)
+                {
+                    /* RefreshDate not always accessible via COM */
                 }
 
                 // Get columns
