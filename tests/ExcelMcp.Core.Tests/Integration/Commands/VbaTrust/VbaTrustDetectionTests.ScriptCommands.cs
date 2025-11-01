@@ -5,212 +5,113 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.VbaTrust;
 
 /// <summary>
-/// Tests for VBA trust interaction with ScriptCommands
+/// Tests for VBA operations when trust is enabled (CI environment has trust enabled)
 /// </summary>
 public partial class VbaTrustDetectionTests
 {
     [Fact]
-    public async Task ScriptCommands_List_HandlesVbaTrustCorrectly()
+    public async Task ScriptCommands_List_WithTrustEnabled_WorksCorrectly()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_List_HandlesVbaTrustCorrectly), _tempDir, ".xlsm");
+            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_List_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         var result = await _scriptCommands.ListAsync(batch);
 
-        // Assert
-        Assert.NotNull(result);
+        // Assert - Should succeed when VBA trust is enabled (as in CI environment)
+        Assert.True(result.Success, $"List should succeed with VBA trust enabled. Error: {result.ErrorMessage}");
         Assert.NotNull(result.Scripts);
     }
 
     [Fact]
-    public async Task TestVbaTrustScope_AllowsVbaOperations()
+    public async Task ScriptCommands_Import_WithTrustEnabled_WorksCorrectly()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(VbaTrustDetectionTests), nameof(TestVbaTrustScope_AllowsVbaOperations), _tempDir, ".xlsm");
+            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Import_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
 
         string vbaFile = Path.Join(_tempDir, $"TestModule_{Guid.NewGuid():N}.vba");
-        string vbaCode = @"Sub TestProcedure()
-    MsgBox ""Test""
-End Sub";
-        File.WriteAllText(vbaFile, vbaCode);
+        File.WriteAllText(vbaFile, "Sub TestImport()\nEnd Sub");
 
-        // Act & Assert - VBA operations should work inside the scope
-        using (new TestVbaTrustScope())
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-            var importResult = await _scriptCommands.ImportAsync(batch, "TestModule", vbaFile);
+        // Act
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var result = await _scriptCommands.ImportAsync(batch, "TestModule", vbaFile);
 
-            // Should succeed when VBA trust is enabled
-            if (!importResult.Success)
-            {
-                // If it failed, it should NOT be due to VBA trust
-                Assert.DoesNotContain("trust", importResult.ErrorMessage?.ToLowerInvariant() ?? "");
-            }
-        }
+        // Assert - Should succeed when VBA trust is enabled (as in CI environment)
+        Assert.True(result.Success, $"Import should succeed with VBA trust enabled. Error: {result.ErrorMessage}");
     }
 
     [Fact]
-    public async Task ScriptCommands_Export_WithTrust_WorksCorrectly()
+    public async Task ScriptCommands_Export_WithTrustEnabled_WorksCorrectly()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Export_WithTrust_WorksCorrectly), _tempDir, ".xlsm");
+            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Export_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
+
+        // First import a module so we have something to export
+        string vbaFile = Path.Join(_tempDir, $"ImportModule_{Guid.NewGuid():N}.vba");
+        File.WriteAllText(vbaFile, "Sub TestCode()\nEnd Sub");
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var importResult = await _scriptCommands.ImportAsync(batch, "TestModule", vbaFile);
+        Assert.True(importResult.Success, "Import should succeed before export test");
 
         string exportFile = Path.Join(_tempDir, $"ExportedModule_{Guid.NewGuid():N}.vba");
 
-        // Act - Test with VBA trust enabled
-        using (new TestVbaTrustScope())
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-            var result = await _scriptCommands.ExportAsync(batch, "ThisWorkbook", exportFile);
+        // Act - Export the module we just imported
+        var result = await _scriptCommands.ExportAsync(batch, "TestModule", exportFile);
 
-            // Assert
-            Assert.NotNull(result);
-            // Should either succeed or fail for reasons other than trust
-            if (!result.Success && result.ErrorMessage != null)
-            {
-                Assert.DoesNotContain("trust", result.ErrorMessage.ToLowerInvariant());
-            }
-        }
+        // Assert - Should succeed when VBA trust is enabled (as in CI environment)
+        Assert.True(result.Success, $"Export should succeed with VBA trust enabled. Error: {result.ErrorMessage}");
+        Assert.True(File.Exists(exportFile), "Exported file should exist");
     }
 
     [Fact]
-    public async Task ScriptCommands_Import_WithTrust_WorksCorrectly()
+    public async Task ScriptCommands_Run_WithTrustEnabled_WorksCorrectly()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Import_WithTrust_WorksCorrectly), _tempDir, ".xlsm");
+            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Run_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
 
-        string vbaFile = Path.Join(_tempDir, $"ImportTestModule_{Guid.NewGuid():N}.vba");
-        string vbaCode = @"Sub ImportTestProcedure()
-    Dim x As Integer
-    x = 42
+        // Import a test macro first
+        string vbaFile = Path.Join(_tempDir, $"TestModule_{Guid.NewGuid():N}.vba");
+        string vbaCode = @"Sub TestProcedure()
+    ' Simple test procedure
 End Sub";
         File.WriteAllText(vbaFile, vbaCode);
 
-        // Act - Test with VBA trust enabled
-        using (new TestVbaTrustScope())
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-            var result = await _scriptCommands.ImportAsync(batch, "ImportTestModule", vbaFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var importResult = await _scriptCommands.ImportAsync(batch, "TestModule", vbaFile);
+        Assert.True(importResult.Success);
 
-            // Assert
-            Assert.NotNull(result);
-            // Should either succeed or fail for reasons other than trust
-            if (!result.Success && result.ErrorMessage != null)
-            {
-                Assert.DoesNotContain("trust", result.ErrorMessage.ToLowerInvariant());
-            }
-        }
+        // Act - Run the macro
+        var runResult = await _scriptCommands.RunAsync(batch, "TestModule.TestProcedure");
+
+        // Assert - Should succeed when VBA trust is enabled
+        Assert.True(runResult.Success, $"Run should succeed with VBA trust enabled. Error: {runResult.ErrorMessage}");
     }
 
     [Fact]
-    public async Task ScriptCommands_Update_WithTrust_WorksCorrectly()
+    public async Task ScriptCommands_Delete_WithTrustEnabled_WorksCorrectly()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Update_WithTrust_WorksCorrectly), _tempDir, ".xlsm");
+            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Delete_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
 
-        string vbaFile = Path.Join(_tempDir, $"UpdateTestModule_{Guid.NewGuid():N}.vba");
-        string vbaCode1 = @"Sub UpdateTest1()
-End Sub";
-        File.WriteAllText(vbaFile, vbaCode1);
+        // Import a test module first
+        string vbaFile = Path.Join(_tempDir, $"TestModule_{Guid.NewGuid():N}.vba");
+        File.WriteAllText(vbaFile, "Sub Test()\nEnd Sub");
 
-        using (new TestVbaTrustScope())
-        {
-            // First import
-            await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
-            {
-                await _scriptCommands.ImportAsync(batch, "UpdateTestModule", vbaFile);
-                await batch.SaveAsync();
-            }
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var importResult = await _scriptCommands.ImportAsync(batch, "TestModule", vbaFile);
+        Assert.True(importResult.Success);
 
-            // Update the VBA code
-            string vbaCode2 = @"Sub UpdateTest2()
-    Dim y As String
-End Sub";
-            File.WriteAllText(vbaFile, vbaCode2);
+        // Act - Delete the module
+        var deleteResult = await _scriptCommands.DeleteAsync(batch, "TestModule");
 
-            // Act - Update the module
-            await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
-            {
-                var result = await _scriptCommands.UpdateAsync(batch, "UpdateTestModule", vbaFile);
-
-                // Assert
-                Assert.NotNull(result);
-            }
-        }
-    }
-
-    [Fact]
-    public async Task ScriptCommands_Delete_WithTrust_WorksCorrectly()
-    {
-        // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Delete_WithTrust_WorksCorrectly), _tempDir, ".xlsm");
-
-        string vbaFile = Path.Join(_tempDir, $"DeleteTestModule_{Guid.NewGuid():N}.vba");
-        string vbaCode = @"Sub DeleteTest()
-End Sub";
-        File.WriteAllText(vbaFile, vbaCode);
-
-        using (new TestVbaTrustScope())
-        {
-            // First import a module
-            await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
-            {
-                await _scriptCommands.ImportAsync(batch, "DeleteTestModule", vbaFile);
-                await batch.SaveAsync();
-            }
-
-            // Act - Delete the module
-            await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
-            {
-                var result = await _scriptCommands.DeleteAsync(batch, "DeleteTestModule");
-
-                // Assert
-                Assert.NotNull(result);
-            }
-        }
-    }
-
-    [Fact]
-    public async Task ScriptCommands_Run_WithTrust_WorksCorrectly()
-    {
-        // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(VbaTrustDetectionTests), nameof(ScriptCommands_Run_WithTrust_WorksCorrectly), _tempDir, ".xlsm");
-
-        string vbaFile = Path.Join(_tempDir, $"RunTestModule_{Guid.NewGuid():N}.vba");
-        string vbaCode = @"Sub RunTest()
-    ' Simple procedure that does nothing
-    Dim x As Integer
-    x = 1
-End Sub";
-        File.WriteAllText(vbaFile, vbaCode);
-
-        using (new TestVbaTrustScope())
-        {
-            // First import a module
-            await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
-            {
-                await _scriptCommands.ImportAsync(batch, "RunTestModule", vbaFile);
-                await batch.SaveAsync();
-            }
-
-            // Act - Run the procedure
-            await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
-            {
-                var result = await _scriptCommands.RunAsync(batch, "RunTestModule.RunTest");
-
-                // Assert
-                Assert.NotNull(result);
-            }
-        }
+        // Assert - Should succeed when VBA trust is enabled
+        Assert.True(deleteResult.Success, $"Delete should succeed with VBA trust enabled. Error: {deleteResult.ErrorMessage}");
     }
 }
-
