@@ -38,8 +38,6 @@ public class DataModelWriteTests : IClassFixture<DataModelWriteTestsFixture>
         var result = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, daxFormula);
         // Assert
         Assert.True(result.Success, $"CreateMeasure MUST succeed with valid parameters. Error: {result.ErrorMessage}");
-        Assert.NotNull(result.SuggestedNextActions);
-        Assert.Contains(result.SuggestedNextActions, s => s.Contains("created successfully"));
 
         // Verify measure was created
         var listResult = await _dataModelCommands.ListMeasuresAsync(batch);
@@ -61,7 +59,6 @@ public class DataModelWriteTests : IClassFixture<DataModelWriteTestsFixture>
                                                                      formatType: "Currency", description: "Test measure with currency format");
             // Assert - CreateMeasure should succeed
             Assert.True(result.Success, $"CreateMeasure with format MUST succeed. Error: {result.ErrorMessage}");
-            Assert.NotNull(result.SuggestedNextActions);
         } // Close and save the batch
 
         // Verify measure exists in NEW batch (after file is closed and reopened)
@@ -116,8 +113,6 @@ public class DataModelWriteTests : IClassFixture<DataModelWriteTestsFixture>
         var result = await _dataModelCommands.DeleteMeasureAsync(batch, measureName);
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
-        Assert.NotNull(result.SuggestedNextActions);
-        Assert.Contains(result.SuggestedNextActions, s => s.Contains("deleted successfully"));
 
         // Verify the measure was actually deleted
         var listResult = await _dataModelCommands.ListMeasuresAsync(batch);

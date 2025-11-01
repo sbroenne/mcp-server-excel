@@ -56,14 +56,6 @@ public partial class TableCommands
         var result = await _rangeCommands.SetNumberFormatAsync(batch, columnRange.SheetName, columnRange.RangeAddress, formatCode);
         
         result.Action = "set-column-number-format";
-        result.SuggestedNextActions =
-        [
-            "Use 'info' to verify table structure",
-            $"Use 'get-column-number-format' to verify format applied to {columnName}",
-            "Use range 'get-values' to see formatted values"
-        ];
-        result.WorkflowHint = $"Applied format '{formatCode}' to table '{tableName}' column '{columnName}'";
-
         return result;
     }
 

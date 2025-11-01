@@ -67,9 +67,6 @@ public partial class TableCommands
                 );
 
                 result.Success = true;
-                result.WorkflowHint = $"Sorted table '{tableName}' by column '{columnName}' ({(ascending ? "ascending" : "descending")})";
-                result.SuggestedNextActions.Add($"Use 'table-info {tableName}' to verify table state");
-                result.SuggestedNextActions.Add($"Use 'range-get-values' to view sorted data");
 
                 return result;
             }
@@ -202,9 +199,6 @@ public partial class TableCommands
                 // Build description
                 var sortDesc = string.Join(", ", sortColumns.Select(sc => $"{sc.ColumnName} ({(sc.Ascending ? "asc" : "desc")})"));
                 result.Success = true;
-                result.WorkflowHint = $"Sorted table '{tableName}' by: {sortDesc}";
-                result.SuggestedNextActions.Add($"Use 'table-info {tableName}' to verify table state");
-                result.SuggestedNextActions.Add($"Use 'range-get-values' to view sorted data");
 
                 return result;
             }

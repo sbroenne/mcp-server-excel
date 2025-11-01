@@ -134,34 +134,17 @@ public static class TableTool
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the Excel file exists and is accessible",
-                "Verify the file path is correct"
-            ];
-            result.WorkflowHint = "List failed. Ensure the file exists and retry.";
+
             throw new ModelContextProtocol.McpException($"list failed for '{filePath}': {result.ErrorMessage}");
         }
 
         if (result.Tables == null || !result.Tables.Any())
         {
-            result.SuggestedNextActions =
-            [
-                "Use 'excel_table create' to create an Excel Table from a range",
-                "Excel Tables provide AutoFilter, structured references ([@Column]), and dynamic expansion",
-                "Tables can be used standalone or referenced in Power Query: Excel.CurrentWorkbook(){[Name=\"TableName\"]}[Content]"
-            ];
-            result.WorkflowHint = "No tables found. Create tables for AutoFilter, structured references, and better data management.";
+
         }
         else
         {
-            result.SuggestedNextActions =
-            [
-                "Use 'excel_table info <tableName>' to view detailed table information",
-                "Use structured references in formulas: =[@ColumnName] or =TableName[@Column]",
-                "Use 'excel_table rename <oldName> <newName>' to rename a table"
-            ];
-            result.WorkflowHint = $"Found {result.Tables.Count} table(s). Use 'excel_table info' for details.";
+
         }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -182,31 +165,13 @@ public static class TableTool
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the sheet name exists in the workbook",
-                "Verify the range is valid (e.g., 'A1:D10')",
-                "Ensure the table name is unique and follows naming rules (starts with letter/underscore, alphanumeric + underscore only)",
-                "Check that the range contains data"
-            ];
-            result.WorkflowHint = "Table creation failed. Verify sheet name, range, and table name.";
+
             throw new ModelContextProtocol.McpException($"create failed for table '{tableName}': {result.ErrorMessage}");
         }
 
-        if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
-        {
-            result.SuggestedNextActions =
-            [
-                $"Use 'excel_table info {tableName}' to view table details",
-                $"Use structured references in formulas: ={tableName}[@Column] or =[@Column] within table",
-                $"Use 'excel_table rename {tableName} NewName' to rename the table"
-            ];
-        }
+        
 
-        if (string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            result.WorkflowHint = $"Table '{tableName}' created successfully. Use AutoFilter, structured references, and dynamic expansion.";
-        }
+        
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -224,30 +189,13 @@ public static class TableTool
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Use 'excel_table list' to see all available tables",
-                "Check that the table name is correct (names are case-sensitive)",
-                "Verify the Excel file exists and is accessible"
-            ];
-            result.WorkflowHint = "Table not found. Use 'excel_table list' to see available tables.";
+
             throw new ModelContextProtocol.McpException($"info failed for table '{tableName}': {result.ErrorMessage}");
         }
 
-        if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
-        {
-            result.SuggestedNextActions =
-            [
-                $"Use 'excel_table rename {tableName} NewName' to rename the table",
-                $"Use 'excel_table delete {tableName}' to remove the table (data preserved as range)",
-                $"Use structured references in formulas: ={tableName}[@Column]"
-            ];
-        }
+        
 
-        if (string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            result.WorkflowHint = $"Table '{tableName}' details retrieved. {result.Table?.RowCount ?? 0} rows, {result.Table?.ColumnCount ?? 0} columns.";
-        }
+        
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -266,31 +214,13 @@ public static class TableTool
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Use 'excel_table list' to see all available tables",
-                "Check that the table name is correct",
-                "Ensure the new name is unique and follows naming rules (starts with letter/underscore, alphanumeric + underscore only)",
-                "Verify the Excel file is not open in Excel Desktop"
-            ];
-            result.WorkflowHint = "Rename failed. Verify table name and new name are valid.";
+
             throw new ModelContextProtocol.McpException($"rename failed for table '{tableName}': {result.ErrorMessage}");
         }
 
-        if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
-        {
-            result.SuggestedNextActions =
-            [
-                $"Update structured references if used in formulas: ={newName}[@Column]",
-                "Update any scripts or external references that use the old table name",
-                $"Use 'excel_table info {newName}' to verify the rename"
-            ];
-        }
+        
 
-        if (string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            result.WorkflowHint = $"Table renamed from '{tableName}' to '{newName}'. Update formulas using structured references.";
-        }
+        
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -308,30 +238,13 @@ public static class TableTool
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Use 'excel_table list' to see all available tables",
-                "Check that the table name is correct",
-                "Verify the Excel file is not open in Excel Desktop"
-            ];
-            result.WorkflowHint = "Delete failed. Verify table name is correct.";
+
             throw new ModelContextProtocol.McpException($"delete failed for table '{tableName}': {result.ErrorMessage}");
         }
 
-        if (result.SuggestedNextActions == null || !result.SuggestedNextActions.Any())
-        {
-            result.SuggestedNextActions =
-            [
-                "Data has been preserved as a regular range",
-                "Update or remove formulas that used structured references to this table",
-                "Use 'excel_range get-values' to access the data as a range"
-            ];
-        }
+        
 
-        if (string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            result.WorkflowHint = $"Table '{tableName}' deleted. Data converted back to regular range.";
-        }
+        
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }

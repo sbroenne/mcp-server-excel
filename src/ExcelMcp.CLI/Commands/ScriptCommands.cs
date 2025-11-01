@@ -193,15 +193,6 @@ public class ScriptCommands : IScriptCommands
         }
 
         // Display suggested next actions
-        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-        {
-            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-            foreach (var suggestion in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 
@@ -301,22 +292,6 @@ public class ScriptCommands : IScriptCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Imported VBA module '[cyan]{moduleName}[/]' from [cyan]{vbaFile}[/]");
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
-        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-        {
-            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-            foreach (var suggestion in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 
@@ -366,22 +341,6 @@ public class ScriptCommands : IScriptCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Updated VBA module '[cyan]{moduleName}[/]' from [cyan]{vbaFile}[/]");
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
-        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-        {
-            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-            foreach (var suggestion in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 
@@ -429,22 +388,6 @@ public class ScriptCommands : IScriptCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] VBA procedure '[cyan]{procedureName}[/]' executed successfully");
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
-        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-        {
-            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-            foreach (var suggestion in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 
@@ -489,22 +432,6 @@ public class ScriptCommands : IScriptCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Deleted VBA module '[cyan]{moduleName}[/]'");
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
-        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-        {
-            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-            foreach (var suggestion in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 }

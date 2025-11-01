@@ -65,10 +65,6 @@ public partial class TableCommands
                 newColumn.Name = columnName;
 
                 result.Success = true;
-                result.SuggestedNextActions.Add($"Use 'table-info {tableName}' to verify column added");
-                result.SuggestedNextActions.Add($"Use 'range-set-values' to populate new column data");
-                result.WorkflowHint = $"Column '{columnName}' added to table '{tableName}'.";
-
                 return result;
             }
             catch (Exception ex)
@@ -142,9 +138,6 @@ public partial class TableCommands
                 column.Delete();
 
                 result.Success = true;
-                result.SuggestedNextActions.Add($"Use 'table-info {tableName}' to verify column removed");
-                result.WorkflowHint = $"Column '{columnName}' removed from table '{tableName}'.";
-
                 return result;
             }
             catch (Exception ex)
@@ -238,10 +231,6 @@ public partial class TableCommands
                 column.Name = newName;
 
                 result.Success = true;
-                result.SuggestedNextActions.Add($"Use 'table-info {tableName}' to verify column renamed");
-                result.SuggestedNextActions.Add("Update any formulas using structured references with the old column name");
-                result.WorkflowHint = $"Column renamed from '{oldName}' to '{newName}' in table '{tableName}'.";
-
                 return result;
             }
             catch (Exception ex)

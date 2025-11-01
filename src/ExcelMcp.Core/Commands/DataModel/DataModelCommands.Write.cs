@@ -55,11 +55,6 @@ public partial class DataModelCommands
                         }
                     }
 
-                    if (suggestions.Any())
-                    {
-                        result.SuggestedNextActions = suggestions;
-                    }
-
                     return result;
                 }
 
@@ -67,13 +62,6 @@ public partial class DataModelCommands
                 measure.Delete();
 
                 result.Success = true;
-                result.SuggestedNextActions =
-                [
-                    $"Measure '{measureName}' deleted successfully",
-                    "Use 'model-list-measures' to verify deletion",
-                    "Changes saved to workbook"
-                ];
-                result.WorkflowHint = "Measure deleted. Next, verify remaining measures or create new ones.";
             }
             catch (Exception ex)
             {
@@ -171,23 +159,10 @@ public partial class DataModelCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = DataModelErrorMessages.RelationshipNotFound(fromTable, fromColumn, toTable, toColumn);
-                    result.SuggestedNextActions =
-                    [
-                        "Use 'model-list-relationships' to see available relationships",
-                        "Check table and column names for typos",
-                        "Verify the relationship exists in the Data Model"
-                    ];
                     return result;
                 }
 
                 result.Success = true;
-                result.SuggestedNextActions =
-                [
-                    $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} deleted successfully",
-                    "Use 'model-list-relationships' to verify deletion",
-                    "Changes saved to workbook"
-                ];
-                result.WorkflowHint = "Relationship deleted. Next, verify remaining relationships or create new ones.";
             }
             catch (Exception ex)
             {
@@ -251,12 +226,6 @@ public partial class DataModelCommands
                     ComUtilities.Release(ref existingMeasure);
                     result.Success = false;
                     result.ErrorMessage = $"Measure '{measureName}' already exists in the Data Model";
-                    result.SuggestedNextActions =
-                    [
-                        "Use 'model-update-measure' to modify existing measure",
-                        "Choose a different measure name",
-                        "Delete the existing measure first"
-                    ];
                     return result;
                 }
 
@@ -281,14 +250,6 @@ public partial class DataModelCommands
                 );
 
                 result.Success = true;
-                result.SuggestedNextActions =
-                [
-                    $"Measure '{measureName}' created successfully in table '{tableName}'",
-                    "Use 'model-view-measure' to verify the measure",
-                    "Use 'model-list-measures' to see all measures",
-                    "Changes saved to workbook"
-                ];
-                result.WorkflowHint = "Measure created. Next, test the measure in a PivotTable or verify its formula.";
             }
             catch (Exception ex)
             {
@@ -383,13 +344,6 @@ public partial class DataModelCommands
                 }
 
                 result.Success = true;
-                result.SuggestedNextActions =
-                [
-                    $"Measure '{measureName}' updated: {string.Join(", ", updates)}",
-                    "Use 'model-view-measure' to verify changes",
-                    "Changes saved to workbook"
-                ];
-                result.WorkflowHint = "Measure updated. Next, test the changes in a PivotTable or verify the formula.";
             }
             catch (Exception ex)
             {
@@ -481,11 +435,6 @@ public partial class DataModelCommands
                     ComUtilities.Release(ref existingRel);
                     result.Success = false;
                     result.ErrorMessage = $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} already exists";
-                    result.SuggestedNextActions =
-                    [
-                        "Use 'model-update-relationship' to modify relationship",
-                        "Use 'model-list-relationships' to view all relationships"
-                    ];
                     return result;
                 }
 
@@ -502,13 +451,6 @@ public partial class DataModelCommands
                 newRelationship.Active = active;
 
                 result.Success = true;
-                result.SuggestedNextActions =
-                [
-                    $"Relationship created: {fromTable}.{fromColumn} → {toTable}.{toColumn} ({(active ? "Active" : "Inactive")})",
-                    "Use 'model-list-relationships' to verify the relationship",
-                    "Changes saved to workbook"
-                ];
-                result.WorkflowHint = "Relationship created. Next, test DAX calculations that use this relationship.";
             }
             catch (Exception ex)
             {
@@ -563,11 +505,6 @@ public partial class DataModelCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = DataModelErrorMessages.RelationshipNotFound(fromTable, fromColumn, toTable, toColumn);
-                    result.SuggestedNextActions =
-                    [
-                        "Use 'model-list-relationships' to see available relationships",
-                        "Check table and column names for typos"
-                    ];
                     return result;
                 }
 
@@ -583,13 +520,6 @@ public partial class DataModelCommands
                     : $"changed from {(wasActive ? "active" : "inactive")} to {(active ? "active" : "inactive")}";
 
                 result.Success = true;
-                result.SuggestedNextActions =
-                [
-                    $"Relationship {fromTable}.{fromColumn} → {toTable}.{toColumn} {stateChange}",
-                    "Use 'model-list-relationships' to verify the change",
-                    "Changes saved to workbook"
-                ];
-                result.WorkflowHint = "Relationship updated. Next, verify DAX calculations that use this relationship.";
             }
             catch (Exception ex)
             {

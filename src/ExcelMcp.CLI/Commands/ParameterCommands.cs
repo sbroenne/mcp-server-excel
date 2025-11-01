@@ -94,22 +94,6 @@ public class ParameterCommands : IParameterCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Set parameter '{paramName.EscapeMarkup()}' = '{value.EscapeMarkup()}'");
-
-            // Display workflow hints if available
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-
             return 0;
         }
         else
@@ -178,37 +162,11 @@ public class ParameterCommands : IParameterCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Updated parameter '{paramName.EscapeMarkup()}' reference to {reference.EscapeMarkup()}");
-
-            // Display workflow hints if available
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-
             return 0;
         }
         else
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggestions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-
             return 1;
         }
     }
@@ -238,22 +196,6 @@ public class ParameterCommands : IParameterCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Created parameter '{paramName.EscapeMarkup()}' -> {reference.EscapeMarkup()}");
-
-            // Display workflow hints if available
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-
             return 0;
         }
         else
@@ -295,22 +237,6 @@ public class ParameterCommands : IParameterCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Deleted parameter '{paramName.EscapeMarkup()}'");
-
-            // Display workflow hints if available
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-
             return 0;
         }
         else

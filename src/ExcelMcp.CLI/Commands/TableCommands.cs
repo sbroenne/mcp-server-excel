@@ -107,22 +107,6 @@ public class CliTableCommands : ITableCommands
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Created table: [cyan]{tableName}[/]");
             AnsiConsole.MarkupLine($"[dim]Sheet: {sheetName}, Range: {range}[/]");
-
-            // Display workflow hints
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-
             return 0;
         }
         else
@@ -158,21 +142,6 @@ public class CliTableCommands : ITableCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Renamed table: [cyan]{tableName}[/] → [cyan]{newName}[/]");
-
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-
             return 0;
         }
         else
@@ -214,21 +183,6 @@ public class CliTableCommands : ITableCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Deleted table: [cyan]{tableName}[/]");
-
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-
             return 0;
         }
         else
@@ -293,21 +247,6 @@ public class CliTableCommands : ITableCommands
 
                 AnsiConsole.Write(columnTable);
             }
-
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"\n[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-
             return 0;
         }
         else
@@ -341,10 +280,6 @@ public class CliTableCommands : ITableCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Resized table: [cyan]{tableName}[/] to {newRange}");
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
             return 0;
         }
         else
@@ -377,10 +312,6 @@ public class CliTableCommands : ITableCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Totals row {(showTotals ? "enabled" : "disabled")} for: [cyan]{tableName}[/]");
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
             return 0;
         }
         else
@@ -415,10 +346,6 @@ public class CliTableCommands : ITableCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Set [[cyan]{columnName}[/]] total to {totalFunction}");
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
             return 0;
         }
         else
@@ -455,10 +382,6 @@ public class CliTableCommands : ITableCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Appended rows to table: [cyan]{tableName}[/]");
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
             return 0;
         }
         else
@@ -518,10 +441,6 @@ public class CliTableCommands : ITableCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Changed style of [cyan]{tableName}[/] to {tableStyle}");
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
             return 0;
         }
         else
@@ -553,19 +472,6 @@ public class CliTableCommands : ITableCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Added [cyan]{tableName}[/] to Power Pivot Data Model");
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
             return 0;
         }
         else

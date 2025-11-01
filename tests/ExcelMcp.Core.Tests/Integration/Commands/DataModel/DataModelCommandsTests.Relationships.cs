@@ -98,8 +98,6 @@ public partial class DataModelCommandsTests
         // Assert - MUST succeed (Data Model is always available in Excel 2013+)
         Assert.True(createResult.Success,
             $"CreateRelationship MUST succeed. Error: {createResult.ErrorMessage}");
-        Assert.NotNull(createResult.SuggestedNextActions);
-        Assert.Contains(createResult.SuggestedNextActions, s => s.Contains("Relationship created"));
 
         // Verify relationship was created
         var verifyResult = await _dataModelCommands.ListRelationshipsAsync(batch);

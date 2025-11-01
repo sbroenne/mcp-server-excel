@@ -83,22 +83,6 @@ public class SheetCommands : ISheetCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Created worksheet '{sheetName.EscapeMarkup()}'");
-
-            // Display workflow hints if available
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-
             return 0;
         }
         else
@@ -141,22 +125,6 @@ public class SheetCommands : ISheetCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Renamed '{oldName.EscapeMarkup()}' to '{newName.EscapeMarkup()}'");
-
-            // Display workflow hints if available
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-
             return 0;
         }
         else
@@ -199,22 +167,6 @@ public class SheetCommands : ISheetCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Copied '{sourceName.EscapeMarkup()}' to '{targetName.EscapeMarkup()}'");
-
-            // Display workflow hints if available
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-
             return 0;
         }
         else
@@ -256,22 +208,6 @@ public class SheetCommands : ISheetCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Deleted worksheet '{sheetName.EscapeMarkup()}'");
-
-            // Display workflow hints if available
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-
             return 0;
         }
         else
@@ -470,16 +406,6 @@ public class SheetCommands : ISheetCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Set visibility for '{sheetName.EscapeMarkup()}' to {visibilityStr}");
-            
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Info:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-            
             return 0;
         }
         else

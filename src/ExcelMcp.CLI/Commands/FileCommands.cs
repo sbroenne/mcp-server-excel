@@ -56,22 +56,6 @@ public class FileCommands : IFileCommands
                 AnsiConsole.MarkupLine($"[green]✓[/] Created Excel workbook: [cyan]{Path.GetFileName(filePath)}[/]");
             }
             AnsiConsole.MarkupLine($"[dim]Full path: {filePath}[/]");
-
-            // Display workflow hints if available
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-
             return 0;
         }
         else

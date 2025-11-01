@@ -184,11 +184,6 @@ public partial class DataModelCommands
                         }
                     }
 
-                    if (suggestions.Any())
-                    {
-                        result.SuggestedNextActions = suggestions;
-                    }
-
                     return result;
                 }
 

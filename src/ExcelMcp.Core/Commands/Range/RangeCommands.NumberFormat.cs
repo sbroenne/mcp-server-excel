@@ -113,14 +113,6 @@ public partial class RangeCommands
                 }
 
                 result.Success = true;
-                result.SuggestedNextActions =
-                [
-                    "Use 'set-number-format' to apply uniform format",
-                    "Use 'set-number-formats' to apply different formats per cell",
-                    "See NumberFormatPresets for common format codes"
-                ];
-                result.WorkflowHint = $"Retrieved number formats for {rowCount}x{columnCount} range";
-
                 return result;
             }
             catch (Exception ex)
@@ -162,14 +154,6 @@ public partial class RangeCommands
                 range.NumberFormat = formatCode;
 
                 result.Success = true;
-                result.SuggestedNextActions =
-                [
-                    "Use 'get-values' to see formatted values",
-                    "Use 'get-number-formats' to verify format applied",
-                    "Consider auto-fitting columns with 'auto-fit-columns'"
-                ];
-                result.WorkflowHint = $"Applied format '{formatCode}' to range {rangeAddress}";
-
                 return result;
             }
             catch (Exception ex)
@@ -265,14 +249,6 @@ public partial class RangeCommands
                 }
 
                 result.Success = true;
-                result.SuggestedNextActions =
-                [
-                    "Use 'get-values' to see formatted values",
-                    "Use 'get-number-formats' to verify formats applied",
-                    "Consider auto-fitting columns with 'auto-fit-columns'"
-                ];
-                result.WorkflowHint = $"Applied {rowCount}x{columnCount} number formats to range {rangeAddress}";
-
                 return result;
             }
             catch (Exception ex)

@@ -22,9 +22,6 @@
     <!-- Documentation -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
-
-    <!-- Suppress CS0618 (Obsolete) for SuggestedNextActions/WorkflowHint during migration -->
-    <NoWarn>$(NoWarn);CS0618</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\ExcelMcp.ComInterop\ExcelMcp.ComInterop.csproj" />

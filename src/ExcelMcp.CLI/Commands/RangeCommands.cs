@@ -86,22 +86,6 @@ public class RangeCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Set values in {rangeAddress.EscapeMarkup()}");
-
-            // Display workflow hints if available
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-
             return 0;
         }
         else
@@ -185,22 +169,6 @@ public class RangeCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Set formulas in {rangeAddress.EscapeMarkup()}");
-
-            // Display workflow hints if available
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-
             return 0;
         }
         else

@@ -94,10 +94,6 @@ public partial class TableCommands
                 );
 
                 result.Success = true;
-                result.SuggestedNextActions.Add($"Use 'table-get-filters {tableName}' to verify filter state");
-                result.SuggestedNextActions.Add($"Use 'range-get-values' on table to see filtered results");
-                result.WorkflowHint = $"Applied filter '{criteria}' to column '{columnName}' in table '{tableName}'.";
-
                 return result;
             }
             catch (Exception ex)
@@ -199,10 +195,6 @@ public partial class TableCommands
                 );
 
                 result.Success = true;
-                result.SuggestedNextActions.Add($"Use 'table-get-filters {tableName}' to verify filter state");
-                result.SuggestedNextActions.Add($"Use 'range-get-values' on table to see filtered results");
-                result.WorkflowHint = $"Applied filter with {filterValues.Count} values to column '{columnName}' in table '{tableName}'.";
-
                 return result;
             }
             catch (Exception ex)
@@ -247,9 +239,6 @@ public partial class TableCommands
                 }
 
                 result.Success = true;
-                result.SuggestedNextActions.Add($"Use 'range-get-values' on table to see all data");
-                result.WorkflowHint = $"All filters cleared from table '{tableName}'.";
-
                 return result;
             }
             catch (Exception ex)

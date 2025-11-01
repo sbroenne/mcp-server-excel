@@ -170,6 +170,7 @@ class Program
                 "script-export" => script.Export(args),
                 "script-import" => await script.Import(args),
                 "script-update" => await script.Update(args),
+                "script-delete" => script.Delete(args),
                 "script-run" => script.Run(args),
 
                 // Data Model commands (READ operations via COM API)
@@ -313,6 +314,11 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]pq-refresh[/] file.xlsx query-name            Refresh a specific Power Query");
         AnsiConsole.MarkupLine("  [cyan]pq-loadto[/] file.xlsx query-name sheet       Load Power Query to worksheet");
         AnsiConsole.MarkupLine("  [cyan]pq-delete[/] file.xlsx query-name             Delete Power Query");
+        AnsiConsole.MarkupLine("  [cyan]pq-sources[/] file.xlsx query-name            List data sources used by query");
+        AnsiConsole.MarkupLine("  [cyan]pq-test[/] file.xlsx query-name               Test Power Query syntax");
+        AnsiConsole.MarkupLine("  [cyan]pq-peek[/] file.xlsx query-name               Preview query results (first rows)");
+        AnsiConsole.MarkupLine("  [cyan]pq-verify[/] file.xlsx query-name             Evaluate Power Query expression");
+        AnsiConsole.MarkupLine("  [cyan]pq-errors[/] file.xlsx query-name             View Power Query errors");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Power Query Load Configuration:[/]");
@@ -358,11 +364,11 @@ class Program
         AnsiConsole.MarkupLine("[bold yellow]Range Formatting Commands:[/]");
         AnsiConsole.MarkupLine("  [cyan]range-get-number-formats[/] file.xlsx sheet range   Get number format codes (CSV output)");
         AnsiConsole.MarkupLine("  [cyan]range-set-number-format[/] file.xlsx sheet range fmt Apply number format ($#,##0.00, 0.00%, m/d/yyyy)");
-        AnsiConsole.MarkupLine("  [cyan]range-format[/] file.xlsx sheet range [options]     Apply visual formatting");
+        AnsiConsole.MarkupLine("  [cyan]range-format[/] file.xlsx sheet range [[options]]     Apply visual formatting");
         AnsiConsole.MarkupLine("    [dim]--font-name, --font-size, --bold, --italic, --underline, --font-color #RRGGBB[/]");
         AnsiConsole.MarkupLine("    [dim]--fill-color #RRGGBB, --border-style, --border-weight, --border-color #RRGGBB[/]");
         AnsiConsole.MarkupLine("    [dim]--h-align Left|Center|Right, --v-align Top|Center|Bottom, --wrap-text, --orientation DEGREES[/]");
-        AnsiConsole.MarkupLine("  [cyan]range-validate[/] file.xlsx sheet range type formula [options]  Add data validation");
+        AnsiConsole.MarkupLine("  [cyan]range-validate[/] file.xlsx sheet range type formula [[options]]  Add data validation");
         AnsiConsole.MarkupLine("    [dim]Types: List (dropdown), WholeNumber, Decimal, Date, Time, TextLength, Custom[/]");
         AnsiConsole.MarkupLine("    [dim]Example: range-validate data.xlsx Sheet1 F2:F100 List \"Active,Inactive,Pending\"[/]");
         AnsiConsole.MarkupLine("  [dim]Note: Single cell = 1x1 range (e.g., A1). Named ranges: use empty sheet \"\"[/]");
@@ -431,25 +437,29 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]script-export[/] file.xlsm script (file)       Export VBA script");
         AnsiConsole.MarkupLine("  [cyan]script-import[/] file.xlsm module-name vba.txt Import VBA script");
         AnsiConsole.MarkupLine("  [cyan]script-update[/] file.xlsm module-name vba.txt Update VBA script");
+        AnsiConsole.MarkupLine("  [cyan]script-delete[/] file.xlsm module-name         Delete VBA module");
         AnsiConsole.MarkupLine("  [cyan]script-run[/] file.xlsm macro-name (params)    Run VBA macro");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Data Model Commands:[/]");
+        AnsiConsole.MarkupLine("  [bold]Discovery:[/]");
         AnsiConsole.MarkupLine("  [cyan]dm-list-tables[/] file.xlsx                    List all Data Model tables");
+        AnsiConsole.MarkupLine("  [cyan]dm-view-table[/] file.xlsx table-name          View Data Model table details");
+        AnsiConsole.MarkupLine("  [cyan]dm-list-columns[/] file.xlsx table-name        List columns in Data Model table");
+        AnsiConsole.MarkupLine("  [cyan]dm-get-model-info[/] file.xlsx                 Get Data Model information");
         AnsiConsole.MarkupLine("  [cyan]dm-list-measures[/] file.xlsx                  List all DAX measures");
         AnsiConsole.MarkupLine("  [cyan]dm-view-measure[/] file.xlsx measure-name     View DAX measure formula");
-        AnsiConsole.MarkupLine("  [cyan]dm-export-measure[/] file.xlsx measure out.dax Export DAX measure to file");
         AnsiConsole.MarkupLine("  [cyan]dm-list-relationships[/] file.xlsx            List Data Model relationships");
-        AnsiConsole.MarkupLine("  [cyan]dm-refresh[/] file.xlsx                        Refresh Data Model");
-        AnsiConsole.MarkupLine("  [cyan]dm-delete-measure[/] file.xlsx measure-name   Delete DAX measure");
-        AnsiConsole.MarkupLine("  [cyan]dm-delete-relationship[/] file.xlsx from-tbl from-col to-tbl to-col  Delete relationship");
         AnsiConsole.WriteLine();
-
-        AnsiConsole.MarkupLine("[bold yellow]Data Model Commands:[/]");
+        AnsiConsole.MarkupLine("  [bold]Operations:[/]");
+        AnsiConsole.MarkupLine("  [cyan]dm-export-measure[/] file.xlsx measure out.dax Export DAX measure to file");
         AnsiConsole.MarkupLine("  [cyan]dm-create-measure[/] file.xlsx table name formula  Create DAX measure");
         AnsiConsole.MarkupLine("  [cyan]dm-update-measure[/] file.xlsx name [[options]]      Update DAX measure");
+        AnsiConsole.MarkupLine("  [cyan]dm-delete-measure[/] file.xlsx measure-name   Delete DAX measure");
         AnsiConsole.MarkupLine("  [cyan]dm-create-relationship[/] file.xlsx from to        Create table relationship");
         AnsiConsole.MarkupLine("  [cyan]dm-update-relationship[/] file.xlsx from to [[opts]] Update relationship");
+        AnsiConsole.MarkupLine("  [cyan]dm-delete-relationship[/] file.xlsx from-tbl from-col to-tbl to-col  Delete relationship");
+        AnsiConsole.MarkupLine("  [cyan]dm-refresh[/] file.xlsx                        Refresh Data Model");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold green]Examples:[/]");

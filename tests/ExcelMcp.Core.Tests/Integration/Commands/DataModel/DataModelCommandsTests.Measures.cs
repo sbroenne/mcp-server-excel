@@ -87,8 +87,6 @@ public partial class DataModelCommandsTests
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
-        Assert.NotNull(result.SuggestedNextActions);
-        Assert.Contains(result.SuggestedNextActions, s => s.Contains("deleted successfully"));
 
         // Verify the measure was actually deleted by listing measures
         var listResult = await _dataModelCommands.ListMeasuresAsync(batch);
@@ -116,8 +114,6 @@ public partial class DataModelCommandsTests
         // Assert - Data Model is ALWAYS available in Excel 2013+
         Assert.True(result.Success,
             $"CreateMeasure MUST succeed with valid parameters. Error: {result.ErrorMessage}");
-        Assert.NotNull(result.SuggestedNextActions);
-        Assert.Contains(result.SuggestedNextActions, s => s.Contains("created successfully"));
 
         // Verify measure was created by listing measures
         var listResult = await _dataModelCommands.ListMeasuresAsync(batch);
@@ -142,7 +138,6 @@ public partial class DataModelCommandsTests
         // Assert - Data Model is ALWAYS available in Excel 2013+
         Assert.True(result.Success,
             $"CreateMeasure with format MUST succeed. Error: {result.ErrorMessage}");
-        Assert.NotNull(result.SuggestedNextActions);
 
         // Verify measure exists
         var viewResult = await _dataModelCommands.ViewMeasureAsync(batch, measureName);
@@ -170,8 +165,6 @@ public partial class DataModelCommandsTests
             var updateResult = await _dataModelCommands.UpdateMeasureAsync(batch, measureName, daxFormula: updatedFormula);
             // Assert
             Assert.True(updateResult.Success, $"Expected success but got error: {updateResult.ErrorMessage}");
-            Assert.NotNull(updateResult.SuggestedNextActions);
-            Assert.Contains(updateResult.SuggestedNextActions, s => s.Contains("Formula updated"));
 
             // Verify the update
             var viewResult = await _dataModelCommands.ViewMeasureAsync(batch, measureName);

@@ -234,12 +234,6 @@ public class SheetCommands : ISheetCommands
                 tab.Color = bgrColor;
                 
                 result.Success = true;
-                result.SuggestedNextActions = 
-                [
-                    $"Tab color set to RGB({red}, {green}, {blue})",
-                    "Use 'get-tab-color' to verify the color",
-                    "Use 'clear-tab-color' to remove the color"
-                ];
                 return result;
             }
             catch (Exception ex)
@@ -353,11 +347,6 @@ public class SheetCommands : ISheetCommands
                 tab.ColorIndex = -4142; // xlColorIndexNone
                 
                 result.Success = true;
-                result.SuggestedNextActions = 
-                [
-                    "Tab color cleared (reset to default)",
-                    "Use 'set-tab-color' to apply a new color"
-                ];
                 return result;
             }
             catch (Exception ex)
@@ -398,27 +387,6 @@ public class SheetCommands : ISheetCommands
                 sheet.Visible = (int)visibility;
                 
                 result.Success = true;
-                result.SuggestedNextActions = visibility switch
-                {
-                    SheetVisibility.Visible => 
-                    [
-                        $"Sheet '{sheetName}' is now visible",
-                        "Users can see and interact with the sheet"
-                    ],
-                    SheetVisibility.Hidden => 
-                    [
-                        $"Sheet '{sheetName}' is now hidden",
-                        "Users can unhide via Excel UI (right-click tabs)",
-                        "Use 'show' to make visible again"
-                    ],
-                    SheetVisibility.VeryHidden => 
-                    [
-                        $"Sheet '{sheetName}' is now very hidden",
-                        "Only code can unhide this sheet (protected from users)",
-                        "Use 'show' action to make visible when needed"
-                    ],
-                    _ => []
-                };
                 
                 return result;
             }

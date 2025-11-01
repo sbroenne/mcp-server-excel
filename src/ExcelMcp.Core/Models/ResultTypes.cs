@@ -19,20 +19,6 @@ public abstract class ResultBase
     /// File path of the Excel file
     /// </summary>
     public string? FilePath { get; set; }
-
-    /// <summary>
-    /// DEPRECATED: SuggestedNextActions should be generated at presentation layer (CLI/MCP), not Core.
-    /// This property will be removed in a future version.
-    /// </summary>
-    [Obsolete("SuggestedNextActions belongs in presentation layer (CLI/MCP Server), not Core. Do not use in new code.", error: false)]
-    public List<string> SuggestedNextActions { get; set; } = [];
-
-    /// <summary>
-    /// DEPRECATED: WorkflowHint should be generated at presentation layer (CLI/MCP), not Core.
-    /// This property will be removed in a future version.
-    /// </summary>
-    [Obsolete("WorkflowHint belongs in presentation layer (CLI/MCP Server), not Core. Do not use in new code.", error: false)]
-    public string? WorkflowHint { get; set; }
 }
 
 /// <summary>

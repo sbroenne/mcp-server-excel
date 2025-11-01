@@ -187,23 +187,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Updated Power Query '[cyan]{queryName}[/]' from [cyan]{mCodeFile}[/]");
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
         // Display suggested next actions
-        if (result.SuggestedNextActions?.Any() == true)
-        {
-            AnsiConsole.MarkupLine("[yellow]Suggested next steps:[/]");
-            foreach (var action in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  [dim]•[/] {action.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 
@@ -287,23 +271,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Imported Power Query '[cyan]{queryName}[/]' from [cyan]{mCodeFile}[/]");
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
         // Display suggested next actions
-        if (result.SuggestedNextActions?.Any() == true)
-        {
-            AnsiConsole.MarkupLine("[yellow]Suggested next steps:[/]");
-            foreach (var action in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  [dim]•[/] {action.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 
@@ -353,22 +321,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Refreshed Power Query '[cyan]{queryName}[/]'");
         }
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
-        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-        {
-            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-            foreach (var suggestion in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 
@@ -469,22 +421,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Deleted Power Query '[cyan]{queryName}[/]'");
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
-        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-        {
-            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-            foreach (var suggestion in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 
@@ -724,22 +660,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' is now Connection Only");
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
-        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-        {
-            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-            foreach (var suggestion in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 
@@ -774,15 +694,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         {
             AnsiConsole.MarkupLine($"[yellow]Privacy Level Required[/]");
             AnsiConsole.MarkupLine($"[dim]{result.ErrorMessage.EscapeMarkup()}[/]");
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
             return 1;
         }
 
@@ -797,22 +708,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' loaded to worksheet '{sheetName}'");
         AnsiConsole.MarkupLine($"[dim]Rows Loaded: {result.RowsLoaded}[/]");
         AnsiConsole.MarkupLine($"[dim]Workflow Status: {result.WorkflowStatus}[/]");
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
-        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-        {
-            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-            foreach (var suggestion in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 
@@ -846,15 +741,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         {
             AnsiConsole.MarkupLine($"[yellow]Privacy Level Required[/]");
             AnsiConsole.MarkupLine($"[dim]{result.ErrorMessage.EscapeMarkup()}[/]");
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
             return 1;
         }
 
@@ -869,22 +755,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' loaded to Data Model");
         AnsiConsole.MarkupLine($"[dim]Rows Loaded: {result.RowsLoaded}, Tables in Data Model: {result.TablesInDataModel}[/]");
         AnsiConsole.MarkupLine($"[dim]Workflow Status: {result.WorkflowStatus}[/]");
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
-        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-        {
-            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-            foreach (var suggestion in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 
@@ -919,15 +789,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         {
             AnsiConsole.MarkupLine($"[yellow]Privacy Level Required[/]");
             AnsiConsole.MarkupLine($"[dim]{result.ErrorMessage.EscapeMarkup()}[/]");
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
             return 1;
         }
 
@@ -963,22 +824,6 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         AnsiConsole.MarkupLine($"[dim]Total Tables in Data Model: {result.TablesInDataModel}[/]");
         AnsiConsole.MarkupLine($"[dim]Workflow Status: {result.WorkflowStatus}[/]");
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
-        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-        {
-            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-            foreach (var suggestion in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 

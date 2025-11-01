@@ -150,23 +150,12 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             async (batch) => await commands.ListAsync(batch));
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the Excel file exists and is accessible",
-                "Verify the file path and try again"
-            ];
-            result.WorkflowHint = "List failed. Ensure the file exists and retry.";
+
             throw new ModelContextProtocol.McpException($"list failed for '{excelPath}': {result.ErrorMessage}");
         }
         else
         {
-            result.SuggestedNextActions =
-            [
-                "Use 'view' to inspect a query's M code",
-                "Use 'import' to add a new Power Query",
-                "Use 'delete' to remove a query"
-            ];
-            result.WorkflowHint = "Power Queries listed. Next, view, import, or delete queries as needed.";
+
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -183,23 +172,12 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             async (batch) => await commands.ViewAsync(batch, queryName));
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the query name is correct",
-                "Use 'list' to see available queries"
-            ];
-            result.WorkflowHint = "View failed. Ensure the query exists and retry.";
+
             throw new ModelContextProtocol.McpException($"view failed for '{excelPath}': {result.ErrorMessage}");
         }
         else
         {
-            result.SuggestedNextActions =
-            [
-                "Use 'update' to modify the query's M code",
-                "Use 'get-load-config' to check if query is loaded anywhere",
-                "Use 'set-load-to-table' to load data to worksheet"
-            ];
-            result.WorkflowHint = "Query M code viewed. Check load config or load to destination.";
+
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -227,14 +205,6 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             // Enhance guidance for batch mode (Core doesn't know about batch mode)
             bool isConnectionOnly = destination.ToLowerInvariant() == "connection-only";
 
-            result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterImport(
-                isConnectionOnly: isConnectionOnly,
-                hasErrors: false,
-                usedBatchMode: usedBatchMode);
-
-            result.WorkflowHint = isConnectionOnly
-                ? "Query imported as connection-only in batch mode. Use set-load-to-table to load data or continue adding operations."
-                : $"Query imported and loaded to {destination} in batch mode. Continue adding operations to this batch.";
         }
         // Otherwise, Core's guidance is already correct (for both success and failure cases) - don't overwrite it!
 
@@ -253,22 +223,11 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             async (batch) => await commands.ExportAsync(batch, queryName, targetPath));
         if (result.Success)
         {
-            result.SuggestedNextActions =
-            [
-                "Edit the exported M code file as needed",
-                "Use 'update' to re-import modified code",
-                "Use 'get-load-config' to check current load configuration"
-            ];
-            result.WorkflowHint = "Query exported. Edit file, then use 'update' to apply changes.";
+
         }
         else
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the target path is valid and writable",
-                "Verify the query name and try again"
-            ];
-            result.WorkflowHint = "Export failed. Ensure the path and query are correct.";
+
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -290,23 +249,11 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
 
         if (result.Success)
         {
-            result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterUpdate(
-                configPreserved: true,
-                hasErrors: false,
-                usedBatchMode: usedBatchMode);
 
-            result.WorkflowHint = usedBatchMode
-                ? "Query updated in batch mode. Configuration preserved. Continue with more operations."
-                : "Query updated successfully. Configuration preserved. For multiple updates, use begin_excel_batch.";
         }
         else
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the source M code file exists and is accessible",
-                "Verify the query name and try again"
-            ];
-            result.WorkflowHint = "Update failed. Ensure the file and query are correct.";
+
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -375,20 +322,20 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             // If load configuration failed, return error
             if (loadResult != null && !loadResult.Success)
             {
-                var errorResult = new PowerQueryRefreshResult
+                var errorResult = new
                 {
-                    Success = false,
-                    ErrorMessage = $"Failed to apply load configuration '{destination}': {loadResult.ErrorMessage}",
-                    FilePath = excelPath,
-                    QueryName = queryName,
-                    RefreshTime = DateTime.Now,
-                    SuggestedNextActions =
-                    [
+                    success = false,
+                    errorMessage = $"Failed to apply load configuration '{destination}': {loadResult.ErrorMessage}",
+                    filePath = excelPath,
+                    queryName,
+                    refreshTime = DateTime.Now,
+                    suggestedNextActions = new[]
+                    {
                         "Check that the query exists using 'list'",
                         "Use 'view' to verify query M code is valid",
                         $"Try 'set-load-to-{destination}' separately to diagnose the issue"
-                    ],
-                    WorkflowHint = $"Failed to configure query to load to {destination}"
+                    },
+                    workflowHint = $"Failed to configure query to load to {destination}"
                 };
                 return JsonSerializer.Serialize(errorResult, ExcelToolsBase.JsonOptions);
             }
@@ -406,34 +353,11 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
         {
             // Update workflow hints based on whether loadDestination was applied
             bool loadDestinationApplied = !string.IsNullOrEmpty(loadDestination);
-            
-            result.SuggestedNextActions = loadDestinationApplied
-                ? [
-                    $"Query refreshed and loaded to {loadDestination}",
-                    "Use 'view' to inspect the query M code",
-                    "Use worksheet 'read' to verify loaded data",
-                    "Use 'get-load-config' to confirm load settings"
-                  ]
-                : [
-                    "Use 'view' to inspect the query M code",
-                    "Use worksheet 'read' to verify loaded data",
-                    "Use 'get-load-config' to check load settings"
-                  ];
-            
-            result.WorkflowHint = loadDestinationApplied
-                ? $"Query refreshed and configured to load to {loadDestination}. Data is now available."
-                : "Query refreshed successfully. Next, view code or verify data.";
+
         }
         else
         {
-            result.SuggestedNextActions =
-            [
-                "Check the query M code for errors using 'view'",
-                "Verify data source connectivity",
-                "Review privacy level settings if needed",
-                "Try using loadDestination parameter to apply load configuration during refresh"
-            ];
-            result.WorkflowHint = "Refresh failed. Check query code and data source.";
+
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -450,23 +374,11 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             async (batch) => await commands.DeleteAsync(batch, queryName));
         if (result.Success)
         {
-            result.SuggestedNextActions =
-            [
-                "Use 'list' to verify query was removed",
-                "Use 'import' to add a new query",
-                "Review remaining queries with 'list'"
-            ];
-            result.WorkflowHint = "Query deleted successfully. Next, verify with list.";
+
         }
         else
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the query name is correct",
-                "Use 'list' to see available queries",
-                "Verify the file is not read-only"
-            ];
-            result.WorkflowHint = "Delete failed. Ensure the query exists and file is writable.";
+
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -487,23 +399,11 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
 
         if (result.Success)
         {
-            result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterLoadConfig(
-                loadMode: "LoadToTable",
-                usedBatchMode: usedBatchMode);
 
-            result.WorkflowHint = usedBatchMode
-                ? "Load-to-table configured in batch mode. Continue configuring other queries."
-                : "Load-to-table configured. For configuring multiple queries, use begin_excel_batch.";
         }
         else
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the query exists using 'list'",
-                "Verify the target sheet name is correct",
-                "Review privacy level settings if needed"
-            ];
-            result.WorkflowHint = "Set-load-to-table failed. Check query and sheet names.";
+
         }
 
         // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
@@ -526,23 +426,11 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
 
         if (result.Success)
         {
-            result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterLoadConfig(
-                loadMode: "LoadToDataModel",
-                usedBatchMode: usedBatchMode);
 
-            result.WorkflowHint = usedBatchMode
-                ? "Load-to-data-model configured in batch mode. Continue configuring other queries."
-                : "Load-to-data-model configured. For configuring multiple queries, use begin_excel_batch.";
         }
         else
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the query exists using 'list'",
-                "Review query M code for errors using 'view'",
-                "Verify query data loads successfully with 'refresh'"
-            ];
-            result.WorkflowHint = "Set-load-to-data-model failed. Check query exists and has valid M code.";
+
         }
 
         // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
@@ -582,22 +470,11 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             async (batch) => await commands.SetConnectionOnlyAsync(batch, queryName));
         if (result.Success)
         {
-            result.SuggestedNextActions =
-            [
-                "Use 'get-load-config' to confirm connection-only setting",
-                "Use 'set-load-to-table' to load data to worksheet later",
-                "Use 'view' to inspect the query M code"
-            ];
-            result.WorkflowHint = "Connection-only configured. Query will not load data automatically.";
+
         }
         else
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the query exists using 'list'",
-                "Verify the file is not read-only"
-            ];
-            result.WorkflowHint = "Set-connection-only failed. Ensure the query exists.";
+
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -614,22 +491,11 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             async (batch) => await commands.GetLoadConfigAsync(batch, queryName));
         if (result.Success)
         {
-            result.SuggestedNextActions =
-            [
-                "Use 'set-load-to-table' or 'set-load-to-data-model' to change load destination",
-                "Use 'refresh' to update data (only works if loaded to table/model)",
-                "Use 'view' to inspect the query M code"
-            ];
-            result.WorkflowHint = "Load configuration retrieved. Modify settings or refresh if already loaded.";
+
         }
         else
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the query exists using 'list'",
-                "Verify the query name is correct"
-            ];
-            result.WorkflowHint = "Get-load-config failed. Ensure the query exists.";
+
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }

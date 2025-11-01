@@ -430,14 +430,6 @@ public class PowerQueryCommands : IPowerQueryCommands
                 result.ErrorMessage = "Privacy level error: This query combines data from multiple sources. " +
                                     "Open the file in Excel and configure privacy levels manually: " +
                                     "File → Options → Privacy. See COMMANDS.md for details.";
-                result.SuggestedNextActions =
-                [
-                    "Privacy levels cannot be set programmatically",
-                    "Open file in Excel: File → Options → Privacy",
-                    "Set appropriate privacy level or enable 'Ignore Privacy Levels' for testing",
-                    "See documentation for privacy level guidance"
-                ];
-                result.WorkflowHint = "Privacy levels must be configured manually in Excel UI";
                 return result;
             }
             catch (Exception ex)
@@ -464,24 +456,10 @@ public class PowerQueryCommands : IPowerQueryCommands
                 if (!restoreResult.Success)
                 {
                     result.ErrorMessage = $"Query updated but failed to restore load configuration: {restoreResult.ErrorMessage}";
-                    result.SuggestedNextActions =
-                    [
-                        "Query M code updated successfully",
-                        "⚠️ Load configuration could not be restored automatically",
-                        $"Manually load with: Use 'set-load-to-table' with worksheet '{targetSheet}'",
-                        "Or use 'get-load-config' to check current state"
-                    ];
                     return result;
                 }
 
                 // Successfully updated and restored load configuration
-                result.SuggestedNextActions =
-                [
-                    "Query updated successfully, load configuration preserved",
-                    "Data automatically refreshed with new M code",
-                    "Use 'get-load-config' to verify configuration if needed"
-                ];
-                result.WorkflowHint = "Query updated successfully. M code changed, configuration preserved, data refreshed automatically.";
                 return result;
             }
         }
@@ -489,13 +467,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         // Connection-only query or restore not needed
         if (result.Success)
         {
-            result.SuggestedNextActions =
-            [
-                "Query updated successfully (connection-only)",
-                "Use 'set-load-to-table' if you want to load data",
-                "Use 'get-load-config' to verify configuration"
-            ];
-            result.WorkflowHint = "Query updated as connection-only (no data loaded).";
         }
 
         return result;
@@ -624,14 +595,6 @@ public class PowerQueryCommands : IPowerQueryCommands
                 result.ErrorMessage = "Privacy level error: This query combines data from multiple sources. " +
                                     "Open the file in Excel and configure privacy levels manually: " +
                                     "File → Options → Privacy. See COMMANDS.md for details.";
-                result.SuggestedNextActions =
-                [
-                    "Privacy levels cannot be set programmatically",
-                    "Open file in Excel: File → Options → Privacy",
-                    "Set appropriate privacy level or enable 'Ignore Privacy Levels' for testing",
-                    "See documentation for privacy level guidance"
-                ];
-                result.WorkflowHint = "Privacy levels must be configured manually in Excel UI";
                 return result;
             }
             catch (Exception ex)
@@ -684,15 +647,6 @@ public class PowerQueryCommands : IPowerQueryCommands
 
                 case "connection-only":
                     // No loading - query imported but not executed
-                    result.SuggestedNextActions =
-                    [
-                        "Query imported as connection-only (NOT validated yet)",
-                        "⚠️ M code has not been executed or validated",
-                        "Use 'set-load-to-table' to validate and load data to worksheet",
-                        "Use 'set-load-to-data-model' to load data to Power Pivot Data Model",
-                        "Use 'view' to review imported M code"
-                    ];
-                    result.WorkflowHint = "Query imported as connection-only (M code not executed or validated).";
                     return result;
             }
 
@@ -702,13 +656,6 @@ public class PowerQueryCommands : IPowerQueryCommands
                 // Loading failed - query is imported but connection-only
                 result.Success = true; // Import itself succeeded
                 result.ErrorMessage = $"Query imported but failed to load to {destination}: {loadResult.ErrorMessage}";
-                result.SuggestedNextActions =
-                [
-                    "Query imported as connection-only (auto-load failed)",
-                    $"Try manually: Use appropriate set-load action",
-                    "Or use 'view' to review M code for issues"
-                ];
-                result.WorkflowHint = $"Query imported but could not be automatically loaded to {destination}";
                 return result;
             }
             else if (loadResult != null && loadResult.Success)
@@ -717,13 +664,6 @@ public class PowerQueryCommands : IPowerQueryCommands
                 await batch.SaveAsync();
 
                 // Query was loaded successfully
-                result.SuggestedNextActions =
-                [
-                    $"Query imported and data loaded to {destination} successfully",
-                    "Use 'view' to inspect M code",
-                    "Use 'get-load-config' to verify configuration"
-                ];
-                result.WorkflowHint = $"Query imported and loaded to {destination}.";
                 return result;
             }
         }
@@ -807,10 +747,6 @@ public class PowerQueryCommands : IPowerQueryCommands
                         result.LoadedToSheet = DetermineLoadedSheet(ctx.Book, queryName);
 
                         // Add workflow guidance
-                        result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterRefresh(
-                            hasErrors: false,
-                            isConnectionOnly: false);
-                        result.WorkflowHint = PowerQueryWorkflowGuidance.GetWorkflowHint("pq-refresh", true);
                     }
                     catch (COMException comEx)
                     {
@@ -821,8 +757,6 @@ public class PowerQueryCommands : IPowerQueryCommands
                         result.ErrorMessage = string.Join("; ", result.ErrorMessages);
 
                         var errorCategory = CategorizeError(comEx);
-                        result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetErrorRecoverySteps(errorCategory);
-                        result.WorkflowHint = PowerQueryWorkflowGuidance.GetWorkflowHint("pq-refresh", false);
                     }
                     finally
                     {
@@ -835,10 +769,6 @@ public class PowerQueryCommands : IPowerQueryCommands
                     ComUtilities.Release(ref query);
                     result.Success = true;
                     result.IsConnectionOnly = true;
-                    result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterRefresh(
-                        hasErrors: false,
-                        isConnectionOnly: true);
-                    result.WorkflowHint = "Query is connection-only. Use set-load-to-table to load data.";
                 }
 
                 return result;
@@ -847,12 +777,6 @@ public class PowerQueryCommands : IPowerQueryCommands
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error refreshing query: {ex.Message}";
-                result.SuggestedNextActions =
-                [
-                    "Unexpected error during refresh",
-                    "Check that Excel file is not corrupted",
-                    "Verify query exists and is accessible"
-                ];
                 return result;
             }
         });
@@ -1640,11 +1564,6 @@ in
                     result.Success = false;
                     result.ErrorMessage = $"Query '{queryName}' not found";
                     result.WorkflowStatus = "Failed";
-                    result.SuggestedNextActions =
-                    [
-                        $"Use 'list' to see available queries",
-                        $"Check the query name spelling: '{queryName}'"
-                    ];
                     return result;
                 }
 
@@ -1753,13 +1672,6 @@ in
                     result.DataLoadedToTable = true;
                     result.RowsLoaded = rowsLoaded;
                     result.WorkflowStatus = "Complete";
-                    result.WorkflowHint = $"Query '{queryName}' loaded to worksheet '{sheetName}' with {rowsLoaded} rows";
-                    result.SuggestedNextActions =
-                    [
-                        $"View data in worksheet '{sheetName}'",
-                        "Use 'refresh' to reload data from source",
-                        "Create Excel tables or PivotTables from the data"
-                    ];
                 }
                 else
                 {
@@ -1768,12 +1680,6 @@ in
                     result.RowsLoaded = 0;
                     result.WorkflowStatus = "Partial";
                     result.ErrorMessage = $"Configuration applied but QueryTable not found after refresh";
-                    result.SuggestedNextActions =
-                    [
-                        "Check if query has valid data source",
-                        "Verify privacy level settings",
-                        "Use 'errors' action to see query errors"
-                    ];
                 }
 
                 return result;
@@ -1787,15 +1693,6 @@ in
                                     "Open the file in Excel and configure privacy levels manually: " +
                                     "File → Options → Privacy. See COMMANDS.md for details.";
                 result.WorkflowStatus = "Failed";
-                result.WorkflowHint = "Privacy levels must be configured manually in Excel UI";
-                result.SuggestedNextActions =
-                [
-                    "Privacy levels cannot be set programmatically",
-                    "Open file in Excel: File → Options → Privacy",
-                    "Set appropriate privacy level or enable 'Ignore Privacy Levels' for testing",
-                    "See documentation for privacy level guidance"
-                ];
-
                 return result;
             }
             catch (Exception ex)
@@ -1803,12 +1700,6 @@ in
                 result.Success = false;
                 result.ErrorMessage = $"Error setting load to table: {ex.Message}";
                 result.WorkflowStatus = "Failed";
-                result.SuggestedNextActions =
-                [
-                    "Check query name and worksheet name are valid",
-                    "Verify Excel workbook is not corrupted",
-                    "Review error message for specific issue"
-                ];
                 return result;
             }
             finally
@@ -1864,12 +1755,6 @@ in
                     result.Success = false;
                     result.ErrorMessage = $"Failed to configure query for Data Model loading: {configError ?? "Unknown error"}";
                     result.WorkflowStatus = "Failed";
-                    result.SuggestedNextActions =
-                    [
-                        "Check that the query exists using 'list'",
-                        "Use 'view' to check query M code for syntax errors",
-                        "Try 'set-load-to-table' first to validate query works",
-                    ];
                     return result;
                 }
 
@@ -1925,13 +1810,6 @@ in
                     {
                         result.Success = true;
                         result.WorkflowStatus = "Complete";
-                        result.WorkflowHint = $"Power Query '{queryName}' loaded to Data Model with {rowCount} rows";
-                        result.SuggestedNextActions =
-                        [
-                            "Create DAX measures using dm-create-measure",
-                            "Add relationships using dm-create-relationship",
-                            "View Data Model tables using dm-list-tables"
-                        ];
                     }
                     else
                     {
@@ -1986,14 +1864,6 @@ in
                                     "Technical details: https://learn.microsoft.com/en-us/power-query/connectors/excel#known-issues-and-limitations";
                 
                 result.WorkflowStatus = "Failed";
-                result.WorkflowHint = "Microsoft Purview sensitivity labels prevent Power Query from reading encrypted Excel files";
-                result.SuggestedNextActions =
-                [
-                    "Remove sensitivity label from source file (set to \"Public\")",
-                    "OR modify M code to use non-encrypted data source",
-                    "Power Query limitation: Cannot read files with sensitivity labels (other than Public/Non-Business)"
-                ];
-
                 return result;
             }
             catch (COMException comEx) when (comEx.Message.Contains("Information is needed in order to combine data") ||
@@ -2005,15 +1875,6 @@ in
                                     "Open the file in Excel and configure privacy levels manually: " +
                                     "File → Options → Privacy. See COMMANDS.md for details.";
                 result.WorkflowStatus = "Failed";
-                result.WorkflowHint = "Privacy levels must be configured manually in Excel UI";
-                result.SuggestedNextActions =
-                [
-                    "Privacy levels cannot be set programmatically",
-                    "Open file in Excel: File → Options → Privacy",
-                    "Set appropriate privacy level or enable 'Ignore Privacy Levels' for testing",
-                    "See documentation for privacy level guidance"
-                ];
-
                 return result;
             }
             catch (Exception ex)
@@ -2108,12 +1969,6 @@ in
                     result.Success = false;
                     result.ErrorMessage = $"Failed to configure query for Data Model loading: {dmConfigError ?? "Unknown error"}";
                     result.WorkflowStatus = "Partial";
-                    result.SuggestedNextActions =
-                    [
-                        "Use 'view' to check query M code for syntax errors",
-                        "Try 'set-load-to-table' first to validate query works",
-                        "Verify query data source is accessible and has data"
-                    ];
                     return result;
                 }
 
@@ -2224,49 +2079,24 @@ in
                 {
                     result.Success = true;
                     result.WorkflowStatus = "Complete";
-                    result.WorkflowHint = $"Query '{queryName}' loaded to both worksheet '{sheetName}' ({tableRows} rows) and Data Model ({modelRows} rows)";
-                    result.SuggestedNextActions =
-                    [
-                        $"View data in worksheet '{sheetName}'",
-                        "Create PivotTables using Data Model",
-                        "Use 'refresh' to reload data from source"
-                    ];
                 }
                 else if (foundInTable && !foundInDataModel)
                 {
                     result.Success = false;
                     result.WorkflowStatus = "Partial";
                     result.ErrorMessage = "Data loaded to table but not to Data Model";
-                    result.SuggestedNextActions =
-                    [
-                        "Verify query refreshed successfully",
-                        "Check query configuration with 'get-load-config'",
-                        "Try refreshing again or reload to Data Model only"
-                    ];
                 }
                 else if (!foundInTable && foundInDataModel)
                 {
                     result.Success = false;
                     result.WorkflowStatus = "Partial";
                     result.ErrorMessage = "Data loaded to Data Model but not to table";
-                    result.SuggestedNextActions =
-                    [
-                        "Check worksheet and QueryTable configuration",
-                        "Verify target sheet exists",
-                        "Try 'set-load-to-both' again to load to both destinations"
-                    ];
                 }
                 else
                 {
                     result.Success = false;
                     result.WorkflowStatus = "Failed";
                     result.ErrorMessage = "Data not loaded to either destination";
-                    result.SuggestedNextActions =
-                    [
-                        "Check query syntax and data source",
-                        "Review privacy level settings",
-                        "Use 'errors' action to see query errors"
-                    ];
                 }
 
                 return result;
@@ -2280,15 +2110,6 @@ in
                                     "Open the file in Excel and configure privacy levels manually: " +
                                     "File → Options → Privacy. See COMMANDS.md for details.";
                 result.WorkflowStatus = "Failed";
-                result.WorkflowHint = "Privacy levels must be configured manually in Excel UI";
-                result.SuggestedNextActions =
-                [
-                    "Privacy levels cannot be set programmatically",
-                    "Open file in Excel: File → Options → Privacy",
-                    "Set appropriate privacy level or enable 'Ignore Privacy Levels' for testing",
-                    "See documentation for privacy level guidance"
-                ];
-
                 return result;
             }
             catch (Exception ex)

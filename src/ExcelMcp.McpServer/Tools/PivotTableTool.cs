@@ -148,13 +148,7 @@ public static class PivotTableTool
 
         if (result.PivotTables == null || !result.PivotTables.Any())
         {
-            result.SuggestedNextActions =
-            [
-                "Use 'excel_pivottable create-from-range' to create a PivotTable from data",
-                "PivotTables provide interactive data summarization and cross-tabulation",
-                "Auto-detects field types (numeric, text, date) for appropriate aggregations"
-            ];
-            result.WorkflowHint = "No PivotTables found. Create PivotTables for dynamic data analysis.";
+
         }
 
         return JsonSerializer.Serialize(result, JsonOptions);
