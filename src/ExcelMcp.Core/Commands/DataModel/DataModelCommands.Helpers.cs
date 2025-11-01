@@ -258,8 +258,9 @@ public partial class DataModelCommands
             modelTables = model.ModelTables;
             return modelTables != null && modelTables.Count > 0;
         }
-        catch
+        catch (System.Runtime.InteropServices.COMException)
         {
+            // Model or ModelTables not accessible
             return false;
         }
         finally

@@ -40,7 +40,10 @@ public partial class DataModelCommands
                     {
                         refreshDate = table.RefreshDate;
                     }
-                    catch { /* RefreshDate not always accessible */ }
+                    catch (System.Runtime.InteropServices.COMException) 
+                    { 
+                        /* RefreshDate not always accessible via COM */ 
+                    }
 
                     var tableInfo = new DataModelTableInfo
                     {
@@ -519,7 +522,10 @@ public partial class DataModelCommands
                 {
                     result.RefreshDate = table.RefreshDate;
                 }
-                catch { /* RefreshDate not always accessible */ }
+                catch (System.Runtime.InteropServices.COMException) 
+                { 
+                    /* RefreshDate not always accessible via COM */ 
+                }
 
                 // Get columns
                 ComInterop.ComUtilities.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>
