@@ -54,12 +54,21 @@ query-filters:
   # Test-specific exclusions (note-severity only)
   # Tests often use patterns that are acceptable in test context
 
-  # Generic catch clauses are acceptable in test cleanup/teardown
+  # COMException catch is as specific as possible for COM interop
   - exclude:
       id: cs/catch-of-all-exceptions
-      reason: "Test cleanup code often needs to catch all exceptions"
+      reason: "COMException is the most specific exception for Excel COM interop. No more specific types available."
       paths:
-        - 'tests/**'
+        - 'src/**/DataModel/**'
+        - 'src/**/Commands/**'
+
+  # Generic Exception catch in test helpers is acceptable with explanatory comments
+  - exclude:
+      id: cs/catch-of-all-exceptions
+      reason: "Test helper methods document why broad catch is needed (registry access, Excel validation, etc.)"
+      paths:
+        - 'tests/**/Helpers/**'
+        - 'tests/**/Fixtures/**'
 
   # Empty catch blocks in tests are used for cleanup that may fail
   - exclude:
@@ -68,12 +77,8 @@ query-filters:
       paths:
         - 'tests/**'
 
-  # Path.Combine usage in tests for creating test files
-  - exclude:
-      id: cs/path-combine
-      reason: "Tests create temporary files with controlled paths"
-      paths:
-        - 'tests/**'
+  # Path.Combine has been replaced with Path.Join across the codebase
+  # No exclusions needed - all instances fixed
 
   # LINQ suggestions in tests are optional
   - exclude:
