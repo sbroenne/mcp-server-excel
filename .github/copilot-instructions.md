@@ -4,16 +4,17 @@
 
 ## 📋 Quick Navigation
 
-**Start here** → Read [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) first (5 mandatory rules)
+**Start here** → Read [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) first (14 mandatory rules)
 
 **Path-Specific Instructions** (auto-applied based on file context):
-- 🧪 [Testing Strategy](instructions/testing-strategy.instructions.md) - Test architecture, OnDemand pattern, filtering
-- 📊 [Excel COM Interop](instructions/excel-com-interop.instructions.md) - COM patterns, cleanup, best practices
-- 🔌 [Excel Connection Types](instructions/excel-connection-types-guide.instructions.md) - Connection types, COM API limitations, testing strategies
-- 🏗️ [Architecture Patterns](instructions/architecture-patterns.instructions.md) - Command pattern, batch/session management, resource management
-- 🧠 [MCP Server Guide](instructions/mcp-server-guide.instructions.md) - MCP tools, protocol, error handling
-- 🔄 [Development Workflow](instructions/development-workflow.instructions.md) - PR process, CI/CD, security, versioning
-- 🐛 [Bug Fixing Checklist](instructions/bug-fixing-checklist.instructions.md) - Complete bug fix process (6 steps: analyze, fix, test, document, verify, summarize)
+- 🧪 [Testing Strategy](instructions/testing-strategy.instructions.md) - Test templates, essential patterns
+- 📊 [Excel COM Interop](instructions/excel-com-interop.instructions.md) - COM patterns, cleanup
+- 🔌 [Excel Connection Types](instructions/excel-connection-types-guide.instructions.md) - Connection types, COM API
+- 🏗️ [Architecture Patterns](instructions/architecture-patterns.instructions.md) - Command pattern, batch management
+- 🧠 [MCP Server Guide](instructions/mcp-server-guide.instructions.md) - MCP tools, protocol
+- 🔄 [Development Workflow](instructions/development-workflow.instructions.md) - PR process, CI/CD
+- 🐛 [Bug Fixing Checklist](instructions/bug-fixing-checklist.instructions.md) - 6-step bug fix process
+- 📚 [README Management](instructions/readme-management.instructions.md) - Documentation quick reference
 
 ---
 

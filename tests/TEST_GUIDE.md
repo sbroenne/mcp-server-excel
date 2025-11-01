@@ -1,102 +1,518 @@
-# ExcelMcp Test Guide
+# ExcelMcp Testing Guide
 
-This document explains how to run different types of tests in the ExcelMcp project.
+> **Complete guide to running, writing, and organizing tests for ExcelMcp**
 
-## Test Categories
-
-### Unit Tests (Fast, Default)
-
-- **What**: Argument validation, string matching, error handling logic
-- **Requirements**: No Excel installation needed
-- **Speed**: Very fast (< 1 second)
-- **Run by default**: Yes
-
-### Integration Tests (Medium Speed, Default)
-
-- **What**: Excel COM operations, Power Query, VBA, file operations
-- **Requirements**: Excel installation + Windows
-- **Speed**: Medium (5-15 seconds)
-- **Run by default**: Yes
-
-### MCP Protocol Tests (Medium Speed, True Integration)
-
-- **What**: Start MCP server process and communicate via stdio using JSON-RPC
-- **Requirements**: Excel installation + Windows + Built MCP server
-- **Speed**: Medium (10-20 seconds)
-- **Run by default**: Yes - tests actual MCP client/server communication
-
-### Round Trip Tests (Slow, On-Request Only)
-
-- **What**: Complex end-to-end workflows combining multiple ExcelMcp features
-- **Requirements**: Excel installation + Windows
-- **Speed**: Very slow (30+ seconds)
-- **Run by default**: No - only when explicitly requested
-
-## Running Tests
-
-### Default (Unit Tests Only in CI)
+## Quick Start
 
 ```bash
-# Runs only unit tests (no Excel required) - safe for CI environments
-dotnet test --filter "Category=Unit"
+# Development (fast feedback, no Excel required)
+dotnet test --filter "Category=Unit&RunType!=OnDemand"
 
-# Local development: runs unit tests and integration tests (requires Excel)
-dotnet test
+# Pre-commit (comprehensive, requires Excel)
+dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand"
+
+# Session/batch code changes (MANDATORY when modifying session/batch code)
+dotnet test --filter "RunType=OnDemand"
 ```
+
+---
+
+## Test Architecture
+
+### Three-Tier Testing Strategy
+
+```
+tests/
+├── ExcelMcp.Core.Tests/      # Core business logic (Unit + Integration)
+├── ExcelMcp.McpServer.Tests/ # MCP protocol layer (Unit + Integration)
+├── ExcelMcp.CLI.Tests/        # CLI wrapper (Unit + Integration)
+└── ExcelMcp.ComInterop.Tests/ # COM utilities (Unit + OnDemand)
+```
+
+### Test Categories
+
+| Category | Speed | Requirements | Purpose | Run By Default |
+|----------|-------|--------------|---------|----------------|
+| **Unit** | Fast (2-5 sec) | None | Logic validation, no external dependencies | ✅ Yes (CI/CD safe) |
+| **Integration** | Medium (10-20 min) | Excel + Windows | Real Excel COM operations, single feature focus | ✅ Yes (local development) |
+| **OnDemand** | Slow (3-5 min) | Excel + Windows | Session cleanup, Excel process lifecycle | ❌ No (explicit only) |
+
+---
+
+## Running Tests
 
 ### By Category
 
 ```bash
-# Run only unit tests (no Excel required)
+# Unit tests only (CI/CD safe, no Excel)
 dotnet test --filter "Category=Unit"
 
-# Run only integration tests (requires Excel)
+# Integration tests only (requires Excel)
 dotnet test --filter "Category=Integration"
 
-# Run only round trip tests (requires Excel, slow)
-dotnet test --filter "Category=RoundTrip"
+# OnDemand tests (session cleanup - run when modifying session/batch code)
+dotnet test --filter "RunType=OnDemand"
+
+# All tests except OnDemand (standard pre-commit)
+dotnet test --filter "RunType!=OnDemand"
 ```
 
 ### By Speed
 
 ```bash
-# Run only fast tests
+# Fast tests only
 dotnet test --filter "Speed=Fast"
 
-# Run fast and medium speed tests (exclude slow)
+# Fast and medium speed tests (exclude slow)
 dotnet test --filter "Speed=Fast|Speed=Medium"
+```
+
+### By Layer
+
+```bash
+# Core business logic tests
+dotnet test --filter "Layer=Core"
+
+# MCP Server protocol tests
+dotnet test --filter "Layer=McpServer"
+
+# CLI wrapper tests
+dotnet test --filter "Layer=CLI"
+
+# COM interop tests
+dotnet test --filter "Layer=ComInterop"
 ```
 
 ### By Feature
 
 ```bash
-# Run only PowerQuery tests
+# Power Query tests
 dotnet test --filter "Feature=PowerQuery"
 
-# Run only VBA script tests
+# Data Model (DAX) tests
+dotnet test --filter "Feature=DataModel"
+
+# Table tests
+dotnet test --filter "Feature=Tables"
+
+# PivotTable tests
+dotnet test --filter "Feature=PivotTables"
+
+# Range tests
+dotnet test --filter "Feature=Ranges"
+
+# VBA tests
 dotnet test --filter "Feature=VBA"
 
-# Run only worksheet tests
+# Worksheet tests
 dotnet test --filter "Feature=Worksheets"
 
-# Run only file operation tests
-dotnet test --filter "Feature=Files"
+# Connection tests
+dotnet test --filter "Feature=Connections"
 
-# Run only MCP Protocol tests (true MCP client integration)
-dotnet test --filter "Feature=MCPProtocol"
+# Parameter tests
+dotnet test --filter "Feature=Parameters"
 ```
 
 ### Specific Test Classes
 
 ```bash
-# Run only PowerQuery integration tests
+# Run specific test class
 dotnet test --filter "FullyQualifiedName~PowerQueryCommandsTests"
 
-# Run only unit tests
-dotnet test --filter "FullyQualifiedName~UnitTests"
+# Run specific test method
+dotnet test --filter "FullyQualifiedName~PowerQueryCommandsTests.Import_ValidMCode_CreatesQuery"
 ```
 
-## CI/CD Considerations
+---
+
+## Test Requirements & Traits
+
+### Required Traits for All Tests
+
+Every test MUST have these traits:
+
+```csharp
+[Trait("Category", "Unit|Integration")]      // Test category
+[Trait("Speed", "Fast|Medium|Slow")]          // Execution speed
+[Trait("Layer", "Core|CLI|McpServer|ComInterop")]  // Project layer
+[Trait("Feature", "FeatureName")]             // Feature being tested
+
+// Additional traits for specific test types
+[Trait("RequiresExcel", "true")]              // For Integration tests
+[Trait("RunType", "OnDemand")]                // For session/lifecycle tests
+```
+
+### Unit Tests
+
+```csharp
+[Trait("Category", "Unit")]
+[Trait("Speed", "Fast")]
+[Trait("Layer", "Core")]
+[Trait("Feature", "PowerQuery")]
+public class PowerQueryValidationTests
+{
+    [Fact]
+    public void ValidateQueryName_InvalidCharacters_ReturnsFalse()
+    {
+        // No Excel required - pure logic testing
+    }
+}
+```
+
+### Integration Tests
+
+```csharp
+[Trait("Category", "Integration")]
+[Trait("Speed", "Medium")]
+[Trait("Layer", "Core")]
+[Trait("Feature", "PowerQuery")]
+[Trait("RequiresExcel", "true")]
+public class PowerQueryCommandsTests : IClassFixture<TempDirectoryFixture>
+{
+    [Fact]
+    public async Task Import_ValidMCode_CreatesQuery()
+    {
+        // Requires Excel - real COM operations
+    }
+}
+```
+
+### OnDemand Tests
+
+```csharp
+[Trait("RunType", "OnDemand")]
+[Trait("Speed", "Slow")]
+[Trait("Category", "Integration")]
+[Trait("RequiresExcel", "true")]
+public class ExcelSessionLifecycleTests : IAsyncLifetime
+{
+    [Fact]
+    public async Task CreateAndDispose_NoProcessLeak()
+    {
+        // Tests Excel process cleanup - run explicitly only
+    }
+}
+```
+
+---
+
+## Test Class Compliance Checklist
+
+### ✅ File Organization
+- [ ] Test class uses `partial` keyword for multi-file organization (if needed)
+- [ ] File name matches class name (e.g., `RangeCommandsTests.cs` contains `RangeCommandsTests`)
+- [ ] Files organized by feature in subdirectories (e.g., `Commands/Range/`)
+- [ ] Related partial files use descriptive suffixes (e.g., `RangeCommandsTests.Values.cs`)
+
+### ✅ Test Fixture Setup
+- [ ] Test class implements `IClassFixture<TempDirectoryFixture>` for integration tests
+- [ ] Constructor accepts `TempDirectoryFixture` via dependency injection
+- [ ] Store temp directory in `private readonly string _tempDir` field
+- [ ] **NEVER** manually implement `IDisposable` for temp directory cleanup
+- [ ] **NEVER** create temp directory in constructor (fixture provides it)
+
+### ✅ Test File Isolation
+- [ ] Each test creates its own unique file using `CoreTestHelper.CreateUniqueTestFileAsync()`
+- [ ] **NEVER** share a single test file across multiple tests
+- [ ] **NEVER** reuse file paths between tests
+- [ ] Pass `_tempDir` (from fixture) to `CreateUniqueTestFileAsync()`
+- [ ] Use test class name and test method name in file creation
+
+### ✅ File Extension Requirements
+- [ ] VBA tests MUST use `.xlsm` extension (macro-enabled workbooks)
+- [ ] Standard tests use `.xlsx` extension (unless VBA required)
+- [ ] Pass extension parameter to `CoreTestHelper.CreateUniqueTestFileAsync()`
+- [ ] **NEVER** rename files to change format (e.g., `.xlsx` → `.xlsm` fails)
+
+### ✅ Test Assertions
+- [ ] Use binary assertions: `Assert.True(result.Success, $"Reason: {result.ErrorMessage}")`
+- [ ] **NEVER** use "accept both" patterns (if-success-pass, if-error-pass)
+- [ ] Include descriptive failure messages in assertions
+- [ ] Use `Skip` attribute if test requires unavailable features
+
+### ✅ Integration Test Validation (Result Verification)
+- [ ] **ALWAYS verify actual Excel state** after create/update operations
+- [ ] **NEVER test only success status** - verify the action actually worked
+- [ ] For CREATE operations: Verify object exists (list → verify it's there)
+- [ ] For UPDATE operations: Verify changes persisted (view → verify formula)
+- [ ] For DELETE operations: Verify object removed (list → verify gone)
+- [ ] Use round-trip validation: Create/Update → Read back → Assert actual state
+
+### ✅ Batch API Pattern
+- [ ] All Core commands accept `IExcelBatch batch` as first parameter
+- [ ] Tests create batch with `await ExcelSession.BeginBatchAsync(testFile)`
+- [ ] Use `await using var batch` for automatic disposal
+- [ ] **CRITICAL:** `await batch.SaveAsync()` MUST be called ONLY at the END of the test
+- [ ] **NEVER** call `SaveAsync()` in the middle of a test
+- [ ] **NEVER** call `SaveAsync()` multiple times in a single test
+- [ ] Only call `SaveAsync()` if test modifies data that needs persistence verification
+
+---
+
+## Test Class Template
+
+### Integration Test Template
+
+```csharp
+using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
+using Xunit;
+
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Feature;
+
+[Trait("Category", "Integration")]
+[Trait("Speed", "Medium")]
+[Trait("Layer", "Core")]
+[Trait("Feature", "FeatureName")]
+[Trait("RequiresExcel", "true")]
+public partial class FeatureCommandsTests : IClassFixture<TempDirectoryFixture>
+{
+    private readonly IFeatureCommands _commands;
+    private readonly string _tempDir;
+
+    public FeatureCommandsTests(TempDirectoryFixture fixture)
+    {
+        _commands = new FeatureCommands();
+        _tempDir = fixture.TempDir;
+    }
+
+    [Fact]
+    public async Task Operation_Scenario_ExpectedResult()
+    {
+        // Arrange - Create unique test file
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(FeatureCommandsTests), 
+            nameof(Operation_Scenario_ExpectedResult), 
+            _tempDir,
+            ".xlsx");  // or ".xlsm" for VBA tests
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+
+        // Act
+        var result = await _commands.OperationAsync(batch, args);
+
+        // Assert - Verify success
+        Assert.True(result.Success, $"Operation failed: {result.ErrorMessage}");
+        Assert.NotNull(result.Data);
+        
+        // Assert - Verify actual Excel state (round-trip validation)
+        var verifyResult = await _commands.ListAsync(batch);
+        Assert.Contains(verifyResult.Items, item => item.Name == "ExpectedName");
+        
+        // Save only at the end if modifications made
+        await batch.SaveAsync();
+    }
+}
+```
+
+### Unit Test Template
+
+```csharp
+using Xunit;
+
+namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
+
+[Trait("Category", "Unit")]
+[Trait("Speed", "Fast")]
+[Trait("Layer", "Core")]
+[Trait("Feature", "FeatureName")]
+public class FeatureValidationTests
+{
+    [Theory]
+    [InlineData("valid-input", true)]
+    [InlineData("invalid@input", false)]
+    public void ValidateInput_VariousInputs_ReturnsExpected(string input, bool expected)
+    {
+        // Arrange
+        var validator = new FeatureValidator();
+
+        // Act
+        var result = validator.Validate(input);
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
+}
+```
+
+---
+
+## Common Mistakes & How to Avoid Them
+
+### ❌ Shared Test Files
+```csharp
+// WRONG: Single file for all tests causes pollution
+private readonly string _testFile = "SharedFile.xlsx";
+
+// CORRECT: Unique file per test
+var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+    nameof(MyTests), nameof(TestMethod), _tempDir, ".xlsx");
+```
+
+### ❌ Wrong File Extension for VBA
+```csharp
+// WRONG: .xlsx cannot contain VBA
+var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(..., ".xlsx");
+
+// CORRECT: .xlsm for VBA tests
+var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(..., ".xlsm");
+```
+
+### ❌ SaveAsync in Middle of Test
+```csharp
+// WRONG: Breaks subsequent operations
+var result1 = await _commands.CreateAsync(batch, "Sheet1");
+await batch.SaveAsync();  // ❌ Too early!
+var result2 = await _commands.RenameAsync(batch, "Sheet1", "NewName");  // FAILS!
+
+// CORRECT: Save only at the end
+var result1 = await _commands.CreateAsync(batch, "Sheet1");
+var result2 = await _commands.RenameAsync(batch, "Sheet1", "NewName");
+await batch.SaveAsync();  // ✅ After all operations
+```
+
+### ❌ Testing Only Success Status
+```csharp
+// WRONG: Doesn't verify Excel state
+var result = await _commands.CreateAsync(batch, "TestTable");
+Assert.True(result.Success);  // ❌ Doesn't prove table exists!
+
+// CORRECT: Verify actual Excel state
+var result = await _commands.CreateAsync(batch, "TestTable");
+Assert.True(result.Success);
+var listResult = await _commands.ListAsync(batch);
+Assert.Contains(listResult.Tables, t => t.Name == "TestTable");  // ✅ Proves it exists!
+```
+
+### ❌ Accept Both Pattern
+```csharp
+// WRONG: Test always passes - feature can be 100% broken!
+if (result.Success) {
+    Assert.True(result.Success);
+} else {
+    Assert.True(result.ErrorMessage.Contains("acceptable"));
+}
+
+// CORRECT: Binary assertion
+Assert.True(result.Success, $"Must succeed: {result.ErrorMessage}");
+```
+
+---
+
+## CI/CD Configuration
+
+### GitHub Actions (No Excel)
+
+```yaml
+- name: Run Unit Tests
+  run: dotnet test --filter "Category=Unit" --logger "trx"
+```
+
+### Local Development (With Excel)
+
+```yaml
+- name: Run All Tests
+  run: dotnet test --filter "RunType!=OnDemand" --logger "trx"
+```
+
+### Manual Session Tests (Requires Excel)
+
+```bash
+# Run when modifying ExcelSession.cs, ExcelBatch.cs, or ExcelHelper.cs
+dotnet test --filter "RunType=OnDemand"
+```
+
+---
+
+## Performance Targets
+
+| Category | Test Count | Execution Time | Run Frequency |
+|----------|-----------|----------------|---------------|
+| **Unit** | ~46 tests | 2-5 seconds | Every build |
+| **Integration** | ~150+ tests | 10-20 minutes | Pre-commit |
+| **OnDemand** | ~5 tests | 3-5 minutes | Explicit only |
+
+---
+
+## Development Workflow
+
+### Daily Development
+```bash
+# Fast feedback (2-5 seconds)
+dotnet test --filter "Category=Unit&RunType!=OnDemand"
+```
+
+### Before Commit
+```bash
+# Comprehensive validation (10-20 minutes)
+dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand"
+```
+
+### Session/Batch Code Changes
+```bash
+# MANDATORY when modifying session/batch code (3-5 minutes)
+dotnet test --filter "RunType=OnDemand"
+```
+
+### Specific Feature Development
+```bash
+# Test only what you're working on
+dotnet test --filter "Feature=PowerQuery&Category=Integration"
+```
+
+---
+
+## Test Coverage Goals
+
+- ✅ **Unit Tests**: 100% of business logic and validation
+- ✅ **Integration Tests**: All Excel COM operations
+- ✅ **Round-Trip Validation**: Create → Verify → Update → Verify → Delete → Verify
+- ✅ **Error Cases**: Invalid inputs, Excel errors, edge cases
+
+---
+
+## Known Issues & Resolutions
+
+### ✅ RESOLVED: Data Model Measure Creation on Reopened Files
+
+**Issue**: `ModelMeasures.Add()` failed with "Value does not fall within expected range" on reopened files.
+
+**Root Cause**: Microsoft documentation incorrectly states `FormatInformation` is optional. Excel requires format object for reopened files.
+
+**Solution**: Always provide format object - use `model.ModelFormatGeneral` as default when user doesn't specify format type.
+
+**Status**: ✅ All measure-related tests passing. Fix validated with both fresh and reopened Data Model files.
+
+---
+
+## Getting Help
+
+- **Test failures**: Check test output for detailed error messages
+- **Excel-specific issues**: Ensure Excel 2016+ is installed and working
+- **Session/batch issues**: Run OnDemand tests to verify cleanup
+- **CI/CD failures**: Ensure only Unit tests run (no Excel dependency)
+
+---
+
+## Summary
+
+**Three-tier testing ensures:**
+1. ✅ **Fast development** - Unit tests provide immediate feedback
+2. ✅ **Excel integration** - Integration tests validate COM operations
+3. ✅ **Session cleanup** - OnDemand tests prevent resource leaks
+
+**Key principles:**
+- Unique file per test (isolation)
+- Round-trip validation (verify actual Excel state)
+- Binary assertions (pass OR fail, never both)
+- SaveAsync only at the end (prevent operation failures)
+
+**Development workflow:**
+```bash
+Code → Unit tests (2-5s) → Integration tests (10-20m) → Commit
+```
+
 
 ### GitHub Actions / Azure DevOps (No Excel Available)
 
