@@ -374,13 +374,13 @@ class Program
         AnsiConsole.MarkupLine("  [dim]Note: Single cell = 1x1 range (e.g., A1). Named ranges: use empty sheet \"\"[/]");
         AnsiConsole.WriteLine();
 
-        AnsiConsole.MarkupLine("[bold yellow]Parameter Commands:[/]");
-        AnsiConsole.MarkupLine("  [cyan]param-list[/] file.xlsx                        List all named ranges");
-        AnsiConsole.MarkupLine("  [cyan]param-get[/] file.xlsx param-name             Get named range value");
-        AnsiConsole.MarkupLine("  [cyan]param-set[/] file.xlsx param-name value        Set named range value");
-        AnsiConsole.MarkupLine("  [cyan]param-update[/] file.xlsx param-name ref       Update named range reference");
-        AnsiConsole.MarkupLine("  [cyan]param-create[/] file.xlsx param-name ref       Create named range");
-        AnsiConsole.MarkupLine("  [cyan]param-delete[/] file.xlsx param-name           Delete named range");
+        AnsiConsole.MarkupLine("[bold yellow]Named Range Commands:[/]");
+        AnsiConsole.MarkupLine("  [cyan]namedrange-list[/] file.xlsx                        List all named ranges");
+        AnsiConsole.MarkupLine("  [cyan]namedrange-get[/] file.xlsx name                    Get named range value");
+        AnsiConsole.MarkupLine("  [cyan]namedrange-set[/] file.xlsx name value              Set named range value");
+        AnsiConsole.MarkupLine("  [cyan]namedrange-update[/] file.xlsx name ref             Update named range reference");
+        AnsiConsole.MarkupLine("  [cyan]namedrange-create[/] file.xlsx name ref             Create named range");
+        AnsiConsole.MarkupLine("  [cyan]namedrange-delete[/] file.xlsx name                 Delete named range");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Table Commands:[/]");
@@ -431,14 +431,14 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]conn-test[/] file.xlsx conn-name              Test connection validity");
         AnsiConsole.WriteLine();
 
-        AnsiConsole.MarkupLine("[bold yellow]Script Commands:[/]");
-        AnsiConsole.MarkupLine("  [cyan]script-list[/] file.xlsm                       List all VBA scripts");
-        AnsiConsole.MarkupLine("  [cyan]script-view[/] file.xlsm module-name           View VBA module code");
-        AnsiConsole.MarkupLine("  [cyan]script-export[/] file.xlsm script (file)       Export VBA script");
-        AnsiConsole.MarkupLine("  [cyan]script-import[/] file.xlsm module-name vba.txt Import VBA script");
-        AnsiConsole.MarkupLine("  [cyan]script-update[/] file.xlsm module-name vba.txt Update VBA script");
-        AnsiConsole.MarkupLine("  [cyan]script-delete[/] file.xlsm module-name         Delete VBA module");
-        AnsiConsole.MarkupLine("  [cyan]script-run[/] file.xlsm macro-name (params)    Run VBA macro");
+        AnsiConsole.MarkupLine("[bold yellow]VBA Commands:[/]");
+        AnsiConsole.MarkupLine("  [cyan]vba-list[/] file.xlsm                       List all VBA modules");
+        AnsiConsole.MarkupLine("  [cyan]vba-view[/] file.xlsm module-name           View VBA module code");
+        AnsiConsole.MarkupLine("  [cyan]vba-export[/] file.xlsm module (file)       Export VBA module");
+        AnsiConsole.MarkupLine("  [cyan]vba-import[/] file.xlsm module-name vba.txt Import VBA module");
+        AnsiConsole.MarkupLine("  [cyan]vba-update[/] file.xlsm module-name vba.txt Update VBA module");
+        AnsiConsole.MarkupLine("  [cyan]vba-delete[/] file.xlsm module-name         Delete VBA module");
+        AnsiConsole.MarkupLine("  [cyan]vba-run[/] file.xlsm macro-name (params)    Run VBA macro");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Data Model Commands:[/]");
@@ -464,13 +464,13 @@ class Program
 
         AnsiConsole.MarkupLine("[bold green]Examples:[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli create-empty \"Plan.xlsm\"[/]            [dim]# Create macro-enabled workbook[/]");
-        AnsiConsole.MarkupLine("  [dim]excelcli script-import \"Plan.xlsm\" \"Helper\" \"code.vba\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli vba-import \"Plan.xlsm\" \"Helper\" \"code.vba\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli pq-list \"Plan.xlsx\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli pq-view \"Plan.xlsx\" \"Milestones\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli pq-import \"Plan.xlsx\" \"fnHelper\" \"function.pq\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli sheet-list \"Plan.xlsx\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli range-get-values \"Plan.xlsx\" \"Data\" \"A1:D10\"[/]");
-        AnsiConsole.MarkupLine("  [dim]excelcli param-set \"Plan.xlsx\" \"Start_Date\" \"2025-01-01\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli namedrange-set \"Plan.xlsx\" \"Start_Date\" \"2025-01-01\"[/]");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold]Requirements:[/] Windows + Excel + .NET 10.0");
