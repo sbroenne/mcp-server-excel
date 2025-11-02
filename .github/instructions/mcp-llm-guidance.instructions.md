@@ -2,7 +2,7 @@
 applyTo: "src/ExcelMcp.McpServer/Prompts/**/*.md"
 ---
 
-# MCP LLM Prompt Creation Guide
+# MCP LLM Guidance Creation Guide
 
 > **How to create effective guidance for LLMs consuming the MCP server**
 
