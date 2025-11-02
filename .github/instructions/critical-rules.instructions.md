@@ -290,3 +290,30 @@ public static string ToActionString(this RangeAction action) => action switch
 **Example Bug:** `GetUsedRange` missing → "An error occurred invoking 'excel_range'" (not JSON!)
 
 ---
+
+## Rule 16: Test Only What You Changed (CRITICAL - PERFORMANCE)
+
+**ALWAYS run tests ONLY for the specific code you modified. Integration tests take a very long time.**
+
+**Wrong:**
+```bash
+# ❌ NEVER: Runs ALL integration tests (10+ minutes)
+dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand"
+```
+
+**Correct:**
+```bash
+# ✅ CORRECT: Test only the feature you changed
+dotnet test --filter "Feature=PowerQuery&RunType!=OnDemand"  # PowerQuery changes only
+dotnet test --filter "Feature=Connection&RunType!=OnDemand"  # Connection changes only
+dotnet test --filter "Feature=Sheet&RunType!=OnDemand"       # Sheet changes only
+```
+
+**Why Critical:** Integration tests require Excel COM automation and are SLOW. Running all tests wastes time and resources.
+
+**Enforcement:**
+- Only run tests for files you modified
+- Use Feature trait to target specific test groups
+- Full test suite runs in CI/CD pipeline only
+
+---
