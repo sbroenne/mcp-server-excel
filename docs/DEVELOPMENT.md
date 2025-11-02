@@ -143,41 +143,33 @@ tests/
 
 **During Development (Fast Feedback):**
 ```powershell
-# Quick validation - runs in 2-5 seconds
-dotnet test --filter "Category=Unit"
+# Quick validation - run tests for specific feature
+dotnet test --filter "Feature=PowerQuery&RunType!=OnDemand"
+dotnet test --filter "Feature=DataModel&RunType!=OnDemand"
 ```
 
 **Before Commit (Comprehensive):**
 ```powershell
-# Full local validation - runs in 10-20 minutes
-dotnet test --filter "Category=Unit|Category=Integration"
+# Full local validation - runs in 10-20 minutes (excludes VBA)
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 ```
 
-**Release Validation (Complete):**
+**Session/Batch Code Changes (MANDATORY):**
 ```powershell
-# Complete test suite - runs in 30-60 minutes
-dotnet test
-
-# Or specifically run slow round trip tests
-dotnet test --filter "Category=RoundTrip"
+# When modifying ExcelSession.cs or ExcelBatch.cs
+dotnet test --filter "RunType=OnDemand"
 ```
 
 ### **Test Categories & Guidelines**
 
-**Unit Tests (`Category=Unit`)**
-- ✅ Pure logic, no external dependencies
-- ✅ Fast execution (2-5 seconds total)
-- ✅ Can run in CI without Excel
-- ✅ Mock external dependencies
+**⚠️ No Unit Tests** - See `docs/ADR-001-NO-UNIT-TESTS.md` for architectural rationale
 
 **Integration Tests (`Category=Integration`)**
-- ✅ Single feature with Excel interaction
-- ✅ Medium speed (1-15 minutes total)
+- ✅ Test business logic with real Excel COM interaction
+- ✅ Medium speed (10-20 minutes for full suite)
 - ✅ Requires Excel installation
-- ✅ Real COM operations
-
-**Round Trip Tests (`Category=RoundTrip`)**
-- ✅ Complete end-to-end workflows
+- ✅ These ARE our unit tests (Excel COM cannot be mocked)
+- ✅ Run specific features during development
 - ✅ Slow execution (3-10 minutes each)
 - ✅ Verifies actual Excel state changes
 - ✅ Comprehensive scenario coverage
@@ -222,11 +214,8 @@ public class VbaWorkflowTests
 Before creating a PR, ensure:
 
 ```powershell
-# Minimum requirement - All unit tests pass
-dotnet test --filter "Category=Unit"
-
-# Recommended - Unit + Integration tests pass  
-dotnet test --filter "Category=Unit|Category=Integration"
+# Required - Integration tests pass (excludes VBA)
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
 # Code builds without warnings
 dotnet build -c Release
@@ -235,10 +224,10 @@ dotnet build -c Release
 ```
 
 **For Complex Features:**
-- ✅ Add unit tests for core logic
-- ✅ Add integration tests for Excel operations
-- ✅ Consider round trip tests for workflows
+- ✅ Add integration tests for all Excel operations
+- ✅ Test round-trip persistence (create → save → reload → verify)
 - ✅ Update documentation
+- ✅ No unit tests needed (see ADR-001-NO-UNIT-TESTS.md)
 
 ## 📋 **MCP Server Configuration Management**
 

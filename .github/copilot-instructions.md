@@ -55,10 +55,10 @@
 ### Test Execution
 ```bash
 # Development (fast feedback - excludes VBA)
-dotnet test --filter "Category=Unit&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
 # Pre-commit (requires Excel - excludes VBA)
-dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
 # Session/batch cleanup (MANDATORY when modifying session/batch code)
 dotnet test --filter "RunType=OnDemand"

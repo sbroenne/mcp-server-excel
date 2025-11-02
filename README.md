@@ -72,7 +72,7 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 - 📋 **Ranges & Data** - 31 operations: values, formulas, copy/paste, find/replace, formatting, validation
 - 📄 **Worksheets** - 12 operations: lifecycle management, tab colors, visibility controls
 - 🔌 **Connections** - 11 operations: manage OLEDB, ODBC, Text, Web data sources
-- 🏷️ **Parameters** - 7 operations: named range management and bulk operations
+- 🏷️ **Named Ranges** - 7 operations: named range management and bulk operations
 
 **AI-Powered Workflows:**
 - 💬 Talk to Excel in natural language through GitHub Copilot or Claude
@@ -142,7 +142,7 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 - Load connection-only connections to worksheet tables
 - Get/set connection properties (refresh settings, background query, etc.)
 
-### Named Ranges/Parameters (7 operations)
+### Named Ranges (7 operations)
 - List all named ranges with references
 - Get/set single values
 - Create/delete named ranges
@@ -271,7 +271,7 @@ This means you get:
 6. **excel_vba** (7 actions) - VBA: list, view, export, import, update, run, delete modules
 7. **excel_connection** (11 actions) - Connections: OLEDB/ODBC/Text/Web management, properties, refresh, test
 8. **excel_worksheet** (13 actions) - Worksheets: lifecycle (list, create, rename, copy, delete), tab colors (set-tab-color, get-tab-color, clear-tab-color), visibility (set-visibility, get-visibility, show, hide, very-hide)
-9. **excel_parameter** (6 actions) - Named ranges: list, get, set, create, delete, update
+9. **excel_namedrange** (6 actions) - Named ranges: list, get, set, create, delete, update
 10. **excel_file** (1 action) - File creation: create empty .xlsx/.xlsm workbooks
 11. **Batch Session Tools** (3 actions) - Multi-operation performance: begin-batch, execute-in-batch, commit-batch
 

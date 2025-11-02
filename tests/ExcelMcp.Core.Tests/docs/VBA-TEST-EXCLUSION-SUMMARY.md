@@ -42,10 +42,10 @@ Updated **5 documentation files**:
 
 ```bash
 # Development (fast feedback - excludes VBA)
-dotnet test --filter "Category=Unit&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
 # Pre-commit (comprehensive - excludes VBA)
-dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
 # VBA tests only (manual, requires VBA trust enabled)
 dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
@@ -135,7 +135,7 @@ Files Changed: 5
 
 ```bash
 # Every commit ran VBA tests
-dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand"
+dotnet test --filter "Category=Integration&RunType!=OnDemand"
 # ~15-20 minutes (includes VBA)
 ```
 
@@ -143,7 +143,7 @@ dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand"
 
 ```bash
 # Normal development - excludes VBA
-dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 # ~10-15 minutes (VBA excluded)
 
 # VBA development - explicit VBA tests only

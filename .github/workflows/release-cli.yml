@@ -48,8 +48,12 @@ jobs:
     - name: Build CLI
       run: dotnet build src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-restore
 
-    - name: Run CLI Tests (Unit only - no Excel or OnDemand tests)
-      run: dotnet test tests/ExcelMcp.CLI.Tests --filter "Category=Unit&RunType!=OnDemand" --configuration Release --no-build
+    - name: Skip Tests (No Unit Tests - Integration tests require Excel)
+      run: |
+        Write-Output "ℹ️ ExcelMcp has no unit tests by architectural decision"
+        Write-Output "   See docs/ADR-001-NO-UNIT-TESTS.md for rationale"
+        Write-Output "   Integration tests run on Azure self-hosted runner with Excel"
+      shell: pwsh
 
     - name: Create CLI Release Package
       run: |

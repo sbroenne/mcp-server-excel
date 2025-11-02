@@ -205,8 +205,8 @@ dotnet build -c Release
 
 **Test Verification:**
 ```bash
-# Run all unit tests (must pass)
-dotnet test --filter "Category=Unit&RunType!=OnDemand"
+# Run all integration tests (must pass)
+dotnet test --filter "Category=Integration&RunType!=OnDemand"
 
 # Verify all new tests are included and pass
 dotnet test --filter "FullyQualifiedName~NewFeatureTests"
@@ -214,7 +214,7 @@ dotnet test --filter "FullyQualifiedName~NewFeatureTests"
 
 **Quality Checklist:**
 - ✅ **Build passes** with 0 warnings, 0 errors
-- ✅ **All unit tests pass** (141+ tests)
+- ✅ **All integration tests pass** (200+ tests)
 - ✅ **New tests created** (5-8 minimum)
 - ✅ **Documentation updated** (3+ files)
 - ✅ **Backwards compatible** (existing code works)

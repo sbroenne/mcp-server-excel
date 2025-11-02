@@ -23,10 +23,10 @@ Enforced: PR reviews, CI/CD checks, create a branch first, up-to-date branches, 
 
 ```bash
 # Development (fast - excludes VBA tests)
-dotnet test --filter "Category=Unit&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
 # Pre-commit (comprehensive - excludes VBA tests)
-dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
 # Session/batch code changes (MANDATORY)
 dotnet test --filter "RunType=OnDemand"
@@ -35,7 +35,7 @@ dotnet test --filter "RunType=OnDemand"
 dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
 
 # CI/CD (no Excel, no VBA)
-dotnet test --filter "Category=Unit&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 ```
 
 ## CI/CD Workflows

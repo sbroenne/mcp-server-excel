@@ -59,8 +59,8 @@ dotnet test --filter "Feature=Connections&RunType!=OnDemand"
 
 | Scenario | Command |
 |----------|---------|
-| **Daily development** | `dotnet test --filter "Category=Unit&RunType!=OnDemand&Feature!=VBA"` |
-| **Before commit** | `dotnet test --filter "(Category=Unit\|Category=Integration)&RunType!=OnDemand&Feature!=VBA"` |
+| **Daily development** | `dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA"` |
+| **Before commit** | `dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA"` |
 | **Modified session/batch code** | `dotnet test --filter "RunType=OnDemand"` (see [Rule 3](../.github/instructions/critical-rules.instructions.md#rule-3-session-cleanup-tests)) |
 | **VBA development** | `dotnet test --filter "(Feature=VBA\|Feature=VBATrust)&RunType!=OnDemand"` |
 
