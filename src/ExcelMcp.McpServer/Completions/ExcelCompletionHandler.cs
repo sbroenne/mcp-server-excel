@@ -64,53 +64,14 @@ public static class ExcelCompletionHandler
     {
         var suggestions = new List<string>();
 
-        // Action parameter completions - load from markdown files
-        if (argumentName == "action")
-        {
-            if (promptName.Contains("powerquery", StringComparison.OrdinalIgnoreCase))
-            {
-                suggestions = MarkdownLoader.LoadCompletionValues("action_powerquery.md");
-            }
-            else if (promptName.Contains("parameter", StringComparison.OrdinalIgnoreCase) || 
-                     promptName.Contains("namedrange", StringComparison.OrdinalIgnoreCase))
-            {
-                suggestions = MarkdownLoader.LoadCompletionValues("action_parameter.md");
-            }
-            else if (promptName.Contains("datamodel", StringComparison.OrdinalIgnoreCase))
-            {
-                suggestions = MarkdownLoader.LoadCompletionValues("action_datamodel.md");
-            }
-            else if (promptName.Contains("vba", StringComparison.OrdinalIgnoreCase))
-            {
-                suggestions = MarkdownLoader.LoadCompletionValues("action_vba.md");
-            }
-            else if (promptName.Contains("worksheet", StringComparison.OrdinalIgnoreCase))
-            {
-                suggestions = MarkdownLoader.LoadCompletionValues("action_worksheet.md");
-            }
-            else if (promptName.Contains("range", StringComparison.OrdinalIgnoreCase))
-            {
-                suggestions = MarkdownLoader.LoadCompletionValues("action_range.md");
-            }
-            else if (promptName.Contains("table", StringComparison.OrdinalIgnoreCase))
-            {
-                suggestions = MarkdownLoader.LoadCompletionValues("action_table.md");
-            }
-            else if (promptName.Contains("connection", StringComparison.OrdinalIgnoreCase))
-            {
-                suggestions = MarkdownLoader.LoadCompletionValues("action_connection.md");
-            }
-            else if (promptName.Contains("pivottable", StringComparison.OrdinalIgnoreCase))
-            {
-                suggestions = MarkdownLoader.LoadCompletionValues("action_pivottable.md");
-            }
-            else if (promptName.Contains("batch", StringComparison.OrdinalIgnoreCase))
-            {
-                suggestions = MarkdownLoader.LoadCompletionValues("action_batch.md");
-            }
-        }
+        // NOTE: Action parameter completions are NOT needed here!
+        // The MCP SDK auto-generates tool schema from C# enums (PowerQueryAction, RangeAction, etc.)
+        // and LLMs receive all valid enum values directly in the schema.
+        // 
+        // Only provide completions for freeform string parameters where suggestions add value.
+
         // Load destination completions for Power Query
-        else if (argumentName == "loadDestination")
+        if (argumentName == "loadDestination")
         {
             suggestions = MarkdownLoader.LoadCompletionValues("load_destination.md");
         }

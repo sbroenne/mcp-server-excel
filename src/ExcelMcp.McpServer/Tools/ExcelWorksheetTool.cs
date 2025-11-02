@@ -125,24 +125,7 @@ public static class ExcelWorksheetTool
             throw new ModelContextProtocol.McpException($"list failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        // Add workflow guidance
-        var sheetCount = result.Items?.Count ?? 0;
-        return JsonSerializer.Serialize(new
-        {
-            success = result.Success,
-            items = result.Items,
-            suggestedNextActions = sheetCount == 0
-                ? new[] { "Use worksheet 'create' to add your first worksheet" }
-                : new[]
-                {
-                    "Use worksheet 'create' to add more worksheets",
-                    "Use excel_range for data operations",
-                    "Use worksheet 'rename' or 'set-tab-color' to organize sheets"
-                },
-            workflowHint = sheetCount == 0
-                ? "Empty workbook. Create worksheets to store data."
-                : $"Found {sheetCount} worksheet(s). Ready for data operations."
-        }, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> CreateWorksheetAsync(SheetCommands commands, string filePath, string? sheetName, string? batchId)
@@ -166,20 +149,7 @@ public static class ExcelWorksheetTool
             throw new ModelContextProtocol.McpException($"create failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        return JsonSerializer.Serialize(new
-        {
-            success = result.Success,
-            name = result.Name,
-            suggestedNextActions = new[]
-            {
-                usedBatchMode
-                    ? "Continue with more operations in this batch"
-                    : "Use begin_excel_batch for multiple operations",
-                $"Use excel_range to populate '{sheetName}' with data",
-                "Use worksheet 'set-tab-color' to organize sheets visually"
-            },
-            workflowHint = $"Worksheet '{sheetName}' created. Ready for data operations."
-        }, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> RenameWorksheetAsync(SheetCommands commands, string filePath, string? sheetName, string? targetName, string? batchId)
