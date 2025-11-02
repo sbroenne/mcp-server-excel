@@ -172,7 +172,7 @@ public class ResultSerializationTests
         {
             Success = true,
             FilePath = "parameter-list.xlsx",
-            Parameters =
+            NamedRanges =
             [
                 new() { Name = "StartDate", Value = "2024-01-01", RefersTo = "Config!A1" },
                 new() { Name = "EndDate", Value = "2024-12-31", RefersTo = "Config!A2" }
@@ -188,7 +188,7 @@ public class ResultSerializationTests
         Assert.Contains("\"StartDate\"", json);
         Assert.Contains("\"EndDate\"", json);
         Assert.NotNull(deserialized);
-        Assert.Equal(2, deserialized.Parameters.Count);
+        Assert.Equal(2, deserialized.NamedRanges.Count);
     }
 
     [Fact]

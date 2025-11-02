@@ -22,7 +22,7 @@ public partial class ParameterCommandsTests
 
         // Assert
         Assert.True(result.Success, $"List failed: {result.ErrorMessage}");
-        Assert.NotNull(result.Parameters);
+        Assert.NotNull(result.NamedRanges);
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public partial class ParameterCommandsTests
         // Verify the parameter was actually created by listing parameters
         var listResult = await _parameterCommands.ListAsync(batch);
         Assert.True(listResult.Success, $"Failed to list parameters: {listResult.ErrorMessage}");
-        Assert.Contains(listResult.Parameters, p => p.Name == "TestParam");
+        Assert.Contains(listResult.NamedRanges, p => p.Name == "TestParam");
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public partial class ParameterCommandsTests
         // Verify the parameter was actually deleted by checking it's not in the list
         var listResult = await _parameterCommands.ListAsync(batch);
         Assert.True(listResult.Success, $"Failed to list parameters: {listResult.ErrorMessage}");
-        Assert.DoesNotContain(listResult.Parameters, p => p.Name == "DeleteTestParam");
+        Assert.DoesNotContain(listResult.NamedRanges, p => p.Name == "DeleteTestParam");
     }
 
     [Fact]

@@ -422,21 +422,21 @@ public class NamedRangeListResult : ResultBase
     /// <summary>
     /// List of named ranges/parameters
     /// </summary>
-    public List<ParameterInfo> Parameters { get; set; } = [];
+    public List<NamedRangeInfo> NamedRanges { get; set; } = [];
 }
 
 /// <summary>
 /// Information about a named range/parameter
 /// </summary>
-public class ParameterInfo
+public class NamedRangeInfo
 {
     /// <summary>
-    /// Name of the parameter
+    /// Name of the named range
     /// </summary>
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// What the parameter refers to
+    /// What the named range refers to
     /// </summary>
     public string RefersTo { get; set; } = string.Empty;
 
@@ -457,9 +457,9 @@ public class ParameterInfo
 public class NamedRangeValueResult : ResultBase
 {
     /// <summary>
-    /// Name of the parameter
+    /// Name of the named range
     /// </summary>
-    public string ParameterName { get; set; } = string.Empty;
+    public string NamedRangeName { get; set; } = string.Empty;
 
     /// <summary>
     /// Current value
@@ -472,7 +472,7 @@ public class NamedRangeValueResult : ResultBase
     public string ValueType { get; set; } = string.Empty;
 
     /// <summary>
-    /// What the parameter refers to
+    /// What the named range refers to
     /// </summary>
     public string RefersTo { get; set; } = string.Empty;
 }

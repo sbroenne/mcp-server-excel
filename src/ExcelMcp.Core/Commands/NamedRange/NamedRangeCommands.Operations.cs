@@ -54,7 +54,7 @@ public partial class NamedRangeCommands
                         }
                         catch { }
 
-                        result.Parameters.Add(new ParameterInfo
+                        result.NamedRanges.Add(new NamedRangeInfo
                         {
                             Name = name,
                             RefersTo = refersTo,
@@ -141,7 +141,7 @@ public partial class NamedRangeCommands
     /// <inheritdoc />
     public async Task<NamedRangeValueResult> GetAsync(IExcelBatch batch, string paramName)
     {
-        var result = new NamedRangeValueResult { FilePath = batch.WorkbookPath, ParameterName = paramName };
+        var result = new NamedRangeValueResult { FilePath = batch.WorkbookPath, NamedRangeName = paramName };
 
         return await batch.Execute((ctx, ct) =>
         {

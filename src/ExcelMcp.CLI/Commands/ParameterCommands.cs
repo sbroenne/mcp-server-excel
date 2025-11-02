@@ -31,14 +31,14 @@ public class NamedRangeCommands : INamedRangeCommands
 
         if (result.Success)
         {
-            if (result.Parameters.Count > 0)
+            if (result.NamedRanges.Count > 0)
             {
                 var table = new Table();
                 table.AddColumn("[bold]Parameter Name[/]");
                 table.AddColumn("[bold]Refers To[/]");
                 table.AddColumn("[bold]Value[/]");
 
-                foreach (var param in result.Parameters.OrderBy(p => p.Name))
+                foreach (var param in result.NamedRanges.OrderBy(p => p.Name))
                 {
                     string refersTo = param.RefersTo.Length > 40 ? param.RefersTo[..37] + "..." : param.RefersTo;
                     string value = param.Value?.ToString() ?? "[null]";
@@ -46,7 +46,7 @@ public class NamedRangeCommands : INamedRangeCommands
                 }
 
                 AnsiConsole.Write(table);
-                AnsiConsole.MarkupLine($"\n[dim]Found {result.Parameters.Count} parameter(s)[/]");
+                AnsiConsole.MarkupLine($"\n[dim]Found {result.NamedRanges.Count} parameter(s)[/]");
             }
             else
             {

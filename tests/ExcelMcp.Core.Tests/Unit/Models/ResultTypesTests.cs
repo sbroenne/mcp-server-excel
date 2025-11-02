@@ -96,7 +96,7 @@ public class ResultTypesTests
         {
             Success = true,
             FilePath = "parameter-list.xlsx",
-            Parameters =
+            NamedRanges =
             [
                 new() { Name = "StartDate", Value = "2024-01-01", RefersTo = "Settings!A1" },
                 new() { Name = "EndDate", Value = "2024-12-31", RefersTo = "Settings!A2" }
@@ -105,9 +105,9 @@ public class ResultTypesTests
 
         // Assert
         Assert.True(result.Success);
-        Assert.Equal(2, result.Parameters.Count);
-        Assert.Equal("StartDate", result.Parameters[0].Name);
-        Assert.Equal("2024-01-01", result.Parameters[0].Value);
+        Assert.Equal(2, result.NamedRanges.Count);
+        Assert.Equal("StartDate", result.NamedRanges[0].Name);
+        Assert.Equal("2024-01-01", result.NamedRanges[0].Value);
     }
 
     [Fact]
@@ -118,13 +118,13 @@ public class ResultTypesTests
         {
             Success = true,
             FilePath = "parameter-value.xlsx",
-            ParameterName = "ReportDate",
+            NamedRangeName = "ReportDate",
             Value = "2024-03-15",
             RefersTo = "Config!B5"
         };
 
         // Assert
-        Assert.Equal("ReportDate", result.ParameterName);
+        Assert.Equal("ReportDate", result.NamedRangeName);
         Assert.Equal("2024-03-15", result.Value);
         Assert.Equal("Config!B5", result.RefersTo);
     }

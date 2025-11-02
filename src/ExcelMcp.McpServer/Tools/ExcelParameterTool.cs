@@ -14,8 +14,8 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 ///
 /// LLM Usage Patterns:
 /// - Use "list" to see all named ranges (parameters) in a workbook
-/// - Use "get" to retrieve parameter values for configuration
-/// - Use "set" to update parameter values for dynamic behavior
+/// - Use "get" to retrieve Named range values for configuration
+/// - Use "set" to update Named range values for dynamic behavior
 /// - Use "update" to change parameter cell reference
 /// - Use "create" to define new named ranges as parameters
 /// - Use "delete" to remove obsolete parameters
@@ -51,14 +51,14 @@ Actions available as dropdown in MCP clients.")]
         string excelPath,
 
         [StringLength(255, MinimumLength = 1)]
-        [Description("Parameter (named range) name (for get, set, create, update, delete actions)")]
-        string? parameterName = null,
+        [Description("Named range name (for get, set, create, update, delete actions)")]
+        string? namedRangeName = null,
 
-        [Description("Parameter value (for set action) or cell reference (for create/update actions, e.g., 'Sheet1!A1')")]
+        [Description("Named range value (for set action) or cell reference (for create/update actions, e.g., 'Sheet1!A1')")]
         string? value = null,
 
-        [Description("JSON array of parameters for create-bulk action: [{name: 'Name', reference: 'Sheet1!A1', value: 'text'}, ...]")]
-        string? parametersJson = null,
+        [Description("JSON array of named ranges for create-bulk action: [{name: 'Name', reference: 'Sheet1!A1', value: 'text'}, ...]")]
+        string? namedRangesJson = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
         string? batchId = null)
@@ -70,13 +70,13 @@ Actions available as dropdown in MCP clients.")]
 
             return actionString switch
             {
-                "list" => await ListParametersAsync(NamedRangeCommands, excelPath, batchId),
-                "get" => await GetParameterAsync(NamedRangeCommands, excelPath, parameterName, batchId),
-                "set" => await SetParameterAsync(NamedRangeCommands, excelPath, parameterName, value, batchId),
-                "create" => await CreateParameterAsync(NamedRangeCommands, excelPath, parameterName, value, batchId),
-                "create-bulk" => await CreateBulkParametersAsync(NamedRangeCommands, excelPath, parametersJson, batchId),
-                "update" => await UpdateParameterAsync(NamedRangeCommands, excelPath, parameterName, value, batchId),
-                "delete" => await DeleteParameterAsync(NamedRangeCommands, excelPath, parameterName, batchId),
+                "list" => await ListNamedRangesAsync(NamedRangeCommands, excelPath, batchId),
+                "get" => await GetNamedRangeAsync(NamedRangeCommands, excelPath, namedRangeName, batchId),
+                "set" => await SetNamedRangeAsync(NamedRangeCommands, excelPath, namedRangeName, value, batchId),
+                "create" => await CreateNamedRangeAsync(NamedRangeCommands, excelPath, namedRangeName, value, batchId),
+                "create-bulk" => await CreateBulkNamedRangesAsync(NamedRangeCommands, excelPath, namedRangesJson, batchId),
+                "update" => await UpdateNamedRangeAsync(NamedRangeCommands, excelPath, namedRangeName, value, batchId),
+                "delete" => await DeleteNamedRangeAsync(NamedRangeCommands, excelPath, namedRangeName, batchId),
                 _ => throw new ModelContextProtocol.McpException($"Unknown action '{actionString}'")
             };
         }
@@ -91,7 +91,7 @@ Actions available as dropdown in MCP clients.")]
         }
     }
 
-    private static async Task<string> ListParametersAsync(NamedRangeCommands commands, string filePath, string? batchId)
+    private static async Task<string> ListNamedRangesAsync(NamedRangeCommands commands, string filePath, string? batchId)
     {
         var result = await ExcelToolsBase.WithBatchAsync(
             batchId,
@@ -109,16 +109,16 @@ Actions available as dropdown in MCP clients.")]
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetParameterAsync(NamedRangeCommands commands, string filePath, string? parameterName, string? batchId)
+    private static async Task<string> GetNamedRangeAsync(NamedRangeCommands commands, string filePath, string? namedRangeName, string? batchId)
     {
-        if (string.IsNullOrEmpty(parameterName))
-            throw new ModelContextProtocol.McpException("parameterName is required for get action");
+        if (string.IsNullOrEmpty(namedRangeName))
+            throw new ModelContextProtocol.McpException("namedRangeName is required for get action");
 
         var result = await ExcelToolsBase.WithBatchAsync(
             batchId,
             filePath,
             save: false,
-            async (batch) => await commands.GetAsync(batch, parameterName));
+            async (batch) => await commands.GetAsync(batch, namedRangeName));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -130,16 +130,16 @@ Actions available as dropdown in MCP clients.")]
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetParameterAsync(NamedRangeCommands commands, string filePath, string? parameterName, string? value, string? batchId)
+    private static async Task<string> SetNamedRangeAsync(NamedRangeCommands commands, string filePath, string? namedRangeName, string? value, string? batchId)
     {
-        if (string.IsNullOrEmpty(parameterName) || value == null)
-            throw new ModelContextProtocol.McpException("parameterName and value are required for set action");
+        if (string.IsNullOrEmpty(namedRangeName) || value == null)
+            throw new ModelContextProtocol.McpException("namedRangeName and value are required for set action");
 
         var result = await ExcelToolsBase.WithBatchAsync(
             batchId,
             filePath,
             save: true,
-            async (batch) => await commands.SetAsync(batch, parameterName, value));
+            async (batch) => await commands.SetAsync(batch, namedRangeName, value));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -151,16 +151,16 @@ Actions available as dropdown in MCP clients.")]
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> UpdateParameterAsync(NamedRangeCommands commands, string filePath, string? parameterName, string? value, string? batchId)
+    private static async Task<string> UpdateNamedRangeAsync(NamedRangeCommands commands, string filePath, string? namedRangeName, string? value, string? batchId)
     {
-        if (string.IsNullOrEmpty(parameterName) || string.IsNullOrEmpty(value))
-            throw new ModelContextProtocol.McpException("parameterName and value (cell reference) are required for update action");
+        if (string.IsNullOrEmpty(namedRangeName) || string.IsNullOrEmpty(value))
+            throw new ModelContextProtocol.McpException("namedRangeName and value (cell reference) are required for update action");
 
         var result = await ExcelToolsBase.WithBatchAsync(
             batchId,
             filePath,
             save: true,
-            async (batch) => await commands.UpdateAsync(batch, parameterName, value));
+            async (batch) => await commands.UpdateAsync(batch, namedRangeName, value));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -172,16 +172,16 @@ Actions available as dropdown in MCP clients.")]
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> CreateParameterAsync(NamedRangeCommands commands, string filePath, string? parameterName, string? value, string? batchId)
+    private static async Task<string> CreateNamedRangeAsync(NamedRangeCommands commands, string filePath, string? namedRangeName, string? value, string? batchId)
     {
-        if (string.IsNullOrEmpty(parameterName) || string.IsNullOrEmpty(value))
-            throw new ModelContextProtocol.McpException("parameterName and value (cell reference) are required for create action");
+        if (string.IsNullOrEmpty(namedRangeName) || string.IsNullOrEmpty(value))
+            throw new ModelContextProtocol.McpException("namedRangeName and value (cell reference) are required for create action");
 
         var result = await ExcelToolsBase.WithBatchAsync(
             batchId,
             filePath,
             save: true,
-            async (batch) => await commands.CreateAsync(batch, parameterName, value));
+            async (batch) => await commands.CreateAsync(batch, namedRangeName, value));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -193,16 +193,16 @@ Actions available as dropdown in MCP clients.")]
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> DeleteParameterAsync(NamedRangeCommands commands, string filePath, string? parameterName, string? batchId)
+    private static async Task<string> DeleteNamedRangeAsync(NamedRangeCommands commands, string filePath, string? namedRangeName, string? batchId)
     {
-        if (string.IsNullOrEmpty(parameterName))
-            throw new ModelContextProtocol.McpException("parameterName is required for delete action");
+        if (string.IsNullOrEmpty(namedRangeName))
+            throw new ModelContextProtocol.McpException("namedRangeName is required for delete action");
 
         var result = await ExcelToolsBase.WithBatchAsync(
             batchId,
             filePath,
             save: true,
-            async (batch) => await commands.DeleteAsync(batch, parameterName));
+            async (batch) => await commands.DeleteAsync(batch, namedRangeName));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -214,25 +214,25 @@ Actions available as dropdown in MCP clients.")]
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> CreateBulkParametersAsync(NamedRangeCommands commands, string excelPath, string? parametersJson, string? batchId)
+    private static async Task<string> CreateBulkNamedRangesAsync(NamedRangeCommands commands, string excelPath, string? namedRangesJson, string? batchId)
     {
-        if (string.IsNullOrWhiteSpace(parametersJson))
-            throw new ModelContextProtocol.McpException("parametersJson is required for create-bulk action");
+        if (string.IsNullOrWhiteSpace(namedRangesJson))
+            throw new ModelContextProtocol.McpException("namedRangesJson is required for create-bulk action");
 
-        // Deserialize JSON array of parameter definitions
+        // Deserialize JSON array of named range definitions
         List<NamedRangeDefinition>? parameters;
         try
         {
             parameters = JsonSerializer.Deserialize<List<NamedRangeDefinition>>(
-                parametersJson,
+                namedRangesJson,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
             if (parameters == null || parameters.Count == 0)
-                throw new ModelContextProtocol.McpException("parametersJson must contain at least one parameter definition");
+                throw new ModelContextProtocol.McpException("namedRangesJson must contain at least one named range definition");
         }
         catch (JsonException ex)
         {
-            throw new ModelContextProtocol.McpException($"Invalid parametersJson format: {ex.Message}");
+            throw new ModelContextProtocol.McpException($"Invalid namedRangesJson format: {ex.Message}");
         }
 
         var result = await ExcelToolsBase.WithBatchAsync(
