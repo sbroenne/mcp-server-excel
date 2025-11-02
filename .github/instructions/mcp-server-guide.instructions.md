@@ -4,27 +4,6 @@ applyTo: "src/ExcelMcp.McpServer/**/*.cs"
 
 # MCP Server Development Guide
 
-> **Model Context Protocol server for AI-assisted Excel development**
-
-## Purpose
-AI-assisted Excel development (Power Query refactoring, VBA enhancement, code review) - NOT for ETL pipelines.
-
-## Resource-Based Architecture (11 Tools)
-
-| Tool | Purpose |
-|------|---------|
-| **excel_file** | Excel file operations (create-empty, close-workbook, test) |
-| **excel_powerquery** | Power Query lifecycle + optional `privacyLevel` |
-| **excel_worksheet** | Worksheet operations (lifecycle only - data via excel_range) |
-| **excel_range** | Range operations (values, formulas, clear, copy, hyperlinks) |
-| **excel_parameter** | Named ranges |
-| **excel_table** | Excel Table (ListObject) operations |
-| **excel_connection** | Connection management (OLEDB, ODBC, Text, Web, etc.) |
-| **excel_datamodel** | Data Model / Power Pivot operations |
-| **excel_vba** | VBA lifecycle + `VbaTrustRequiredResult` |
-| **begin_excel_batch** | Start batch session (multi-operation performance) |
-| **commit_excel_batch** | Save/discard batch session |
-
 ## Implementation Patterns
 
 ### Action-Based Routing
@@ -103,3 +82,8 @@ private static object ConvertToCellValue(object? value)
 5. **Update server.json** - Keep synchronized with tool changes
 6. **JSON serialization** - Always use `JsonSerializer`
 7. **Handle JsonElement** - Convert before COM marshalling
+
+## LLM Guidance Development
+
+**See: [mcp-llm-guidance.instructions.md](mcp-llm-guidance.instructions.md)** for complete guidance on creating guidance for LLMs consuming the MCP server.
+
