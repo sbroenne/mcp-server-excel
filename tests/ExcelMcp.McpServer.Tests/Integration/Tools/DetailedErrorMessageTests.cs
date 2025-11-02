@@ -188,11 +188,12 @@ public class DetailedErrorMessageTests : IDisposable
         _output.WriteLine($"Error message: {exception.Message}");
 
         // Verify detailed components
-        Assert.Contains("parameterName", exception.Message);
+        Assert.Contains("namedRangeName", exception.Message); // Parameter name changed in API
         Assert.Contains("required", exception.Message);
         Assert.Contains("create", exception.Message);
 
         _output.WriteLine("✅ Verified: Missing parameter error includes action context");
     }
 }
+
 

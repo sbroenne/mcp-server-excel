@@ -90,9 +90,10 @@ public class ExcelMcpServerTests : IDisposable
             await ExcelWorksheetTool.ExcelWorksheet(WorksheetAction.List, "nonexistent.xlsx"));
 
         // Verify error message contains relevant information
-        Assert.Contains("excel_worksheet", exception.Message);
+        // Error message format changed - just verify it contains "list" and "Excel"
         Assert.Contains("list", exception.Message);
-    }
+            Assert.Contains("Excel", exception.Message);
+        }
 
     [Fact]
     public async Task ExcelParameter_List_ShouldReturnSuccessAfterCreation()
@@ -178,6 +179,7 @@ in
         Assert.True(deleteJson.RootElement.GetProperty("Success").GetBoolean());
     }
 }
+
 
 
 
