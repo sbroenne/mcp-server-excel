@@ -46,9 +46,9 @@ public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
     public void Import_ViaFixture_CreatesQueriesSuccessfully()
     {
         // Assert the fixture creation succeeded
-        Assert.True(_creationResult.Success, 
+        Assert.True(_creationResult.Success,
             $"Power Query creation failed during fixture initialization: {_creationResult.ErrorMessage}");
-        
+
         Assert.True(_creationResult.FileCreated, "File creation failed");
         Assert.Equal(3, _creationResult.MCodeFilesCreated);
         Assert.Equal(3, _creationResult.QueriesImported);
@@ -73,7 +73,7 @@ public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         var result = await _powerQueryCommands.ImportAsync(batch, queryName, testQueryFile, "connection-only");
-        
+
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
     }
@@ -105,7 +105,7 @@ public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(_powerQueryFile);
         var result = await _powerQueryCommands.ViewAsync(batch, "BasicQuery");
-        
+
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.MCode);
@@ -121,10 +121,10 @@ public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
     {
         // Arrange
         var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(PowerQueryCommandsTests), 
-            nameof(Update_ExistingQuery_ReturnsSuccess), 
+            nameof(PowerQueryCommandsTests),
+            nameof(Update_ExistingQuery_ReturnsSuccess),
             _tempDir);
-        
+
         var queryName = "PQ_Update_" + Guid.NewGuid().ToString("N").Substring(0, 8);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Update_ExistingQuery_ReturnsSuccess));
         var updateFile = Path.Join(_tempDir, $"updated_{Guid.NewGuid():N}.pq");
@@ -134,7 +134,7 @@ public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         await _powerQueryCommands.ImportAsync(batch, queryName, testQueryFile);
         var result = await _powerQueryCommands.UpdateAsync(batch, queryName, updateFile);
-        
+
         // Assert
         Assert.True(result.Success);
     }
@@ -148,10 +148,10 @@ public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
     {
         // Arrange
         var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(PowerQueryCommandsTests), 
-            nameof(Delete_ExistingQuery_ReturnsSuccess), 
+            nameof(PowerQueryCommandsTests),
+            nameof(Delete_ExistingQuery_ReturnsSuccess),
             _tempDir);
-        
+
         var queryName = "PQ_Delete_" + Guid.NewGuid().ToString("N").Substring(0, 8);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Delete_ExistingQuery_ReturnsSuccess));
 
@@ -159,7 +159,7 @@ public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         await _powerQueryCommands.ImportAsync(batch, queryName, testQueryFile);
         var result = await _powerQueryCommands.DeleteAsync(batch, queryName);
-        
+
         // Assert
         Assert.True(result.Success);
     }
@@ -177,8 +177,8 @@ public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
     {
         // Arrange
         var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(PowerQueryCommandsTests), 
-            nameof(Refresh_WithLoadDestinationWorksheet_ConvertsConnectionOnlyToLoaded), 
+            nameof(PowerQueryCommandsTests),
+            nameof(Refresh_WithLoadDestinationWorksheet_ConvertsConnectionOnlyToLoaded),
             _tempDir);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Refresh_WithLoadDestinationWorksheet_ConvertsConnectionOnlyToLoaded));
 
@@ -220,8 +220,8 @@ public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
     {
         // Arrange
         var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(PowerQueryCommandsTests), 
-            nameof(Refresh_WithLoadDestinationDataModel_LoadsToDataModel), 
+            nameof(PowerQueryCommandsTests),
+            nameof(Refresh_WithLoadDestinationDataModel_LoadsToDataModel),
             _tempDir);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Refresh_WithLoadDestinationDataModel_LoadsToDataModel));
 
@@ -255,8 +255,8 @@ public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
     {
         // Arrange
         var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(PowerQueryCommandsTests), 
-            nameof(Refresh_WithLoadDestinationBoth_LoadsToBothDestinations), 
+            nameof(PowerQueryCommandsTests),
+            nameof(Refresh_WithLoadDestinationBoth_LoadsToBothDestinations),
             _tempDir);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Refresh_WithLoadDestinationBoth_LoadsToBothDestinations));
 
@@ -308,8 +308,8 @@ public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
     {
         // Arrange
         var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(PowerQueryCommandsTests), 
-            nameof(Operations_WithNonExistentQuery_ReturnNotFoundError), 
+            nameof(PowerQueryCommandsTests),
+            nameof(Operations_WithNonExistentQuery_ReturnNotFoundError),
             _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
 
@@ -352,8 +352,8 @@ public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
     {
         // Arrange
         var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(PowerQueryCommandsTests), 
-            nameof(Import_QueryReferencingAnotherQuery_LoadsDataSuccessfully), 
+            nameof(PowerQueryCommandsTests),
+            nameof(Import_QueryReferencingAnotherQuery_LoadsDataSuccessfully),
             _tempDir);
 
         // Create M code for the source query (base data)

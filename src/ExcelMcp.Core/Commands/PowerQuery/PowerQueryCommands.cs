@@ -129,10 +129,10 @@ public partial class PowerQueryCommands : IPowerQueryCommands
         // Parse: File.Contents("D:\path\to\file.xlsx")
         // Also handles: File.Contents( "path" ) with optional whitespace
         var match = System.Text.RegularExpressions.Regex.Match(
-            mCode, 
+            mCode,
             @"File\.Contents\s*\(\s*""([^""]+)""\s*\)",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        
+
         return match.Success ? match.Groups[1].Value : null;
     }
 
