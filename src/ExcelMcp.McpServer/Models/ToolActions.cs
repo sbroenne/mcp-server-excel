@@ -119,6 +119,8 @@ public enum ParameterAction
 {
     List,
     Create,
+    CreateBulk,
+    Update,
     Delete,
     Get,
     Set

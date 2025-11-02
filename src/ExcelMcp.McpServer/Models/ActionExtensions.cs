@@ -88,6 +88,8 @@ public static class ActionExtensions
     {
         ParameterAction.List => "list",
         ParameterAction.Create => "create",
+        ParameterAction.CreateBulk => "create-bulk",
+        ParameterAction.Update => "update",
         ParameterAction.Delete => "delete",
         ParameterAction.Get => "get",
         ParameterAction.Set => "set",

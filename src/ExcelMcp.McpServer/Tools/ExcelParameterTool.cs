@@ -51,11 +51,14 @@ Actions available as dropdown in MCP clients.")]
         string excelPath,
 
         [StringLength(255, MinimumLength = 1)]
-        [Description("Parameter (named range) name (for get, set, create, delete actions)")]
+        [Description("Parameter (named range) name (for get, set, create, update, delete actions)")]
         string? parameterName = null,
 
-        [Description("Parameter value (for set action) or cell reference (for create actions, e.g., 'Sheet1!A1')")]
+        [Description("Parameter value (for set action) or cell reference (for create/update actions, e.g., 'Sheet1!A1')")]
         string? value = null,
+
+        [Description("JSON array of parameters for create-bulk action: [{name: 'Name', reference: 'Sheet1!A1', value: 'text'}, ...]")]
+        string? parametersJson = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
         string? batchId = null)
@@ -71,6 +74,8 @@ Actions available as dropdown in MCP clients.")]
                 "get" => await GetParameterAsync(NamedRangeCommands, excelPath, parameterName, batchId),
                 "set" => await SetParameterAsync(NamedRangeCommands, excelPath, parameterName, value, batchId),
                 "create" => await CreateParameterAsync(NamedRangeCommands, excelPath, parameterName, value, batchId),
+                "create-bulk" => await CreateBulkParametersAsync(NamedRangeCommands, excelPath, parametersJson, batchId),
+                "update" => await UpdateParameterAsync(NamedRangeCommands, excelPath, parameterName, value, batchId),
                 "delete" => await DeleteParameterAsync(NamedRangeCommands, excelPath, parameterName, batchId),
                 _ => throw new ModelContextProtocol.McpException($"Unknown action '{actionString}'")
             };
