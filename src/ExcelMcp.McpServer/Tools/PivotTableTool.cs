@@ -95,30 +95,29 @@ public static class PivotTableTool
         {
             var pivotCommands = new PivotTableCommands();
 
-            var actionString = action.ToActionString();
-
-            return actionString switch
+            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+            return action switch
             {
-                "list" => await ListPivotTables(pivotCommands, excelPath),
-                "get-info" => await GetPivotTableInfo(pivotCommands, excelPath, pivotTableName),
-                "create-from-range" => await CreateFromRange(pivotCommands, excelPath, sheetName, range, destinationSheet, destinationCell, pivotTableName),
-                "create-from-table" => await CreateFromTable(pivotCommands, excelPath, customName, destinationSheet, destinationCell, pivotTableName),
-                "delete" => await DeletePivotTable(pivotCommands, excelPath, pivotTableName),
-                "refresh" => await RefreshPivotTable(pivotCommands, excelPath, pivotTableName),
-                "list-fields" => await ListFields(pivotCommands, excelPath, pivotTableName),
-                "add-row-field" => await AddRowField(pivotCommands, excelPath, pivotTableName, fieldName, position),
-                "add-column-field" => await AddColumnField(pivotCommands, excelPath, pivotTableName, fieldName, position),
-                "add-value-field" => await AddValueField(pivotCommands, excelPath, pivotTableName, fieldName, aggregationFunction, customName),
-                "add-filter-field" => await AddFilterField(pivotCommands, excelPath, pivotTableName, fieldName),
-                "remove-field" => await RemoveField(pivotCommands, excelPath, pivotTableName, fieldName),
-                "set-field-function" => await SetFieldFunction(pivotCommands, excelPath, pivotTableName, fieldName, aggregationFunction),
-                "set-field-name" => await SetFieldName(pivotCommands, excelPath, pivotTableName, fieldName, customName),
-                "set-field-format" => await SetFieldFormat(pivotCommands, excelPath, pivotTableName, fieldName, numberFormat),
-                "get-data" => await GetData(pivotCommands, excelPath, pivotTableName),
-                "set-field-filter" => await SetFieldFilter(pivotCommands, excelPath, pivotTableName, fieldName, filterValues),
-                "sort-field" => await SortField(pivotCommands, excelPath, pivotTableName, fieldName, sortDirection),
+                PivotTableAction.List => await ListPivotTables(pivotCommands, excelPath),
+                PivotTableAction.GetInfo => await GetPivotTableInfo(pivotCommands, excelPath, pivotTableName),
+                PivotTableAction.CreateFromRange => await CreateFromRange(pivotCommands, excelPath, sheetName, range, destinationSheet, destinationCell, pivotTableName),
+                PivotTableAction.CreateFromTable => await CreateFromTable(pivotCommands, excelPath, customName, destinationSheet, destinationCell, pivotTableName),
+                PivotTableAction.Delete => await DeletePivotTable(pivotCommands, excelPath, pivotTableName),
+                PivotTableAction.Refresh => await RefreshPivotTable(pivotCommands, excelPath, pivotTableName),
+                PivotTableAction.ListFields => await ListFields(pivotCommands, excelPath, pivotTableName),
+                PivotTableAction.AddRowField => await AddRowField(pivotCommands, excelPath, pivotTableName, fieldName, position),
+                PivotTableAction.AddColumnField => await AddColumnField(pivotCommands, excelPath, pivotTableName, fieldName, position),
+                PivotTableAction.AddValueField => await AddValueField(pivotCommands, excelPath, pivotTableName, fieldName, aggregationFunction, customName),
+                PivotTableAction.AddFilterField => await AddFilterField(pivotCommands, excelPath, pivotTableName, fieldName),
+                PivotTableAction.RemoveField => await RemoveField(pivotCommands, excelPath, pivotTableName, fieldName),
+                PivotTableAction.SetFieldFunction => await SetFieldFunction(pivotCommands, excelPath, pivotTableName, fieldName, aggregationFunction),
+                PivotTableAction.SetFieldName => await SetFieldName(pivotCommands, excelPath, pivotTableName, fieldName, customName),
+                PivotTableAction.SetFieldFormat => await SetFieldFormat(pivotCommands, excelPath, pivotTableName, fieldName, numberFormat),
+                PivotTableAction.GetData => await GetData(pivotCommands, excelPath, pivotTableName),
+                PivotTableAction.SetFieldFilter => await SetFieldFilter(pivotCommands, excelPath, pivotTableName, fieldName, filterValues),
+                PivotTableAction.SortField => await SortField(pivotCommands, excelPath, pivotTableName, fieldName, sortDirection),
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{actionString}'. Supported: list, get-info, create-from-range, create-from-table, delete, refresh, list-fields, add-row-field, add-column-field, add-value-field, add-filter-field, remove-field, set-field-function, set-field-name, set-field-format, get-data, set-field-filter, sort-field")
+                    $"Unknown action: {action} ({action.ToActionString()})")
             };
         }
         catch (ModelContextProtocol.McpException)

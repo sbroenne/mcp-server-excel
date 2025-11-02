@@ -78,25 +78,25 @@ public static class ExcelWorksheetTool
         try
         {
             var sheetCommands = new SheetCommands();
-            var actionString = action.ToActionString();
 
-            return actionString switch
+            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+            return action switch
             {
-                "list" => await ListWorksheetsAsync(sheetCommands, excelPath, batchId),
-                "create" => await CreateWorksheetAsync(sheetCommands, excelPath, sheetName, batchId),
-                "rename" => await RenameWorksheetAsync(sheetCommands, excelPath, sheetName, targetName, batchId),
-                "copy" => await CopyWorksheetAsync(sheetCommands, excelPath, sheetName, targetName, batchId),
-                "delete" => await DeleteWorksheetAsync(sheetCommands, excelPath, sheetName, batchId),
-                "set-tab-color" => await SetTabColorAsync(sheetCommands, excelPath, sheetName, red, green, blue, batchId),
-                "get-tab-color" => await GetTabColorAsync(sheetCommands, excelPath, sheetName, batchId),
-                "clear-tab-color" => await ClearTabColorAsync(sheetCommands, excelPath, sheetName, batchId),
-                "set-visibility" => await SetVisibilityAsync(sheetCommands, excelPath, sheetName, visibility, batchId),
-                "get-visibility" => await GetVisibilityAsync(sheetCommands, excelPath, sheetName, batchId),
-                "show" => await ShowAsync(sheetCommands, excelPath, sheetName, batchId),
-                "hide" => await HideAsync(sheetCommands, excelPath, sheetName, batchId),
-                "very-hide" => await VeryHideAsync(sheetCommands, excelPath, sheetName, batchId),
+                WorksheetAction.List => await ListWorksheetsAsync(sheetCommands, excelPath, batchId),
+                WorksheetAction.Create => await CreateWorksheetAsync(sheetCommands, excelPath, sheetName, batchId),
+                WorksheetAction.Rename => await RenameWorksheetAsync(sheetCommands, excelPath, sheetName, targetName, batchId),
+                WorksheetAction.Copy => await CopyWorksheetAsync(sheetCommands, excelPath, sheetName, targetName, batchId),
+                WorksheetAction.Delete => await DeleteWorksheetAsync(sheetCommands, excelPath, sheetName, batchId),
+                WorksheetAction.SetTabColor => await SetTabColorAsync(sheetCommands, excelPath, sheetName, red, green, blue, batchId),
+                WorksheetAction.GetTabColor => await GetTabColorAsync(sheetCommands, excelPath, sheetName, batchId),
+                WorksheetAction.ClearTabColor => await ClearTabColorAsync(sheetCommands, excelPath, sheetName, batchId),
+                WorksheetAction.SetVisibility => await SetVisibilityAsync(sheetCommands, excelPath, sheetName, visibility, batchId),
+                WorksheetAction.GetVisibility => await GetVisibilityAsync(sheetCommands, excelPath, sheetName, batchId),
+                WorksheetAction.Show => await ShowAsync(sheetCommands, excelPath, sheetName, batchId),
+                WorksheetAction.Hide => await HideAsync(sheetCommands, excelPath, sheetName, batchId),
+                WorksheetAction.VeryHide => await VeryHideAsync(sheetCommands, excelPath, sheetName, batchId),
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: list, create, rename, copy, delete, set-tab-color, get-tab-color, clear-tab-color, set-visibility, get-visibility, show, hide, very-hide")
+                    $"Unknown action: {action} ({action.ToActionString()})")
             };
         }
         catch (ModelContextProtocol.McpException)

@@ -63,50 +63,50 @@ public enum RangeAction
     SetValues,
     GetFormulas,
     SetFormulas,
-    
+
     // Number Formats
     GetNumberFormats,
     SetNumberFormat,
     SetNumberFormats,
-    
+
     // Clear Operations
     ClearAll,
     ClearContents,
     ClearFormats,
-    
+
     // Copy Operations
     Copy,
     CopyValues,
     CopyFormulas,
-    
+
     // Insert/Delete Cell Operations
     InsertCells,
     DeleteCells,
-    
+
     // Insert/Delete Row Operations
     InsertRows,
     DeleteRows,
-    
+
     // Insert/Delete Column Operations
     InsertColumns,
     DeleteColumns,
-    
+
     // Search & Sort
     Find,
     Replace,
     Sort,
-    
+
     // Discovery Operations
     GetUsedRange,
     GetCurrentRegion,
     GetRangeInfo,
-    
+
     // Hyperlink Operations
     AddHyperlink,
     RemoveHyperlink,
     ListHyperlinks,
     GetHyperlink,
-    
+
     // Formatting & Validation
     FormatRange,
     ValidateRange
@@ -165,11 +165,13 @@ public enum DataModelAction
     ListColumns,
     ListMeasures,
     ViewMeasure,
+    ExportMeasure,
     CreateMeasure,
     UpdateMeasure,
     DeleteMeasure,
     ListRelationships,
     CreateRelationship,
+    UpdateRelationship,
     DeleteRelationship,
     GetModelInfo,
     Refresh
@@ -180,14 +182,46 @@ public enum DataModelAction
 /// </summary>
 public enum TableAction
 {
+    // Lifecycle
     List,
     Info,
     Create,
     Rename,
     Delete,
     Resize,
+
+    // Styling & Totals
+    SetStyle,
+    ToggleTotals,
+    SetColumnTotal,
+
+    // Data Operations
+    Append,
+
+    // Data Model
+    AddToDataModel,
+
+    // Filter Operations
+    ApplyFilter,
+    ApplyFilterValues,
+    ClearFilters,
+    GetFilters,
+
+    // Column Management
+    AddColumn,
+    RemoveColumn,
+    RenameColumn,
+
+    // Structured References
     GetStructuredReference,
-    AddToDataModel
+
+    // Sort Operations
+    Sort,
+    SortMulti,
+
+    // Number Formatting
+    GetColumnNumberFormat,
+    SetColumnNumberFormat
 }
 
 /// <summary>
@@ -195,13 +229,30 @@ public enum TableAction
 /// </summary>
 public enum PivotTableAction
 {
+    // Lifecycle
+    List,
+    GetInfo,
     CreateFromRange,
     CreateFromTable,
+    Delete,
+    Refresh,
+
+    // Field Management
     ListFields,
     AddRowField,
     AddColumnField,
-    AddDataField,
+    AddValueField,
     AddFilterField,
-    Refresh
+    RemoveField,
+
+    // Field Configuration
+    SetFieldFunction,
+    SetFieldName,
+    SetFieldFormat,
+    SetFieldFilter,
+    SortField,
+
+    // Data Operations
+    GetData
 }
 

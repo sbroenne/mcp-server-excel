@@ -17,13 +17,11 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Script;
 public partial class ScriptCommandsTests : IClassFixture<TempDirectoryFixture>
 {
     private readonly IVbaCommands _scriptCommands;
-    private readonly ISetupCommands _setupCommands;
     private readonly string _tempDir;
 
     public ScriptCommandsTests(TempDirectoryFixture fixture)
     {
         _scriptCommands = new VbaCommands();
-        _setupCommands = new SetupCommands();
         _tempDir = fixture.TempDir;
     }
 

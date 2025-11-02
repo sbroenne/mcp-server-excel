@@ -5,25 +5,23 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.DataModel;
 
 /// <summary>
 /// Tests for Data Model discovery operations (columns, table view, model info)
+/// Uses shared Data Model file from fixture.
 /// </summary>
 public partial class DataModelCommandsTests
 {
     [Fact]
     public async Task ListTableColumns_WithValidTable_ReturnsColumns()
     {
-        // Arrange - Create unique test file
-        var testFile = await CreateTestFileAsync("ListTableColumns_WithValidTable_ReturnsColumns.xlsx");
-
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _dataModelCommands.ListTableColumnsAsync(batch, "Sales");
+        // Act - Use shared data model file
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        var result = await _dataModelCommands.ListTableColumnsAsync(batch, "SalesTable");
 
         // Assert - MUST succeed (Data Model is always available in Excel 2013+)
         Assert.True(result.Success,
             $"ListTableColumns MUST succeed. Error: {result.ErrorMessage}");
         Assert.NotNull(result.Columns);
-        Assert.True(result.Columns.Count >= 6, $"Expected at least 6 columns in Sales table, got {result.Columns.Count}");
-        Assert.Equal("Sales", result.TableName);
+        Assert.True(result.Columns.Count >= 6, $"Expected at least 6 columns in SalesTable, got {result.Columns.Count}");
+        Assert.Equal("SalesTable", result.TableName);
 
         // Verify expected columns exist
         var columnNames = result.Columns.Select(c => c.Name).ToList();
@@ -43,11 +41,8 @@ public partial class DataModelCommandsTests
     [Fact]
     public async Task ViewTable_WithValidTable_ReturnsCompleteInfo()
     {
-        // Arrange - Create unique test file
-        var testFile = await CreateTestFileAsync("ViewTable_WithValidTable_ReturnsCompleteInfo.xlsx");
-
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        // Act - Use shared data model file
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
         var result = await _dataModelCommands.ViewTableAsync(batch, "SalesTable");
 
         // Assert - MUST succeed (Data Model is always available in Excel 2013+)
@@ -61,58 +56,50 @@ public partial class DataModelCommandsTests
         Assert.NotNull(result.Columns);
         Assert.True(result.Columns.Count >= 6, $"Expected at least 6 columns, got {result.Columns.Count}");
 
-        // Should have measure count (may be 0 or more depending on Data Model creation)
+        // Should have measure count (from fixture creation)
         Assert.True(result.MeasureCount >= 0, $"MeasureCount should be non-negative, got {result.MeasureCount}");
     }
 
     [Fact]
     public async Task ViewTable_WithTableHavingMeasures_CountsMeasuresCorrectly()
     {
-        // Arrange - Create unique test file
-        var testFile = await CreateTestFileAsync("ViewTable_WithTableHavingMeasures_CountsMeasuresCorrectly.xlsx");
-
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        // Act - Use shared data model file
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
         var result = await _dataModelCommands.ViewTableAsync(batch, "SalesTable");
 
-        // Assert - If Data Model was created with measures
-        if (result.Success && result.MeasureCount > 0)
-        {
-            // SalesTable should have at least 2 measures (Total Sales, Average Sale)
-            Assert.True(result.MeasureCount >= 2, $"Expected at least 2 measures for SalesTable, got {result.MeasureCount}");
-        }
+        // Assert - Fixture created 3 measures on SalesTable
+        Assert.True(result.Success, $"ViewTable failed: {result.ErrorMessage}");
+        Assert.True(result.MeasureCount >= 2, $"Expected at least 2 measures for SalesTable, got {result.MeasureCount}");
     }
 
     [Fact]
     public async Task GetModelInfo_WithRealisticDataModel_ReturnsAccurateStatistics()
     {
-        // Arrange - Create unique test file
-        var testFile = await CreateTestFileAsync("GetModelInfo_WithRealisticDataModel_ReturnsAccurateStatistics.xlsx");
-
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        // Act - Use shared data model file
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
         var result = await _dataModelCommands.GetModelInfoAsync(batch);
 
         // Assert - Demand success (Data Model is always available in Excel 2013+)
         Assert.True(result.Success,
             $"GetModelInfo MUST succeed - Data Model is always available in Excel 2013+. Error: {result.ErrorMessage}");
 
-        // Should have at least 3 tables (Sales, Customers, Products)
-        Assert.True(result.TableCount >= 3, $"Expected at least 3 tables, got {result.TableCount}");
+        // Should have exactly 3 tables (from fixture)
+        Assert.Equal(3, result.TableCount);
 
-        // Should have measures if Data Model was created successfully
-        Assert.True(result.MeasureCount >= 0, $"MeasureCount should be non-negative, got {result.MeasureCount}");
+        // Should have exactly 3 measures (from fixture)
+        Assert.Equal(3, result.MeasureCount);
 
-        // Should have relationships between tables
-        Assert.True(result.RelationshipCount >= 0, $"RelationshipCount should be non-negative, got {result.RelationshipCount}");
+        // Should have exactly 2 relationships (from fixture)
+        Assert.Equal(2, result.RelationshipCount);
 
         // Should have total row count
         Assert.True(result.TotalRows > 0, $"Expected positive total row count, got {result.TotalRows}");
 
         // Should have table names
         Assert.NotNull(result.TableNames);
-        Assert.True(result.TableNames.Count >= 3, $"Expected at least 3 table names, got {result.TableNames.Count}");
+        Assert.Equal(3, result.TableNames.Count);
         Assert.Contains("SalesTable", result.TableNames);
         Assert.Contains("CustomersTable", result.TableNames);
+        Assert.Contains("ProductsTable", result.TableNames);
     }
 }

@@ -1,205 +1,225 @@
 # Data Model Test Setup
 
-> **Current implementation for fast Data Model integration tests**
+> **Fixture-as-Test pattern for Data Model integration tests**
 
 ## Overview
 
-Data Model tests use a **pre-built template file** for fast setup:
-- **Template creation**: ~60-120 seconds (one-time)
-- **Template copy**: ~0.5 seconds per test
-- **Performance gain**: 95% faster than building from scratch
+Data Model tests use a **fixture-as-test pattern** where the fixture initialization IS the test for data model creation:
+- **Fixture initialization**: ~60-120 seconds (creates data model and validates all creation commands)
+- **Per-test execution**: ~1-2 seconds (uses shared data model file)
+- **Performance gain**: 95% faster than creating data model per test
 
-## Current Architecture
+## Architecture
 
-### Test Fixtures
+### Single Unified Fixture
 
-**DataModelReadTestsFixture** - For READ-only tests (list, view, get)
-- Copies `TestAssets/DataModelTemplate.xlsx` to temp directory
-- Each test class gets its own copy
-- Fast setup (~0.5s vs 60-120s)
+**DataModelTestsFixture** (`Helpers/DataModelTestsFixture.cs`)
+- Creates ONE Data Model file per test CLASS during initialization
+- Fixture initialization IS the test - validates all creation commands:
+  - FileCommands.CreateEmptyAsync()
+  - TableCommands.AddToDataModelAsync() for all tables
+  - DataModelCommands.CreateRelationshipAsync() for all relationships
+  - DataModelCommands.CreateMeasureAsync() for all measures
+  - Batch.SaveAsync() persistence
+- Each test gets its own batch/session (isolation at batch level)
+- Write operations use unique names to avoid conflicts
+- Exposes `CreationResult` for validation tests
 
-**DataModelWriteTestsFixture** - For WRITE tests (create, update, delete)
-- Creates fresh Data Model file
-- Slower setup (60-120s) but necessary for isolation
-- One file shared by all write tests in the class
+### Data Model Structure
 
-### Template File
-
-**Location**: `tests/ExcelMcp.Core.Tests/TestAssets/DataModelTemplate.xlsx`
-
-**Contents**:
-- 3 Excel Tables: Sales, Customers, Products
-- 2 Relationships: Sales→Customers, Sales→Products
+**Created by fixture:**
+- 3 Excel Tables: SalesTable (10 rows), CustomersTable (5 rows), ProductsTable (5 rows)
+- 2 Relationships: SalesTable→CustomersTable, SalesTable→ProductsTable
 - 3 DAX Measures: Total Sales, Average Sale, Total Customers
 
-**Status**: ✅ Template file is stored in git and ready to use
+## Using the Fixture
 
-## Using the Test Fixtures
-
-### For READ Tests (List, View, Get)
+### Standard Test Pattern
 
 ```csharp
 [Trait("Category", "Integration")]
 [Trait("Feature", "DataModel")]
-public partial class DataModelCommandsTests : IClassFixture<DataModelReadTestsFixture>
+public partial class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
 {
     private readonly DataModelCommands _commands;
-    private readonly string _testFilePath;
+    private readonly string _dataModelFile;
+    private readonly DataModelCreationResult _creationResult;
 
-    public DataModelCommandsTests(DataModelReadTestsFixture fixture)
+    public DataModelCommandsTests(DataModelTestsFixture fixture)
     {
         _commands = new DataModelCommands();
-        _testFilePath = fixture.TestFilePath;  // Pre-built template copy
+        _dataModelFile = fixture.TestFilePath;
+        _creationResult = fixture.CreationResult;
     }
 
     [Fact]
     public async Task ListTables_ReturnsExpectedTables()
     {
-        // Fast! Uses pre-built template (0.5s setup)
-        await using var batch = await ExcelSession.BeginBatchAsync(_testFilePath);
+        // Each test gets its own batch (isolated session)
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
         var result = await _commands.ListTablesAsync(batch);
         
         Assert.True(result.Success);
-        Assert.Equal(3, result.Tables.Count);  // Sales, Customers, Products
+        Assert.Equal(3, result.Tables.Count);
     }
 }
 ```
 
-### For WRITE Tests (Create, Update, Delete)
+### Write Operations Pattern
 
 ```csharp
-[Trait("Category", "Integration")]
-[Trait("Feature", "DataModel")]
-public partial class DataModelWriteTests : IClassFixture<DataModelWriteTestsFixture>
+[Fact]
+public async Task CreateMeasure_WithValidParameters_CreatesSuccessfully()
 {
-    private readonly DataModelCommands _commands;
-    private readonly string _testFilePath;
-
-    public DataModelWriteTests(DataModelWriteTestsFixture fixture)
-    {
-        _commands = new DataModelCommands();
-        _testFilePath = fixture.TestFilePath;  // Fresh file
-    }
-
-    [Fact]
-    public async Task CreateMeasure_ValidDax_CreatesSuccessfully()
-    {
-        // Slower setup (60-120s) but fresh file ensures isolation
-        await using var batch = await ExcelSession.BeginBatchAsync(_testFilePath);
-        var result = await _commands.CreateMeasureAsync(
-            batch, "Sales", "TestMeasure", "SUM(Sales[Amount])", "Currency");
-        
-        Assert.True(result.Success);
-    }
+    // Use unique name to avoid conflicts with other tests
+    var measureName = $"Test_{nameof(CreateMeasure_WithValidParameters_CreatesSuccessfully)}_{Guid.NewGuid():N}";
+    
+    await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+    var result = await _commands.CreateMeasureAsync(
+        batch, "SalesTable", measureName, "SUM(SalesTable[Amount])");
+    
+    Assert.True(result.Success);
+    
+    // Verify it exists
+    var listResult = await _commands.ListMeasuresAsync(batch);
+    Assert.Contains(listResult.Measures, m => m.Name == measureName);
 }
 ```
 
-## Generating the Template
+### Creation Validation Test
 
-### 📝 Template is Stored in Git
-
-The template file (`DataModelTemplate.xlsx`) is checked into git and rarely needs regeneration.
-
-**Only regenerate if:**
-- You need to change the table structure
-- You need to add/modify relationships
-- You need to add/modify measures
-
-### How to Regenerate (Rarely Needed)
-
-```bash
-# Run from tests/ExcelMcp.Core.Tests directory
-
-# 1. Build the test project (needed for the builder)
-dotnet build -c Debug
-
-# 2. Run the generator script
-dotnet script BuildDataModelTemplate.csx
-
-# 3. Commit the updated template
-git add TestAssets/DataModelTemplate.xlsx
-git commit -m "test: Update Data Model template structure"
+```csharp
+[Fact]
+public void DataModelCreation_ViaFixture_CreatesCompleteModel()
+{
+    // Assert the fixture creation succeeded
+    Assert.True(_creationResult.Success, 
+        $"Data Model creation failed: {_creationResult.ErrorMessage}");
+    Assert.True(_creationResult.FileCreated);
+    Assert.Equal(3, _creationResult.TablesCreated);
+    Assert.Equal(3, _creationResult.TablesLoadedToModel);
+    Assert.Equal(2, _creationResult.RelationshipsCreated);
+    Assert.Equal(3, _creationResult.MeasuresCreated);
+    
+    // This test appears in results as proof creation was tested
+}
 ```
 
-**That's it!** No need to edit test files.
+## Key Benefits
 
-### Template Requirements
+### ✅ Fixture IS the Creation Test
+- Validates FileCommands.CreateEmptyAsync()
+- Validates TableCommands.AddToDataModelAsync()
+- Validates DataModelCommands.CreateRelationshipAsync()
+- Validates DataModelCommands.CreateMeasureAsync()
+- Validates Batch.SaveAsync() persistence
+- If creation fails, all tests fail (correct - no point testing if foundation broken)
 
-The template contains:
-- ✅ 3 tables loaded into Data Model: Sales, Customers, Products
-- ✅ 2 relationships: Sales[CustomerID]→Customers[ID], Sales[ProductID]→Products[ID]
-- ✅ 3 measures with different format types:
-  - Total Sales (Currency)
-  - Average Sale (Decimal)
-  - Total Customers (WholeNumber)
+### ✅ Fast Tests
+- 60-120s setup ONCE per test class
+- ~1-2s per test execution
+- 95% faster than per-test creation
+
+### ✅ Test Isolation
+- Each test gets its own batch/session
+- Write tests use unique names (no cross-contamination)
+- No file sharing between test classes
+
+### ✅ Transparent
+- Setup code visible and maintainable
+- No binary template files
+- Uses production commands (proves they work!)
+
+### ✅ Visible in Test Results
+```
+✅ DataModelCreation_ViaFixture_CreatesCompleteModel (0.1s)
+✅ DataModelCreation_Persists_AfterReopenFile (1.2s)
+✅ ListTables_ReturnsExpectedTables (1.1s)
+✅ CreateMeasure_WithValidParameters_CreatesSuccessfully (2.3s)
+```
 
 ## Performance Expectations
 
-| Test Type | Setup Time | Per-Test Execution |
-|-----------|------------|-------------------|
-| **READ tests** (with template) | ~0.5s | ~1-2s |
-| **WRITE tests** (fresh file) | ~60-120s | ~2-5s |
+| Operation | Time | Notes |
+|-----------|------|-------|
+| **Fixture initialization** | 60-120s | Creates data model, runs ONCE per class |
+| **Per-test execution** | 1-2s | Uses shared file with own batch |
+| **Overall improvement** | 95% | vs creating data model per test |
 
-**Overall improvement**: ~60% faster test suite when template is used.
+## Test Organization
 
-## Maintenance
+All data model tests are in one test class with partial files:
+- `DataModelCommandsTests.cs` - Base class with fixture, creation validation tests
+- `DataModelCommandsTests.Discovery.cs` - List/View/Get operations
+- `DataModelCommandsTests.Tables.cs` - Table operations
+- `DataModelCommandsTests.Measures.cs` - Measure CRUD (uses unique names)
+- `DataModelCommandsTests.Relationships.cs` - Relationship CRUD
 
-### When to Regenerate Template
+## Fixture Output
 
-Regenerate the template **only when** you need to change:
-1. Table structure (add/remove columns)
-2. Relationships (add/remove/modify)
-3. Measures (add/remove/modify DAX)
+When tests run, you'll see:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TESTING: Data Model Creation (via fixture initialization)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [1/6] Testing: File creation...
+        ✅ File created successfully
+  [2/6] Testing: Table creation (3 tables with data)...
+        ✅ Created 3 tables: SalesTable, CustomersTable, ProductsTable
+  [3/6] Testing: TableCommands.AddToDataModelAsync() for 3 tables...
+        ✅ All 3 tables loaded into Data Model
+  [4/6] Testing: DataModelCommands.CreateRelationshipAsync() for 2 relationships...
+        ✅ Created 2 relationships: Sales→Customers, Sales→Products
+  [5/6] Testing: DataModelCommands.CreateMeasureAsync() for 3 measures...
+        ✅ Created 3 measures: Total Sales, Average Sale, Total Customers
+  [6/6] Testing: Batch.SaveAsync() persistence...
+        ✅ Data Model saved successfully
 
-### How to Regenerate
-
-See "Generating the Template" section above for complete instructions.
-
-The template is stored in git, so regeneration is rarely needed.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ CREATION TEST PASSED in 87.3s
+   📊 3 tables created and loaded
+   🔗 2 relationships established
+   📏 3 DAX measures defined
+   💾 File: C:\Temp\DataModelTests_abc123\DataModel.xlsx
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
 
 ## Troubleshooting
 
-### Template Not Found Error
+### All Tests Fail With "Creation Failed"
 
-```
-FileNotFoundException: Data Model template not found.
-```
-
-**Cause**: Template file is missing from the repository.
+**Cause**: Fixture initialization failed during data model creation.
 
 **Solution**: 
-1. Check if the file exists in git: `git ls-files | grep DataModelTemplate.xlsx`
-2. If missing, restore from git history or regenerate (see above)
+1. Check fixture output for specific error
+2. Verify Excel is installed and accessible
+3. Check TOM library availability (Data Model requires Excel 2013+)
 
-### Tests Still Slow
+### Tests Interfere With Each Other
 
-**Cause**: Tests might not be using `DataModelReadTestsFixture`.
+**Cause**: Write tests not using unique names.
 
-**Solution**: 
-- READ tests: Use `IClassFixture<DataModelReadTestsFixture>`
-- WRITE tests: Use `IClassFixture<DataModelWriteTestsFixture>`
+**Solution**: Use pattern `$"Test_{nameof(TestMethod)}_{Guid.NewGuid():N}"`
 
-### Template Locked by Excel
+### Slow Test Execution
 
-**Cause**: Excel has the template file open.
+**Cause**: Tests might not be using shared file from fixture.
 
-**Solution**: Close Excel or kill the process:
-```powershell
-taskkill /F /IM EXCEL.EXE
-```
+**Solution**: Ensure all tests use `_dataModelFile` from fixture, not creating new files.
 
 ## Files
 
 | File | Purpose |
 |------|---------|
-| `Helpers/DataModelReadTestsFixture.cs` | Copies template for READ tests |
-| `Helpers/DataModelWriteTestsFixture.cs` | Creates fresh file for WRITE tests |
-| `TestAssets/DataModelTemplate.xlsx` | Pre-built template (stored in git) |
-| `TestAssets/CreateDataModelAsset.cs` | Builder for regenerating template (rarely used) |
+| `Helpers/DataModelTestsFixture.cs` | Unified fixture (creates data model and validates creation) |
+| `Integration/Commands/DataModel/DataModelCommandsTests.cs` | Base class with creation validation |
+| `Integration/Commands/DataModel/DataModelCommandsTests.*.cs` | Partial classes for different operations |
 
 ## Summary
 
-- ✅ Template is stored in git - just use it
-- ✅ Regeneration is rarely needed (only for structural changes)
-- ✅ READ tests are fast (~0.5s setup via template copy)
-- ✅ WRITE tests create fresh files (~60-120s setup)
+- ✅ **Fixture IS the creation test** - validates all creation commands during initialization
+- ✅ **No template files** - data model built from production code
+- ✅ **Fast tests** - 60-120s setup once, then 1-2s per test
+- ✅ **Test isolation** - each test gets own batch, write tests use unique names
+- ✅ **Transparent** - all creation code visible and maintainable
+- ✅ **Fail-fast** - if creation fails, all tests fail (correct behavior)

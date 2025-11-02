@@ -146,32 +146,31 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
         {
             var dataModelCommands = new DataModelCommands();
 
-            var actionString = action.ToActionString();
-
-            return actionString switch
+            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+            return action switch
             {
                 // Discovery operations
-                "list-tables" => await ListTablesAsync(dataModelCommands, excelPath, batchId),
-                "list-measures" => await ListMeasuresAsync(dataModelCommands, excelPath, batchId),
-                "view-measure" => await ViewMeasureAsync(dataModelCommands, excelPath, measureName, batchId),
-                "export-measure" => await ExportMeasureAsync(dataModelCommands, excelPath, measureName, outputPath, batchId),
-                "list-relationships" => await ListRelationshipsAsync(dataModelCommands, excelPath, batchId),
-                "refresh" => await RefreshAsync(dataModelCommands, excelPath, batchId),
-                "delete-measure" => await DeleteMeasureAsync(dataModelCommands, excelPath, measureName, batchId),
-                "delete-relationship" => await DeleteRelationshipAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, batchId),
-                "view-table" => await ViewTableAsync(dataModelCommands, excelPath, tableName, batchId),
-                "get-model-info" => await GetModelInfoAsync(dataModelCommands, excelPath, batchId),
+                DataModelAction.ListTables => await ListTablesAsync(dataModelCommands, excelPath, batchId),
+                DataModelAction.ListMeasures => await ListMeasuresAsync(dataModelCommands, excelPath, batchId),
+                DataModelAction.ViewMeasure => await ViewMeasureAsync(dataModelCommands, excelPath, measureName, batchId),
+                DataModelAction.ExportMeasure => await ExportMeasureAsync(dataModelCommands, excelPath, measureName, outputPath, batchId),
+                DataModelAction.ListRelationships => await ListRelationshipsAsync(dataModelCommands, excelPath, batchId),
+                DataModelAction.Refresh => await RefreshAsync(dataModelCommands, excelPath, batchId),
+                DataModelAction.DeleteMeasure => await DeleteMeasureAsync(dataModelCommands, excelPath, measureName, batchId),
+                DataModelAction.DeleteRelationship => await DeleteRelationshipAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, batchId),
+                DataModelAction.ViewTable => await ViewTableAsync(dataModelCommands, excelPath, tableName, batchId),
+                DataModelAction.GetModelInfo => await GetModelInfoAsync(dataModelCommands, excelPath, batchId),
 
                 // DAX measures (requires Office 2016+)
-                "create-measure" => await CreateMeasureComAsync(dataModelCommands, excelPath, tableName, measureName, daxFormula, formatString, description, batchId),
-                "update-measure" => await UpdateMeasureComAsync(dataModelCommands, excelPath, measureName, daxFormula, formatString, description, batchId),
+                DataModelAction.CreateMeasure => await CreateMeasureComAsync(dataModelCommands, excelPath, tableName, measureName, daxFormula, formatString, description, batchId),
+                DataModelAction.UpdateMeasure => await UpdateMeasureComAsync(dataModelCommands, excelPath, measureName, daxFormula, formatString, description, batchId),
 
                 // Relationships (requires Office 2016+)
-                "create-relationship" => await CreateRelationshipComAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, batchId),
-                "update-relationship" => await UpdateRelationshipComAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, batchId),
+                DataModelAction.CreateRelationship => await CreateRelationshipComAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, batchId),
+                DataModelAction.UpdateRelationship => await UpdateRelationshipComAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, isActive, batchId),
 
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{actionString}'. Supported: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship")
+                    $"Unknown action: {action} ({action.ToActionString()})")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -318,13 +317,13 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            
+
 
             throw new ModelContextProtocol.McpException($"delete-measure failed for '{filePath}': {result.ErrorMessage}");
         }
 
         // Success - add workflow guidance
-        
+
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -361,13 +360,13 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            
+
 
             throw new ModelContextProtocol.McpException($"delete-relationship failed for '{filePath}': {result.ErrorMessage}");
         }
 
         // Success - add workflow guidance
-        
+
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -389,13 +388,13 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            
+
 
             throw new ModelContextProtocol.McpException($"list-columns failed for '{filePath}': {result.ErrorMessage}");
         }
 
         // Success - add workflow guidance
-        
+
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -417,13 +416,13 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            
+
 
             throw new ModelContextProtocol.McpException($"view-table failed for '{filePath}': {result.ErrorMessage}");
         }
 
         // Success - add workflow guidance
-        
+
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -439,13 +438,13 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            
+
 
             throw new ModelContextProtocol.McpException($"get-model-info failed for '{filePath}': {result.ErrorMessage}");
         }
 
         // Success - add workflow guidance
-        
+
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -479,13 +478,13 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            
+
 
             throw new ModelContextProtocol.McpException($"create-measure failed for '{filePath}': {result.ErrorMessage}");
         }
 
         // Success - add workflow guidance
-        
+
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -507,13 +506,13 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            
+
 
             throw new ModelContextProtocol.McpException($"update-measure failed for '{filePath}': {result.ErrorMessage}");
         }
 
         // Success - add workflow guidance
-        
+
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -551,13 +550,13 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            
+
 
             throw new ModelContextProtocol.McpException($"create-relationship failed for '{filePath}': {result.ErrorMessage}");
         }
 
         // Success - add workflow guidance
-        
+
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -600,13 +599,13 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            
+
 
             throw new ModelContextProtocol.McpException($"update-relationship failed for '{filePath}': {result.ErrorMessage}");
         }
 
         // Success - add workflow guidance
-        
+
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }

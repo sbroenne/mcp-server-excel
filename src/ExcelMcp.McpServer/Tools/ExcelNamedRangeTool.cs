@@ -65,19 +65,19 @@ Actions available as dropdown in MCP clients.")]
     {
         try
         {
-            var NamedRangeCommands = new NamedRangeCommands();
-            var actionString = action.ToActionString();
+            var namedRangeCommands = new NamedRangeCommands();
 
-            return actionString switch
+            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+            return action switch
             {
-                "list" => await ListNamedRangesAsync(NamedRangeCommands, excelPath, batchId),
-                "get" => await GetNamedRangeAsync(NamedRangeCommands, excelPath, namedRangeName, batchId),
-                "set" => await SetNamedRangeAsync(NamedRangeCommands, excelPath, namedRangeName, value, batchId),
-                "create" => await CreateNamedRangeAsync(NamedRangeCommands, excelPath, namedRangeName, value, batchId),
-                "create-bulk" => await CreateBulkNamedRangesAsync(NamedRangeCommands, excelPath, namedRangesJson, batchId),
-                "update" => await UpdateNamedRangeAsync(NamedRangeCommands, excelPath, namedRangeName, value, batchId),
-                "delete" => await DeleteNamedRangeAsync(NamedRangeCommands, excelPath, namedRangeName, batchId),
-                _ => throw new ModelContextProtocol.McpException($"Unknown action '{actionString}'")
+                NamedRangeAction.List => await ListNamedRangesAsync(namedRangeCommands, excelPath, batchId),
+                NamedRangeAction.Get => await GetNamedRangeAsync(namedRangeCommands, excelPath, namedRangeName, batchId),
+                NamedRangeAction.Set => await SetNamedRangeAsync(namedRangeCommands, excelPath, namedRangeName, value, batchId),
+                NamedRangeAction.Create => await CreateNamedRangeAsync(namedRangeCommands, excelPath, namedRangeName, value, batchId),
+                NamedRangeAction.CreateBulk => await CreateBulkNamedRangesAsync(namedRangeCommands, excelPath, namedRangesJson, batchId),
+                NamedRangeAction.Update => await UpdateNamedRangeAsync(namedRangeCommands, excelPath, namedRangeName, value, batchId),
+                NamedRangeAction.Delete => await DeleteNamedRangeAsync(namedRangeCommands, excelPath, namedRangeName, batchId),
+                _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
             };
         }
         catch (ModelContextProtocol.McpException)

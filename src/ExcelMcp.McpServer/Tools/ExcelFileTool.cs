@@ -35,24 +35,16 @@ public static class ExcelFileTool
         try
         {
             var fileCommands = new FileCommands();
-            var actionString = action.ToActionString();
 
-            switch (actionString)
+            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+            return action switch
             {
-                case "create-empty":
-                    // Determine if macro-enabled based on file extension
-                    bool macroEnabled = excelPath.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase);
-                    return await CreateEmptyFileAsync(fileCommands, excelPath, macroEnabled, batchId);
-
-                case "close-workbook":
-                    return CloseWorkbook(excelPath);
-
-                case "test":
-                    return await TestFileAsync(fileCommands, excelPath);
-
-                default:
-                    throw new ModelContextProtocol.McpException($"Unknown action '{actionString}'");
-            }
+                FileAction.CreateEmpty => await CreateEmptyFileAsync(fileCommands, excelPath,
+                    excelPath.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase), batchId),
+                FileAction.CloseWorkbook => CloseWorkbook(excelPath),
+                FileAction.Test => await TestFileAsync(fileCommands, excelPath),
+                _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
+            };
         }
         catch (ModelContextProtocol.McpException)
         {

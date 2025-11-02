@@ -10,7 +10,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// <summary>
 /// Excel connection management tool for MCP server.
 /// Handles data connections (OLEDB, ODBC, Text, Web, etc.) for Excel automation.
-/// 
+///
 /// LLM Usage Patterns:
 /// - Use "list" to see all connections in a workbook
 /// - Use "view" to inspect connection details (connection string, command text)
@@ -22,7 +22,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Use "set-properties" to configure connection behavior
 /// - Use "test" to validate connection without refreshing data
 /// - Use "delete" to remove obsolete connections
-/// 
+///
 /// Note: Power Query connections are detected and users are redirected to excel_powerquery tool.
 /// Regular connections (OLEDB, ODBC, Text, Web) use standard connection strings.
 /// Password sanitization is applied automatically for security.
@@ -71,24 +71,19 @@ public static class ExcelConnectionTool
         {
             var connectionCommands = new ConnectionCommands();
 
-            var actionString = action.ToActionString();
-
-            return actionString switch
+            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+            return action switch
             {
-                "list" => await ListConnectionsAsync(connectionCommands, excelPath, batchId),
-                "view" => await ViewConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
-                "import" => await ImportConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
-                "export" => await ExportConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
-                "update" => await UpdateConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
-                "refresh" => await RefreshConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
-                "delete" => await DeleteConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
-                "loadto" => await LoadToWorksheetAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
-                "properties" => await GetPropertiesAsync(connectionCommands, excelPath, connectionName, batchId),
-                "set-properties" => await SetPropertiesAsync(connectionCommands, excelPath, connectionName,
-                    backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod, batchId),
-                "test" => await TestConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
+                ConnectionAction.List => await ListConnectionsAsync(connectionCommands, excelPath, batchId),
+                ConnectionAction.View => await ViewConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
+                ConnectionAction.Import => await ImportConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
+                ConnectionAction.Export => await ExportConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
+                ConnectionAction.UpdateProperties => await UpdateConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
+                ConnectionAction.Refresh => await RefreshConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
+                ConnectionAction.Delete => await DeleteConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
+                ConnectionAction.Test => await TestConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{actionString}'. Supported: list, view, import, export, update, refresh, delete, loadto, properties, set-properties, test")
+                    $"Unknown action: {action} ({action.ToActionString()})")
             };
         }
         catch (ModelContextProtocol.McpException)

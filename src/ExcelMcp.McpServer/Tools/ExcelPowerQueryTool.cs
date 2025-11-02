@@ -108,26 +108,23 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             // Create commands
             var dataModelCommands = new DataModelCommands();
             var powerQueryCommands = new PowerQueryCommands(dataModelCommands);
-            var NamedRangeCommands = new NamedRangeCommands();
 
-            // Convert enum to action string
-            var actionString = action.ToActionString();
-            
-            return actionString switch
+            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+            return action switch
             {
-                "list" => await ListPowerQueriesAsync(powerQueryCommands, excelPath, batchId),
-                "view" => await ViewPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
-                "import" => await ImportPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, batchId),
-                "export" => await ExportPowerQueryAsync(powerQueryCommands, excelPath, queryName, targetPath, batchId),
-                "update" => await UpdatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, batchId),
-                "refresh" => await RefreshPowerQueryAsync(powerQueryCommands, excelPath, queryName, loadDestination, targetSheet, batchId),
-                "delete" => await DeletePowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
-                "set-load-to-table" => await SetLoadToTableAsync(powerQueryCommands, excelPath, queryName, targetSheet, batchId),
-                "set-load-to-data-model" => await SetLoadToDataModelAsync(powerQueryCommands, excelPath, queryName, batchId),
-                "set-load-to-both" => await SetLoadToBothAsync(powerQueryCommands, excelPath, queryName, targetSheet, batchId),
-                "set-connection-only" => await SetConnectionOnlyAsync(powerQueryCommands, excelPath, queryName, batchId),
-                "get-load-config" => await GetLoadConfigAsync(powerQueryCommands, excelPath, queryName, batchId),
-                _ => throw new ModelContextProtocol.McpException($"Unknown action '{actionString}'")
+                PowerQueryAction.List => await ListPowerQueriesAsync(powerQueryCommands, excelPath, batchId),
+                PowerQueryAction.View => await ViewPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
+                PowerQueryAction.Import => await ImportPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, batchId),
+                PowerQueryAction.Export => await ExportPowerQueryAsync(powerQueryCommands, excelPath, queryName, targetPath, batchId),
+                PowerQueryAction.Update => await UpdatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, batchId),
+                PowerQueryAction.Refresh => await RefreshPowerQueryAsync(powerQueryCommands, excelPath, queryName, loadDestination, targetSheet, batchId),
+                PowerQueryAction.Delete => await DeletePowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
+                PowerQueryAction.SetLoadToTable => await SetLoadToTableAsync(powerQueryCommands, excelPath, queryName, targetSheet, batchId),
+                PowerQueryAction.SetLoadToDataModel => await SetLoadToDataModelAsync(powerQueryCommands, excelPath, queryName, batchId),
+                PowerQueryAction.SetLoadToBoth => await SetLoadToBothAsync(powerQueryCommands, excelPath, queryName, targetSheet, batchId),
+                PowerQueryAction.SetConnectionOnly => await SetConnectionOnlyAsync(powerQueryCommands, excelPath, queryName, batchId),
+                PowerQueryAction.GetLoadConfig => await GetLoadConfigAsync(powerQueryCommands, excelPath, queryName, batchId),
+                _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
             };
         }
         catch (ModelContextProtocol.McpException)

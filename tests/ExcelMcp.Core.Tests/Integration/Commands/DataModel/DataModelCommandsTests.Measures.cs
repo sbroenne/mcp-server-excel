@@ -5,58 +5,45 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.DataModel;
 
 /// <summary>
 /// Tests for Data Model measure operations
+/// Uses shared Data Model file from fixture.
+/// Write operations use unique names to avoid conflicts.
 /// </summary>
 public partial class DataModelCommandsTests
 {
     [Fact]
     public async Task ListMeasures_WithRealisticDataModel_ReturnsMeasuresWithFormulas()
     {
-        // Arrange - Create unique test file
-        var testFile = await CreateTestFileAsync("ListMeasures_WithRealisticDataModel_ReturnsMeasuresWithFormulas.xlsx");
-
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        // Act - Use shared data model file
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
         var result = await _dataModelCommands.ListMeasuresAsync(batch);
 
-        // Assert - Data Model is ALWAYS available in Excel 2013+
+        // Assert - Fixture creates exactly 3 measures
         Assert.True(result.Success,
             $"ListMeasures MUST succeed - Data Model is always available in Excel 2013+. Error: {result.ErrorMessage}");
         Assert.NotNull(result.Measures);
+        Assert.Equal(3, result.Measures.Count);
 
-        // If Data Model was created successfully with measures, validate them
-        if (result.Measures.Count > 0)
-        {
-            // Should have at least Total Sales, Average Sale, Total Customers
-            Assert.True(result.Measures.Count >= 3, $"Expected at least 3 measures, got {result.Measures.Count}");
+        var measureNames = result.Measures.Select(m => m.Name).ToList();
+        Assert.Contains("Total Sales", measureNames);
+        Assert.Contains("Average Sale", measureNames);
+        Assert.Contains("Total Customers", measureNames);
 
-            var measureNames = result.Measures.Select(m => m.Name).ToList();
-            Assert.Contains("Total Sales", measureNames);
-            Assert.Contains("Average Sale", measureNames);
-            Assert.Contains("Total Customers", measureNames);
-
-            // Validate Total Sales measure has DAX formula
-            var totalSales = result.Measures.FirstOrDefault(m => m.Name == "Total Sales");
-            if (totalSales != null)
-            {
-                Assert.NotNull(totalSales.FormulaPreview);
-                Assert.Contains("SUM", totalSales.FormulaPreview, StringComparison.OrdinalIgnoreCase);
-                Assert.Contains("Amount", totalSales.FormulaPreview, StringComparison.OrdinalIgnoreCase);
-            }
-        }
+        // Validate Total Sales measure has DAX formula
+        var totalSales = result.Measures.FirstOrDefault(m => m.Name == "Total Sales");
+        Assert.NotNull(totalSales);
+        Assert.NotNull(totalSales.FormulaPreview);
+        Assert.Contains("SUM", totalSales.FormulaPreview, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Amount", totalSales.FormulaPreview, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
     public async Task ViewMeasure_WithRealisticDataModel_ReturnsValidDAXFormula()
     {
-        // Arrange - Create unique test file
-        var testFile = await CreateTestFileAsync("ViewMeasure_WithRealisticDataModel_ReturnsValidDAXFormula.xlsx");
-
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        // Act - Use shared data model file
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
         var result = await _dataModelCommands.ViewMeasureAsync(batch, "Total Sales");
 
-        // Assert - Data Model is ALWAYS available in Excel 2013+
-        // If measure doesn't exist, it's because test fixture didn't create it (separate issue)
+        // Assert - Fixture creates "Total Sales" measure
         Assert.True(result.Success,
             $"ViewMeasure MUST succeed if measure exists. Error: {result.ErrorMessage}");
         Assert.NotNull(result.DaxFormula);
@@ -66,51 +53,17 @@ public partial class DataModelCommandsTests
         Assert.Equal("Total Sales", result.MeasureName);
     }
 
-    [Fact(Skip = "Data Model test helper requires specific Excel version/configuration. May fail on some environments due to Data Model availability.")]
-    public async Task DeleteMeasure_WithValidMeasure_ReturnsSuccessResult()
-    {
-        // Arrange - Create unique test file
-        var testFile = await CreateTestFileAsync("DeleteMeasure_WithValidMeasure_ReturnsSuccessResult.xlsx");
-
-        // Arrange - Create a test measure using PRODUCTION command
-        var measureName = "TestMeasure_" + Guid.NewGuid().ToString("N")[..8];
-
-        await using var createBatch = await ExcelSession.BeginBatchAsync(testFile);
-        var createResult = await _dataModelCommands.CreateMeasureAsync(createBatch, "SalesTable", measureName, "SUM(SalesTable[Amount])");
-        await createBatch.SaveAsync();
-
-        Assert.True(createResult.Success, $"Test setup failed - could not create measure: {createResult.ErrorMessage}");
-
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _dataModelCommands.DeleteMeasureAsync(batch, measureName);
-
-        // Assert
-        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
-
-        // Verify the measure was actually deleted by listing measures
-        var listResult = await _dataModelCommands.ListMeasuresAsync(batch);
-        if (listResult.Success)
-        {
-            Assert.DoesNotContain(listResult.Measures, m => m.Name == measureName);
-        }
-    }
-
-    // Phase 2: CREATE/UPDATE Tests
-
     [Fact]
     public async Task CreateMeasure_WithValidParameters_CreatesSuccessfully()
     {
-        // Arrange - Create unique test file
-        var testFile = await CreateTestFileAsync("CreateMeasure_WithValidParameters_CreatesSuccessfully.xlsx");
-
-        // Arrange
-        var measureName = "TestMeasure_" + Guid.NewGuid().ToString("N")[..8];
+        // Arrange - Use unique measure name to avoid conflicts with other tests
+        var measureName = $"Test_{nameof(CreateMeasure_WithValidParameters_CreatesSuccessfully)}_{Guid.NewGuid():N}";
         var daxFormula = "SUM(SalesTable[Amount])";
 
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        // Act - Use shared data model file
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
         var result = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, daxFormula);
+        
         // Assert - Data Model is ALWAYS available in Excel 2013+
         Assert.True(result.Success,
             $"CreateMeasure MUST succeed with valid parameters. Error: {result.ErrorMessage}");
@@ -124,17 +77,15 @@ public partial class DataModelCommandsTests
     [Fact]
     public async Task CreateMeasure_WithFormatType_CreatesWithFormat()
     {
-        // Arrange - Create unique test file
-        var testFile = await CreateTestFileAsync("CreateMeasure_WithFormatType_CreatesWithFormat.xlsx");
-
-        // Arrange
-        var measureName = "FormattedMeasure_" + Guid.NewGuid().ToString("N")[..8];
+        // Arrange - Use unique measure name
+        var measureName = $"Test_{nameof(CreateMeasure_WithFormatType_CreatesWithFormat)}_{Guid.NewGuid():N}";
         var daxFormula = "SUM(SalesTable[Amount])";
 
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        // Act - Use shared data model file
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
         var result = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, daxFormula,
                                                                  formatType: "Currency", description: "Test measure with currency format");
+        
         // Assert - Data Model is ALWAYS available in Excel 2013+
         Assert.True(result.Success,
             $"CreateMeasure with format MUST succeed. Error: {result.ErrorMessage}");
@@ -148,28 +99,48 @@ public partial class DataModelCommandsTests
     [Fact]
     public async Task UpdateMeasure_WithValidFormula_UpdatesSuccessfully()
     {
-        // Arrange - Create unique test file
-        var testFile = await CreateTestFileAsync("UpdateMeasure_WithValidFormula_UpdatesSuccessfully.xlsx");
-
-        // Arrange - Create a measure first
-        var measureName = "UpdateTest_" + Guid.NewGuid().ToString("N")[..8];
+        // Arrange - Create a unique measure first
+        var measureName = $"Test_{nameof(UpdateMeasure_WithValidFormula_UpdatesSuccessfully)}_{Guid.NewGuid():N}";
         var originalFormula = "SUM(SalesTable[Amount])";
         var updatedFormula = "AVERAGE(SalesTable[Amount])";
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
         var createResult = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, originalFormula);
+        Assert.True(createResult.Success, $"Test setup failed - could not create measure: {createResult.ErrorMessage}");
 
-        if (createResult.Success)
-        {
-            // Act - Update the formula
-            var updateResult = await _dataModelCommands.UpdateMeasureAsync(batch, measureName, daxFormula: updatedFormula);
-            // Assert
-            Assert.True(updateResult.Success, $"Expected success but got error: {updateResult.ErrorMessage}");
+        // Act - Update the formula
+        var updateResult = await _dataModelCommands.UpdateMeasureAsync(batch, measureName, daxFormula: updatedFormula);
+        
+        // Assert
+        Assert.True(updateResult.Success, $"Expected success but got error: {updateResult.ErrorMessage}");
 
-            // Verify the update
-            var viewResult = await _dataModelCommands.ViewMeasureAsync(batch, measureName);
-            Assert.True(viewResult.Success);
-            Assert.Contains("AVERAGE", viewResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
-        }
+        // Verify the update
+        var viewResult = await _dataModelCommands.ViewMeasureAsync(batch, measureName);
+        Assert.True(viewResult.Success);
+        Assert.Contains("AVERAGE", viewResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task DeleteMeasure_WithValidMeasure_ReturnsSuccessResult()
+    {
+        // Arrange - Create a unique measure to delete
+        var measureName = $"Test_{nameof(DeleteMeasure_WithValidMeasure_ReturnsSuccessResult)}_{Guid.NewGuid():N}";
+
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+
+        // Create the measure
+        var createResult = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, "SUM(SalesTable[Amount])");
+        Assert.True(createResult.Success, $"Test setup failed - could not create measure: {createResult.ErrorMessage}");
+        
+        // Act - Delete the measure
+        var result = await _dataModelCommands.DeleteMeasureAsync(batch, measureName);
+        
+        // Assert
+        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+
+        // Verify the measure was actually deleted
+        var listResult = await _dataModelCommands.ListMeasuresAsync(batch);
+        Assert.True(listResult.Success);
+        Assert.DoesNotContain(listResult.Measures, m => m.Name == measureName);
     }
 }

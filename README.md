@@ -41,12 +41,12 @@ AI Assistant uses ExcelMcp to:
 Result: A working Excel file with the query ready to use
 ```
 
-**🛡️ 100% Safe - Uses Excel's Native API**
+**🛡️ 100% Safe - Uses Excel's Native COM API**
 
 Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), ExcelMcp uses **Excel's official COM API**. This ensures:
 - ✅ **Zero risk of document corruption** - Excel handles all file operations safely
 - ✅ **Interactive development** - See changes in real-time as you work with live Excel files
-- ✅ **Growing feature set** - Currently supports 80+ operations across Power Query, Power Pivot, VBA, PivotTables, Tables, and more (active development)
+- ✅ **Comprehensive automation** - Currently supports 150+ operations across Power Query, Data Model/DAX, VBA, PivotTables, Excel Tables, ranges, and more
 
 ## 👥 Who Should Use This?
 

@@ -81,35 +81,34 @@ public static class TableTool
         {
             var tableCommands = new TableCommands();
 
-            var actionString = action.ToActionString();
-
-            return actionString switch
+            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+            return action switch
             {
-                "list" => await ListTables(tableCommands, excelPath),
-                "create" => await CreateTable(tableCommands, excelPath, sheetName, tableName, range, hasHeaders, tableStyle),
-                "info" => await GetTableInfo(tableCommands, excelPath, tableName),
-                "rename" => await RenameTable(tableCommands, excelPath, tableName, newName),
-                "delete" => await DeleteTable(tableCommands, excelPath, tableName),
-                "resize" => await ResizeTable(tableCommands, excelPath, tableName, range),
-                "toggle-totals" => await ToggleTotals(tableCommands, excelPath, tableName, hasHeaders),
-                "set-column-total" => await SetColumnTotal(tableCommands, excelPath, tableName, newName, tableStyle),
-                "append" => await AppendRows(tableCommands, excelPath, tableName, tableStyle),
-                "set-style" => await SetTableStyle(tableCommands, excelPath, tableName, tableStyle),
-                "add-to-datamodel" => await AddToDataModel(tableCommands, excelPath, tableName),
-                "apply-filter" => await ApplyFilter(tableCommands, excelPath, tableName, newName, filterCriteria),
-                "apply-filter-values" => await ApplyFilterValues(tableCommands, excelPath, tableName, newName, filterValues),
-                "clear-filters" => await ClearFilters(tableCommands, excelPath, tableName),
-                "get-filters" => await GetFilters(tableCommands, excelPath, tableName),
-                "add-column" => await AddColumn(tableCommands, excelPath, tableName, newName, filterCriteria),
-                "remove-column" => await RemoveColumn(tableCommands, excelPath, tableName, newName),
-                "rename-column" => await RenameColumn(tableCommands, excelPath, tableName, newName, filterCriteria),
-                "get-structured-reference" => await GetStructuredReference(tableCommands, excelPath, tableName, filterCriteria, newName),
-                "sort" => await SortTable(tableCommands, excelPath, tableName, newName, hasHeaders),
-                "sort-multi" => await SortTableMulti(tableCommands, excelPath, tableName, filterValues),
-                "get-column-number-format" => await GetColumnNumberFormat(tableCommands, excelPath, tableName, newName),
-                "set-column-number-format" => await SetColumnNumberFormat(tableCommands, excelPath, tableName, newName, formatCode),
+                TableAction.List => await ListTables(tableCommands, excelPath),
+                TableAction.Create => await CreateTable(tableCommands, excelPath, sheetName, tableName, range, hasHeaders, tableStyle),
+                TableAction.Info => await GetTableInfo(tableCommands, excelPath, tableName),
+                TableAction.Rename => await RenameTable(tableCommands, excelPath, tableName, newName),
+                TableAction.Delete => await DeleteTable(tableCommands, excelPath, tableName),
+                TableAction.Resize => await ResizeTable(tableCommands, excelPath, tableName, range),
+                TableAction.ToggleTotals => await ToggleTotals(tableCommands, excelPath, tableName, hasHeaders),
+                TableAction.SetColumnTotal => await SetColumnTotal(tableCommands, excelPath, tableName, newName, tableStyle),
+                TableAction.Append => await AppendRows(tableCommands, excelPath, tableName, tableStyle),
+                TableAction.SetStyle => await SetTableStyle(tableCommands, excelPath, tableName, tableStyle),
+                TableAction.AddToDataModel => await AddToDataModel(tableCommands, excelPath, tableName),
+                TableAction.ApplyFilter => await ApplyFilter(tableCommands, excelPath, tableName, newName, filterCriteria),
+                TableAction.ApplyFilterValues => await ApplyFilterValues(tableCommands, excelPath, tableName, newName, filterValues),
+                TableAction.ClearFilters => await ClearFilters(tableCommands, excelPath, tableName),
+                TableAction.GetFilters => await GetFilters(tableCommands, excelPath, tableName),
+                TableAction.AddColumn => await AddColumn(tableCommands, excelPath, tableName, newName, filterCriteria),
+                TableAction.RemoveColumn => await RemoveColumn(tableCommands, excelPath, tableName, newName),
+                TableAction.RenameColumn => await RenameColumn(tableCommands, excelPath, tableName, newName, filterCriteria),
+                TableAction.GetStructuredReference => await GetStructuredReference(tableCommands, excelPath, tableName, filterCriteria, newName),
+                TableAction.Sort => await SortTable(tableCommands, excelPath, tableName, newName, hasHeaders),
+                TableAction.SortMulti => await SortTableMulti(tableCommands, excelPath, tableName, filterValues),
+                TableAction.GetColumnNumberFormat => await GetColumnNumberFormat(tableCommands, excelPath, tableName, newName),
+                TableAction.SetColumnNumberFormat => await SetColumnNumberFormat(tableCommands, excelPath, tableName, newName, formatCode),
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{actionString}'. Supported: list, create, info, rename, delete, resize, toggle-totals, set-column-total, append, set-style, add-to-datamodel, apply-filter, apply-filter-values, clear-filters, get-filters, add-column, remove-column, rename-column, get-structured-reference, sort, sort-multi, get-column-number-format, set-column-number-format")
+                    $"Unknown action: {action} ({action.ToActionString()})")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -169,9 +168,9 @@ public static class TableTool
             throw new ModelContextProtocol.McpException($"create failed for table '{tableName}': {result.ErrorMessage}");
         }
 
-        
 
-        
+
+
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -193,9 +192,9 @@ public static class TableTool
             throw new ModelContextProtocol.McpException($"info failed for table '{tableName}': {result.ErrorMessage}");
         }
 
-        
 
-        
+
+
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -218,9 +217,9 @@ public static class TableTool
             throw new ModelContextProtocol.McpException($"rename failed for table '{tableName}': {result.ErrorMessage}");
         }
 
-        
 
-        
+
+
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -242,9 +241,9 @@ public static class TableTool
             throw new ModelContextProtocol.McpException($"delete failed for table '{tableName}': {result.ErrorMessage}");
         }
 
-        
 
-        
+
+
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }

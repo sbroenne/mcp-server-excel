@@ -214,43 +214,42 @@ public static class ExcelRangeTool
         {
             var rangeCommands = new RangeCommands();
 
-            var actionString = action.ToActionString();
-
-            return actionString switch
+            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+            return action switch
             {
-                "get-values" => await GetValuesAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "set-values" => await SetValuesAsync(rangeCommands, excelPath, sheetName, rangeAddress, values, batchId),
-                "get-formulas" => await GetFormulasAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "set-formulas" => await SetFormulasAsync(rangeCommands, excelPath, sheetName, rangeAddress, formulas, batchId),
-                "get-number-formats" => await GetNumberFormatsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "set-number-format" => await SetNumberFormatAsync(rangeCommands, excelPath, sheetName, rangeAddress, formatCode, batchId),
-                "set-number-formats" => await SetNumberFormatsAsync(rangeCommands, excelPath, sheetName, rangeAddress, formats, batchId),
-                "clear-all" => await ClearAllAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "clear-contents" => await ClearContentsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "clear-formats" => await ClearFormatsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "copy" => await CopyAsync(rangeCommands, excelPath, sourceSheet, sourceRange, targetSheet, targetRange, batchId),
-                "copy-values" => await CopyValuesAsync(rangeCommands, excelPath, sourceSheet, sourceRange, targetSheet, targetRange, batchId),
-                "copy-formulas" => await CopyFormulasAsync(rangeCommands, excelPath, sourceSheet, sourceRange, targetSheet, targetRange, batchId),
-                "insert-cells" => await InsertCellsAsync(rangeCommands, excelPath, sheetName, rangeAddress, shift, batchId),
-                "delete-cells" => await DeleteCellsAsync(rangeCommands, excelPath, sheetName, rangeAddress, shift, batchId),
-                "insert-rows" => await InsertRowsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "delete-rows" => await DeleteRowsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "insert-columns" => await InsertColumnsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "delete-columns" => await DeleteColumnsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "find" => await FindAsync(rangeCommands, excelPath, sheetName, rangeAddress, searchValue, matchCase, matchEntireCell, searchFormulas, searchValues, batchId),
-                "replace" => await ReplaceAsync(rangeCommands, excelPath, sheetName, rangeAddress, searchValue, replaceValue, matchCase, matchEntireCell, searchFormulas, searchValues, replaceAll, batchId),
-                "sort" => await SortAsync(rangeCommands, excelPath, sheetName, rangeAddress, sortColumns, hasHeaders, batchId),
-                "get-used-range" => await GetUsedRangeAsync(rangeCommands, excelPath, sheetName, batchId),
-                "get-current-region" => await GetCurrentRegionAsync(rangeCommands, excelPath, sheetName, cellAddress, batchId),
-                "get-range-info" => await GetRangeInfoAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "add-hyperlink" => await AddHyperlinkAsync(rangeCommands, excelPath, sheetName, cellAddress, url, displayText, tooltip, batchId),
-                "remove-hyperlink" => await RemoveHyperlinkAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "list-hyperlinks" => await ListHyperlinksAsync(rangeCommands, excelPath, sheetName, batchId),
-                "get-hyperlink" => await GetHyperlinkAsync(rangeCommands, excelPath, sheetName, cellAddress, batchId),
-                "format-range" => await FormatRangeAsync(rangeCommands, excelPath, sheetName, rangeAddress, fontName, fontSize, bold, italic, underline, fontColor, fillColor, borderStyle, borderColor, borderWeight, horizontalAlignment, verticalAlignment, wrapText, orientation, batchId),
-                "validate-range" => await ValidateRangeAsync(rangeCommands, excelPath, sheetName, rangeAddress, validationType, validationOperator, validationFormula1, validationFormula2, showInputMessage, inputTitle, inputMessage, showErrorAlert, errorStyle, errorTitle, errorMessage, ignoreBlank, showDropdown, batchId),
+                RangeAction.GetValues => await GetValuesAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.SetValues => await SetValuesAsync(rangeCommands, excelPath, sheetName, rangeAddress, values, batchId),
+                RangeAction.GetFormulas => await GetFormulasAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.SetFormulas => await SetFormulasAsync(rangeCommands, excelPath, sheetName, rangeAddress, formulas, batchId),
+                RangeAction.GetNumberFormats => await GetNumberFormatsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.SetNumberFormat => await SetNumberFormatAsync(rangeCommands, excelPath, sheetName, rangeAddress, formatCode, batchId),
+                RangeAction.SetNumberFormats => await SetNumberFormatsAsync(rangeCommands, excelPath, sheetName, rangeAddress, formats, batchId),
+                RangeAction.ClearAll => await ClearAllAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.ClearContents => await ClearContentsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.ClearFormats => await ClearFormatsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.Copy => await CopyAsync(rangeCommands, excelPath, sourceSheet, sourceRange, targetSheet, targetRange, batchId),
+                RangeAction.CopyValues => await CopyValuesAsync(rangeCommands, excelPath, sourceSheet, sourceRange, targetSheet, targetRange, batchId),
+                RangeAction.CopyFormulas => await CopyFormulasAsync(rangeCommands, excelPath, sourceSheet, sourceRange, targetSheet, targetRange, batchId),
+                RangeAction.InsertCells => await InsertCellsAsync(rangeCommands, excelPath, sheetName, rangeAddress, shift, batchId),
+                RangeAction.DeleteCells => await DeleteCellsAsync(rangeCommands, excelPath, sheetName, rangeAddress, shift, batchId),
+                RangeAction.InsertRows => await InsertRowsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.DeleteRows => await DeleteRowsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.InsertColumns => await InsertColumnsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.DeleteColumns => await DeleteColumnsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.Find => await FindAsync(rangeCommands, excelPath, sheetName, rangeAddress, searchValue, matchCase, matchEntireCell, searchFormulas, searchValues, batchId),
+                RangeAction.Replace => await ReplaceAsync(rangeCommands, excelPath, sheetName, rangeAddress, searchValue, replaceValue, matchCase, matchEntireCell, searchFormulas, searchValues, replaceAll, batchId),
+                RangeAction.Sort => await SortAsync(rangeCommands, excelPath, sheetName, rangeAddress, sortColumns, hasHeaders, batchId),
+                RangeAction.GetUsedRange => await GetUsedRangeAsync(rangeCommands, excelPath, sheetName, batchId),
+                RangeAction.GetCurrentRegion => await GetCurrentRegionAsync(rangeCommands, excelPath, sheetName, cellAddress, batchId),
+                RangeAction.GetRangeInfo => await GetRangeInfoAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.AddHyperlink => await AddHyperlinkAsync(rangeCommands, excelPath, sheetName, cellAddress, url, displayText, tooltip, batchId),
+                RangeAction.RemoveHyperlink => await RemoveHyperlinkAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.ListHyperlinks => await ListHyperlinksAsync(rangeCommands, excelPath, sheetName, batchId),
+                RangeAction.GetHyperlink => await GetHyperlinkAsync(rangeCommands, excelPath, sheetName, cellAddress, batchId),
+                RangeAction.FormatRange => await FormatRangeAsync(rangeCommands, excelPath, sheetName, rangeAddress, fontName, fontSize, bold, italic, underline, fontColor, fillColor, borderStyle, borderColor, borderWeight, horizontalAlignment, verticalAlignment, wrapText, orientation, batchId),
+                RangeAction.ValidateRange => await ValidateRangeAsync(rangeCommands, excelPath, sheetName, rangeAddress, validationType, validationOperator, validationFormula1, validationFormula2, showInputMessage, inputTitle, inputMessage, showErrorAlert, errorStyle, errorTitle, errorMessage, ignoreBlank, showDropdown, batchId),
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{actionString}'. Supported: get-values, set-values, get-formulas, set-formulas, get-number-formats, set-number-format, set-number-formats, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink, format-range, validate-range")
+                    $"Unknown action: {action} ({action.ToActionString()})")
             };
         }
         catch (ModelContextProtocol.McpException)

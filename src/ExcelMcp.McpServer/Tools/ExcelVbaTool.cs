@@ -62,29 +62,20 @@ public static class ExcelVbaTool
     {
         try
         {
-            var VbaCommands = new VbaCommands();
-            var actionString = action.ToActionString();
+            var vbaCommands = new VbaCommands();
 
-            switch (actionString)
+            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+            return action switch
             {
-                case "list":
-                    return await ListVbaScriptsAsync(VbaCommands, excelPath, batchId);
-                case "view":
-                    return await ViewVbaScriptAsync(VbaCommands, excelPath, moduleName, batchId);
-                case "export":
-                    return await ExportVbaScriptAsync(VbaCommands, excelPath, moduleName, targetPath, batchId);
-                case "import":
-                    return await ImportVbaScriptAsync(VbaCommands, excelPath, moduleName, sourcePath, batchId);
-                case "update":
-                    return await UpdateVbaScriptAsync(VbaCommands, excelPath, moduleName, sourcePath, batchId);
-                case "run":
-                    return await RunVbaScriptAsync(VbaCommands, excelPath, moduleName, parameters, batchId);
-                case "delete":
-                    return await DeleteVbaScriptAsync(VbaCommands, excelPath, moduleName, batchId);
-                default:
-                    ExcelToolsBase.ThrowUnknownAction(actionString, "list", "view", "export", "import", "update", "run", "delete");
-                    throw new InvalidOperationException(); // Never reached
-            }
+                VbaAction.List => await ListVbaScriptsAsync(vbaCommands, excelPath, batchId),
+                VbaAction.View => await ViewVbaScriptAsync(vbaCommands, excelPath, moduleName, batchId),
+                VbaAction.Export => await ExportVbaScriptAsync(vbaCommands, excelPath, moduleName, targetPath, batchId),
+                VbaAction.Import => await ImportVbaScriptAsync(vbaCommands, excelPath, moduleName, sourcePath, batchId),
+                VbaAction.Update => await UpdateVbaScriptAsync(vbaCommands, excelPath, moduleName, sourcePath, batchId),
+                VbaAction.Run => await RunVbaScriptAsync(vbaCommands, excelPath, moduleName, parameters, batchId),
+                VbaAction.Delete => await DeleteVbaScriptAsync(vbaCommands, excelPath, moduleName, batchId),
+                _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
+            };
         }
         catch (ModelContextProtocol.McpException)
         {

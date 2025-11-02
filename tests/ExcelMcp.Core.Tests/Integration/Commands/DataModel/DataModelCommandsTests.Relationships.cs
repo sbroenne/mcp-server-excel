@@ -5,79 +5,63 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.DataModel;
 
 /// <summary>
 /// Tests for Data Model relationship operations (LLM-relevant workflows only)
+/// Uses shared Data Model file from fixture.
 /// </summary>
 public partial class DataModelCommandsTests
 {
     [Fact]
     public async Task ListRelationships_WithValidFile_ReturnsSuccessResult()
     {
-        // Arrange
-        var testFile = await CreateTestFileAsync("ListRelationships_WithValidFile.xlsx");
-
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        // Act - Use shared data model file
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
         var result = await _dataModelCommands.ListRelationshipsAsync(batch);
 
         // Assert - MUST succeed (Data Model is always available in Excel 2013+)
         Assert.True(result.Success,
             $"ListRelationships MUST succeed - Data Model is always available. Error: {result.ErrorMessage}");
         Assert.NotNull(result.Relationships);
+        Assert.Equal(2, result.Relationships.Count); // Fixture creates exactly 2 relationships
     }
 
     [Fact]
     public async Task ListRelationships_WithRealisticDataModel_ReturnsRelationshipsWithTables()
     {
-        // Arrange
-        var testFile = await CreateTestFileAsync("ListRelationships_WithRealisticDataModel.xlsx");
-
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        // Act - Use shared data model file
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
         var result = await _dataModelCommands.ListRelationshipsAsync(batch);
 
-        // Assert - MUST succeed (Data Model is always available in Excel 2013+)
+        // Assert - Fixture creates exactly 2 relationships
         Assert.True(result.Success,
             $"ListRelationships MUST succeed. Error: {result.ErrorMessage}");
         Assert.NotNull(result.Relationships);
+        Assert.Equal(2, result.Relationships.Count);
 
-        // If Data Model has relationships, validate them
-        if (result.Relationships.Count > 0)
-        {
-            // Should have at least 2 relationships (SalesTable->CustomersTable, SalesTable->ProductsTable)
-            Assert.True(result.Relationships.Count >= 2, $"Expected at least 2 relationships, got {result.Relationships.Count}");
+        // Validate SalesTable->CustomersTable relationship
+        var salesCustomersRel = result.Relationships.FirstOrDefault(r =>
+            r.FromTable == "SalesTable" && r.ToTable == "CustomersTable");
 
-            // Validate SalesTable->CustomersTable relationship
-            var salesCustomersRel = result.Relationships.FirstOrDefault(r =>
-                r.FromTable == "SalesTable" && r.ToTable == "CustomersTable");
+        Assert.NotNull(salesCustomersRel);
+        Assert.Equal("CustomerID", salesCustomersRel.FromColumn);
+        Assert.Equal("CustomerID", salesCustomersRel.ToColumn);
+        Assert.True(salesCustomersRel.IsActive, "SalesTable->CustomersTable relationship should be active");
 
-            if (salesCustomersRel != null)
-            {
-                Assert.Equal("CustomerID", salesCustomersRel.FromColumn);
-                Assert.Equal("CustomerID", salesCustomersRel.ToColumn);
-                Assert.True(salesCustomersRel.IsActive, "SalesTable->CustomersTable relationship should be active");
-            }
+        // Validate SalesTable->ProductsTable relationship
+        var salesProductsRel = result.Relationships.FirstOrDefault(r =>
+            r.FromTable == "SalesTable" && r.ToTable == "ProductsTable");
 
-            // Validate SalesTable->ProductsTable relationship
-            var salesProductsRel = result.Relationships.FirstOrDefault(r =>
-                r.FromTable == "SalesTable" && r.ToTable == "ProductsTable");
-
-            if (salesProductsRel != null)
-            {
-                Assert.Equal("ProductID", salesProductsRel.FromColumn);
-                Assert.Equal("ProductID", salesProductsRel.ToColumn);
-                Assert.True(salesProductsRel.IsActive, "SalesTable->ProductsTable relationship should be active");
-            }
-        }
+        Assert.NotNull(salesProductsRel);
+        Assert.Equal("ProductID", salesProductsRel.FromColumn);
+        Assert.Equal("ProductID", salesProductsRel.ToColumn);
+        Assert.True(salesProductsRel.IsActive, "SalesTable->ProductsTable relationship should be active");
     }
 
     [Fact]
     public async Task CreateRelationship_WithValidParameters_CreatesSuccessfully()
     {
-        // Arrange
-        var testFile = await CreateTestFileAsync("CreateRelationship_WithValidParameters.xlsx");
+        // Arrange - Use shared data model file
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-
-        // First delete existing SalesTable->CustomersTable relationship if it exists
+        // First delete existing SalesTable->CustomersTable relationship to allow creating it fresh
         var listResult = await _dataModelCommands.ListRelationshipsAsync(batch);
         if (listResult.Success && listResult.Relationships?.Any(r =>
             r.FromTable == "SalesTable" && r.ToTable == "CustomersTable" &&
@@ -95,6 +79,7 @@ public partial class DataModelCommandsTests
             "CustomersTable",
             "CustomerID"
         );
+        
         // Assert - MUST succeed (Data Model is always available in Excel 2013+)
         Assert.True(createResult.Success,
             $"CreateRelationship MUST succeed. Error: {createResult.ErrorMessage}");
@@ -110,10 +95,8 @@ public partial class DataModelCommandsTests
     [Fact]
     public async Task DeleteRelationship_WithValidRelationship_ReturnsSuccessResult()
     {
-        // Arrange
-        var testFile = await CreateTestFileAsync("DeleteRelationship_WithValidRelationship.xlsx");
-
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        // Arrange - Use shared data model file
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
 
         // Verify the relationship exists first
         var listResult = await _dataModelCommands.ListRelationshipsAsync(batch);
@@ -130,6 +113,7 @@ public partial class DataModelCommandsTests
             "CustomersTable",
             "CustomerID"
         );
+        
         // Assert - MUST succeed (Data Model is always available in Excel 2013+)
         Assert.True(deleteResult.Success,
             $"DeleteRelationship MUST succeed. Error: {deleteResult.ErrorMessage}");
@@ -140,5 +124,9 @@ public partial class DataModelCommandsTests
         Assert.DoesNotContain(verifyResult.Relationships, r =>
             r.FromTable == "SalesTable" && r.ToTable == "CustomersTable" &&
             r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID");
+        
+        // Recreate it for other tests (since we share the file)
+        await _dataModelCommands.CreateRelationshipAsync(batch,
+            "SalesTable", "CustomerID", "CustomersTable", "CustomerID", active: true);
     }
 }
