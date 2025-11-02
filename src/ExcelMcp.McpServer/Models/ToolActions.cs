@@ -114,6 +114,7 @@ public enum RangeAction
     GetHyperlink,
 
     // Formatting & Validation
+    SetStyle,
     FormatRange,
     ValidateRange,
     GetValidation,

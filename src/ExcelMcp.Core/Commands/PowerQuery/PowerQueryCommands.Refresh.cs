@@ -93,8 +93,9 @@ public partial class PowerQueryCommands
                         result.Success = true;
                         result.LoadedToSheet = DetermineLoadedSheet(ctx.Book, queryName);
                         
-                        // Determine if connection-only based on whether it's loaded to a sheet
-                        result.IsConnectionOnly = string.IsNullOrEmpty(result.LoadedToSheet);
+                        // Determine if connection-only based on whether it's loaded to a sheet OR Data Model
+                        bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
+                        result.IsConnectionOnly = string.IsNullOrEmpty(result.LoadedToSheet) && !isLoadedToDataModel;
 
                         // Add workflow guidance
                     }
@@ -118,11 +119,13 @@ public partial class PowerQueryCommands
                     // No connection found - but check if query has QueryTables (may have been configured to load)
                     ComUtilities.Release(ref query);
                     
-                    // Check if there are QueryTables that reference this query
+                    // Check if there are QueryTables that reference this query OR if it's in Data Model
                     string? loadedSheet = DetermineLoadedSheet(ctx.Book, queryName);
-                    if (loadedSheet != null)
+                    bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
+                    
+                    if (loadedSheet != null || isLoadedToDataModel)
                     {
-                        // Query is loaded to a worksheet via QueryTable
+                        // Query is loaded to a worksheet via QueryTable or Data Model
                         result.Success = true;
                         result.IsConnectionOnly = false;
                         result.LoadedToSheet = loadedSheet;

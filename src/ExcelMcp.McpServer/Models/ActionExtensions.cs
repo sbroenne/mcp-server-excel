@@ -85,6 +85,7 @@ public static class ActionExtensions
         RangeAction.RemoveHyperlink => "remove-hyperlink",
         RangeAction.ListHyperlinks => "list-hyperlinks",
         RangeAction.GetHyperlink => "get-hyperlink",
+        RangeAction.SetStyle => "set-style",
         RangeAction.FormatRange => "format-range",
         RangeAction.ValidateRange => "validate-range",
         RangeAction.GetValidation => "get-validation",

@@ -1,0 +1,18 @@
+feat: Add built-in Excel cell style support (set-style action)
+
+Implement set-style action for excel_range tool to apply Excel's 47+ built-in
+cell styles (Heading 1-4, Good/Bad/Neutral, Accent1-6, Currency, Total, etc.).
+
+Benefits:
+- Faster than manual formatting (1 param vs 5-10)
+- Professional, consistent, theme-aware formatting
+- Simpler LLM prompts for formatting tasks
+
+Changes:
+- Core: IRangeCommands.SetStyleAsync() + RangeCommands.Formatting.cs
+- MCP: RangeAction.SetStyle enum + ExcelRangeTool.SetStyleAsync()
+- Prompts: Updated formatting guide + style_names.md completions
+- Tests: 7 integration tests (all passing)
+- Documentation: FEATURE-BUILTIN-STYLES.md summary
+
+Excel COM API: range.Style = "Heading 1"

@@ -208,4 +208,49 @@ public partial class PowerQueryCommands : IPowerQueryCommands
 
         return null;
     }
+
+    /// <summary>
+    /// Determines if a query is loaded to the Data Model
+    /// </summary>
+    private static bool IsQueryLoadedToDataModel(dynamic workbook, string queryName)
+    {
+        dynamic? model = null;
+        dynamic? modelTables = null;
+        try
+        {
+            model = workbook.Model;
+            modelTables = model.ModelTables;
+
+            for (int i = 1; i <= modelTables.Count; i++)
+            {
+                dynamic? table = null;
+                try
+                {
+                    table = modelTables.Item(i);
+                    string tableName = table.Name?.ToString() ?? "";
+
+                    // Match by query name (Excel may add prefixes/suffixes)
+                    if (tableName.Contains(queryName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref table);
+                }
+            }
+        }
+        catch
+        {
+            // Data Model might not be available or accessible
+        }
+        finally
+        {
+            ComUtilities.Release(ref modelTables);
+            ComUtilities.Release(ref model);
+        }
+
+        return false;
+    }
 }

@@ -120,13 +120,18 @@ public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
     public async Task Update_ExistingQuery_ReturnsSuccess()
     {
         // Arrange
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(PowerQueryCommandsTests), 
+            nameof(Update_ExistingQuery_ReturnsSuccess), 
+            _tempDir);
+        
         var queryName = "PQ_Update_" + Guid.NewGuid().ToString("N").Substring(0, 8);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Update_ExistingQuery_ReturnsSuccess));
         var updateFile = Path.Join(_tempDir, $"updated_{Guid.NewGuid():N}.pq");
         System.IO.File.WriteAllText(updateFile, "let\n    UpdatedSource = 1\nin\n    UpdatedSource");
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(_powerQueryFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         await _powerQueryCommands.ImportAsync(batch, queryName, testQueryFile);
         var result = await _powerQueryCommands.UpdateAsync(batch, queryName, updateFile);
         
@@ -142,11 +147,16 @@ public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
     public async Task Delete_ExistingQuery_ReturnsSuccess()
     {
         // Arrange
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(PowerQueryCommandsTests), 
+            nameof(Delete_ExistingQuery_ReturnsSuccess), 
+            _tempDir);
+        
         var queryName = "PQ_Delete_" + Guid.NewGuid().ToString("N").Substring(0, 8);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Delete_ExistingQuery_ReturnsSuccess));
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(_powerQueryFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         await _powerQueryCommands.ImportAsync(batch, queryName, testQueryFile);
         var result = await _powerQueryCommands.DeleteAsync(batch, queryName);
         

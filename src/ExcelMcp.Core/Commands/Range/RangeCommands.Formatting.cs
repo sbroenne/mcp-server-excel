@@ -10,6 +10,54 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 public partial class RangeCommands
 {
     /// <inheritdoc />
+    public async Task<OperationResult> SetStyleAsync(
+        IExcelBatch batch,
+        string sheetName,
+        string rangeAddress,
+        string styleName)
+    {
+        return await batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+            dynamic? range = null;
+
+            try
+            {
+                // Get sheet
+                sheet = string.IsNullOrEmpty(sheetName)
+                    ? ctx.Book.ActiveSheet
+                    : ctx.Book.Worksheets.Item(sheetName);
+
+                // Get range
+                range = sheet.Range[rangeAddress];
+
+                // Apply built-in style
+                range.Style = styleName;
+
+                return new OperationResult
+                {
+                    Success = true,
+                    FilePath = batch.WorkbookPath
+                };
+            }
+            catch (Exception ex)
+            {
+                return new OperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to apply style '{styleName}' to range '{rangeAddress}': {ex.Message}",
+                    FilePath = batch.WorkbookPath
+                };
+            }
+            finally
+            {
+                ComUtilities.Release(ref range!);
+                ComUtilities.Release(ref sheet!);
+            }
+        });
+    }
+
+    /// <inheritdoc />
     public async Task<OperationResult> FormatRangeAsync(
         IExcelBatch batch,
         string sheetName,

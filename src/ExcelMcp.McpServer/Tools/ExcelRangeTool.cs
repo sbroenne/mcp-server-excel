@@ -3,6 +3,8 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
+using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
@@ -27,7 +29,8 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Use "get-current-region" to find contiguous data blocks
 /// - Use "get-range-info" to inspect range properties
 /// - Use "add-hyperlink"/"remove-hyperlink"/"list-hyperlinks"/"get-hyperlink" for hyperlink management
-/// - Use "format-range" to apply visual formatting (font, fill, border, alignment)
+/// - Use "set-style" to apply built-in Excel cell styles (RECOMMENDED for formatting)
+/// - Use "format-range" to apply manual formatting (font, fill, border, alignment) - use only when styles don't meet needs
 /// - Use "validate-range" to add data validation rules
 /// </summary>
 [McpServerToolType]
@@ -39,7 +42,7 @@ public static class ExcelRangeTool
     /// Optional batchId for batch sessions.
     /// </summary>
     [McpServerTool(Name = "excel_range")]
-    [Description("Excel range operations: get-values, set-values, get-formulas, set-formulas, get-number-formats, set-number-format, set-number-formats, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink, format-range, validate-range. Optional batchId for batch sessions.")]
+    [Description("Excel range operations: get-values, set-values, get-formulas, set-formulas, get-number-formats, set-number-format, set-number-formats, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink, set-style, format-range, validate-range. Optional batchId for batch sessions.")]
     public static async Task<string> ExcelRange(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
@@ -123,6 +126,9 @@ public static class ExcelRangeTool
         List<List<string>>? formats = null,
 
         // === FORMATTING PARAMETERS ===
+
+        [Description("Built-in Excel style name (for set-style: 'Heading 1', 'Accent1', 'Good', 'Total', 'Currency', 'Percent', 'Normal', etc. - recommended for consistent formatting)")]
+        string? styleName = null,
 
         [Description("Font name (for format-range, e.g., 'Arial', 'Calibri')")]
         string? fontName = null,
@@ -263,6 +269,7 @@ public static class ExcelRangeTool
                 RangeAction.RemoveHyperlink => await RemoveHyperlinkAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
                 RangeAction.ListHyperlinks => await ListHyperlinksAsync(rangeCommands, excelPath, sheetName, batchId),
                 RangeAction.GetHyperlink => await GetHyperlinkAsync(rangeCommands, excelPath, sheetName, cellAddress, batchId),
+                RangeAction.SetStyle => await SetStyleAsync(rangeCommands, excelPath, sheetName, rangeAddress, styleName, batchId),
                 RangeAction.FormatRange => await FormatRangeAsync(rangeCommands, excelPath, sheetName, rangeAddress, fontName, fontSize, bold, italic, underline, fontColor, fillColor, borderStyle, borderColor, borderWeight, horizontalAlignment, verticalAlignment, wrapText, orientation, batchId),
                 RangeAction.ValidateRange => await ValidateRangeAsync(rangeCommands, excelPath, sheetName, rangeAddress, validationType, validationOperator, validationFormula1, validationFormula2, showInputMessage, inputTitle, inputMessage, showErrorAlert, errorStyle, errorTitle, errorMessage, ignoreBlank, showDropdown, batchId),
                 RangeAction.GetValidation => await GetValidationAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
@@ -926,6 +933,47 @@ public static class ExcelRangeTool
     }
 
     // === FORMATTING OPERATIONS ===
+
+    private static async Task<string> SetStyleAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? styleName,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-style");
+        if (string.IsNullOrEmpty(styleName))
+            ExcelToolsBase.ThrowMissingParameter("styleName", "set-style");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.SetStyleAsync(batch, sheetName ?? "", rangeAddress!, styleName!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-style failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            success = true,
+            filePath,
+            sheetName,
+            rangeAddress,
+            styleName,
+            workflowHint = "Built-in style applied. Use 'get-range-info' to verify formatting.",
+            suggestedNextActions = new[]
+            {
+                "Apply additional styles to other ranges",
+                "Use 'format-range' for manual formatting if built-in styles don't meet needs",
+                "Save changes with commit_excel_batch if in batch mode"
+            }
+        }, ExcelToolsBase.JsonOptions);
+    }
 
     private static async Task<string> FormatRangeAsync(
         RangeCommands commands,

@@ -1,27 +1,231 @@
 # Excel Formatting Best Practices
 
-**Professional formatting standards for Excel tables, ranges, and reports.**
+**Professional formatting standards for Excel 2019+ tables, ranges, and reports.**
 
-## Excel Defaults (Use These Unless You Have a Reason Not To)
+> **✅ BUILT-IN CELL STYLES NOW SUPPORTED!**
+> 
+> Use `excel_range` with `action: 'set-style'` to apply built-in Excel styles.
+> These are FASTER, more CONSISTENT, and more PROFESSIONAL than manual formatting.
+> 
+> **Recommended Workflow:**
+> 1. **First:** Try built-in styles (Heading 1, Accent1, Total, Good/Bad/Neutral, etc.)
+> 2. **Only if needed:** Use manual formatting via `format-range` action
 
-**Fonts:**
-- Excel 2019+: **Aptos** (default)
-- Excel 2007-2016: **Calibri** (default)
-- Font Size: **11pt** (default)
-- Alternative: Arial 10pt (more compact)
+## Excel Built-in Cell Styles (USE THESE FIRST!)
 
-**Colors (Excel Theme Colors with Hex Codes):**
-- Blue (headers): **#4472C4**
-- Orange (accent): **#ED7D31**
-- Gray (subtle): **#A5A5A5**
-- Light Blue (alt rows): **#D6DCE4**
-- Dark Blue (totals): **#2F5496**
-- Green (positive): **#70AD47**
-- Red (negative): **#C55A11**
+**Why built-in styles?**
+- ✅ **Faster:** 1 line of code vs 5-10 lines manual formatting
+- ✅ **Consistent:** Same style = same look everywhere
+- ✅ **Theme-aware:** Auto-adjust when theme changes
+- ✅ **Professional:** Tested and polished by Microsoft
+- ✅ **Maintainable:** Change definition once, all cells update
 
-**Why theme colors?** They automatically adjust if user changes workbook theme.
+### How to Apply Built-in Styles
 
-## Common Number Format Codes
+```javascript
+// MCP Server - RECOMMENDED
+excel_range(action: 'set-style', excelPath: 'report.xlsx', sheetName: 'Sheet1', rangeAddress: 'A1', styleName: 'Heading 1')
+
+// Manual formatting - use only when styles don't meet needs
+excel_range(action: 'format-range', excelPath: 'report.xlsx', sheetName: 'Sheet1', rangeAddress: 'A1', bold: true, fontSize: 14, fontColor: '#0000FF')
+```
+
+### Available Built-in Styles (47+ styles)
+
+#### **Good, Bad and Neutral** (Status Indicators)
+```
+Good           - Green background, dark green text (✅ positive, completed)
+Bad            - Red background, dark red text (❌ negative, errors)
+Neutral        - Orange background, dark orange text (⚠️ warnings, pending)
+```
+
+**Use for:** KPIs, status indicators, conditional formatting, traffic lights
+
+#### **Data and Model** (Cell Purpose Markers)
+```
+Input          - Orange background (👤 user input cells)
+Calculation    - Bold, orange background (➗ formula cells)
+Output         - Bold, gray background (📊 read-only results)
+Check Cell     - Bold, white text on green background (✓ validation passed)
+Linked Cell    - Bold, orange text (🔗 linked to other sheets)
+Note           - Yellow background (📝 annotations, comments)
+Explanatory Text - Italic (📄 instructions, help text)
+Warning Text   - Red text (⚠️ warnings, errors)
+```
+
+**Use for:** Data entry forms, workbooks with formulas, templates
+
+#### **Titles and Headings** (Document Structure)
+```
+Title          - 18pt Cambria, blue (📰 main report title)
+Heading 1      - 15pt Calibri, bold, blue (📑 major sections)
+Heading 2      - 13pt Calibri, bold, blue (📄 subsections)
+Heading 3      - 11pt Calibri, bold, blue (📝 minor headings)
+Heading 4      - 11pt Calibri, bold, blue (📌 smallest heading)
+```
+
+**Use for:** Report titles, section headers, table captions
+
+#### **Themed Cell Styles** (Professional Accents)
+```
+Accent1        - Full theme color 1 (typically blue), white text
+Accent2        - Full theme color 2 (typically orange), white text
+Accent3        - Full theme color 3 (typically gray), white text
+Accent4        - Full theme color 4, white text
+Accent5        - Full theme color 5, white text
+Accent6        - Full theme color 6, white text
+
+60% - Accent1  - Medium intensity, white text
+60% - Accent2  - Medium intensity, white text
+... (Accent3-6 similar)
+
+40% - Accent1  - Light background, dark text
+40% - Accent2  - Light background, dark text
+... (Accent3-6 similar)
+
+20% - Accent1  - Very light background, dark text
+20% - Accent2  - Very light background, dark text
+... (Accent3-6 similar)
+```
+
+**Use for:** Table headers, alternating rows, highlights
+
+**Note:** Default Office theme: Accent1=blue, Accent2=orange, Accent3=gray
+
+#### **Number Format Styles** (Quick Number Formatting)
+```
+Currency       - $#,##0.00 (with dollar sign and 2 decimals)
+Currency [0]   - $#,##0 (no decimals)
+Comma          - #,##0.00 (thousands separator, 2 decimals)
+Comma [0]      - #,##0 (no decimals)
+Percent        - 0.00% (2 decimal percentage)
+```
+
+**Use for:** Quick number formatting without manual format codes
+
+#### **Other Essential Styles**
+```
+Normal         - 11pt Aptos (Excel 2019+), no formatting (default cell)
+Total          - Bold, top border (📊 totals/subtotals rows)
+```
+
+---
+
+## Built-in Style Recommendations by Use Case
+
+### **Financial Reports**
+```
+Title:           Title or Heading 1
+Section Headers: Heading 2
+Column Headers:  Accent1 (full blue, white text)
+Data:            Normal with Currency or Comma [0] style
+Input Cells:     Input (orange - user enters data)
+Calculated:      Calculation (orange - formulas)
+Subtotals:       Total style
+Grand Total:     Total style (consider double top border manually)
+Assumptions:     Explanatory Text or Note (yellow)
+```
+
+**Example:**
+```csharp
+excel_range(action: 'set-style', rangeAddress: 'A1', styleName: 'Title')              // Q4 2024 Financial Report
+excel_range(action: 'set-style', rangeAddress: 'A3', styleName: 'Heading 1')          // Revenue Statement
+excel_range(action: 'set-style', rangeAddress: 'A5:E5', styleName: 'Accent1')         // Column headers
+excel_range(action: 'set-style', rangeAddress: 'B6:E10', styleName: 'Currency [0]')   // Dollar amounts (no decimals)
+excel_range(action: 'set-style', rangeAddress: 'B10:E10', styleName: 'Total')         // Totals row
+```
+
+### **Sales Dashboards**
+```
+Dashboard Title: Title (18pt)
+KPI Headers:     Heading 2 or Accent1
+Positive Trend:  Good (green)
+Negative Trend:  Bad (red)
+Neutral/Flat:    Neutral (orange)
+Data Tables:     20% - Accent1 for headers (light blue)
+Data:            Normal with Comma [0]
+```
+
+**Example:**
+```csharp
+excel_range(action: 'set-style', rangeAddress: 'A1', styleName: 'Title')                    // Sales Dashboard
+excel_range(action: 'set-style', rangeAddress: 'A3', styleName: 'Heading 2')                // Q4 Performance
+excel_range(action: 'set-style', rangeAddress: 'A5:D5', styleName: '20% - Accent1')         // Table headers (light)
+if (salesGrowth > 0) excel_range(action: 'set-style', rangeAddress: 'B10', styleName: 'Good')      // Green
+else if (salesGrowth < 0) excel_range(action: 'set-style', rangeAddress: 'B10', styleName: 'Bad')  // Red
+```
+
+### **Data Entry Forms**
+```
+Form Title:      Heading 1
+Section Labels:  Heading 3 or Heading 4
+Required Input:  Input (orange)
+Optional Input:  20% - Accent1 (light blue)
+Calculated:      Calculation (orange) or Output (gray)
+Instructions:    Explanatory Text (italic)
+Warnings:        Warning Text (red) or Bad
+Validation OK:   Check Cell (green) or Good
+```
+
+**Example:**
+```csharp
+excel_range(action: 'set-style', rangeAddress: 'A1', styleName: 'Heading 1')              // Employee Information Form
+excel_range(action: 'set-style', rangeAddress: 'A3', styleName: 'Heading 3')              // Personal Details
+excel_range(action: 'set-style', rangeAddress: 'B5:B8', styleName: 'Input')               // User fills these (orange)
+excel_range(action: 'set-style', rangeAddress: 'B10:B12', styleName: '20% - Accent1')     // Optional fields (light blue)
+excel_range(action: 'set-style', rangeAddress: 'B15', styleName: 'Calculation')           // Formula (age from birthdate)
+excel_range(action: 'set-style', rangeAddress: 'A20', styleName: 'Explanatory Text')      // Instructions
+```
+
+### **Project Reports**
+```
+Report Title:    Title
+Major Sections:  Heading 1
+Subsections:     Heading 2
+Table Headers:   Accent1 or 40% - Accent1
+Completed Tasks: Good (green)
+Delayed/Issues:  Bad (red)
+In Progress:     Neutral (orange)
+Notes:           Note (yellow background)
+```
+
+### **Budget/Variance Reports**
+```
+Headers:         Heading 2 or Accent1
+Actuals:         Normal with Currency
+Budget:          20% - Accent1 (light background)
+Positive Var:    Good (green)
+Negative Var:    Bad (red)
+Totals:          Total
+Assumptions:     Explanatory Text or Note
+```
+
+---
+
+## When Built-in Styles Are Not Enough
+
+**Use manual formatting ONLY when:**
+- ✅ Specific brand colors required (not Office theme colors)
+- ✅ Very specific formatting not covered by 47+ built-in styles
+- ✅ Custom charts/graphics
+- ✅ One-off unique design
+
+**For everything else, use built-in styles!**
+
+---
+
+## Manual Formatting Reference (Fallback Only)
+
+**Only use these when built-in styles don't apply.**
+
+### Excel 2019+ Defaults
+- **Font:** Aptos, 11pt
+- **Theme Colors:** #4472C4 (blue), #ED7D31 (orange), #A5A5A5 (gray)
+
+### Common Number Format Codes
+
+**Note:** Use built-in number format styles (Currency, Comma, Percent) when possible!
+Only use these codes when you need custom formatting.
 
 **Currency:**
 ```
@@ -61,7 +265,7 @@ mmm d, yyyy        // Jan 29, 2025 (readable)
 [>0]#,##0;[Red](#,##0);"-"     // Green positive, red negative in parens, dash for zero
 ```
 
-## Professional Table Formatting
+### Manual Table Formatting (When Built-in Styles Don't Apply)
 
 **Headers (Row 1):**
 - Font: Bold, 11pt
@@ -88,7 +292,11 @@ mmm d, yyyy        // Jan 29, 2025 (readable)
 - Minimum 10 characters for readability
 - Maximum 50 characters (wrap text if needed)
 
-## Table Style Quick Reference
+---
+
+## Excel Table Styles (For Excel Tables/ListObjects)
+
+**When using Excel Tables** (Insert → Table), apply these built-in table styles:
 
 **Most Common (Data Tables):**
 - **Table Style Medium 2** - Blue header, white/light blue alternating rows
@@ -105,7 +313,9 @@ mmm d, yyyy        // Jan 29, 2025 (readable)
 
 **To Apply:** Select table → Table Design tab → Table Styles
 
-## Conditional Formatting Rules
+---
+
+## Conditional Formatting (Advanced)
 
 **Negative Numbers:**
 ```
@@ -131,7 +341,11 @@ Color: Theme blue (#4472C4) or green (#70AD47)
 2-Color: White → Blue (less distracting)
 ```
 
-## Accessibility Guidelines
+**Note:** For simple status indicators, use Good/Bad/Neutral styles instead!
+
+---
+
+## Layout Best Practices (Universal)
 
 **Font Size:**
 - Minimum: **10pt** (preferably 11pt)
@@ -148,7 +362,11 @@ Color: Theme blue (#4472C4) or green (#70AD47)
 - ✅ Add icons or patterns, not just color
 - ❌ Don't use red/green only for positive/negative
 
-## Layout Best Practices
+**Note:** Built-in Good/Bad/Neutral styles are already accessible!
+
+---
+
+## Accessibility Guidelines
 
 **Alignment:**
 - **Text:** Left-aligned
@@ -176,7 +394,11 @@ Color: Theme blue (#4472C4) or green (#70AD47)
 - Totals: Top border (medium), bottom border (double for final total)
 - Avoid heavy borders (too busy)
 
-## Common Mistakes to Avoid
+**Note:** Total style already includes top border!
+
+---
+
+## Summary: Recommended Approach
 
 ❌ **Don't:**
 - Use Comic Sans or decorative fonts
@@ -188,7 +410,8 @@ Color: Theme blue (#4472C4) or green (#70AD47)
 - Mix currency symbols ($1,000 and 1000 USD in same column)
 
 ✅ **Do:**
-- Use Excel default fonts (Aptos, Calibri)
+- **Use built-in cell styles first!** (Heading 1, Accent1, Total, etc.)
+- Use Excel 2019+ default font (Aptos, 11pt)
 - Use 11pt as standard size
 - Use theme colors (#4472C4, #ED7D31, etc.)
 - Right-align numbers for easy comparison
@@ -196,22 +419,37 @@ Color: Theme blue (#4472C4) or green (#70AD47)
 - Add icons/patterns for colorblind accessibility
 - Be consistent with number formats
 
-## Quick Formatting Workflow
+### **Quick Formatting Workflow**
 
-**For Professional Tables:**
-1. Apply Table Style Medium 2 (or similar)
-2. Bold headers, consider background color
-3. Right-align number columns
-4. Apply number formats ($#,##0.00, 0%, etc.)
-5. Auto-fit column widths, adjust as needed
-6. Freeze header row
-7. Bold totals row with top border
+**For Professional Documents (USE BUILT-IN STYLES):**
+1. **Apply styles to structure:**
+   - Title → `Title` or `Heading 1`
+   - Sections → `Heading 2`, `Heading 3`
+2. **Apply styles to table headers:**
+   - Column headers → `Accent1` (full blue)
+   - Or lighter headers → `40% - Accent1`
+3. **Mark cell purposes:**
+   - User input → `Input` (orange)
+   - Formulas → `Calculation` (orange, bold)
+   - Results → `Output` (gray)
+4. **Apply number formats:**
+   - Currency → `Currency` or `Currency [0]` style
+   - Numbers → `Comma` or `Comma [0]` style
+   - Percentages → `Percent` style
+5. **Apply totals:**
+   - Totals row → `Total` style (bold, top border)
+6. **Apply status (if needed):**
+   - Positive/Complete → `Good` (green)
+   - Negative/Error → `Bad` (red)
+   - Warning/Pending → `Neutral` (orange)
 
-**Result:** Clean, professional, accessible table in 2-3 minutes.
+**Result:** Professional, consistent, theme-aware document in 2-3 minutes using built-in styles!
 
-## Format Code Examples by Use Case
+---
 
-**Financial Statements:**
+## Examples: Built-in Styles in Action
+
+### **Financial Report**
 ```
 Revenue: $#,##0  (no decimals for large numbers)
 EBITDA: $#,##0  (no decimals)
@@ -233,3 +471,226 @@ Due Date: mmm d, yyyy  (Jan 29, 2025)
 ```
 
 **Default to:** Standard theme colors, 11pt Aptos/Calibri, proper alignment, and clear number formats.
+
+## Excel Built-in Cell Styles (Recommended!)
+
+**Why use built-in styles?** Faster, consistent, theme-aware, professional.
+
+### How to Apply (COM)
+
+```csharp
+// C# COM Interop
+range.Style = "Heading 1";  // Note: Space in name!
+
+// MCP Server
+excel_range(action: 'set-style', rangeAddress: 'A1', styleName: 'Heading 1')
+```
+
+### Style Categories and Names
+
+#### **Good, Bad and Neutral**
+```
+Good           - Green background, dark green text (positive values, completed)
+Bad            - Red background, dark red text (negative values, errors)
+Neutral        - Orange background, dark orange text (warnings, pending)
+```
+
+#### **Data and Model**
+```
+Calculation    - Bold, orange background (calculated/formula cells)
+Check Cell     - Bold, white text on green background (validation/checks)
+Explanatory Text - Italic, left-aligned (notes, instructions)
+Input          - Orange background (user input cells)
+Linked Cell    - Bold, orange text (cells linked to other sheets)
+Note           - Yellow background (comments, annotations)
+Output         - Bold, gray background (formula results, read-only)
+Warning Text   - Red text (warnings, error messages)
+```
+
+#### **Titles and Headings**
+```
+Title          - 18pt Cambria, blue (main report title)
+Heading 1      - 15pt Calibri, bold, blue (major sections)
+Heading 2      - 13pt Calibri, bold, blue (subsections)
+Heading 3      - 11pt Calibri, bold, blue (minor headings)
+Heading 4      - 11pt Calibri, bold, blue (smallest heading)
+```
+
+#### **Themed Cell Styles (20% variations)**
+```
+20% - Accent1  - Very light theme color 1 background
+20% - Accent2  - Very light theme color 2 background
+20% - Accent3  - Very light theme color 3 background
+20% - Accent4  - Very light theme color 4 background
+20% - Accent5  - Very light theme color 5 background
+20% - Accent6  - Very light theme color 6 background
+```
+
+#### **Themed Cell Styles (40% variations)**
+```
+40% - Accent1  - Light theme color 1 background
+40% - Accent2  - Light theme color 2 background
+40% - Accent3  - Light theme color 3 background
+40% - Accent4  - Light theme color 4 background
+40% - Accent5  - Light theme color 5 background
+40% - Accent6  - Light theme color 6 background
+```
+
+#### **Themed Cell Styles (60% variations)**
+```
+60% - Accent1  - Medium theme color 1 background, white text
+60% - Accent2  - Medium theme color 2 background, white text
+60% - Accent3  - Medium theme color 3 background, white text
+60% - Accent4  - Medium theme color 4 background, white text
+60% - Accent5  - Medium theme color 5 background, white text
+60% - Accent6  - Medium theme color 6 background, white text
+```
+
+#### **Themed Cell Styles (Accent variations)**
+```
+Accent1        - Full theme color 1 background, white text
+Accent2        - Full theme color 2 background, white text
+Accent3        - Full theme color 3 background, white text
+Accent4        - Full theme color 4 background, white text
+Accent5        - Full theme color 5 background, white text
+Accent6        - Full theme color 6 background, white text
+```
+
+**Note:** Accent1 is typically blue, Accent2 orange, Accent3 gray in default Office theme.
+
+#### **Number Format Styles**
+```
+Comma          - #,##0.00 format with thousands separator
+Comma [0]      - #,##0 format (no decimals)
+Currency       - $#,##0.00 format
+Currency [0]   - $#,##0 format (no decimals)
+Percent        - 0.00% format (2 decimal percentage)
+```
+
+#### **Other Built-in Styles**
+```
+Normal         - Default cell style (11pt Calibri, no formatting)
+Total          - Bold, top border (for totals rows)
+```
+
+### Style Recommendations by Use Case
+
+#### **Financial Reports:**
+```
+Title:          Title or Heading 1
+Section Headers: Heading 2
+Column Headers: Accent1 (full, white text)
+Data:           Normal with Comma or Currency number format
+Subtotals:      Total style
+Grand Total:    Total style with double top border
+Input Cells:    Input (orange background)
+Calculated:     Calculation or Output
+```
+
+#### **Sales Dashboards:**
+```
+Dashboard Title: Title (18pt)
+KPI Headers:    Heading 2 or Accent1
+Positive Trend: Good (green)
+Negative Trend: Bad (red)
+Neutral/Flat:   Neutral (orange)
+Data Tables:    Normal with 20% - Accent1 for headers
+```
+
+#### **Data Entry Forms:**
+```
+Form Title:     Heading 1
+Section Labels: Heading 3 or Heading 4
+Required Input: Input (orange background)
+Optional Input: 20% - Accent1 (light blue)
+Calculated:     Calculation (orange) or Output (gray)
+Instructions:   Explanatory Text (italic)
+Warnings:       Warning Text (red) or Bad
+Validation OK:  Check Cell (green) or Good
+```
+
+#### **Project Reports:**
+```
+Report Title:   Title
+Major Sections: Heading 1
+Subsections:    Heading 2
+Table Headers:  Accent1 or 40% - Accent1
+Completed:      Good (green)
+Delayed/Issue:  Bad (red)
+In Progress:    Neutral (orange)
+Notes:          Note (yellow background)
+```
+
+#### **Budget/Variance Reports:**
+```
+Headers:        Heading 2 or Accent1
+Actuals:        Normal with Currency
+Budget:         20% - Accent1
+Variance:       Good (positive) or Bad (negative)
+Totals:         Total
+Assumptions:    Explanatory Text or Note
+```
+
+### When to Use Styles vs Manual Formatting
+
+**Use Built-in Styles When:**
+- ✅ Creating professional reports/forms
+- ✅ Want theme consistency
+- ✅ Need quick, standard formatting
+- ✅ Document will be shared/reused
+- ✅ Using common patterns (headers, totals, input cells)
+
+**Use Manual Formatting When:**
+- ✅ Specific brand colors required (not theme colors)
+- ✅ One-off custom design
+- ✅ Very specific formatting not covered by styles
+- ✅ Charts/graphics with custom colors
+
+**Best Practice:** Start with built-in styles, customize only when necessary.
+
+### Quick Style Application Examples
+
+**Financial Report Header:**
+```csharp
+// Apply Heading 1 to title
+excel_range(action: 'set-style', rangeAddress: 'A1', styleName: 'Heading 1')
+
+// Apply Accent1 to column headers
+excel_range(action: 'set-style', rangeAddress: 'A2:E2', styleName: 'Accent1')
+
+// Apply Total to totals row
+excel_range(action: 'set-style', rangeAddress: 'A10:E10', styleName: 'Total')
+```
+
+**Data Entry Form:**
+```csharp
+// Mark input cells
+excel_range(action: 'set-style', rangeAddress: 'B5:B10', styleName: 'Input')  // Orange background
+
+// Mark calculated cells
+excel_range(action: 'set-style', rangeAddress: 'B15:B20', styleName: 'Calculation')  // Orange with bold
+
+// Add instructions
+excel_range(action: 'set-style', rangeAddress: 'A1', styleName: 'Explanatory Text')  // Italic
+```
+
+**Dashboard KPIs:**
+```csharp
+// Good/bad/neutral for metrics
+if (value > target) range.Style = "Good";       // Green
+else if (value < target * 0.9) range.Style = "Bad";   // Red
+else range.Style = "Neutral";  // Orange
+```
+
+**Common Mistake to Avoid:**
+```csharp
+// ❌ WRONG: No space in style name
+range.Style = "Heading1";  // Error!
+
+// ✅ CORRECT: Space in multi-word styles
+range.Style = "Heading 1";  // Works!
+
+// ✅ CORRECT: No space in single-word or hyphenated
+range.Style = "Total";
+range.Style = "20% - Accent1";
+```

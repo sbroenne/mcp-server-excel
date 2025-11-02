@@ -222,9 +222,31 @@ public interface IRangeCommands
     // === FORMATTING OPERATIONS ===
 
     /// <summary>
+    /// Applies built-in Excel cell style to range (recommended for consistency)
+    /// Excel COM: Range.Style = styleName
+    /// </summary>
+    /// <param name="batch">Excel batch context</param>
+    /// <param name="sheetName">Sheet name (empty for active sheet)</param>
+    /// <param name="rangeAddress">Range address (e.g., "A1:D10")</param>
+    /// <param name="styleName">
+    /// Built-in style name (e.g., "Heading 1", "Accent1", "Good", "Total", "Currency", "Percent")
+    /// Use "Normal" to reset to default formatting
+    /// </param>
+    /// <remarks>
+    /// Built-in styles are theme-aware and provide professional, consistent formatting.
+    /// Common styles: Heading 1-4, Title, Total, Input, Output, Calculation, 
+    /// Good/Bad/Neutral, Accent1-6, Note, Warning, Currency, Percent, Comma
+    /// </remarks>
+    Task<OperationResult> SetStyleAsync(IExcelBatch batch, string sheetName, string rangeAddress, string styleName);
+
+    /// <summary>
     /// Applies visual formatting to range (font, fill, border, alignment)
     /// Excel COM: Range.Font, Range.Interior, Range.Borders, Range.HorizontalAlignment, etc.
     /// </summary>
+    /// <remarks>
+    /// For consistent, professional formatting, prefer SetStyleAsync() with built-in styles.
+    /// Use FormatRangeAsync() only when built-in styles don't meet your needs.
+    /// </remarks>
     Task<OperationResult> FormatRangeAsync(
         IExcelBatch batch,
         string sheetName,
