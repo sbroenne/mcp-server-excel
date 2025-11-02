@@ -99,11 +99,32 @@ public static class ExcelVbaTool
         // If listing failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-
-            throw new ModelContextProtocol.McpException($"list failed for '{filePath}': {result.ErrorMessage}");
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = result.ErrorMessage,
+                suggestedNextActions = new[]
+                {
+                    "Verify file is .xlsm (macro-enabled format)",
+                    "Check VBA trust is enabled (use get-trust-status action)",
+                    "Ensure file is not corrupted"
+                }
+            }, ExcelToolsBase.JsonOptions);
         }
 
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        var moduleCount = result.Scripts?.Count ?? 0;
+        return JsonSerializer.Serialize(new
+        {
+            success = true,
+            scripts = result.Scripts,
+            count = moduleCount,
+            workflowHint = moduleCount == 0
+                ? "No VBA modules found. Use 'import' to add VBA code."
+                : $"Found {moduleCount} VBA module(s). Use 'view' to inspect or 'run' to execute.",
+            suggestedNextActions = moduleCount == 0
+                ? new[] { "Use 'import' to add VBA modules from .vba files", "Use excel_file to create .xlsm files for VBA" }
+                : new[] { "Use 'run' to execute macros", "Use 'export' to backup VBA code", "Use 'view' to inspect module code" }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ViewVbaScriptAsync(VbaCommands commands, string filePath, string? moduleName, string? batchId)
@@ -162,11 +183,37 @@ public static class ExcelVbaTool
         // If import failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-
-            throw new ModelContextProtocol.McpException($"import failed for '{filePath}': {result.ErrorMessage}");
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = result.ErrorMessage,
+                moduleName,
+                sourcePath,
+                suggestedNextActions = new[]
+                {
+                    "Check VBA trust is enabled (use get-trust-status action)",
+                    "Verify source file exists and contains valid VBA code",
+                    "Ensure target file is .xlsm format"
+                }
+            }, ExcelToolsBase.JsonOptions);
         }
 
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            success = true,
+            moduleName,
+            sourcePath,
+            message = $"VBA module '{moduleName}' imported successfully",
+            workflowHint = "Module imported. Use 'run' to execute or 'view' to inspect code.",
+            suggestedNextActions = new[]
+            {
+                batchId != null
+                    ? $"Continue using batchId '{batchId}' to import more modules"
+                    : "Use excel_batch for importing multiple modules (75-90% faster)",
+                "Use 'run' action to execute the imported macro",
+                "Use 'view' to verify the imported code"
+            }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> UpdateVbaScriptAsync(VbaCommands commands, string filePath, string? moduleName, string? sourcePath, string? batchId)
@@ -211,11 +258,35 @@ public static class ExcelVbaTool
         // If VBA execution failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-
-            throw new ModelContextProtocol.McpException($"run failed for '{filePath}': {result.ErrorMessage}");
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = result.ErrorMessage,
+                moduleName,
+                parameters = paramArray,
+                suggestedNextActions = new[]
+                {
+                    "Use 'view' to inspect VBA code for errors",
+                    "Check parameter count and types match procedure signature",
+                    "Verify VBA trust is enabled (use get-trust-status action)"
+                }
+            }, ExcelToolsBase.JsonOptions);
         }
 
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            success = true,
+            moduleName,
+            parameters = paramArray,
+            message = "VBA procedure executed successfully",
+            workflowHint = "Macro executed. Check results with excel_range if data was modified.",
+            suggestedNextActions = new[]
+            {
+                "Use excel_range 'get-values' to verify data changes",
+                "Use 'list' to see all available macros",
+                "Save workbook if macro made changes"
+            }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> DeleteVbaScriptAsync(VbaCommands commands, string filePath, string? moduleName, string? batchId)
