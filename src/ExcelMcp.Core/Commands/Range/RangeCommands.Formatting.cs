@@ -58,6 +58,98 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
+    public async Task<RangeStyleResult> GetStyleAsync(
+        IExcelBatch batch,
+        string sheetName,
+        string rangeAddress)
+    {
+        return await batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+            dynamic? range = null;
+
+            try
+            {
+                // Get sheet
+                sheet = string.IsNullOrEmpty(sheetName)
+                    ? ctx.Book.ActiveSheet
+                    : ctx.Book.Worksheets.Item(sheetName);
+
+                // Get range
+                range = sheet.Range[rangeAddress];
+
+                // Get style name from the first cell in the range
+                string styleName;
+                try
+                {
+                    styleName = ComUtilities.SafeGetString(range.Style, "Name");
+                    if (string.IsNullOrEmpty(styleName))
+                        styleName = "Normal";
+                }
+                catch
+                {
+                    styleName = "Normal";
+                }
+                
+                // Try to determine if it's a built-in style
+                bool isBuiltIn = false;
+                string? styleDescription = null;
+
+                try
+                {
+                    dynamic styles = ctx.Book.Styles;
+                    dynamic style = styles.Item(styleName);
+                    isBuiltIn = true;
+                    
+                    // Try to get additional information about the style
+                    try
+                    {
+                        styleDescription = ComUtilities.SafeGetString(style, "NameLocal");
+                        if (string.IsNullOrEmpty(styleDescription))
+                            styleDescription = null;
+                    }
+                    catch
+                    {
+                        // Style description is optional
+                    }
+                }
+                catch
+                {
+                    // If we can't find it in the Styles collection, it might be a custom style
+                    isBuiltIn = false;
+                }
+
+                return new RangeStyleResult
+                {
+                    Success = true,
+                    FilePath = batch.WorkbookPath,
+                    SheetName = sheetName,
+                    RangeAddress = range.Address,
+                    StyleName = styleName,
+                    IsBuiltInStyle = isBuiltIn,
+                    StyleDescription = styleDescription
+                };
+            }
+            catch (Exception ex)
+            {
+                return new RangeStyleResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to get style from range {rangeAddress}: {ex.Message}",
+                    FilePath = batch.WorkbookPath,
+                    SheetName = sheetName,
+                    RangeAddress = rangeAddress
+                };
+            }
+            finally
+            {
+                ComUtilities.Release(ref range!);
+                ComUtilities.Release(ref sheet!);
+            }
+        });
+    }
+
+    /// <inheritdoc />
     public async Task<OperationResult> FormatRangeAsync(
         IExcelBatch batch,
         string sheetName,

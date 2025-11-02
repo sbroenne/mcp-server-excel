@@ -240,6 +240,20 @@ public interface IRangeCommands
     Task<OperationResult> SetStyleAsync(IExcelBatch batch, string sheetName, string rangeAddress, string styleName);
 
     /// <summary>
+    /// Gets the current built-in style name applied to a range
+    /// Excel COM: Range.Style.Name property
+    /// </summary>
+    /// <param name="batch">Excel batch context</param>
+    /// <param name="sheetName">Worksheet name</param>
+    /// <param name="rangeAddress">Range address (e.g., "A1" for single cell, "A1:D10" for range)</param>
+    /// <returns>RangeStyleResult with current style name and whether it's a built-in style</returns>
+    /// <remarks>
+    /// Returns the style name of the first cell in the range.
+    /// Use this to inspect current formatting before applying changes.
+    /// </remarks>
+    Task<RangeStyleResult> GetStyleAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+
+    /// <summary>
     /// Applies visual formatting to range (font, fill, border, alignment)
     /// Excel COM: Range.Font, Range.Interior, Range.Borders, Range.HorizontalAlignment, etc.
     /// </summary>

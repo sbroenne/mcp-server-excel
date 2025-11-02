@@ -152,14 +152,14 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
                 // Discovery operations
                 DataModelAction.ListTables => await ListTablesAsync(dataModelCommands, excelPath, batchId),
                 DataModelAction.ListMeasures => await ListMeasuresAsync(dataModelCommands, excelPath, batchId),
-                DataModelAction.ViewMeasure => await ViewMeasureAsync(dataModelCommands, excelPath, measureName, batchId),
+                DataModelAction.Get => await ViewMeasureAsync(dataModelCommands, excelPath, measureName, batchId),
                 DataModelAction.ExportMeasure => await ExportMeasureAsync(dataModelCommands, excelPath, measureName, outputPath, batchId),
                 DataModelAction.ListRelationships => await ListRelationshipsAsync(dataModelCommands, excelPath, batchId),
                 DataModelAction.Refresh => await RefreshAsync(dataModelCommands, excelPath, batchId),
                 DataModelAction.DeleteMeasure => await DeleteMeasureAsync(dataModelCommands, excelPath, measureName, batchId),
                 DataModelAction.DeleteRelationship => await DeleteRelationshipAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, batchId),
-                DataModelAction.ViewTable => await ViewTableAsync(dataModelCommands, excelPath, tableName, batchId),
-                DataModelAction.GetModelInfo => await GetModelInfoAsync(dataModelCommands, excelPath, batchId),
+                DataModelAction.GetTable => await ViewTableAsync(dataModelCommands, excelPath, tableName, batchId),
+                DataModelAction.GetInfo => await GetModelInfoAsync(dataModelCommands, excelPath, batchId),
 
                 // DAX measures (requires Office 2016+)
                 DataModelAction.CreateMeasure => await CreateMeasureComAsync(dataModelCommands, excelPath, tableName, measureName, daxFormula, formatString, description, batchId),

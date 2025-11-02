@@ -774,6 +774,37 @@ public class RangeHyperlinkResult : ResultBase
 }
 
 /// <summary>
+/// Result for Excel range style operations
+/// </summary>
+public class RangeStyleResult : ResultBase
+{
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range address (e.g., A1:D10)
+    /// </summary>
+    public string RangeAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Current style name applied to the range (first cell)
+    /// </summary>
+    public string StyleName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether this is a built-in Excel style
+    /// </summary>
+    public bool IsBuiltInStyle { get; set; }
+
+    /// <summary>
+    /// Additional style information if available
+    /// </summary>
+    public string? StyleDescription { get; set; }
+}
+
+/// <summary>
 /// Result for VBA trust operations
 /// </summary>
 public class VbaTrustResult : ResultBase

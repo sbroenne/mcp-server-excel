@@ -78,11 +78,12 @@ public static class ActionExtensions
         RangeAction.Sort => "sort",
         RangeAction.GetUsedRange => "get-used-range",
         RangeAction.GetCurrentRegion => "get-current-region",
-        RangeAction.GetRangeInfo => "get-range-info",
+        RangeAction.GetInfo => "get-info",
         RangeAction.AddHyperlink => "add-hyperlink",
         RangeAction.RemoveHyperlink => "remove-hyperlink",
         RangeAction.ListHyperlinks => "list-hyperlinks",
         RangeAction.GetHyperlink => "get-hyperlink",
+        RangeAction.GetStyle => "get-style",
         RangeAction.SetStyle => "set-style",
         RangeAction.FormatRange => "format-range",
         RangeAction.ValidateRange => "validate-range",
@@ -143,10 +144,10 @@ public static class ActionExtensions
     public static string ToActionString(this DataModelAction action) => action switch
     {
         DataModelAction.ListTables => "list-tables",
-        DataModelAction.ViewTable => "view-table",
+        DataModelAction.GetTable => "get-table",
         DataModelAction.ListColumns => "list-columns",
         DataModelAction.ListMeasures => "list-measures",
-        DataModelAction.ViewMeasure => "view-measure",
+        DataModelAction.Get => "get",
         DataModelAction.ExportMeasure => "export-measure",
         DataModelAction.CreateMeasure => "create-measure",
         DataModelAction.UpdateMeasure => "update-measure",
@@ -155,7 +156,7 @@ public static class ActionExtensions
         DataModelAction.CreateRelationship => "create-relationship",
         DataModelAction.UpdateRelationship => "update-relationship",
         DataModelAction.DeleteRelationship => "delete-relationship",
-        DataModelAction.GetModelInfo => "get-model-info",
+        DataModelAction.GetInfo => "get-info",
         DataModelAction.Refresh => "refresh",
         _ => throw new ArgumentException($"Unknown DataModelAction: {action}")
     };
@@ -163,7 +164,7 @@ public static class ActionExtensions
     public static string ToActionString(this TableAction action) => action switch
     {
         TableAction.List => "list",
-        TableAction.Info => "info",
+        TableAction.Get => "get",
         TableAction.Create => "create",
         TableAction.Rename => "rename",
         TableAction.Delete => "delete",
@@ -191,7 +192,7 @@ public static class ActionExtensions
     public static string ToActionString(this PivotTableAction action) => action switch
     {
         PivotTableAction.List => "list",
-        PivotTableAction.GetInfo => "get-info",
+        PivotTableAction.Get => "get",
         PivotTableAction.CreateFromRange => "create-from-range",
         PivotTableAction.CreateFromTable => "create-from-table",
         PivotTableAction.Delete => "delete",

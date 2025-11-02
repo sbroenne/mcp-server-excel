@@ -89,7 +89,7 @@ public static class TableTool
             {
                 TableAction.List => await ListTables(tableCommands, excelPath, batchId),
                 TableAction.Create => await CreateTable(tableCommands, excelPath, sheetName, tableName, range, hasHeaders, tableStyle, batchId),
-                TableAction.Info => await GetTableInfo(tableCommands, excelPath, tableName, batchId),
+                TableAction.Get => await GetTableInfo(tableCommands, excelPath, tableName, batchId),
                 TableAction.Rename => await RenameTable(tableCommands, excelPath, tableName, newName, batchId),
                 TableAction.Delete => await DeleteTable(tableCommands, excelPath, tableName, batchId),
                 TableAction.Resize => await ResizeTable(tableCommands, excelPath, tableName, range, batchId),
