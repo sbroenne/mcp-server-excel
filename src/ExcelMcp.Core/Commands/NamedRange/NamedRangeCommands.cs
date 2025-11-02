@@ -58,6 +58,12 @@ public partial class NamedRangeCommands : INamedRangeCommands
                 continue;
             }
 
+            if (param.Name.Length > 255)
+            {
+                errors.Add($"Parameter '{param.Name}' exceeds Excel's 255-character limit ({param.Name.Length} characters) - skipped");
+                continue;
+            }
+
             if (string.IsNullOrWhiteSpace(param.Reference))
             {
                 errors.Add($"Parameter '{param.Name}' has empty reference - skipped");

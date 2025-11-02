@@ -57,6 +57,7 @@ public partial class PowerQueryCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         var importResult = await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile, "connection-only");
         Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
+        await batch.SaveAsync(); // CRITICAL: Save before opening new batch
         // Verify it's connection-only
         await using var verifyBatch = await ExcelSession.BeginBatchAsync(testExcelFile);
         var configBefore = await _powerQueryCommands.GetLoadConfigAsync(verifyBatch, "TestQuery");

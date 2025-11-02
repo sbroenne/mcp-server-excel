@@ -183,6 +183,21 @@ public partial class NamedRangeCommands
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "create-parameter" };
 
+        // Validate parameter name length (Excel limit: 255 characters)
+        if (string.IsNullOrWhiteSpace(paramName))
+        {
+            result.Success = false;
+            result.ErrorMessage = "Parameter name cannot be empty or whitespace";
+            return result;
+        }
+
+        if (paramName.Length > 255)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Parameter name exceeds Excel's 255-character limit (current length: {paramName.Length})";
+            return result;
+        }
+
         return await batch.Execute((ctx, ct) =>
         {
             dynamic? existing = null;
@@ -227,6 +242,21 @@ public partial class NamedRangeCommands
     public async Task<OperationResult> UpdateAsync(IExcelBatch batch, string paramName, string reference)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "update-parameter" };
+
+        // Validate parameter name length (Excel limit: 255 characters)
+        if (string.IsNullOrWhiteSpace(paramName))
+        {
+            result.Success = false;
+            result.ErrorMessage = "Parameter name cannot be empty or whitespace";
+            return result;
+        }
+
+        if (paramName.Length > 255)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Parameter name exceeds Excel's 255-character limit (current length: {paramName.Length})";
+            return result;
+        }
 
         return await batch.Execute((ctx, ct) =>
         {

@@ -26,6 +26,31 @@ public partial class PowerQueryCommands : IPowerQueryCommands
     }
 
     /// <summary>
+    /// Validates Power Query name length and content
+    /// Excel limit: 80 characters for Power Query names
+    /// </summary>
+    /// <param name="queryName">Query name to validate</param>
+    /// <param name="errorMessage">Error message if validation fails</param>
+    /// <returns>True if valid, false otherwise</returns>
+    private static bool ValidateQueryName(string queryName, out string? errorMessage)
+    {
+        if (string.IsNullOrWhiteSpace(queryName))
+        {
+            errorMessage = "Query name cannot be empty or whitespace";
+            return false;
+        }
+
+        if (queryName.Length > 80)
+        {
+            errorMessage = $"Query name exceeds Excel's 80-character limit (current length: {queryName.Length})";
+            return false;
+        }
+
+        errorMessage = null;
+        return true;
+    }
+
+    /// <summary>
     /// Finds the closest matching string using simple Levenshtein distance
     /// </summary>
     private static string? FindClosestMatch(string target, List<string> candidates)

@@ -35,12 +35,12 @@ public partial class PowerQueryCommandsTests
     public async Task Import_ValidMCode_ReturnsSuccess()
     {
         // Arrange - Use unique query name
-        var queryName = $"Test_{nameof(Import_ValidMCode_ReturnsSuccess)}_{Guid.NewGuid():N}";
+        var queryName = "PQ_Import_" + Guid.NewGuid().ToString("N").Substring(0, 8);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Import_ValidMCode_ReturnsSuccess));
 
         // Act - Use shared file
         await using var batch = await ExcelSession.BeginBatchAsync(_powerQueryFile);
-        var result = await _powerQueryCommands.ImportAsync(batch, queryName, testQueryFile);
+        var result = await _powerQueryCommands.ImportAsync(batch, queryName, testQueryFile, "connection-only");
         
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
@@ -54,7 +54,7 @@ public partial class PowerQueryCommandsTests
     public async Task List_AfterImport_IncludesNewQuery()
     {
         // Arrange - Use unique query name
-        var queryName = $"Test_{nameof(List_AfterImport_IncludesNewQuery)}_{Guid.NewGuid():N}";
+        var queryName = "PQ_List_" + Guid.NewGuid().ToString("N").Substring(0, 8);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(List_AfterImport_IncludesNewQuery));
 
         // Act - Use single batch on shared file
@@ -112,7 +112,7 @@ public partial class PowerQueryCommandsTests
     public async Task Update_ExistingQuery_ReturnsSuccess()
     {
         // Arrange - Create unique query to update
-        var queryName = $"Test_{nameof(Update_ExistingQuery_ReturnsSuccess)}_{Guid.NewGuid():N}";
+        var queryName = "PQ_Update_" + Guid.NewGuid().ToString("N").Substring(0, 8);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Update_ExistingQuery_ReturnsSuccess));
         var updateFile = Path.Join(_tempDir, $"updated_{Guid.NewGuid():N}.pq");
         System.IO.File.WriteAllText(updateFile, "let\n    UpdatedSource = 1\nin\n    UpdatedSource");
@@ -134,7 +134,7 @@ public partial class PowerQueryCommandsTests
     public async Task Delete_ExistingQuery_ReturnsSuccess()
     {
         // Arrange - Create unique query to delete
-        var queryName = $"Test_{nameof(Delete_ExistingQuery_ReturnsSuccess)}_{Guid.NewGuid():N}";
+        var queryName = "PQ_Delete_" + Guid.NewGuid().ToString("N").Substring(0, 8);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Delete_ExistingQuery_ReturnsSuccess));
 
         // Act - Import then delete on shared file
@@ -154,7 +154,7 @@ public partial class PowerQueryCommandsTests
     public async Task ImportThenDelete_UniqueQuery_RemovedFromList()
     {
         // Arrange - Create unique query
-        var queryName = $"Test_{nameof(ImportThenDelete_UniqueQuery_RemovedFromList)}_{Guid.NewGuid():N}";
+        var queryName = "PQ_ImpDel_" + Guid.NewGuid().ToString("N").Substring(0, 8);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(ImportThenDelete_UniqueQuery_RemovedFromList));
 
         // Act - All operations in single batch on shared file
@@ -168,3 +168,5 @@ public partial class PowerQueryCommandsTests
         Assert.DoesNotContain(result.Queries, q => q.Name == queryName);
     }
 }
+
+

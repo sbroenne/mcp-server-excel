@@ -20,6 +20,14 @@ public partial class PowerQueryCommands
             RefreshTime = DateTime.Now
         };
 
+        // Validate query name
+        if (!ValidateQueryName(queryName, out string? validationError))
+        {
+            result.Success = false;
+            result.ErrorMessage = validationError;
+            return result;
+        }
+
         return await batch.Execute<PowerQueryRefreshResult>((ctx, ct) =>
         {
             dynamic? query = null;

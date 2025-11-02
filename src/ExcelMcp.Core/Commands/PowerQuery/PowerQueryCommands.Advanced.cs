@@ -18,6 +18,14 @@ public partial class PowerQueryCommands
             Action = "pq-loadto"
         };
 
+        // Validate query name
+        if (!ValidateQueryName(queryName, out string? validationError))
+        {
+            result.Success = false;
+            result.ErrorMessage = validationError;
+            return result;
+        }
+
         return await batch.Execute<OperationResult>((ctx, ct) =>
         {
             dynamic? query = null;

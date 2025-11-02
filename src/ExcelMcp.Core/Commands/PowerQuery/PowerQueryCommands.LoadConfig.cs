@@ -21,6 +21,14 @@ public partial class PowerQueryCommands
             Action = "pq-set-connection-only"
         };
 
+        // Validate query name
+        if (!ValidateQueryName(queryName, out string? validationError))
+        {
+            result.Success = false;
+            result.ErrorMessage = validationError;
+            return result;
+        }
+
         return await batch.Execute<OperationResult>((ctx, ct) =>
         {
             dynamic? query = null;
@@ -65,6 +73,14 @@ public partial class PowerQueryCommands
             SheetName = sheetName,
             WorkflowStatus = "Failed"
         };
+
+        // Validate query name
+        if (!ValidateQueryName(queryName, out string? validationError))
+        {
+            result.Success = false;
+            result.ErrorMessage = validationError;
+            return result;
+        }
 
         return await batch.Execute<PowerQueryLoadToTableResult>((ctx, ct) =>
         {
@@ -245,6 +261,14 @@ public partial class PowerQueryCommands
             TablesInDataModel = 0,
             WorkflowStatus = "Failed"
         };
+
+        // Validate query name
+        if (!ValidateQueryName(queryName, out string? validationError))
+        {
+            result.Success = false;
+            result.ErrorMessage = validationError;
+            return result;
+        }
 
         return await batch.ExecuteAsync<PowerQueryLoadToDataModelResult>(async (ctx, ct) =>
         {
@@ -654,6 +678,14 @@ public partial class PowerQueryCommands
             FilePath = batch.WorkbookPath,
             QueryName = queryName
         };
+
+        // Validate query name
+        if (!ValidateQueryName(queryName, out string? validationError))
+        {
+            result.Success = false;
+            result.ErrorMessage = validationError;
+            return result;
+        }
 
         return await batch.Execute<PowerQueryLoadConfigResult>((ctx, ct) =>
         {

@@ -123,6 +123,14 @@ public partial class PowerQueryCommands
             QueryName = queryName
         };
 
+        // Validate query name
+        if (!ValidateQueryName(queryName, out string? validationError))
+        {
+            result.Success = false;
+            result.ErrorMessage = validationError;
+            return result;
+        }
+
         return await batch.Execute<PowerQueryViewResult>((ctx, ct) =>
         {
             dynamic? query = null;
@@ -204,6 +212,21 @@ public partial class PowerQueryCommands
             FilePath = batch.WorkbookPath,
             Action = "pq-update"
         };
+
+        // Validate query name length (Excel limit: 120 characters)
+        if (string.IsNullOrWhiteSpace(queryName))
+        {
+            result.Success = false;
+            result.ErrorMessage = "Query name cannot be empty or whitespace";
+            return result;
+        }
+
+        if (queryName.Length > 120)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Query name exceeds Excel's 120-character limit (current length: {queryName.Length})";
+            return result;
+        }
 
         // Validate and normalize the M code file path to prevent path traversal attacks
         try
@@ -308,6 +331,14 @@ public partial class PowerQueryCommands
             Action = "pq-export"
         };
 
+        // Validate query name
+        if (!ValidateQueryName(queryName, out string? validationError))
+        {
+            result.Success = false;
+            result.ErrorMessage = validationError;
+            return result;
+        }
+
         // Validate and normalize the output file path to prevent path traversal attacks
         try
         {
@@ -367,6 +398,21 @@ public partial class PowerQueryCommands
             FilePath = batch.WorkbookPath,
             Action = "pq-import"
         };
+
+        // Validate query name length (Excel limit: 120 characters)
+        if (string.IsNullOrWhiteSpace(queryName))
+        {
+            result.Success = false;
+            result.ErrorMessage = "Query name cannot be empty or whitespace";
+            return result;
+        }
+
+        if (queryName.Length > 120)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Query name exceeds Excel's 120-character limit (current length: {queryName.Length})";
+            return result;
+        }
 
         // Validate loadDestination parameter
         var validDestinations = new[] { "worksheet", "data-model", "both", "connection-only" };
@@ -506,6 +552,14 @@ public partial class PowerQueryCommands
             FilePath = batch.WorkbookPath,
             Action = "pq-delete"
         };
+
+        // Validate query name
+        if (!ValidateQueryName(queryName, out string? validationError))
+        {
+            result.Success = false;
+            result.ErrorMessage = validationError;
+            return result;
+        }
 
         return await batch.Execute<OperationResult>((ctx, ct) =>
         {
