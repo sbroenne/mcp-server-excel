@@ -1,15 +1,15 @@
 # ExcelMcp Tests
 
-> **Quick reference for running tests**
+> **⚠️ No Traditional Unit Tests**: ExcelMcp has no unit tests. Integration tests ARE our unit tests because Excel COM cannot be meaningfully mocked. See [`docs/ADR-001-NO-UNIT-TESTS.md`](../docs/ADR-001-NO-UNIT-TESTS.md) for full architectural rationale.
 
 ## Quick Start
 
 ```bash
 # Development (fast feedback - excludes VBA tests)
-dotnet test --filter "Category=Unit&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
 # Pre-commit (comprehensive - excludes VBA tests)
-dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
 # Session/batch changes (MANDATORY when modifying session/batch code)
 dotnet test --filter "RunType=OnDemand"

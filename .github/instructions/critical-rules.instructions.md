@@ -298,7 +298,7 @@ public static string ToActionString(this RangeAction action) => action switch
 **Wrong:**
 ```bash
 # ❌ NEVER: Runs ALL integration tests (10+ minutes)
-dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand"
+dotnet test --filter "Category=Integration&RunType!=OnDemand"
 ```
 
 **Correct:**

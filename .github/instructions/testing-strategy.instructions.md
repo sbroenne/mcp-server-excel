@@ -4,7 +4,9 @@ applyTo: "tests/**/*.cs"
 
 # Testing Strategy - Quick Reference
 
-> **Three tiers: Unit (fast) → Integration (Excel) → OnDemand (session cleanup)**
+> **Two tiers: Integration (Excel) → OnDemand (session cleanup)**
+> 
+> **⚠️ No Unit Tests**: ExcelMcp has no traditional unit tests. Integration tests ARE our unit tests because Excel COM cannot be meaningfully mocked. See `docs/ADR-001-NO-UNIT-TESTS.md` for full rationale.
 
 ## Test Class Templates
 
@@ -49,32 +51,6 @@ public partial class FeatureCommandsTests : IClassFixture<TempDirectoryFixture>
         Assert.Contains(verifyResult.Items, i => i.Name == "Expected");
         
         // No SaveAsync unless testing persistence (see examples below)
-    }
-}
-```
-
-### Unit Test Template
-
-```csharp
-[Trait("Category", "Unit")]
-[Trait("Speed", "Fast")]
-[Trait("Layer", "Core")]
-[Trait("Feature", "Validation")]  // Or: PowerQuery, DataModel, etc.
-public class FeatureValidationTests
-{
-    [Theory]
-    [InlineData("valid-input", true)]
-    [InlineData("invalid@input", false)]
-    public void ValidateInput_VariousInputs_ReturnsExpected(string input, bool expected)
-    {
-        // Arrange
-        var validator = new FeatureValidator();
-
-        // Act
-        var result = validator.Validate(input);
-
-        // Assert - No Excel, no batch, no fixture required
-        Assert.Equal(expected, result);
     }
 }
 ```
@@ -126,11 +102,11 @@ Assert.Contains(list.Items, i => i.Name == "Sheet1");  // ✅ Verify persisted
 - **NEVER** call `SaveAsync()` in middle of test
 
 ### Required Traits
-- `[Trait("Category", "Integration|Unit")]`
-- `[Trait("Speed", "Medium|Fast|Slow")]`
+- `[Trait("Category", "Integration")]` - All tests are integration tests
+- `[Trait("Speed", "Medium|Slow")]`
 - `[Trait("Layer", "Core|CLI|McpServer|ComInterop")]`
 - `[Trait("Feature", "<feature-name>")]` - See valid values below
-- `[Trait("RequiresExcel", "true")]` - For integration tests only
+- `[Trait("RequiresExcel", "true")]` - All integration tests require Excel
 - `[Trait("RunType", "OnDemand")]` - For session/lifecycle tests only
 
 ### Valid Feature Values
@@ -144,16 +120,15 @@ Assert.Contains(list.Items, i => i.Name == "Sheet1");  // ✅ Verify persisted
 - **Worksheets** - Worksheet lifecycle
 - **VBA** - VBA script operations
 - **VBATrust** - VBA trust detection/configuration
-- **Validation** - Input validation logic (Unit tests)
 
 ## Test Execution
 
 ```bash
 # Development (fast feedback - excludes VBA tests)
-dotnet test --filter "Category=Unit&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
 # Pre-commit (comprehensive - excludes VBA tests)
-dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
 # Session/batch changes (MANDATORY - see CRITICAL-RULES.md Rule 3)
 dotnet test --filter "RunType=OnDemand"

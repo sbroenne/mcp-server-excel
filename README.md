@@ -281,6 +281,10 @@ This means you get:
 
 ## 📋 Additional Information
 
+### Testing Philosophy
+
+**Why No Unit Tests?** ExcelMcp uses integration tests exclusively because Excel COM cannot be meaningfully mocked. Our integration tests ARE our unit tests. See **[ADR-001: No Unit Tests](docs/ADR-001-NO-UNIT-TESTS.md)** for full architectural rationale.
+
 ### CLI for Direct Automation
 
 ExcelMcp also provides a command-line interface for vba-based Excel automation (no AI required). See **[CLI Guide](docs/CLI.md)** for complete documentation.
