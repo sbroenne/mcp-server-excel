@@ -3,6 +3,10 @@ name: Integration Tests (Excel)
 # This workflow runs Excel COM integration tests on a self-hosted Azure VM runner
 # Requires: Azure Windows VM with Microsoft Excel and GitHub Actions runner installed
 # Setup Guide: docs/AZURE_SELFHOSTED_RUNNER_SETUP.md
+#
+# Trigger Options:
+# - Manual: Workflow dispatch from Actions tab
+# - PR Optional: Add 'run-integration-tests' label to PR
 
 permissions:
   contents: read
@@ -10,33 +14,20 @@ permissions:
   pull-requests: write  # Required for PR comments
 
 on:
-  # Run on PRs to main - this triggers on PR open and every push to the PR branch
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'src/ExcelMcp.Core/**'
-      - 'src/ExcelMcp.ComInterop/**'
-      - 'src/ExcelMcp.CLI/**'
-      - 'src/ExcelMcp.McpServer/**'
-      - 'tests/**'
-
-  # Run on push to main only (after merge, for main branch protection)
-  push:
-    branches: [ main ]
-    paths:
-      - 'src/ExcelMcp.Core/**'
-      - 'src/ExcelMcp.ComInterop/**'
-      - 'src/ExcelMcp.CLI/**'
-      - 'src/ExcelMcp.McpServer/**'
-      - 'tests/**'
-
   # Allow manual trigger from Actions tab
   workflow_dispatch:
+
+  # Optional: Run on PR when specifically requested via label
+  pull_request:
+    types: [labeled]
+    branches: [ main ]
 
 jobs:
   integration-tests:
     runs-on: [self-hosted, windows, excel]
     timeout-minutes: 60
+    # Run on manual dispatch or PR with 'run-integration-tests' label
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && contains(github.event.label.name, 'run-integration-tests'))
 
     steps:
     - name: Checkout code
