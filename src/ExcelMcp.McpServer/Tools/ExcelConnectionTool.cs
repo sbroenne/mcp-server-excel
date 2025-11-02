@@ -113,7 +113,29 @@ public static class ExcelConnectionTool
             throw new ModelContextProtocol.McpException($"list failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        // Add workflow hints
+        var count = result.Connections?.Count ?? 0;
+        var powerQueryCount = result.Connections?.Count(c => c.IsPowerQuery) ?? 0;
+        
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.Connections,
+            workflowHint = count == 0
+                ? "No connections found. Import .odc files or use excel_powerquery for Power Query connections."
+                : powerQueryCount > 0
+                    ? $"Found {count} connection(s) ({powerQueryCount} Power Query). Use excel_powerquery for PQ connections."
+                    : $"Found {count} connection(s). Use 'refresh' to update data or 'export' to backup definitions.",
+            suggestedNextActions = count == 0
+                ? new[] { "Use 'import' to add connections from .odc files", "Use excel_powerquery for M code connections" }
+                : new[]
+                {
+                    powerQueryCount > 0 ? "Use excel_powerquery for Power Query connections" : null,
+                    "Use 'refresh' to update connection data",
+                    "Use 'export' to backup connection definitions as JSON",
+                    "Use 'view' to inspect connection strings"
+                }.Where(s => s != null).ToArray()!
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ViewConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? batchId)
@@ -154,7 +176,21 @@ public static class ExcelConnectionTool
             throw new ModelContextProtocol.McpException($"import failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        // Add workflow hints
+        var inBatch = !string.IsNullOrEmpty(batchId);
+        
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            workflowHint = $"Connection '{connectionName}' imported from {jsonPath}.",
+            suggestedNextActions = new[]
+            {
+                "Use 'test' to verify the connection works",
+                "Use 'refresh' to load data from the connection",
+                "Use 'loadto' to load connection data to a specific worksheet",
+                inBatch ? "Import more connections in this batch" : "Importing multiple? Use excel_batch (faster)"
+            }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ExportConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? jsonPath, string? batchId)
@@ -217,7 +253,20 @@ public static class ExcelConnectionTool
             throw new ModelContextProtocol.McpException($"refresh failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        // Add workflow hints
+        var inBatch = !string.IsNullOrEmpty(batchId);
+        
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            workflowHint = $"Connection '{connectionName}' refreshed successfully. Data updated.",
+            suggestedNextActions = new[]
+            {
+                "Use excel_range 'get-values' to verify the refreshed data",
+                "Use 'properties' to check refresh settings",
+                inBatch ? "Refresh more connections in this batch" : "Refreshing multiple? Use excel_batch (faster)"
+            }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> DeleteConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? batchId)
