@@ -6,13 +6,15 @@ applyTo: "tests/**/*.cs"
 
 > **Three tiers: Unit (fast) → Integration (Excel) → OnDemand (session cleanup)**
 
-## Test Class Template
+## Test Class Templates
+
+### Integration Test Template
 
 ```csharp
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
 [Trait("Layer", "Core")]
-[Trait("Feature", "FeatureName")]
+[Trait("Feature", "FeatureName")]  // PowerQuery, DataModel, Tables, PivotTables, Ranges, Connections, Parameters, Worksheets
 [Trait("RequiresExcel", "true")]
 public partial class FeatureCommandsTests : IClassFixture<TempDirectoryFixture>
 {
@@ -33,7 +35,7 @@ public partial class FeatureCommandsTests : IClassFixture<TempDirectoryFixture>
             nameof(FeatureCommandsTests), 
             nameof(Operation_Scenario_ExpectedResult), 
             _tempDir,
-            ".xlsx");
+            ".xlsx");  // Use ".xlsm" for VBA tests
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
@@ -42,11 +44,37 @@ public partial class FeatureCommandsTests : IClassFixture<TempDirectoryFixture>
         // Assert - Verify actual Excel state, not just success flag
         Assert.True(result.Success, $"Operation failed: {result.ErrorMessage}");
         
-        // Verify object exists/updated in Excel
+        // Verify object exists/updated in Excel (round-trip validation)
         var verifyResult = await _commands.ListAsync(batch);
         Assert.Contains(verifyResult.Items, i => i.Name == "Expected");
         
-        // No SaveAsync unless testing persistence (round-trip)
+        // No SaveAsync unless testing persistence (see examples below)
+    }
+}
+```
+
+### Unit Test Template
+
+```csharp
+[Trait("Category", "Unit")]
+[Trait("Speed", "Fast")]
+[Trait("Layer", "Core")]
+[Trait("Feature", "Validation")]  // Or: PowerQuery, DataModel, etc.
+public class FeatureValidationTests
+{
+    [Theory]
+    [InlineData("valid-input", true)]
+    [InlineData("invalid@input", false)]
+    public void ValidateInput_VariousInputs_ReturnsExpected(string input, bool expected)
+    {
+        // Arrange
+        var validator = new FeatureValidator();
+
+        // Act
+        var result = validator.Validate(input);
+
+        // Assert - No Excel, no batch, no fixture required
+        Assert.Equal(expected, result);
     }
 }
 ```
@@ -66,7 +94,31 @@ public partial class FeatureCommandsTests : IClassFixture<TempDirectoryFixture>
 ### SaveAsync
 - ❌ **FORBIDDEN** unless explicitly testing persistence
 - ✅ **ONLY** for round-trip tests: Create → Save → Re-open → Verify
+- ❌ **NEVER** call in middle of test (breaks subsequent operations)
 - See CRITICAL-RULES.md Rule 14 for details
+
+**Examples:**
+
+```csharp
+// ❌ WRONG: SaveAsync in middle breaks next operation
+await _commands.CreateAsync(batch, "Sheet1");
+await batch.SaveAsync();  // ❌ Breaks subsequent operations!
+await _commands.RenameAsync(batch, "Sheet1", "New");  // FAILS!
+
+// ✅ CORRECT: SaveAsync only at end
+await _commands.CreateAsync(batch, "Sheet1");
+await _commands.RenameAsync(batch, "Sheet1", "New");
+await batch.SaveAsync();  // ✅ After all operations
+
+// ✅ CORRECT: Persistence test with re-open
+await using var batch1 = await ExcelSession.BeginBatchAsync(testFile);
+await _commands.CreateAsync(batch1, "Sheet1");
+await batch1.SaveAsync();  // Save for persistence
+
+await using var batch2 = await ExcelSession.BeginBatchAsync(testFile);
+var list = await _commands.ListAsync(batch2);
+Assert.Contains(list.Items, i => i.Name == "Sheet1");  // ✅ Verify persisted
+```
 
 ### Batch Pattern
 - All Core commands accept `IExcelBatch batch` as first parameter
@@ -75,9 +127,24 @@ public partial class FeatureCommandsTests : IClassFixture<TempDirectoryFixture>
 
 ### Required Traits
 - `[Trait("Category", "Integration|Unit")]`
-- `[Trait("Speed", "Medium|Fast")]`
-- `[Trait("Layer", "Core|CLI|McpServer")]`
-- `[Trait("RequiresExcel", "true")]` for integration tests
+- `[Trait("Speed", "Medium|Fast|Slow")]`
+- `[Trait("Layer", "Core|CLI|McpServer|ComInterop")]`
+- `[Trait("Feature", "<feature-name>")]` - See valid values below
+- `[Trait("RequiresExcel", "true")]` - For integration tests only
+- `[Trait("RunType", "OnDemand")]` - For session/lifecycle tests only
+
+### Valid Feature Values
+- **PowerQuery** - Power Query M code operations
+- **DataModel** - Data Model / DAX operations
+- **Tables** - Excel Table (ListObject) operations
+- **PivotTables** - PivotTable operations
+- **Ranges** - Range data operations
+- **Connections** - Connection management
+- **Parameters** - Named range parameters
+- **Worksheets** - Worksheet lifecycle
+- **VBA** - VBA script operations
+- **VBATrust** - VBA trust detection/configuration
+- **Validation** - Input validation logic (Unit tests)
 
 ## Test Execution
 
@@ -95,6 +162,33 @@ dotnet test --filter "RunType=OnDemand"
 dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
 ```
 
+## Round-Trip Validation Pattern
+
+**Always verify actual Excel state after operations:**
+
+```csharp
+// ✅ CREATE → Verify exists
+var createResult = await _commands.CreateAsync(batch, "TestTable");
+Assert.True(createResult.Success);
+
+var listResult = await _commands.ListAsync(batch);
+Assert.Contains(listResult.Items, i => i.Name == "TestTable");  // ✅ Proves it exists!
+
+// ✅ UPDATE → Verify changes applied
+var updateResult = await _commands.RenameAsync(batch, "TestTable", "NewName");
+Assert.True(updateResult.Success);
+
+var viewResult = await _commands.GetAsync(batch, "NewName");
+Assert.Equal("NewName", viewResult.Name);  // ✅ Proves rename worked!
+
+// ✅ DELETE → Verify removed
+var deleteResult = await _commands.DeleteAsync(batch, "NewName");
+Assert.True(deleteResult.Success);
+
+var finalList = await _commands.ListAsync(batch);
+Assert.DoesNotContain(finalList.Items, i => i.Name == "NewName");  // ✅ Proves deletion!
+```
+
 ## Common Mistakes
 
 | Mistake | Fix |
@@ -102,9 +196,11 @@ dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
 | Shared test file | Each test creates unique file |
 | Only test success flag | Verify actual Excel state |
 | SaveAsync before assertions | Remove SaveAsync entirely |
+| SaveAsync in middle of test | Only at end or in persistence test |
 | Manual IDisposable | Use `IClassFixture<TempDirectoryFixture>` |
 | .xlsx for VBA tests | Use `.xlsm` |
 | "Accept both" assertions | Binary assertions only |
+| Missing Feature trait | Add from valid feature list above |
 
 ## When Tests Fail
 

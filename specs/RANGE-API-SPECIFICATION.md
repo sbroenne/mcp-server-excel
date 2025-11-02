@@ -55,7 +55,7 @@ This specification defines a unified **Range API** that consolidates and replace
 - ✅ Styling, totals, data model integration
 - ✅ Should remain separate (different abstraction level)
 
-**ParameterCommands** (Named ranges, separate concern):
+**NamedRangeCommands** (Named ranges, separate concern):
 - ✅ Create, delete, update named range definitions
 - ✅ List all named ranges
 - ✅ Get/set single values (parameters)
@@ -720,7 +720,7 @@ public interface IRangeCommands
 
 ### Division of Responsibilities
 
-**ParameterCommands** (Existing - KEEP):
+**NamedRangeCommands** (Existing - KEEP):
 - **Define** named ranges: `CreateAsync("SalesData", "Sheet1!A1:D100")`
 - **Manage** named ranges: `UpdateAsync`, `DeleteAsync`, `ListAsync`
 - **Get/Set single value**: `GetAsync`, `SetAsync` (treats named range as parameter/scalar)
@@ -734,8 +734,8 @@ public interface IRangeCommands
 ### How It Works
 
 ```csharp
-// STEP 1: Define the named range (ParameterCommands)
-await parameterCommands.CreateAsync(batch, "SalesData", "Sheet1!A1:D100");
+// STEP 1: Define the named range (NamedRangeCommands)
+await NamedRangeCommands.CreateAsync(batch, "SalesData", "Sheet1!A1:D100");
 
 // STEP 2: Write data - rangeAddress accepts BOTH formats
 await rangeCommands.SetValuesAsync(batch, "", "SalesData", salesData);  // Named range
@@ -747,8 +747,8 @@ var result1 = await rangeCommands.GetValuesAsync(batch, "", "SalesData");  // Na
 var result2 = await rangeCommands.GetValuesAsync(batch, "Sheet1", "A1:D100");  // Regular range
 // Both return same data!
 
-// STEP 4: Update the named range reference (ParameterCommands)
-await parameterCommands.UpdateAsync(batch, "SalesData", "Sheet1!A1:D200");  // Expand range
+// STEP 4: Update the named range reference (NamedRangeCommands)
+await NamedRangeCommands.UpdateAsync(batch, "SalesData", "Sheet1!A1:D200");  // Expand range
 ```
 
 ### Implementation Strategy
@@ -789,7 +789,7 @@ public async Task<RangeValueResult> GetValuesAsync(IExcelBatch batch, string she
 
 ### API Comparison
 
-| Operation | ParameterCommands | RangeCommands |
+| Operation | NamedRangeCommands | RangeCommands |
 |-----------|------------------|---------------|
 | **Create named range** | ✅ `CreateAsync` | ❌ |
 | **Delete named range** | ✅ `DeleteAsync` | ❌ |
@@ -802,7 +802,7 @@ public async Task<RangeValueResult> GetValuesAsync(IExcelBatch batch, string she
 
 ### When to Use Which
 
-**Use ParameterCommands when**:
+**Use NamedRangeCommands when**:
 - Defining/managing named range lifecycle (create, delete, update reference)
 - Listing all named ranges in workbook
 - Working with named ranges as single-value parameters (scalar get/set)
@@ -889,7 +889,7 @@ Commands/
 ├── CellCommands.cs          ← DELETE (4 methods)
 ├── SheetCommands.cs         ← SLIM DOWN (9 methods → 5 methods)
 ├── HyperlinkCommands.cs     ← DELETE (4 methods)
-├── ParameterCommands.cs     ← KEEP (named ranges)
+├── NamedRangeCommands.cs     ← KEEP (named ranges)
 ├── TableCommands.cs         ← KEEP (Excel tables)
 └── ...
 ```
@@ -899,7 +899,7 @@ Commands/
 Commands/
 ├── RangeCommands.cs         ← NEW (30+ methods, all range operations)
 ├── SheetCommands.cs         ← SIMPLIFIED (5 methods, worksheet lifecycle only)
-├── ParameterCommands.cs     ← KEEP (named ranges)
+├── NamedRangeCommands.cs     ← KEEP (named ranges)
 ├── TableCommands.cs         ← KEEP (Excel tables)
 └── ...
 ```
@@ -1592,7 +1592,7 @@ Commands/
 ├── RangeCommands.cs      ← Data & formatting (any range, including tables)
 ├── TableCommands.cs      ← Table structure & lifecycle (ListObject metadata)
 ├── SheetCommands.cs      ← Worksheet lifecycle
-├── ParameterCommands.cs  ← Named ranges
+├── NamedRangeCommands.cs  ← Named ranges
 └── ...
 ```
 
