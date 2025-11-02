@@ -112,10 +112,24 @@ public partial class PowerQueryCommands
                 }
                 else
                 {
-                    // Connection-only query
+                    // No connection found - but check if query has QueryTables (may have been configured to load)
                     ComUtilities.Release(ref query);
-                    result.Success = true;
-                    result.IsConnectionOnly = true;
+                    
+                    // Check if there are QueryTables that reference this query
+                    string? loadedSheet = DetermineLoadedSheet(ctx.Book, queryName);
+                    if (loadedSheet != null)
+                    {
+                        // Query is loaded to a worksheet via QueryTable
+                        result.Success = true;
+                        result.IsConnectionOnly = false;
+                        result.LoadedToSheet = loadedSheet;
+                    }
+                    else
+                    {
+                        // Truly connection-only (no connection, no QueryTables)
+                        result.Success = true;
+                        result.IsConnectionOnly = true;
+                    }
                 }
 
                 return result;
