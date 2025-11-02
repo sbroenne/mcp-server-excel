@@ -38,6 +38,17 @@ dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
 dotnet test --filter "Category=Unit&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 ```
 
+## CI/CD Workflows
+
+**Automated on Pull Requests:**
+- `build-mcp-server.yml` - Builds MCP Server on code changes
+- `build-cli.yml` - Builds CLI on code changes
+- `integration-tests.yml` - Runs Excel COM integration tests on Azure self-hosted runner
+- `codeql.yml` - Security analysis
+- `dependency-review.yml` - Dependency security scanning
+
+**Note:** Integration tests require Excel and run on Azure VM self-hosted runner (see `docs/AZURE_SELFHOSTED_RUNNER_SETUP.md`)
+
 ## Workflow Config Updates
 
 **⚠️ Update ALL workflows when changing:**
@@ -55,7 +66,7 @@ dotnet test --filter "Category=Unit&RunType!=OnDemand&Feature!=VBA&Feature!=VBAT
 ## Release Process (Maintainers)
 
 **Tag Patterns:**
-- MCP Server: `v1.2.3`
+- MCP Server: `mcp-v1.2.3`
 - CLI: `cli-v1.2.3`
 - VS Code Extension: `vscode-v1.1.3`
 

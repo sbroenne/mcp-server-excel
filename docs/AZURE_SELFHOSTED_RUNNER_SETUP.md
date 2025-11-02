@@ -2,6 +2,19 @@
 
 > **Purpose:** Enable full Excel COM integration testing in CI/CD using Azure-hosted Windows VM with Microsoft Excel
 
+## Quick Navigation
+
+**Choose your path:**
+
+| Scenario | Guide | Time |
+|----------|-------|------|
+| **🚀 New setup (no VM)** | [Automated Deployment](#automated-deployment-recommended) | 5 min + 30 min Excel |
+| **🔧 Manual setup (existing VM)** | [Manual Installation](#manual-installation) | 15 min + 30 min Excel |
+| **📖 Infrastructure details** | [`infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md`](../infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md) | Reference |
+| **🔍 Infrastructure code** | [`infrastructure/azure/README.md`](../infrastructure/azure/README.md) | Reference |
+
+---
+
 ## Overview
 
 ExcelMcp requires Microsoft Excel for integration testing. GitHub-hosted runners don't include Excel, so integration tests are currently skipped in CI/CD. This guide shows how to set up an Azure Windows VM with Excel as a GitHub Actions self-hosted runner.
@@ -32,47 +45,202 @@ ExcelMcp requires Microsoft Excel for integration testing. GitHub-hosted runners
 └─────────────────────────────────────────────────────────┘
 ```
 
-## Quick Start
+---
 
-> **✨ NEW: Automated Deployment** - Use Infrastructure as Code for 5-minute setup!
+## Automated Deployment (Recommended)
 
-### Option A: Automated Deployment (Recommended) ⭐
-
-**Fastest way to deploy - only manual step is installing Excel!**
-
-📚 **Automated deployment guide:** [`infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md`](../infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md)  
-🔧 **Manual installation guide:** [`MANUAL_RUNNER_INSTALLATION.md`](MANUAL_RUNNER_INSTALLATION.md) (if automation fails)
+**✨ Fastest way to deploy - only manual step is installing Excel!**
 
 **What gets automated:**
-- ✅ VM provisioning (Standard_B2ms, 8GB RAM)
+- ✅ VM provisioning (Standard_B2s, 4GB RAM - cheapest suitable option)
 - ✅ .NET 8 SDK installation
 - ✅ GitHub Actions runner installation & configuration
 - ✅ Network security configuration
 - ⏭️ **Manual:** Office 365 Excel installation (you must do this via RDP)
 
-**Cost:** ~$61/month (24/7 operation in Sweden Central)
+**Complete guide:** [`infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md`](../infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md)
+
+**Cost:** ~$30/month (with auto-shutdown) or ~$60/month (24/7) in East US region
 
 ---
 
-### Option B: Manual Setup (Step-by-Step)
+## Manual Installation
 
 **Use this option if:**
 - Automated deployment workflow failed
 - You already have a Windows VM
 - You want complete control over the setup
 
-📚 **Complete manual guide:** [`MANUAL_RUNNER_INSTALLATION.md`](MANUAL_RUNNER_INSTALLATION.md)
+### Prerequisites
 
-**Quick summary:**
+- Windows Server 2022 or Windows 10/11 VM (Azure or on-premises)
+- Administrator access to the VM via RDP
+- VM has internet connectivity
+- Office 365 subscription with Excel license
 
-## Prerequisites
+### Installation Steps
 
-- **Azure Subscription** with permissions to create VMs
-- **Office 365 E3/E5 License** or standalone Excel license
-- **GitHub Repository Admin Access** to configure runners
-- **Basic Azure/PowerShell Knowledge**
+#### 1. Connect to VM via RDP
+
+Get your VM's public IP from Azure Portal, then:
+```
+Computer: <VM_PUBLIC_IP>
+Username: Your admin username
+Password: Your admin password
+```
+
+#### 2. Install .NET 8 SDK
+
+Open PowerShell as Administrator:
+
+```powershell
+# Download .NET 8 SDK
+Invoke-WebRequest -Uri "https://aka.ms/dotnet/8.0/dotnet-sdk-win-x64.exe" -OutFile "$env:TEMP\dotnet-sdk.exe"
+
+# Install silently
+Start-Process "$env:TEMP\dotnet-sdk.exe" -ArgumentList '/quiet' -Wait
+
+# Verify
+dotnet --version
+```
+
+#### 3. Generate GitHub Runner Token
+
+**Important:** Tokens expire after 1 hour!
+
+1. Go to repository: `https://github.com/sbroenne/mcp-server-excel`
+2. Navigate to **Settings** → **Actions** → **Runners**
+3. Click **New self-hosted runner**
+4. Select **Windows**
+5. Copy the registration token (long alphanumeric string)
+
+#### 4. Download and Configure GitHub Actions Runner
+
+In PowerShell as Administrator:
+
+```powershell
+# Create runner directory
+New-Item -Path C:\actions-runner -ItemType Directory -Force
+Set-Location C:\actions-runner
+
+# Download latest runner
+$runnerVersion = "2.321.0"  # Check GitHub for latest version
+Invoke-WebRequest -Uri "https://github.com/actions/runner/releases/download/v$runnerVersion/actions-runner-win-x64-$runnerVersion.zip" -OutFile "actions-runner.zip"
+
+# Extract
+Expand-Archive -Path actions-runner.zip -DestinationPath . -Force
+
+# Configure (replace with your token from Step 3)
+$githubToken = "PASTE_YOUR_TOKEN_HERE"
+$repoUrl = "https://github.com/sbroenne/mcp-server-excel"
+
+.\config.cmd --url $repoUrl --token $githubToken --name "azure-excel-runner" --labels "self-hosted,windows,excel" --runnergroup Default --work _work --unattended
+```
+
+#### 5. Install Runner as Windows Service
+
+```powershell
+# Install service
+.\svc.cmd install
+
+# Start service
+.\svc.cmd start
+
+# Verify
+Get-Service actions.runner.*
+# Should show: Running
+```
+
+#### 6. Install Office 365 Excel
+
+**Manual installation required:**
+
+1. Open browser on VM → `https://portal.office.com`
+2. Sign in with Office 365 account
+3. Click **Install Office** → **Office 365 apps**
+4. During installation, select **Excel only**
+5. Complete installation (~15-30 minutes)
+6. Open Excel once to activate (File → Account → verify activation)
+
+#### 7. Verify Excel COM Access
+
+```powershell
+try {
+    $excel = New-Object -ComObject Excel.Application
+    $version = $excel.Version
+    Write-Host "✅ Excel Version: $version" -ForegroundColor Green
+    $excel.Quit()
+    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null
+} catch {
+    Write-Host "❌ Excel not accessible: $_" -ForegroundColor Red
+}
+```
+
+Expected: `✅ Excel Version: 16.0`
+
+#### 8. Verify Runner Registration
+
+Check `https://github.com/sbroenne/mcp-server-excel/settings/actions/runners`:
+- **Name:** azure-excel-runner
+- **Status:** Idle (green circle)
+- **Labels:** self-hosted, windows, excel
+
+#### 9. Test Integration Tests
+
+1. Go to **Actions** tab → **Integration Tests (Excel)**
+2. Click **Run workflow** → select `main` branch
+3. Monitor the run - should complete successfully
+
+### Manual Installation Troubleshooting
+
+**Runner service won't start:**
+```powershell
+Get-EventLog -LogName Application -Source actions.runner.* -Newest 20
+```
+
+**"Runner already exists" error:**
+```powershell
+.\config.cmd remove --token YOUR_NEW_TOKEN
+# Then reconfigure with Step 4 commands
+```
+
+**Excel COM test fails:**
+- Verify Excel is installed and activated
+- Kill background processes: `Get-Process excel | Stop-Process -Force`
+
+**Runner token expired:**
+- Generate new token (Step 3) and reconfigure
+
+---
 
 ## Cost Estimate
+
+## Cost Estimate
+
+**Monthly costs (East US region - cheapest):**
+
+| Resource | Specification | Monthly Cost (USD) |
+|----------|---------------|-------------------|
+| VM (Standard_B2s) | 2 vCPUs, 4 GB RAM | ~$25 |
+| Storage (Premium SSD) | 128 GB | ~$5 |
+| Network Egress | ~10 GB/month | <$1 |
+| **Total (with auto-shutdown)** | | **~$30/month** |
+
+**Other VM options:**
+- Standard_B2ms (2 vCPUs, 8 GB): ~$60/month
+- Standard_D2s_v3 (2 vCPUs, 8 GB): ~$70/month
+
+**Cost optimization:**
+- ✅ Use B2s (cheapest suitable VM)
+- ✅ Enable auto-shutdown at 7 PM (saves ~50%)
+- ✅ Use East US region (cheapest)
+- Deallocate when not in use: ~$5/month (storage only)
+
+---
+
+## Azure Portal VM Creation (Optional)
+
+If you prefer using Azure Portal instead of automation:
 
 **Monthly costs (East US region - cheapest):**
 

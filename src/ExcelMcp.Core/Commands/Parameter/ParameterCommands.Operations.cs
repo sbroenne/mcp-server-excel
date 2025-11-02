@@ -2,13 +2,12 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 
-
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Named range/parameter management commands implementation
+/// Named range lifecycle operations (List, Set, Get, Create, Update, Delete, CreateBulk)
 /// </summary>
-public class ParameterCommands : IParameterCommands
+public partial class ParameterCommands
 {
     /// <inheritdoc />
     public async Task<ParameterListResult> ListAsync(IExcelBatch batch)
@@ -299,112 +298,5 @@ public class ParameterCommands : IParameterCommands
                 ComUtilities.Release(ref nameObj);
             }
         });
-    }
-
-    /// <summary>
-    /// Converts a 2D array from Excel to a serializable List of Lists
-    /// </summary>
-    /// <param name="array2D">The 2D array from Excel (1-based indexing)</param>
-    /// <returns>List of Lists representation</returns>
-    private static List<List<object?>> ConvertArrayToList(object[,] array2D)
-    {
-        var result = new List<List<object?>>();
-
-        // Excel arrays are 1-based, get the bounds
-        int rows = array2D.GetLength(0);
-        int cols = array2D.GetLength(1);
-
-        for (int row = 1; row <= rows; row++)
-        {
-            var rowList = new List<object?>();
-            for (int col = 1; col <= cols; col++)
-            {
-                rowList.Add(array2D[row, col]);
-            }
-            result.Add(rowList);
-        }
-
-        return result;
-    }
-
-    /// <inheritdoc />
-    public async Task<OperationResult> CreateBulkAsync(IExcelBatch batch, IEnumerable<ParameterDefinition> parameters)
-    {
-        var parameterList = parameters?.ToList();
-        
-        if (parameterList == null || parameterList.Count == 0)
-        {
-            return new OperationResult
-            {
-                Success = false,
-                ErrorMessage = "No parameters provided",
-                FilePath = batch.WorkbookPath
-            };
-        }
-
-        var createdCount = 0;
-        var errors = new List<string>();
-
-        foreach (var param in parameterList)
-        {
-            // Validate parameter
-            if (string.IsNullOrWhiteSpace(param.Name))
-            {
-                errors.Add($"Parameter with empty name skipped");
-                continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(param.Reference))
-            {
-                errors.Add($"Parameter '{param.Name}' has empty reference - skipped");
-                continue;
-            }
-
-            // Create named range
-            var createResult = await CreateAsync(batch, param.Name, param.Reference);
-            if (!createResult.Success)
-            {
-                errors.Add($"Failed to create '{param.Name}': {createResult.ErrorMessage}");
-                continue;
-            }
-
-            createdCount++;
-
-            // Set value if provided
-            if (param.Value != null)
-            {
-                var valueStr = Convert.ToString(param.Value) ?? "";
-                var setResult = await SetAsync(batch, param.Name, valueStr);
-                if (!setResult.Success)
-                {
-                    errors.Add($"Created '{param.Name}' but failed to set value: {setResult.ErrorMessage}");
-                }
-            }
-        }
-
-        if (createdCount == 0)
-        {
-            return new OperationResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to create any parameters. Errors: {string.Join("; ", errors)}",
-                FilePath = batch.WorkbookPath
-            };
-        }
-
-        var result = new OperationResult
-        {
-            Success = true,
-            FilePath = batch.WorkbookPath
-        };
-
-        if (errors.Count > 0)
-        {
-        }
-        else
-        {
-        }
-
-        return result;
     }
 }
