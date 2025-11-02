@@ -69,6 +69,17 @@ jobs:
     - name: Build
       run: dotnet build --no-restore --configuration Release
 
+    - name: Verify Core Commands Coverage
+      run: |
+        Write-Output "🔍 Verifying Core Commands coverage..."
+        & scripts/audit-core-coverage.ps1 -FailOnGaps
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "❌ Coverage gaps detected! All Core methods must be exposed via MCP Server."
+          exit 1
+        }
+        Write-Output "✅ Coverage audit passed - 100% coverage maintained"
+      shell: pwsh
+
     - name: Run Integration Tests (ComInterop - Foundation)
       run: dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=cominterop-integration-test-results.trx" --verbosity normal
 

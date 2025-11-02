@@ -94,6 +94,8 @@ public static class ActionExtensions
         RangeAction.MergeCells => "merge-cells",
         RangeAction.UnmergeCells => "unmerge-cells",
         RangeAction.GetMergeInfo => "get-merge-info",
+        RangeAction.AddConditionalFormatting => "add-conditional-formatting",
+        RangeAction.ClearConditionalFormatting => "clear-conditional-formatting",
         RangeAction.SetCellLock => "set-cell-lock",
         RangeAction.GetCellLock => "get-cell-lock",
         _ => throw new ArgumentException($"Unknown RangeAction: {action}")

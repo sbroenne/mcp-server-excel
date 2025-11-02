@@ -54,10 +54,10 @@ public partial class DataModelCommandsTests
     }
 
     [Fact]
-    public async Task CreateMeasure_WithValidParameters_CreatesSuccessfully()
+    public async Task CreateMeasure_ValidNameAndFormula_CreatesSuccessfully()
     {
         // Arrange - Use unique measure name to avoid conflicts with other tests
-        var measureName = $"Test_{nameof(CreateMeasure_WithValidParameters_CreatesSuccessfully)}_{Guid.NewGuid():N}";
+        var measureName = $"Test_{nameof(CreateMeasure_ValidNameAndFormula_CreatesSuccessfully)}_{Guid.NewGuid():N}";
         var daxFormula = "SUM(SalesTable[Amount])";
 
         // Act - Use shared data model file

@@ -10,11 +10,11 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.NamedRange;
 public partial class NamedRangeCommandsTests
 {
     [Fact]
-    public async Task List_WithValidFile_ReturnsSuccess()
+    public async Task List_EmptyWorkbook_ReturnsEmptyList()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(NamedRangeCommandsTests), nameof(List_WithValidFile_ReturnsSuccess), _tempDir);
+            nameof(NamedRangeCommandsTests), nameof(List_EmptyWorkbook_ReturnsEmptyList), _tempDir);
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
@@ -26,11 +26,11 @@ public partial class NamedRangeCommandsTests
     }
 
     [Fact]
-    public async Task Create_WithValidParameter_ReturnsSuccess()
+    public async Task Create_ValidNameAndReference_ReturnsSuccess()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(NamedRangeCommandsTests), nameof(Create_WithValidParameter_ReturnsSuccess), _tempDir);
+            nameof(NamedRangeCommandsTests), nameof(Create_ValidNameAndReference_ReturnsSuccess), _tempDir);
 
         // Act - Use single batch for create and verify
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
@@ -46,11 +46,11 @@ public partial class NamedRangeCommandsTests
     }
 
     [Fact]
-    public async Task Delete_WithValidParameter_ReturnsSuccess()
+    public async Task Delete_ExistingParameter_ReturnsSuccess()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(NamedRangeCommandsTests), nameof(Delete_WithValidParameter_ReturnsSuccess), _tempDir);
+            nameof(NamedRangeCommandsTests), nameof(Delete_ExistingParameter_ReturnsSuccess), _tempDir);
 
         // Act - Use single batch for create, delete, and verify
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);

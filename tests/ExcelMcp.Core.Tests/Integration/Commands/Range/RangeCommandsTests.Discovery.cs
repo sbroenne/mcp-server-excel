@@ -12,10 +12,10 @@ public partial class RangeCommandsTests
     // === NATIVE EXCEL COM OPERATIONS TESTS ===
 
     [Fact]
-    public async Task GetUsedRangeAsync_ReturnsAllNonEmptyCells()
+    public async Task GetUsedRange_SheetWithSparseData_ReturnsNonEmptyCells()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetUsedRangeAsync_ReturnsAllNonEmptyCells), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetUsedRange_SheetWithSparseData_ReturnsNonEmptyCells), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { "Start" }]);
@@ -32,10 +32,10 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task GetCurrentRegionAsync_ReturnsContiguousBlock()
+    public async Task GetCurrentRegion_CellInPopulated3x3Range_ReturnsContiguousBlock()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetCurrentRegionAsync_ReturnsContiguousBlock), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetCurrentRegion_CellInPopulated3x3Range_ReturnsContiguousBlock), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:C3",
@@ -57,10 +57,10 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task GetRangeInfoAsync_ReturnsMetadata()
+    public async Task GetRangeInfo_ValidAddress_ReturnsMetadata()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetRangeInfoAsync_ReturnsMetadata), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetRangeInfo_ValidAddress_ReturnsMetadata), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:D10",

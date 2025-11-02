@@ -10,11 +10,11 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.NamedRange;
 public partial class NamedRangeCommandsTests
 {
     [Fact]
-    public async Task Set_WithValidParameter_ReturnsSuccess()
+    public async Task Set_ExistingParameter_UpdatesValue()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(NamedRangeCommandsTests), nameof(Set_WithValidParameter_ReturnsSuccess), _tempDir);
+            nameof(NamedRangeCommandsTests), nameof(Set_ExistingParameter_UpdatesValue), _tempDir);
 
         // Act - Use single batch for create, set, and verify
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
@@ -34,11 +34,11 @@ public partial class NamedRangeCommandsTests
     }
 
     [Fact]
-    public async Task Get_WithValidParameter_ReturnsValue()
+    public async Task Get_ExistingParameter_ReturnsValue()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(NamedRangeCommandsTests), nameof(Get_WithValidParameter_ReturnsValue), _tempDir);
+            nameof(NamedRangeCommandsTests), nameof(Get_ExistingParameter_ReturnsValue), _tempDir);
         string testValue = "Integration Test Value";
 
         // Act - Use single batch for create, set, and get

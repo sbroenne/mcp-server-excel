@@ -12,12 +12,12 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 public partial class RangeCommandsTests
 {
     [Fact]
-    public async Task GetNumberFormatsAsync_SingleCell_ReturnsFormat()
+    public async Task GetNumberFormats_SingleCell_ReturnsFormat()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
-            nameof(GetNumberFormatsAsync_SingleCell_ReturnsFormat),
+            nameof(GetNumberFormats_SingleCell_ReturnsFormat),
             _tempDir,
             ".xlsx");
 
@@ -42,12 +42,12 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task GetNumberFormatsAsync_MultipleFormats_ReturnsArray()
+    public async Task GetNumberFormats_MultipleFormats_ReturnsArray()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
-            nameof(GetNumberFormatsAsync_MultipleFormats_ReturnsArray),
+            nameof(GetNumberFormats_MultipleFormats_ReturnsArray),
             _tempDir,
             ".xlsx");
 
@@ -79,12 +79,12 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task SetNumberFormatAsync_Currency_AppliesFormatToRange()
+    public async Task SetNumberFormat_Currency_AppliesFormatToRange()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
-            nameof(SetNumberFormatAsync_Currency_AppliesFormatToRange),
+            nameof(SetNumberFormat_Currency_AppliesFormatToRange),
             _tempDir,
             ".xlsx");
 
@@ -108,12 +108,12 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task SetNumberFormatAsync_Percentage_AppliesFormatCorrectly()
+    public async Task SetNumberFormat_Percentage_AppliesFormatCorrectly()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
-            nameof(SetNumberFormatAsync_Percentage_AppliesFormatCorrectly),
+            nameof(SetNumberFormat_Percentage_AppliesFormatCorrectly),
             _tempDir,
             ".xlsx");
 
@@ -134,12 +134,12 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task SetNumberFormatAsync_DateFormat_AppliesCorrectly()
+    public async Task SetNumberFormat_DateFormat_AppliesCorrectly()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
-            nameof(SetNumberFormatAsync_DateFormat_AppliesCorrectly),
+            nameof(SetNumberFormat_DateFormat_AppliesCorrectly),
             _tempDir,
             ".xlsx");
 
@@ -162,12 +162,12 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task SetNumberFormatsAsync_MixedFormats_AppliesDifferentFormatsPerCell()
+    public async Task SetNumberFormats_MixedFormats_AppliesDifferentFormatsPerCell()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
-            nameof(SetNumberFormatsAsync_MixedFormats_AppliesDifferentFormatsPerCell),
+            nameof(SetNumberFormats_MixedFormats_AppliesDifferentFormatsPerCell),
             _tempDir,
             ".xlsx");
 
@@ -199,12 +199,12 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task SetNumberFormatsAsync_DimensionMismatch_ReturnsError()
+    public async Task SetNumberFormats_DimensionMismatch_ReturnsError()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
-            nameof(SetNumberFormatsAsync_DimensionMismatch_ReturnsError),
+            nameof(SetNumberFormats_DimensionMismatch_ReturnsError),
             _tempDir,
             ".xlsx");
 
@@ -224,12 +224,12 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task SetNumberFormatAsync_TextFormat_PreservesLeadingZeros()
+    public async Task SetNumberFormat_TextFormat_PreservesLeadingZeros()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
-            nameof(SetNumberFormatAsync_TextFormat_PreservesLeadingZeros),
+            nameof(SetNumberFormat_TextFormat_PreservesLeadingZeros),
             _tempDir,
             ".xlsx");
 

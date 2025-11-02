@@ -12,10 +12,10 @@ public partial class RangeCommandsTests
     // === FORMULA OPERATIONS TESTS ===
 
     [Fact]
-    public async Task GetFormulasAsync_ReturnsFormulasAndValues()
+    public async Task GetFormulas_ReturnsFormulasAndValues()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetFormulasAsync_ReturnsFormulasAndValues), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetFormulas_ReturnsFormulasAndValues), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Set values and formulas
@@ -41,10 +41,10 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task SetFormulasAsync_WritesFormulasToRange()
+    public async Task SetFormulas_WritesFormulasToRange()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(SetFormulasAsync_WritesFormulasToRange), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(SetFormulas_WritesFormulasToRange), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3",
@@ -72,10 +72,10 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task SetFormulasAsync_WithJsonElementFormulas_WritesFormulasCorrectly()
+    public async Task SetFormulas_WithJsonElementFormulas_WritesFormulasCorrectly()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(SetFormulasAsync_WithJsonElementFormulas_WritesFormulasCorrectly), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(SetFormulas_WithJsonElementFormulas_WritesFormulasCorrectly), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Set up source data

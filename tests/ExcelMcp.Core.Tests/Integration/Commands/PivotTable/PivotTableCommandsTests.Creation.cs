@@ -11,10 +11,10 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 public partial class PivotTableCommandsTests
 {
     [Fact]
-    public async Task CreateFromRange_WithValidData_CreatesCorrectPivotStructure()
+    public async Task CreateFromRange_PopulatedRangeWithHeaders_CreatesCorrectPivotStructure()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(CreateFromRange_WithValidData_CreatesCorrectPivotStructure));
+        var testFile = await CreateTestFileWithDataAsync(nameof(CreateFromRange_PopulatedRangeWithHeaders_CreatesCorrectPivotStructure));
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);

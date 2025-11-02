@@ -13,7 +13,7 @@ public partial class RangeCommandsTests
     // === FIND/REPLACE OPERATIONS TESTS ===
 
     [Fact]
-    public async Task FindAsync_FindsMatchingCells()
+    public async Task Find_FindsMatchingCells()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
@@ -38,7 +38,7 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task ReplaceAsync_ReplacesAllOccurrences()
+    public async Task Replace_ReplacesAllOccurrences()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
@@ -68,7 +68,7 @@ public partial class RangeCommandsTests
     // === SORT OPERATIONS TESTS ===
 
     [Fact]
-    public async Task SortAsync_SortsRangeByColumn()
+    public async Task Sort_SortsRangeByColumn()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);

@@ -12,7 +12,7 @@ public partial class RangeCommandsTests
     // === HYPERLINK OPERATIONS TESTS ===
 
     [Fact]
-    public async Task AddHyperlinkAsync_CreatesHyperlink()
+    public async Task AddHyperlink_CreatesHyperlink()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
@@ -38,7 +38,7 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task RemoveHyperlinkAsync_DeletesHyperlink()
+    public async Task RemoveHyperlink_DeletesHyperlink()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
@@ -56,7 +56,7 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task ListHyperlinksAsync_ReturnsAllHyperlinks()
+    public async Task ListHyperlinks_ReturnsAllHyperlinks()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);

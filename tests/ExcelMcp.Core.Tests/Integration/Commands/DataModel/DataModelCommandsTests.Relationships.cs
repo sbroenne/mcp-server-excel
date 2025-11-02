@@ -10,7 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.DataModel;
 public partial class DataModelCommandsTests
 {
     [Fact]
-    public async Task ListRelationships_WithValidFile_ReturnsSuccessResult()
+    public async Task ListRelationships_FixtureModel_ReturnsRelationships()
     {
         // Act - Use shared data model file
         await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
@@ -56,7 +56,7 @@ public partial class DataModelCommandsTests
     }
 
     [Fact]
-    public async Task CreateRelationship_WithValidParameters_CreatesSuccessfully()
+    public async Task CreateRelationship_ValidTablesAndColumns_CreatesSuccessfully()
     {
         // Arrange - Use shared data model file
         await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
@@ -93,7 +93,7 @@ public partial class DataModelCommandsTests
     }
 
     [Fact]
-    public async Task DeleteRelationship_WithValidRelationship_ReturnsSuccessResult()
+    public async Task DeleteRelationship_ExistingRelationship_ReturnsSuccess()
     {
         // Arrange - Use shared data model file
         await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);

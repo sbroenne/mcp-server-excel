@@ -6,26 +6,25 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
 
 /// <summary>
 /// Tests for PowerQuery lifecycle operations: List, Import, View, Export, Update, Delete
+/// Uses shared PowerQuery file from fixture for READ operations.
+/// WRITE operations use unique query names to avoid conflicts.
 /// </summary>
 public partial class PowerQueryCommandsTests
 {
     /// <summary>
-    /// Verifies that listing queries in a new Excel file returns success with an empty query list.
+    /// Verifies that listing queries returns the fixture queries.
     /// </summary>
     [Fact]
-    public async Task List_WithValidFile_ReturnsSuccessResult()
+    public async Task List_FixtureWorkbook_ReturnsFixtureQueries()
     {
-        // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(List_WithValidFile_ReturnsSuccessResult), _tempDir);
-
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
+        // Act - Use shared file from fixture
+        await using var batch = await ExcelSession.BeginBatchAsync(_powerQueryFile);
         var result = await _powerQueryCommands.ListAsync(batch);
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
         Assert.NotNull(result.Queries);
-        Assert.Empty(result.Queries); // New file has no queries
+        Assert.Equal(3, result.Queries.Count); // Fixture creates 3 queries
     }
 
     /// <summary>
@@ -33,15 +32,16 @@ public partial class PowerQueryCommandsTests
     /// Tests the basic import functionality without loading data to worksheet.
     /// </summary>
     [Fact]
-    public async Task Import_WithValidMCode_ReturnsSuccessResult()
+    public async Task Import_ValidMCode_ReturnsSuccess()
     {
-        // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(Import_WithValidMCode_ReturnsSuccessResult), _tempDir);
-        var testQueryFile = CreateUniqueTestQueryFile(nameof(Import_WithValidMCode_ReturnsSuccessResult));
+        // Arrange - Use unique query name
+        var queryName = $"Test_{nameof(Import_ValidMCode_ReturnsSuccess)}_{Guid.NewGuid():N}";
+        var testQueryFile = CreateUniqueTestQueryFile(nameof(Import_ValidMCode_ReturnsSuccess));
 
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
-        var result = await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
+        // Act - Use shared file
+        await using var batch = await ExcelSession.BeginBatchAsync(_powerQueryFile);
+        var result = await _powerQueryCommands.ImportAsync(batch, queryName, testQueryFile);
+        
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
     }
@@ -51,21 +51,21 @@ public partial class PowerQueryCommandsTests
     /// Tests the integration between import and list operations.
     /// </summary>
     [Fact]
-    public async Task List_AfterImport_ShowsNewQuery()
+    public async Task List_AfterImport_IncludesNewQuery()
     {
-        // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(List_AfterImport_ShowsNewQuery), _tempDir);
-        var testQueryFile = CreateUniqueTestQueryFile(nameof(List_AfterImport_ShowsNewQuery));
+        // Arrange - Use unique query name
+        var queryName = $"Test_{nameof(List_AfterImport_IncludesNewQuery)}_{Guid.NewGuid():N}";
+        var testQueryFile = CreateUniqueTestQueryFile(nameof(List_AfterImport_IncludesNewQuery));
 
-        // Act - Use single batch for both operations
-        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
-        await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
+        // Act - Use single batch on shared file
+        await using var batch = await ExcelSession.BeginBatchAsync(_powerQueryFile);
+        await _powerQueryCommands.ImportAsync(batch, queryName, testQueryFile);
         var result = await _powerQueryCommands.ListAsync(batch);
+        
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Queries);
-        Assert.Single(result.Queries);
-        Assert.Equal("TestQuery", result.Queries[0].Name);
+        Assert.Contains(result.Queries, q => q.Name == queryName);
     }
 
     /// <summary>
@@ -73,16 +73,12 @@ public partial class PowerQueryCommandsTests
     /// Tests that the query's formula is accessible and contains expected content.
     /// </summary>
     [Fact]
-    public async Task View_WithExistingQuery_ReturnsMCode()
+    public async Task View_BasicQuery_ReturnsMCode()
     {
-        // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(View_WithExistingQuery_ReturnsMCode), _tempDir);
-        var testQueryFile = CreateUniqueTestQueryFile(nameof(View_WithExistingQuery_ReturnsMCode));
-
-        // Act - Use single batch for both operations
-        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
-        await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
-        var result = await _powerQueryCommands.ViewAsync(batch, "TestQuery");
+        // Act - View fixture query on shared file
+        await using var batch = await ExcelSession.BeginBatchAsync(_powerQueryFile);
+        var result = await _powerQueryCommands.ViewAsync(batch, "BasicQuery");
+        
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.MCode);
@@ -94,17 +90,15 @@ public partial class PowerQueryCommandsTests
     /// Tests that the exported file exists and can be read.
     /// </summary>
     [Fact]
-    public async Task Export_WithExistingQuery_CreatesFile()
+    public async Task Export_BasicQuery_CreatesFile()
     {
         // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(Export_WithExistingQuery_CreatesFile), _tempDir);
-        var testQueryFile = CreateUniqueTestQueryFile(nameof(Export_WithExistingQuery_CreatesFile));
         var exportPath = Path.Join(_tempDir, $"exported_{Guid.NewGuid():N}.pq");
 
-        // Act - Use single batch for both operations
-        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
-        await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
-        var result = await _powerQueryCommands.ExportAsync(batch, "TestQuery", exportPath);
+        // Act - Export fixture query from shared file
+        await using var batch = await ExcelSession.BeginBatchAsync(_powerQueryFile);
+        var result = await _powerQueryCommands.ExportAsync(batch, "BasicQuery", exportPath);
+        
         // Assert
         Assert.True(result.Success);
         Assert.True(System.IO.File.Exists(exportPath));
@@ -115,18 +109,19 @@ public partial class PowerQueryCommandsTests
     /// Tests the update functionality with a simple M code replacement.
     /// </summary>
     [Fact]
-    public async Task Update_WithValidMCode_ReturnsSuccessResult()
+    public async Task Update_ExistingQuery_ReturnsSuccess()
     {
-        // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(Update_WithValidMCode_ReturnsSuccessResult), _tempDir);
-        var testQueryFile = CreateUniqueTestQueryFile(nameof(Update_WithValidMCode_ReturnsSuccessResult));
+        // Arrange - Create unique query to update
+        var queryName = $"Test_{nameof(Update_ExistingQuery_ReturnsSuccess)}_{Guid.NewGuid():N}";
+        var testQueryFile = CreateUniqueTestQueryFile(nameof(Update_ExistingQuery_ReturnsSuccess));
         var updateFile = Path.Join(_tempDir, $"updated_{Guid.NewGuid():N}.pq");
         System.IO.File.WriteAllText(updateFile, "let\n    UpdatedSource = 1\nin\n    UpdatedSource");
 
-        // Act - Use single batch for both operations
-        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
-        await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
-        var result = await _powerQueryCommands.UpdateAsync(batch, "TestQuery", updateFile);
+        // Act - Import then update on shared file
+        await using var batch = await ExcelSession.BeginBatchAsync(_powerQueryFile);
+        await _powerQueryCommands.ImportAsync(batch, queryName, testQueryFile);
+        var result = await _powerQueryCommands.UpdateAsync(batch, queryName, updateFile);
+        
         // Assert
         Assert.True(result.Success);
     }
@@ -136,51 +131,40 @@ public partial class PowerQueryCommandsTests
     /// Tests the delete operation on a previously imported query.
     /// </summary>
     [Fact]
-    public async Task Delete_WithExistingQuery_ReturnsSuccessResult()
+    public async Task Delete_ExistingQuery_ReturnsSuccess()
     {
-        // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(Delete_WithExistingQuery_ReturnsSuccessResult), _tempDir);
-        var testQueryFile = CreateUniqueTestQueryFile(nameof(Delete_WithExistingQuery_ReturnsSuccessResult));
+        // Arrange - Create unique query to delete
+        var queryName = $"Test_{nameof(Delete_ExistingQuery_ReturnsSuccess)}_{Guid.NewGuid():N}";
+        var testQueryFile = CreateUniqueTestQueryFile(nameof(Delete_ExistingQuery_ReturnsSuccess));
 
-        // Act - Use single batch for both operations
-        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
-        await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
-        var result = await _powerQueryCommands.DeleteAsync(batch, "TestQuery");
+        // Act - Import then delete on shared file
+        await using var batch = await ExcelSession.BeginBatchAsync(_powerQueryFile);
+        await _powerQueryCommands.ImportAsync(batch, queryName, testQueryFile);
+        var result = await _powerQueryCommands.DeleteAsync(batch, queryName);
+        
         // Assert
         Assert.True(result.Success);
     }
 
     /// <summary>
-    /// Verifies the complete lifecycle: import, delete, then list shows no queries.
+    /// Verifies the complete lifecycle: import, delete, then list shows query is gone.
     /// Tests that deletion properly removes the query from the workbook.
     /// </summary>
     [Fact]
-    public async Task Import_ThenDelete_ThenList_ShowsEmpty()
+    public async Task ImportThenDelete_UniqueQuery_RemovedFromList()
     {
-        // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(Import_ThenDelete_ThenList_ShowsEmpty), _tempDir);
-        var testQueryFile = CreateUniqueTestQueryFile(nameof(Import_ThenDelete_ThenList_ShowsEmpty));
+        // Arrange - Create unique query
+        var queryName = $"Test_{nameof(ImportThenDelete_UniqueQuery_RemovedFromList)}_{Guid.NewGuid():N}";
+        var testQueryFile = CreateUniqueTestQueryFile(nameof(ImportThenDelete_UniqueQuery_RemovedFromList));
 
-        // Act - Import
-        await using (var batch = await ExcelSession.BeginBatchAsync(testExcelFile))
-        {
-            await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile);
-        }
+        // Act - All operations in single batch on shared file
+        await using var batch = await ExcelSession.BeginBatchAsync(_powerQueryFile);
+        await _powerQueryCommands.ImportAsync(batch, queryName, testQueryFile);
+        await _powerQueryCommands.DeleteAsync(batch, queryName);
+        var result = await _powerQueryCommands.ListAsync(batch);
 
-        // Act - Delete
-        await using (var batch = await ExcelSession.BeginBatchAsync(testExcelFile))
-        {
-            await _powerQueryCommands.DeleteAsync(batch, "TestQuery");
-        }
-
-        // Act - List and verify
-        await using (var batch = await ExcelSession.BeginBatchAsync(testExcelFile))
-        {
-            var result = await _powerQueryCommands.ListAsync(batch);
-
-            // Assert
-            Assert.True(result.Success);
-            Assert.Empty(result.Queries);
-        }
+        // Assert - Query should not be in list
+        Assert.True(result.Success);
+        Assert.DoesNotContain(result.Queries, q => q.Name == queryName);
     }
 }

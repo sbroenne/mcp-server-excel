@@ -10,11 +10,11 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Sheet;
 public partial class SheetCommandsTests
 {
     [Fact]
-    public async Task List_WithValidFile_ReturnsSuccessResult()
+    public async Task List_DefaultWorkbook_ReturnsDefaultSheets()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetCommandsTests), nameof(List_WithValidFile_ReturnsSuccessResult), _tempDir);
+            nameof(SheetCommandsTests), nameof(List_DefaultWorkbook_ReturnsDefaultSheets), _tempDir);
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
@@ -27,11 +27,11 @@ public partial class SheetCommandsTests
     }
 
     [Fact]
-    public async Task Create_WithValidName_ReturnsSuccessResult()
+    public async Task Create_UniqueName_ReturnsSuccess()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetCommandsTests), nameof(Create_WithValidName_ReturnsSuccessResult), _tempDir);
+            nameof(SheetCommandsTests), nameof(Create_UniqueName_ReturnsSuccess), _tempDir);
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         
@@ -50,11 +50,11 @@ public partial class SheetCommandsTests
     }
 
     [Fact]
-    public async Task Rename_WithValidNames_ReturnsSuccessResult()
+    public async Task Rename_ExistingSheet_ReturnsSuccess()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetCommandsTests), nameof(Rename_WithValidNames_ReturnsSuccessResult), _tempDir);
+            nameof(SheetCommandsTests), nameof(Rename_ExistingSheet_ReturnsSuccess), _tempDir);
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         await _sheetCommands.CreateAsync(batch, "OldName");
@@ -75,11 +75,11 @@ public partial class SheetCommandsTests
     }
 
     [Fact]
-    public async Task Delete_WithExistingSheet_ReturnsSuccessResult()
+    public async Task Delete_NonActiveSheet_ReturnsSuccess()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetCommandsTests), nameof(Delete_WithExistingSheet_ReturnsSuccessResult), _tempDir);
+            nameof(SheetCommandsTests), nameof(Delete_NonActiveSheet_ReturnsSuccess), _tempDir);
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         await _sheetCommands.CreateAsync(batch, "ToDelete");
@@ -99,11 +99,11 @@ public partial class SheetCommandsTests
     }
 
     [Fact]
-    public async Task Copy_WithValidNames_ReturnsSuccessResult()
+    public async Task Copy_ExistingSheet_CreatesNewSheet()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetCommandsTests), nameof(Copy_WithValidNames_ReturnsSuccessResult), _tempDir);
+            nameof(SheetCommandsTests), nameof(Copy_ExistingSheet_CreatesNewSheet), _tempDir);
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         await _sheetCommands.CreateAsync(batch, "Source");

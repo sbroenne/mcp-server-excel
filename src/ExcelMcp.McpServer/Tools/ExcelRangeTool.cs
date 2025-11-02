@@ -210,6 +210,20 @@ public static class ExcelRangeTool
         [Description("Lock status for cells (for set-cell-lock: true = locked, false = unlocked)")]
         bool? locked = null,
 
+        // === CONDITIONAL FORMATTING PARAMETERS ===
+
+        [Description("Conditional formatting rule type (for add-conditional-formatting: cellValue, expression, colorScale, dataBar, iconSet, top10, uniqueValues, duplicateValues, blanks, noBlanks, errors, noErrors)")]
+        string? ruleType = null,
+
+        [Description("First formula for conditional formatting rule (for add-conditional-formatting, required for most rule types)")]
+        string? formula1 = null,
+
+        [Description("Second formula for conditional formatting rule (for add-conditional-formatting, optional, used for 'between' rules)")]
+        string? formula2 = null,
+
+        [Description("Format style for conditional formatting (for add-conditional-formatting, optional, e.g., 'highlight', 'databar', 'colorscale')")]
+        string? formatStyle = null,
+
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
         string? batchId = null)
     {
@@ -258,6 +272,8 @@ public static class ExcelRangeTool
                 RangeAction.MergeCells => await MergeCellsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
                 RangeAction.UnmergeCells => await UnmergeCellsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
                 RangeAction.GetMergeInfo => await GetMergeInfoAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.AddConditionalFormatting => await AddConditionalFormattingAsync(rangeCommands, excelPath, sheetName, rangeAddress, ruleType, formula1, formula2, formatStyle, batchId),
+                RangeAction.ClearConditionalFormatting => await ClearConditionalFormattingAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
                 RangeAction.SetCellLock => await SetCellLockAsync(rangeCommands, excelPath, sheetName, rangeAddress, locked, batchId),
                 RangeAction.GetCellLock => await GetCellLockAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
                 _ => throw new ModelContextProtocol.McpException(
@@ -1160,6 +1176,61 @@ public static class ExcelRangeTool
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
             throw new ModelContextProtocol.McpException($"get-merge-info failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> AddConditionalFormattingAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? ruleType,
+        string? formula1,
+        string? formula2,
+        string? formatStyle,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "add-conditional-formatting");
+        if (string.IsNullOrEmpty(ruleType))
+            ExcelToolsBase.ThrowMissingParameter("ruleType", "add-conditional-formatting");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.AddConditionalFormattingAsync(batch, sheetName ?? "", rangeAddress!,
+                ruleType!, formula1, formula2, formatStyle));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"add-conditional-formatting failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> ClearConditionalFormattingAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "clear-conditional-formatting");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.ClearConditionalFormattingAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"clear-conditional-formatting failed for '{filePath}': {result.ErrorMessage}");
         }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);

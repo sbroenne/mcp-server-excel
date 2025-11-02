@@ -12,10 +12,10 @@ public partial class RangeCommandsTests
     // === CLEAR OPERATIONS TESTS ===
 
     [Fact]
-    public async Task ClearAllAsync_RemovesEverything()
+    public async Task ClearAll_FormattedRange_RemovesEverything()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(ClearAllAsync_RemovesEverything), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(ClearAll_FormattedRange_RemovesEverything), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { "Test" }]);
@@ -30,10 +30,10 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task ClearContentsAsync_PreservesFormatting()
+    public async Task ClearContents_FormattedRange_PreservesFormatting()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(ClearContentsAsync_PreservesFormatting), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(ClearContents_FormattedRange_PreservesFormatting), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:B2",
@@ -54,10 +54,10 @@ public partial class RangeCommandsTests
     // === COPY OPERATIONS TESTS ===
 
     [Fact]
-    public async Task CopyAsync_CopiesRangeToNewLocation()
+    public async Task Copy_CopiesRangeToNewLocation()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(CopyAsync_CopiesRangeToNewLocation), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(Copy_CopiesRangeToNewLocation), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         var sourceData = new List<List<object?>>
@@ -79,10 +79,10 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task CopyValuesAsync_CopiesOnlyValues()
+    public async Task CopyValues_CopiesOnlyValues()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(CopyValuesAsync_CopiesOnlyValues), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(CopyValues_CopiesOnlyValues), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { 10 }]);

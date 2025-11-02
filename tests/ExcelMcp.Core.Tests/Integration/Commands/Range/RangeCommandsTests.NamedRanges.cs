@@ -13,7 +13,7 @@ public partial class RangeCommandsTests
     // === NAMED RANGE TRANSPARENCY TESTS ===
 
     [Fact]
-    public async Task GetValuesAsync_WithNamedRange_ResolvesProperly()
+    public async Task GetValues_WithNamedRange_ResolvesProperly()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
@@ -42,7 +42,7 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task SetValuesAsync_WithNamedRange_WritesProperly()
+    public async Task SetValues_WithNamedRange_WritesProperly()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
@@ -68,7 +68,7 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task GetFormulasAsync_WithNamedRange_ReturnsFormulas()
+    public async Task GetFormulas_WithNamedRange_ReturnsFormulas()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
@@ -92,7 +92,7 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task ClearContentsAsync_WithNamedRange_ClearsData()
+    public async Task ClearContents_WithNamedRange_ClearsData()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);

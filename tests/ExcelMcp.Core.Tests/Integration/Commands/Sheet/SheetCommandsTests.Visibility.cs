@@ -66,12 +66,12 @@ public partial class SheetCommandsTests
     }
 
     [Fact]
-    public async Task ShowAsync_MakesHiddenSheetVisible()
+    public async Task Show_HiddenSheet_MakesVisible()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
-            nameof(ShowAsync_MakesHiddenSheetVisible),
+            nameof(Show_HiddenSheet_MakesVisible),
             _tempDir);
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
@@ -95,12 +95,12 @@ public partial class SheetCommandsTests
     }
 
     [Fact]
-    public async Task ShowAsync_MakesVeryHiddenSheetVisible()
+    public async Task Show_VeryHiddenSheet_MakesVisible()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
-            nameof(ShowAsync_MakesVeryHiddenSheetVisible),
+            nameof(Show_VeryHiddenSheet_MakesVisible),
             _tempDir);
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
@@ -124,12 +124,12 @@ public partial class SheetCommandsTests
     }
 
     [Fact]
-    public async Task HideAsync_HidesVisibleSheet()
+    public async Task Hide_VisibleSheet_MakesHidden()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
-            nameof(HideAsync_HidesVisibleSheet),
+            nameof(Hide_VisibleSheet_MakesHidden),
             _tempDir);
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
@@ -148,12 +148,12 @@ public partial class SheetCommandsTests
     }
 
     [Fact]
-    public async Task VeryHideAsync_VeryHidesVisibleSheet()
+    public async Task VeryHide_VeryHidesVisibleSheet()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
-            nameof(VeryHideAsync_VeryHidesVisibleSheet),
+            nameof(VeryHide_VeryHidesVisibleSheet),
             _tempDir);
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);

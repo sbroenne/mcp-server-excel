@@ -12,7 +12,7 @@ public partial class RangeCommandsTests
     // === VALUE OPERATIONS TESTS ===
 
     [Fact]
-    public async Task GetValuesAsync_SingleCell_Returns1x1Array()
+    public async Task GetValues_SingleCell_Returns1x1Array()
     {
         // Arrange
         string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
@@ -34,7 +34,7 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task GetValuesAsync_Range_Returns2DArray()
+    public async Task GetValues_3x3Range_Returns2DArray()
     {
         // Arrange
         string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
@@ -62,7 +62,7 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task SetValuesAsync_WritesDataToRange()
+    public async Task SetValues_TableWithHeaders_WritesAndReadsBack()
     {
         // Arrange
         string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
@@ -87,7 +87,7 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task SetValuesAsync_WithJsonElementValues_WritesDataCorrectly()
+    public async Task SetValues_JsonElementStrings_WritesCorrectly()
     {
         // Arrange - Simulate MCP Server scenario where JSON deserialization creates JsonElement objects
         string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
@@ -124,7 +124,7 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task SetValuesAsync_WithJsonElementMixedTypes_WritesDataCorrectly()
+    public async Task SetValues_JsonElementMixedTypes_WritesCorrectly()
     {
         // Arrange - Test different JSON value types (string, number, boolean, null)
         string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);

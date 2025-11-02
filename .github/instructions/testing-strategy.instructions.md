@@ -8,6 +8,28 @@ applyTo: "tests/**/*.cs"
 > 
 > **⚠️ No Unit Tests**: ExcelMcp has no traditional unit tests. Integration tests ARE our unit tests because Excel COM cannot be meaningfully mocked. See `docs/ADR-001-NO-UNIT-TESTS.md` for full rationale.
 
+## Test Naming Standard
+
+**Pattern**: `MethodName_StateUnderTest_ExpectedBehavior`
+
+- **MethodName**: Command being tested (no "Async" suffix)
+- **StateUnderTest**: Specific scenario/condition (not generic like "Valid")
+- **ExpectedBehavior**: Clear outcome (Returns*, Creates*, Removes*, etc.)
+
+**Examples**:
+```csharp
+✅ List_EmptyWorkbook_ReturnsEmptyList
+✅ Create_UniqueName_ReturnsSuccess
+✅ Delete_NonActiveSheet_ReturnsSuccess
+✅ ImportThenDelete_UniqueQuery_RemovedFromList
+
+❌ List_WithValidFile_ReturnsSuccessResult  // Too generic
+❌ CreateAsync_ValidName_Success            // Has Async suffix
+❌ Delete                                   // Missing state and behavior
+```
+
+**Full Standard**: See `docs/TEST-NAMING-STANDARD.md` for complete guide with pattern catalog and examples.
+
 ## Test Class Templates
 
 ### Integration Test Template

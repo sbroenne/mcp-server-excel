@@ -128,6 +128,10 @@ public enum RangeAction
     UnmergeCells,
     GetMergeInfo,
 
+    // Conditional Formatting
+    AddConditionalFormatting,
+    ClearConditionalFormatting,
+
     // Cell Protection
     SetCellLock,
     GetCellLock
