@@ -168,7 +168,7 @@ public class ResultSerializationTests
     public void ParameterListResult_WithParameters_SerializesToJson()
     {
         // Arrange
-        var result = new ParameterListResult
+        var result = new NamedRangeListResult
         {
             Success = true,
             FilePath = "parameter-list.xlsx",
@@ -181,7 +181,7 @@ public class ResultSerializationTests
 
         // Act
         var json = JsonSerializer.Serialize(result, _options);
-        var deserialized = JsonSerializer.Deserialize<ParameterListResult>(json, _options);
+        var deserialized = JsonSerializer.Deserialize<NamedRangeListResult>(json, _options);
 
         // Assert
         Assert.Contains("\"parameters\":", json);
@@ -195,10 +195,10 @@ public class ResultSerializationTests
     public void ScriptListResult_WithModules_SerializesToJson()
     {
         // Arrange
-        var result = new ScriptListResult
+        var result = new VbaListResult
         {
             Success = true,
-            FilePath = "script-list.xlsm",
+            FilePath = "vba-list.xlsm",
             Scripts =
             [
                 new()
@@ -213,7 +213,7 @@ public class ResultSerializationTests
 
         // Act
         var json = JsonSerializer.Serialize(result, _options);
-        var deserialized = JsonSerializer.Deserialize<ScriptListResult>(json, _options);
+        var deserialized = JsonSerializer.Deserialize<VbaListResult>(json, _options);
 
         // Assert
         Assert.Contains("\"scripts\":", json);

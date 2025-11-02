@@ -417,7 +417,7 @@ public class PowerQueryLoadToBothResult : OperationResult
 /// <summary>
 /// Result for listing named ranges/parameters
 /// </summary>
-public class ParameterListResult : ResultBase
+public class NamedRangeListResult : ResultBase
 {
     /// <summary>
     /// List of named ranges/parameters
@@ -454,7 +454,7 @@ public class ParameterInfo
 /// <summary>
 /// Result for getting parameter value
 /// </summary>
-public class ParameterValueResult : ResultBase
+public class NamedRangeValueResult : ResultBase
 {
     /// <summary>
     /// Name of the parameter
@@ -480,7 +480,7 @@ public class ParameterValueResult : ResultBase
 /// <summary>
 /// Result for listing VBA scripts
 /// </summary>
-public class ScriptListResult : ResultBase
+public class VbaListResult : ResultBase
 {
     /// <summary>
     /// List of VBA scripts
@@ -491,7 +491,7 @@ public class ScriptListResult : ResultBase
 /// <summary>
 /// Result for viewing VBA module code
 /// </summary>
-public class ScriptViewResult : ResultBase
+public class VbaViewResult : ResultBase
 {
     /// <summary>
     /// Module name

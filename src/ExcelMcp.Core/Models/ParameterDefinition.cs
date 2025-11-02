@@ -3,7 +3,7 @@ namespace Sbroenne.ExcelMcp.Core.Models;
 /// <summary>
 /// Defines a named range parameter with optional initial value for bulk creation
 /// </summary>
-public class ParameterDefinition
+public class NamedRangeDefinition
 {
     /// <summary>
     /// Name of the named range parameter

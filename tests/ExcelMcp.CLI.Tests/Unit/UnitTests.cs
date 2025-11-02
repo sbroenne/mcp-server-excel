@@ -80,23 +80,23 @@ public class UnitTests
     }
 
     [Theory]
-    [InlineData(new string[] { "param-list" }, 1)] // Missing file path
-    [InlineData(new string[] { "param-get" }, 1)] // Missing file path
-    [InlineData(new string[] { "param-get", "file.xlsx" }, 1)] // Missing param name
-    [InlineData(new string[] { "param-set" }, 1)] // Missing file path
-    [InlineData(new string[] { "param-set", "file.xlsx" }, 1)] // Missing param name
-    [InlineData(new string[] { "param-set", "file.xlsx", "ParamName" }, 1)] // Missing value
+    [InlineData(new string[] { "namedrange-list" }, 1)] // Missing file path
+    [InlineData(new string[] { "namedrange-get" }, 1)] // Missing file path
+    [InlineData(new string[] { "namedrange-get", "file.xlsx" }, 1)] // Missing param name
+    [InlineData(new string[] { "namedrange-set" }, 1)] // Missing file path
+    [InlineData(new string[] { "namedrange-set", "file.xlsx" }, 1)] // Missing param name
+    [InlineData(new string[] { "namedrange-set", "file.xlsx", "ParamName" }, 1)] // Missing value
     public void ParameterCommands_WithInvalidArgs_ReturnsErrorExitCode(string[] args, int expectedExitCode)
     {
         // Arrange
-        var commands = new ParameterCommands();
+        var commands = new NamedRangeCommands();
 
         // Act
         int actualExitCode = args[0] switch
         {
-            "param-list" => commands.List(args),
-            "param-get" => commands.Get(args),
-            "param-set" => commands.Set(args),
+            "namedrange-list" => commands.List(args),
+            "namedrange-get" => commands.Get(args),
+            "namedrange-set" => commands.Set(args),
             _ => throw new ArgumentException($"Unknown command: {args[0]}")
         };
 
@@ -105,18 +105,18 @@ public class UnitTests
     }
 
     [Theory]
-    [InlineData(new string[] { "script-list" }, 1)] // Missing file path
+    [InlineData(new string[] { "vba-list" }, 1)] // Missing file path
     public void ScriptCommands_WithInvalidArgs_ReturnsErrorExitCode(string[] args, int expectedExitCode)
     {
         // Arrange
-        var commands = new ScriptCommands();
+        var commands = new VbaCommands();
 
         // Act & Assert - Should not throw, should return error exit code
         try
         {
             int actualExitCode = args[0] switch
             {
-                "script-list" => commands.List(args),
+                "vba-list" => commands.List(args),
                 _ => throw new ArgumentException($"Unknown command: {args[0]}")
             };
             Assert.Equal(expectedExitCode, actualExitCode);

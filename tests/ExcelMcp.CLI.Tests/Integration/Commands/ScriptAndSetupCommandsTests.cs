@@ -4,7 +4,7 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 
 /// <summary>
-/// CLI-specific tests for ScriptCommands - verifying argument parsing, exit codes, and CLI behavior
+/// CLI-specific tests for VbaCommands - verifying argument parsing, exit codes, and CLI behavior
 /// 
 /// LAYER RESPONSIBILITY:
 /// - ✅ Test argument validation (missing args, invalid args)
@@ -20,18 +20,18 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 [Trait("Layer", "CLI")]
 public class ScriptCommandsTests
 {
-    private readonly ScriptCommands _cliCommands;
+    private readonly VbaCommands _cliCommands;
 
     public ScriptCommandsTests()
     {
-        _cliCommands = new ScriptCommands();
+        _cliCommands = new VbaCommands();
     }
 
     [Fact]
     public void List_WithMissingFileArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "script-list" }; // Missing file path
+        string[] args = { "vba-list" }; // Missing file path
 
         // Act
         int exitCode = _cliCommands.List(args);
@@ -44,7 +44,7 @@ public class ScriptCommandsTests
     public void Export_WithMissingModuleNameArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "script-export", "file.xlsm" }; // Missing module name
+        string[] args = { "vba-export", "file.xlsm" }; // Missing module name
 
         // Act & Assert - Handle potential markup exceptions
         try
@@ -64,7 +64,7 @@ public class ScriptCommandsTests
     public void Export_WithInvalidFileExtension_ReturnsErrorExitCode()
     {
         // Arrange - VBA requires .xlsm files
-        string[] args = { "script-export", "invalid.xlsx", "Module1", "output.vba" };
+        string[] args = { "vba-export", "invalid.xlsx", "Module1", "output.vba" };
 
         // Act
         int exitCode = _cliCommands.Export(args);
@@ -77,7 +77,7 @@ public class ScriptCommandsTests
     public async Task Import_WithMissingVbaFileArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "script-import", "file.xlsm", "Module1" }; // Missing VBA file
+        string[] args = { "vba-import", "file.xlsm", "Module1" }; // Missing VBA file
 
         // Act
         int exitCode = await _cliCommands.Import(args);
@@ -87,7 +87,7 @@ public class ScriptCommandsTests
     }
 
     [Theory]
-    [InlineData("script-run")]
+    [InlineData("vba-run")]
     public void Run_WithMissingArgs_ReturnsErrorExitCode(params string[] args)
     {
         // Act & Assert - Handle potential markup exceptions

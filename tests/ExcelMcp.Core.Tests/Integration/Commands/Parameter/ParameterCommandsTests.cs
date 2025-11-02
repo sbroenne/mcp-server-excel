@@ -16,12 +16,12 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Parameter;
 [Trait("RequiresExcel", "true")]
 public partial class ParameterCommandsTests : IClassFixture<TempDirectoryFixture>
 {
-    private readonly IParameterCommands _parameterCommands;
+    private readonly INamedRangeCommands _parameterCommands;
     private readonly string _tempDir;
 
     public ParameterCommandsTests(TempDirectoryFixture fixture)
     {
-        _parameterCommands = new ParameterCommands();
+        _parameterCommands = new NamedRangeCommands();
         _tempDir = fixture.TempDir;
     }
 }

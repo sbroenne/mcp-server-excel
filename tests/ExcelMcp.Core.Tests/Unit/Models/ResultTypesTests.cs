@@ -92,7 +92,7 @@ public class ResultTypesTests
     public void ParameterListResult_WithParameters_HasCorrectStructure()
     {
         // Arrange & Act
-        var result = new ParameterListResult
+        var result = new NamedRangeListResult
         {
             Success = true,
             FilePath = "parameter-list.xlsx",
@@ -114,7 +114,7 @@ public class ResultTypesTests
     public void ParameterValueResult_HasValueAndReference()
     {
         // Arrange & Act
-        var result = new ParameterValueResult
+        var result = new NamedRangeValueResult
         {
             Success = true,
             FilePath = "parameter-value.xlsx",
@@ -187,10 +187,10 @@ public class ResultTypesTests
     public void ScriptListResult_WithModules_HasCorrectStructure()
     {
         // Arrange & Act
-        var result = new ScriptListResult
+        var result = new VbaListResult
         {
             Success = true,
-            FilePath = "script-list.xlsm",
+            FilePath = "vba-list.xlsm",
             Scripts =
             [
                 new()

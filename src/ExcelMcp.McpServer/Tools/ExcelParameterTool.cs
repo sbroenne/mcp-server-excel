@@ -62,16 +62,16 @@ Actions available as dropdown in MCP clients.")]
     {
         try
         {
-            var parameterCommands = new ParameterCommands();
+            var NamedRangeCommands = new NamedRangeCommands();
             var actionString = action.ToActionString();
 
             return actionString switch
             {
-                "list" => await ListParametersAsync(parameterCommands, excelPath, batchId),
-                "get" => await GetParameterAsync(parameterCommands, excelPath, parameterName, batchId),
-                "set" => await SetParameterAsync(parameterCommands, excelPath, parameterName, value, batchId),
-                "create" => await CreateParameterAsync(parameterCommands, excelPath, parameterName, value, batchId),
-                "delete" => await DeleteParameterAsync(parameterCommands, excelPath, parameterName, batchId),
+                "list" => await ListParametersAsync(NamedRangeCommands, excelPath, batchId),
+                "get" => await GetParameterAsync(NamedRangeCommands, excelPath, parameterName, batchId),
+                "set" => await SetParameterAsync(NamedRangeCommands, excelPath, parameterName, value, batchId),
+                "create" => await CreateParameterAsync(NamedRangeCommands, excelPath, parameterName, value, batchId),
+                "delete" => await DeleteParameterAsync(NamedRangeCommands, excelPath, parameterName, batchId),
                 _ => throw new ModelContextProtocol.McpException($"Unknown action '{actionString}'")
             };
         }
@@ -86,7 +86,7 @@ Actions available as dropdown in MCP clients.")]
         }
     }
 
-    private static async Task<string> ListParametersAsync(ParameterCommands commands, string filePath, string? batchId)
+    private static async Task<string> ListParametersAsync(NamedRangeCommands commands, string filePath, string? batchId)
     {
         var result = await ExcelToolsBase.WithBatchAsync(
             batchId,
@@ -104,7 +104,7 @@ Actions available as dropdown in MCP clients.")]
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetParameterAsync(ParameterCommands commands, string filePath, string? parameterName, string? batchId)
+    private static async Task<string> GetParameterAsync(NamedRangeCommands commands, string filePath, string? parameterName, string? batchId)
     {
         if (string.IsNullOrEmpty(parameterName))
             throw new ModelContextProtocol.McpException("parameterName is required for get action");
@@ -125,7 +125,7 @@ Actions available as dropdown in MCP clients.")]
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetParameterAsync(ParameterCommands commands, string filePath, string? parameterName, string? value, string? batchId)
+    private static async Task<string> SetParameterAsync(NamedRangeCommands commands, string filePath, string? parameterName, string? value, string? batchId)
     {
         if (string.IsNullOrEmpty(parameterName) || value == null)
             throw new ModelContextProtocol.McpException("parameterName and value are required for set action");
@@ -146,7 +146,7 @@ Actions available as dropdown in MCP clients.")]
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> UpdateParameterAsync(ParameterCommands commands, string filePath, string? parameterName, string? value, string? batchId)
+    private static async Task<string> UpdateParameterAsync(NamedRangeCommands commands, string filePath, string? parameterName, string? value, string? batchId)
     {
         if (string.IsNullOrEmpty(parameterName) || string.IsNullOrEmpty(value))
             throw new ModelContextProtocol.McpException("parameterName and value (cell reference) are required for update action");
@@ -167,7 +167,7 @@ Actions available as dropdown in MCP clients.")]
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> CreateParameterAsync(ParameterCommands commands, string filePath, string? parameterName, string? value, string? batchId)
+    private static async Task<string> CreateParameterAsync(NamedRangeCommands commands, string filePath, string? parameterName, string? value, string? batchId)
     {
         if (string.IsNullOrEmpty(parameterName) || string.IsNullOrEmpty(value))
             throw new ModelContextProtocol.McpException("parameterName and value (cell reference) are required for create action");
@@ -188,7 +188,7 @@ Actions available as dropdown in MCP clients.")]
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> DeleteParameterAsync(ParameterCommands commands, string filePath, string? parameterName, string? batchId)
+    private static async Task<string> DeleteParameterAsync(NamedRangeCommands commands, string filePath, string? parameterName, string? batchId)
     {
         if (string.IsNullOrEmpty(parameterName))
             throw new ModelContextProtocol.McpException("parameterName is required for delete action");
@@ -209,16 +209,16 @@ Actions available as dropdown in MCP clients.")]
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> CreateBulkParametersAsync(ParameterCommands commands, string excelPath, string? parametersJson, string? batchId)
+    private static async Task<string> CreateBulkParametersAsync(NamedRangeCommands commands, string excelPath, string? parametersJson, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(parametersJson))
             throw new ModelContextProtocol.McpException("parametersJson is required for create-bulk action");
 
         // Deserialize JSON array of parameter definitions
-        List<ParameterDefinition>? parameters;
+        List<NamedRangeDefinition>? parameters;
         try
         {
-            parameters = JsonSerializer.Deserialize<List<ParameterDefinition>>(
+            parameters = JsonSerializer.Deserialize<List<NamedRangeDefinition>>(
                 parametersJson,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 

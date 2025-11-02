@@ -7,13 +7,13 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 /// <summary>
 /// VBA script management commands - CLI presentation layer (formats Core results)
 /// </summary>
-public class ScriptCommands : IScriptCommands
+public class VbaCommands : IVbaCommands
 {
-    private readonly Core.Commands.IScriptCommands _coreCommands;
+    private readonly Core.Commands.IVbaCommands _coreCommands;
 
-    public ScriptCommands()
+    public VbaCommands()
     {
-        _coreCommands = new Core.Commands.ScriptCommands();
+        _coreCommands = new Core.Commands.VbaCommands();
     }
 
     /// <summary>
@@ -54,7 +54,7 @@ public class ScriptCommands : IScriptCommands
         string filePath = args[1];
         AnsiConsole.MarkupLine($"[bold]VBA Scripts in:[/] {Path.GetFileName(filePath)}\n");
 
-        ScriptListResult result;
+        VbaListResult result;
         try
         {
             var task = Task.Run(async () =>

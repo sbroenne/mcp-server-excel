@@ -6,17 +6,17 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// <summary>
 /// VBA script management commands
 /// </summary>
-public interface IScriptCommands
+public interface IVbaCommands
 {
     /// <summary>
     /// Lists all VBA modules and procedures in the workbook
     /// </summary>
-    Task<ScriptListResult> ListAsync(IExcelBatch batch);
+    Task<VbaListResult> ListAsync(IExcelBatch batch);
 
     /// <summary>
     /// Views VBA module code without exporting to file
     /// </summary>
-    Task<ScriptViewResult> ViewAsync(IExcelBatch batch, string moduleName);
+    Task<VbaViewResult> ViewAsync(IExcelBatch batch, string moduleName);
 
     /// <summary>
     /// Exports VBA module code to a file

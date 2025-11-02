@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// <summary>
 /// VBA script management commands - Core data layer (no console output)
 /// </summary>
-public partial class ScriptCommands : IScriptCommands
+public partial class VbaCommands : IVbaCommands
 {
     /// <summary>
     /// Check if VBA trust is enabled by reading registry

@@ -9,12 +9,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// <summary>
 /// VBA script lifecycle operations (List, View, Export, Import, Update, Delete)
 /// </summary>
-public partial class ScriptCommands
+public partial class VbaCommands
 {
     /// <inheritdoc />
-    public async Task<ScriptListResult> ListAsync(IExcelBatch batch)
+    public async Task<VbaListResult> ListAsync(IExcelBatch batch)
     {
-        var result = new ScriptListResult { FilePath = batch.WorkbookPath };
+        var result = new VbaListResult { FilePath = batch.WorkbookPath };
 
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
@@ -130,9 +130,9 @@ public partial class ScriptCommands
     }
 
     /// <inheritdoc />
-    public async Task<ScriptViewResult> ViewAsync(IExcelBatch batch, string moduleName)
+    public async Task<VbaViewResult> ViewAsync(IExcelBatch batch, string moduleName)
     {
-        var result = new ScriptViewResult { FilePath = batch.WorkbookPath, ModuleName = moduleName };
+        var result = new VbaViewResult { FilePath = batch.WorkbookPath, ModuleName = moduleName };
 
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
@@ -263,7 +263,7 @@ public partial class ScriptCommands
         var result = new OperationResult
         {
             FilePath = batch.WorkbookPath,
-            Action = "script-export"
+            Action = "vba-export"
         };
 
         // Validate and normalize the output file path to prevent path traversal attacks
@@ -378,7 +378,7 @@ public partial class ScriptCommands
         var result = new OperationResult
         {
             FilePath = batch.WorkbookPath,
-            Action = "script-import"
+            Action = "vba-import"
         };
 
         // Validate and normalize the VBA file path to prevent path traversal attacks
@@ -480,7 +480,7 @@ public partial class ScriptCommands
         var result = new OperationResult
         {
             FilePath = batch.WorkbookPath,
-            Action = "script-update"
+            Action = "vba-update"
         };
 
         // Validate and normalize the VBA file path to prevent path traversal attacks

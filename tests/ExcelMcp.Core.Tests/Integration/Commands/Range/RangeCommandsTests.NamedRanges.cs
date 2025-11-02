@@ -20,7 +20,7 @@ public partial class RangeCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create a named range pointing to A1:B2
-        var paramCommands = new ParameterCommands();
+        var paramCommands = new NamedRangeCommands();
         await paramCommands.CreateAsync(batch, "TestData", "Sheet1!$A$1:$B$2");
 
         // Set data in the range
@@ -49,7 +49,7 @@ public partial class RangeCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create a named range
-        var paramCommands = new ParameterCommands();
+        var paramCommands = new NamedRangeCommands();
         await paramCommands.CreateAsync(batch, "SalesData", "Sheet1!$A$1:$C$2");
 
         // Act - Write using named range
@@ -75,7 +75,7 @@ public partial class RangeCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create named range and set data + formula
-        var paramCommands = new ParameterCommands();
+        var paramCommands = new NamedRangeCommands();
         await paramCommands.CreateAsync(batch, "CalcRange", "Sheet1!$A$1:$B$2");
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { 10 }]);
@@ -99,7 +99,7 @@ public partial class RangeCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create named range and populate
-        var paramCommands = new ParameterCommands();
+        var paramCommands = new NamedRangeCommands();
         await paramCommands.CreateAsync(batch, "TempData", "Sheet1!$A$1:$B$2");
 
         await _commands.SetValuesAsync(batch, "", "TempData",

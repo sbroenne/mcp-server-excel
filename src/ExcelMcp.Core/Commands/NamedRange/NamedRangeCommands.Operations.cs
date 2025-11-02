@@ -7,12 +7,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// <summary>
 /// Named range lifecycle operations (List, Set, Get, Create, Update, Delete, CreateBulk)
 /// </summary>
-public partial class ParameterCommands
+public partial class NamedRangeCommands
 {
     /// <inheritdoc />
-    public async Task<ParameterListResult> ListAsync(IExcelBatch batch)
+    public async Task<NamedRangeListResult> ListAsync(IExcelBatch batch)
     {
-        var result = new ParameterListResult { FilePath = batch.WorkbookPath };
+        var result = new NamedRangeListResult { FilePath = batch.WorkbookPath };
 
         return await batch.Execute((ctx, ct) =>
         {
@@ -139,9 +139,9 @@ public partial class ParameterCommands
     }
 
     /// <inheritdoc />
-    public async Task<ParameterValueResult> GetAsync(IExcelBatch batch, string paramName)
+    public async Task<NamedRangeValueResult> GetAsync(IExcelBatch batch, string paramName)
     {
-        var result = new ParameterValueResult { FilePath = batch.WorkbookPath, ParameterName = paramName };
+        var result = new NamedRangeValueResult { FilePath = batch.WorkbookPath, ParameterName = paramName };
 
         return await batch.Execute((ctx, ct) =>
         {

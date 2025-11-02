@@ -8,7 +8,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// <summary>
 /// Named range/parameter management commands implementation
 /// </summary>
-public partial class ParameterCommands : IParameterCommands
+public partial class NamedRangeCommands : INamedRangeCommands
 {
     private static List<List<object?>> ConvertArrayToList(object[,] array2D)
     {
@@ -32,7 +32,7 @@ public partial class ParameterCommands : IParameterCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> CreateBulkAsync(IExcelBatch batch, IEnumerable<ParameterDefinition> parameters)
+    public async Task<OperationResult> CreateBulkAsync(IExcelBatch batch, IEnumerable<NamedRangeDefinition> parameters)
     {
         var parameterList = parameters?.ToList();
         

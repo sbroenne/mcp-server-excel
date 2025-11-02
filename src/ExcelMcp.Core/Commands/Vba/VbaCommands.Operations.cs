@@ -8,7 +8,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// <summary>
 /// VBA script operations (Run)
 /// </summary>
-public partial class ScriptCommands
+public partial class VbaCommands
 {
     /// <inheritdoc />
     public async Task<OperationResult> RunAsync(IExcelBatch batch, string procedureName, params string[] parameters)
@@ -16,7 +16,7 @@ public partial class ScriptCommands
         var result = new OperationResult
         {
             FilePath = batch.WorkbookPath,
-            Action = "script-run"
+            Action = "vba-run"
         };
 
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
@@ -73,7 +73,7 @@ public partial class ScriptCommands
         var result = new OperationResult
         {
             FilePath = batch.WorkbookPath,
-            Action = "script-delete"
+            Action = "vba-delete"
         };
 
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);

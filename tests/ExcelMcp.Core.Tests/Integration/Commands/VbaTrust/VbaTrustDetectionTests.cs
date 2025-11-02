@@ -15,12 +15,12 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.VbaTrust;
 [Trait("Feature", "VBATrust")]
 public partial class VbaTrustDetectionTests : IClassFixture<TempDirectoryFixture>
 {
-    private readonly IScriptCommands _scriptCommands;
+    private readonly IVbaCommands _scriptCommands;
     private readonly string _tempDir;
 
     public VbaTrustDetectionTests(TempDirectoryFixture fixture)
     {
-        _scriptCommands = new ScriptCommands();
+        _scriptCommands = new VbaCommands();
         _tempDir = fixture.TempDir;
     }
 

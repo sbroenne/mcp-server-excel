@@ -40,8 +40,8 @@ class Program
             var powerQuery = new PowerQueryCommands();
             var sheet = new SheetCommands();
             var range = new RangeCommands();
-            var param = new ParameterCommands();
-            var script = new ScriptCommands();
+            var param = new NamedRangeCommands();
+            var script = new VbaCommands();
             var file = new FileCommands();
             var connection = new ConnectionCommands();
             var dataModel = new DataModelCommands();  // Used for dm-* commands
@@ -114,12 +114,12 @@ class Program
                 "range-validate" => range.ValidateRange(args),
 
                 // Parameter commands
-                "param-list" => param.List(args),
-                "param-set" => param.Set(args),
-                "param-get" => param.Get(args),
-                "param-update" => param.Update(args),
-                "param-create" => param.Create(args),
-                "param-delete" => param.Delete(args),
+                "namedrange-list" => param.List(args),
+                "namedrange-set" => param.Set(args),
+                "namedrange-get" => param.Get(args),
+                "namedrange-update" => param.Update(args),
+                "namedrange-create" => param.Create(args),
+                "namedrange-delete" => param.Delete(args),
 
                 // Table commands
                 "table-list" => table.List(args),
@@ -165,13 +165,13 @@ class Program
                 "conn-test" => connection.Test(args),
 
                 // Script commands
-                "script-list" => script.List(args),
-                "script-view" => script.View(args),
-                "script-export" => script.Export(args),
-                "script-import" => await script.Import(args),
-                "script-update" => await script.Update(args),
-                "script-delete" => script.Delete(args),
-                "script-run" => script.Run(args),
+                "vba-list" => script.List(args),
+                "vba-view" => script.View(args),
+                "vba-export" => script.Export(args),
+                "vba-import" => await script.Import(args),
+                "vba-update" => await script.Update(args),
+                "vba-delete" => script.Delete(args),
+                "vba-run" => script.Run(args),
 
                 // Data Model commands (READ operations via COM API)
                 "dm-list-tables" => dataModel.ListTables(args),

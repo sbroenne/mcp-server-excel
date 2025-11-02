@@ -7,9 +7,9 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 /// <summary>
 /// Named range/parameter management commands - wraps Core with CLI formatting
 /// </summary>
-public class ParameterCommands : IParameterCommands
+public class NamedRangeCommands : INamedRangeCommands
 {
-    private readonly Core.Commands.ParameterCommands _coreCommands = new();
+    private readonly Core.Commands.NamedRangeCommands _coreCommands = new();
 
     public int List(string[] args)
     {

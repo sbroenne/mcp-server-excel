@@ -108,7 +108,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             // Create commands
             var dataModelCommands = new DataModelCommands();
             var powerQueryCommands = new PowerQueryCommands(dataModelCommands);
-            var parameterCommands = new ParameterCommands();
+            var NamedRangeCommands = new NamedRangeCommands();
 
             // Convert enum to action string
             var actionString = action.ToActionString();

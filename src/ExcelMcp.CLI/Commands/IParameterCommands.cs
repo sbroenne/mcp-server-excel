@@ -3,7 +3,7 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 /// <summary>
 /// Named range/parameter management commands
 /// </summary>
-public interface IParameterCommands
+public interface INamedRangeCommands
 {
     int List(string[] args);
     int Set(string[] args);

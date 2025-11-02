@@ -13,8 +13,8 @@ All commands now display AI-powered workflow guidance after successful operation
 Next steps: Review the imported code for any required customizations
 
 Suggested Next Actions:
-  • Run the VBA procedure with script-run
-  • Export the module for version control with script-export
+  • Run the VBA procedure with vba-run
+  • Export the module for version control with vba-export
   • Test the module functionality
 ```
 
@@ -381,52 +381,52 @@ excelcli range-validate "Data.xlsx" "Sheet1" "A2:A100" Date "1/1/2025" --operato
 - **Quote Escaping**: Values with commas, quotes, or newlines are automatically quoted
 - **2D Arrays**: Core uses `List<List<object?>>`, CLI converts CSV ↔ 2D arrays for convenience
 
-## Parameter Commands (`param-*`)
+## Named Range Commands (`namedrange-*`)
 
 Manage named ranges and parameters.
 
-**param-list** - List all named ranges
+**namedrange-list** - List all named ranges
 
 ```powershell
-excelcli param-list <file.xlsx>
+excelcli namedrange-list <file.xlsx>
 ```
 
-**param-get** - Get named range value
+**namedrange-get** - Get named range value
 
 ```powershell
-excelcli param-get <file.xlsx> <param-name>
+excelcli namedrange-get <file.xlsx> <namedrange-name>
 ```
 
-**param-set** - Set named range value
+**namedrange-set** - Set named range value
 
 ```powershell
-excelcli param-set <file.xlsx> <param-name> <value>
+excelcli namedrange-set <file.xlsx> <namedrange-name> <value>
 ```
 
-**param-update** - Update named range cell reference ✨ **NEW**
+**namedrange-update** - Update named range cell reference ✨ **NEW**
 
 ```powershell
-excelcli param-update <file.xlsx> <param-name> <new-reference>
+excelcli namedrange-update <file.xlsx> <namedrange-name> <new-reference>
 ```
 
-Updates the cell reference of a named range. Use `param-set` to change the value, or `param-update` to change which cell the parameter points to.
+Updates the cell reference of a named range. Use `namedrange-set` to change the value, or `namedrange-update` to change which cell the parameter points to.
 
 Example:
 ```powershell
 # Change StartDate parameter from Sheet1!A1 to Config!B5
-excelcli param-update Sales.xlsx StartDate Config!B5
+excelcli namedrange-update Sales.xlsx StartDate Config!B5
 ```
 
-**param-create** - Create named range
+**namedrange-create** - Create named range
 
 ```powershell
-excelcli param-create <file.xlsx> <param-name> <reference>
+excelcli namedrange-create <file.xlsx> <namedrange-name> <reference>
 ```
 
-**param-delete** - Delete named range
+**namedrange-delete** - Delete named range
 
 ```powershell
-excelcli param-delete <file.xlsx> <param-name>
+excelcli namedrange-delete <file.xlsx> <namedrange-name>
 ```
 
 ## Connection Commands (`conn-*`)
@@ -772,22 +772,22 @@ excelcli table-sort-multi sales.xlsx SalesTable Year:desc Quarter:desc Amount:de
 - Multi-column sort: Excel supports max 3 sort levels
 - Table structure preserved: Headers and totals row maintained
 
-## VBA Script Commands (`script-*`)
+## VBA VBA Commands (`vba-*`)
 
 **⚠️ VBA commands require macro-enabled (.xlsm) files!**
 
 Manage VBA scripts and macros in macro-enabled Excel workbooks.
 
-**script-list** - List all VBA modules and procedures
+**vba-list** - List all VBA modules and procedures
 
 ```powershell
-excelcli script-list <file.xlsm>
+excelcli vba-list <file.xlsm>
 ```
 
-**script-view** - View VBA module code ✨ **NEW**
+**vba-view** - View VBA module code ✨ **NEW**
 
 ```powershell
-excelcli script-view <file.xlsm> <module-name>
+excelcli vba-view <file.xlsm> <module-name>
 ```
 
 Displays the complete VBA code for a module without exporting to a file. Shows module type, line count, procedures, and full source code.
@@ -795,41 +795,41 @@ Displays the complete VBA code for a module without exporting to a file. Shows m
 Example:
 ```powershell
 # View the DataProcessor module code
-excelcli script-view Report.xlsm DataProcessor
+excelcli vba-view Report.xlsm DataProcessor
 ```
 
-**script-export** - Export VBA module to file
+**vba-export** - Export VBA module to file
 
 ```powershell
-excelcli script-export <file.xlsm> <module-name> <output.vba>
+excelcli vba-export <file.xlsm> <module-name> <output.vba>
 ```
 
-**script-import** - Import VBA module from file
+**vba-import** - Import VBA module from file
 
 ```powershell
-excelcli script-import <file.xlsm> <module-name> <source.vba>
+excelcli vba-import <file.xlsm> <module-name> <source.vba>
 ```
 
-**script-update** - Update existing VBA module
+**vba-update** - Update existing VBA module
 
 ```powershell
-excelcli script-update <file.xlsm> <module-name> <source.vba>
+excelcli vba-update <file.xlsm> <module-name> <source.vba>
 ```
 
-**script-run** - Execute VBA macro with parameters
+**vba-run** - Execute VBA macro with parameters
 
 ```powershell
-excelcli script-run <file.xlsm> <macro-name> [param1] [param2] ...
+excelcli vba-run <file.xlsm> <macro-name> [param1] [param2] ...
 
 # Examples
-excelcli script-run "Report.xlsm" "ProcessData"
-excelcli script-run "Analysis.xlsm" "CalculateTotal" "Sheet1" "A1:C10"
+excelcli vba-run "Report.xlsm" "ProcessData"
+excelcli vba-run "Analysis.xlsm" "CalculateTotal" "Sheet1" "A1:C10"
 ```
 
-**script-delete** - Remove VBA module
+**vba-delete** - Remove VBA module
 
 ```powershell
-excelcli script-delete <file.xlsm> <module-name>
+excelcli vba-delete <file.xlsm> <module-name>
 ```
 
 ## Data Model Commands (`dm-*`)

@@ -4,7 +4,7 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 
 /// <summary>
-/// CLI-specific tests for ParameterCommands and CellCommands - verifying argument parsing, exit codes, and CLI behavior
+/// CLI-specific tests for NamedRangeCommands and CellCommands - verifying argument parsing, exit codes, and CLI behavior
 ///
 /// LAYER RESPONSIBILITY:
 /// - ✅ Test argument validation (missing args, invalid args)
@@ -20,18 +20,18 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 [Trait("Layer", "CLI")]
 public class CliParameterCommandsTests
 {
-    private readonly ParameterCommands _cliCommands;
+    private readonly NamedRangeCommands _cliCommands;
 
     public CliParameterCommandsTests()
     {
-        _cliCommands = new ParameterCommands();
+        _cliCommands = new NamedRangeCommands();
     }
 
     [Fact]
     public void List_WithMissingFileArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "param-list" }; // Missing file path
+        string[] args = { "namedrange-list" }; // Missing file path
 
         // Act
         int exitCode = _cliCommands.List(args);
@@ -44,7 +44,7 @@ public class CliParameterCommandsTests
     public void Get_WithMissingParameterNameArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "param-get", "file.xlsx" }; // Missing parameter name
+        string[] args = { "namedrange-get", "file.xlsx" }; // Missing parameter name
 
         // Act
         int exitCode = _cliCommands.Get(args);
@@ -57,7 +57,7 @@ public class CliParameterCommandsTests
     public void Set_WithMissingValueArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "param-set", "file.xlsx", "ParamName" }; // Missing value
+        string[] args = { "namedrange-set", "file.xlsx", "ParamName" }; // Missing value
 
         // Act
         int exitCode = _cliCommands.Set(args);
@@ -70,7 +70,7 @@ public class CliParameterCommandsTests
     public void Create_WithMissingReferenceArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "param-create", "file.xlsx", "ParamName" }; // Missing reference
+        string[] args = { "namedrange-create", "file.xlsx", "ParamName" }; // Missing reference
 
         // Act
         int exitCode = _cliCommands.Create(args);
@@ -83,7 +83,7 @@ public class CliParameterCommandsTests
     public void Set_WithInvalidFileExtension_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "param-set", "invalid.txt", "ParamName", "Value" };
+        string[] args = { "namedrange-set", "invalid.txt", "ParamName", "Value" };
 
         // Act
         int exitCode = _cliCommands.Set(args);

@@ -6,12 +6,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// <summary>
 /// Named range/parameter management commands
 /// </summary>
-public interface IParameterCommands
+public interface INamedRangeCommands
 {
     /// <summary>
     /// Lists all named ranges in the workbook
     /// </summary>
-    Task<ParameterListResult> ListAsync(IExcelBatch batch);
+    Task<NamedRangeListResult> ListAsync(IExcelBatch batch);
 
     /// <summary>
     /// Sets the value of a named range
@@ -21,7 +21,7 @@ public interface IParameterCommands
     /// <summary>
     /// Gets the value of a named range
     /// </summary>
-    Task<ParameterValueResult> GetAsync(IExcelBatch batch, string paramName);
+    Task<NamedRangeValueResult> GetAsync(IExcelBatch batch, string paramName);
 
     /// <summary>
     /// Updates a named range reference
@@ -41,5 +41,5 @@ public interface IParameterCommands
     /// <summary>
     /// Creates multiple named ranges with optional initial values in a single operation
     /// </summary>
-    Task<OperationResult> CreateBulkAsync(IExcelBatch batch, IEnumerable<ParameterDefinition> parameters);
+    Task<OperationResult> CreateBulkAsync(IExcelBatch batch, IEnumerable<NamedRangeDefinition> parameters);
 }

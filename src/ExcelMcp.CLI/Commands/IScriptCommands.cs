@@ -3,7 +3,7 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 /// <summary>
 /// VBA script management commands
 /// </summary>
-public interface IScriptCommands
+public interface IVbaCommands
 {
     int List(string[] args);
     int View(string[] args);
