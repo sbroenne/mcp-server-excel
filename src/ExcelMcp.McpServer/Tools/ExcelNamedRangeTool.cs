@@ -24,17 +24,17 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// referenced in formulas and Power Query. They're ideal for configuration values.
 /// </summary>
 [McpServerToolType]
-public static class ExcelParameterTool
+public static class ExcelNamedRangeTool
 {
     /// <summary>
     /// Manage Excel parameters (named ranges) - configuration values and reusable references
     /// </summary>
-    [McpServerTool(Name = "excel_parameter")]
+    [McpServerTool(Name = "excel_namedrange")]
     [Description(@"Manage Excel named ranges as parameters (configuration values).
 
 ⚡ PERFORMANCE: For creating 2+ parameters, use begin_excel_batch FIRST (90% faster):
   1. batch = begin_excel_batch(excelPath: 'file.xlsx')
-  2. excel_parameter(action: 'create', ..., batchId: batch.batchId)  // repeat for each parameter
+  2. excel_namedrange(action: 'create', ..., batchId: batch.batchId)  // repeat for each parameter
   3. commit_excel_batch(batchId: batch.batchId, save: true)
 
 ⭐ NEW: Use 'create-bulk' action for even better efficiency (one call for multiple parameters).
@@ -43,7 +43,7 @@ Actions available as dropdown in MCP clients.")]
     public static async Task<string> ExcelParameter(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
-        ParameterAction action,
+        NamedRangeAction action,
 
         [Required]
         [FileExtensions(Extensions = "xlsx,xlsm")]

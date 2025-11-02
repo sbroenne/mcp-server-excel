@@ -8,14 +8,14 @@ namespace Sbroenne.ExcelMcp.McpServer.Prompts;
 /// MCP prompts for Excel parameter (named range) management.
 /// </summary>
 [McpServerPromptType]
-public static class ExcelParameterPrompts
+public static class ExcelNamedRangePrompts
 {
     /// <summary>
     /// Guide for efficient parameter creation using bulk operations.
     /// </summary>
-    [McpServerPrompt(Name = "excel_parameter_bulk_guide")]
+    [McpServerPrompt(Name = "excel_namedrange_bulk_guide")]
     [Description("Guide for creating multiple Excel parameters efficiently using bulk operations")]
-    public static ChatMessage ParameterBulkGuide()
+    public static ChatMessage NamedRangeBulkGuide()
     {
         return new ChatMessage(ChatRole.User, @"When creating multiple Excel named range parameters, use the 'create-bulk' action for maximum efficiency.
 
@@ -30,14 +30,14 @@ Use 'create-bulk' when:
 # BULK vs INDIVIDUAL CREATION
 
 ❌ INEFFICIENT (10 calls for 5 parameters):
-excel_parameter(action: 'create', excelPath: 'file.xlsx', parameterName: 'Start_Date', value: 'Sheet1!A1')
-excel_parameter(action: 'set', excelPath: 'file.xlsx', parameterName: 'Start_Date', value: '2025-07-01')
-excel_parameter(action: 'create', excelPath: 'file.xlsx', parameterName: 'End_Date', value: 'Sheet1!A2')
-excel_parameter(action: 'set', excelPath: 'file.xlsx', parameterName: 'End_Date', value: '2025-12-31')
+excel_namedrange(action: 'create', excelPath: 'file.xlsx', namedRangeName: 'Start_Date', value: 'Sheet1!A1')
+excel_namedrange(action: 'set', excelPath: 'file.xlsx', parameterName: 'Start_Date', value: '2025-07-01')
+excel_namedrange(action: 'create', excelPath: 'file.xlsx', namedRangeName: 'End_Date', value: 'Sheet1!A2')
+excel_namedrange(action: 'set', excelPath: 'file.xlsx', parameterName: 'End_Date', value: '2025-12-31')
 ... (repeat 3 more times)
 
 ✅ EFFICIENT (1 call for 5 parameters):
-excel_parameter(action: 'create-bulk', excelPath: 'file.xlsx', parametersJson: JSON.stringify([
+excel_namedrange(action: 'create-bulk', excelPath: 'file.xlsx', parametersJson: JSON.stringify([
   { name: 'Start_Date', reference: 'Sheet1!$A$1', value: '2025-07-01' },
   { name: 'End_Date', reference: 'Sheet1!$A$2', value: '2025-12-31' },
   { name: 'Plan_Name', reference: 'Sheet1!$A$3', value: 'Q3 Plan' },

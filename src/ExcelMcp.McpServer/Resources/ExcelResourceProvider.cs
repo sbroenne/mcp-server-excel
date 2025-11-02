@@ -51,7 +51,7 @@ public static class ExcelResourceProvider
                 {
                     type = "Parameters (Named Ranges)",
                     toolAction = "Use excel_parameter tool with action='list' to see all parameters",
-                    example = "excel_parameter(action: 'list', excelPath: 'workbook.xlsx')"
+                    example = "excel_namedrange(action: 'list', excelPath: 'workbook.xlsx')"
                 },
                 new
                 {

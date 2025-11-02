@@ -105,7 +105,7 @@ public class ExcelMcpServerTests : IDisposable
         Assert.True(File.Exists(_testExcelFile), "Test file should exist before listing parameters");
 
         // Act
-        var result = await ExcelParameterTool.ExcelParameter(ParameterAction.List, _testExcelFile);
+        var result = await ExcelNamedRangeTool.ExcelParameter(NamedRangeAction.List, _testExcelFile);
 
         // Assert
         var json = JsonDocument.Parse(result);

@@ -84,16 +84,16 @@ public static class ActionExtensions
         _ => throw new ArgumentException($"Unknown RangeAction: {action}")
     };
 
-    public static string ToActionString(this ParameterAction action) => action switch
+    public static string ToActionString(this NamedRangeAction action) => action switch
     {
-        ParameterAction.List => "list",
-        ParameterAction.Create => "create",
-        ParameterAction.CreateBulk => "create-bulk",
-        ParameterAction.Update => "update",
-        ParameterAction.Delete => "delete",
-        ParameterAction.Get => "get",
-        ParameterAction.Set => "set",
-        _ => throw new ArgumentException($"Unknown ParameterAction: {action}")
+        NamedRangeAction.List => "list",
+        NamedRangeAction.Create => "create",
+        NamedRangeAction.CreateBulk => "create-bulk",
+        NamedRangeAction.Update => "update",
+        NamedRangeAction.Delete => "delete",
+        NamedRangeAction.Get => "get",
+        NamedRangeAction.Set => "set",
+        _ => throw new ArgumentException($"Unknown NamedRangeAction: {action}")
     };
 
     public static string ToActionString(this VbaAction action) => action switch

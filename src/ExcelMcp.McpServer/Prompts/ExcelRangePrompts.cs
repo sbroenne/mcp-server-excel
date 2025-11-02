@@ -701,7 +701,7 @@ excel_range(action: ""set-number-format"", ...)
 ### Range + Parameters
 ```javascript
 // Step 1: Create named range parameters
-excel_parameter(action: ""create"", name: ""StartDate"", reference: ""=Settings!A1"")
+excel_namedrange(action: ""create"", name: ""StartDate"", reference: ""=Settings!A1"")
 
 // Step 2: Use parameters in validation
 excel_range(

@@ -9,7 +9,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - ExcelFileTool: File operations (create-empty)
 /// - ExcelPowerQueryTool: M code and data loading management
 /// - ExcelWorksheetTool: Sheet lifecycle management (create, rename, copy, delete)
-/// - ExcelParameterTool: Named ranges as configuration parameters
+/// - ExcelNamedRangeTool: Named ranges as configuration parameters
 /// - ExcelRangeTool: Unified range operations (values, formulas, formatting, hyperlinks)
 /// - ExcelVbaTool: VBA macro management and execution
 /// - ExcelDataModelTool: Power Pivot (Data Model) operations - DAX, measures, relationships
@@ -27,7 +27,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// 3. Use ExcelRangeTool for ALL data operations (read, write, formulas, formatting, hyperlinks)
 /// 4. Use ExcelPowerQueryTool for advanced data transformation and loading to Power Pivot
 /// 5. Use ExcelDataModelTool for ALL Power Pivot operations (DAX, measures, relationships)
-/// 6. Use ExcelParameterTool for configuration and reusable values
+/// 6. Use ExcelNamedRangeTool for configuration and reusable values
 /// 7. Use ExcelVbaTool for complex automation (requires .xlsm files)
 /// 8. Use ExcelTableTool for structured data with filtering and auto-formatting
 /// 9. Use ExcelPivotTableTool for interactive data summarization and cross-tabulation
@@ -48,7 +48,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - ExcelFileTool.cs: excel_file tool
 /// - ExcelPowerQueryTool.cs: excel_powerquery tool
 /// - ExcelWorksheetTool.cs: excel_worksheet tool
-/// - ExcelParameterTool.cs: excel_parameter tool
+/// - ExcelNamedRangeTool.cs: excel_parameter tool
 /// - ExcelRangeTool.cs: excel_range tool (replaces excel_cell)
 /// - ExcelVbaTool.cs: excel_vba tool
 /// - ExcelDataModelTool.cs: excel_datamodel tool

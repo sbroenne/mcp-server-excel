@@ -229,7 +229,7 @@ ERROR: 'Worksheet not found'
 FIX: Use excel_worksheet(action: 'list') to see available worksheets
 
 ERROR: 'Named range not found'
-FIX: Use excel_parameter(action: 'list') to see all parameters
+FIX: Use excel_namedrange(action: 'list') to see all parameters
 
 ERROR: 'Table not in Data Model'
 FIX: Query must be loaded with loadDestination: 'data-model' or 'both'

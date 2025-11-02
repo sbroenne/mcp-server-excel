@@ -115,7 +115,7 @@ public enum RangeAction
 /// <summary>
 /// Actions available for excel_parameter tool
 /// </summary>
-public enum ParameterAction
+public enum NamedRangeAction
 {
     List,
     Create,

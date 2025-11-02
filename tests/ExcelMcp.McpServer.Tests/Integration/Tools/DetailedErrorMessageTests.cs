@@ -80,7 +80,7 @@ public class DetailedErrorMessageTests : IDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<McpException>(async () =>
-            await ExcelParameterTool.ExcelParameter(ParameterAction.List, nonExistentFile));
+            await ExcelNamedRangeTool.ExcelParameter(NamedRangeAction.List, nonExistentFile));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -183,7 +183,7 @@ public class DetailedErrorMessageTests : IDisposable
 
         // Act & Assert - create requires parameterName and reference
         var exception = await Assert.ThrowsAsync<McpException>(async () =>
-            await ExcelParameterTool.ExcelParameter(ParameterAction.Create, _testExcelFile, namedRangeName: null));
+            await ExcelNamedRangeTool.ExcelParameter(NamedRangeAction.Create, _testExcelFile, namedRangeName: null));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
