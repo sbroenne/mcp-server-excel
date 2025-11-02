@@ -5,7 +5,7 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Power Query advanced operations (LoadTo, Sources, Test, Peek, Eval)
+/// Power Query advanced operations (LoadTo, ListExcelSources, Eval)
 /// </summary>
 public partial class PowerQueryCommands
 {
@@ -249,7 +249,7 @@ public partial class PowerQueryCommands
     }
 
     /// <inheritdoc />
-    public async Task<WorksheetListResult> SourcesAsync(IExcelBatch batch)
+    public async Task<WorksheetListResult> ListExcelSourcesAsync(IExcelBatch batch)
     {
         var result = new WorksheetListResult { FilePath = batch.WorkbookPath };
 
@@ -329,196 +329,13 @@ public partial class PowerQueryCommands
             catch (Exception ex)
             {
                 result.Success = false;
-                result.ErrorMessage = $"Error listing sources: {ex.Message}";
+                result.ErrorMessage = $"Error listing Excel sources: {ex.Message}";
                 return result;
             }
             finally
             {
                 ComUtilities.Release(ref names);
                 ComUtilities.Release(ref worksheets);
-            }
-        });
-    }
-
-    /// <inheritdoc />
-    public async Task<OperationResult> TestAsync(IExcelBatch batch, string sourceName)
-    {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "pq-test"
-        };
-
-        return await batch.Execute<OperationResult>((ctx, ct) =>
-        {
-            dynamic? queriesCollection = null;
-            dynamic? tempQuery = null;
-            try
-            {
-                // Create a test query to load the source
-                string testQuery = $@"
-let
-    Source = Excel.CurrentWorkbook(){{[Name=""{sourceName.Replace("\"", "\"\"")}""]]}}[Content]
-in
-    Source";
-
-                queriesCollection = ctx.Book.Queries;
-                tempQuery = queriesCollection.Add("_TestQuery", testQuery);
-
-                // Try to refresh
-                bool refreshSuccess = false;
-                try
-                {
-                    tempQuery.Refresh();
-                    refreshSuccess = true;
-                }
-                catch { }
-
-                // Clean up
-                tempQuery.Delete();
-
-                // If refresh failed, this is a failure
-                result.Success = refreshSuccess;
-                if (!refreshSuccess)
-                {
-                    result.ErrorMessage = "Source exists but could not refresh (may need data source configuration)";
-                }
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Source '{sourceName}' not found or cannot be loaded: {ex.Message}";
-                return result;
-            }
-            finally
-            {
-                ComUtilities.Release(ref tempQuery);
-                ComUtilities.Release(ref queriesCollection);
-            }
-        });
-    }
-
-    /// <inheritdoc />
-    public async Task<WorksheetDataResult> PeekAsync(IExcelBatch batch, string sourceName)
-    {
-        var result = new WorksheetDataResult
-        {
-            FilePath = batch.WorkbookPath,
-            SheetName = sourceName
-        };
-
-        return await batch.Execute<WorksheetDataResult>((ctx, ct) =>
-        {
-            dynamic? names = null;
-            dynamic? worksheets = null;
-            try
-            {
-                // Check if it's a named range (single value)
-                names = ctx.Book.Names;
-                for (int i = 1; i <= names.Count; i++)
-                {
-                    dynamic? name = null;
-                    try
-                    {
-                        name = names.Item(i);
-                        string nameValue = name.Name;
-                        if (nameValue == sourceName)
-                        {
-                            try
-                            {
-                                var value = name.RefersToRange.Value;
-                                result.Data.Add([value]);
-                                result.RowCount = 1;
-                                result.ColumnCount = 1;
-                                result.Success = true;
-                                return result;
-                            }
-                            catch
-                            {
-                                result.Success = false;
-                                result.ErrorMessage = "Named range found but value cannot be read (may be #REF!)";
-                                return result;
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref name);
-                    }
-                }
-
-                // Check if it's a table
-                worksheets = ctx.Book.Worksheets;
-                for (int ws = 1; ws <= worksheets.Count; ws++)
-                {
-                    dynamic? worksheet = null;
-                    dynamic? tables = null;
-                    try
-                    {
-                        worksheet = worksheets.Item(ws);
-                        tables = worksheet.ListObjects;
-                        for (int i = 1; i <= tables.Count; i++)
-                        {
-                            dynamic? table = null;
-                            dynamic? listCols = null;
-                            try
-                            {
-                                table = tables.Item(i);
-                                if (table.Name == sourceName)
-                                {
-                                    result.RowCount = table.ListRows.Count;
-                                    result.ColumnCount = table.ListColumns.Count;
-
-                                    // Get column names
-                                    listCols = table.ListColumns;
-                                    for (int c = 1; c <= Math.Min(result.ColumnCount, 10); c++)
-                                    {
-                                        dynamic? listCol = null;
-                                        try
-                                        {
-                                            listCol = listCols.Item(c);
-                                            result.Headers.Add(listCol.Name);
-                                        }
-                                        finally
-                                        {
-                                            ComUtilities.Release(ref listCol);
-                                        }
-                                    }
-
-                                    result.Success = true;
-                                    return result;
-                                }
-                            }
-                            finally
-                            {
-                                ComUtilities.Release(ref listCols);
-                                ComUtilities.Release(ref table);
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref tables);
-                        ComUtilities.Release(ref worksheet);
-                    }
-                }
-
-                result.Success = false;
-                result.ErrorMessage = $"Source '{sourceName}' not found";
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error peeking source: {ex.Message}";
-                return result;
-            }
-            finally
-            {
-                ComUtilities.Release(ref worksheets);
-                ComUtilities.Release(ref names);
             }
         });
     }

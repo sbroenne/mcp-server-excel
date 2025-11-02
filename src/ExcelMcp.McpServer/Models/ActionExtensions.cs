@@ -28,10 +28,8 @@ public static class ActionExtensions
         PowerQueryAction.SetConnectionOnly => "set-connection-only",
         PowerQueryAction.GetLoadConfig => "get-load-config",
         PowerQueryAction.Errors => "errors",
-        PowerQueryAction.Test => "test",
         PowerQueryAction.LoadTo => "load-to",
-        PowerQueryAction.Sources => "sources",
-        PowerQueryAction.Peek => "peek",
+        PowerQueryAction.ListExcelSources => "list-excel-sources",
         PowerQueryAction.Eval => "eval",
         _ => throw new ArgumentException($"Unknown PowerQueryAction: {action}")
     };

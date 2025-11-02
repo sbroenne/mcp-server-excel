@@ -125,10 +125,8 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
                 PowerQueryAction.SetConnectionOnly => await SetConnectionOnlyAsync(powerQueryCommands, excelPath, queryName, batchId),
                 PowerQueryAction.GetLoadConfig => await GetLoadConfigAsync(powerQueryCommands, excelPath, queryName, batchId),
                 PowerQueryAction.Errors => await ErrorsPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
-                PowerQueryAction.Test => await TestPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
                 PowerQueryAction.LoadTo => await LoadToPowerQueryAsync(powerQueryCommands, excelPath, queryName, targetSheet, batchId),
-                PowerQueryAction.Sources => await SourcesPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
-                PowerQueryAction.Peek => await PeekPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
+                PowerQueryAction.ListExcelSources => await ListExcelSourcesAsync(powerQueryCommands, excelPath, batchId),
                 PowerQueryAction.Eval => await EvalPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, batchId),
                 _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
             };
@@ -505,23 +503,6 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> TestPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
-    {
-        if (string.IsNullOrEmpty(queryName))
-            throw new ModelContextProtocol.McpException("queryName is required for test action");
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: false,
-            async (batch) => await commands.TestAsync(batch, queryName));
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"test failed for '{queryName}' in '{excelPath}': {result.ErrorMessage}");
-        }
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
     private static async Task<string> LoadToPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? targetSheet, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(targetSheet))
@@ -539,34 +520,17 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SourcesPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
+    private static async Task<string> ListExcelSourcesAsync(PowerQueryCommands commands, string excelPath, string? batchId)
     {
-        // sources action lists all available sources (doesn't require queryName)
+        // list-excel-sources action lists all available sources (doesn't require queryName)
         var result = await ExcelToolsBase.WithBatchAsync(
             batchId,
             excelPath,
             save: false,
-            async (batch) => await commands.SourcesAsync(batch));
+            async (batch) => await commands.ListExcelSourcesAsync(batch));
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            throw new ModelContextProtocol.McpException($"sources failed for '{excelPath}': {result.ErrorMessage}");
-        }
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> PeekPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
-    {
-        if (string.IsNullOrEmpty(queryName))
-            throw new ModelContextProtocol.McpException("queryName is required for peek action (specify source name to preview)");
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: false,
-            async (batch) => await commands.PeekAsync(batch, queryName));
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"peek failed for source '{queryName}' in '{excelPath}': {result.ErrorMessage}");
+            throw new ModelContextProtocol.McpException($"list-excel-sources failed for '{excelPath}': {result.ErrorMessage}");
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }

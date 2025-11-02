@@ -32,10 +32,8 @@ public enum PowerQueryAction
     SetConnectionOnly,
     GetLoadConfig,
     Errors,
-    Test,
     LoadTo,
-    Sources,
-    Peek,
+    ListExcelSources,
     Eval
 }
 
