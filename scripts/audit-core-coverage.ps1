@@ -227,3 +227,6 @@ if ($extraEnums.Count -gt 0) {
 
 Write-Host ""
 Write-Host "Audit completed at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Gray
+
+# Explicitly exit with success code (no gaps detected)
+exit 0
