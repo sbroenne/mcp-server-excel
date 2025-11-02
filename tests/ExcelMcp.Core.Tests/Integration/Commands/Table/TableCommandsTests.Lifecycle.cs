@@ -10,13 +10,11 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Table;
 public partial class TableCommandsTests
 {
     [Fact]
+    [Trait("Speed", "Fast")]
     public async Task List_WithValidFile_ReturnsSuccessWithTables()
     {
-        // Arrange
-        var testFile = await CreateTestFileWithTableAsync(nameof(List_WithValidFile_ReturnsSuccessWithTables));
-
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        // Act - Use shared fixture file
+        await using var batch = await ExcelSession.BeginBatchAsync(_tableFile);
         var result = await _tableCommands.ListAsync(batch);
 
         // Assert
@@ -26,13 +24,11 @@ public partial class TableCommandsTests
     }
 
     [Fact]
+    [Trait("Speed", "Fast")]
     public async Task Info_WithValidTable_ReturnsTableDetails()
     {
-        // Arrange
-        var testFile = await CreateTestFileWithTableAsync(nameof(Info_WithValidTable_ReturnsTableDetails));
-
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        // Act - Use shared fixture file
+        await using var batch = await ExcelSession.BeginBatchAsync(_tableFile);
         var result = await _tableCommands.GetInfoAsync(batch, "SalesTable");
 
         // Assert

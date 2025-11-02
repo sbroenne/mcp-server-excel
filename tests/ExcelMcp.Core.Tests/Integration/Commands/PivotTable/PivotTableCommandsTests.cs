@@ -8,32 +8,37 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 
 /// <summary>
 /// Integration tests for PivotTable commands.
-/// These tests require Excel installation and validate Core pivot table operations.
-/// Tests use Core commands directly (not through CLI wrapper).
-/// Each test uses a unique Excel file for complete test isolation.
+/// Uses PivotTableTestsFixture which creates ONE data file per test class (~5-10s setup).
+/// Fixture initialization IS the test for data preparation.
+/// Each test gets its own batch for isolation.
 /// </summary>
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "PivotTables")]
-public partial class PivotTableCommandsTests : IClassFixture<TempDirectoryFixture>
+public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixture>
 {
-    private readonly IPivotTableCommands _pivotCommands;
-    private readonly string _tempDir;
+    protected readonly IPivotTableCommands _pivotCommands;
+    protected readonly string _pivotFile;
+    protected readonly PivotTableCreationResult _creationResult;
+    protected readonly string _tempDir;
 
-    public PivotTableCommandsTests(TempDirectoryFixture fixture)
+    public PivotTableCommandsTests(PivotTableTestsFixture fixture)
     {
         _pivotCommands = new PivotTableCommands();
-        _tempDir = fixture.TempDir;
+        _pivotFile = fixture.TestFilePath;
+        _creationResult = fixture.CreationResult;
+        _tempDir = Path.GetDirectoryName(fixture.TestFilePath)!;
     }
 
     /// <summary>
-    /// Helper to create test file with sample sales data for pivot tables
+    /// Helper to create unique test file with sales data for pivot table tests.
+    /// Used when tests need unique files for specific scenarios.
     /// </summary>
-    private async Task<string> CreateTestFileWithDataAsync(string fileName)
+    protected async Task<string> CreateTestFileWithDataAsync(string testName)
     {
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(PivotTableCommandsTests), fileName, _tempDir);
+            nameof(PivotTableCommandsTests), testName, _tempDir);
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
@@ -74,6 +79,65 @@ public partial class PivotTableCommandsTests : IClassFixture<TempDirectoryFixtur
 
             return 0;
         });
+        
+        await batch.SaveAsync();
+        
         return testFile;
+    }
+
+    /// <summary>
+    /// Explicit test that validates the fixture creation results.
+    /// This makes the data preparation test visible in test results and validates:
+    /// - FileCommands.CreateEmptyAsync()
+    /// - Sales data creation
+    /// - Batch.SaveAsync() persistence
+    /// </summary>
+    [Fact]
+    [Trait("Speed", "Fast")]
+    public void DataPreparation_ViaFixture_CreatesSalesData()
+    {
+        // Assert the fixture creation succeeded
+        Assert.True(_creationResult.Success, 
+            $"Data preparation failed during fixture initialization: {_creationResult.ErrorMessage}");
+        
+        Assert.True(_creationResult.FileCreated, "File creation failed");
+        Assert.Equal(5, _creationResult.DataRowsCreated);
+        Assert.True(_creationResult.CreationTimeSeconds > 0);
+        
+        // This test appears in test results as proof that creation was tested
+        Console.WriteLine($"✅ Data prepared successfully in {_creationResult.CreationTimeSeconds:F1}s");
+    }
+
+    /// <summary>
+    /// Tests that sales data persists correctly after file close/reopen.
+    /// Validates that SaveAsync() properly persisted the data.
+    /// </summary>
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public async Task DataPreparation_Persists_AfterReopenFile()
+    {
+        // Close and reopen to verify persistence (new batch = new session)
+        await using var batch = await ExcelSession.BeginBatchAsync(_pivotFile);
+        
+        // Verify data persisted by reading range
+        await batch.Execute<int>((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item("SalesData");
+            
+            // Verify headers
+            Assert.Equal("Region", sheet.Range["A1"].Value2?.ToString());
+            Assert.Equal("Product", sheet.Range["B1"].Value2?.ToString());
+            Assert.Equal("Sales", sheet.Range["C1"].Value2?.ToString());
+            Assert.Equal("Date", sheet.Range["D1"].Value2?.ToString());
+            
+            // Verify first data row
+            Assert.Equal("North", sheet.Range["A2"].Value2?.ToString());
+            Assert.Equal("Widget", sheet.Range["B2"].Value2?.ToString());
+            Assert.Equal(100.0, Convert.ToDouble(sheet.Range["C2"].Value2));
+            
+            return 0;
+        });
+        
+        // This proves data creation + save worked correctly
     }
 }

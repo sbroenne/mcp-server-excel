@@ -9,9 +9,9 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Table;
 
 /// <summary>
 /// Integration tests for Table commands (Phase 1 & Phase 2).
-/// These tests require Excel installation and validate Core table operations.
-/// Tests use Core commands directly (not through CLI wrapper).
-/// Each test uses a unique Excel file for complete test isolation.
+/// Uses TableTestsFixture which creates ONE Table file per test class (~5-10s setup).
+/// Fixture initialization IS the test for Table creation - validates CreateAsync command.
+/// Each test gets its own batch for isolation.
 ///
 /// Phase 1: Lifecycle, Structure, Filters, Columns, Data, DataModel
 /// Phase 2: Structured References, Sorting
@@ -20,26 +20,32 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Table;
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "Tables")]
-public partial class TableCommandsTests : IClassFixture<TempDirectoryFixture>
+public partial class TableCommandsTests : IClassFixture<TableTestsFixture>
 {
-    private readonly ITableCommands _tableCommands;
-    private readonly IRangeCommands _rangeCommands;
-    private readonly string _tempDir;
+    protected readonly ITableCommands _tableCommands;
+    protected readonly IRangeCommands _rangeCommands;
+    protected readonly string _tableFile;
+    protected readonly TableCreationResult _creationResult;
+    protected readonly string _tempDir;
 
-    public TableCommandsTests(TempDirectoryFixture fixture)
+    public TableCommandsTests(TableTestsFixture fixture)
     {
         _tableCommands = new TableCommands();
         _rangeCommands = new RangeCommands();
-        _tempDir = fixture.TempDir;
+        _tableFile = fixture.TestFilePath;
+        _creationResult = fixture.CreationResult;
+        _tempDir = Path.GetDirectoryName(fixture.TestFilePath)!;
     }
 
     /// <summary>
-    /// Helper to create test file with sample table data
+    /// Helper to create unique test file with SalesTable for modification tests.
+    /// Used when tests need to modify the table (delete, rename, resize, etc.) 
+    /// without affecting the shared fixture file.
     /// </summary>
-    private async Task<string> CreateTestFileWithTableAsync(string fileName)
+    protected async Task<string> CreateTestFileWithTableAsync(string testName)
     {
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(TableCommandsTests), fileName, _tempDir);
+            nameof(TableCommandsTests), testName, _tempDir);
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
@@ -86,9 +92,56 @@ public partial class TableCommandsTests : IClassFixture<TempDirectoryFixture>
             throw new InvalidOperationException($"Failed to create test table: {createResult.ErrorMessage}");
         }
         
-        // Save the file so the table persists for subsequent tests
         await batch.SaveAsync();
         
         return testFile;
+    }
+
+    /// <summary>
+    /// Explicit test that validates the fixture creation results.
+    /// This makes the creation test visible in test results and validates:
+    /// - FileCommands.CreateEmptyAsync()
+    /// - TableCommands.CreateAsync() with sample data
+    /// - Batch.SaveAsync() persistence
+    /// </summary>
+    [Fact]
+    [Trait("Speed", "Fast")]
+    public void TableCreation_ViaFixture_CreatesSalesTable()
+    {
+        // Assert the fixture creation succeeded
+        Assert.True(_creationResult.Success, 
+            $"Table creation failed during fixture initialization: {_creationResult.ErrorMessage}");
+        
+        Assert.True(_creationResult.FileCreated, "File creation failed");
+        Assert.Equal(1, _creationResult.TablesCreated);
+        Assert.True(_creationResult.CreationTimeSeconds > 0);
+        
+        // This test appears in test results as proof that creation was tested
+        Console.WriteLine($"✅ Table created successfully in {_creationResult.CreationTimeSeconds:F1}s");
+    }
+
+    /// <summary>
+    /// Tests that Table persists correctly after file close/reopen.
+    /// Validates that SaveAsync() properly persisted the table.
+    /// </summary>
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public async Task TableCreation_Persists_AfterReopenFile()
+    {
+        // Close and reopen to verify persistence (new batch = new session)
+        await using var batch = await ExcelSession.BeginBatchAsync(_tableFile);
+        
+        // Verify table persisted
+        var result = await _tableCommands.ListAsync(batch);
+        Assert.True(result.Success, $"ListAsync failed: {result.ErrorMessage}");
+        Assert.Single(result.Tables);
+        Assert.Contains(result.Tables, t => t.Name == "SalesTable");
+        
+        // Verify table info
+        var infoResult = await _tableCommands.GetInfoAsync(batch, "SalesTable");
+        Assert.True(infoResult.Success, $"GetInfoAsync failed: {infoResult.ErrorMessage}");
+        Assert.Equal(4, infoResult.Table!.Columns?.Count); // Region, Product, Amount, Date
+        
+        // This proves creation + save worked correctly
     }
 }
