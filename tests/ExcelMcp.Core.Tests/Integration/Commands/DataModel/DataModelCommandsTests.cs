@@ -6,20 +6,20 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.DataModel;
 
 /// <summary>
-/// Data Model operations integration tests.
-/// Uses DataModelTestsFixture which creates ONE Data Model per test class (60-120s setup).
-/// Fixture initialization IS the test for Data Model creation - validates all creation commands.
-/// Each test gets its own batch for isolation.
+/// Integration tests for Data Model operations focusing on LLM use cases.
+/// Tests cover essential workflows: list tables/measures/relationships, create/update/delete measures, manage relationships.
+/// Uses DataModelTestsFixture which creates ONE Data Model per test class.
 /// </summary>
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "DataModel")]
-public partial class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
+[Trait("Speed", "Slow")]
+public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
 {
-    protected readonly IDataModelCommands _dataModelCommands;
-    protected readonly string _dataModelFile;
-    protected readonly DataModelCreationResult _creationResult;
+    private readonly IDataModelCommands _dataModelCommands;
+    private readonly string _dataModelFile;
+    private readonly DataModelCreationResult _creationResult;
 
     public DataModelCommandsTests(DataModelTestsFixture fixture)
     {
@@ -28,70 +28,280 @@ public partial class DataModelCommandsTests : IClassFixture<DataModelTestsFixtur
         _creationResult = fixture.CreationResult;
     }
 
+    #region Core Discovery Tests (4 tests)
+
     /// <summary>
     /// Validates that the fixture successfully created the Data Model.
-    /// This test makes the fixture initialization (creation test) visible in test results.
-    /// Tests the following creation commands:
-    /// - FileCommands.CreateEmptyAsync()
-    /// - TableCommands.AddToDataModelAsync() for 3 tables
-    /// - DataModelCommands.CreateRelationshipAsync() for 2 relationships
-    /// - DataModelCommands.CreateMeasureAsync() for 3 measures
-    /// - Batch.SaveAsync() persistence
+    /// LLM use case: "create a data model with tables, relationships, and measures"
     /// </summary>
     [Fact]
-    [Trait("Speed", "Slow")] // Slow because fixture runs once before this test
     public void Create_CompleteDataModel_SuccessfullyCreatesAllComponents()
     {
-        // Assert - Validate the fixture creation succeeded
         Assert.True(_creationResult.Success, 
-            $"Data Model creation failed during fixture initialization: {_creationResult.ErrorMessage}");
-        
-        // Validate all components were created
-        Assert.True(_creationResult.FileCreated, "File creation failed");
+            $"Data Model creation failed: {_creationResult.ErrorMessage}");
+        Assert.True(_creationResult.FileCreated);
         Assert.Equal(3, _creationResult.TablesCreated);
         Assert.Equal(3, _creationResult.TablesLoadedToModel);
         Assert.Equal(2, _creationResult.RelationshipsCreated);
         Assert.Equal(3, _creationResult.MeasuresCreated);
-        Assert.True(_creationResult.CreationTimeSeconds > 0, "Creation time should be positive");
-        
-        // This test appears in test results showing creation was tested
-        Console.WriteLine($"✅ Data Model creation test passed in {_creationResult.CreationTimeSeconds:F1}s");
-        Console.WriteLine($"   - Created {_creationResult.TablesCreated} tables");
-        Console.WriteLine($"   - Loaded {_creationResult.TablesLoadedToModel} tables to Data Model");
-        Console.WriteLine($"   - Created {_creationResult.RelationshipsCreated} relationships");
-        Console.WriteLine($"   - Created {_creationResult.MeasuresCreated} measures");
     }
 
     /// <summary>
-    /// Validates that Data Model persists correctly after file close/reopen.
-    /// This tests Batch.SaveAsync() properly persisted all data model components.
+    /// Tests listing tables in the data model.
+    /// LLM use case: "show me all tables in the data model"
     /// </summary>
     [Fact]
-    [Trait("Speed", "Medium")]
-    public async Task Create_DataModelComponents_PersistsAfterReopen()
+    public async Task ListTables_WithDataModel_ReturnsTables()
     {
-        // Act - Close and reopen to verify persistence (new batch = new session)
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        var result = await _dataModelCommands.ListTablesAsync(batch);
+
+        Assert.True(result.Success, $"ListTables failed: {result.ErrorMessage}");
+        Assert.Equal(3, result.Tables.Count);
+        Assert.Contains(result.Tables, t => t.Name == "SalesTable");
+        Assert.Contains(result.Tables, t => t.Name == "CustomersTable");
+        Assert.Contains(result.Tables, t => t.Name == "ProductsTable");
+    }
+
+    /// <summary>
+    /// Tests getting table details with columns.
+    /// LLM use case: "show me the columns in this data model table"
+    /// </summary>
+    [Fact]
+    public async Task ViewTable_WithValidTable_ReturnsCompleteInfo()
+    {
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        var result = await _dataModelCommands.ViewTableAsync(batch, "SalesTable");
+
+        Assert.True(result.Success, $"ViewTable failed: {result.ErrorMessage}");
+        Assert.Equal("SalesTable", result.TableName);
+        Assert.NotNull(result.SourceName);
+        Assert.True(result.RecordCount >= 10);
+        Assert.NotNull(result.Columns);
+        Assert.True(result.Columns.Count >= 6);
+    }
+
+    /// <summary>
+    /// Tests getting data model statistics.
+    /// LLM use case: "show me information about this data model"
+    /// </summary>
+    [Fact]
+    public async Task GetModelInfo_WithRealisticDataModel_ReturnsAccurateStatistics()
+    {
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        var result = await _dataModelCommands.GetModelInfoAsync(batch);
+
+        Assert.True(result.Success, $"GetModelInfo failed: {result.ErrorMessage}");
+        Assert.Equal(3, result.TableCount);
+        Assert.Equal(3, result.MeasureCount);
+        Assert.Equal(2, result.RelationshipCount);
+        Assert.True(result.TotalRows > 0);
+        Assert.NotNull(result.TableNames);
+        Assert.Contains("SalesTable", result.TableNames);
+    }
+
+    #endregion
+
+    #region Measure Operations (5 tests)
+
+    /// <summary>
+    /// Tests listing all measures in the data model.
+    /// LLM use case: "show me all DAX measures"
+    /// </summary>
+    [Fact]
+    public async Task ListMeasures_WithRealisticDataModel_ReturnsMeasuresWithFormulas()
+    {
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        var result = await _dataModelCommands.ListMeasuresAsync(batch);
+
+        Assert.True(result.Success, $"ListMeasures failed: {result.ErrorMessage}");
+        Assert.NotNull(result.Measures);
+        Assert.Equal(3, result.Measures.Count);
+
+        var measureNames = result.Measures.Select(m => m.Name).ToList();
+        Assert.Contains("Total Sales", measureNames);
+        Assert.Contains("Average Sale", measureNames);
+        Assert.Contains("Total Customers", measureNames);
+    }
+
+    /// <summary>
+    /// Tests viewing a specific measure's DAX formula.
+    /// LLM use case: "show me the DAX formula for this measure"
+    /// </summary>
+    [Fact]
+    public async Task ViewMeasure_WithRealisticDataModel_ReturnsValidDAXFormula()
+    {
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        var result = await _dataModelCommands.ViewMeasureAsync(batch, "Total Sales");
+
+        Assert.True(result.Success, $"ViewMeasure failed: {result.ErrorMessage}");
+        Assert.NotNull(result.DaxFormula);
+        Assert.Contains("SUM", result.DaxFormula, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Amount", result.DaxFormula);
+        Assert.Equal("Total Sales", result.MeasureName);
+    }
+
+    /// <summary>
+    /// Tests creating a new DAX measure.
+    /// LLM use case: "create a DAX measure"
+    /// </summary>
+    [Fact]
+    public async Task CreateMeasure_ValidNameAndFormula_CreatesSuccessfully()
+    {
+        var measureName = $"Test_{nameof(CreateMeasure_ValidNameAndFormula_CreatesSuccessfully)}_{Guid.NewGuid():N}";
+        var daxFormula = "SUM(SalesTable[Amount])";
+
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        var result = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, daxFormula);
+        
+        Assert.True(result.Success, $"CreateMeasure failed: {result.ErrorMessage}");
+
+        // Verify measure created
+        var listResult = await _dataModelCommands.ListMeasuresAsync(batch);
+        Assert.Contains(listResult.Measures, m => m.Name == measureName);
+    }
+
+    /// <summary>
+    /// Tests updating an existing measure's DAX formula.
+    /// LLM use case: "update this measure's formula"
+    /// </summary>
+    [Fact]
+    public async Task UpdateMeasure_WithValidFormula_UpdatesSuccessfully()
+    {
+        var measureName = $"Test_{nameof(UpdateMeasure_WithValidFormula_UpdatesSuccessfully)}_{Guid.NewGuid():N}";
+        var originalFormula = "SUM(SalesTable[Amount])";
+        var updatedFormula = "AVERAGE(SalesTable[Amount])";
+
         await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
         
-        // Assert - Verify tables persisted
-        var tables = await _dataModelCommands.ListTablesAsync(batch);
-        Assert.True(tables.Success, $"ListTables failed: {tables.ErrorMessage}");
-        Assert.Equal(3, tables.Tables.Count);
-        Assert.Contains(tables.Tables, t => t.Name == "SalesTable");
-        Assert.Contains(tables.Tables, t => t.Name == "CustomersTable");
-        Assert.Contains(tables.Tables, t => t.Name == "ProductsTable");
-        
-        // Assert - Verify relationships persisted
-        var rels = await _dataModelCommands.ListRelationshipsAsync(batch);
-        Assert.True(rels.Success, $"ListRelationships failed: {rels.ErrorMessage}");
-        Assert.Equal(2, rels.Relationships.Count);
-        
-        // Assert - Verify measures persisted
-        var measures = await _dataModelCommands.ListMeasuresAsync(batch);
-        Assert.True(measures.Success, $"ListMeasures failed: {measures.ErrorMessage}");
-        Assert.Equal(3, measures.Measures.Count);
-        Assert.Contains("Total Sales", measures.Measures.Select(m => m.Name));
-        Assert.Contains("Average Sale", measures.Measures.Select(m => m.Name));
-        Assert.Contains("Total Customers", measures.Measures.Select(m => m.Name));
+        // Create measure
+        var createResult = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, originalFormula);
+        Assert.True(createResult.Success);
+
+        // Update formula
+        var updateResult = await _dataModelCommands.UpdateMeasureAsync(batch, measureName, daxFormula: updatedFormula);
+        Assert.True(updateResult.Success);
+
+        // Verify update
+        var viewResult = await _dataModelCommands.ViewMeasureAsync(batch, measureName);
+        Assert.Contains("AVERAGE", viewResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// Tests deleting a measure.
+    /// LLM use case: "delete this DAX measure"
+    /// </summary>
+    [Fact]
+    public async Task DeleteMeasure_WithValidMeasure_ReturnsSuccessResult()
+    {
+        var measureName = $"Test_{nameof(DeleteMeasure_WithValidMeasure_ReturnsSuccessResult)}_{Guid.NewGuid():N}";
+
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+
+        // Create measure
+        var createResult = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, "SUM(SalesTable[Amount])");
+        Assert.True(createResult.Success);
+        
+        // Delete measure
+        var result = await _dataModelCommands.DeleteMeasureAsync(batch, measureName);
+        Assert.True(result.Success);
+
+        // Verify deletion
+        var listResult = await _dataModelCommands.ListMeasuresAsync(batch);
+        Assert.DoesNotContain(listResult.Measures, m => m.Name == measureName);
+    }
+
+    #endregion
+
+    #region Relationship Operations (3 tests)
+
+    /// <summary>
+    /// Tests listing all relationships in the data model.
+    /// LLM use case: "show me all table relationships"
+    /// </summary>
+    [Fact]
+    public async Task ListRelationships_WithRealisticDataModel_ReturnsRelationshipsWithDetails()
+    {
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        var result = await _dataModelCommands.ListRelationshipsAsync(batch);
+
+        Assert.True(result.Success, $"ListRelationships failed: {result.ErrorMessage}");
+        Assert.NotNull(result.Relationships);
+        Assert.Equal(2, result.Relationships.Count);
+
+        // Verify SalesTable->CustomersTable relationship
+        var salesCustomersRel = result.Relationships.FirstOrDefault(r =>
+            r.FromTable == "SalesTable" && r.ToTable == "CustomersTable");
+        Assert.NotNull(salesCustomersRel);
+        Assert.Equal("CustomerID", salesCustomersRel.FromColumn);
+        Assert.Equal("CustomerID", salesCustomersRel.ToColumn);
+        Assert.True(salesCustomersRel.IsActive);
+
+        // Verify SalesTable->ProductsTable relationship
+        var salesProductsRel = result.Relationships.FirstOrDefault(r =>
+            r.FromTable == "SalesTable" && r.ToTable == "ProductsTable");
+        Assert.NotNull(salesProductsRel);
+        Assert.Equal("ProductID", salesProductsRel.FromColumn);
+        Assert.Equal("ProductID", salesProductsRel.ToColumn);
+        Assert.True(salesProductsRel.IsActive);
+    }
+
+    /// <summary>
+    /// Tests creating a new relationship between tables.
+    /// LLM use case: "create a relationship between these tables"
+    /// </summary>
+    [Fact]
+    public async Task CreateRelationship_ValidTablesAndColumns_CreatesSuccessfully()
+    {
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+
+        // Delete existing relationship first to allow recreating it
+        var listResult = await _dataModelCommands.ListRelationshipsAsync(batch);
+        if (listResult.Success && listResult.Relationships?.Any(r =>
+            r.FromTable == "SalesTable" && r.ToTable == "CustomersTable" &&
+            r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID") == true)
+        {
+            await _dataModelCommands.DeleteRelationshipAsync(batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");
+        }
+
+        // Create relationship
+        var createResult = await _dataModelCommands.CreateRelationshipAsync(
+            batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");
+        
+        Assert.True(createResult.Success, $"CreateRelationship failed: {createResult.ErrorMessage}");
+
+        // Verify creation
+        var verifyResult = await _dataModelCommands.ListRelationshipsAsync(batch);
+        Assert.Contains(verifyResult.Relationships, r =>
+            r.FromTable == "SalesTable" && r.ToTable == "CustomersTable" &&
+            r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID");
+    }
+
+    /// <summary>
+    /// Tests deleting a relationship.
+    /// LLM use case: "delete this relationship"
+    /// </summary>
+    [Fact]
+    public async Task DeleteRelationship_ExistingRelationship_ReturnsSuccess()
+    {
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+
+        // Delete relationship
+        var deleteResult = await _dataModelCommands.DeleteRelationshipAsync(
+            batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");
+        
+        Assert.True(deleteResult.Success, $"DeleteRelationship failed: {deleteResult.ErrorMessage}");
+
+        // Verify deletion
+        var verifyResult = await _dataModelCommands.ListRelationshipsAsync(batch);
+        Assert.DoesNotContain(verifyResult.Relationships, r =>
+            r.FromTable == "SalesTable" && r.ToTable == "CustomersTable" &&
+            r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID");
+        
+        // Recreate for other tests (shared file)
+        await _dataModelCommands.CreateRelationshipAsync(batch,
+            "SalesTable", "CustomerID", "CustomersTable", "CustomerID", active: true);
+    }
+
+    #endregion
 }
