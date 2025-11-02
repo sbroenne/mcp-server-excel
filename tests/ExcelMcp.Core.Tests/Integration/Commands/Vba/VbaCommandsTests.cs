@@ -1,8 +1,10 @@
+using System.IO;
 using Sbroenne.ExcelMcp.Core.Commands;
+using System.IO;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Script;
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Vba;
 
 /// <summary>
 /// Integration tests for Script (VBA) Core operations.
@@ -14,12 +16,12 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Script;
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "VBA")]
-public partial class ScriptCommandsTests : IClassFixture<TempDirectoryFixture>
+public partial class VbaCommandsTests : IClassFixture<TempDirectoryFixture>
 {
     private readonly IVbaCommands _scriptCommands;
     private readonly string _tempDir;
 
-    public ScriptCommandsTests(TempDirectoryFixture fixture)
+    public VbaCommandsTests(TempDirectoryFixture fixture)
     {
         _scriptCommands = new VbaCommands();
         _tempDir = fixture.TempDir;
@@ -41,7 +43,7 @@ Public Sub TestSubroutine()
 End Sub";
 
         var vbaFile = Path.Join(_tempDir, fileName);
-        File.WriteAllText(vbaFile, vbaCode);
+        System.IO.File.WriteAllText(vbaFile, vbaCode);
         return vbaFile;
     }
 }

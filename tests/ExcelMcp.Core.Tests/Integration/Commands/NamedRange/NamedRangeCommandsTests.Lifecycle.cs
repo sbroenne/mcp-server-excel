@@ -2,19 +2,19 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Parameter;
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.NamedRange;
 
 /// <summary>
 /// Tests for Parameter lifecycle operations (list, create, delete)
 /// </summary>
-public partial class ParameterCommandsTests
+public partial class NamedRangeCommandsTests
 {
     [Fact]
     public async Task List_WithValidFile_ReturnsSuccess()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(ParameterCommandsTests), nameof(List_WithValidFile_ReturnsSuccess), _tempDir);
+            nameof(NamedRangeCommandsTests), nameof(List_WithValidFile_ReturnsSuccess), _tempDir);
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
@@ -30,7 +30,7 @@ public partial class ParameterCommandsTests
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(ParameterCommandsTests), nameof(Create_WithValidParameter_ReturnsSuccess), _tempDir);
+            nameof(NamedRangeCommandsTests), nameof(Create_WithValidParameter_ReturnsSuccess), _tempDir);
 
         // Act - Use single batch for create and verify
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
@@ -50,7 +50,7 @@ public partial class ParameterCommandsTests
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(ParameterCommandsTests), nameof(Delete_WithValidParameter_ReturnsSuccess), _tempDir);
+            nameof(NamedRangeCommandsTests), nameof(Delete_WithValidParameter_ReturnsSuccess), _tempDir);
 
         // Act - Use single batch for create, delete, and verify
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);

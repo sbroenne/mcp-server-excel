@@ -33,8 +33,8 @@ public partial class PowerQueryCommandsTests : IClassFixture<TempDirectoryFixtur
     }
 
     /// <summary>
-    /// Creates a unique test Power Query M code file.
-    /// Each test gets its own isolated M code file.
+    /// Creates a unique test Power Query M code System.IO.File.
+    /// Each test gets its own isolated M code System.IO.File.
     /// </summary>
     protected string CreateUniqueTestQueryFile(string testName)
     {
@@ -51,7 +51,7 @@ public partial class PowerQueryCommandsTests : IClassFixture<TempDirectoryFixtur
 in
     Source";
 
-        File.WriteAllText(uniqueFile, mCode);
+        System.IO.File.WriteAllText(uniqueFile, mCode);
         return uniqueFile;
     }
 }

@@ -1,12 +1,12 @@
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Commands.VbaTrust;
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Vba;
 
 /// <summary>
 /// Tests for VbaTrustRequiredResult model
 /// </summary>
-public partial class VbaTrustDetectionTests
+public partial class VbaCommandsTests
 {
     [Fact]
     public void VbaTrustRequiredResult_HasAllRequiredProperties()

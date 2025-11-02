@@ -2,19 +2,19 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Parameter;
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.NamedRange;
 
 /// <summary>
 /// Tests for Parameter value operations (get, set)
 /// </summary>
-public partial class ParameterCommandsTests
+public partial class NamedRangeCommandsTests
 {
     [Fact]
     public async Task Set_WithValidParameter_ReturnsSuccess()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(ParameterCommandsTests), nameof(Set_WithValidParameter_ReturnsSuccess), _tempDir);
+            nameof(NamedRangeCommandsTests), nameof(Set_WithValidParameter_ReturnsSuccess), _tempDir);
 
         // Act - Use single batch for create, set, and verify
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
@@ -38,7 +38,7 @@ public partial class ParameterCommandsTests
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(ParameterCommandsTests), nameof(Get_WithValidParameter_ReturnsValue), _tempDir);
+            nameof(NamedRangeCommandsTests), nameof(Get_WithValidParameter_ReturnsValue), _tempDir);
         string testValue = "Integration Test Value";
 
         // Act - Use single batch for create, set, and get
@@ -64,7 +64,7 @@ public partial class ParameterCommandsTests
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(ParameterCommandsTests), nameof(Get_WithNonExistentParameter_ReturnsError), _tempDir);
+            nameof(NamedRangeCommandsTests), nameof(Get_WithNonExistentParameter_ReturnsError), _tempDir);
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);

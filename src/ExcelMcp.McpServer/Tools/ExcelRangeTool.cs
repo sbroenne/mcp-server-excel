@@ -207,6 +207,9 @@ public static class ExcelRangeTool
         [Description("Show dropdown for list validation (for validate-range)")]
         bool? showDropdown = null,
 
+        [Description("Lock status for cells (for set-cell-lock: true = locked, false = unlocked)")]
+        bool? locked = null,
+
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
         string? batchId = null)
     {
@@ -248,6 +251,15 @@ public static class ExcelRangeTool
                 RangeAction.GetHyperlink => await GetHyperlinkAsync(rangeCommands, excelPath, sheetName, cellAddress, batchId),
                 RangeAction.FormatRange => await FormatRangeAsync(rangeCommands, excelPath, sheetName, rangeAddress, fontName, fontSize, bold, italic, underline, fontColor, fillColor, borderStyle, borderColor, borderWeight, horizontalAlignment, verticalAlignment, wrapText, orientation, batchId),
                 RangeAction.ValidateRange => await ValidateRangeAsync(rangeCommands, excelPath, sheetName, rangeAddress, validationType, validationOperator, validationFormula1, validationFormula2, showInputMessage, inputTitle, inputMessage, showErrorAlert, errorStyle, errorTitle, errorMessage, ignoreBlank, showDropdown, batchId),
+                RangeAction.GetValidation => await GetValidationAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.RemoveValidation => await RemoveValidationAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.AutoFitColumns => await AutoFitColumnsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.AutoFitRows => await AutoFitRowsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.MergeCells => await MergeCellsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.UnmergeCells => await UnmergeCellsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.GetMergeInfo => await GetMergeInfoAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.SetCellLock => await SetCellLockAsync(rangeCommands, excelPath, sheetName, rangeAddress, locked, batchId),
+                RangeAction.GetCellLock => await GetCellLockAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
                 _ => throw new ModelContextProtocol.McpException(
                     $"Unknown action: {action} ({action.ToActionString()})")
             };
@@ -980,6 +992,226 @@ public static class ExcelRangeTool
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
             throw new ModelContextProtocol.McpException($"validate-range failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> GetValidationAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-validation");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.GetValidationAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"get-validation failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> RemoveValidationAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "remove-validation");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.RemoveValidationAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"remove-validation failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> AutoFitColumnsAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "auto-fit-columns");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.AutoFitColumnsAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"auto-fit-columns failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> AutoFitRowsAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "auto-fit-rows");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.AutoFitRowsAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"auto-fit-rows failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> MergeCellsAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "merge-cells");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.MergeCellsAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"merge-cells failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> UnmergeCellsAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "unmerge-cells");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.UnmergeCellsAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"unmerge-cells failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> GetMergeInfoAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-merge-info");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.GetMergeInfoAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"get-merge-info failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> SetCellLockAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        bool? locked,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-cell-lock");
+
+        if (locked == null)
+            ExcelToolsBase.ThrowMissingParameter("locked", "set-cell-lock");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.SetCellLockAsync(batch, sheetName ?? "", rangeAddress!, locked!.Value));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-cell-lock failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> GetCellLockAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-cell-lock");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.GetCellLockAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"get-cell-lock failed for '{filePath}': {result.ErrorMessage}");
         }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);

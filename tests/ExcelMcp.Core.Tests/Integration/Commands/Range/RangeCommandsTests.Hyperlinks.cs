@@ -2,7 +2,7 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Range;
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
 /// <summary>
 /// Tests for range hyperlinks operations

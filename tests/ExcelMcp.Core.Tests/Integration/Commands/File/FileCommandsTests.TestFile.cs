@@ -1,7 +1,7 @@
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Commands.FileOperations;
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.File;
 
 /// <summary>
 /// Tests for FileCommands TestFile operation
@@ -54,7 +54,7 @@ public partial class FileCommandsTests
         string testFile = Path.Join(_tempDir, $"{Guid.NewGuid():N}_{fileName}");
 
         // Create file with invalid extension
-        File.WriteAllText(testFile, "test content");
+        System.IO.File.WriteAllText(testFile, "test content");
 
         // Act
         var result = await _fileCommands.TestFileAsync(testFile);

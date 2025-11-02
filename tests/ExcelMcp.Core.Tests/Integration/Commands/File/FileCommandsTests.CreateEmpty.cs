@@ -2,7 +2,7 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Commands.FileOperations;
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.File;
 
 /// <summary>
 /// Tests for FileCommands CreateEmpty operation
@@ -45,7 +45,7 @@ public partial class FileCommandsTests
         Assert.Null(result.ErrorMessage);
         Assert.Equal("create-empty", result.Action);
         Assert.NotNull(result.FilePath);
-        Assert.True(File.Exists(testFile));
+        Assert.True(System.IO.File.Exists(testFile));
 
         // Verify it's a valid Excel workbook
         bool isValidExcel = await IsValidExcelFileAsync(testFile);
@@ -64,7 +64,7 @@ public partial class FileCommandsTests
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
         Assert.Null(result.ErrorMessage);
-        Assert.True(File.Exists(testFile));
+        Assert.True(System.IO.File.Exists(testFile));
 
         // Verify it's a valid Excel workbook
         bool isValidExcel = await IsValidExcelFileAsync(testFile);
@@ -87,7 +87,7 @@ public partial class FileCommandsTests
         Assert.False(result.Success);
         Assert.NotNull(result.ErrorMessage);
         Assert.Contains("extension", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.False(File.Exists(testFile));
+        Assert.False(System.IO.File.Exists(testFile));
     }
 
     [Fact]
@@ -119,6 +119,6 @@ public partial class FileCommandsTests
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
         Assert.Null(result.ErrorMessage);
-        Assert.True(File.Exists(testFile));
+        Assert.True(System.IO.File.Exists(testFile));
     }
 }

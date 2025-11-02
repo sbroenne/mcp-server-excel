@@ -107,7 +107,7 @@ public partial class PowerQueryCommandsTests
         var result = await _powerQueryCommands.ExportAsync(batch, "TestQuery", exportPath);
         // Assert
         Assert.True(result.Success);
-        Assert.True(File.Exists(exportPath));
+        Assert.True(System.IO.File.Exists(exportPath));
     }
 
     /// <summary>
@@ -121,7 +121,7 @@ public partial class PowerQueryCommandsTests
         var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(PowerQueryCommandsTests), nameof(Update_WithValidMCode_ReturnsSuccessResult), _tempDir);
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Update_WithValidMCode_ReturnsSuccessResult));
         var updateFile = Path.Join(_tempDir, $"updated_{Guid.NewGuid():N}.pq");
-        File.WriteAllText(updateFile, "let\n    UpdatedSource = 1\nin\n    UpdatedSource");
+        System.IO.File.WriteAllText(updateFile, "let\n    UpdatedSource = 1\nin\n    UpdatedSource");
 
         // Act - Use single batch for both operations
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);

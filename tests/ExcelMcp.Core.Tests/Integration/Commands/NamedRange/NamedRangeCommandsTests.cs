@@ -2,7 +2,7 @@ using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Parameter;
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.NamedRange;
 
 /// <summary>
 /// Integration tests for Parameter Core operations using Excel COM automation.
@@ -14,12 +14,12 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Parameter;
 [Trait("Speed", "Fast")]
 [Trait("Feature", "Parameters")]
 [Trait("RequiresExcel", "true")]
-public partial class ParameterCommandsTests : IClassFixture<TempDirectoryFixture>
+public partial class NamedRangeCommandsTests : IClassFixture<TempDirectoryFixture>
 {
     private readonly INamedRangeCommands _parameterCommands;
     private readonly string _tempDir;
 
-    public ParameterCommandsTests(TempDirectoryFixture fixture)
+    public NamedRangeCommandsTests(TempDirectoryFixture fixture)
     {
         _parameterCommands = new NamedRangeCommands();
         _tempDir = fixture.TempDir;

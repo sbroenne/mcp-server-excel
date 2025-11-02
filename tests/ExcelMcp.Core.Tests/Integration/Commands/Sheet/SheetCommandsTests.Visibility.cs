@@ -9,28 +9,15 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Sheet;
 /// <summary>
 /// Integration tests for worksheet visibility operations
 /// </summary>
-[Trait("Category", "Integration")]
-[Trait("Speed", "Medium")]
-[Trait("Layer", "Core")]
-[Trait("Feature", "Sheet")]
-[Trait("RequiresExcel", "true")]
-public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
+public partial class SheetCommandsTests
 {
-    private readonly ISheetCommands _sheetCommands;
-    private readonly string _tempDir;
-
-    public SheetVisibilityTests(TempDirectoryFixture fixture)
-    {
-        _sheetCommands = new SheetCommands();
-        _tempDir = fixture.TempDir;
-    }
 
     [Fact]
     public async Task SetVisibility_ToHidden_WorksCorrectly()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetVisibilityTests),
+            nameof(SheetCommandsTests),
             nameof(SetVisibility_ToHidden_WorksCorrectly),
             _tempDir);
 
@@ -57,7 +44,7 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetVisibilityTests),
+            nameof(SheetCommandsTests),
             nameof(SetVisibility_ToVeryHidden_WorksCorrectly),
             _tempDir);
 
@@ -83,7 +70,7 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetVisibilityTests),
+            nameof(SheetCommandsTests),
             nameof(ShowAsync_MakesHiddenSheetVisible),
             _tempDir);
 
@@ -112,7 +99,7 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetVisibilityTests),
+            nameof(SheetCommandsTests),
             nameof(ShowAsync_MakesVeryHiddenSheetVisible),
             _tempDir);
 
@@ -141,7 +128,7 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetVisibilityTests),
+            nameof(SheetCommandsTests),
             nameof(HideAsync_HidesVisibleSheet),
             _tempDir);
 
@@ -165,7 +152,7 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetVisibilityTests),
+            nameof(SheetCommandsTests),
             nameof(VeryHideAsync_VeryHidesVisibleSheet),
             _tempDir);
 
@@ -189,7 +176,7 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetVisibilityTests),
+            nameof(SheetCommandsTests),
             nameof(GetVisibility_ForVisibleSheet_ReturnsVisible),
             _tempDir);
 
@@ -210,7 +197,7 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetVisibilityTests),
+            nameof(SheetCommandsTests),
             nameof(SetVisibility_WithNonExistentSheet_ReturnsError),
             _tempDir);
 
@@ -229,7 +216,7 @@ public class SheetVisibilityTests : IClassFixture<TempDirectoryFixture>
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetVisibilityTests),
+            nameof(SheetCommandsTests),
             nameof(Visibility_CompleteWorkflow_AllLevelsWork),
             _tempDir);
 

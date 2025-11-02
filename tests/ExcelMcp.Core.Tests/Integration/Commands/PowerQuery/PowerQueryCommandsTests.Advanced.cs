@@ -70,7 +70,7 @@ in
     Source";
 
         var sourceQueryFile = Path.Join(_tempDir, $"SourceQuery_{Guid.NewGuid():N}.pq");
-        File.WriteAllText(sourceQueryFile, sourceQueryMCode);
+        System.IO.File.WriteAllText(sourceQueryFile, sourceQueryMCode);
 
         // Create M code for the derived query (references the source query)
         string derivedQueryMCode = @"let
@@ -80,7 +80,7 @@ in
     FilteredRows";
 
         var derivedQueryFile = Path.Join(_tempDir, $"DerivedQuery_{Guid.NewGuid():N}.pq");
-        File.WriteAllText(derivedQueryFile, derivedQueryMCode);
+        System.IO.File.WriteAllText(derivedQueryFile, derivedQueryMCode);
 
         // Act & Assert
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);

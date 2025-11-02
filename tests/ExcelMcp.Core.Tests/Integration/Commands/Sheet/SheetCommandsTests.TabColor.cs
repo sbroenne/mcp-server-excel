@@ -9,28 +9,15 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Sheet;
 /// <summary>
 /// Integration tests for worksheet tab color operations
 /// </summary>
-[Trait("Category", "Integration")]
-[Trait("Speed", "Medium")]
-[Trait("Layer", "Core")]
-[Trait("Feature", "Sheet")]
-[Trait("RequiresExcel", "true")]
-public class SheetTabColorTests : IClassFixture<TempDirectoryFixture>
+public partial class SheetCommandsTests
 {
-    private readonly ISheetCommands _sheetCommands;
-    private readonly string _tempDir;
-
-    public SheetTabColorTests(TempDirectoryFixture fixture)
-    {
-        _sheetCommands = new SheetCommands();
-        _tempDir = fixture.TempDir;
-    }
 
     [Fact]
     public async Task SetTabColor_WithValidRGB_SetsColorCorrectly()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetTabColorTests),
+            nameof(SheetCommandsTests),
             nameof(SetTabColor_WithValidRGB_SetsColorCorrectly),
             _tempDir);
 
@@ -60,7 +47,7 @@ public class SheetTabColorTests : IClassFixture<TempDirectoryFixture>
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetTabColorTests),
+            nameof(SheetCommandsTests),
             nameof(SetTabColor_WithDifferentColors_AllSetCorrectly),
             _tempDir);
 
@@ -103,7 +90,7 @@ public class SheetTabColorTests : IClassFixture<TempDirectoryFixture>
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetTabColorTests),
+            nameof(SheetCommandsTests),
             nameof(GetTabColor_WithNoColor_ReturnsHasColorFalse),
             _tempDir);
 
@@ -127,7 +114,7 @@ public class SheetTabColorTests : IClassFixture<TempDirectoryFixture>
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetTabColorTests),
+            nameof(SheetCommandsTests),
             nameof(ClearTabColor_RemovesColor),
             _tempDir);
 
@@ -157,7 +144,7 @@ public class SheetTabColorTests : IClassFixture<TempDirectoryFixture>
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetTabColorTests),
+            nameof(SheetCommandsTests),
             nameof(SetTabColor_WithInvalidRGB_ReturnsError),
             _tempDir);
 
@@ -181,7 +168,7 @@ public class SheetTabColorTests : IClassFixture<TempDirectoryFixture>
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetTabColorTests),
+            nameof(SheetCommandsTests),
             nameof(SetTabColor_WithNonExistentSheet_ReturnsError),
             _tempDir);
 
@@ -200,7 +187,7 @@ public class SheetTabColorTests : IClassFixture<TempDirectoryFixture>
     {
         // Arrange - Test BGR conversion accuracy
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetTabColorTests),
+            nameof(SheetCommandsTests),
             nameof(TabColor_RGBToBGRConversion_WorksCorrectly),
             _tempDir);
 

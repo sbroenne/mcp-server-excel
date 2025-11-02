@@ -4,7 +4,7 @@ using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Range;
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
 /// <summary>
 /// Integration tests for RangeCommands number formatting operations

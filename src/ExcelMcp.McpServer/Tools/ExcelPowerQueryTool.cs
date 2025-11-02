@@ -124,6 +124,12 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
                 PowerQueryAction.SetLoadToBoth => await SetLoadToBothAsync(powerQueryCommands, excelPath, queryName, targetSheet, batchId),
                 PowerQueryAction.SetConnectionOnly => await SetConnectionOnlyAsync(powerQueryCommands, excelPath, queryName, batchId),
                 PowerQueryAction.GetLoadConfig => await GetLoadConfigAsync(powerQueryCommands, excelPath, queryName, batchId),
+                PowerQueryAction.Errors => await ErrorsPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
+                PowerQueryAction.Test => await TestPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
+                PowerQueryAction.LoadTo => await LoadToPowerQueryAsync(powerQueryCommands, excelPath, queryName, targetSheet, batchId),
+                PowerQueryAction.Sources => await SourcesPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
+                PowerQueryAction.Peek => await PeekPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
+                PowerQueryAction.Eval => await EvalPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, batchId),
                 _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
             };
         }
@@ -493,6 +499,117 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
         else
         {
 
+        }
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> ErrorsPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
+    {
+        if (string.IsNullOrEmpty(queryName))
+            throw new ModelContextProtocol.McpException("queryName is required for errors action");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: false,
+            async (batch) => await commands.ErrorsAsync(batch, queryName));
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"errors failed for '{queryName}' in '{excelPath}': {result.ErrorMessage}");
+        }
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> TestPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
+    {
+        if (string.IsNullOrEmpty(queryName))
+            throw new ModelContextProtocol.McpException("queryName is required for test action");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: false,
+            async (batch) => await commands.TestAsync(batch, queryName));
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"test failed for '{queryName}' in '{excelPath}': {result.ErrorMessage}");
+        }
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> LoadToPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? targetSheet, string? batchId)
+    {
+        if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(targetSheet))
+            throw new ModelContextProtocol.McpException("queryName and targetSheet are required for load-to action");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: true,
+            async (batch) => await commands.LoadToAsync(batch, queryName, targetSheet));
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"load-to failed for '{queryName}' to '{targetSheet}' in '{excelPath}': {result.ErrorMessage}");
+        }
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> SourcesPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
+    {
+        // sources action lists all available sources (doesn't require queryName)
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: false,
+            async (batch) => await commands.SourcesAsync(batch));
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"sources failed for '{excelPath}': {result.ErrorMessage}");
+        }
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> PeekPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
+    {
+        if (string.IsNullOrEmpty(queryName))
+            throw new ModelContextProtocol.McpException("queryName is required for peek action (specify source name to preview)");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: false,
+            async (batch) => await commands.PeekAsync(batch, queryName));
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"peek failed for source '{queryName}' in '{excelPath}': {result.ErrorMessage}");
+        }
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> EvalPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, string? batchId)
+    {
+        if (string.IsNullOrEmpty(sourcePath))
+            throw new ModelContextProtocol.McpException("sourcePath is required for eval action (M code file to evaluate)");
+
+        // Read M code from file
+        string mExpression;
+        try
+        {
+            mExpression = File.ReadAllText(sourcePath);
+        }
+        catch (Exception ex)
+        {
+            throw new ModelContextProtocol.McpException($"Failed to read M code from '{sourcePath}': {ex.Message}");
+        }
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: false,
+            async (batch) => await commands.EvalAsync(batch, mExpression));
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"eval failed for M code in '{sourcePath}' in '{excelPath}': {result.ErrorMessage}");
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }

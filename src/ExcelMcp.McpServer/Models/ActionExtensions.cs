@@ -27,6 +27,12 @@ public static class ActionExtensions
         PowerQueryAction.SetLoadToBoth => "set-load-to-both",
         PowerQueryAction.SetConnectionOnly => "set-connection-only",
         PowerQueryAction.GetLoadConfig => "get-load-config",
+        PowerQueryAction.Errors => "errors",
+        PowerQueryAction.Test => "test",
+        PowerQueryAction.LoadTo => "load-to",
+        PowerQueryAction.Sources => "sources",
+        PowerQueryAction.Peek => "peek",
+        PowerQueryAction.Eval => "eval",
         _ => throw new ArgumentException($"Unknown PowerQueryAction: {action}")
     };
 
@@ -81,6 +87,15 @@ public static class ActionExtensions
         RangeAction.GetHyperlink => "get-hyperlink",
         RangeAction.FormatRange => "format-range",
         RangeAction.ValidateRange => "validate-range",
+        RangeAction.GetValidation => "get-validation",
+        RangeAction.RemoveValidation => "remove-validation",
+        RangeAction.AutoFitColumns => "auto-fit-columns",
+        RangeAction.AutoFitRows => "auto-fit-rows",
+        RangeAction.MergeCells => "merge-cells",
+        RangeAction.UnmergeCells => "unmerge-cells",
+        RangeAction.GetMergeInfo => "get-merge-info",
+        RangeAction.SetCellLock => "set-cell-lock",
+        RangeAction.GetCellLock => "get-cell-lock",
         _ => throw new ArgumentException($"Unknown RangeAction: {action}")
     };
 
@@ -118,6 +133,9 @@ public static class ActionExtensions
         ConnectionAction.Test => "test",
         ConnectionAction.Refresh => "refresh",
         ConnectionAction.Delete => "delete",
+        ConnectionAction.LoadTo => "load-to",
+        ConnectionAction.GetProperties => "get-properties",
+        ConnectionAction.SetProperties => "set-properties",
         _ => throw new ArgumentException($"Unknown ConnectionAction: {action}")
     };
 

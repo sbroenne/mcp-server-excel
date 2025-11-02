@@ -30,7 +30,13 @@ public enum PowerQueryAction
     SetLoadToDataModel,
     SetLoadToBoth,
     SetConnectionOnly,
-    GetLoadConfig
+    GetLoadConfig,
+    Errors,
+    Test,
+    LoadTo,
+    Sources,
+    Peek,
+    Eval
 }
 
 /// <summary>
@@ -109,7 +115,22 @@ public enum RangeAction
 
     // Formatting & Validation
     FormatRange,
-    ValidateRange
+    ValidateRange,
+    GetValidation,
+    RemoveValidation,
+
+    // Auto-Sizing
+    AutoFitColumns,
+    AutoFitRows,
+
+    // Merge Operations
+    MergeCells,
+    UnmergeCells,
+    GetMergeInfo,
+
+    // Cell Protection
+    SetCellLock,
+    GetCellLock
 }
 
 /// <summary>
@@ -152,7 +173,10 @@ public enum ConnectionAction
     UpdateProperties,
     Test,
     Refresh,
-    Delete
+    Delete,
+    LoadTo,
+    GetProperties,
+    SetProperties
 }
 
 /// <summary>

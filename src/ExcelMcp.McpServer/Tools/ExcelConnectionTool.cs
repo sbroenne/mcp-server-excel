@@ -82,6 +82,9 @@ public static class ExcelConnectionTool
                 ConnectionAction.Refresh => await RefreshConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
                 ConnectionAction.Delete => await DeleteConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
                 ConnectionAction.Test => await TestConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
+                ConnectionAction.LoadTo => await LoadToWorksheetAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
+                ConnectionAction.GetProperties => await GetPropertiesAsync(connectionCommands, excelPath, connectionName, batchId),
+                ConnectionAction.SetProperties => await SetPropertiesAsync(connectionCommands, excelPath, connectionName, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod, batchId),
                 _ => throw new ModelContextProtocol.McpException(
                     $"Unknown action: {action} ({action.ToActionString()})")
             };

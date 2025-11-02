@@ -4,7 +4,7 @@ using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Commands.PowerQuery;
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
 
 /// <summary>
 /// CRITICAL REGRESSION TESTS: Verify Success flag is NEVER true when ErrorMessage is set
@@ -49,7 +49,7 @@ let
 in
     Source
 ";
-        await File.WriteAllTextAsync(queryFile, mCode);
+        await System.IO.File.WriteAllTextAsync(queryFile, mCode);
 
         // Act - Try to import with data-model destination
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
@@ -85,7 +85,7 @@ let
 in
     Source
 ";
-        await File.WriteAllTextAsync(queryFile, mCode);
+        await System.IO.File.WriteAllTextAsync(queryFile, mCode);
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
@@ -113,7 +113,7 @@ in
 
         var queryFile = Path.Combine(_tempDir, $"query_{destination}.pq");
         var mCode = "let Source = {1, 2, 3} in Source";
-        await File.WriteAllTextAsync(queryFile, mCode);
+        await System.IO.File.WriteAllTextAsync(queryFile, mCode);
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);

@@ -2,7 +2,7 @@ using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Commands.FileOperations;
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.File;
 
 /// <summary>
 /// Integration tests for File Core operations using Excel COM automation.

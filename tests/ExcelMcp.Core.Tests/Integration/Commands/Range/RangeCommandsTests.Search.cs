@@ -3,7 +3,7 @@ using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Xunit;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Range;
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
 /// <summary>
 /// Tests for range search operations
