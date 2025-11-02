@@ -73,6 +73,15 @@ Use begin to start a session, commit to end it, list to debug.")]
         // Normalize path to prevent duplicate sessions
         string normalizedPath = Path.GetFullPath(filePath);
 
+        // Check if file exists BEFORE attempting to open
+        if (!File.Exists(normalizedPath))
+        {
+            throw new ModelContextProtocol.McpException(
+                $"File not found: '{normalizedPath}'. " +
+                $"Use excel_file(action: 'create-empty', filePath: '{normalizedPath}') to create it first, " +
+                $"or verify the path is correct.");
+        }
+
         // Check if batch already exists for this file
         if (_activeBatches.ContainsKey(normalizedPath))
         {

@@ -62,12 +62,16 @@ public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
     [Fact]
     public async Task Import_ValidMCode_ReturnsSuccess()
     {
-        // Arrange
-        var queryName = "PQ_Import_" + Guid.NewGuid().ToString("N").Substring(0, 8);
+        // Arrange - Use unique file to avoid polluting fixture
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(PowerQueryCommandsTests),
+            nameof(Import_ValidMCode_ReturnsSuccess),
+            _tempDir);
+        var queryName = "TestQuery";
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Import_ValidMCode_ReturnsSuccess));
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(_powerQueryFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         var result = await _powerQueryCommands.ImportAsync(batch, queryName, testQueryFile, "connection-only");
         
         // Assert

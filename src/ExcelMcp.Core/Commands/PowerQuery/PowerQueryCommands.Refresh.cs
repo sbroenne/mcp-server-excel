@@ -92,6 +92,9 @@ public partial class PowerQueryCommands
                         result.HasErrors = false;
                         result.Success = true;
                         result.LoadedToSheet = DetermineLoadedSheet(ctx.Book, queryName);
+                        
+                        // Determine if connection-only based on whether it's loaded to a sheet
+                        result.IsConnectionOnly = string.IsNullOrEmpty(result.LoadedToSheet);
 
                         // Add workflow guidance
                     }

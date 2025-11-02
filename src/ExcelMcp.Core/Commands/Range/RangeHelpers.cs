@@ -53,9 +53,13 @@ public static class RangeHelpers
     {
         if (string.IsNullOrEmpty(sheetName))
         {
-            return $"Named range '{rangeAddress}' not found";
+            return $"Named range '{rangeAddress}' not found. " +
+                   $"Use excel_namedrange(action: 'list') to see available named ranges, " +
+                   $"or create it with excel_namedrange(action: 'create').";
         }
-        return $"Sheet '{sheetName}' or range '{rangeAddress}' not found";
+        return $"Sheet '{sheetName}' or range '{rangeAddress}' not found. " +
+               $"Use excel_worksheet(action: 'list') to see available sheets, " +
+               $"or verify the range address is correct (e.g., 'A1:E10').";
     }
 
     /// <summary>

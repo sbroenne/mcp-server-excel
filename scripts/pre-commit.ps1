@@ -1,11 +1,15 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Git pre-commit hook to check for COM object leaks and Core Commands coverage
+    Git pre-commit hook to check for COM object leaks, Core Commands coverage, and MCP Server functionality
 
 .DESCRIPTION
-    Runs both COM leak checker and coverage audit before allowing commits.
-    Ensures code quality and prevents coverage regression.
+    Runs three checks before allowing commits:
+    1. COM leak checker - ensures no Excel COM objects are leaked
+    2. Coverage audit - ensures 100% Core Commands are exposed via MCP Server
+    3. Smoke test - validates all 11 MCP tools work correctly
+
+    Ensures code quality and prevents regression.
 
 .EXAMPLE
     .\pre-commit.ps1
@@ -56,6 +60,33 @@ try {
 catch {
     Write-Host ""
     Write-Host "❌ Error running coverage audit: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host ""
+Write-Host "🔍 Running MCP Server smoke test..." -ForegroundColor Cyan
+
+try {
+    # Run the smoke test with proper filter (OnDemand only)
+    $smokeTestFilter = "FullyQualifiedName~McpServerSmokeTests.SmokeTest_AllTools_LlmWorkflow"
+
+    Write-Host "   dotnet test --filter `"$smokeTestFilter`" --verbosity quiet" -ForegroundColor Gray
+    dotnet test --filter $smokeTestFilter --verbosity quiet
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "❌ MCP Server smoke test failed! Core functionality is broken." -ForegroundColor Red
+        Write-Host "   This test validates all 11 MCP tools work correctly." -ForegroundColor Red
+        Write-Host "   Fix the issues before committing." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "✅ MCP Server smoke test passed - all tools functional" -ForegroundColor Green
+}
+catch {
+    Write-Host ""
+    Write-Host "❌ Error running smoke test: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "   Ensure Excel is installed and accessible." -ForegroundColor Yellow
     exit 1
 }
 

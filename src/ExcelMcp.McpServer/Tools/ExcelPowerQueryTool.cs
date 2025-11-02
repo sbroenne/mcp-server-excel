@@ -322,25 +322,10 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
                     break;
             }
 
-            // If load configuration failed, return error
+            // If load configuration failed, throw exception
             if (loadResult != null && !loadResult.Success)
             {
-                var errorResult = new
-                {
-                    success = false,
-                    errorMessage = $"Failed to apply load configuration '{destination}': {loadResult.ErrorMessage}",
-                    filePath = excelPath,
-                    queryName,
-                    refreshTime = DateTime.Now,
-                    suggestedNextActions = new[]
-                    {
-                        "Check that the query exists using 'list'",
-                        "Use 'view' to verify query M code is valid",
-                        $"Try 'set-load-to-{destination}' separately to diagnose the issue"
-                    },
-                    workflowHint = $"Failed to configure query to load to {destination}"
-                };
-                return JsonSerializer.Serialize(errorResult, ExcelToolsBase.JsonOptions);
+                throw new ModelContextProtocol.McpException($"Failed to apply load configuration '{destination}' for query '{queryName}' in '{excelPath}': {loadResult.ErrorMessage}");
             }
 
             // Load configuration applied successfully, now the refresh will use it

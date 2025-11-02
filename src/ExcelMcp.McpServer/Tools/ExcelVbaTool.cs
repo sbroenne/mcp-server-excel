@@ -99,17 +99,7 @@ public static class ExcelVbaTool
         // If listing failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = result.ErrorMessage,
-                suggestedNextActions = new[]
-                {
-                    "Verify file is .xlsm (macro-enabled format)",
-                    "Check VBA trust is enabled (use get-trust-status action)",
-                    "Ensure file is not corrupted"
-                }
-            }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException($"list failed for '{filePath}': {result.ErrorMessage}");
         }
 
         var moduleCount = result.Scripts?.Count ?? 0;
@@ -183,19 +173,7 @@ public static class ExcelVbaTool
         // If import failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = result.ErrorMessage,
-                moduleName,
-                sourcePath,
-                suggestedNextActions = new[]
-                {
-                    "Check VBA trust is enabled (use get-trust-status action)",
-                    "Verify source file exists and contains valid VBA code",
-                    "Ensure target file is .xlsm format"
-                }
-            }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException($"import failed for '{filePath}': {result.ErrorMessage}");
         }
 
         return JsonSerializer.Serialize(new
@@ -258,19 +236,7 @@ public static class ExcelVbaTool
         // If VBA execution failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = result.ErrorMessage,
-                moduleName,
-                parameters = paramArray,
-                suggestedNextActions = new[]
-                {
-                    "Use 'view' to inspect VBA code for errors",
-                    "Check parameter count and types match procedure signature",
-                    "Verify VBA trust is enabled (use get-trust-status action)"
-                }
-            }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException($"run failed for '{moduleName}' in '{filePath}': {result.ErrorMessage}");
         }
 
         return JsonSerializer.Serialize(new

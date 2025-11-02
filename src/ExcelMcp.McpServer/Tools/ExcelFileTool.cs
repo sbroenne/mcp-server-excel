@@ -98,19 +98,7 @@ public static class ExcelFileTool
         }
         else
         {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                error = result.ErrorMessage,
-                filePath = result.FilePath,
-                suggestedNextActions = new[]
-                {
-                    "Check that the target directory exists and is writable",
-                    "Verify the file doesn't already exist",
-                    "Try a different file path"
-                },
-                workflowHint = "File creation failed. Ensure the path is valid and writable."
-            }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException($"create-empty failed for '{excelPath}': {result.ErrorMessage}");
         }
     }
 
@@ -169,21 +157,7 @@ public static class ExcelFileTool
         }
         else
         {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                filePath = result.FilePath,
-                exists = result.Exists,
-                isValid = result.IsValid,
-                extension = result.Extension,
-                error = result.ErrorMessage,
-                suggestedNextActions = result.Exists
-                    ? new[] { "Ensure file has .xlsx or .xlsm extension", "Check file path is correct" }
-                    : new[] { "Verify file path is correct", "Use 'excel_file' with action 'create-empty' to create new file" },
-                workflowHint = result.Exists
-                    ? "File exists but has invalid extension for Excel operations."
-                    : "File not found. Create it first or verify the path."
-            }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException($"test failed for '{excelPath}': {result.ErrorMessage}");
         }
     }
 }
