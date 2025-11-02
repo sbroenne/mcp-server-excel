@@ -284,3 +284,13 @@ public enum PivotTableAction
     GetData
 }
 
+/// <summary>
+/// Actions available for excel_batch tool
+/// </summary>
+public enum BatchAction
+{
+    Begin,
+    Commit,
+    List
+}
+

@@ -216,24 +216,24 @@ A good prompt:
 - ❌ Doesn't show JSON syntax
 - ❌ Doesn't duplicate schema info
 
-## Completions (Autocomplete) - NOT YET IMPLEMENTED
+## Completions (Autocomplete) - IMPLEMENTED
 
-**Purpose**: Provide autocomplete suggestions for prompt arguments and resource URIs
+**Purpose**: Provide autocomplete suggestions for freeform string parameters (NOT enum parameters)
 
-**FUTURE**: Completions will be stored as `.md` files in `Content/Completions/` directory
+**CRITICAL**: Only create completions for non-enum parameters! The MCP SDK auto-generates enum values in the tool schema.
 
 **Current State**: 
-- Completions currently in `ExcelCompletionHandler.cs` (C# code)
-- **TODO**: Migrate to `.md` files for easier maintenance
-- **TODO**: Create loader to read completion markdown files
+- ✅ Completions stored as `.md` files in `Content/Completions/` directory
+- ✅ Loader implemented: `MarkdownLoader.LoadCompletionValues()`
+- ✅ Used in `ExcelCompletionHandler.cs`
 
 **What completions do**:
-- Suggest valid action values when user types `action=`
-- Suggest format codes when user types `formatString=`
-- Suggest file paths when user types Excel file URIs
-- Suggest common parameter values (privacy levels, alignment, colors, etc.)
+- Suggest common format codes (e.g., `"0.00"`, `"mm/dd/yyyy"`)
+- Suggest hex color values (e.g., `"#FF0000"`, `"#00FF00"`)
+- Suggest parameter values that are freeform strings (privacy levels, alignment, validation types)
+- **DO NOT** suggest enum values (actions) - the SDK provides these automatically!
 
-**Future .md file structure**:
+**File structure**:
 ```markdown
 # Completions for [parameter-name]
 
@@ -247,23 +247,55 @@ value3
 - ✅ Most common values first
 - ✅ Limit to 10-15 suggestions per parameter
 - ✅ Use lowercase for consistency (except Excel-specific like "Private")
+- ❌ **DO NOT create completions for enum parameters** (action, fileAction, rangeAction, etc.)
 - ❌ Don't include every possible value (overwhelming)
 - ❌ Don't duplicate MCP schema info
 
 **When to add completions**:
-- New parameter with enum-like values (actions, types, modes)
-- Common string patterns (format codes, colors, alignments)
-- File/path parameters (suggest existing files)
+- ✅ Freeform string parameters with common patterns (format codes, colors)
+- ✅ String parameters with well-known values (privacy levels, validation types)
+- ❌ **NEVER for enum parameters** - SDK provides these via schema!
 
-## Elicitations (Pre-flight Checklists)
+**Example - Why action completions are redundant**:
+```csharp
+// C# Tool Definition
+public static Task<string> ExcelPowerQuery(
+    PowerQueryAction action,  // ← Enum parameter
+    string excelPath)
+
+// MCP SDK auto-generates this schema:
+{
+  "tools": [{
+    "name": "excel_powerquery",
+    "parameters": {
+      "action": {
+        "type": "string",
+        "enum": ["list", "view", "import", "export", ...]  // ← LLM gets this!
+      }
+    }
+  }]
+}
+
+// So action_powerquery.md would be redundant!
+```
+
+**Non-enum completions to keep**:
+- format_codes.md (common Excel number formats)
+- colors_common.md (hex color suggestions)
+- privacy_level.md (Power Query privacy: Private, Organizational, Public)
+- validation_types.md, validation_operators.md, error_styles.md
+- alignment_horizontal.md, alignment_vertical.md
+- border_styles.md, border_weights.md
+- load_destination.md (worksheet, datamodel, both, connectiononly)
+
+## Elicitations (Pre-flight Checklists) - IMPLEMENTED
+
 **Purpose**: Guide users to provide ALL needed information before calling tools (prevents back-and-forth)
 
-**FUTURE**: Elicitations will be stored as `.md` files in `Content/Elicitations/` directory
-
 **Current State**:
-- Elicitations currently in `ExcelElicitationPrompts.cs` (C# code with embedded strings)
-- **TODO**: Migrate to `.md` files for easier maintenance
-- **TODO**: Create loader to read elicitation markdown files
+- ✅ Elicitations stored as `.md` files in `Content/Elicitations/` directory
+- ✅ Loader implemented: `MarkdownLoader.LoadElicitation()`
+- ✅ Used in `ExcelElicitationPrompts.cs`
 
 **What elicitations do**:
 - Checklist of REQUIRED information
@@ -271,7 +303,7 @@ value3
 - Workflow optimization hints (batch mode detection)
 - Ask user for missing info BEFORE tool invocation
 
-**Future .md file structure**:
+**File structure**:
 ```markdown
 # BEFORE [OPERATION] - GATHER THIS INFO
 

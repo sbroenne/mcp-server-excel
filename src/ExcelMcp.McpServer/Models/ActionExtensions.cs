@@ -211,5 +211,13 @@ public static class ActionExtensions
         PivotTableAction.GetData => "get-data",
         _ => throw new ArgumentException($"Unknown PivotTableAction: {action}")
     };
+
+    public static string ToActionString(this BatchAction action) => action switch
+    {
+        BatchAction.Begin => "begin",
+        BatchAction.Commit => "commit",
+        BatchAction.List => "list",
+        _ => throw new ArgumentException($"Unknown BatchAction: {action}")
+    };
 }
 

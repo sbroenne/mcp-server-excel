@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Sbroenne.ExcelMcp.McpServer.Prompts;
 
 namespace Sbroenne.ExcelMcp.McpServer.Completions;
 
@@ -63,315 +64,123 @@ public static class ExcelCompletionHandler
     {
         var suggestions = new List<string>();
 
-        // Action parameter completions for Power Query prompts
-        if (argumentName == "action" && promptName.Contains("powerquery", StringComparison.OrdinalIgnoreCase))
-        {
-            suggestions =
-            [
-                "list", "view", "import", "export", "update", "delete", "refresh",
-                "set-load-to-table", "set-load-to-data-model", "set-load-to-both",
-                "set-connection-only", "get-load-config"
-            ];
-        }
+        // NOTE: Action parameter completions are NOT needed here!
+        // The MCP SDK auto-generates tool schema from C# enums (PowerQueryAction, RangeAction, etc.)
+        // and LLMs receive all valid enum values directly in the schema.
+        // 
+        // Only provide completions for freeform string parameters where suggestions add value.
+
         // Load destination completions for Power Query
-        else if (argumentName == "loadDestination")
+        if (argumentName == "loadDestination")
         {
-            suggestions =
-            [
-                "worksheet", "data-model", "both", "connection-only"
-            ];
-        }
-        // Action parameter completions for Parameter tool
-        else if (argumentName == "action" && promptName.Contains("parameter", StringComparison.OrdinalIgnoreCase))
-        {
-            suggestions =
-            [
-                "list", "get", "set", "update", "create", "delete", "create-bulk"
-            ];
-        }
-        // Action parameter completions for Data Model prompts
-        else if (argumentName == "action" && promptName.Contains("datamodel", StringComparison.OrdinalIgnoreCase))
-        {
-            suggestions =
-            [
-                "list-tables", "list-measures", "view-measure", "export-measure",
-                "list-relationships", "refresh", "delete-measure", "delete-relationship",
-                "list-columns", "view-table", "get-model-info", "create-measure",
-                "update-measure", "create-relationship", "update-relationship",
-                "create-column", "view-column", "update-column", "delete-column", "validate-dax"
-            ];
-        }
-        // Action parameter completions for VBA prompts
-        else if (argumentName == "action" && promptName.Contains("vba", StringComparison.OrdinalIgnoreCase))
-        {
-            suggestions =
-            [
-                "list", "view", "export", "import", "update", "run", "delete"
-            ];
-        }
-        // Action parameter completions for worksheet prompts
-        else if (argumentName == "action" && promptName.Contains("worksheet", StringComparison.OrdinalIgnoreCase))
-        {
-            suggestions =
-            [
-                "list", "read", "write", "create", "rename", "copy", "delete", "clear", "append"
-            ];
-        }
-        // Action parameter completions for range prompts
-        else if (argumentName == "action" && promptName.Contains("range", StringComparison.OrdinalIgnoreCase))
-        {
-            suggestions =
-            [
-                // Values & Formulas
-                "get-values", "set-values", "get-formulas", "set-formulas",
-                
-                // Number Formats
-                "get-number-formats", "set-number-format", "set-number-formats",
-                
-                // Clear Operations
-                "clear-all", "clear-contents", "clear-formats",
-                
-                // Copy Operations
-                "copy", "copy-values", "copy-formulas",
-                
-                // Insert/Delete Operations
-                "insert-cells", "delete-cells",
-                "insert-rows", "delete-rows",
-                "insert-columns", "delete-columns",
-                
-                // Search & Sort
-                "find", "replace", "sort",
-                
-                // Discovery
-                "get-used-range", "get-current-region", "get-range-info",
-                
-                // Hyperlinks
-                "add-hyperlink", "remove-hyperlink", "list-hyperlinks", "get-hyperlink",
-                
-                // Formatting & Validation
-                "format-range", "validate-range"
-            ];
-        }
-        // Action parameter completions for table prompts
-        else if (argumentName == "action" && promptName.Contains("table", StringComparison.OrdinalIgnoreCase))
-        {
-            suggestions =
-            [
-                "list", "create", "resize", "rename", "delete", "add-column",
-                "remove-column", "rename-column", "append-rows", "apply-filter",
-                "clear-filters", "sort", "add-to-datamodel"
-            ];
+            suggestions = MarkdownLoader.LoadCompletionValues("load_destination.md");
         }
         // Privacy level completions
         else if (argumentName == "privacyLevel")
         {
-            suggestions =
-            [
-                "None", "Private", "Organizational", "Public"
-            ];
+            suggestions = MarkdownLoader.LoadCompletionValues("privacy_level.md");
         }
-        // Format string completions for measures and ranges
-        else if (argumentName == "formatString" || argumentName == "formatCode")
+        // Format code completions
+        else if (argumentName == "formatCode" || argumentName == "formatString" || argumentName == "numberFormat")
         {
-            suggestions =
-            [
-                "#,##0.00",           // Standard number
-                "$#,##0.00",          // Currency with decimals
-                "$#,##0",             // Currency no decimals
-                "0.00%",              // Percentage
-                "#,##0",              // Whole number with thousands
-                "mm/dd/yyyy",         // Short date
-                "m/d/yyyy",           // Short date no leading zero
-                "dddd, mmmm dd, yyyy", // Long date
-                "h:mm AM/PM",         // Time
-                "General Number",     // General
-                "@"                   // Text
-            ];
-        }
-        // Range address completions
-        else if (argumentName == "rangeAddress")
-        {
-            suggestions =
-            [
-                "A1:Z100",     // Common data range
-                "A1:E50",      // Medium table
-                "A1:D10",      // Small table
-                "A1",          // Single cell
-                "A1:A1000",    // Single column
-                "1:1",         // Entire first row
-                "A:A",         // Entire column A
-                "SalesData",   // Named range example
-                "DataRange"    // Named range example
-            ];
-        }
-        // Sheet name completions
-        else if (argumentName == "sheetName" || argumentName == "targetSheet" || argumentName == "sourceSheet")
-        {
-            suggestions =
-            [
-                "Sheet1", "Data", "Report", "Summary", "Analysis",
-                "Sales", "Products", "Customers", "Dashboard", "Settings"
-            ];
+            suggestions = MarkdownLoader.LoadCompletionValues("format_codes.md");
         }
         // Validation type completions
         else if (argumentName == "validationType")
         {
-            suggestions =
-            [
-                "list", "decimal", "whole", "date", "time", "textLength", "custom"
-            ];
+            suggestions = MarkdownLoader.LoadCompletionValues("validation_types.md");
         }
         // Validation operator completions
         else if (argumentName == "validationOperator")
         {
-            suggestions =
-            [
-                "between", "notBetween", "equal", "notEqual",
-                "greaterThan", "lessThan", "greaterThanOrEqual", "lessThanOrEqual"
-            ];
+            suggestions = MarkdownLoader.LoadCompletionValues("validation_operators.md");
         }
         // Error style completions
         else if (argumentName == "errorStyle")
         {
-            suggestions =
-            [
-                "stop", "warning", "information"
-            ];
+            suggestions = MarkdownLoader.LoadCompletionValues("error_styles.md");
         }
         // Alignment completions
         else if (argumentName == "horizontalAlignment")
         {
-            suggestions =
-            [
-                "left", "center", "right", "justify", "distributed"
-            ];
+            suggestions = MarkdownLoader.LoadCompletionValues("alignment_horizontal.md");
         }
         else if (argumentName == "verticalAlignment")
         {
-            suggestions =
-            [
-                "top", "center", "bottom", "justify", "distributed"
-            ];
+            suggestions = MarkdownLoader.LoadCompletionValues("alignment_vertical.md");
         }
         // Border style completions
         else if (argumentName == "borderStyle")
         {
-            suggestions =
-            [
-                "none", "continuous", "dash", "dot", "double", "dashDot", "dashDotDot"
-            ];
+            suggestions = MarkdownLoader.LoadCompletionValues("border_styles.md");
         }
         // Border weight completions
         else if (argumentName == "borderWeight")
         {
-            suggestions =
-            [
-                "hairline", "thin", "medium", "thick"
-            ];
+            suggestions = MarkdownLoader.LoadCompletionValues("border_weights.md");
         }
         // Color completions (common Excel theme colors)
         else if (argumentName == "fontColor" || argumentName == "fillColor" || argumentName == "borderColor")
         {
-            suggestions =
-            [
-                "#000000",  // Black
-                "#FFFFFF",  // White
-                "#FF0000",  // Red
-                "#00FF00",  // Green
-                "#0000FF",  // Blue
-                "#FFFF00",  // Yellow
-                "#FFA500",  // Orange
-                "#800080",  // Purple
-                "#4472C4",  // Excel blue (headers)
-                "#70AD47",  // Excel green
-                "#ED7D31",  // Excel orange
-                "#FFC000",  // Excel yellow
-                "#5B9BD5",  // Light blue
-                "#A5A5A5",  // Gray
-                "#D3D3D3"   // Light gray
-            ];
+            suggestions = MarkdownLoader.LoadCompletionValues("colors_common.md");
         }
 
-        // Filter suggestions based on current value (prefix matching)
-        if (!string.IsNullOrEmpty(currentValue))
-        {
-            suggestions = suggestions
-                .Where(s => s.StartsWith(currentValue, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-        }
-
-        return suggestions;
+        return FilterSuggestions(suggestions, currentValue);
     }
 
     private static List<string> GetResourceUriCompletions(string uri, string currentValue)
     {
         var suggestions = new List<string>();
 
-        // Suggest Excel file paths for excel:// URIs or when completing file paths
-        if (uri.StartsWith("excel://", StringComparison.OrdinalIgnoreCase) ||
-            currentValue.Contains(".xlsx", StringComparison.OrdinalIgnoreCase) ||
-            currentValue.Contains(".xlsm", StringComparison.OrdinalIgnoreCase) ||
-            currentValue.Contains(":\\", StringComparison.OrdinalIgnoreCase))
-        {
-            // Scan common directories for Excel files
-            var commonPaths = new[]
-            {
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Desktop"),
-                Environment.CurrentDirectory
-            };
-
-            foreach (var basePath in commonPaths)
-            {
-                try
-                {
-                    if (Directory.Exists(basePath))
-                    {
-                        var excelFiles = Directory.GetFiles(basePath, "*.xlsx", SearchOption.TopDirectoryOnly)
-                            .Concat(Directory.GetFiles(basePath, "*.xlsm", SearchOption.TopDirectoryOnly))
-                            .Take(5)
-                            .ToList();
-
-                        suggestions.AddRange(excelFiles);
-                    }
-                }
-                catch
-                {
-                    // Ignore access denied or other errors
-                }
-            }
-        }
-
-        // Remove duplicates and limit to 15 suggestions
-        suggestions = suggestions.Distinct().Take(15).ToList();
-
-        // If no files found, provide example paths
-        if (suggestions.Count == 0)
+        // Excel file path completions
+        if (uri.StartsWith("file://", StringComparison.OrdinalIgnoreCase) || 
+            uri.Contains(".xlsx", StringComparison.OrdinalIgnoreCase) ||
+            uri.Contains(".xlsm", StringComparison.OrdinalIgnoreCase))
         {
             suggestions =
             [
                 "C:\\Data\\workbook.xlsx",
-                "C:\\Reports\\analysis.xlsx",
-                "C:\\Projects\\dashboard.xlsx"
+                "C:\\Reports\\financial-report.xlsx",
+                "C:\\Projects\\analysis.xlsm",
+                "workbook.xlsx",
+                "report.xlsx"
             ];
         }
 
-        return suggestions;
+        return FilterSuggestions(suggestions, currentValue);
+    }
+
+    private static List<string> FilterSuggestions(List<string> suggestions, string currentValue)
+    {
+        if (string.IsNullOrWhiteSpace(currentValue))
+        {
+            return suggestions;
+        }
+
+        // Case-insensitive prefix matching
+        return suggestions
+            .Where(s => s.StartsWith(currentValue, StringComparison.OrdinalIgnoreCase))
+            .ToList();
     }
 
     private static JsonObject CreateCompletionResult(List<string> suggestions)
     {
-        var completion = new JsonObject
+        var values = new JsonArray();
+        foreach (var suggestion in suggestions)
         {
-            ["values"] = new JsonArray(suggestions.Select(s => JsonValue.Create(s)).ToArray()),
-            ["total"] = suggestions.Count,
-            ["hasMore"] = false
-        };
+            var item = new JsonObject
+            {
+                ["value"] = suggestion,
+                ["description"] = $"Autocomplete: {suggestion}"
+            };
+            values.Add(item);
+        }
 
         return new JsonObject
         {
-            ["completion"] = completion
+            ["values"] = values,
+            ["total"] = suggestions.Count,
+            ["hasMore"] = false
         };
     }
 
@@ -379,13 +188,9 @@ public static class ExcelCompletionHandler
     {
         return new JsonObject
         {
-            ["completion"] = new JsonObject
-            {
-                ["values"] = new JsonArray(),
-                ["total"] = 0,
-                ["hasMore"] = false
-            }
+            ["values"] = new JsonArray(),
+            ["total"] = 0,
+            ["hasMore"] = false
         };
     }
 }
-

@@ -125,7 +125,25 @@ public static class ExcelWorksheetTool
             throw new ModelContextProtocol.McpException($"list failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        // Add workflow hints
+        var count = result.Worksheets?.Count ?? 0;
+        var inBatch = !string.IsNullOrEmpty(batchId);
+        
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.Worksheets,
+            workflowHint = $"Found {count} worksheet(s). Use excel_range for data operations.",
+            suggestedNextActions = count == 0
+                ? new[] { "Workbook is empty - this shouldn't happen. Check file integrity." }
+                : new[]
+                {
+                    "Use excel_range for data operations (get-values, set-values, clear-*)",
+                    "Use 'create' to add new worksheets",
+                    "Use 'set-tab-color' to organize sheets visually",
+                    inBatch ? "Continue batch operations" : count > 3 ? "Use excel_batch for multiple sheet operations (faster)" : "Use 'rename' or 'copy' to manage sheets"
+                }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> CreateWorksheetAsync(SheetCommands commands, string filePath, string? sheetName, string? batchId)
@@ -149,7 +167,18 @@ public static class ExcelWorksheetTool
             throw new ModelContextProtocol.McpException($"create failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        // Add workflow hints
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            workflowHint = $"Worksheet '{sheetName}' created successfully.",
+            suggestedNextActions = new[]
+            {
+                "Use excel_range 'set-values' to add data to the new sheet",
+                "Use 'set-tab-color' to color-code this sheet",
+                usedBatchMode ? "Create more worksheets in this batch" : "Creating multiple sheets? Use excel_batch (faster)"
+            }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> RenameWorksheetAsync(SheetCommands commands, string filePath, string? sheetName, string? targetName, string? batchId)

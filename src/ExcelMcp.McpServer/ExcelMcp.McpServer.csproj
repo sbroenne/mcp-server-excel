@@ -66,4 +66,11 @@
     <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Embed Prompt Markdown Files -->
+    <EmbeddedResource Include="Prompts\Content\*.md" />
+    <EmbeddedResource Include="Prompts\Content\Completions\*.md" />
+    <EmbeddedResource Include="Prompts\Content\Elicitations\*.md" />
+  </ItemGroup>
+
 </Project>
