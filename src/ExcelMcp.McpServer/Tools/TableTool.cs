@@ -75,7 +75,10 @@ public static class TableTool
         string? filterValues = null,
 
         [Description("Excel format code for set-column-number-format (e.g., '$#,##0.00', '0.00%', 'm/d/yyyy')")]
-        string? formatCode = null)
+        string? formatCode = null,
+
+        [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
+        string? batchId = null)
     {
         try
         {
@@ -84,29 +87,29 @@ public static class TableTool
             // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
             return action switch
             {
-                TableAction.List => await ListTables(tableCommands, excelPath),
-                TableAction.Create => await CreateTable(tableCommands, excelPath, sheetName, tableName, range, hasHeaders, tableStyle),
-                TableAction.Info => await GetTableInfo(tableCommands, excelPath, tableName),
-                TableAction.Rename => await RenameTable(tableCommands, excelPath, tableName, newName),
-                TableAction.Delete => await DeleteTable(tableCommands, excelPath, tableName),
-                TableAction.Resize => await ResizeTable(tableCommands, excelPath, tableName, range),
-                TableAction.ToggleTotals => await ToggleTotals(tableCommands, excelPath, tableName, hasHeaders),
-                TableAction.SetColumnTotal => await SetColumnTotal(tableCommands, excelPath, tableName, newName, tableStyle),
-                TableAction.Append => await AppendRows(tableCommands, excelPath, tableName, tableStyle),
-                TableAction.SetStyle => await SetTableStyle(tableCommands, excelPath, tableName, tableStyle),
-                TableAction.AddToDataModel => await AddToDataModel(tableCommands, excelPath, tableName),
-                TableAction.ApplyFilter => await ApplyFilter(tableCommands, excelPath, tableName, newName, filterCriteria),
-                TableAction.ApplyFilterValues => await ApplyFilterValues(tableCommands, excelPath, tableName, newName, filterValues),
-                TableAction.ClearFilters => await ClearFilters(tableCommands, excelPath, tableName),
-                TableAction.GetFilters => await GetFilters(tableCommands, excelPath, tableName),
-                TableAction.AddColumn => await AddColumn(tableCommands, excelPath, tableName, newName, filterCriteria),
-                TableAction.RemoveColumn => await RemoveColumn(tableCommands, excelPath, tableName, newName),
-                TableAction.RenameColumn => await RenameColumn(tableCommands, excelPath, tableName, newName, filterCriteria),
-                TableAction.GetStructuredReference => await GetStructuredReference(tableCommands, excelPath, tableName, filterCriteria, newName),
-                TableAction.Sort => await SortTable(tableCommands, excelPath, tableName, newName, hasHeaders),
-                TableAction.SortMulti => await SortTableMulti(tableCommands, excelPath, tableName, filterValues),
-                TableAction.GetColumnNumberFormat => await GetColumnNumberFormat(tableCommands, excelPath, tableName, newName),
-                TableAction.SetColumnNumberFormat => await SetColumnNumberFormat(tableCommands, excelPath, tableName, newName, formatCode),
+                TableAction.List => await ListTables(tableCommands, excelPath, batchId),
+                TableAction.Create => await CreateTable(tableCommands, excelPath, sheetName, tableName, range, hasHeaders, tableStyle, batchId),
+                TableAction.Info => await GetTableInfo(tableCommands, excelPath, tableName, batchId),
+                TableAction.Rename => await RenameTable(tableCommands, excelPath, tableName, newName, batchId),
+                TableAction.Delete => await DeleteTable(tableCommands, excelPath, tableName, batchId),
+                TableAction.Resize => await ResizeTable(tableCommands, excelPath, tableName, range, batchId),
+                TableAction.ToggleTotals => await ToggleTotals(tableCommands, excelPath, tableName, hasHeaders, batchId),
+                TableAction.SetColumnTotal => await SetColumnTotal(tableCommands, excelPath, tableName, newName, tableStyle, batchId),
+                TableAction.Append => await AppendRows(tableCommands, excelPath, tableName, tableStyle, batchId),
+                TableAction.SetStyle => await SetTableStyle(tableCommands, excelPath, tableName, tableStyle, batchId),
+                TableAction.AddToDataModel => await AddToDataModel(tableCommands, excelPath, tableName, batchId),
+                TableAction.ApplyFilter => await ApplyFilter(tableCommands, excelPath, tableName, newName, filterCriteria, batchId),
+                TableAction.ApplyFilterValues => await ApplyFilterValues(tableCommands, excelPath, tableName, newName, filterValues, batchId),
+                TableAction.ClearFilters => await ClearFilters(tableCommands, excelPath, tableName, batchId),
+                TableAction.GetFilters => await GetFilters(tableCommands, excelPath, tableName, batchId),
+                TableAction.AddColumn => await AddColumn(tableCommands, excelPath, tableName, newName, filterCriteria, batchId),
+                TableAction.RemoveColumn => await RemoveColumn(tableCommands, excelPath, tableName, newName, batchId),
+                TableAction.RenameColumn => await RenameColumn(tableCommands, excelPath, tableName, newName, filterCriteria, batchId),
+                TableAction.GetStructuredReference => await GetStructuredReference(tableCommands, excelPath, tableName, filterCriteria, newName, batchId),
+                TableAction.Sort => await SortTable(tableCommands, excelPath, tableName, newName, hasHeaders, batchId),
+                TableAction.SortMulti => await SortTableMulti(tableCommands, excelPath, tableName, filterValues, batchId),
+                TableAction.GetColumnNumberFormat => await GetColumnNumberFormat(tableCommands, excelPath, tableName, newName, batchId),
+                TableAction.SetColumnNumberFormat => await SetColumnNumberFormat(tableCommands, excelPath, tableName, newName, formatCode, batchId),
                 _ => throw new ModelContextProtocol.McpException(
                     $"Unknown action: {action} ({action.ToActionString()})")
             };
@@ -122,10 +125,10 @@ public static class TableTool
         }
     }
 
-    private static async Task<string> ListTables(TableCommands commands, string filePath)
+    private static async Task<string> ListTables(TableCommands commands, string filePath, string? batchId)
     {
         var result = await ExcelToolsBase.WithBatchAsync(
-            null, // batchId
+            batchId,
             filePath,
             false, // don't save for list operation
             async (batch) => await commands.ListAsync(batch)
@@ -149,14 +152,14 @@ public static class TableTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> CreateTable(TableCommands commands, string filePath, string? sheetName, string? tableName, string? range, bool hasHeaders, string? tableStyle)
+    private static async Task<string> CreateTable(TableCommands commands, string filePath, string? sheetName, string? tableName, string? range, bool hasHeaders, string? tableStyle, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(sheetName)) ExcelToolsBase.ThrowMissingParameter(nameof(sheetName), "create");
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "create");
         if (string.IsNullOrWhiteSpace(range)) ExcelToolsBase.ThrowMissingParameter(nameof(range), "create");
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null, // batchId
+            batchId,
             filePath,
             true, // save changes
             async (batch) => await commands.CreateAsync(batch, sheetName!, tableName!, range!, hasHeaders, tableStyle)
@@ -175,12 +178,12 @@ public static class TableTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetTableInfo(TableCommands commands, string filePath, string? tableName)
+    private static async Task<string> GetTableInfo(TableCommands commands, string filePath, string? tableName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "info");
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null, // batchId
+            batchId,
             filePath,
             false, // don't save for info operation
             async (batch) => await commands.GetInfoAsync(batch, tableName!)
@@ -199,13 +202,13 @@ public static class TableTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RenameTable(TableCommands commands, string filePath, string? tableName, string? newName)
+    private static async Task<string> RenameTable(TableCommands commands, string filePath, string? tableName, string? newName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "rename");
         if (string.IsNullOrWhiteSpace(newName)) ExcelToolsBase.ThrowMissingParameter(nameof(newName), "rename");
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null, // batchId
+            batchId,
             filePath,
             true, // save changes
             async (batch) => await commands.RenameAsync(batch, tableName!, newName!)
@@ -224,12 +227,12 @@ public static class TableTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> DeleteTable(TableCommands commands, string filePath, string? tableName)
+    private static async Task<string> DeleteTable(TableCommands commands, string filePath, string? tableName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "delete");
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null, // batchId
+            batchId,
             filePath,
             true, // save changes
             async (batch) => await commands.DeleteAsync(batch, tableName!)
@@ -248,13 +251,13 @@ public static class TableTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ResizeTable(TableCommands commands, string filePath, string? tableName, string? newRange)
+    private static async Task<string> ResizeTable(TableCommands commands, string filePath, string? tableName, string? newRange, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "resize");
         if (string.IsNullOrWhiteSpace(newRange)) ExcelToolsBase.ThrowMissingParameter(nameof(newRange), "resize");
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null, // batchId
+            batchId,
             filePath,
             true, // save changes
             async (batch) => await commands.ResizeAsync(batch, tableName!, newRange!)
@@ -268,12 +271,12 @@ public static class TableTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ToggleTotals(TableCommands commands, string filePath, string? tableName, bool showTotals)
+    private static async Task<string> ToggleTotals(TableCommands commands, string filePath, string? tableName, bool showTotals, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "toggle-totals");
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null, // batchId
+            batchId,
             filePath,
             true, // save changes
             async (batch) => await commands.ToggleTotalsAsync(batch, tableName!, showTotals)
@@ -287,14 +290,14 @@ public static class TableTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetColumnTotal(TableCommands commands, string filePath, string? tableName, string? columnName, string? totalFunction)
+    private static async Task<string> SetColumnTotal(TableCommands commands, string filePath, string? tableName, string? columnName, string? totalFunction, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "set-column-total");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "set-column-total");
         if (string.IsNullOrWhiteSpace(totalFunction)) ExcelToolsBase.ThrowMissingParameter(nameof(totalFunction), "set-column-total");
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null, // batchId
+            batchId,
             filePath,
             true, // save changes
             async (batch) => await commands.SetColumnTotalAsync(batch, tableName!, columnName!, totalFunction!)
@@ -308,7 +311,7 @@ public static class TableTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> AppendRows(TableCommands commands, string filePath, string? tableName, string? csvData)
+    private static async Task<string> AppendRows(TableCommands commands, string filePath, string? tableName, string? csvData, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "append");
         if (string.IsNullOrWhiteSpace(csvData)) ExcelToolsBase.ThrowMissingParameter(nameof(csvData), "append");
@@ -317,7 +320,7 @@ public static class TableTool
         var rows = ParseCsvToRows(csvData!);
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null, // batchId
+            batchId,
             filePath,
             true, // save changes
             async (batch) => await commands.AppendRowsAsync(batch, tableName!, rows)
@@ -357,13 +360,13 @@ public static class TableTool
         return rows;
     }
 
-    private static async Task<string> SetTableStyle(TableCommands commands, string filePath, string? tableName, string? tableStyle)
+    private static async Task<string> SetTableStyle(TableCommands commands, string filePath, string? tableName, string? tableStyle, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "set-style");
         if (string.IsNullOrWhiteSpace(tableStyle)) ExcelToolsBase.ThrowMissingParameter(nameof(tableStyle), "set-style");
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null, // batchId
+            batchId,
             filePath,
             true, // save changes
             async (batch) => await commands.SetStyleAsync(batch, tableName!, tableStyle!)
@@ -377,12 +380,12 @@ public static class TableTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> AddToDataModel(TableCommands commands, string filePath, string? tableName)
+    private static async Task<string> AddToDataModel(TableCommands commands, string filePath, string? tableName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "add-to-datamodel");
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null, // batchId
+            batchId,
             filePath,
             true, // save changes
             async (batch) => await commands.AddToDataModelAsync(batch, tableName!)
@@ -398,14 +401,14 @@ public static class TableTool
 
     // === FILTER OPERATIONS ===
 
-    private static async Task<string> ApplyFilter(TableCommands commands, string filePath, string? tableName, string? columnName, string? criteria)
+    private static async Task<string> ApplyFilter(TableCommands commands, string filePath, string? tableName, string? columnName, string? criteria, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "apply-filter");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "apply-filter");
         if (string.IsNullOrWhiteSpace(criteria)) ExcelToolsBase.ThrowMissingParameter(nameof(criteria), "apply-filter");
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+            batchId,
             filePath,
             true,
             async (batch) => await commands.ApplyFilterAsync(batch, tableName!, columnName!, criteria!)
@@ -419,7 +422,7 @@ public static class TableTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ApplyFilterValues(TableCommands commands, string filePath, string? tableName, string? columnName, string? filterValuesJson)
+    private static async Task<string> ApplyFilterValues(TableCommands commands, string filePath, string? tableName, string? columnName, string? filterValuesJson, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "apply-filter-values");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "apply-filter-values");
@@ -437,7 +440,7 @@ public static class TableTool
         }
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+            batchId,
             filePath,
             true,
             async (batch) => await commands.ApplyFilterAsync(batch, tableName!, columnName!, filterValues)
@@ -451,12 +454,12 @@ public static class TableTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ClearFilters(TableCommands commands, string filePath, string? tableName)
+    private static async Task<string> ClearFilters(TableCommands commands, string filePath, string? tableName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "clear-filters");
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+            batchId,
             filePath,
             true,
             async (batch) => await commands.ClearFiltersAsync(batch, tableName!)
@@ -470,12 +473,12 @@ public static class TableTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetFilters(TableCommands commands, string filePath, string? tableName)
+    private static async Task<string> GetFilters(TableCommands commands, string filePath, string? tableName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "get-filters");
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+            batchId,
             filePath,
             false,
             async (batch) => await commands.GetFiltersAsync(batch, tableName!)
@@ -491,7 +494,7 @@ public static class TableTool
 
     // === COLUMN OPERATIONS ===
 
-    private static async Task<string> AddColumn(TableCommands commands, string filePath, string? tableName, string? columnName, string? positionStr)
+    private static async Task<string> AddColumn(TableCommands commands, string filePath, string? tableName, string? columnName, string? positionStr, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "add-column");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "add-column");
@@ -511,7 +514,7 @@ public static class TableTool
         }
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+            batchId,
             filePath,
             true,
             async (batch) => await commands.AddColumnAsync(batch, tableName!, columnName!, position)
@@ -525,13 +528,13 @@ public static class TableTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RemoveColumn(TableCommands commands, string filePath, string? tableName, string? columnName)
+    private static async Task<string> RemoveColumn(TableCommands commands, string filePath, string? tableName, string? columnName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "remove-column");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "remove-column");
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+            batchId,
             filePath,
             true,
             async (batch) => await commands.RemoveColumnAsync(batch, tableName!, columnName!)
@@ -545,14 +548,14 @@ public static class TableTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RenameColumn(TableCommands commands, string filePath, string? tableName, string? oldColumnName, string? newColumnName)
+    private static async Task<string> RenameColumn(TableCommands commands, string filePath, string? tableName, string? oldColumnName, string? newColumnName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "rename-column");
         if (string.IsNullOrWhiteSpace(oldColumnName)) ExcelToolsBase.ThrowMissingParameter(nameof(oldColumnName), "rename-column");
         if (string.IsNullOrWhiteSpace(newColumnName)) ExcelToolsBase.ThrowMissingParameter(nameof(newColumnName), "rename-column");
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+            batchId,
             filePath,
             true,
             async (batch) => await commands.RenameColumnAsync(batch, tableName!, oldColumnName!, newColumnName!)
@@ -568,7 +571,7 @@ public static class TableTool
 
     // === PHASE 2: STRUCTURED REFERENCE & SORT OPERATIONS ===
 
-    private static async Task<string> GetStructuredReference(TableCommands commands, string filePath, string? tableName, string? regionStr, string? columnName)
+    private static async Task<string> GetStructuredReference(TableCommands commands, string filePath, string? tableName, string? regionStr, string? columnName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "get-structured-reference");
 
@@ -583,7 +586,7 @@ public static class TableTool
         }
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+            batchId,
             filePath,
             false, // Read-only operation
             async (batch) => await commands.GetStructuredReferenceAsync(batch, tableName!, region, columnName)
@@ -597,13 +600,13 @@ public static class TableTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SortTable(TableCommands commands, string filePath, string? tableName, string? columnName, bool ascending)
+    private static async Task<string> SortTable(TableCommands commands, string filePath, string? tableName, string? columnName, bool ascending, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "sort");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "sort");
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+            batchId,
             filePath,
             true, // Save changes
             async (batch) => await commands.SortAsync(batch, tableName!, columnName!, ascending)
@@ -617,7 +620,7 @@ public static class TableTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SortTableMulti(TableCommands commands, string filePath, string? tableName, string? sortColumnsJson)
+    private static async Task<string> SortTableMulti(TableCommands commands, string filePath, string? tableName, string? sortColumnsJson, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "sort-multi");
         if (string.IsNullOrWhiteSpace(sortColumnsJson)) ExcelToolsBase.ThrowMissingParameter(nameof(sortColumnsJson), "sort-multi");
@@ -638,7 +641,7 @@ public static class TableTool
         }
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+            batchId,
             filePath,
             true, // Save changes
             async (batch) => await commands.SortAsync(batch, tableName!, sortColumns)
@@ -654,7 +657,7 @@ public static class TableTool
 
     // === NUMBER FORMAT OPERATIONS ===
 
-    private static async Task<string> GetColumnNumberFormat(TableCommands commands, string filePath, string? tableName, string? columnName)
+    private static async Task<string> GetColumnNumberFormat(TableCommands commands, string filePath, string? tableName, string? columnName, string? batchId)
     {
         if (string.IsNullOrEmpty(tableName))
             ExcelToolsBase.ThrowMissingParameter("tableName", "get-column-number-format");
@@ -662,7 +665,7 @@ public static class TableTool
             ExcelToolsBase.ThrowMissingParameter("columnName", "get-column-number-format");
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null, // batchId
+            batchId,
             filePath,
             save: false,
             async (batch) => await commands.GetColumnNumberFormatAsync(batch, tableName!, columnName!)
@@ -676,7 +679,7 @@ public static class TableTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetColumnNumberFormat(TableCommands commands, string filePath, string? tableName, string? columnName, string? formatCode)
+    private static async Task<string> SetColumnNumberFormat(TableCommands commands, string filePath, string? tableName, string? columnName, string? formatCode, string? batchId)
     {
         if (string.IsNullOrEmpty(tableName))
             ExcelToolsBase.ThrowMissingParameter("tableName", "set-column-number-format");
@@ -686,7 +689,7 @@ public static class TableTool
             ExcelToolsBase.ThrowMissingParameter("formatCode", "set-column-number-format");
 
         var result = await ExcelToolsBase.WithBatchAsync(
-            null, // batchId
+            batchId,
             filePath,
             save: true,
             async (batch) => await commands.SetColumnNumberFormatAsync(batch, tableName!, columnName!, formatCode!)

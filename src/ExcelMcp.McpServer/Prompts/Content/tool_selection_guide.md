@@ -1,6 +1,25 @@
 # Tool Selection Guide - Which Excel Tool to Use?
 
-## Quick Decision Tree
+## ⚡ STEP 1: CHECK FOR BATCH MODE FIRST (75-90% faster!)
+
+**ALWAYS DETECT THESE KEYWORDS BEFORE CHOOSING TOOLS:**
+- **Numbers**: "import 4 queries", "create 5 measures", "add 3 worksheets"
+- **Plurals**: "queries", "measures", "parameters", "relationships", "worksheets" 
+- **Lists**: "Sales, Revenue, Profit", "StartDate, EndDate, Region"
+- **Multiple items**: "each", "all", "several", "multiple"
+
+**IF 2+ OPERATIONS DETECTED → USE BATCH MODE:**
+```
+1. begin_excel_batch(excelPath: 'file.xlsx') → save batchId
+2. ALL operations with batchId parameter
+3. commit_excel_batch(batchId: saved_id, save: true)
+```
+
+**❌ NEVER start individual operations if batch needed - 90% slower!**
+
+---
+
+## STEP 2: Quick Decision Tree
 
 **User wants to work with DATA FROM EXTERNAL SOURCES:**
 → excel_powerquery (databases, APIs, CSV, web data)
@@ -38,9 +57,17 @@
 ❌ Wrong: excel_powerquery(action: 'import') then trying to create DAX measures
 ✅ Right: excel_powerquery(action: 'import', loadDestination: 'data-model')
 
-**Mistake 3: Not detecting batch opportunities**
-❌ Wrong: Calling excel_powerquery 4 times separately (slow!)
-✅ Right: begin_excel_batch → 4 excel_powerquery calls → commit_excel_batch
+**Mistake 3: Not detecting batch opportunities (CRITICAL PERFORMANCE ISSUE)**
+❌ Wrong: Calling excel_powerquery 4 times separately (10-20 seconds, resource waste!)
+✅ Right: begin_excel_batch → 4 excel_powerquery calls → commit_excel_batch (1-2 seconds!)
+
+**⚡ Batch mode keywords to ALWAYS detect:**
+- ANY number (2, 3, 4, 5+ operations)
+- ANY plural word (queries, measures, parameters, sheets, tables)
+- ANY list (comma-separated items)
+- Words: "multiple", "several", "each", "all"
+
+**🚨 If you miss batch detection, operations will be 75-90% slower!**
 
 **Mistake 4: Confusing worksheet formulas with DAX**
 ❌ Wrong: Using excel_range to create DAX measures

@@ -89,7 +89,10 @@ public static class PivotTableTool
 
         [Range(1, int.MaxValue)]
         [Description("Position in field area (1-based)")]
-        int? position = null)
+        int? position = null,
+
+        [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
+        string? batchId = null)
     {
         try
         {
@@ -98,24 +101,24 @@ public static class PivotTableTool
             // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
             return action switch
             {
-                PivotTableAction.List => await ListPivotTables(pivotCommands, excelPath),
-                PivotTableAction.GetInfo => await GetPivotTableInfo(pivotCommands, excelPath, pivotTableName),
-                PivotTableAction.CreateFromRange => await CreateFromRange(pivotCommands, excelPath, sheetName, range, destinationSheet, destinationCell, pivotTableName),
-                PivotTableAction.CreateFromTable => await CreateFromTable(pivotCommands, excelPath, customName, destinationSheet, destinationCell, pivotTableName),
-                PivotTableAction.Delete => await DeletePivotTable(pivotCommands, excelPath, pivotTableName),
-                PivotTableAction.Refresh => await RefreshPivotTable(pivotCommands, excelPath, pivotTableName),
-                PivotTableAction.ListFields => await ListFields(pivotCommands, excelPath, pivotTableName),
-                PivotTableAction.AddRowField => await AddRowField(pivotCommands, excelPath, pivotTableName, fieldName, position),
-                PivotTableAction.AddColumnField => await AddColumnField(pivotCommands, excelPath, pivotTableName, fieldName, position),
-                PivotTableAction.AddValueField => await AddValueField(pivotCommands, excelPath, pivotTableName, fieldName, aggregationFunction, customName),
-                PivotTableAction.AddFilterField => await AddFilterField(pivotCommands, excelPath, pivotTableName, fieldName),
-                PivotTableAction.RemoveField => await RemoveField(pivotCommands, excelPath, pivotTableName, fieldName),
-                PivotTableAction.SetFieldFunction => await SetFieldFunction(pivotCommands, excelPath, pivotTableName, fieldName, aggregationFunction),
-                PivotTableAction.SetFieldName => await SetFieldName(pivotCommands, excelPath, pivotTableName, fieldName, customName),
-                PivotTableAction.SetFieldFormat => await SetFieldFormat(pivotCommands, excelPath, pivotTableName, fieldName, numberFormat),
-                PivotTableAction.GetData => await GetData(pivotCommands, excelPath, pivotTableName),
-                PivotTableAction.SetFieldFilter => await SetFieldFilter(pivotCommands, excelPath, pivotTableName, fieldName, filterValues),
-                PivotTableAction.SortField => await SortField(pivotCommands, excelPath, pivotTableName, fieldName, sortDirection),
+                PivotTableAction.List => await ListPivotTables(pivotCommands, excelPath, batchId),
+                PivotTableAction.GetInfo => await GetPivotTableInfo(pivotCommands, excelPath, pivotTableName, batchId),
+                PivotTableAction.CreateFromRange => await CreateFromRange(pivotCommands, excelPath, sheetName, range, destinationSheet, destinationCell, pivotTableName, batchId),
+                PivotTableAction.CreateFromTable => await CreateFromTable(pivotCommands, excelPath, customName, destinationSheet, destinationCell, pivotTableName, batchId),
+                PivotTableAction.Delete => await DeletePivotTable(pivotCommands, excelPath, pivotTableName, batchId),
+                PivotTableAction.Refresh => await RefreshPivotTable(pivotCommands, excelPath, pivotTableName, batchId),
+                PivotTableAction.ListFields => await ListFields(pivotCommands, excelPath, pivotTableName, batchId),
+                PivotTableAction.AddRowField => await AddRowField(pivotCommands, excelPath, pivotTableName, fieldName, position, batchId),
+                PivotTableAction.AddColumnField => await AddColumnField(pivotCommands, excelPath, pivotTableName, fieldName, position, batchId),
+                PivotTableAction.AddValueField => await AddValueField(pivotCommands, excelPath, pivotTableName, fieldName, aggregationFunction, customName, batchId),
+                PivotTableAction.AddFilterField => await AddFilterField(pivotCommands, excelPath, pivotTableName, fieldName, batchId),
+                PivotTableAction.RemoveField => await RemoveField(pivotCommands, excelPath, pivotTableName, fieldName, batchId),
+                PivotTableAction.SetFieldFunction => await SetFieldFunction(pivotCommands, excelPath, pivotTableName, fieldName, aggregationFunction, batchId),
+                PivotTableAction.SetFieldName => await SetFieldName(pivotCommands, excelPath, pivotTableName, fieldName, customName, batchId),
+                PivotTableAction.SetFieldFormat => await SetFieldFormat(pivotCommands, excelPath, pivotTableName, fieldName, numberFormat, batchId),
+                PivotTableAction.GetData => await GetData(pivotCommands, excelPath, pivotTableName, batchId),
+                PivotTableAction.SetFieldFilter => await SetFieldFilter(pivotCommands, excelPath, pivotTableName, fieldName, filterValues, batchId),
+                PivotTableAction.SortField => await SortField(pivotCommands, excelPath, pivotTableName, fieldName, sortDirection, batchId),
                 _ => throw new ModelContextProtocol.McpException(
                     $"Unknown action: {action} ({action.ToActionString()})")
             };
@@ -131,10 +134,9 @@ public static class PivotTableTool
         }
     }
 
-    private static async Task<string> ListPivotTables(PivotTableCommands commands, string filePath)
+    private static async Task<string> ListPivotTables(PivotTableCommands commands, string filePath, string? batchId)
     {
-        var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+        var result = await ExcelToolsBase.WithBatchAsync(batchId,
             filePath,
             false,
             async (batch) => await commands.ListAsync(batch)
@@ -153,12 +155,11 @@ public static class PivotTableTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static async Task<string> GetPivotTableInfo(PivotTableCommands commands, string filePath, string? pivotTableName)
+    private static async Task<string> GetPivotTableInfo(PivotTableCommands commands, string filePath, string? pivotTableName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "get-info");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+        var result = await ExcelToolsBase.WithBatchAsync(batchId,
             filePath,
             false,
             async (batch) => await commands.GetInfoAsync(batch, pivotTableName!)
@@ -173,7 +174,7 @@ public static class PivotTableTool
     }
 
     private static async Task<string> CreateFromRange(PivotTableCommands commands, string filePath,
-        string? sourceSheet, string? sourceRange, string? destSheet, string? destCell, string? pivotTableName)
+        string? sourceSheet, string? sourceRange, string? destSheet, string? destCell, string? pivotTableName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(sourceSheet)) ExcelToolsBase.ThrowMissingParameter(nameof(sourceSheet), "create-from-range");
         if (string.IsNullOrWhiteSpace(sourceRange)) ExcelToolsBase.ThrowMissingParameter(nameof(sourceRange), "create-from-range");
@@ -181,8 +182,7 @@ public static class PivotTableTool
         if (string.IsNullOrWhiteSpace(destCell)) ExcelToolsBase.ThrowMissingParameter(nameof(destCell), "create-from-range");
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "create-from-range");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+        var result = await ExcelToolsBase.WithBatchAsync(batchId,
             filePath,
             true,
             async (batch) => await commands.CreateFromRangeAsync(batch, sourceSheet!, sourceRange!, destSheet!, destCell!, pivotTableName!)
@@ -197,15 +197,14 @@ public static class PivotTableTool
     }
 
     private static async Task<string> CreateFromTable(PivotTableCommands commands, string filePath,
-        string? tableName, string? destSheet, string? destCell, string? pivotTableName)
+        string? tableName, string? destSheet, string? destCell, string? pivotTableName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "create-from-table");
         if (string.IsNullOrWhiteSpace(destSheet)) ExcelToolsBase.ThrowMissingParameter(nameof(destSheet), "create-from-table");
         if (string.IsNullOrWhiteSpace(destCell)) ExcelToolsBase.ThrowMissingParameter(nameof(destCell), "create-from-table");
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "create-from-table");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+        var result = await ExcelToolsBase.WithBatchAsync(batchId,
             filePath,
             true,
             async (batch) => await commands.CreateFromTableAsync(batch, tableName!, destSheet!, destCell!, pivotTableName!)
@@ -219,12 +218,11 @@ public static class PivotTableTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static async Task<string> DeletePivotTable(PivotTableCommands commands, string filePath, string? pivotTableName)
+    private static async Task<string> DeletePivotTable(PivotTableCommands commands, string filePath, string? pivotTableName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "delete");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+        var result = await ExcelToolsBase.WithBatchAsync(batchId,
             filePath,
             true,
             async (batch) => await commands.DeleteAsync(batch, pivotTableName!)
@@ -238,12 +236,11 @@ public static class PivotTableTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static async Task<string> RefreshPivotTable(PivotTableCommands commands, string filePath, string? pivotTableName)
+    private static async Task<string> RefreshPivotTable(PivotTableCommands commands, string filePath, string? pivotTableName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "refresh");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+        var result = await ExcelToolsBase.WithBatchAsync(batchId,
             filePath,
             true,
             async (batch) => await commands.RefreshAsync(batch, pivotTableName!)
@@ -257,12 +254,11 @@ public static class PivotTableTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static async Task<string> ListFields(PivotTableCommands commands, string filePath, string? pivotTableName)
+    private static async Task<string> ListFields(PivotTableCommands commands, string filePath, string? pivotTableName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "list-fields");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+        var result = await ExcelToolsBase.WithBatchAsync(batchId,
             filePath,
             false,
             async (batch) => await commands.ListFieldsAsync(batch, pivotTableName!)
@@ -276,13 +272,12 @@ public static class PivotTableTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static async Task<string> AddRowField(PivotTableCommands commands, string filePath, string? pivotTableName, string? fieldName, int? position)
+    private static async Task<string> AddRowField(PivotTableCommands commands, string filePath, string? pivotTableName, string? fieldName, int? position, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "add-row-field");
         if (string.IsNullOrWhiteSpace(fieldName)) ExcelToolsBase.ThrowMissingParameter(nameof(fieldName), "add-row-field");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+        var result = await ExcelToolsBase.WithBatchAsync(batchId,
             filePath,
             true,
             async (batch) => await commands.AddRowFieldAsync(batch, pivotTableName!, fieldName!, position)
@@ -296,13 +291,12 @@ public static class PivotTableTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static async Task<string> AddColumnField(PivotTableCommands commands, string filePath, string? pivotTableName, string? fieldName, int? position)
+    private static async Task<string> AddColumnField(PivotTableCommands commands, string filePath, string? pivotTableName, string? fieldName, int? position, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "add-column-field");
         if (string.IsNullOrWhiteSpace(fieldName)) ExcelToolsBase.ThrowMissingParameter(nameof(fieldName), "add-column-field");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+        var result = await ExcelToolsBase.WithBatchAsync(batchId,
             filePath,
             true,
             async (batch) => await commands.AddColumnFieldAsync(batch, pivotTableName!, fieldName!, position)
@@ -317,7 +311,7 @@ public static class PivotTableTool
     }
 
     private static async Task<string> AddValueField(PivotTableCommands commands, string filePath, string? pivotTableName,
-        string? fieldName, string? aggregationFunction, string? customName)
+        string? fieldName, string? aggregationFunction, string? customName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "add-value-field");
         if (string.IsNullOrWhiteSpace(fieldName)) ExcelToolsBase.ThrowMissingParameter(nameof(fieldName), "add-value-field");
@@ -333,8 +327,7 @@ public static class PivotTableTool
             }
         }
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+        var result = await ExcelToolsBase.WithBatchAsync(batchId,
             filePath,
             true,
             async (batch) => await commands.AddValueFieldAsync(batch, pivotTableName!, fieldName!, function, customName)
@@ -348,13 +341,12 @@ public static class PivotTableTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static async Task<string> AddFilterField(PivotTableCommands commands, string filePath, string? pivotTableName, string? fieldName)
+    private static async Task<string> AddFilterField(PivotTableCommands commands, string filePath, string? pivotTableName, string? fieldName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "add-filter-field");
         if (string.IsNullOrWhiteSpace(fieldName)) ExcelToolsBase.ThrowMissingParameter(nameof(fieldName), "add-filter-field");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+        var result = await ExcelToolsBase.WithBatchAsync(batchId,
             filePath,
             true,
             async (batch) => await commands.AddFilterFieldAsync(batch, pivotTableName!, fieldName!)
@@ -368,13 +360,12 @@ public static class PivotTableTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static async Task<string> RemoveField(PivotTableCommands commands, string filePath, string? pivotTableName, string? fieldName)
+    private static async Task<string> RemoveField(PivotTableCommands commands, string filePath, string? pivotTableName, string? fieldName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "remove-field");
         if (string.IsNullOrWhiteSpace(fieldName)) ExcelToolsBase.ThrowMissingParameter(nameof(fieldName), "remove-field");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+        var result = await ExcelToolsBase.WithBatchAsync(batchId,
             filePath,
             true,
             async (batch) => await commands.RemoveFieldAsync(batch, pivotTableName!, fieldName!)
@@ -389,7 +380,7 @@ public static class PivotTableTool
     }
 
     private static async Task<string> SetFieldFunction(PivotTableCommands commands, string filePath, string? pivotTableName,
-        string? fieldName, string? aggregationFunction)
+        string? fieldName, string? aggregationFunction, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "set-field-function");
         if (string.IsNullOrWhiteSpace(fieldName)) ExcelToolsBase.ThrowMissingParameter(nameof(fieldName), "set-field-function");
@@ -401,8 +392,7 @@ public static class PivotTableTool
                 $"Invalid aggregation function '{aggregationFunction}'. Valid values: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP");
         }
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+        var result = await ExcelToolsBase.WithBatchAsync(batchId,
             filePath,
             true,
             async (batch) => await commands.SetFieldFunctionAsync(batch, pivotTableName!, fieldName!, function)
@@ -417,14 +407,13 @@ public static class PivotTableTool
     }
 
     private static async Task<string> SetFieldName(PivotTableCommands commands, string filePath, string? pivotTableName,
-        string? fieldName, string? customName)
+        string? fieldName, string? customName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "set-field-name");
         if (string.IsNullOrWhiteSpace(fieldName)) ExcelToolsBase.ThrowMissingParameter(nameof(fieldName), "set-field-name");
         if (string.IsNullOrWhiteSpace(customName)) ExcelToolsBase.ThrowMissingParameter(nameof(customName), "set-field-name");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+        var result = await ExcelToolsBase.WithBatchAsync(batchId,
             filePath,
             true,
             async (batch) => await commands.SetFieldNameAsync(batch, pivotTableName!, fieldName!, customName!)
@@ -439,14 +428,13 @@ public static class PivotTableTool
     }
 
     private static async Task<string> SetFieldFormat(PivotTableCommands commands, string filePath, string? pivotTableName,
-        string? fieldName, string? numberFormat)
+        string? fieldName, string? numberFormat, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "set-field-format");
         if (string.IsNullOrWhiteSpace(fieldName)) ExcelToolsBase.ThrowMissingParameter(nameof(fieldName), "set-field-format");
         if (string.IsNullOrWhiteSpace(numberFormat)) ExcelToolsBase.ThrowMissingParameter(nameof(numberFormat), "set-field-format");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+        var result = await ExcelToolsBase.WithBatchAsync(batchId,
             filePath,
             true,
             async (batch) => await commands.SetFieldFormatAsync(batch, pivotTableName!, fieldName!, numberFormat!)
@@ -460,12 +448,11 @@ public static class PivotTableTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static async Task<string> GetData(PivotTableCommands commands, string filePath, string? pivotTableName)
+    private static async Task<string> GetData(PivotTableCommands commands, string filePath, string? pivotTableName, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "get-data");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+        var result = await ExcelToolsBase.WithBatchAsync(batchId,
             filePath,
             false,
             async (batch) => await commands.GetDataAsync(batch, pivotTableName!)
@@ -480,7 +467,7 @@ public static class PivotTableTool
     }
 
     private static async Task<string> SetFieldFilter(PivotTableCommands commands, string filePath, string? pivotTableName,
-        string? fieldName, string? filterValues)
+        string? fieldName, string? filterValues, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "set-field-filter");
         if (string.IsNullOrWhiteSpace(fieldName)) ExcelToolsBase.ThrowMissingParameter(nameof(fieldName), "set-field-filter");
@@ -497,8 +484,7 @@ public static class PivotTableTool
             throw new ModelContextProtocol.McpException($"Invalid filterValues JSON: {ex.Message}. Expected format: '[\"value1\",\"value2\"]'");
         }
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+        var result = await ExcelToolsBase.WithBatchAsync(batchId,
             filePath,
             true,
             async (batch) => await commands.SetFieldFilterAsync(batch, pivotTableName!, fieldName!, values)
@@ -513,7 +499,7 @@ public static class PivotTableTool
     }
 
     private static async Task<string> SortField(PivotTableCommands commands, string filePath, string? pivotTableName,
-        string? fieldName, string? sortDirection)
+        string? fieldName, string? sortDirection, string? batchId)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "sort-field");
         if (string.IsNullOrWhiteSpace(fieldName)) ExcelToolsBase.ThrowMissingParameter(nameof(fieldName), "sort-field");
@@ -529,8 +515,7 @@ public static class PivotTableTool
             }
         }
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            null,
+        var result = await ExcelToolsBase.WithBatchAsync(batchId,
             filePath,
             true,
             async (batch) => await commands.SortFieldAsync(batch, pivotTableName!, fieldName!, direction)
@@ -544,3 +529,4 @@ public static class PivotTableTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 }
+

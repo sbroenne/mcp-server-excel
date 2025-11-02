@@ -3,9 +3,14 @@
 **Actions**: begin, commit, list
 
 **When to use excel_batch**:
-- 2+ operations on same Excel file (75-90% faster)
-- Detect keywords: numbers, plurals, lists in user requests
-- Performance-critical workflows
+- 🚨 **ALWAYS CHECK FIRST**: 2+ operations on same Excel file (75-90% faster)
+- 🔍 **AUTO-DETECT keywords**: numbers, plurals, lists in user requests
+- ⚡ **Performance-critical**: Must use for any multi-operation workflow
+- 📝 **Examples that REQUIRE batch mode**:
+  - "import 4 files" → 4 operations = BATCH
+  - "create measures" → plural = BATCH  
+  - "add Sales, Revenue, Profit" → list = BATCH
+  - "change several things" → multiple = BATCH
 
 **Server-specific behavior**:
 - begin: Opens workbook, returns batchId, keeps Excel instance alive
