@@ -343,7 +343,7 @@ in
     {
         var serverExePath = Path.Join(
             Directory.GetCurrentDirectory(),
-            "..", "..", "..", "..", "..", "src", "ExcelMcp.McpServer", "bin", "Debug", "net9.0",
+            "..", "..", "..", "..", "..", "src", "ExcelMcp.McpServer", "bin", "Debug", "net8.0",
             "Sbroenne.ExcelMcp.McpServer.exe"
         );
         serverExePath = Path.GetFullPath(serverExePath);
@@ -353,7 +353,7 @@ in
             // Fallback to DLL execution
             serverExePath = Path.Join(
                 Directory.GetCurrentDirectory(),
-                "..", "..", "..", "..", "..", "src", "ExcelMcp.McpServer", "bin", "Debug", "net9.0",
+                "..", "..", "..", "..", "..", "src", "ExcelMcp.McpServer", "bin", "Debug", "net8.0",
                 "Sbroenne.ExcelMcp.McpServer.dll"
             );
             serverExePath = Path.GetFullPath(serverExePath);
@@ -457,3 +457,4 @@ in
     }
 
 }
+
