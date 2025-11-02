@@ -19,8 +19,9 @@ public partial class VbaCommands
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
-            result.Success = false;
-            result.ErrorMessage = validationError;
+            // For LLM-friendly behavior: .xlsx files don't support VBA, return empty list instead of error
+            result.Success = true;
+            result.Scripts = new List<ScriptInfo>();
             return result;
         }
 

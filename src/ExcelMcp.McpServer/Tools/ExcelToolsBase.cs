@@ -23,13 +23,14 @@ public static class ExcelToolsBase
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         Converters = { new JsonStringEnumConverter() }
     };
 
     /// <summary>
     /// Executes an async Core command with batch session management.
     /// If batchId is provided, uses existing batch session. Otherwise, creates batch-of-one.
-    /// 
+    ///
     /// This is the standard pattern for all MCP tools to support both:
     /// - LLM-controlled batch sessions (pass batchId for multi-operation workflows)
     /// - Single operations (no batchId = automatic batch-of-one for backward compat)

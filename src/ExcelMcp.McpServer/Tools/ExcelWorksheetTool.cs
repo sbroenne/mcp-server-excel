@@ -128,11 +128,11 @@ public static class ExcelWorksheetTool
         // Add workflow hints
         var count = result.Worksheets?.Count ?? 0;
         var inBatch = !string.IsNullOrEmpty(batchId);
-        
+
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.Worksheets,
+            success = result.Success,
+            worksheets = result.Worksheets,
             workflowHint = $"Found {count} worksheet(s). Use excel_range for data operations.",
             suggestedNextActions = count == 0
                 ? new[] { "Workbook is empty - this shouldn't happen. Check file integrity." }

@@ -22,8 +22,9 @@ public partial class DataModelCommands
             // Check if workbook has Data Model
             if (!HasDataModelTables(ctx.Book))
             {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
+                // Empty Data Model is valid - return empty list (LLM-friendly)
+                result.Success = true;
+                result.Tables = new List<DataModelTableInfo>();
                 return result;
             }
 
