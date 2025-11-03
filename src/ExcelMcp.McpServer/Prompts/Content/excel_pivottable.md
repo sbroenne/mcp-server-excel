@@ -15,14 +15,19 @@
 - Value field functions: Sum, Count, Average, Max, Min, etc.
 
 **Action disambiguation**:
-- create-from-range: Create PivotTable from range address
-- create-from-table: Create PivotTable from Excel Table (ListObject)
-- create-from-datamodel: Create PivotTable from Power Pivot Data Model table
+- create-from-range: Create PivotTable from range address (sheetName + range parameters)
+- create-from-table: Create PivotTable from Excel Table/ListObject (excelTableName = worksheet table name)
+- create-from-datamodel: Create PivotTable from Power Pivot Data Model table (dataModelTableName = Data Model table name)
 - add-row-field: Field goes to row area
 - add-column-field: Field goes to column area
 - add-value-field: Field goes to values area (calculations)
 - add-filter-field: Field goes to filter area
 - set-field-function: Change aggregation (Sum, Count, etc.)
+
+**Parameter guidance for create actions**:
+- create-from-range: sheetName, range, destinationSheet, destinationCell, pivotTableName
+- create-from-table: excelTableName (Excel Table name), destinationSheet, destinationCell, pivotTableName
+- create-from-datamodel: dataModelTableName (Data Model table name), destinationSheet, destinationCell, pivotTableName
 
 **Common mistakes**:
 - Creating PivotTable without source data → Prepare data first

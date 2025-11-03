@@ -240,7 +240,7 @@ in
         var createPivotResult = await PivotTableTool.PivotTable(
             PivotTableAction.CreateFromTable,
             _testExcelFile,
-            customName: "DataTable",
+            tableName: "DataTable",
             destinationSheet: "Data",
             destinationCell: "E1",
             pivotTableName: "SalesPivot",
