@@ -164,8 +164,8 @@ query-filters:
       id: cs/linq/missed-select
       reason: "Explicit loops preferred for clarity in test code, COM iteration, and complex transformations where intermediate variables improve readability."
       paths:
+        - 'src/**'
         - 'tests/**'
-        - 'src/ExcelMcp.Core/Commands/**'
 
   # Explicit boolean expressions for clarity
   - exclude:
@@ -199,8 +199,8 @@ query-filters:
       id: cs/useless-assignment-to-local
       reason: "Test setup and COM interop may assign variables for clarity, debugging, or intermediate COM object references even if not directly used in final operation."
       paths:
+        - 'src/**'
         - 'tests/**'
-        - 'src/ExcelMcp.Core/Commands/**'
 
   # ConfigureAwait suggestions - library code without SynchronizationContext
   - exclude:
