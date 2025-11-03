@@ -85,8 +85,8 @@ jobs:
         npm version "$version" --no-git-tag-version
 
         # Update CHANGELOG.md - replace the first version number and date
-        $date = Get-Date -Format "yyyy-MM-dd"
-        $changelogPath = "CHANGELOG.md"
+        $date = Get-Date -Format 'yyyy-MM-dd'
+        $changelogPath = 'CHANGELOG.md'
         $changelogContent = Get-Content $changelogPath -Raw
         $changelogContent = $changelogContent -replace '(?m)^## \[\d+\.\d+\.\d+\] - \d{4}-\d{2}-\d{2}', "## [$version] - $date"
         Set-Content $changelogPath $changelogContent
