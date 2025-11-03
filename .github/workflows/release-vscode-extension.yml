@@ -47,32 +47,6 @@ jobs:
         Write-Output "Updated MCP Server project to version $version"
       shell: pwsh
 
-    - name: Build Bundled MCP Server
-      run: |
-        Write-Output "Building framework-dependent MCP Server executable"
-        
-        # Ensure bin directory exists
-        New-Item -ItemType Directory -Path "vscode-extension/bin" -Force
-        
-        # Publish framework-dependent executable (works on both x64 and ARM64 with .NET runtime)
-        dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj `
-          -c Release `
-          -o "vscode-extension/bin" `
-          --verbosity minimal
-
-        # Verify the executable was created
-        $exePath = "vscode-extension/bin/Sbroenne.ExcelMcp.McpServer.exe"
-        if (Test-Path $exePath) {
-          $fileInfo = Get-Item $exePath
-          Write-Output "✅ Created framework-dependent executable: $($fileInfo.Name) ($([math]::Round($fileInfo.Length / 1MB, 2)) MB)"
-        } else {
-          Write-Error "❌ Failed to create executable at $exePath"
-          exit 1
-        }
-        
-        Write-Output "✅ Built framework-dependent executable (works on x64 and ARM64 with .NET runtime)"
-      shell: pwsh
-
     - name: Update Extension Version
       run: |
         $tagName = "${{ github.ref_name }}"
@@ -101,37 +75,26 @@ jobs:
         cd vscode-extension
         npm install
 
-    - name: Compile TypeScript
+    - name: Build and Package Extension
       run: |
         cd vscode-extension
-        npm run compile
+        # Run the package script which does: build:mcp-server + vsce package
+        npm run package
 
-    - name: Lint Extension
-      run: |
-        cd vscode-extension
-        npm run lint || true
-
-    - name: Package Extension
-      run: |
-        cd vscode-extension
-        npx @vscode/vsce package --no-dependencies --allow-missing-repository
-        
         $version = "${{ env.PACKAGE_VERSION }}"
-        
+
         # vsce creates filename based on package.json name (excel-mcp)
         $actualVsix = Get-ChildItem -Path . -Filter "*.vsix" -File | Select-Object -First 1
         if (-not $actualVsix) {
           Write-Error "No VSIX file found"
           exit 1
         }
-        
+
         $targetName = "excelmcp-$version.vsix"
         if ($actualVsix.Name -ne $targetName) {
           Rename-Item $actualVsix.FullName -NewName $targetName
           Write-Output "Renamed $($actualVsix.Name) to $targetName"
-        }
-        
-        Write-Output "Created $targetName"
+        }        Write-Output "Created $targetName"
         Get-Item $targetName | Format-Table Name, Length
         "VSIX_PATH=vscode-extension/$targetName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       shell: pwsh
@@ -150,12 +113,12 @@ jobs:
         $tagName = "${{ github.ref_name }}"
         $version = "${{ env.PACKAGE_VERSION }}"
         $vsixFile = "${{ env.VSIX_PATH }}"
-        
+
         $marketplaceStatus = "Not published"
         if ("${{ steps.publishToMarketplace.outcome }}" -eq "success") {
           $marketplaceStatus = "Published to VS Code Marketplace"
         }
-        
+
         $notes = "## ExcelMcp VS Code Extension $tagName`n`n"
         $notes += "### One-Click Excel MCP Server Installation for VS Code`n`n"
         $notes += "This extension automatically registers the ExcelMcp MCP server with VS Code.`n`n"
@@ -177,11 +140,11 @@ jobs:
         $notes += "### Documentation`n"
         $notes += "- [Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/vscode-extension/INSTALL.md)`n"
         $notes += "- [Main Repository](https://github.com/sbroenne/mcp-server-excel)`n"
-        
+
         $notes | Out-File -FilePath "release_notes.md" -Encoding utf8
-        
+
         gh release create "$tagName" "$vsixFile" --title "ExcelMcp VS Code Extension $tagName" --notes-file release_notes.md
-        
+
         Write-Output "Released ExcelMcp VS Code Extension $version"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
