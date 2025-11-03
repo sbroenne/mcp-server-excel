@@ -2,7 +2,7 @@ name: Release MCP Server
 
 # This workflow uses NuGet Trusted Publishing via OIDC (OpenID Connect)
 # The NuGet/login action exchanges GitHub OIDC tokens for short-lived NuGet API keys
-# See: docs/NUGET_TRUSTED_PUBLISHING.md for setup instructions
+# See: docs/NUGET-GUIDE.md for complete setup instructions
 #
 # Required GitHub Secret:
 # - NUGET_USER: Your NuGet.org username (profile name, NOT email)

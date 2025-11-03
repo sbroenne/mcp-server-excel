@@ -255,7 +255,7 @@ Great feature requests include:
 
 ## 📦 For Maintainers
 
-- [NuGet Trusted Publishing Guide](NUGET_TRUSTED_PUBLISHING.md) - Setup for automated package publishing
+- [NuGet Publishing Guide](NUGET-GUIDE.md) - Complete guide for publishing all packages with OIDC trusted publishing
 
 ## 🏷️ Issue Labels
 
