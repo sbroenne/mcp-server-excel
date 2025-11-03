@@ -90,7 +90,7 @@ public partial class RangeCommands
                 {
                     styleName = "Normal";
                 }
-                
+
                 // Try to determine if it's a built-in style
                 bool isBuiltIn = false;
                 string? styleDescription = null;
@@ -100,7 +100,7 @@ public partial class RangeCommands
                     dynamic styles = ctx.Book.Styles;
                     dynamic style = styles.Item(styleName);
                     isBuiltIn = true;
-                    
+
                     // Try to get additional information about the style
                     try
                     {

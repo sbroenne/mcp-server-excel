@@ -1006,12 +1006,12 @@ public static class ExcelRangeTool
             styleName = result.StyleName,
             isBuiltInStyle = result.IsBuiltInStyle,
             styleDescription = result.StyleDescription,
-            workflowHint = result.IsBuiltInStyle 
+            workflowHint = result.IsBuiltInStyle
                 ? "Built-in style detected. Use 'set-style' to apply this style to other ranges."
                 : "Custom style or no style applied. Use 'set-style' to apply a built-in style.",
             suggestedNextActions = new[]
             {
-                result.IsBuiltInStyle 
+                result.IsBuiltInStyle
                     ? "Apply this style to other ranges with 'set-style'"
                     : "Apply a built-in style with 'set-style'",
                 "Use 'format-range' for custom formatting",

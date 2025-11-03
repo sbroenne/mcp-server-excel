@@ -234,7 +234,7 @@ public interface IRangeCommands
     /// </param>
     /// <remarks>
     /// Built-in styles are theme-aware and provide professional, consistent formatting.
-    /// Common styles: Heading 1-4, Title, Total, Input, Output, Calculation, 
+    /// Common styles: Heading 1-4, Title, Total, Input, Output, Calculation,
     /// Good/Bad/Neutral, Accent1-6, Note, Warning, Currency, Percent, Comma
     /// </remarks>
     Task<OperationResult> SetStyleAsync(IExcelBatch batch, string sheetName, string rangeAddress, string styleName);

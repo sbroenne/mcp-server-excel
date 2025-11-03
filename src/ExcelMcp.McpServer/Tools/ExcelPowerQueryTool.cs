@@ -154,10 +154,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
 
             throw new ModelContextProtocol.McpException($"list failed for '{excelPath}': {result.ErrorMessage}");
         }
-        else
-        {
 
-        }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -171,15 +168,12 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             excelPath,
             save: false,
             async (batch) => await commands.ViewAsync(batch, queryName));
+        
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-
             throw new ModelContextProtocol.McpException($"view failed for '{excelPath}': {result.ErrorMessage}");
         }
-        else
-        {
 
-        }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -209,6 +203,11 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
         }
         // Otherwise, Core's guidance is already correct (for both success and failure cases) - don't overwrite it!
 
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"import failed for '{queryName}': {result.ErrorMessage}");
+        }
+
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -226,10 +225,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
         {
 
         }
-        else
-        {
 
-        }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -252,10 +248,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
         {
 
         }
-        else
-        {
 
-        }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -341,10 +334,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             bool loadDestinationApplied = !string.IsNullOrEmpty(loadDestination);
 
         }
-        else
-        {
 
-        }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -362,10 +352,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
         {
 
         }
-        else
-        {
 
-        }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -458,10 +445,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
         {
 
         }
-        else
-        {
 
-        }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -479,10 +463,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
         {
 
         }
-        else
-        {
 
-        }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
