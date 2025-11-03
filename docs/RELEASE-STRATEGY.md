@@ -1,6 +1,6 @@
 # ExcelMcp Release Strategy
 
-This document outlines the separate build and release processes for the ExcelMcp MCP Server and CLI components.
+This document outlines the separate build and release processes for ExcelMcp components: MCP Server, CLI, and VS Code Extension.
 
 ## Release Workflows
 
@@ -59,45 +59,44 @@ This document outlines the separate build and release processes for the ExcelMcp
 - Development workflows and testing
 - Command-line Excel operations
 
-### 3. Combined Releases (`v*` tags)
+### 3. VS Code Extension Releases (`vscode-v*` tags)
 
-**Workflow**: `.github/workflows/release.yml`
-**Trigger**: Tags starting with `v` (e.g., `v3.0.0`)
+**Workflow**: `.github/workflows/release-vscode-extension.yml`
+**Trigger**: Tags starting with `vscode-v` (e.g., `vscode-v1.0.0`)
 
 **Features**:
 
-- Builds both MCP Server and CLI
-- Creates combined distribution package
-- Publishes MCP Server to NuGet (using OIDC trusted publishing)
-- Comprehensive release with both tools
-- Maintains backward compatibility
+- Builds and packages VS Code extension
+- Creates VSIX package for VS Code Marketplace
+- Focused on VS Code integration
+- No NuGet publishing (VSIX distribution only)
 
 **Release Artifacts**:
 
-- `ExcelMcp-{version}-windows.zip` - Combined package
-- NuGet package: `Sbroenne.ExcelMcp.McpServer` on NuGet.org
-- Contains both CLI and MCP Server binaries
-- Unified documentation and installation guide
+- `excel-mcp-{version}.vsix` - VS Code Extension package
+- Installation guide for VS Code extension
+- Extension marketplace listing updates
 
 **Use Cases**:
 
-- Users who need both tools
-- Complete ExcelMcp installation
-- Comprehensive Excel development environment
+- VS Code integration for Excel development
+- MCP server management within VS Code
+- Developer experience improvements
+- One-click MCP server configuration
 
 ## Version Management
 
 ### Independent Versioning
 
-- **MCP Server**: Can have independent version numbers (e.g., mcp-v1.2.0)
-- **CLI**: Can have independent version numbers (e.g., cli-v2.1.0)
-- **Combined**: Major releases combining both (e.g., v3.0.0)
+- **MCP Server**: Independent version numbers (e.g., mcp-v1.2.0)
+- **CLI**: Independent version numbers (e.g., cli-v2.1.0)
+- **VS Code Extension**: Independent version numbers (e.g., vscode-v1.0.5)
 
 ### Development Strategy
 
 - **MCP Server**: Focus on AI integration features, conversational interfaces
 - **CLI**: Focus on automation efficiency, command completeness, CI/CD integration
-- **Combined**: Major milestones, breaking changes, coordinated releases
+- **VS Code Extension**: Focus on developer experience, VS Code integration, MCP management
 
 ## Release Process Examples
 
@@ -127,18 +126,17 @@ git push origin cli-v2.2.0
 # - Creates GitHub release with CLI-focused docs
 ```
 
-### Combined Release
+### Releasing VS Code Extension Only
 
 ```bash
-# Create and push combined release tag
-git tag v3.1.0
-git push origin v3.1.0
+# Create and push VS Code extension release tag
+git tag vscode-v1.0.5
+git push origin vscode-v1.0.5
 
-# This triggers release.yml which:
-# - Builds both MCP server and CLI
-# - Publishes MCP Server to NuGet using OIDC trusted publishing
-# - Creates combined distribution package
-# - Creates GitHub release with comprehensive documentation
+# This triggers release-vscode-extension.yml which:
+# - Builds VS Code extension
+# - Creates VSIX package
+# - Creates GitHub release with extension installation docs
 ```
 
 ## Documentation Strategy
@@ -147,34 +145,28 @@ git push origin v3.1.0
 
 - **Main README.md**: MCP Server focused (AI assistant integration)
 - **docs/CLI.md**: CLI focused (direct automation)
+- **vscode-extension/README.md**: VS Code Extension focused (developer experience)
 - **Release Notes**: Tailored to the specific component being released
 
 ### Cross-References
 
-- Each tool's documentation references the other
-- Clear navigation between MCP and CLI docs
+- Each tool's documentation references the others
+- Clear navigation between MCP, CLI, and VS Code Extension docs
 - Unified project branding while maintaining component clarity
 
 ## Benefits of This Approach
 
 1. **Targeted Releases**: Users can get updates for just the tool they use
-2. **Independent Development**: MCP and CLI can evolve at different paces
+2. **Independent Development**: MCP, CLI, and VS Code Extension can evolve at different paces
 3. **Focused Documentation**: Release notes and docs match user intent
 4. **Reduced Package Size**: Users download only what they need
-5. **Clear Separation**: MCP for AI workflows, CLI for direct automation
-6. **Flexibility**: Combined releases still available for comprehensive updates
+5. **Clear Separation**: MCP for AI workflows, CLI for automation, VS Code Extension for IDE integration
+6. **Flexibility**: Each component released independently as needed
 
-## Migration from Single Release
-
-### Existing Tags
-
-- Previous `v*` tags remain as combined releases
-- No breaking changes to existing release structure
-
-### New Tag Patterns
+## Tag Patterns
 
 - `mcp-v*`: MCP Server only
 - `cli-v*`: CLI only  
-- `v*`: Combined (maintains compatibility)
+- `vscode-v*`: VS Code Extension only
 
 This approach provides maximum flexibility while maintaining the integrated ExcelMcp ecosystem.

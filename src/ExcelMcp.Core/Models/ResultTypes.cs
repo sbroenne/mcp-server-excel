@@ -19,16 +19,6 @@ public abstract class ResultBase
     /// File path of the Excel file
     /// </summary>
     public string? FilePath { get; set; }
-
-    /// <summary>
-    /// Suggested next actions for LLM workflow guidance
-    /// </summary>
-    public List<string> SuggestedNextActions { get; set; } = [];
-
-    /// <summary>
-    /// Contextual workflow hint for LLM
-    /// </summary>
-    public string? WorkflowHint { get; set; }
 }
 
 /// <summary>
@@ -72,6 +62,74 @@ public class WorksheetInfo
     /// Whether the worksheet is visible
     /// </summary>
     public bool Visible { get; set; }
+}
+
+/// <summary>
+/// Sheet visibility levels (maps to Excel XlSheetVisibility)
+/// </summary>
+public enum SheetVisibility
+{
+    /// <summary>
+    /// Sheet is visible (xlSheetVisible = -1)
+    /// </summary>
+    Visible = -1,
+
+    /// <summary>
+    /// Sheet is hidden but user can unhide via Excel UI (xlSheetHidden = 0)
+    /// </summary>
+    Hidden = 0,
+
+    /// <summary>
+    /// Sheet is very hidden, requires code to unhide (xlSheetVeryHidden = 2)
+    /// </summary>
+    VeryHidden = 2
+}
+
+/// <summary>
+/// Result for getting worksheet tab color
+/// </summary>
+public class TabColorResult : ResultBase
+{
+    /// <summary>
+    /// Whether the sheet has a tab color set
+    /// </summary>
+    public bool HasColor { get; set; }
+
+    /// <summary>
+    /// Red component (0-255), null if no color
+    /// </summary>
+    public int? Red { get; set; }
+
+    /// <summary>
+    /// Green component (0-255), null if no color
+    /// </summary>
+    public int? Green { get; set; }
+
+    /// <summary>
+    /// Blue component (0-255), null if no color
+    /// </summary>
+    public int? Blue { get; set; }
+
+    /// <summary>
+    /// Hex color string (#RRGGBB), null if no color
+    /// </summary>
+    public string? HexColor { get; set; }
+}
+
+/// <summary>
+/// Result for getting worksheet visibility
+/// </summary>
+public class SheetVisibilityResult : ResultBase
+{
+    /// <summary>
+    /// Visibility level
+    /// </summary>
+    public SheetVisibility Visibility { get; set; }
+
+    /// <summary>
+    /// Visibility name (Visible, Hidden, VeryHidden)
+    /// </summary>
+    public string VisibilityName { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -359,26 +417,26 @@ public class PowerQueryLoadToBothResult : OperationResult
 /// <summary>
 /// Result for listing named ranges/parameters
 /// </summary>
-public class ParameterListResult : ResultBase
+public class NamedRangeListResult : ResultBase
 {
     /// <summary>
     /// List of named ranges/parameters
     /// </summary>
-    public List<ParameterInfo> Parameters { get; set; } = [];
+    public List<NamedRangeInfo> NamedRanges { get; set; } = [];
 }
 
 /// <summary>
 /// Information about a named range/parameter
 /// </summary>
-public class ParameterInfo
+public class NamedRangeInfo
 {
     /// <summary>
-    /// Name of the parameter
+    /// Name of the named range
     /// </summary>
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// What the parameter refers to
+    /// What the named range refers to
     /// </summary>
     public string RefersTo { get; set; } = string.Empty;
 
@@ -396,12 +454,12 @@ public class ParameterInfo
 /// <summary>
 /// Result for getting parameter value
 /// </summary>
-public class ParameterValueResult : ResultBase
+public class NamedRangeValueResult : ResultBase
 {
     /// <summary>
-    /// Name of the parameter
+    /// Name of the named range
     /// </summary>
-    public string ParameterName { get; set; } = string.Empty;
+    public string NamedRangeName { get; set; } = string.Empty;
 
     /// <summary>
     /// Current value
@@ -414,7 +472,7 @@ public class ParameterValueResult : ResultBase
     public string ValueType { get; set; } = string.Empty;
 
     /// <summary>
-    /// What the parameter refers to
+    /// What the named range refers to
     /// </summary>
     public string RefersTo { get; set; } = string.Empty;
 }
@@ -422,7 +480,7 @@ public class ParameterValueResult : ResultBase
 /// <summary>
 /// Result for listing VBA scripts
 /// </summary>
-public class ScriptListResult : ResultBase
+public class VbaListResult : ResultBase
 {
     /// <summary>
     /// List of VBA scripts
@@ -433,7 +491,7 @@ public class ScriptListResult : ResultBase
 /// <summary>
 /// Result for viewing VBA module code
 /// </summary>
-public class ScriptViewResult : ResultBase
+public class VbaViewResult : ResultBase
 {
     /// <summary>
     /// Module name
@@ -713,6 +771,37 @@ public class RangeHyperlinkResult : ResultBase
     /// List of hyperlinks
     /// </summary>
     public List<HyperlinkInfo> Hyperlinks { get; set; } = [];
+}
+
+/// <summary>
+/// Result for Excel range style operations
+/// </summary>
+public class RangeStyleResult : ResultBase
+{
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range address (e.g., A1:D10)
+    /// </summary>
+    public string RangeAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Current style name applied to the range (first cell)
+    /// </summary>
+    public string StyleName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether this is a built-in Excel style
+    /// </summary>
+    public bool IsBuiltInStyle { get; set; }
+
+    /// <summary>
+    /// Additional style information if available
+    /// </summary>
+    public string? StyleDescription { get; set; }
 }
 
 /// <summary>
@@ -1037,11 +1126,6 @@ public class DataModelTableInfo
     /// Number of rows in the table
     /// </summary>
     public int RecordCount { get; init; }
-
-    /// <summary>
-    /// Last refresh date/time (if available)
-    /// </summary>
-    public DateTime? RefreshDate { get; init; }
 }
 
 /// <summary>
@@ -1596,6 +1680,172 @@ public class HyperlinkInfoResult : ResultBase
     /// Cell address
     /// </summary>
     public string CellAddress { get; set; } = string.Empty;
+}
+
+#endregion
+
+#region Number Formatting Results
+
+/// <summary>
+/// Result for range number format operations
+/// </summary>
+public class RangeNumberFormatResult : ResultBase
+{
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range address (e.g., A1:D10)
+    /// </summary>
+    public string RangeAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 2D array of number format codes (matches range dimensions)
+    /// </summary>
+    public List<List<string>> Formats { get; set; } = [];
+
+    /// <summary>
+    /// Number of rows in the range
+    /// </summary>
+    public int RowCount { get; set; }
+
+    /// <summary>
+    /// Number of columns in the range
+    /// </summary>
+    public int ColumnCount { get; set; }
+}
+
+#endregion
+
+#region Validation Results
+
+/// <summary>
+/// Result for range validation operations
+/// </summary>
+public class RangeValidationResult : ResultBase
+{
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range address
+    /// </summary>
+    public string RangeAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the range has validation
+    /// </summary>
+    public bool HasValidation { get; set; }
+
+    /// <summary>
+    /// Validation type (list, whole, decimal, date, time, textlength, custom)
+    /// </summary>
+    public string? ValidationType { get; set; }
+
+    /// <summary>
+    /// Validation operator (between, equal, greaterthan, etc.)
+    /// </summary>
+    public string? ValidationOperator { get; set; }
+
+    /// <summary>
+    /// First formula/value
+    /// </summary>
+    public string? Formula1 { get; set; }
+
+    /// <summary>
+    /// Second formula/value (for Between operator)
+    /// </summary>
+    public string? Formula2 { get; set; }
+
+    /// <summary>
+    /// Whether to ignore blank cells
+    /// </summary>
+    public bool IgnoreBlank { get; set; }
+
+    /// <summary>
+    /// Whether to show input message
+    /// </summary>
+    public bool ShowInputMessage { get; set; }
+
+    /// <summary>
+    /// Input message title
+    /// </summary>
+    public string? InputTitle { get; set; }
+
+    /// <summary>
+    /// Input message text
+    /// </summary>
+    public string? InputMessage { get; set; }
+
+    /// <summary>
+    /// Whether to show error alert
+    /// </summary>
+    public bool ShowErrorAlert { get; set; }
+
+    /// <summary>
+    /// Error alert style (stop, warning, information)
+    /// </summary>
+    public string? ErrorStyle { get; set; }
+
+    /// <summary>
+    /// Error alert title
+    /// </summary>
+    public string? ErrorTitle { get; set; }
+
+    /// <summary>
+    /// Error alert message text
+    /// </summary>
+    public string? ValidationErrorMessage { get; set; }
+}
+
+#endregion
+
+#region Cell Merge and Protection Results
+
+/// <summary>
+/// Result for range merge information
+/// </summary>
+public class RangeMergeInfoResult : ResultBase
+{
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range address
+    /// </summary>
+    public string RangeAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the range contains merged cells
+    /// </summary>
+    public bool IsMerged { get; set; }
+}
+
+/// <summary>
+/// Result for cell lock information
+/// </summary>
+public class RangeLockInfoResult : ResultBase
+{
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range address
+    /// </summary>
+    public string RangeAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the cells are locked
+    /// </summary>
+    public bool IsLocked { get; set; }
 }
 
 #endregion

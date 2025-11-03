@@ -50,11 +50,6 @@ public partial class DataModelCommands
                     {
                         table.Refresh();
                         result.Success = true;
-                        result.SuggestedNextActions =
-                        [
-                            $"Table '{tableName}' refreshed successfully",
-                            "Use 'model-list-tables' to verify record counts"
-                        ];
                     }
                     finally
                     {
@@ -68,11 +63,6 @@ public partial class DataModelCommands
                     {
                         model.Refresh();
                         result.Success = true;
-                        result.SuggestedNextActions =
-                        [
-                            "All Data Model tables refreshed successfully",
-                            "Use 'model-list-tables' to verify record counts"
-                        ];
                     }
                     catch (Exception refreshEx)
                     {

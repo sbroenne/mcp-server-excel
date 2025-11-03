@@ -149,12 +149,19 @@ public partial class DataModelCommands
     /// </summary>
     /// <param name="model">Model COM object</param>
     /// <param name="formatType">Format type (Currency, Decimal, Percentage, General)</param>
-    /// <returns>FormatInformation COM object or null for General format</returns>
-    private static dynamic? GetFormatObject(dynamic model, string? formatType)
+    /// <returns>FormatInformation COM object (never null - always returns at least ModelFormatGeneral)</returns>
+    private static dynamic GetFormatObject(dynamic model, string? formatType)
     {
+        // CRITICAL FIX: FormatInformation parameter is REQUIRED by Excel COM API
+        // Microsoft docs state it's required, but behavior is inconsistent:
+        // - Fresh Data Model files: Accept Type.Missing (works)
+        // - Reopened Data Model files: Require actual format object (fails with Type.Missing)
+        // Solution: Always return a format object - use ModelFormatGeneral as default
+        // See: docs/KNOWN-ISSUES.md for investigation details
+
         if (string.IsNullOrEmpty(formatType) || formatType.Equals("General", StringComparison.OrdinalIgnoreCase))
         {
-            return null;  // General format (no format object needed)
+            return model.ModelFormatGeneral;  // Default format
         }
 
         try
@@ -165,12 +172,12 @@ public partial class DataModelCommands
                 "decimal" => model.ModelFormatDecimalNumber,
                 "percentage" => model.ModelFormatPercentageNumber,
                 "wholenumber" => model.ModelFormatWholeNumber,
-                _ => null
+                _ => model.ModelFormatGeneral  // Fallback to General for unknown types
             };
         }
         catch
         {
-            return null;  // Format not available in this Excel version
+            return model.ModelFormatGeneral;  // Safe fallback if format not available
         }
     }
 
@@ -251,8 +258,9 @@ public partial class DataModelCommands
             modelTables = model.ModelTables;
             return modelTables != null && modelTables.Count > 0;
         }
-        catch
+        catch (System.Runtime.InteropServices.COMException)
         {
+            // Model or ModelTables not accessible
             return false;
         }
         finally
@@ -299,69 +307,50 @@ public partial class DataModelCommands
     }
 
     /// <summary>
-    /// Finds a DAX measure by name across all tables in the model
+    /// Finds a DAX measure by name in the Data Model
     /// </summary>
     private static dynamic? FindModelMeasure(dynamic model, string measureName)
     {
-        dynamic? modelTables = null;
+        dynamic? measures = null;
         try
         {
-            modelTables = model.ModelTables;
-            for (int t = 1; t <= modelTables.Count; t++)
+            // Get measures collection from MODEL (not from table!)
+            // All measures are at model level with AssociatedTable property
+            // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
+            measures = model.ModelMeasures;
+            int count = measures.Count;
+
+            for (int i = 1; i <= count; i++)
             {
-                dynamic? table = null;
-                dynamic? measures = null;
+                dynamic? measure = null;
                 try
                 {
-                    table = modelTables.Item(t);
-
-                    try
+                    measure = measures.Item(i);
+                    string name = measure.Name?.ToString() ?? "";
+                    if (name.Equals(measureName, StringComparison.OrdinalIgnoreCase))
                     {
-                        measures = table.ModelMeasures;
-                    }
-                    catch (Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
-                    {
-                        // ModelMeasures property not available on this table (empty Data Model)
-                        continue;
-                    }
-                    catch (System.Runtime.InteropServices.COMException)
-                    {
-                        // ModelMeasures collection not initialized
-                        continue;
-                    }
-
-                    for (int m = 1; m <= measures.Count; m++)
-                    {
-                        dynamic? measure = null;
-                        try
-                        {
-                            measure = measures.Item(m);
-                            string name = measure.Name?.ToString() ?? "";
-                            if (name.Equals(measureName, StringComparison.OrdinalIgnoreCase))
-                            {
-                                var result = measure;
-                                measure = null; // Don't release - returning it
-                                return result;
-                            }
-                        }
-                        finally
-                        {
-                            if (measure != null) ComUtilities.Release(ref measure);
-                        }
+                        // Found match - don't release, caller will use it
+                        var result = measure;
+                        measure = null; // Prevent release in finally
+                        return result;
                     }
                 }
                 finally
                 {
-                    ComUtilities.Release(ref measures);
-                    ComUtilities.Release(ref table);
+                    // Only release if we didn't return it
+                    if (measure != null)
+                    {
+                        ComUtilities.Release(ref measure);
+                    }
                 }
             }
+
+            return null;
         }
         finally
         {
-            ComUtilities.Release(ref modelTables);
+            ComUtilities.Release(ref measures);
         }
-        return null;
     }
 
     /// <summary>

@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -33,9 +34,8 @@ public static class ExcelVbaTool
     [Description("Manage Excel VBA scripts and macros (requires .xlsm files). Supports: list, view, export, import, update, run, delete. Optional batchId for batch sessions.")]
     public static async Task<string> ExcelVba(
         [Required]
-        [RegularExpression("^(list|view|export|import|update|run|delete)$")]
-        [Description("Action: list, view, export, import, update, run, delete")]
-        string action,
+        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+        VbaAction action,
 
         [Required]
         [FileExtensions(Extensions = "xlsm")]
@@ -62,28 +62,20 @@ public static class ExcelVbaTool
     {
         try
         {
-            var scriptCommands = new ScriptCommands();
+            var vbaCommands = new VbaCommands();
 
-            switch (action.ToLowerInvariant())
+            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+            return action switch
             {
-                case "list":
-                    return await ListVbaScriptsAsync(scriptCommands, excelPath, batchId);
-                case "view":
-                    return await ViewVbaScriptAsync(scriptCommands, excelPath, moduleName, batchId);
-                case "export":
-                    return await ExportVbaScriptAsync(scriptCommands, excelPath, moduleName, targetPath, batchId);
-                case "import":
-                    return await ImportVbaScriptAsync(scriptCommands, excelPath, moduleName, sourcePath, batchId);
-                case "update":
-                    return await UpdateVbaScriptAsync(scriptCommands, excelPath, moduleName, sourcePath, batchId);
-                case "run":
-                    return await RunVbaScriptAsync(scriptCommands, excelPath, moduleName, parameters, batchId);
-                case "delete":
-                    return await DeleteVbaScriptAsync(scriptCommands, excelPath, moduleName, batchId);
-                default:
-                    ExcelToolsBase.ThrowUnknownAction(action, "list", "view", "export", "import", "update", "run", "delete");
-                    throw new InvalidOperationException(); // Never reached
-            }
+                VbaAction.List => await ListVbaScriptsAsync(vbaCommands, excelPath, batchId),
+                VbaAction.View => await ViewVbaScriptAsync(vbaCommands, excelPath, moduleName, batchId),
+                VbaAction.Export => await ExportVbaScriptAsync(vbaCommands, excelPath, moduleName, targetPath, batchId),
+                VbaAction.Import => await ImportVbaScriptAsync(vbaCommands, excelPath, moduleName, sourcePath, batchId),
+                VbaAction.Update => await UpdateVbaScriptAsync(vbaCommands, excelPath, moduleName, sourcePath, batchId),
+                VbaAction.Run => await RunVbaScriptAsync(vbaCommands, excelPath, moduleName, parameters, batchId),
+                VbaAction.Delete => await DeleteVbaScriptAsync(vbaCommands, excelPath, moduleName, batchId),
+                _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
+            };
         }
         catch (ModelContextProtocol.McpException)
         {
@@ -91,12 +83,12 @@ public static class ExcelVbaTool
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action, excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
             throw;
         }
     }
 
-    private static async Task<string> ListVbaScriptsAsync(ScriptCommands commands, string filePath, string? batchId)
+    private static async Task<string> ListVbaScriptsAsync(VbaCommands commands, string filePath, string? batchId)
     {
         var result = await ExcelToolsBase.WithBatchAsync(
             batchId,
@@ -107,28 +99,25 @@ public static class ExcelVbaTool
         // If listing failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Ensure VBA trust is enabled (run setup-vba-trust)",
-                "Check that the file is .xlsm (macro-enabled)",
-                "Verify the file exists and is accessible"
-            ];
-            result.WorkflowHint = "List failed. Ensure VBA trust is enabled and file is .xlsm.";
             throw new ModelContextProtocol.McpException($"list failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions =
-        [
-            "Use 'export' to backup VBA code",
-            "Use 'run' to execute a VBA procedure",
-            "Use 'import' to add new VBA modules"
-        ];
-        result.WorkflowHint = "VBA modules listed. Next, export, run, or import as needed.";
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        var moduleCount = result.Scripts?.Count ?? 0;
+        return JsonSerializer.Serialize(new
+        {
+            success = true,
+            scripts = result.Scripts,
+            count = moduleCount,
+            workflowHint = moduleCount == 0
+                ? "No VBA modules found. Use 'import' to add VBA code."
+                : $"Found {moduleCount} VBA module(s). Use 'view' to inspect or 'run' to execute.",
+            suggestedNextActions = moduleCount == 0
+                ? new[] { "Use 'import' to add VBA modules from .vba files", "Use excel_file to create .xlsm files for VBA" }
+                : new[] { "Use 'run' to execute macros", "Use 'export' to backup VBA code", "Use 'view' to inspect module code" }
+        }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ViewVbaScriptAsync(ScriptCommands commands, string filePath, string? moduleName, string? batchId)
+    private static async Task<string> ViewVbaScriptAsync(VbaCommands commands, string filePath, string? moduleName, string? batchId)
     {
         if (string.IsNullOrEmpty(moduleName))
             throw new ModelContextProtocol.McpException("moduleName is required for view action");
@@ -142,29 +131,14 @@ public static class ExcelVbaTool
         // If view failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the module name exists",
-                "Use 'list' to see available modules",
-                "Verify VBA trust is enabled"
-            ];
-            result.WorkflowHint = "View failed. Ensure the module exists and VBA trust is enabled.";
+
             throw new ModelContextProtocol.McpException($"view failed for '{filePath}': {result.ErrorMessage}");
         }
-
-        result.SuggestedNextActions =
-        [
-            $"Module has {result.LineCount} lines and {result.Procedures.Count} procedure(s)",
-            "Use 'update' to modify the code",
-            "Use 'run' to execute procedures",
-            "Use 'export' to save code to file"
-        ];
-        result.WorkflowHint = "VBA code viewed. Next, update, run, or export as needed.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ExportVbaScriptAsync(ScriptCommands commands, string filePath, string? moduleName, string? targetPath, string? batchId)
+    private static async Task<string> ExportVbaScriptAsync(VbaCommands commands, string filePath, string? moduleName, string? targetPath, string? batchId)
     {
         if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(targetPath))
             throw new ModelContextProtocol.McpException("moduleName and targetPath are required for export action");
@@ -178,28 +152,14 @@ public static class ExcelVbaTool
         // If export failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the module name exists",
-                "Verify the target path is writable",
-                "Use 'list' to see available modules"
-            ];
-            result.WorkflowHint = "Export failed. Ensure the module exists and path is writable.";
+
             throw new ModelContextProtocol.McpException($"export failed for '{filePath}': {result.ErrorMessage}");
         }
-
-        result.SuggestedNextActions =
-        [
-            "Edit the exported VBA code as needed",
-            "Use 'update' to re-import modified code",
-            "Version control the exported .vba file"
-        ];
-        result.WorkflowHint = "VBA module exported. Next, edit and update as needed.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ImportVbaScriptAsync(ScriptCommands commands, string filePath, string? moduleName, string? sourcePath, string? batchId)
+    private static async Task<string> ImportVbaScriptAsync(VbaCommands commands, string filePath, string? moduleName, string? sourcePath, string? batchId)
     {
         if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(sourcePath))
             throw new ModelContextProtocol.McpException("moduleName and sourcePath are required for import action");
@@ -213,28 +173,28 @@ public static class ExcelVbaTool
         // If import failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the VBA file exists",
-                "Verify VBA trust is enabled",
-                "Ensure the module name doesn't already exist"
-            ];
-            result.WorkflowHint = "Import failed. Ensure the file exists and module is unique.";
             throw new ModelContextProtocol.McpException($"import failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions =
-        [
-            "Use 'list' to verify the import",
-            "Use 'run' to execute procedures in the module",
-            "Test the imported VBA code"
-        ];
-        result.WorkflowHint = "VBA module imported. Next, verify and test.";
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            success = true,
+            moduleName,
+            sourcePath,
+            message = $"VBA module '{moduleName}' imported successfully",
+            workflowHint = "Module imported. Use 'run' to execute or 'view' to inspect code.",
+            suggestedNextActions = new[]
+            {
+                batchId != null
+                    ? $"Continue using batchId '{batchId}' to import more modules"
+                    : "Use excel_batch for importing multiple modules (75-90% faster)",
+                "Use 'run' action to execute the imported macro",
+                "Use 'view' to verify the imported code"
+            }
+        }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> UpdateVbaScriptAsync(ScriptCommands commands, string filePath, string? moduleName, string? sourcePath, string? batchId)
+    private static async Task<string> UpdateVbaScriptAsync(VbaCommands commands, string filePath, string? moduleName, string? sourcePath, string? batchId)
     {
         if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(sourcePath))
             throw new ModelContextProtocol.McpException("moduleName and sourcePath are required for update action");
@@ -248,28 +208,14 @@ public static class ExcelVbaTool
         // If update failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the module exists",
-                "Verify the VBA file exists and is accessible",
-                "Use 'list' to see available modules"
-            ];
-            result.WorkflowHint = "Update failed. Ensure the module and file exist.";
+
             throw new ModelContextProtocol.McpException($"update failed for '{filePath}': {result.ErrorMessage}");
         }
-
-        result.SuggestedNextActions =
-        [
-            "Use 'run' to test the updated code",
-            "Use 'export' to backup the updated module",
-            "Verify the code changes work as expected"
-        ];
-        result.WorkflowHint = "VBA module updated. Next, test and verify.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RunVbaScriptAsync(ScriptCommands commands, string filePath, string? moduleName, string? parameters, string? batchId)
+    private static async Task<string> RunVbaScriptAsync(VbaCommands commands, string filePath, string? moduleName, string? parameters, string? batchId)
     {
         if (string.IsNullOrEmpty(moduleName))
             throw new ModelContextProtocol.McpException("moduleName (format: 'Module.Procedure') is required for run action");
@@ -290,29 +236,26 @@ public static class ExcelVbaTool
         // If VBA execution failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the procedure exists (format: 'Module.Procedure')",
-                "Verify the parameters are correct",
-                "Review the VBA code for errors",
-                "Ensure VBA trust is enabled"
-            ];
-            result.WorkflowHint = "VBA run failed. Ensure the procedure exists and parameters are correct.";
-            throw new ModelContextProtocol.McpException($"run failed for '{filePath}': {result.ErrorMessage}");
+            throw new ModelContextProtocol.McpException($"run failed for '{moduleName}' in '{filePath}': {result.ErrorMessage}");
         }
 
-        result.SuggestedNextActions =
-        [
-            "Use worksheet 'read' to verify VBA made expected changes",
-            "Review output or return values",
-            "Run again with different parameters if needed"
-        ];
-        result.WorkflowHint = "VBA executed successfully. Next, verify results.";
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            success = true,
+            moduleName,
+            parameters = paramArray,
+            message = "VBA procedure executed successfully",
+            workflowHint = "Macro executed. Check results with excel_range if data was modified.",
+            suggestedNextActions = new[]
+            {
+                "Use excel_range 'get-values' to verify data changes",
+                "Use 'list' to see all available macros",
+                "Save workbook if macro made changes"
+            }
+        }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> DeleteVbaScriptAsync(ScriptCommands commands, string filePath, string? moduleName, string? batchId)
+    private static async Task<string> DeleteVbaScriptAsync(VbaCommands commands, string filePath, string? moduleName, string? batchId)
     {
         if (string.IsNullOrEmpty(moduleName))
             throw new ModelContextProtocol.McpException("moduleName is required for delete action");
@@ -326,23 +269,9 @@ public static class ExcelVbaTool
         // If delete failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the module exists",
-                "Use 'list' to see available modules",
-                "Verify the module name is correct"
-            ];
-            result.WorkflowHint = "Delete failed. Ensure the module exists and name is correct.";
+
             throw new ModelContextProtocol.McpException($"delete failed for '{filePath}': {result.ErrorMessage}");
         }
-
-        result.SuggestedNextActions =
-        [
-            "Use 'list' to verify the deletion",
-            "Export other modules for backup",
-            "Review remaining VBA code"
-        ];
-        result.WorkflowHint = "VBA module deleted. Next, verify and backup remaining code.";
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }

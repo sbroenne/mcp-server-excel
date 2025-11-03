@@ -1,8 +1,9 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Xunit;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Range;
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
 /// <summary>
 /// Tests for range search operations
@@ -12,10 +13,10 @@ public partial class RangeCommandsTests
     // === FIND/REPLACE OPERATIONS TESTS ===
 
     [Fact]
-    public async Task FindAsync_FindsMatchingCells()
+    public async Task Find_FindsMatchingCells()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:C2",
@@ -37,10 +38,10 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task ReplaceAsync_ReplacesAllOccurrences()
+    public async Task Replace_ReplacesAllOccurrences()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3",
@@ -55,8 +56,6 @@ public partial class RangeCommandsTests
         {
             ReplaceAll = true
         });
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 
@@ -69,10 +68,10 @@ public partial class RangeCommandsTests
     // === SORT OPERATIONS TESTS ===
 
     [Fact]
-    public async Task SortAsync_SortsRangeByColumn()
+    public async Task Sort_SortsRangeByColumn()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:B4",
@@ -88,8 +87,6 @@ public partial class RangeCommandsTests
         [
             new() { ColumnIndex = 1, Ascending = true }
         ], hasHeaders: true);
-        await batch.SaveAsync();
-
         // Assert
         if (!result.Success)
         {

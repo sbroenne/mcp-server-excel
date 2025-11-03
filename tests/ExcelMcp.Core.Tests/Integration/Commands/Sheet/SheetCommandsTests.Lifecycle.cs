@@ -10,11 +10,11 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Sheet;
 public partial class SheetCommandsTests
 {
     [Fact]
-    public async Task List_WithValidFile_ReturnsSuccessResult()
+    public async Task List_DefaultWorkbook_ReturnsDefaultSheets()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetCommandsTests), nameof(List_WithValidFile_ReturnsSuccessResult), _tempDir);
+            nameof(SheetCommandsTests), nameof(List_DefaultWorkbook_ReturnsDefaultSheets), _tempDir);
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
@@ -27,14 +27,15 @@ public partial class SheetCommandsTests
     }
 
     [Fact]
-    public async Task Create_WithValidName_ReturnsSuccessResult()
+    public async Task Create_UniqueName_ReturnsSuccess()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetCommandsTests), nameof(Create_WithValidName_ReturnsSuccessResult), _tempDir);
+            nameof(SheetCommandsTests), nameof(Create_UniqueName_ReturnsSuccess), _tempDir);
 
-        // Act - Use single batch for create and verify
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        
+        // Act
         var result = await _sheetCommands.CreateAsync(batch, "TestSheet");
 
         // Assert
@@ -45,19 +46,20 @@ public partial class SheetCommandsTests
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Worksheets, w => w.Name == "TestSheet");
 
-        await batch.SaveAsync();
+        // Save changes
     }
 
     [Fact]
-    public async Task Rename_WithValidNames_ReturnsSuccessResult()
+    public async Task Rename_ExistingSheet_ReturnsSuccess()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetCommandsTests), nameof(Rename_WithValidNames_ReturnsSuccessResult), _tempDir);
+            nameof(SheetCommandsTests), nameof(Rename_ExistingSheet_ReturnsSuccess), _tempDir);
 
-        // Act - Use single batch for all operations
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         await _sheetCommands.CreateAsync(batch, "OldName");
+        
+        // Act
         var result = await _sheetCommands.RenameAsync(batch, "OldName", "NewName");
 
         // Assert
@@ -69,19 +71,20 @@ public partial class SheetCommandsTests
         Assert.DoesNotContain(listResult.Worksheets, w => w.Name == "OldName");
         Assert.Contains(listResult.Worksheets, w => w.Name == "NewName");
 
-        await batch.SaveAsync();
+        // Save changes
     }
 
     [Fact]
-    public async Task Delete_WithExistingSheet_ReturnsSuccessResult()
+    public async Task Delete_NonActiveSheet_ReturnsSuccess()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetCommandsTests), nameof(Delete_WithExistingSheet_ReturnsSuccessResult), _tempDir);
+            nameof(SheetCommandsTests), nameof(Delete_NonActiveSheet_ReturnsSuccess), _tempDir);
 
-        // Act - Use single batch for all operations
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         await _sheetCommands.CreateAsync(batch, "ToDelete");
+        
+        // Act
         var result = await _sheetCommands.DeleteAsync(batch, "ToDelete");
 
         // Assert
@@ -92,19 +95,20 @@ public partial class SheetCommandsTests
         Assert.True(listResult.Success);
         Assert.DoesNotContain(listResult.Worksheets, w => w.Name == "ToDelete");
 
-        await batch.SaveAsync();
+        // Save changes
     }
 
     [Fact]
-    public async Task Copy_WithValidNames_ReturnsSuccessResult()
+    public async Task Copy_ExistingSheet_CreatesNewSheet()
     {
         // Arrange
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(SheetCommandsTests), nameof(Copy_WithValidNames_ReturnsSuccessResult), _tempDir);
+            nameof(SheetCommandsTests), nameof(Copy_ExistingSheet_CreatesNewSheet), _tempDir);
 
-        // Act - Use single batch for all operations
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         await _sheetCommands.CreateAsync(batch, "Source");
+        
+        // Act
         var result = await _sheetCommands.CopyAsync(batch, "Source", "Target");
 
         // Assert
@@ -116,6 +120,6 @@ public partial class SheetCommandsTests
         Assert.Contains(listResult.Worksheets, w => w.Name == "Source");
         Assert.Contains(listResult.Worksheets, w => w.Name == "Target");
 
-        await batch.SaveAsync();
+        // Save changes
     }
 }

@@ -104,13 +104,7 @@ public partial class PivotTableCommands
                     SourceData = sourceDataRef,
                     SourceRowCount = sourceRangeObj.Rows.Count - 1,
                     AvailableFields = availableFields,
-                    FilePath = batch.WorkbookPath,
-                    SuggestedNextActions =
-                    [
-                        "Add row field(s) using AddRowFieldAsync",
-                        "Add value field(s) using AddValueFieldAsync",
-                        "Add filter field(s) using AddFilterFieldAsync"
-                    ]
+                    FilePath = batch.WorkbookPath
                 };
             }
             catch (Exception ex)
@@ -298,12 +292,7 @@ public partial class PivotTableCommands
                         SourceData = sourceDataRef,
                         SourceRowCount = rowCount - 1, // Exclude header
                         AvailableFields = headers,
-                        FilePath = batch.WorkbookPath,
-                        SuggestedNextActions =
-                        [
-                            "Add row field(s) using AddRowFieldAsync",
-                            "Add value field(s) using AddValueFieldAsync"
-                        ]
+                        FilePath = batch.WorkbookPath
                     };
                 }
                 finally

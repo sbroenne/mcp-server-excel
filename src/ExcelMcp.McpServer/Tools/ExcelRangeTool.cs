@@ -3,6 +3,9 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
+using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -26,22 +29,24 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Use "get-current-region" to find contiguous data blocks
 /// - Use "get-range-info" to inspect range properties
 /// - Use "add-hyperlink"/"remove-hyperlink"/"list-hyperlinks"/"get-hyperlink" for hyperlink management
+/// - Use "set-style" to apply built-in Excel cell styles (RECOMMENDED for formatting)
+/// - Use "format-range" to apply manual formatting (font, fill, border, alignment) - use only when styles don't meet needs
+/// - Use "validate-range" to add data validation rules
 /// </summary>
 [McpServerToolType]
 public static class ExcelRangeTool
 {
     /// <summary>
     /// Unified Excel range operations - comprehensive data manipulation API.
-    /// Supports: values, formulas, clear, copy, insert/delete, find/replace, sort, discovery, hyperlinks.
+    /// Supports: values, formulas, number formats, clear, copy, insert/delete, find/replace, sort, discovery, hyperlinks.
     /// Optional batchId for batch sessions.
     /// </summary>
     [McpServerTool(Name = "excel_range")]
-    [Description("Excel range operations: get-values, set-values, get-formulas, set-formulas, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink. Optional batchId for batch sessions.")]
+    [Description("Excel range operations: get-values, set-values, get-formulas, set-formulas, get-number-formats, set-number-format, set-number-formats, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink, set-style, format-range, validate-range. Optional batchId for batch sessions.")]
     public static async Task<string> ExcelRange(
         [Required]
-        [RegularExpression("^(get-values|set-values|get-formulas|set-formulas|clear-all|clear-contents|clear-formats|copy|copy-values|copy-formulas|insert-cells|delete-cells|insert-rows|delete-rows|insert-columns|delete-columns|find|replace|sort|get-used-range|get-current-region|get-range-info|add-hyperlink|remove-hyperlink|list-hyperlinks|get-hyperlink)$")]
-        [Description("Action: get-values, set-values, get-formulas, set-formulas, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink")]
-        string action,
+        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+        RangeAction action,
 
         [Required]
         [FileExtensions(Extensions = "xlsx,xlsm")]
@@ -114,6 +119,117 @@ public static class ExcelRangeTool
         [Description("Hyperlink tooltip (for add-hyperlink, optional)")]
         string? tooltip = null,
 
+        [Description("Excel format code for set-number-format (e.g., '$#,##0.00', '0.00%', 'm/d/yyyy')")]
+        string? formatCode = null,
+
+        [Description("2D array of format codes for set-number-formats (JSON array of arrays, e.g., [['$#,##0','0.00%'],['m/d/yyyy','General']])")]
+        List<List<string>>? formats = null,
+
+        // === FORMATTING PARAMETERS ===
+
+        [Description("Built-in Excel style name (for set-style: 'Heading 1', 'Accent1', 'Good', 'Total', 'Currency', 'Percent', 'Normal', etc. - recommended for consistent formatting)")]
+        string? styleName = null,
+
+        [Description("Font name (for format-range, e.g., 'Arial', 'Calibri')")]
+        string? fontName = null,
+
+        [Description("Font size (for format-range, e.g., 11, 12, 14)")]
+        double? fontSize = null,
+
+        [Description("Bold font (for format-range)")]
+        bool? bold = null,
+
+        [Description("Italic font (for format-range)")]
+        bool? italic = null,
+
+        [Description("Underline font (for format-range)")]
+        bool? underline = null,
+
+        [Description("Font color (for format-range, #RRGGBB or color index)")]
+        string? fontColor = null,
+
+        [Description("Fill color (for format-range, #RRGGBB or color index)")]
+        string? fillColor = null,
+
+        [Description("Border style (for format-range: none, continuous, dash, dot, double, etc.)")]
+        string? borderStyle = null,
+
+        [Description("Border color (for format-range, #RRGGBB or color index)")]
+        string? borderColor = null,
+
+        [Description("Border weight (for format-range: hairline, thin, medium, thick)")]
+        string? borderWeight = null,
+
+        [Description("Horizontal alignment (for format-range: left, center, right, justify, distributed)")]
+        string? horizontalAlignment = null,
+
+        [Description("Vertical alignment (for format-range: top, center, bottom, justify, distributed)")]
+        string? verticalAlignment = null,
+
+        [Description("Wrap text in cells (for format-range)")]
+        bool? wrapText = null,
+
+        [Description("Text orientation in degrees (for format-range, 0-90 or -90)")]
+        int? orientation = null,
+
+        // === VALIDATION PARAMETERS ===
+
+        [Description("Data validation type (for validate-range: list, whole, decimal, date, time, textLength, custom)")]
+        string? validationType = null,
+
+        [Description("Data validation operator (for validate-range: between, notBetween, equal, notEqual, greaterThan, lessThan, greaterThanOrEqual, lessThanOrEqual)")]
+        string? validationOperator = null,
+
+        [Description("Validation formula1 (for validate-range, first value/formula)")]
+        string? validationFormula1 = null,
+
+        [Description("Validation formula2 (for validate-range, second value/formula for between/notBetween)")]
+        string? validationFormula2 = null,
+
+        [Description("Show input message (for validate-range)")]
+        bool? showInputMessage = null,
+
+        [Description("Input message title (for validate-range)")]
+        string? inputTitle = null,
+
+        [Description("Input message text (for validate-range)")]
+        string? inputMessage = null,
+
+        [Description("Show error alert (for validate-range)")]
+        bool? showErrorAlert = null,
+
+        [Description("Error alert style (for validate-range: stop, warning, information)")]
+        string? errorStyle = null,
+
+        [Description("Error alert title (for validate-range)")]
+        string? errorTitle = null,
+
+        [Description("Error alert message (for validate-range)")]
+        string? errorMessage = null,
+
+        [Description("Ignore blank cells in validation (for validate-range)")]
+        bool? ignoreBlank = null,
+
+        [Description("Show dropdown for list validation (for validate-range)")]
+        bool? showDropdown = null,
+
+        [Description("Lock status for cells (for set-cell-lock: true = locked, false = unlocked)")]
+        bool? locked = null,
+
+        // === CONDITIONAL FORMATTING PARAMETERS ===
+
+        [Description("Conditional formatting rule type (for add-conditional-formatting: cellValue, expression, colorScale, dataBar, iconSet, top10, uniqueValues, duplicateValues, blanks, noBlanks, errors, noErrors)")]
+        string? ruleType = null,
+
+        [Description("First formula for conditional formatting rule (for add-conditional-formatting, required for most rule types)")]
+        string? formula1 = null,
+
+        [Description("Second formula for conditional formatting rule (for add-conditional-formatting, optional, used for 'between' rules)")]
+        string? formula2 = null,
+
+        [Description("Format style for conditional formatting (for add-conditional-formatting, optional, e.g., 'highlight', 'databar', 'colorscale')")]
+        string? formatStyle = null,
+
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
         string? batchId = null)
     {
@@ -121,36 +237,55 @@ public static class ExcelRangeTool
         {
             var rangeCommands = new RangeCommands();
 
-            return action.ToLowerInvariant() switch
+            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+            return action switch
             {
-                "get-values" => await GetValuesAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "set-values" => await SetValuesAsync(rangeCommands, excelPath, sheetName, rangeAddress, values, batchId),
-                "get-formulas" => await GetFormulasAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "set-formulas" => await SetFormulasAsync(rangeCommands, excelPath, sheetName, rangeAddress, formulas, batchId),
-                "clear-all" => await ClearAllAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "clear-contents" => await ClearContentsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "clear-formats" => await ClearFormatsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "copy" => await CopyAsync(rangeCommands, excelPath, sourceSheet, sourceRange, targetSheet, targetRange, batchId),
-                "copy-values" => await CopyValuesAsync(rangeCommands, excelPath, sourceSheet, sourceRange, targetSheet, targetRange, batchId),
-                "copy-formulas" => await CopyFormulasAsync(rangeCommands, excelPath, sourceSheet, sourceRange, targetSheet, targetRange, batchId),
-                "insert-cells" => await InsertCellsAsync(rangeCommands, excelPath, sheetName, rangeAddress, shift, batchId),
-                "delete-cells" => await DeleteCellsAsync(rangeCommands, excelPath, sheetName, rangeAddress, shift, batchId),
-                "insert-rows" => await InsertRowsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "delete-rows" => await DeleteRowsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "insert-columns" => await InsertColumnsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "delete-columns" => await DeleteColumnsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "find" => await FindAsync(rangeCommands, excelPath, sheetName, rangeAddress, searchValue, matchCase, matchEntireCell, searchFormulas, searchValues, batchId),
-                "replace" => await ReplaceAsync(rangeCommands, excelPath, sheetName, rangeAddress, searchValue, replaceValue, matchCase, matchEntireCell, searchFormulas, searchValues, replaceAll, batchId),
-                "sort" => await SortAsync(rangeCommands, excelPath, sheetName, rangeAddress, sortColumns, hasHeaders, batchId),
-                "get-used-range" => await GetUsedRangeAsync(rangeCommands, excelPath, sheetName, batchId),
-                "get-current-region" => await GetCurrentRegionAsync(rangeCommands, excelPath, sheetName, cellAddress, batchId),
-                "get-range-info" => await GetRangeInfoAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "add-hyperlink" => await AddHyperlinkAsync(rangeCommands, excelPath, sheetName, cellAddress, url, displayText, tooltip, batchId),
-                "remove-hyperlink" => await RemoveHyperlinkAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
-                "list-hyperlinks" => await ListHyperlinksAsync(rangeCommands, excelPath, sheetName, batchId),
-                "get-hyperlink" => await GetHyperlinkAsync(rangeCommands, excelPath, sheetName, cellAddress, batchId),
+                RangeAction.GetValues => await GetValuesAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.SetValues => await SetValuesAsync(rangeCommands, excelPath, sheetName, rangeAddress, values, batchId),
+                RangeAction.GetFormulas => await GetFormulasAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.SetFormulas => await SetFormulasAsync(rangeCommands, excelPath, sheetName, rangeAddress, formulas, batchId),
+                RangeAction.GetNumberFormats => await GetNumberFormatsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.SetNumberFormat => await SetNumberFormatAsync(rangeCommands, excelPath, sheetName, rangeAddress, formatCode, batchId),
+                RangeAction.SetNumberFormats => await SetNumberFormatsAsync(rangeCommands, excelPath, sheetName, rangeAddress, formats, batchId),
+                RangeAction.ClearAll => await ClearAllAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.ClearContents => await ClearContentsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.ClearFormats => await ClearFormatsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.Copy => await CopyAsync(rangeCommands, excelPath, sourceSheet, sourceRange, targetSheet, targetRange, batchId),
+                RangeAction.CopyValues => await CopyValuesAsync(rangeCommands, excelPath, sourceSheet, sourceRange, targetSheet, targetRange, batchId),
+                RangeAction.CopyFormulas => await CopyFormulasAsync(rangeCommands, excelPath, sourceSheet, sourceRange, targetSheet, targetRange, batchId),
+                RangeAction.InsertCells => await InsertCellsAsync(rangeCommands, excelPath, sheetName, rangeAddress, shift, batchId),
+                RangeAction.DeleteCells => await DeleteCellsAsync(rangeCommands, excelPath, sheetName, rangeAddress, shift, batchId),
+                RangeAction.InsertRows => await InsertRowsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.DeleteRows => await DeleteRowsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.InsertColumns => await InsertColumnsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.DeleteColumns => await DeleteColumnsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.Find => await FindAsync(rangeCommands, excelPath, sheetName, rangeAddress, searchValue, matchCase, matchEntireCell, searchFormulas, searchValues, batchId),
+                RangeAction.Replace => await ReplaceAsync(rangeCommands, excelPath, sheetName, rangeAddress, searchValue, replaceValue, matchCase, matchEntireCell, searchFormulas, searchValues, replaceAll, batchId),
+                RangeAction.Sort => await SortAsync(rangeCommands, excelPath, sheetName, rangeAddress, sortColumns, hasHeaders, batchId),
+                RangeAction.GetUsedRange => await GetUsedRangeAsync(rangeCommands, excelPath, sheetName, batchId),
+                RangeAction.GetCurrentRegion => await GetCurrentRegionAsync(rangeCommands, excelPath, sheetName, cellAddress, batchId),
+                RangeAction.GetInfo => await GetRangeInfoAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.AddHyperlink => await AddHyperlinkAsync(rangeCommands, excelPath, sheetName, cellAddress, url, displayText, tooltip, batchId),
+                RangeAction.RemoveHyperlink => await RemoveHyperlinkAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.ListHyperlinks => await ListHyperlinksAsync(rangeCommands, excelPath, sheetName, batchId),
+                RangeAction.GetHyperlink => await GetHyperlinkAsync(rangeCommands, excelPath, sheetName, cellAddress, batchId),
+                RangeAction.GetStyle => await GetStyleAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.SetStyle => await SetStyleAsync(rangeCommands, excelPath, sheetName, rangeAddress, styleName, batchId),
+                RangeAction.FormatRange => await FormatRangeAsync(rangeCommands, excelPath, sheetName, rangeAddress, fontName, fontSize, bold, italic, underline, fontColor, fillColor, borderStyle, borderColor, borderWeight, horizontalAlignment, verticalAlignment, wrapText, orientation, batchId),
+                RangeAction.ValidateRange => await ValidateRangeAsync(rangeCommands, excelPath, sheetName, rangeAddress, validationType, validationOperator, validationFormula1, validationFormula2, showInputMessage, inputTitle, inputMessage, showErrorAlert, errorStyle, errorTitle, errorMessage, ignoreBlank, showDropdown, batchId),
+                RangeAction.GetValidation => await GetValidationAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.RemoveValidation => await RemoveValidationAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.AutoFitColumns => await AutoFitColumnsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.AutoFitRows => await AutoFitRowsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.MergeCells => await MergeCellsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.UnmergeCells => await UnmergeCellsAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.GetMergeInfo => await GetMergeInfoAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.AddConditionalFormatting => await AddConditionalFormattingAsync(rangeCommands, excelPath, sheetName, rangeAddress, ruleType, formula1, formula2, formatStyle, batchId),
+                RangeAction.ClearConditionalFormatting => await ClearConditionalFormattingAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.SetCellLock => await SetCellLockAsync(rangeCommands, excelPath, sheetName, rangeAddress, locked, batchId),
+                RangeAction.GetCellLock => await GetCellLockAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: get-values, set-values, get-formulas, set-formulas, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink")
+                    $"Unknown action: {action} ({action.ToActionString()})")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -159,7 +294,7 @@ public static class ExcelRangeTool
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action, excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
             throw; // Unreachable but satisfies compiler
         }
     }
@@ -243,6 +378,69 @@ public static class ExcelRangeTool
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
             throw new ModelContextProtocol.McpException($"set-formulas failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    // === NUMBER FORMAT OPERATIONS ===
+
+    private static async Task<string> GetNumberFormatsAsync(RangeCommands commands, string filePath, string? sheetName, string? rangeAddress, string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-number-formats");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.GetNumberFormatsAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"get-number-formats failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> SetNumberFormatAsync(RangeCommands commands, string filePath, string? sheetName, string? rangeAddress, string? formatCode, string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-number-format");
+        if (string.IsNullOrEmpty(formatCode))
+            ExcelToolsBase.ThrowMissingParameter("formatCode", "set-number-format");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.SetNumberFormatAsync(batch, sheetName ?? "", rangeAddress!, formatCode!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-number-format failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> SetNumberFormatsAsync(RangeCommands commands, string filePath, string? sheetName, string? rangeAddress, List<List<string>>? formats, string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-number-formats");
+        if (formats == null || formats.Count == 0)
+            ExcelToolsBase.ThrowMissingParameter("formats", "set-number-formats");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.SetNumberFormatsAsync(batch, sheetName ?? "", rangeAddress!, formats!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-number-formats failed for '{filePath}': {result.ErrorMessage}");
         }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -730,6 +928,454 @@ public static class ExcelRangeTool
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
             throw new ModelContextProtocol.McpException($"get-hyperlink failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    // === FORMATTING OPERATIONS ===
+
+    private static async Task<string> SetStyleAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? styleName,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-style");
+        if (string.IsNullOrEmpty(styleName))
+            ExcelToolsBase.ThrowMissingParameter("styleName", "set-style");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.SetStyleAsync(batch, sheetName ?? "", rangeAddress!, styleName!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-style failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            success = true,
+            filePath,
+            sheetName,
+            rangeAddress,
+            styleName,
+            workflowHint = "Built-in style applied. Use 'get-range-info' to verify formatting.",
+            suggestedNextActions = new[]
+            {
+                "Apply additional styles to other ranges",
+                "Use 'format-range' for manual formatting if built-in styles don't meet needs",
+                "Save changes with commit_excel_batch if in batch mode"
+            }
+        }, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> GetStyleAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-style");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.GetStyleAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"get-style failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            success = true,
+            filePath,
+            sheetName,
+            rangeAddress,
+            styleName = result.StyleName,
+            isBuiltInStyle = result.IsBuiltInStyle,
+            styleDescription = result.StyleDescription,
+            workflowHint = result.IsBuiltInStyle
+                ? "Built-in style detected. Use 'set-style' to apply this style to other ranges."
+                : "Custom style or no style applied. Use 'set-style' to apply a built-in style.",
+            suggestedNextActions = new[]
+            {
+                result.IsBuiltInStyle
+                    ? "Apply this style to other ranges with 'set-style'"
+                    : "Apply a built-in style with 'set-style'",
+                "Use 'format-range' for custom formatting",
+                "Inspect other ranges to compare styles"
+            }
+        }, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> FormatRangeAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? fontName,
+        double? fontSize,
+        bool? bold,
+        bool? italic,
+        bool? underline,
+        string? fontColor,
+        string? fillColor,
+        string? borderStyle,
+        string? borderColor,
+        string? borderWeight,
+        string? horizontalAlignment,
+        string? verticalAlignment,
+        bool? wrapText,
+        int? orientation,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "format-range");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.FormatRangeAsync(batch, sheetName ?? "", rangeAddress!,
+                fontName, fontSize, bold, italic, underline, fontColor,
+                fillColor, borderStyle, borderColor, borderWeight,
+                horizontalAlignment, verticalAlignment, wrapText, orientation));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"format-range failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    // === VALIDATION OPERATIONS ===
+
+    private static async Task<string> ValidateRangeAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? validationType,
+        string? validationOperator,
+        string? validationFormula1,
+        string? validationFormula2,
+        bool? showInputMessage,
+        string? inputTitle,
+        string? inputMessage,
+        bool? showErrorAlert,
+        string? errorStyle,
+        string? errorTitle,
+        string? errorMessage,
+        bool? ignoreBlank,
+        bool? showDropdown,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "validate-range");
+        if (string.IsNullOrEmpty(validationType))
+            ExcelToolsBase.ThrowMissingParameter("validationType", "validate-range");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.ValidateRangeAsync(batch, sheetName ?? "", rangeAddress!,
+                validationType!, validationOperator, validationFormula1, validationFormula2,
+                showInputMessage, inputTitle, inputMessage,
+                showErrorAlert, errorStyle, errorTitle, errorMessage,
+                ignoreBlank, showDropdown));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"validate-range failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> GetValidationAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-validation");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.GetValidationAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"get-validation failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> RemoveValidationAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "remove-validation");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.RemoveValidationAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"remove-validation failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> AutoFitColumnsAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "auto-fit-columns");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.AutoFitColumnsAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"auto-fit-columns failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> AutoFitRowsAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "auto-fit-rows");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.AutoFitRowsAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"auto-fit-rows failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> MergeCellsAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "merge-cells");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.MergeCellsAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"merge-cells failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> UnmergeCellsAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "unmerge-cells");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.UnmergeCellsAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"unmerge-cells failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> GetMergeInfoAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-merge-info");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.GetMergeInfoAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"get-merge-info failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> AddConditionalFormattingAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? ruleType,
+        string? formula1,
+        string? formula2,
+        string? formatStyle,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "add-conditional-formatting");
+        if (string.IsNullOrEmpty(ruleType))
+            ExcelToolsBase.ThrowMissingParameter("ruleType", "add-conditional-formatting");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.AddConditionalFormattingAsync(batch, sheetName ?? "", rangeAddress!,
+                ruleType!, formula1, formula2, formatStyle));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"add-conditional-formatting failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> ClearConditionalFormattingAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "clear-conditional-formatting");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.ClearConditionalFormattingAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"clear-conditional-formatting failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> SetCellLockAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        bool? locked,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-cell-lock");
+
+        if (locked == null)
+            ExcelToolsBase.ThrowMissingParameter("locked", "set-cell-lock");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: true,
+            async (batch) => await commands.SetCellLockAsync(batch, sheetName ?? "", rangeAddress!, locked!.Value));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-cell-lock failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> GetCellLockAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-cell-lock");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.GetCellLockAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"get-cell-lock failed for '{filePath}': {result.ErrorMessage}");
         }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);

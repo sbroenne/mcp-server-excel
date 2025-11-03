@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.McpServer.Models;
 using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
 using Xunit.Abstractions;
@@ -19,7 +20,7 @@ public class ExcelFileDirectoryTests : IDisposable
     public ExcelFileDirectoryTests(ITestOutputHelper output)
     {
         _output = output;
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelFile_Dir_Tests_{Guid.NewGuid():N}");
+        _tempDir = Path.Join(Path.GetTempPath(), $"ExcelFile_Dir_Tests_{Guid.NewGuid():N}");
         // Don't create the directory - let the tool create it
     }
 
@@ -43,13 +44,13 @@ public class ExcelFileDirectoryTests : IDisposable
     public async Task ExcelFile_CreateInNonExistentDirectory_ShouldWork()
     {
         // Arrange
-        var testFile = Path.Combine(_tempDir, "subdir", "test-file.xlsx");
+        var testFile = Path.Join(_tempDir, "subdir", "test-file.xlsx");
 
         _output.WriteLine($"Testing file creation in non-existent directory: {testFile}");
         _output.WriteLine($"Directory exists before: {Directory.Exists(Path.GetDirectoryName(testFile))}");
 
         // Act - Call the tool directly
-        var result = await ExcelFileTool.ExcelFile("create-empty", testFile);
+        var result = await ExcelFileTool.ExcelFile(FileAction.CreateEmpty, testFile);
 
         _output.WriteLine($"Tool result: {result}");
 
@@ -75,13 +76,13 @@ public class ExcelFileDirectoryTests : IDisposable
     {
         // Arrange - Create a path that might be too long
         var longPath = string.Join("", Enumerable.Repeat("verylongdirectoryname", 20));
-        var testFile = Path.Combine(_tempDir, longPath, "test-file.xlsx");
+        var testFile = Path.Join(_tempDir, longPath, "test-file.xlsx");
 
         _output.WriteLine($"Testing with very long path: {testFile.Length} characters");
         _output.WriteLine($"Path: {testFile}");
 
         // Act - Call the tool directly
-        var result = await ExcelFileTool.ExcelFile("create-empty", testFile);
+        var result = await ExcelFileTool.ExcelFile(FileAction.CreateEmpty, testFile);
 
         _output.WriteLine($"Tool result: {result}");
 
@@ -90,3 +91,4 @@ public class ExcelFileDirectoryTests : IDisposable
         Assert.True(jsonDoc.RootElement.ValueKind == JsonValueKind.Object);
     }
 }
+

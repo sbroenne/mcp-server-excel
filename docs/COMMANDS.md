@@ -13,8 +13,8 @@ All commands now display AI-powered workflow guidance after successful operation
 Next steps: Review the imported code for any required customizations
 
 Suggested Next Actions:
-  • Run the VBA procedure with script-run
-  • Export the module for version control with script-export
+  • Run the VBA procedure with vba-run
+  • Export the module for version control with vba-export
   • Test the module functionality
 ```
 
@@ -84,6 +84,17 @@ Update an existing Power Query with new M code. If the query combines data from 
 excelcli pq-refresh <file.xlsx> <query-name>
 ```
 
+Refreshes an existing Power Query to reload data from its source. If the query is connection-only (not loaded anywhere), use the MCP Server `excel_powerquery` tool with the `loadDestination` parameter to apply load configuration during refresh:
+
+```javascript
+// MCP Server usage - Apply load destination while refreshing
+excel_powerquery(action: "refresh", queryName: "Sales", loadDestination: "worksheet")
+excel_powerquery(action: "refresh", queryName: "Sales", loadDestination: "data-model")
+excel_powerquery(action: "refresh", queryName: "Sales", loadDestination: "both")
+```
+
+For CLI users, use `pq-loadto` before `pq-refresh` to configure where data should load.
+
 **pq-loadto** - Load connection-only query to worksheet
 
 ```powershell
@@ -98,7 +109,7 @@ excelcli pq-delete <file.xlsx> <query-name>
 
 ## Sheet Commands (`sheet-*`)
 
-Manage worksheet lifecycle (create, rename, copy, delete). For data operations, use `range-*` commands.
+Manage worksheet lifecycle (create, rename, copy, delete), tab colors, and visibility. For data operations, use `range-*` commands.
 
 **sheet-list** - List all worksheets
 
@@ -128,6 +139,75 @@ excelcli sheet-copy <file.xlsx> <source-sheet> <new-sheet>
 
 ```powershell
 excelcli sheet-delete <file.xlsx> <sheet-name>
+```
+
+**sheet-set-tab-color** - Set worksheet tab color (RGB 0-255)
+
+```powershell
+excelcli sheet-set-tab-color <file.xlsx> <sheet-name> <red> <green> <blue>
+
+# Examples
+excelcli sheet-set-tab-color "Report.xlsx" "Sales" 255 0 0        # Red
+excelcli sheet-set-tab-color "Report.xlsx" "Expenses" 0 255 0    # Green
+excelcli sheet-set-tab-color "Report.xlsx" "Summary" 0 0 255     # Blue
+```
+
+**sheet-get-tab-color** - Get worksheet tab color
+
+```powershell
+excelcli sheet-get-tab-color <file.xlsx> <sheet-name>
+
+# Example output
+# Sheet: Sales
+# Color: #FF0000 (Red: 255, Green: 0, Blue: 0)
+```
+
+**sheet-clear-tab-color** - Remove worksheet tab color
+
+```powershell
+excelcli sheet-clear-tab-color <file.xlsx> <sheet-name>
+```
+
+**sheet-set-visibility** - Set worksheet visibility level
+
+```powershell
+excelcli sheet-set-visibility <file.xlsx> <sheet-name> <visible|hidden|veryhidden>
+
+# Examples
+excelcli sheet-set-visibility "Report.xlsx" "Data" hidden          # User can unhide via UI
+excelcli sheet-set-visibility "Report.xlsx" "Calculations" veryhidden  # Requires code to unhide
+excelcli sheet-set-visibility "Report.xlsx" "Summary" visible      # Make visible
+```
+
+**sheet-get-visibility** - Get worksheet visibility level
+
+```powershell
+excelcli sheet-get-visibility <file.xlsx> <sheet-name>
+
+# Example output
+# Sheet: Data
+# Visibility: Hidden
+```
+
+**sheet-show** - Show a hidden worksheet
+
+```powershell
+excelcli sheet-show <file.xlsx> <sheet-name>
+```
+
+**sheet-hide** - Hide a worksheet (user can unhide via UI)
+
+```powershell
+excelcli sheet-hide <file.xlsx> <sheet-name>
+```
+
+**sheet-very-hide** - Very hide a worksheet (requires code to unhide)
+
+```powershell
+excelcli sheet-very-hide <file.xlsx> <sheet-name>
+
+# Example - protect calculations from users
+excelcli sheet-very-hide "Model.xlsx" "Formulas"
 ```
 
 ## Range Commands (`range-*`)
@@ -191,6 +271,101 @@ excelcli range-clear-contents <file.xlsx> <sheet-name> <range>
 excelcli range-clear-formats <file.xlsx> <sheet-name> <range>
 ```
 
+### Number Formatting
+
+**range-get-number-formats** - Get number format codes from range as CSV
+
+```powershell
+excelcli range-get-number-formats <file.xlsx> <sheet-name> <range>
+
+# Example
+excelcli range-get-number-formats "Sales.xlsx" "Sheet1" "A1:D10"
+# Output (CSV): "$#,##0.00","0.00%","m/d/yyyy","General"
+```
+
+**range-set-number-format** - Apply uniform number format to range
+
+```powershell
+excelcli range-set-number-format <file.xlsx> <sheet-name> <range> <format-code>
+
+# Examples
+excelcli range-set-number-format "Sales.xlsx" "Sheet1" "D2:D100" "$#,##0.00"  # Currency
+excelcli range-set-number-format "Sales.xlsx" "Sheet1" "E2:E100" "0.00%"      # Percentage
+excelcli range-set-number-format "Sales.xlsx" "Sheet1" "A2:A100" "m/d/yyyy"   # Date
+excelcli range-set-number-format "Sales.xlsx" "Sheet1" "B2:B100" "@"          # Text
+```
+
+### Visual Formatting
+
+**range-format** - Apply visual formatting (font, fill, border, alignment)
+
+```powershell
+excelcli range-format <file.xlsx> <sheet-name> <range> [options]
+
+# Font options
+  --font-name NAME           Font family (e.g., Arial, Calibri)
+  --font-size SIZE           Font size in points
+  --bold                     Make text bold
+  --italic                   Make text italic
+  --underline                Underline text
+  --font-color #RRGGBB       Font color in hex (e.g., #FF0000 for red)
+
+# Fill options
+  --fill-color #RRGGBB       Background color in hex
+
+# Border options
+  --border-style STYLE       Border style: Continuous, Dashed, Dotted, Double
+  --border-weight WEIGHT     Border weight: Thin, Medium, Thick, Hairline
+  --border-color #RRGGBB     Border color in hex
+
+# Alignment options
+  --h-align ALIGN            Horizontal: Left, Center, Right, Justify
+  --v-align ALIGN            Vertical: Top, Center, Bottom
+  --wrap-text                Enable text wrapping
+  --orientation DEGREES      Text rotation (-90 to 90)
+
+# Examples
+excelcli range-format "Report.xlsx" "Sheet1" "A1:E1" --bold --font-size 12 --h-align Center  # Headers
+excelcli range-format "Report.xlsx" "Sheet1" "D2:D100" --fill-color "#FFFF00"  # Yellow highlight
+excelcli range-format "Report.xlsx" "Sheet1" "A1:E100" --border-style Continuous --border-weight Thin
+```
+
+### Data Validation
+
+**range-validate** - Add data validation rules to range
+
+```powershell
+excelcli range-validate <file.xlsx> <sheet-name> <range> <type> <formula1> [formula2] [options]
+
+# Validation types
+  List            Dropdown list
+  WholeNumber     Integer validation
+  Decimal         Decimal number validation
+  Date            Date validation
+  Time            Time validation
+  TextLength      Character length validation
+  Custom          Custom formula validation
+
+# Operators (for numeric/date validations)
+  --operator OPERATOR        Between, NotBetween, Equal, NotEqual, Greater, Less, GreaterOrEqual, LessOrEqual
+
+# Optional parameters
+  --show-input               Show input message when cell selected
+  --input-title TITLE        Input message title
+  --input-message MSG        Input message text
+  --error-title TITLE        Error alert title
+  --error-message MSG        Error alert text
+  --error-style STYLE        Stop, Warning, Information
+  --ignore-blank             Ignore blank cells
+  --show-dropdown            Show dropdown arrow
+
+# Examples
+excelcli range-validate "Data.xlsx" "Sheet1" "F2:F100" List "Active,Inactive,Pending"  # Dropdown
+excelcli range-validate "Data.xlsx" "Sheet1" "E2:E100" WholeNumber "1" "999" --operator Between  # Number range
+excelcli range-validate "Data.xlsx" "Sheet1" "C2:C100" TextLength "100" --operator LessOrEqual  # Max length
+excelcli range-validate "Data.xlsx" "Sheet1" "A2:A100" Date "1/1/2025" --operator GreaterOrEqual  # Min date
+```
+
 ### Migration from Sheet Commands
 
 | Old Command | New Command | Notes |
@@ -206,52 +381,52 @@ excelcli range-clear-formats <file.xlsx> <sheet-name> <range>
 - **Quote Escaping**: Values with commas, quotes, or newlines are automatically quoted
 - **2D Arrays**: Core uses `List<List<object?>>`, CLI converts CSV ↔ 2D arrays for convenience
 
-## Parameter Commands (`param-*`)
+## Named Range Commands (`namedrange-*`)
 
 Manage named ranges and parameters.
 
-**param-list** - List all named ranges
+**namedrange-list** - List all named ranges
 
 ```powershell
-excelcli param-list <file.xlsx>
+excelcli namedrange-list <file.xlsx>
 ```
 
-**param-get** - Get named range value
+**namedrange-get** - Get named range value
 
 ```powershell
-excelcli param-get <file.xlsx> <param-name>
+excelcli namedrange-get <file.xlsx> <namedrange-name>
 ```
 
-**param-set** - Set named range value
+**namedrange-set** - Set named range value
 
 ```powershell
-excelcli param-set <file.xlsx> <param-name> <value>
+excelcli namedrange-set <file.xlsx> <namedrange-name> <value>
 ```
 
-**param-update** - Update named range cell reference ✨ **NEW**
+**namedrange-update** - Update named range cell reference ✨ **NEW**
 
 ```powershell
-excelcli param-update <file.xlsx> <param-name> <new-reference>
+excelcli namedrange-update <file.xlsx> <namedrange-name> <new-reference>
 ```
 
-Updates the cell reference of a named range. Use `param-set` to change the value, or `param-update` to change which cell the parameter points to.
+Updates the cell reference of a named range. Use `namedrange-set` to change the value, or `namedrange-update` to change which cell the parameter points to.
 
 Example:
 ```powershell
 # Change StartDate parameter from Sheet1!A1 to Config!B5
-excelcli param-update Sales.xlsx StartDate Config!B5
+excelcli namedrange-update Sales.xlsx StartDate Config!B5
 ```
 
-**param-create** - Create named range
+**namedrange-create** - Create named range
 
 ```powershell
-excelcli param-create <file.xlsx> <param-name> <reference>
+excelcli namedrange-create <file.xlsx> <namedrange-name> <reference>
 ```
 
-**param-delete** - Delete named range
+**namedrange-delete** - Delete named range
 
 ```powershell
-excelcli param-delete <file.xlsx> <param-name>
+excelcli namedrange-delete <file.xlsx> <namedrange-name>
 ```
 
 ## Connection Commands (`conn-*`)
@@ -597,22 +772,22 @@ excelcli table-sort-multi sales.xlsx SalesTable Year:desc Quarter:desc Amount:de
 - Multi-column sort: Excel supports max 3 sort levels
 - Table structure preserved: Headers and totals row maintained
 
-## VBA Script Commands (`script-*`)
+## VBA VBA Commands (`vba-*`)
 
 **⚠️ VBA commands require macro-enabled (.xlsm) files!**
 
 Manage VBA scripts and macros in macro-enabled Excel workbooks.
 
-**script-list** - List all VBA modules and procedures
+**vba-list** - List all VBA modules and procedures
 
 ```powershell
-excelcli script-list <file.xlsm>
+excelcli vba-list <file.xlsm>
 ```
 
-**script-view** - View VBA module code ✨ **NEW**
+**vba-view** - View VBA module code ✨ **NEW**
 
 ```powershell
-excelcli script-view <file.xlsm> <module-name>
+excelcli vba-view <file.xlsm> <module-name>
 ```
 
 Displays the complete VBA code for a module without exporting to a file. Shows module type, line count, procedures, and full source code.
@@ -620,41 +795,41 @@ Displays the complete VBA code for a module without exporting to a file. Shows m
 Example:
 ```powershell
 # View the DataProcessor module code
-excelcli script-view Report.xlsm DataProcessor
+excelcli vba-view Report.xlsm DataProcessor
 ```
 
-**script-export** - Export VBA module to file
+**vba-export** - Export VBA module to file
 
 ```powershell
-excelcli script-export <file.xlsm> <module-name> <output.vba>
+excelcli vba-export <file.xlsm> <module-name> <output.vba>
 ```
 
-**script-import** - Import VBA module from file
+**vba-import** - Import VBA module from file
 
 ```powershell
-excelcli script-import <file.xlsm> <module-name> <source.vba>
+excelcli vba-import <file.xlsm> <module-name> <source.vba>
 ```
 
-**script-update** - Update existing VBA module
+**vba-update** - Update existing VBA module
 
 ```powershell
-excelcli script-update <file.xlsm> <module-name> <source.vba>
+excelcli vba-update <file.xlsm> <module-name> <source.vba>
 ```
 
-**script-run** - Execute VBA macro with parameters
+**vba-run** - Execute VBA macro with parameters
 
 ```powershell
-excelcli script-run <file.xlsm> <macro-name> [param1] [param2] ...
+excelcli vba-run <file.xlsm> <macro-name> [param1] [param2] ...
 
 # Examples
-excelcli script-run "Report.xlsm" "ProcessData"
-excelcli script-run "Analysis.xlsm" "CalculateTotal" "Sheet1" "A1:C10"
+excelcli vba-run "Report.xlsm" "ProcessData"
+excelcli vba-run "Analysis.xlsm" "CalculateTotal" "Sheet1" "A1:C10"
 ```
 
-**script-delete** - Remove VBA module
+**vba-delete** - Remove VBA module
 
 ```powershell
-excelcli script-delete <file.xlsm> <module-name>
+excelcli vba-delete <file.xlsm> <module-name>
 ```
 
 ## Data Model Commands (`dm-*`)

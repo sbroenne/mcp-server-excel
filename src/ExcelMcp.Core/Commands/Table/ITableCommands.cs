@@ -120,4 +120,25 @@ public interface ITableCommands
     /// Sorts a table by multiple columns
     /// </summary>
     Task<OperationResult> SortAsync(IExcelBatch batch, string tableName, List<TableSortColumn> sortColumns);
+
+    // === NUMBER FORMATTING ===
+
+    /// <summary>
+    /// Gets number formats for a table column
+    /// Delegates to RangeCommands.GetNumberFormatsAsync() on column range
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="tableName">Table name</param>
+    /// <param name="columnName">Column name</param>
+    Task<RangeNumberFormatResult> GetColumnNumberFormatAsync(IExcelBatch batch, string tableName, string columnName);
+
+    /// <summary>
+    /// Sets uniform number format for entire table column
+    /// Delegates to RangeCommands.SetNumberFormatAsync() on column data range (excludes header)
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="tableName">Table name</param>
+    /// <param name="columnName">Column name</param>
+    /// <param name="formatCode">Excel format code (e.g., "$#,##0.00", "0.00%")</param>
+    Task<OperationResult> SetColumnNumberFormatAsync(IExcelBatch batch, string tableName, string columnName, string formatCode);
 }

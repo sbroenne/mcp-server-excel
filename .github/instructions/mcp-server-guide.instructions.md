@@ -4,27 +4,6 @@ applyTo: "src/ExcelMcp.McpServer/**/*.cs"
 
 # MCP Server Development Guide
 
-> **Model Context Protocol server for AI-assisted Excel development**
-
-## Purpose
-AI-assisted Excel development (Power Query refactoring, VBA enhancement, code review) - NOT for ETL pipelines.
-
-## Resource-Based Architecture (11 Tools)
-
-| Tool | Purpose |
-|------|---------|
-| **excel_file** | Excel file operations (create-empty, close-workbook, test) |
-| **excel_powerquery** | Power Query lifecycle + optional `privacyLevel` |
-| **excel_worksheet** | Worksheet operations (lifecycle only - data via excel_range) |
-| **excel_range** | Range operations (values, formulas, clear, copy, hyperlinks) |
-| **excel_parameter** | Named ranges |
-| **excel_table** | Excel Table (ListObject) operations |
-| **excel_connection** | Connection management (OLEDB, ODBC, Text, Web, etc.) |
-| **excel_datamodel** | Data Model / Power Pivot operations |
-| **excel_vba** | VBA lifecycle + `VbaTrustRequiredResult` |
-| **begin_excel_batch** | Start batch session (multi-operation performance) |
-| **commit_excel_batch** | Save/discard batch session |
-
 ## Implementation Patterns
 
 ### Action-Based Routing
@@ -41,16 +20,62 @@ public async Task<string> ExcelPowerQuery(string action, string excelPath, ...)
 }
 ```
 
-### Error Handling
+### Error Handling (MANDATORY PATTERN)
+
+**⚠️ CRITICAL: Every method that calls Core Commands MUST check result.Success before serializing!**
+
 ```csharp
-try
+private static async Task<string> SomeActionAsync(Commands commands, string excelPath, string? param, string? batchId)
 {
-    var result = await _commands.Import(excelPath, queryName, mCodeFile);
-    if (!result.Success) throw new McpException($"import failed: {result.ErrorMessage}");
-    return JsonSerializer.Serialize(result, JsonOptions);
+    // 1. Validate parameters (throw McpException for invalid input)
+    if (string.IsNullOrEmpty(param))
+        throw new ModelContextProtocol.McpException("param is required for action");
+
+    // 2. Call Core Command via WithBatchAsync
+    var result = await ExcelToolsBase.WithBatchAsync(
+        batchId,
+        excelPath,
+        save: true,
+        async (batch) => await commands.SomeAsync(batch, param));
+
+    // 3. ✅ MANDATORY: Check result.Success BEFORE serializing
+    if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+    {
+        throw new ModelContextProtocol.McpException($"action failed for '{param}': {result.ErrorMessage}");
+    }
+
+    // 4. Only serialize on success
+    return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
 }
-catch (McpException) { throw; }
-catch (Exception ex) { ThrowInternalError(ex, action, excelPath); throw; }
+```
+
+**Why Critical:**
+- ❌ **WRONG**: Returning JSON with `success: false` → HTTP 200 (confuses LLMs)
+- ✅ **CORRECT**: Throwing McpException → HTTP 500 (clear error signal)
+
+**Top-Level Error Handling:**
+```csharp
+[McpServerTool]
+public static async Task<string> ExcelTool(ToolAction action, ...)
+{
+    try
+    {
+        return action switch
+        {
+            ToolAction.Action1 => await Action1Async(...),
+            _ => throw new ModelContextProtocol.McpException($"Unknown action: {action}")
+        };
+    }
+    catch (ModelContextProtocol.McpException)
+    {
+        throw; // Re-throw MCP exceptions as-is
+    }
+    catch (Exception ex)
+    {
+        ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
+        throw; // Unreachable but satisfies compiler
+    }
+}
 ```
 
 ### Async Handling
@@ -96,10 +121,78 @@ private static object ConvertToCellValue(object? value)
 
 ## Best Practices
 
-1. **Throw McpException** - Don't return JSON errors
-2. **Use async wrappers** - `.GetAwaiter().GetResult()`
-3. **Validate parameters** - Use helper methods
-4. **Security defaults** - Never auto-apply privacy/trust settings
-5. **Update server.json** - Keep synchronized with tool changes
-6. **JSON serialization** - Always use `JsonSerializer`
-7. **Handle JsonElement** - Convert before COM marshalling
+1. **✅ ALWAYS check result.Success** - Before serializing, throw McpException if failed
+2. **Throw McpException for errors** - Don't return JSON with success=false
+3. **Validate parameters early** - Throw McpException for missing/invalid params
+4. **Use async wrappers** - `.GetAwaiter().GetResult()` (deprecated pattern, prefer async)
+5. **Security defaults** - Never auto-apply privacy/trust settings
+6. **Update server.json** - Keep synchronized with tool changes
+7. **JSON serialization** - Always use `JsonSerializer`
+8. **Handle JsonElement** - Convert before COM marshalling
+
+## Common Mistakes to Avoid
+
+### ❌ MISTAKE: Missing Error Check
+```csharp
+// ❌ WRONG: Serializes even when result.Success = false
+var result = await commands.SomeAsync(batch, param);
+return JsonSerializer.Serialize(result, JsonOptions); // HTTP 200 with error JSON!
+```
+
+### ✅ CORRECT: Always Check Before Serializing
+```csharp
+// ✅ CORRECT: Throw exception if operation failed
+var result = await commands.SomeAsync(batch, param);
+if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+{
+    throw new ModelContextProtocol.McpException($"action failed: {result.ErrorMessage}");
+}
+return JsonSerializer.Serialize(result, JsonOptions); // HTTP 200 only on success!
+```
+
+### ❌ MISTAKE: Empty Success Blocks
+```csharp
+// ❌ WRONG: Useless empty block, no error handling
+if (result.Success)
+{
+    // Empty - does nothing!
+}
+return JsonSerializer.Serialize(result, JsonOptions); // Still returns on failure!
+```
+
+### ✅ CORRECT: Check Failure, Not Success
+```csharp
+// ✅ CORRECT: Check for failure and throw
+if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+{
+    throw new ModelContextProtocol.McpException($"action failed: {result.ErrorMessage}");
+}
+return JsonSerializer.Serialize(result, JsonOptions);
+```
+
+## Verification Checklist
+
+Before committing MCP tool changes:
+
+- [ ] Every method calling Core Commands has error check
+- [ ] Error check comes BEFORE `JsonSerializer.Serialize`
+- [ ] Exception message includes context (action name, parameter values)
+- [ ] No empty `if (result.Success) {}` blocks
+- [ ] Build passes with 0 warnings
+- [ ] Coverage: error checks ≥ serializations (use script below)
+
+**Coverage Check Script:**
+```powershell
+# Run from repository root
+$file = "src/ExcelMcp.McpServer/Tools/YourTool.cs"
+$content = Get-Content $file -Raw
+$errorChecks = ([regex]::Matches($content, 'if\s*\(\s*!result\.Success')).Count
+$serializes = ([regex]::Matches($content, 'JsonSerializer\.Serialize\(result')).Count
+Write-Host "Coverage: $errorChecks / $serializes = $([math]::Round(($errorChecks/$serializes)*100,0))%"
+# Should be 100% or higher
+```
+
+## LLM Guidance Development
+
+**See: [mcp-llm-guidance.instructions.md](mcp-llm-guidance.instructions.md)** for complete guidance on creating guidance for LLMs consuming the MCP server.
+

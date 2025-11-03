@@ -1,8 +1,9 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
+
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
@@ -63,6 +64,13 @@
     <!-- Include README and LICENSE in package -->
     <None Include="README.md" Pack="true" PackagePath="\" />
     <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Embed Prompt Markdown Files -->
+    <EmbeddedResource Include="Prompts\Content\*.md" />
+    <EmbeddedResource Include="Prompts\Content\Completions\*.md" />
+    <EmbeddedResource Include="Prompts\Content\Elicitations\*.md" />
   </ItemGroup>
 
 </Project>

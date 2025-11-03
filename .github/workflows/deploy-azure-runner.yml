@@ -93,7 +93,7 @@ jobs:
         echo ""
         echo "⚠️ If runner setup failed:"
         echo "   - RDP to VM and check C:\runner-setup.log"
-        echo "   - Follow manual installation: docs/MANUAL_RUNNER_INSTALLATION.md"
+        echo "   - Follow manual installation: docs/AZURE_SELFHOSTED_RUNNER_SETUP.md#manual-installation"
         echo ""
         echo "📝 To get a new runner token for future deployments:"
         echo "   1. Go to Settings > Actions > Runners"

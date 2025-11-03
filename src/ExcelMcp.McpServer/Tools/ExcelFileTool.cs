@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -20,10 +21,10 @@ public static class ExcelFileTool
     /// Create new Excel files for automation workflows
     /// </summary>
     [McpServerTool(Name = "excel_file")]
-    [Description("Manage Excel files. Supports: create-empty, close-workbook, test. Optional batchId for batch sessions.")]
+    [Description("Manage Excel files. Actions available as dropdown: CreateEmpty, CloseWorkbook, Test. Optional batchId for batch sessions.")]
     public static async Task<string> ExcelFile(
-        [Description("Action to perform: create-empty, close-workbook, test")]
-        string action,
+        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+        FileAction action,
 
         [Description("Excel file path (.xlsx or .xlsm extension)")]
         string excelPath,
@@ -35,22 +36,15 @@ public static class ExcelFileTool
         {
             var fileCommands = new FileCommands();
 
-            switch (action.ToLowerInvariant())
+            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+            return action switch
             {
-                case "create-empty":
-                    // Determine if macro-enabled based on file extension
-                    bool macroEnabled = excelPath.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase);
-                    return await CreateEmptyFileAsync(fileCommands, excelPath, macroEnabled, batchId);
-
-                case "close-workbook":
-                    return CloseWorkbook(excelPath);
-
-                case "test":
-                    return await TestFileAsync(fileCommands, excelPath);
-
-                default:
-                    throw new ModelContextProtocol.McpException($"Unknown action '{action}'. Supported: create-empty, close-workbook, test");
-            }
+                FileAction.CreateEmpty => await CreateEmptyFileAsync(fileCommands, excelPath,
+                    excelPath.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase), batchId),
+                FileAction.CloseWorkbook => CloseWorkbook(excelPath),
+                FileAction.Test => await TestFileAsync(fileCommands, excelPath),
+                _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
+            };
         }
         catch (ModelContextProtocol.McpException)
         {
@@ -58,7 +52,7 @@ public static class ExcelFileTool
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action, excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
             throw; // Unreachable but satisfies compiler
         }
     }
@@ -104,19 +98,7 @@ public static class ExcelFileTool
         }
         else
         {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                error = result.ErrorMessage,
-                filePath = result.FilePath,
-                suggestedNextActions = new[]
-                {
-                    "Check that the target directory exists and is writable",
-                    "Verify the file doesn't already exist",
-                    "Try a different file path"
-                },
-                workflowHint = "File creation failed. Ensure the path is valid and writable."
-            }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException($"create-empty failed for '{excelPath}': {result.ErrorMessage}");
         }
     }
 
@@ -175,21 +157,7 @@ public static class ExcelFileTool
         }
         else
         {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                filePath = result.FilePath,
-                exists = result.Exists,
-                isValid = result.IsValid,
-                extension = result.Extension,
-                error = result.ErrorMessage,
-                suggestedNextActions = result.Exists
-                    ? new[] { "Ensure file has .xlsx or .xlsm extension", "Check file path is correct" }
-                    : new[] { "Verify file path is correct", "Use 'excel_file' with action 'create-empty' to create new file" },
-                workflowHint = result.Exists
-                    ? "File exists but has invalid extension for Excel operations."
-                    : "File not found. Create it first or verify the path."
-            }, ExcelToolsBase.JsonOptions);
+            throw new ModelContextProtocol.McpException($"test failed for '{excelPath}': {result.ErrorMessage}");
         }
     }
 }

@@ -49,6 +49,17 @@ jobs:
     - name: Build MCP Server
       run: dotnet build src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --no-restore --configuration Release
 
+    - name: Verify Core Commands Coverage
+      run: |
+        Write-Output "🔍 Verifying Core Commands coverage..."
+        & scripts/audit-core-coverage.ps1 -FailOnGaps
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "❌ Coverage gaps detected! All Core methods must be exposed via MCP Server."
+          exit 1
+        }
+        Write-Output "✅ Coverage audit passed - 100% coverage maintained"
+      shell: pwsh
+
     - name: Verify MCP Server build
       run: |
         # Check MCP Server executable

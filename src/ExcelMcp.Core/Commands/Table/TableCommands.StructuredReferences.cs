@@ -72,9 +72,6 @@ public partial class TableCommands
                 }
 
                 result.Success = true;
-                result.WorkflowHint = $"Structured reference for table '{tableName}' region [{region}]: {result.StructuredReference}";
-                result.SuggestedNextActions.Add($"Use 'range-get-values' with range address: {result.RangeAddress}");
-                result.SuggestedNextActions.Add($"Use structured reference in formulas: {result.StructuredReference}");
 
                 return result;
             }

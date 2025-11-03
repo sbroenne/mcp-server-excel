@@ -124,11 +124,6 @@ public partial class TableCommands
                 // Connections.Add2() makes the table accessible for relationships/measures instantly
 
                 result.Success = true;
-                result.SuggestedNextActions.Add("Use 'dm-list-tables' to verify the table is in the Data Model");
-                result.SuggestedNextActions.Add($"Use 'dm-create-measure' to add DAX measures based on '{tableName}'");
-                result.SuggestedNextActions.Add("Use 'dm-create-relationship' to create relationships with other tables");
-                result.WorkflowHint = $"Table '{tableName}' added to Power Pivot Data Model.";
-
                 return result;
             }
             catch (Exception ex)

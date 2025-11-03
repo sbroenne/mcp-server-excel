@@ -1,7 +1,8 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Range;
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
 /// <summary>
 /// Tests for range editing operations
@@ -11,18 +12,16 @@ public partial class RangeCommandsTests
     // === CLEAR OPERATIONS TESTS ===
 
     [Fact]
-    public async Task ClearAllAsync_RemovesEverything()
+    public async Task ClearAll_FormattedRange_RemovesEverything()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(ClearAll_FormattedRange_RemovesEverything), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { "Test" }]);
 
         // Act
         var result = await _commands.ClearAllAsync(batch, "Sheet1", "A1");
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 
@@ -31,10 +30,10 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task ClearContentsAsync_PreservesFormatting()
+    public async Task ClearContents_FormattedRange_PreservesFormatting()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(ClearContents_FormattedRange_PreservesFormatting), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:B2",
@@ -45,8 +44,6 @@ public partial class RangeCommandsTests
 
         // Act
         var result = await _commands.ClearContentsAsync(batch, "Sheet1", "A1:B2");
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 
@@ -57,10 +54,10 @@ public partial class RangeCommandsTests
     // === COPY OPERATIONS TESTS ===
 
     [Fact]
-    public async Task CopyAsync_CopiesRangeToNewLocation()
+    public async Task Copy_CopiesRangeToNewLocation()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(Copy_CopiesRangeToNewLocation), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         var sourceData = new List<List<object?>>
@@ -73,8 +70,6 @@ public partial class RangeCommandsTests
 
         // Act
         var result = await _commands.CopyAsync(batch, "Sheet1", "A1:B2", "Sheet1", "D1:E2");
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 
@@ -84,10 +79,10 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task CopyValuesAsync_CopiesOnlyValues()
+    public async Task CopyValues_CopiesOnlyValues()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(CopyValues_CopiesOnlyValues), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { 10 }]);
@@ -95,8 +90,6 @@ public partial class RangeCommandsTests
 
         // Act
         var result = await _commands.CopyValuesAsync(batch, "Sheet1", "B1", "Sheet1", "C1");
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 

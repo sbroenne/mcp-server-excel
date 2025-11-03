@@ -1,7 +1,8 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Range;
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
 /// <summary>
 /// Tests for range hyperlinks operations
@@ -11,10 +12,10 @@ public partial class RangeCommandsTests
     // === HYPERLINK OPERATIONS TESTS ===
 
     [Fact]
-    public async Task AddHyperlinkAsync_CreatesHyperlink()
+    public async Task AddHyperlink_CreatesHyperlink()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Act
@@ -25,8 +26,6 @@ public partial class RangeCommandsTests
             "https://www.example.com",
             "Example Site",
             "Click to visit");
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 
@@ -39,18 +38,16 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task RemoveHyperlinkAsync_DeletesHyperlink()
+    public async Task RemoveHyperlink_DeletesHyperlink()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.AddHyperlinkAsync(batch, "Sheet1", "A1", "https://www.example.com");
 
         // Act
         var result = await _commands.RemoveHyperlinkAsync(batch, "Sheet1", "A1");
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 
@@ -59,10 +56,10 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task ListHyperlinksAsync_ReturnsAllHyperlinks()
+    public async Task ListHyperlinks_ReturnsAllHyperlinks()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.AddHyperlinkAsync(batch, "Sheet1", "A1", "https://site1.com");

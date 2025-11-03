@@ -210,6 +210,9 @@ test_files/
 temp/
 sample_files/
 
+# Exception: Allow Data Model template (required for tests)
+!tests/ExcelMcp.Core.Tests/TestAssets/DataModelTemplate.xlsx
+
 # Bicep generated ARM templates
 infrastructure/**/*.json
 !infrastructure/**/*.parameters.json

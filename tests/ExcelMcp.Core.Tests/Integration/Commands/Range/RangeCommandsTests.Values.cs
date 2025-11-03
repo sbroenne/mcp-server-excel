@@ -1,7 +1,8 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Range;
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
 /// <summary>
 /// Tests for range values operations
@@ -11,10 +12,10 @@ public partial class RangeCommandsTests
     // === VALUE OPERATIONS TESTS ===
 
     [Fact]
-    public async Task GetValuesAsync_SingleCell_Returns1x1Array()
+    public async Task GetValues_SingleCell_Returns1x1Array()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Set a value first
@@ -33,10 +34,10 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task GetValuesAsync_Range_Returns2DArray()
+    public async Task GetValues_3x3Range_Returns2DArray()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         var testData = new List<List<object?>>
@@ -61,10 +62,10 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task SetValuesAsync_WritesDataToRange()
+    public async Task SetValues_TableWithHeaders_WritesAndReadsBack()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         var testData = new List<List<object?>>
@@ -76,8 +77,6 @@ public partial class RangeCommandsTests
 
         // Act
         var result = await _commands.SetValuesAsync(batch, "Sheet1", "A1:B3", testData);
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 
@@ -88,10 +87,10 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task SetValuesAsync_WithJsonElementValues_WritesDataCorrectly()
+    public async Task SetValues_JsonElementStrings_WritesCorrectly()
     {
         // Arrange - Simulate MCP Server scenario where JSON deserialization creates JsonElement objects
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Simulate MCP JSON: [["Azure Region Code", "Azure Region Name", "Geography", "Country"]]
@@ -113,8 +112,6 @@ public partial class RangeCommandsTests
 
         // Act
         var result = await _commands.SetValuesAsync(batch, "Sheet1", "A1:D1", testData);
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success, $"SetValuesAsync failed: {result.ErrorMessage}");
 
@@ -127,10 +124,10 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task SetValuesAsync_WithJsonElementMixedTypes_WritesDataCorrectly()
+    public async Task SetValues_JsonElementMixedTypes_WritesCorrectly()
     {
         // Arrange - Test different JSON value types (string, number, boolean, null)
-        string testFile = CreateTestWorkbook();
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Simulate MCP JSON: [["Text", 123, true, null]]
@@ -152,8 +149,6 @@ public partial class RangeCommandsTests
 
         // Act
         var result = await _commands.SetValuesAsync(batch, "Sheet1", "A1:D1", testData);
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success, $"SetValuesAsync failed: {result.ErrorMessage}");
 

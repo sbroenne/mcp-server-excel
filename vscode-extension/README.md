@@ -1,112 +1,61 @@
-# ExcelMcp - AI-Powered Excel Automation
+# Excel MCP Server - AI-Powered Excel Automation
 
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/sbroenne.excelmcp?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=sbroenne.excelmcp)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/sbroenne.excelmcp)](https://marketplace.visualstudio.com/items?itemName=sbroenne.excelmcp)
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/sbroenne.excel-mcp?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/sbroenne.excel-mcp)](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)
 [![GitHub](https://img.shields.io/badge/GitHub-sbroenne%2Fmcp--server--excel-blue)](https://github.com/sbroenne/mcp-server-excel)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Control Microsoft Excel with AI assistants through natural language**
+**Control Microsoft Excel with AI through GitHub Copilot - just ask in natural language!**
 
-Ask GitHub Copilot to manage Power Query M code, DAX measures, VBA macros, Excel Tables, ranges, worksheets, and data connections—all without leaving VS Code.
+Instead of clicking through Excel menus or writing complex VBA, simply ask:
+- *"Create a Power Query that combines Sales.csv and Products.csv on ProductID"*
+- *"Add a DAX measure in Power Pivot calculating year-over-year revenue growth"*
+- *"Create a PivotTable showing sales by region and product category"*
+- *"Export all VBA modules to separate files for Git version control"*
+- *"Create a table with filters and sort by Revenue descending"*
 
-## What You Can Do
+**Quick Example:**
 
-### Ask Copilot in Chat:
-
-**Power Query Development:**
 ```
-"List all Power Query queries in Sales-Analysis.xlsx"
-"Show me the M code for the 'TransformSales' query"
-"Refactor this slow query to improve performance"
-"Export all queries to .pq files for version control"
-```
+You: "Create a Power Query named 'SalesData' that loads from data.csv"
 
-**Data Model & DAX:**
-```
-"Create a DAX measure for total revenue with currency format"
-"List all measures in the Sales table"
-"Show me the formula for 'YoY Growth' measure"
-"Create a relationship between Sales[CustomerID] and Customers[ID]"
-```
+Copilot uses Excel MCP Server to:
+1. Create/open an Excel workbook
+2. Add the Power Query with proper M code
+3. Load the data to a worksheet
+4. Save and return confirmation
 
-**Excel Tables:**
-```
-"Create an Excel table named 'SalesData' from range A1:D100"
-"Add a filter to the Amount column showing values > 1000"
-"Sort the table by Region ascending, then Amount descending"
-"Add a new calculated column 'Profit' to the table"
+Result: A working Excel file with the query ready to use
 ```
 
-**VBA Automation:**
-```
-"List all VBA modules in Report.xlsm"
-"Export the 'DataProcessor' module to a .vba file"
-"Add error handling to the 'GenerateReport' macro"
-```
+**🛡️ 100% Safe - Uses Excel's Native API**
 
-**Range Operations:**
-```
-"Read values from Sheet1 range A1:D10"
-"Set formulas in column D to calculate totals"
-"Copy formatting from A1:D1 to A100:D100"
-"Find all cells containing 'ERROR' in the worksheet"
-```
+Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), Excel MCP Server uses **Excel's official COM API**. This ensures:
+- ✅ **Zero risk of document corruption** - Excel handles all file operations safely
+- ✅ **Interactive development** - See changes in real-time as you work with live Excel files
+- ✅ **Growing feature set** - Currently supports 80+ operations across Power Query, Power Pivot, VBA, PivotTables, Tables, and more (active development)
+
+## 👥 Who Should Use This?
+
+**Perfect for:**
+- ✅ **Data analysts** automating repetitive Excel workflows
+- ✅ **Developers** building Excel-based data solutions
+- ✅ **Business users** managing complex Excel workbooks
+- ✅ **Teams** maintaining Power Query/VBA/DAX code in Git
+
+**Not suitable for:**
+- ❌ Linux/macOS users (Windows + Excel installation required)
+- ❌ High-volume batch operations (consider Excel-free alternatives)
 
 ## Quick Start
 
 1. **Install this extension** (you just did!)
-2. **Open a workspace** with Excel files or create a new one
-3. **Ask Copilot** in the chat panel - just ask naturally:
+2. **Ask Copilot** in the chat panel:
    - "List all Power Query queries in workbook.xlsx"
-   - "Create a new Excel file with sample data"
-   - "Export all DAX measures to version control"
+   - "Create a DAX measure for year-over-year revenue growth"
+   - "Export all VBA modules to .vba files for version control"
 
-**That's it!** The extension automatically installs .NET 8 runtime and includes a bundled MCP server. Copilot automatically uses the ExcelMcp tools when you ask Excel-related questions.
-
-## Common Use Cases
-
-### Power Query Refactoring
-**Scenario:** You have slow Power Query transformations slowing down your workbook refresh.
-
-**Ask Copilot:** "Analyze the 'TransformCustomerData' query and suggest performance optimizations"
-
-**What happens:** Copilot views the M code, identifies bottlenecks (like late filtering), refactors the query, and updates it in your workbook.
-
----
-
-### DAX Measure Development
-**Scenario:** You need to create complex DAX measures for financial reporting.
-
-**Ask Copilot:** "Create a DAX measure for year-over-year revenue growth with percentage formatting"
-
-**What happens:** Copilot creates the measure with proper CALCULATE syntax, applies percentage format, and adds it to your Data Model.
-
----
-
-### VBA Version Control
-**Scenario:** You want to track VBA macro changes in git.
-
-**Ask Copilot:** "Export all VBA modules to .vba files in the 'vba-modules' folder"
-
-**What happens:** Copilot lists all modules, exports each to individual files, enabling git tracking and code review.
-
----
-
-### Excel Table Automation
-**Scenario:** You need to filter and sort large datasets for analysis.
-
-**Ask Copilot:** "In the SalesTable, filter Amount > 10000 and sort by Date descending"
-
-**What happens:** Copilot applies the filter criteria and multi-level sort, preparing the data for your analysis.
-
----
-
-### Complete Worksheet Creation
-**Scenario:** You need to create a fully formatted worksheet with validation rules for data entry.
-
-**Ask Copilot:** "Create a new sheet called 'Budget', add headers in row 1 (Month, Budget, Actual, Variance), format the headers bold with blue background, add currency formatting to columns B-D, and set data validation on column A to only allow month names"
-
-**What happens:** Copilot creates the worksheet, writes the headers, applies bold and background color formatting, sets number formats for currency columns, and adds a data validation rule restricting column A to valid month names.
+**That's it!** The extension automatically installs .NET 8 runtime and includes a bundled MCP server.
 
 ## Requirements
 
@@ -116,20 +65,23 @@ Ask GitHub Copilot to manage Power Query M code, DAX measures, VBA macros, Excel
 
 ## What's Included
 
-The ExcelMcp MCP server provides **10 specialized tools** with 100+ operations:
+## Features
+
+The Excel MCP Server provides **11 specialized tools** for comprehensive Excel automation:
 
 | Tool | Operations | Purpose |
 |------|------------|---------|
-| **excel_powerquery** | 11 actions | Create, view, update, refactor M code |
-| **excel_datamodel** | 20 actions | DAX measures, relationships, calculated columns |
-| **excel_table** | 22 actions | Table lifecycle, columns, filters, sorts |
-| **excel_range** | 30+ actions | Read/write values, formulas, formatting |
-| **excel_vba** | 7 actions | List, export, import, run VBA code |
-| **excel_connection** | 11 actions | Manage OLEDB, ODBC, Text, Web connections |
-| **excel_worksheet** | 5 actions | Create, rename, copy, delete sheets |
-| **excel_parameter** | 6 actions | Named range management |
-| **excel_file** | 1 action | Create Excel workbooks |
-| **excel_table** | 22 actions | Excel Tables management |
+| **excel_powerquery** | 12 actions | Power Query M code: create, view, import, export, update, delete, load configuration |
+| **excel_datamodel** | 13 actions | Power Pivot (Data Model): DAX measures, relationships, discover structure |
+| **excel_table** | 24 actions | Excel Tables: lifecycle, columns, filters, sorts, structured references, formatting |
+| **excel_pivottable** | 17 actions | PivotTables: create, field management, aggregations, filters, sorting |
+| **excel_range** | 31 actions | Ranges: get/set values/formulas, clear, copy, insert/delete, find/replace, formatting, validation |
+| **excel_vba** | 7 actions | VBA: list, view, export, import, update, run, delete modules |
+| **excel_connection** | 11 actions | Connections: OLEDB/ODBC/Text/Web management, properties, refresh, test |
+| **excel_worksheet** | 12 actions | Worksheets: lifecycle, tab colors, visibility (list, create, rename, copy, delete, show/hide) |
+| **excel_parameter** | 7 actions | Named ranges: list, get, set, create, delete, update, bulk create |
+| **excel_file** | 1 action | File creation: create empty .xlsx/.xlsm workbooks |
+| **Batch Session Tools** | 3 actions | Multi-operation performance: begin-batch, execute-in-batch, commit-batch |
 
 ## Troubleshooting
 
@@ -144,26 +96,14 @@ The ExcelMcp MCP server provides **10 specialized tools** with 100+ operations:
 
 **Copilot doesn't see Excel tools:**
 - Restart VS Code after installing the extension
-- Check Output panel → "ExcelMcp" for connection status
+- ### Troubleshooting
 
-## How It Works
-
-This extension uses the Model Context Protocol (MCP) to connect AI assistants to Excel:
-
-1. The extension registers the ExcelMcp MCP server with VS Code
-2. When you ask Copilot about Excel, VS Code runs the bundled MCP server executable
-3. The MCP server uses Excel COM automation to perform operations
-4. Results are returned to Copilot in your chat
-
-The extension automatically handles .NET installation via the .NET Install Tool and includes a bundled MCP server executable for zero-setup installation.
+- Check Output panel → "Excel MCP Server" for connection status
 
 ## Documentation & Support
 
-- **[Complete Documentation](https://github.com/sbroenne/mcp-server-excel)** - Full guides and API reference
-- **[MCP Server Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.McpServer/README.md)** - Detailed tool reference with examples
-- **[Command Reference](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/COMMANDS.md)** - All 100+ operations documented
+- **[Complete Documentation](https://github.com/sbroenne/mcp-server-excel)** - Full guides and examples
 - **[Report Issues](https://github.com/sbroenne/mcp-server-excel/issues)** - Bug reports and feature requests
-- **[Discussions](https://github.com/sbroenne/mcp-server-excel/discussions)** - Community support
 
 ## License
 
@@ -171,4 +111,4 @@ MIT License - see [LICENSE](https://github.com/sbroenne/mcp-server-excel/blob/ma
 
 ---
 
-**Built with GitHub Copilot** | **Powered by Model Context Protocol** | **Excel COM Automation**
+**Built with GitHub Copilot** | **Powered by Model Context Protocol**

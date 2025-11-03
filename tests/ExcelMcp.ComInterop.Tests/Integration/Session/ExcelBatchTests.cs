@@ -38,7 +38,7 @@ public class ExcelBatchTests
 
     private async Task<string> CreateTempTestFileAsync()
     {
-        string testFile = Path.Combine(Path.GetTempPath(), $"batch-test-{Guid.NewGuid():N}.xlsx");
+        string testFile = Path.Join(Path.GetTempPath(), $"batch-test-{Guid.NewGuid():N}.xlsx");
         await ExcelSession.CreateNew(testFile, isMacroEnabled: false, (ctx, ct) =>
         {
             // File created, just return
@@ -162,7 +162,8 @@ public class ExcelBatchTests
                 {
                     dynamic sheet = ctx.Book.Worksheets.Item(1);
                     var value = sheet.Range["A1"].Value2;
-                    return ValueTask.FromResult(value?.ToString() ?? "");
+                    string result = value?.ToString() ?? "";
+                    return result;
                 });
             }
 

@@ -4,15 +4,17 @@
 
 ## 📋 Quick Navigation
 
-**Start here** → Read [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) first (5 mandatory rules)
+**Start here** → Read [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) first (14 mandatory rules)
 
 **Path-Specific Instructions** (auto-applied based on file context):
-- 🧪 [Testing Strategy](instructions/testing-strategy.instructions.md) - Test architecture, OnDemand pattern, filtering
-- 📊 [Excel COM Interop](instructions/excel-com-interop.instructions.md) - COM patterns, cleanup, best practices
-- 🔌 [Excel Connection Types](instructions/excel-connection-types-guide.instructions.md) - Connection types, COM API limitations, testing strategies
-- 🏗️ [Architecture Patterns](instructions/architecture-patterns.instructions.md) - Command pattern, batch/session management, resource management
-- 🧠 [MCP Server Guide](instructions/mcp-server-guide.instructions.md) - MCP tools, protocol, error handling
-- 🔄 [Development Workflow](instructions/development-workflow.instructions.md) - PR process, CI/CD, security, versioning
+- 🧪 [Testing Strategy](instructions/testing-strategy.instructions.md) - Test templates, essential patterns
+- 📊 [Excel COM Interop](instructions/excel-com-interop.instructions.md) - COM patterns, cleanup
+- 🔌 [Excel Connection Types](instructions/excel-connection-types-guide.instructions.md) - Connection types, COM API
+- 🏗️ [Architecture Patterns](instructions/architecture-patterns.instructions.md) - Command pattern, batch management
+- 🧠 [MCP Server Guide](instructions/mcp-server-guide.instructions.md) - MCP tools, protocol
+- 🔄 [Development Workflow](instructions/development-workflow.instructions.md) - PR process, CI/CD
+- 🐛 [Bug Fixing Checklist](instructions/bug-fixing-checklist.instructions.md) - 6-step bug fix process
+- 📚 [README Management](instructions/readme-management.instructions.md) - Documentation quick reference
 
 ---
 
@@ -45,20 +47,24 @@
 - **Modify session/batch code** → MUST run OnDemand tests (see [CRITICAL-RULES.md](instructions/critical-rules.instructions.md))
 - **Add MCP tool** → Follow [MCP Server Guide](instructions/mcp-server-guide.instructions.md)
 - **Create PR** → Follow [Development Workflow](instructions/development-workflow.instructions.md)
+- **Fix bug** → Use [Bug Fixing Checklist](instructions/bug-fixing-checklist.instructions.md) (6-step process)
 - **Migrate tests to batch API** → See BATCH-API-MIGRATION-PLAN.md for comprehensive guide
 - **Create simple tests** → Use ConnectionCommandsSimpleTests.cs or SetupCommandsSimpleTests.cs as template
 - **Range API implementation** → See [Range API Specification](../specs/RANGE-API-SPECIFICATION.md) for complete design (38 methods, MCP-first, breaking changes acceptable)
 
 ### Test Execution
 ```bash
-# Development (fast feedback)
-dotnet test --filter "Category=Unit&RunType!=OnDemand"
+# Development (fast feedback - excludes VBA)
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
-# Pre-commit (requires Excel)
-dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand"
+# Pre-commit (requires Excel - excludes VBA)
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
 # Session/batch cleanup (MANDATORY when modifying session/batch code)
 dotnet test --filter "RunType=OnDemand"
+
+# VBA tests (manual only - requires VBA trust enabled)
+dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
 ```
 
 ### Batch API Pattern (Current Standard)

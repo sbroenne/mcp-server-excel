@@ -40,8 +40,8 @@ class Program
             var powerQuery = new PowerQueryCommands();
             var sheet = new SheetCommands();
             var range = new RangeCommands();
-            var param = new ParameterCommands();
-            var script = new ScriptCommands();
+            var param = new NamedRangeCommands();
+            var script = new VbaCommands();
             var file = new FileCommands();
             var connection = new ConnectionCommands();
             var dataModel = new DataModelCommands();  // Used for dm-* commands
@@ -62,8 +62,6 @@ class Program
                 "pq-export" => await powerQuery.Export(args),
                 "pq-import" => await powerQuery.Import(args),
                 "pq-sources" => powerQuery.Sources(args),
-                "pq-test" => powerQuery.Test(args),
-                "pq-peek" => powerQuery.Peek(args),
                 "pq-verify" => powerQuery.Eval(args),
                 "pq-refresh" => powerQuery.Refresh(args),
                 "pq-errors" => powerQuery.Errors(args),
@@ -83,6 +81,18 @@ class Program
                 "sheet-delete" => sheet.Delete(args),
                 "sheet-create" => sheet.Create(args),
                 "sheet-rename" => sheet.Rename(args),
+                
+                // Sheet tab color commands
+                "sheet-set-tab-color" => sheet.SetTabColor(args),
+                "sheet-get-tab-color" => sheet.GetTabColor(args),
+                "sheet-clear-tab-color" => sheet.ClearTabColor(args),
+                
+                // Sheet visibility commands
+                "sheet-set-visibility" => sheet.SetVisibility(args),
+                "sheet-get-visibility" => sheet.GetVisibility(args),
+                "sheet-show" => sheet.Show(args),
+                "sheet-hide" => sheet.Hide(args),
+                "sheet-very-hide" => sheet.VeryHide(args),
 
                 // Range commands (data operations - replaces sheet-read/write/clear/append from Phase 1A)
                 "range-get-values" => range.GetValues(args),
@@ -92,14 +102,22 @@ class Program
                 "range-clear-all" => range.ClearAll(args),
                 "range-clear-contents" => range.ClearContents(args),
                 "range-clear-formats" => range.ClearFormats(args),
+                
+                // Range number formatting commands
+                "range-get-number-formats" => range.GetNumberFormats(args),
+                "range-set-number-format" => range.SetNumberFormat(args),
+                
+                // Range visual formatting and validation commands
+                "range-format" => range.FormatRange(args),
+                "range-validate" => range.ValidateRange(args),
 
                 // Parameter commands
-                "param-list" => param.List(args),
-                "param-set" => param.Set(args),
-                "param-get" => param.Get(args),
-                "param-update" => param.Update(args),
-                "param-create" => param.Create(args),
-                "param-delete" => param.Delete(args),
+                "namedrange-list" => param.List(args),
+                "namedrange-set" => param.Set(args),
+                "namedrange-get" => param.Get(args),
+                "namedrange-update" => param.Update(args),
+                "namedrange-create" => param.Create(args),
+                "namedrange-delete" => param.Delete(args),
 
                 // Table commands
                 "table-list" => table.List(args),
@@ -145,12 +163,13 @@ class Program
                 "conn-test" => connection.Test(args),
 
                 // Script commands
-                "script-list" => script.List(args),
-                "script-view" => script.View(args),
-                "script-export" => script.Export(args),
-                "script-import" => await script.Import(args),
-                "script-update" => await script.Update(args),
-                "script-run" => script.Run(args),
+                "vba-list" => script.List(args),
+                "vba-view" => script.View(args),
+                "vba-export" => script.Export(args),
+                "vba-import" => await script.Import(args),
+                "vba-update" => await script.Update(args),
+                "vba-delete" => script.Delete(args),
+                "vba-run" => script.Run(args),
 
                 // Data Model commands (READ operations via COM API)
                 "dm-list-tables" => dataModel.ListTables(args),
@@ -293,6 +312,9 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]pq-refresh[/] file.xlsx query-name            Refresh a specific Power Query");
         AnsiConsole.MarkupLine("  [cyan]pq-loadto[/] file.xlsx query-name sheet       Load Power Query to worksheet");
         AnsiConsole.MarkupLine("  [cyan]pq-delete[/] file.xlsx query-name             Delete Power Query");
+        AnsiConsole.MarkupLine("  [cyan]pq-sources[/] file.xlsx                       List Excel tables/ranges available to Power Query");
+        AnsiConsole.MarkupLine("  [cyan]pq-verify[/] file.xlsx query-name             Evaluate Power Query expression");
+        AnsiConsole.MarkupLine("  [cyan]pq-errors[/] file.xlsx query-name             View Power Query errors");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Power Query Load Configuration:[/]");
@@ -303,33 +325,58 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]pq-get-load-config[/] file.xlsx query        Get current load configuration");
         AnsiConsole.WriteLine();
 
-        AnsiConsole.MarkupLine("[bold yellow]Sheet Commands (Lifecycle Management):[/]");
-        AnsiConsole.MarkupLine("  [cyan]sheet-list[/] file.xlsx                         List all worksheets");
-        AnsiConsole.MarkupLine("  [cyan]sheet-copy[/] file.xlsx src-sheet new-sheet     Copy worksheet");
-        AnsiConsole.MarkupLine("  [cyan]sheet-delete[/] file.xlsx sheet-name            Delete worksheet");
-        AnsiConsole.MarkupLine("  [cyan]sheet-create[/] file.xlsx sheet-name            Create new worksheet");
-        AnsiConsole.MarkupLine("  [cyan]sheet-rename[/] file.xlsx old-name new-name     Rename worksheet");
-        AnsiConsole.MarkupLine("  [dim]Note: Data operations (read, write, clear) moved to range-* commands[/]");
+        AnsiConsole.MarkupLine("[bold yellow]Sheet Commands:[/]");
+        AnsiConsole.MarkupLine("  [bold]Lifecycle:[/]");
+        AnsiConsole.MarkupLine("  [cyan]sheet-list[/] file.xlsx                           List all worksheets");
+        AnsiConsole.MarkupLine("  [cyan]sheet-create[/] file.xlsx sheet-name              Create new worksheet");
+        AnsiConsole.MarkupLine("  [cyan]sheet-rename[/] file.xlsx old-name new-name       Rename worksheet");
+        AnsiConsole.MarkupLine("  [cyan]sheet-copy[/] file.xlsx src-sheet new-sheet       Copy worksheet");
+        AnsiConsole.MarkupLine("  [cyan]sheet-delete[/] file.xlsx sheet-name              Delete worksheet");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [bold]Tab Colors:[/]");
+        AnsiConsole.MarkupLine("  [cyan]sheet-set-tab-color[/] file.xlsx sheet R G B      Set tab color (RGB 0-255)");
+        AnsiConsole.MarkupLine("  [cyan]sheet-get-tab-color[/] file.xlsx sheet            Get tab color");
+        AnsiConsole.MarkupLine("  [cyan]sheet-clear-tab-color[/] file.xlsx sheet          Remove tab color");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [bold]Visibility:[/]");
+        AnsiConsole.MarkupLine("  [cyan]sheet-set-visibility[/] file.xlsx sheet level     Set visibility (visible|hidden|veryhidden)");
+        AnsiConsole.MarkupLine("  [cyan]sheet-get-visibility[/] file.xlsx sheet           Get visibility level");
+        AnsiConsole.MarkupLine("  [cyan]sheet-show[/] file.xlsx sheet                     Show hidden sheet");
+        AnsiConsole.MarkupLine("  [cyan]sheet-hide[/] file.xlsx sheet                     Hide sheet (user can unhide)");
+        AnsiConsole.MarkupLine("  [cyan]sheet-very-hide[/] file.xlsx sheet                Very hide (requires code)");
+        AnsiConsole.MarkupLine("  [dim]Note: Data operations (read, write, clear) are in range-* commands[/]");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Range Commands (Data Operations):[/]");
-        AnsiConsole.MarkupLine("  [cyan]range-get-values[/] file.xlsx sheet range      Read values from range (output: CSV)");
-        AnsiConsole.MarkupLine("  [cyan]range-set-values[/] file.xlsx sheet range csv  Write CSV data to range");
-        AnsiConsole.MarkupLine("  [cyan]range-get-formulas[/] file.xlsx sheet range    Read formulas from range");
-        AnsiConsole.MarkupLine("  [cyan]range-set-formulas[/] file.xlsx sheet range csv Set formulas from CSV");
-        AnsiConsole.MarkupLine("  [cyan]range-clear-all[/] file.xlsx sheet range       Clear all (values, formulas, formats)");
-        AnsiConsole.MarkupLine("  [cyan]range-clear-contents[/] file.xlsx sheet range  Clear contents (preserve formats)");
-        AnsiConsole.MarkupLine("  [cyan]range-clear-formats[/] file.xlsx sheet range   Clear formats (preserve values)");
+        AnsiConsole.MarkupLine("  [cyan]range-get-values[/] file.xlsx sheet range           Read values from range (output: CSV)");
+        AnsiConsole.MarkupLine("  [cyan]range-set-values[/] file.xlsx sheet range csv       Write CSV data to range");
+        AnsiConsole.MarkupLine("  [cyan]range-get-formulas[/] file.xlsx sheet range         Read formulas from range");
+        AnsiConsole.MarkupLine("  [cyan]range-set-formulas[/] file.xlsx sheet range csv     Set formulas from CSV");
+        AnsiConsole.MarkupLine("  [cyan]range-clear-all[/] file.xlsx sheet range            Clear all (values, formulas, formats)");
+        AnsiConsole.MarkupLine("  [cyan]range-clear-contents[/] file.xlsx sheet range       Clear contents (preserve formats)");
+        AnsiConsole.MarkupLine("  [cyan]range-clear-formats[/] file.xlsx sheet range        Clear formats (preserve values)");
+        AnsiConsole.WriteLine();
+        
+        AnsiConsole.MarkupLine("[bold yellow]Range Formatting Commands:[/]");
+        AnsiConsole.MarkupLine("  [cyan]range-get-number-formats[/] file.xlsx sheet range   Get number format codes (CSV output)");
+        AnsiConsole.MarkupLine("  [cyan]range-set-number-format[/] file.xlsx sheet range fmt Apply number format ($#,##0.00, 0.00%, m/d/yyyy)");
+        AnsiConsole.MarkupLine("  [cyan]range-format[/] file.xlsx sheet range [[options]]     Apply visual formatting");
+        AnsiConsole.MarkupLine("    [dim]--font-name, --font-size, --bold, --italic, --underline, --font-color #RRGGBB[/]");
+        AnsiConsole.MarkupLine("    [dim]--fill-color #RRGGBB, --border-style, --border-weight, --border-color #RRGGBB[/]");
+        AnsiConsole.MarkupLine("    [dim]--h-align Left|Center|Right, --v-align Top|Center|Bottom, --wrap-text, --orientation DEGREES[/]");
+        AnsiConsole.MarkupLine("  [cyan]range-validate[/] file.xlsx sheet range type formula [[options]]  Add data validation");
+        AnsiConsole.MarkupLine("    [dim]Types: List (dropdown), WholeNumber, Decimal, Date, Time, TextLength, Custom[/]");
+        AnsiConsole.MarkupLine("    [dim]Example: range-validate data.xlsx Sheet1 F2:F100 List \"Active,Inactive,Pending\"[/]");
         AnsiConsole.MarkupLine("  [dim]Note: Single cell = 1x1 range (e.g., A1). Named ranges: use empty sheet \"\"[/]");
         AnsiConsole.WriteLine();
 
-        AnsiConsole.MarkupLine("[bold yellow]Parameter Commands:[/]");
-        AnsiConsole.MarkupLine("  [cyan]param-list[/] file.xlsx                        List all named ranges");
-        AnsiConsole.MarkupLine("  [cyan]param-get[/] file.xlsx param-name             Get named range value");
-        AnsiConsole.MarkupLine("  [cyan]param-set[/] file.xlsx param-name value        Set named range value");
-        AnsiConsole.MarkupLine("  [cyan]param-update[/] file.xlsx param-name ref       Update named range reference");
-        AnsiConsole.MarkupLine("  [cyan]param-create[/] file.xlsx param-name ref       Create named range");
-        AnsiConsole.MarkupLine("  [cyan]param-delete[/] file.xlsx param-name           Delete named range");
+        AnsiConsole.MarkupLine("[bold yellow]Named Range Commands:[/]");
+        AnsiConsole.MarkupLine("  [cyan]namedrange-list[/] file.xlsx                        List all named ranges");
+        AnsiConsole.MarkupLine("  [cyan]namedrange-get[/] file.xlsx name                    Get named range value");
+        AnsiConsole.MarkupLine("  [cyan]namedrange-set[/] file.xlsx name value              Set named range value");
+        AnsiConsole.MarkupLine("  [cyan]namedrange-update[/] file.xlsx name ref             Update named range reference");
+        AnsiConsole.MarkupLine("  [cyan]namedrange-create[/] file.xlsx name ref             Create named range");
+        AnsiConsole.MarkupLine("  [cyan]namedrange-delete[/] file.xlsx name                 Delete named range");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Table Commands:[/]");
@@ -380,42 +427,46 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]conn-test[/] file.xlsx conn-name              Test connection validity");
         AnsiConsole.WriteLine();
 
-        AnsiConsole.MarkupLine("[bold yellow]Script Commands:[/]");
-        AnsiConsole.MarkupLine("  [cyan]script-list[/] file.xlsm                       List all VBA scripts");
-        AnsiConsole.MarkupLine("  [cyan]script-view[/] file.xlsm module-name           View VBA module code");
-        AnsiConsole.MarkupLine("  [cyan]script-export[/] file.xlsm script (file)       Export VBA script");
-        AnsiConsole.MarkupLine("  [cyan]script-import[/] file.xlsm module-name vba.txt Import VBA script");
-        AnsiConsole.MarkupLine("  [cyan]script-update[/] file.xlsm module-name vba.txt Update VBA script");
-        AnsiConsole.MarkupLine("  [cyan]script-run[/] file.xlsm macro-name (params)    Run VBA macro");
+        AnsiConsole.MarkupLine("[bold yellow]VBA Commands:[/]");
+        AnsiConsole.MarkupLine("  [cyan]vba-list[/] file.xlsm                       List all VBA modules");
+        AnsiConsole.MarkupLine("  [cyan]vba-view[/] file.xlsm module-name           View VBA module code");
+        AnsiConsole.MarkupLine("  [cyan]vba-export[/] file.xlsm module (file)       Export VBA module");
+        AnsiConsole.MarkupLine("  [cyan]vba-import[/] file.xlsm module-name vba.txt Import VBA module");
+        AnsiConsole.MarkupLine("  [cyan]vba-update[/] file.xlsm module-name vba.txt Update VBA module");
+        AnsiConsole.MarkupLine("  [cyan]vba-delete[/] file.xlsm module-name         Delete VBA module");
+        AnsiConsole.MarkupLine("  [cyan]vba-run[/] file.xlsm macro-name (params)    Run VBA macro");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Data Model Commands:[/]");
+        AnsiConsole.MarkupLine("  [bold]Discovery:[/]");
         AnsiConsole.MarkupLine("  [cyan]dm-list-tables[/] file.xlsx                    List all Data Model tables");
+        AnsiConsole.MarkupLine("  [cyan]dm-view-table[/] file.xlsx table-name          View Data Model table details");
+        AnsiConsole.MarkupLine("  [cyan]dm-list-columns[/] file.xlsx table-name        List columns in Data Model table");
+        AnsiConsole.MarkupLine("  [cyan]dm-get-model-info[/] file.xlsx                 Get Data Model information");
         AnsiConsole.MarkupLine("  [cyan]dm-list-measures[/] file.xlsx                  List all DAX measures");
         AnsiConsole.MarkupLine("  [cyan]dm-view-measure[/] file.xlsx measure-name     View DAX measure formula");
-        AnsiConsole.MarkupLine("  [cyan]dm-export-measure[/] file.xlsx measure out.dax Export DAX measure to file");
         AnsiConsole.MarkupLine("  [cyan]dm-list-relationships[/] file.xlsx            List Data Model relationships");
-        AnsiConsole.MarkupLine("  [cyan]dm-refresh[/] file.xlsx                        Refresh Data Model");
-        AnsiConsole.MarkupLine("  [cyan]dm-delete-measure[/] file.xlsx measure-name   Delete DAX measure");
-        AnsiConsole.MarkupLine("  [cyan]dm-delete-relationship[/] file.xlsx from-tbl from-col to-tbl to-col  Delete relationship");
         AnsiConsole.WriteLine();
-
-        AnsiConsole.MarkupLine("[bold yellow]Data Model Commands:[/]");
+        AnsiConsole.MarkupLine("  [bold]Operations:[/]");
+        AnsiConsole.MarkupLine("  [cyan]dm-export-measure[/] file.xlsx measure out.dax Export DAX measure to file");
         AnsiConsole.MarkupLine("  [cyan]dm-create-measure[/] file.xlsx table name formula  Create DAX measure");
         AnsiConsole.MarkupLine("  [cyan]dm-update-measure[/] file.xlsx name [[options]]      Update DAX measure");
+        AnsiConsole.MarkupLine("  [cyan]dm-delete-measure[/] file.xlsx measure-name   Delete DAX measure");
         AnsiConsole.MarkupLine("  [cyan]dm-create-relationship[/] file.xlsx from to        Create table relationship");
         AnsiConsole.MarkupLine("  [cyan]dm-update-relationship[/] file.xlsx from to [[opts]] Update relationship");
+        AnsiConsole.MarkupLine("  [cyan]dm-delete-relationship[/] file.xlsx from-tbl from-col to-tbl to-col  Delete relationship");
+        AnsiConsole.MarkupLine("  [cyan]dm-refresh[/] file.xlsx                        Refresh Data Model");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold green]Examples:[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli create-empty \"Plan.xlsm\"[/]            [dim]# Create macro-enabled workbook[/]");
-        AnsiConsole.MarkupLine("  [dim]excelcli script-import \"Plan.xlsm\" \"Helper\" \"code.vba\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli vba-import \"Plan.xlsm\" \"Helper\" \"code.vba\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli pq-list \"Plan.xlsx\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli pq-view \"Plan.xlsx\" \"Milestones\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli pq-import \"Plan.xlsx\" \"fnHelper\" \"function.pq\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli sheet-list \"Plan.xlsx\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli range-get-values \"Plan.xlsx\" \"Data\" \"A1:D10\"[/]");
-        AnsiConsole.MarkupLine("  [dim]excelcli param-set \"Plan.xlsx\" \"Start_Date\" \"2025-01-01\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli namedrange-set \"Plan.xlsx\" \"Start_Date\" \"2025-01-01\"[/]");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold]Requirements:[/] Windows + Excel + .NET 10.0");

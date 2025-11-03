@@ -3,37 +3,31 @@ name: Integration Tests (Excel)
 # This workflow runs Excel COM integration tests on a self-hosted Azure VM runner
 # Requires: Azure Windows VM with Microsoft Excel and GitHub Actions runner installed
 # Setup Guide: docs/AZURE_SELFHOSTED_RUNNER_SETUP.md
+#
+# Trigger Options:
+# - Manual: Workflow dispatch from Actions tab
+# - PR Optional: Add 'run-integration-tests' label to PR
 
 permissions:
   contents: read
+  checks: write  # Required for test reporter
+  pull-requests: write  # Required for PR comments
 
 on:
-  # Run on changes to Core/ComInterop code
-  push:
-    branches: [ main, develop ]
-    paths:
-      - 'src/ExcelMcp.Core/**'
-      - 'src/ExcelMcp.ComInterop/**'
-      - 'tests/ExcelMcp.Core.Tests/**'
-      - 'tests/ExcelMcp.ComInterop.Tests/**'
-
-  # Run on PRs to main
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'src/ExcelMcp.Core/**'
-      - 'src/ExcelMcp.ComInterop/**'
-      - 'src/ExcelMcp.CLI/**'
-      - 'src/ExcelMcp.McpServer/**'
-      - 'tests/**'
-
   # Allow manual trigger from Actions tab
   workflow_dispatch:
+
+  # Optional: Run on PR when specifically requested via label
+  pull_request:
+    types: [labeled]
+    branches: [ main ]
 
 jobs:
   integration-tests:
     runs-on: [self-hosted, windows, excel]
     timeout-minutes: 60
+    # Run on manual dispatch or PR with 'run-integration-tests' label
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && contains(github.event.label.name, 'run-integration-tests'))
 
     steps:
     - name: Checkout code
@@ -66,20 +60,31 @@ jobs:
     - name: Build
       run: dotnet build --no-restore --configuration Release
 
+    - name: Verify Core Commands Coverage
+      run: |
+        Write-Output "🔍 Verifying Core Commands coverage..."
+        & scripts/audit-core-coverage.ps1 -FailOnGaps
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "❌ Coverage gaps detected! All Core methods must be exposed via MCP Server."
+          exit 1
+        }
+        Write-Output "✅ Coverage audit passed - 100% coverage maintained"
+      shell: pwsh
+
     - name: Run Integration Tests (ComInterop - Foundation)
-      run: dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=cominterop-integration-test-results.trx" --verbosity normal
+      run: dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=cominterop-integration-test-results.trx" --verbosity normal -- RunConfiguration.MaxCpuCount=1
 
     - name: Run OnDemand Tests (Session Cleanup - Critical)
-      run: dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --no-build --configuration Release --filter "RunType=OnDemand" --logger "trx;LogFileName=ondemand-test-results.trx" --verbosity normal
+      run: dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --no-build --configuration Release --filter "RunType=OnDemand" --logger "trx;LogFileName=ondemand-test-results.trx" --verbosity normal -- RunConfiguration.MaxCpuCount=1
 
-    - name: Run Integration Tests (Core)
-      run: dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=core-integration-test-results.trx" --verbosity normal
+    - name: Run Integration Tests (Core - Excluding VBA)
+      run: dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust" --logger "trx;LogFileName=core-integration-test-results.trx" --verbosity normal -- RunConfiguration.MaxCpuCount=1
 
-    - name: Run Integration Tests (MCP Server)
-      run: dotnet test tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=mcp-integration-test-results.trx" --verbosity normal
+    - name: Run Integration Tests (MCP Server - Excluding VBA)
+      run: dotnet test tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust" --logger "trx;LogFileName=mcp-integration-test-results.trx" --verbosity normal -- RunConfiguration.MaxCpuCount=1
 
-    - name: Run Integration Tests (CLI)
-      run: dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=cli-integration-test-results.trx" --verbosity normal
+    - name: Run Integration Tests (CLI - Excluding VBA)
+      run: dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust" --logger "trx;LogFileName=cli-integration-test-results.trx" --verbosity normal -- RunConfiguration.MaxCpuCount=1
 
     - name: Upload Test Results
       if: always()
@@ -88,6 +93,16 @@ jobs:
         name: integration-test-results-${{ github.run_number }}
         path: '**/TestResults/*.trx'
         retention-days: 30
+
+    - name: Publish Test Results
+      if: always()
+      uses: dorny/test-reporter@v1
+      with:
+        name: Integration Test Results
+        path: '**/TestResults/*.trx'
+        reporter: dotnet-trx
+        fail-on-error: true
+        max-annotations: 50
 
     - name: Cleanup Excel Processes
       if: always()

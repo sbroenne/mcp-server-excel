@@ -948,14 +948,8 @@ public class ConnectionTestFixtures
 ### Test Commands
 
 ```powershell
-# Run all connection tests (fast + medium)
-dotnet test --filter "Feature=Connections&Category!=RoundTrip"
-
-# Run only unit tests (no Excel)
-dotnet test --filter "Feature=Connections&Category=Unit"
-
-# Run full test suite including round trips
-dotnet test --filter "Feature=Connections"
+# Run all connection tests
+dotnet test --filter "Feature=Connections&RunType!=OnDemand"
 
 # Run specific test class
 dotnet test --filter "FullyQualifiedName~CoreConnectionCommandsTests"
@@ -963,11 +957,10 @@ dotnet test --filter "FullyQualifiedName~CoreConnectionCommandsTests"
 
 ### Test Coverage Goals
 
-- **Unit Tests:** 100% coverage of helpers and utilities
-- **Integration Tests:** 95% coverage of Core commands
-- **CLI Tests:** 90% coverage of CLI presentation layer
-- **MCP Tests:** 90% coverage of MCP tool actions
-- **Overall:** 95%+ test coverage for connection functionality
+- **Integration Tests:** 95% coverage of all connection functionality
+- **Overall:** 95%+ test coverage for connection feature
+
+**Note:** No unit tests (see `docs/ADR-001-NO-UNIT-TESTS.md` for rationale)
 
 ## CLI Command Reference
 

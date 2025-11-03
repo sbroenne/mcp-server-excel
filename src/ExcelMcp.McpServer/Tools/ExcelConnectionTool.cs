@@ -3,13 +3,14 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
 /// Excel connection management tool for MCP server.
 /// Handles data connections (OLEDB, ODBC, Text, Web, etc.) for Excel automation.
-/// 
+///
 /// LLM Usage Patterns:
 /// - Use "list" to see all connections in a workbook
 /// - Use "view" to inspect connection details (connection string, command text)
@@ -21,7 +22,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Use "set-properties" to configure connection behavior
 /// - Use "test" to validate connection without refreshing data
 /// - Use "delete" to remove obsolete connections
-/// 
+///
 /// Note: Power Query connections are detected and users are redirected to excel_powerquery tool.
 /// Regular connections (OLEDB, ODBC, Text, Web) use standard connection strings.
 /// Password sanitization is applied automatically for security.
@@ -36,9 +37,8 @@ public static class ExcelConnectionTool
     [Description("Manage Excel data connections. Supports: list, view, import, export, update, refresh, delete, loadto, properties, set-properties, test.")]
     public static async Task<string> ExcelConnection(
         [Required]
-        [RegularExpression("^(list|view|import|export|update|refresh|delete|loadto|properties|set-properties|test)$")]
-        [Description("Action: list, view, import, export, update, refresh, delete, loadto, properties, set-properties, test")]
-        string action,
+        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+        ConnectionAction action,
 
         [Required]
         [FileExtensions(Extensions = "xlsx,xlsm")]
@@ -71,22 +71,22 @@ public static class ExcelConnectionTool
         {
             var connectionCommands = new ConnectionCommands();
 
-            return action.ToLowerInvariant() switch
+            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+            return action switch
             {
-                "list" => await ListConnectionsAsync(connectionCommands, excelPath, batchId),
-                "view" => await ViewConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
-                "import" => await ImportConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
-                "export" => await ExportConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
-                "update" => await UpdateConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
-                "refresh" => await RefreshConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
-                "delete" => await DeleteConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
-                "loadto" => await LoadToWorksheetAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
-                "properties" => await GetPropertiesAsync(connectionCommands, excelPath, connectionName, batchId),
-                "set-properties" => await SetPropertiesAsync(connectionCommands, excelPath, connectionName,
-                    backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod, batchId),
-                "test" => await TestConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
+                ConnectionAction.List => await ListConnectionsAsync(connectionCommands, excelPath, batchId),
+                ConnectionAction.View => await ViewConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
+                ConnectionAction.Import => await ImportConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
+                ConnectionAction.Export => await ExportConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
+                ConnectionAction.UpdateProperties => await UpdateConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
+                ConnectionAction.Refresh => await RefreshConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
+                ConnectionAction.Delete => await DeleteConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
+                ConnectionAction.Test => await TestConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
+                ConnectionAction.LoadTo => await LoadToWorksheetAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
+                ConnectionAction.GetProperties => await GetPropertiesAsync(connectionCommands, excelPath, connectionName, batchId),
+                ConnectionAction.SetProperties => await SetPropertiesAsync(connectionCommands, excelPath, connectionName, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod, batchId),
                 _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: list, view, import, export, update, refresh, delete, loadto, properties, set-properties, test")
+                    $"Unknown action: {action} ({action.ToActionString()})")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -95,7 +95,7 @@ public static class ExcelConnectionTool
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action, excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
             throw; // Unreachable but satisfies compiler
         }
     }
@@ -113,7 +113,29 @@ public static class ExcelConnectionTool
             throw new ModelContextProtocol.McpException($"list failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        // Add workflow hints
+        var count = result.Connections?.Count ?? 0;
+        var powerQueryCount = result.Connections?.Count(c => c.IsPowerQuery) ?? 0;
+        
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.Connections,
+            workflowHint = count == 0
+                ? "No connections found. Import .odc files or use excel_powerquery for Power Query connections."
+                : powerQueryCount > 0
+                    ? $"Found {count} connection(s) ({powerQueryCount} Power Query). Use excel_powerquery for PQ connections."
+                    : $"Found {count} connection(s). Use 'refresh' to update data or 'export' to backup definitions.",
+            suggestedNextActions = count == 0
+                ? new[] { "Use 'import' to add connections from .odc files", "Use excel_powerquery for M code connections" }
+                : new[]
+                {
+                    powerQueryCount > 0 ? "Use excel_powerquery for Power Query connections" : null,
+                    "Use 'refresh' to update connection data",
+                    "Use 'export' to backup connection definitions as JSON",
+                    "Use 'view' to inspect connection strings"
+                }.Where(s => s != null).ToArray()!
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ViewConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? batchId)
@@ -154,7 +176,21 @@ public static class ExcelConnectionTool
             throw new ModelContextProtocol.McpException($"import failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        // Add workflow hints
+        var inBatch = !string.IsNullOrEmpty(batchId);
+        
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            workflowHint = $"Connection '{connectionName}' imported from {jsonPath}.",
+            suggestedNextActions = new[]
+            {
+                "Use 'test' to verify the connection works",
+                "Use 'refresh' to load data from the connection",
+                "Use 'loadto' to load connection data to a specific worksheet",
+                inBatch ? "Import more connections in this batch" : "Importing multiple? Use excel_batch (faster)"
+            }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ExportConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? jsonPath, string? batchId)
@@ -217,7 +253,20 @@ public static class ExcelConnectionTool
             throw new ModelContextProtocol.McpException($"refresh failed for '{filePath}': {result.ErrorMessage}");
         }
 
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        // Add workflow hints
+        var inBatch = !string.IsNullOrEmpty(batchId);
+        
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            workflowHint = $"Connection '{connectionName}' refreshed successfully. Data updated.",
+            suggestedNextActions = new[]
+            {
+                "Use excel_range 'get-values' to verify the refreshed data",
+                "Use 'properties' to check refresh settings",
+                inBatch ? "Refresh more connections in this batch" : "Refreshing multiple? Use excel_batch (faster)"
+            }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> DeleteConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? batchId)

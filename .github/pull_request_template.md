@@ -37,6 +37,26 @@ ExcelMcp command2 "test.xlsx" "param"
 ## Screenshots (if applicable)
 [Add screenshots showing the new functionality]
 
+## Core Commands Coverage Checklist ⚠️
+
+**Does this PR add or modify Core Commands methods?** [ ] Yes [ ] No
+
+If YES, verify all steps completed:
+
+- [ ] Added method to Core Commands interface (e.g., `IPowerQueryCommands.NewMethodAsync()`)
+- [ ] Implemented method in Core Commands class (e.g., `PowerQueryCommands.NewMethodAsync()`)
+- [ ] Added enum value to `ToolActions.cs` (e.g., `PowerQueryAction.NewMethod`)
+- [ ] Added `ToActionString` mapping to `ActionExtensions.cs` (e.g., `PowerQueryAction.NewMethod => "new-method"`)
+- [ ] Added switch case to appropriate MCP Tool (e.g., `ExcelPowerQueryTool.cs`)
+- [ ] Implemented MCP method that calls Core method
+- [ ] Build succeeds with 0 warnings (CS8524 compiler enforcement verified)
+- [ ] Updated `CORE-COMMANDS-AUDIT.md` (if significant addition)
+- [ ] Added integration tests for new action
+- [ ] Updated MCP Server prompts documentation
+- [ ] Updated CLI commands documentation (if applicable)
+
+**Coverage Impact**: +___ methods, ___% → ___% coverage
+
 ## Checklist
 - [ ] Code follows project style guidelines
 - [ ] Self-review of code completed

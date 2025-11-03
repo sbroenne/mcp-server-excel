@@ -42,10 +42,10 @@ cd mcp-server-excel
 dotnet build -c Release
 
 # Run tests (requires Excel installed locally)
-dotnet test --filter "Category=Unit"
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA"
 
 # Basic usage
-.\src\ExcelMcp.CLI\bin\Release\net10.0\excelcli.exe create-empty "test.xlsx"
+.\src\ExcelMcp.CLI\bin\Release\net8.0\excelcli.exe create-empty "test.xlsx"
 ```
 
 ## ✨ Key Features

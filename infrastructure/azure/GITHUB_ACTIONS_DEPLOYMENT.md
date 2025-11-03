@@ -2,7 +2,7 @@
 
 This guide shows how to deploy the Azure VM using GitHub Actions with **OIDC (OpenID Connect)** for secure Azure authentication.
 
-> **💡 Alternative:** If automated deployment fails, use the manual installation guide: [`docs/MANUAL_RUNNER_INSTALLATION.md`](../../docs/MANUAL_RUNNER_INSTALLATION.md)
+> **💡 Alternative:** If automated deployment fails, use the manual installation guide: [`docs/AZURE_SELFHOSTED_RUNNER_SETUP.md`](../../docs/AZURE_SELFHOSTED_RUNNER_SETUP.md#manual-installation)
 
 ## Prerequisites
 

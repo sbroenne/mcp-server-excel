@@ -1,312 +1,307 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Commands.Table;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.DataModel;
 
 /// <summary>
-/// Base class for Data Model Core operations integration tests.
-/// These tests require Excel installation and validate Core Data Model operations.
-/// Tests use Core commands directly (not through CLI wrapper).
+/// Integration tests for Data Model operations focusing on LLM use cases.
+/// Tests cover essential workflows: list tables/measures/relationships, create/update/delete measures, manage relationships.
+/// Uses DataModelTestsFixture which creates ONE Data Model per test class.
 /// </summary>
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "DataModel")]
-public partial class DataModelCommandsTests : IDisposable
+[Trait("Speed", "Slow")]
+public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
 {
-    protected readonly IDataModelCommands _dataModelCommands;
-    protected readonly IFileCommands _fileCommands;
-    protected readonly ITableCommands _tableCommands;
-    protected readonly string _tempDir;
-    private bool _disposed;
+    private readonly IDataModelCommands _dataModelCommands;
+    private readonly string _dataModelFile;
+    private readonly DataModelCreationResult _creationResult;
 
-    public DataModelCommandsTests()
+    public DataModelCommandsTests(DataModelTestsFixture fixture)
     {
         _dataModelCommands = new DataModelCommands();
-        _fileCommands = new FileCommands();
-        _tableCommands = new TableCommands();
+        _dataModelFile = fixture.TestFilePath;
+        _creationResult = fixture.CreationResult;
+    }
 
-        // Create temp directory for test files
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCore_DM_Tests_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
+    #region Core Discovery Tests (4 tests)
+
+    /// <summary>
+    /// Validates that the fixture successfully created the Data Model.
+    /// LLM use case: "create a data model with tables, relationships, and measures"
+    /// </summary>
+    [Fact]
+    public void Create_CompleteDataModel_SuccessfullyCreatesAllComponents()
+    {
+        Assert.True(_creationResult.Success, 
+            $"Data Model creation failed: {_creationResult.ErrorMessage}");
+        Assert.True(_creationResult.FileCreated);
+        Assert.Equal(3, _creationResult.TablesCreated);
+        Assert.Equal(3, _creationResult.TablesLoadedToModel);
+        Assert.Equal(2, _creationResult.RelationshipsCreated);
+        Assert.Equal(3, _creationResult.MeasuresCreated);
     }
 
     /// <summary>
-    /// Creates a unique test file with Data Model for each test.
-    /// Each test gets its own isolated Excel file to prevent test pollution.
-    /// Uses PRODUCTION commands to create realistic Data Model structure.
+    /// Tests listing tables in the data model.
+    /// LLM use case: "show me all tables in the data model"
     /// </summary>
-    protected async Task<string> CreateTestFileAsync(string fileName)
+    [Fact]
+    public async Task ListTables_WithDataModel_ReturnsTables()
     {
-        var filePath = Path.Combine(_tempDir, fileName);
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        var result = await _dataModelCommands.ListTablesAsync(batch);
 
-        // Create an empty workbook first
-        var result = await _fileCommands.CreateEmptyAsync(filePath, overwriteIfExists: false);
-        if (!result.Success)
-        {
-            throw new InvalidOperationException($"Failed to create test Excel file: {result.ErrorMessage}. Excel may not be installed.");
-        }
-
-        // Create realistic Data Model using PRODUCTION commands
-        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-
-        // Create Sales worksheet with data
-        await CreateSalesWorksheetAsync(batch);
-
-        // Create Customers worksheet with data
-        await CreateCustomersWorksheetAsync(batch);
-
-        // Create Products worksheet with data
-        await CreateProductsWorksheetAsync(batch);
-
-        // Add tables to Data Model using PRODUCTION command
-        var addSales = await _tableCommands.AddToDataModelAsync(batch, "SalesTable");
-        var addCustomers = await _tableCommands.AddToDataModelAsync(batch, "CustomersTable");
-        var addProducts = await _tableCommands.AddToDataModelAsync(batch, "ProductsTable");
-
-        // Create relationships using PRODUCTION command
-        if (addSales.Success && addCustomers.Success)
-        {
-            await _dataModelCommands.CreateRelationshipAsync(batch,
-                "SalesTable", "CustomerID", "CustomersTable", "CustomerID", active: true);
-        }
-
-        if (addSales.Success && addProducts.Success)
-        {
-            await _dataModelCommands.CreateRelationshipAsync(batch,
-                "SalesTable", "ProductID", "ProductsTable", "ProductID", active: true);
-        }
-
-        // Create sample measures using PRODUCTION command
-        if (addSales.Success)
-        {
-            var measure1 = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", "Total Sales",
-                "SUM(SalesTable[Amount])", "Currency", "Total sales revenue");
-            if (!measure1.Success)
-                throw new InvalidOperationException($"Failed to create 'Total Sales' measure: {measure1.ErrorMessage}");
-
-            var measure2 = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", "Average Sale",
-                "AVERAGE(SalesTable[Amount])", "Currency", "Average sale amount");
-            if (!measure2.Success)
-                throw new InvalidOperationException($"Failed to create 'Average Sale' measure: {measure2.ErrorMessage}");
-
-            var measure3 = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", "Total Customers",
-                "DISTINCTCOUNT(SalesTable[CustomerID])", "WholeNumber", "Unique customer count");
-            if (!measure3.Success)
-                throw new InvalidOperationException($"Failed to create 'Total Customers' measure: {measure3.ErrorMessage}");
-        }
-
-        await batch.SaveAsync();
-
-        return filePath;
+        Assert.True(result.Success, $"ListTables failed: {result.ErrorMessage}");
+        Assert.Equal(3, result.Tables.Count);
+        Assert.Contains(result.Tables, t => t.Name == "SalesTable");
+        Assert.Contains(result.Tables, t => t.Name == "CustomersTable");
+        Assert.Contains(result.Tables, t => t.Name == "ProductsTable");
     }
 
     /// <summary>
-    /// Creates Sales worksheet with sample data and formats as Excel Table
+    /// Tests getting table details with columns.
+    /// LLM use case: "show me the columns in this data model table"
     /// </summary>
-    private async Task CreateSalesWorksheetAsync(IExcelBatch batch)
+    [Fact]
+    public async Task ViewTable_WithValidTable_ReturnsCompleteInfo()
     {
-        await batch.Execute<int>((ctx, ct) =>
-        {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? listObject = null;
-            try
-            {
-                dynamic sheets = ctx.Book.Worksheets;
-                sheet = sheets.Add();
-                sheet.Name = "Sales";
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        var result = await _dataModelCommands.ViewTableAsync(batch, "SalesTable");
 
-                // Headers
-                sheet.Range["A1"].Value2 = "SalesID";
-                sheet.Range["B1"].Value2 = "Date";
-                sheet.Range["C1"].Value2 = "CustomerID";
-                sheet.Range["D1"].Value2 = "ProductID";
-                sheet.Range["E1"].Value2 = "Amount";
-                sheet.Range["F1"].Value2 = "Quantity";
-
-                // Sample data (10 rows)
-                var salesData = new object[,]
-                {
-                    { 1, new DateTime(2024, 1, 15), 101, 1001, 1500.00, 3 },
-                    { 2, new DateTime(2024, 1, 20), 102, 1002, 2200.00, 2 },
-                    { 3, new DateTime(2024, 2, 10), 103, 1003, 750.00, 1 },
-                    { 4, new DateTime(2024, 2, 15), 101, 1001, 3000.00, 6 },
-                    { 5, new DateTime(2024, 3, 5), 104, 1004, 1200.00, 2 },
-                    { 6, new DateTime(2024, 3, 12), 102, 1002, 4400.00, 4 },
-                    { 7, new DateTime(2024, 4, 8), 105, 1005, 980.00, 1 },
-                    { 8, new DateTime(2024, 4, 22), 103, 1003, 1500.00, 2 },
-                    { 9, new DateTime(2024, 5, 10), 104, 1001, 2500.00, 5 },
-                    { 10, new DateTime(2024, 5, 25), 101, 1004, 2400.00, 4 }
-                };
-
-                range = sheet.Range["A2:F11"];
-                range.Value2 = salesData;
-
-                // Format as Excel Table
-                range = sheet.Range["A1:F11"];
-                listObject = sheet.ListObjects.Add(
-                    SourceType: 1, // xlSrcRange
-                    Source: range,
-                    XlListObjectHasHeaders: 1 // xlYes
-                );
-                listObject.Name = "SalesTable";
-                listObject.TableStyle = "TableStyleMedium2";
-            }
-            finally
-            {
-                ComInterop.ComUtilities.Release(ref listObject);
-                ComInterop.ComUtilities.Release(ref range);
-                ComInterop.ComUtilities.Release(ref sheet);
-            }
-            return 0;
-        });
+        Assert.True(result.Success, $"ViewTable failed: {result.ErrorMessage}");
+        Assert.Equal("SalesTable", result.TableName);
+        Assert.NotNull(result.SourceName);
+        Assert.True(result.RecordCount >= 10);
+        Assert.NotNull(result.Columns);
+        Assert.True(result.Columns.Count >= 6);
     }
 
     /// <summary>
-    /// Creates Customers worksheet with sample data and formats as Excel Table
+    /// Tests getting data model statistics.
+    /// LLM use case: "show me information about this data model"
     /// </summary>
-    private async Task CreateCustomersWorksheetAsync(IExcelBatch batch)
+    [Fact]
+    public async Task GetModelInfo_WithRealisticDataModel_ReturnsAccurateStatistics()
     {
-        await batch.Execute<int>((ctx, ct) =>
-        {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? listObject = null;
-            try
-            {
-                dynamic sheets = ctx.Book.Worksheets;
-                sheet = sheets.Add();
-                sheet.Name = "Customers";
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        var result = await _dataModelCommands.GetModelInfoAsync(batch);
 
-                // Headers
-                sheet.Range["A1"].Value2 = "CustomerID";
-                sheet.Range["B1"].Value2 = "Name";
-                sheet.Range["C1"].Value2 = "Region";
-                sheet.Range["D1"].Value2 = "Country";
+        Assert.True(result.Success, $"GetModelInfo failed: {result.ErrorMessage}");
+        Assert.Equal(3, result.TableCount);
+        Assert.Equal(3, result.MeasureCount);
+        Assert.Equal(2, result.RelationshipCount);
+        Assert.True(result.TotalRows > 0);
+        Assert.NotNull(result.TableNames);
+        Assert.Contains("SalesTable", result.TableNames);
+    }
 
-                // Sample data
-                var customersData = new object[,]
-                {
-                    { 101, "Acme Corp", "North", "USA" },
-                    { 102, "TechStart Inc", "South", "USA" },
-                    { 103, "Global Solutions", "East", "UK" },
-                    { 104, "Innovation Labs", "West", "Canada" },
-                    { 105, "Digital Ventures", "North", "USA" }
-                };
+    #endregion
 
-                range = sheet.Range["A2:D6"];
-                range.Value2 = customersData;
+    #region Measure Operations (5 tests)
 
-                // Format as Excel Table
-                range = sheet.Range["A1:D6"];
-                listObject = sheet.ListObjects.Add(
-                    SourceType: 1, // xlSrcRange
-                    Source: range,
-                    XlListObjectHasHeaders: 1 // xlYes
-                );
-                listObject.Name = "CustomersTable";
-                listObject.TableStyle = "TableStyleMedium2";
-            }
-            finally
-            {
-                ComInterop.ComUtilities.Release(ref listObject);
-                ComInterop.ComUtilities.Release(ref range);
-                ComInterop.ComUtilities.Release(ref sheet);
-            }
-            return 0;
-        });
+    /// <summary>
+    /// Tests listing all measures in the data model.
+    /// LLM use case: "show me all DAX measures"
+    /// </summary>
+    [Fact]
+    public async Task ListMeasures_WithRealisticDataModel_ReturnsMeasuresWithFormulas()
+    {
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        var result = await _dataModelCommands.ListMeasuresAsync(batch);
+
+        Assert.True(result.Success, $"ListMeasures failed: {result.ErrorMessage}");
+        Assert.NotNull(result.Measures);
+        Assert.Equal(3, result.Measures.Count);
+
+        var measureNames = result.Measures.Select(m => m.Name).ToList();
+        Assert.Contains("Total Sales", measureNames);
+        Assert.Contains("Average Sale", measureNames);
+        Assert.Contains("Total Customers", measureNames);
     }
 
     /// <summary>
-    /// Creates Products worksheet with sample data and formats as Excel Table
+    /// Tests viewing a specific measure's DAX formula.
+    /// LLM use case: "show me the DAX formula for this measure"
     /// </summary>
-    private async Task CreateProductsWorksheetAsync(IExcelBatch batch)
+    [Fact]
+    public async Task ViewMeasure_WithRealisticDataModel_ReturnsValidDAXFormula()
     {
-        await batch.Execute<int>((ctx, ct) =>
-        {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? listObject = null;
-            try
-            {
-                dynamic sheets = ctx.Book.Worksheets;
-                sheet = sheets.Add();
-                sheet.Name = "Products";
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        var result = await _dataModelCommands.ViewMeasureAsync(batch, "Total Sales");
 
-                // Headers
-                sheet.Range["A1"].Value2 = "ProductID";
-                sheet.Range["B1"].Value2 = "Name";
-                sheet.Range["C1"].Value2 = "Category";
-                sheet.Range["D1"].Value2 = "Price";
-
-                // Sample data
-                var productsData = new object[,]
-                {
-                    { 1001, "Laptop Pro", "Electronics", 1200.00 },
-                    { 1002, "Desktop Elite", "Electronics", 1500.00 },
-                    { 1003, "Tablet Max", "Electronics", 800.00 },
-                    { 1004, "Monitor 4K", "Accessories", 450.00 },
-                    { 1005, "Keyboard RGB", "Accessories", 120.00 }
-                };
-
-                range = sheet.Range["A2:D6"];
-                range.Value2 = productsData;
-
-                // Format as Excel Table
-                range = sheet.Range["A1:D6"];
-                listObject = sheet.ListObjects.Add(
-                    SourceType: 1, // xlSrcRange
-                    Source: range,
-                    XlListObjectHasHeaders: 1 // xlYes
-                );
-                listObject.Name = "ProductsTable";
-                listObject.TableStyle = "TableStyleMedium2";
-            }
-            finally
-            {
-                ComInterop.ComUtilities.Release(ref listObject);
-                ComInterop.ComUtilities.Release(ref range);
-                ComInterop.ComUtilities.Release(ref sheet);
-            }
-            return 0;
-        });
+        Assert.True(result.Success, $"ViewMeasure failed: {result.ErrorMessage}");
+        Assert.NotNull(result.DaxFormula);
+        Assert.Contains("SUM", result.DaxFormula, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Amount", result.DaxFormula);
+        Assert.Equal("Total Sales", result.MeasureName);
     }
 
-    public void Dispose()
+    /// <summary>
+    /// Tests creating a new DAX measure.
+    /// LLM use case: "create a DAX measure"
+    /// </summary>
+    [Fact]
+    public async Task CreateMeasure_ValidNameAndFormula_CreatesSuccessfully()
     {
-        if (_disposed) return;
+        var measureName = $"Test_{nameof(CreateMeasure_ValidNameAndFormula_CreatesSuccessfully)}_{Guid.NewGuid():N}";
+        var daxFormula = "SUM(SalesTable[Amount])";
 
-        try
-        {
-            if (Directory.Exists(_tempDir))
-            {
-                // Give Excel time to release file locks
-                System.Threading.Thread.Sleep(100);
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        var result = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, daxFormula);
+        
+        Assert.True(result.Success, $"CreateMeasure failed: {result.ErrorMessage}");
 
-                // Retry cleanup a few times if needed
-                for (int i = 0; i < 3; i++)
-                {
-                    try
-                    {
-                        Directory.Delete(_tempDir, recursive: true);
-                        break;
-                    }
-                    catch (IOException) when (i < 2)
-                    {
-                        System.Threading.Thread.Sleep(500);
-                    }
-                }
-            }
-        }
-        catch
-        {
-            // Best effort cleanup
-        }
-
-        _disposed = true;
-        GC.SuppressFinalize(this);
+        // Verify measure created
+        var listResult = await _dataModelCommands.ListMeasuresAsync(batch);
+        Assert.Contains(listResult.Measures, m => m.Name == measureName);
     }
+
+    /// <summary>
+    /// Tests updating an existing measure's DAX formula.
+    /// LLM use case: "update this measure's formula"
+    /// </summary>
+    [Fact]
+    public async Task UpdateMeasure_WithValidFormula_UpdatesSuccessfully()
+    {
+        var measureName = $"Test_{nameof(UpdateMeasure_WithValidFormula_UpdatesSuccessfully)}_{Guid.NewGuid():N}";
+        var originalFormula = "SUM(SalesTable[Amount])";
+        var updatedFormula = "AVERAGE(SalesTable[Amount])";
+
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        
+        // Create measure
+        var createResult = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, originalFormula);
+        Assert.True(createResult.Success);
+
+        // Update formula
+        var updateResult = await _dataModelCommands.UpdateMeasureAsync(batch, measureName, daxFormula: updatedFormula);
+        Assert.True(updateResult.Success);
+
+        // Verify update
+        var viewResult = await _dataModelCommands.ViewMeasureAsync(batch, measureName);
+        Assert.Contains("AVERAGE", viewResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Tests deleting a measure.
+    /// LLM use case: "delete this DAX measure"
+    /// </summary>
+    [Fact]
+    public async Task DeleteMeasure_WithValidMeasure_ReturnsSuccessResult()
+    {
+        var measureName = $"Test_{nameof(DeleteMeasure_WithValidMeasure_ReturnsSuccessResult)}_{Guid.NewGuid():N}";
+
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+
+        // Create measure
+        var createResult = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, "SUM(SalesTable[Amount])");
+        Assert.True(createResult.Success);
+        
+        // Delete measure
+        var result = await _dataModelCommands.DeleteMeasureAsync(batch, measureName);
+        Assert.True(result.Success);
+
+        // Verify deletion
+        var listResult = await _dataModelCommands.ListMeasuresAsync(batch);
+        Assert.DoesNotContain(listResult.Measures, m => m.Name == measureName);
+    }
+
+    #endregion
+
+    #region Relationship Operations (3 tests)
+
+    /// <summary>
+    /// Tests listing all relationships in the data model.
+    /// LLM use case: "show me all table relationships"
+    /// </summary>
+    [Fact]
+    public async Task ListRelationships_WithRealisticDataModel_ReturnsRelationshipsWithDetails()
+    {
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        var result = await _dataModelCommands.ListRelationshipsAsync(batch);
+
+        Assert.True(result.Success, $"ListRelationships failed: {result.ErrorMessage}");
+        Assert.NotNull(result.Relationships);
+        Assert.Equal(2, result.Relationships.Count);
+
+        // Verify SalesTable->CustomersTable relationship
+        var salesCustomersRel = result.Relationships.FirstOrDefault(r =>
+            r.FromTable == "SalesTable" && r.ToTable == "CustomersTable");
+        Assert.NotNull(salesCustomersRel);
+        Assert.Equal("CustomerID", salesCustomersRel.FromColumn);
+        Assert.Equal("CustomerID", salesCustomersRel.ToColumn);
+        Assert.True(salesCustomersRel.IsActive);
+
+        // Verify SalesTable->ProductsTable relationship
+        var salesProductsRel = result.Relationships.FirstOrDefault(r =>
+            r.FromTable == "SalesTable" && r.ToTable == "ProductsTable");
+        Assert.NotNull(salesProductsRel);
+        Assert.Equal("ProductID", salesProductsRel.FromColumn);
+        Assert.Equal("ProductID", salesProductsRel.ToColumn);
+        Assert.True(salesProductsRel.IsActive);
+    }
+
+    /// <summary>
+    /// Tests creating a new relationship between tables.
+    /// LLM use case: "create a relationship between these tables"
+    /// </summary>
+    [Fact]
+    public async Task CreateRelationship_ValidTablesAndColumns_CreatesSuccessfully()
+    {
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+
+        // Delete existing relationship first to allow recreating it
+        var listResult = await _dataModelCommands.ListRelationshipsAsync(batch);
+        if (listResult.Success && listResult.Relationships?.Any(r =>
+            r.FromTable == "SalesTable" && r.ToTable == "CustomersTable" &&
+            r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID") == true)
+        {
+            await _dataModelCommands.DeleteRelationshipAsync(batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");
+        }
+
+        // Create relationship
+        var createResult = await _dataModelCommands.CreateRelationshipAsync(
+            batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");
+        
+        Assert.True(createResult.Success, $"CreateRelationship failed: {createResult.ErrorMessage}");
+
+        // Verify creation
+        var verifyResult = await _dataModelCommands.ListRelationshipsAsync(batch);
+        Assert.Contains(verifyResult.Relationships, r =>
+            r.FromTable == "SalesTable" && r.ToTable == "CustomersTable" &&
+            r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID");
+    }
+
+    /// <summary>
+    /// Tests deleting a relationship.
+    /// LLM use case: "delete this relationship"
+    /// </summary>
+    [Fact]
+    public async Task DeleteRelationship_ExistingRelationship_ReturnsSuccess()
+    {
+        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+
+        // Delete relationship
+        var deleteResult = await _dataModelCommands.DeleteRelationshipAsync(
+            batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");
+        
+        Assert.True(deleteResult.Success, $"DeleteRelationship failed: {deleteResult.ErrorMessage}");
+
+        // Verify deletion
+        var verifyResult = await _dataModelCommands.ListRelationshipsAsync(batch);
+        Assert.DoesNotContain(verifyResult.Relationships, r =>
+            r.FromTable == "SalesTable" && r.ToTable == "CustomersTable" &&
+            r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID");
+        
+        // Recreate for other tests (shared file)
+        await _dataModelCommands.CreateRelationshipAsync(batch,
+            "SalesTable", "CustomerID", "CustomersTable", "CustomerID", active: true);
+    }
+
+    #endregion
 }

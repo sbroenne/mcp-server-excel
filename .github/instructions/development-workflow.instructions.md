@@ -22,18 +22,32 @@ Enforced: PR reviews, CI/CD checks, create a branch first, up-to-date branches, 
 ## Test Execution
 
 ```bash
-# Development (fast)
-dotnet test --filter "Category=Unit&RunType!=OnDemand"
+# Development (fast - excludes VBA tests)
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
-# Pre-commit (comprehensive)
-dotnet test --filter "(Category=Unit|Category=Integration)&RunType!=OnDemand"
+# Pre-commit (comprehensive - excludes VBA tests)
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
 # Session/batch code changes (MANDATORY)
 dotnet test --filter "RunType=OnDemand"
 
-# CI/CD (no Excel)
-dotnet test --filter "Category=Unit&RunType!=OnDemand"
+# VBA tests (manual only - requires VBA trust enabled)
+dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
+
+# CI/CD (no Excel, no VBA)
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 ```
+
+## CI/CD Workflows
+
+**Automated on Pull Requests:**
+- `build-mcp-server.yml` - Builds MCP Server on code changes
+- `build-cli.yml` - Builds CLI on code changes
+- `integration-tests.yml` - Runs Excel COM integration tests on Azure self-hosted runner
+- `codeql.yml` - Security analysis
+- `dependency-review.yml` - Dependency security scanning
+
+**Note:** Integration tests require Excel and run on Azure VM self-hosted runner (see `docs/AZURE_SELFHOSTED_RUNNER_SETUP.md`)
 
 ## Workflow Config Updates
 
@@ -52,8 +66,8 @@ dotnet test --filter "Category=Unit&RunType!=OnDemand"
 ## Release Process (Maintainers)
 
 **Tag Patterns:**
+- MCP Server: `mcp-v1.2.3`
 - CLI: `cli-v1.2.3`
-- MCP Server: `v1.2.3`
 - VS Code Extension: `vscode-v1.1.3`
 
 Push tag → Workflow auto-builds → GitHub release created

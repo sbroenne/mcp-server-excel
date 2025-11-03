@@ -25,7 +25,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// Register MCP server definition provider
 	context.subscriptions.push(
-		vscode.lm.registerMcpServerDefinitionProvider('excelmcp', {
+		vscode.lm.registerMcpServerDefinitionProvider('excel-mcp', {
 			provideMcpServerDefinitions: async () => {
 				// Return the MCP server definition for ExcelMcp
 				// Use the bundled executable path

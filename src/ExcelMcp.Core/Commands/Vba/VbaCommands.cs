@@ -1,0 +1,94 @@
+using System.Runtime.InteropServices;
+using Microsoft.Win32;
+using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Security;
+
+
+namespace Sbroenne.ExcelMcp.Core.Commands;
+
+/// <summary>
+/// VBA script management commands - Core data layer (no console output)
+/// </summary>
+public partial class VbaCommands : IVbaCommands
+{
+    /// <summary>
+    /// Check if VBA trust is enabled by reading registry
+    /// </summary>
+    private static bool IsVbaTrustEnabled()
+    {
+        try
+        {
+            // Try different Office versions
+            string[] registryPaths = {
+                @"Software\Microsoft\Office\16.0\Excel\Security",  // Office 2019/2021/365
+                @"Software\Microsoft\Office\15.0\Excel\Security",  // Office 2013
+                @"Software\Microsoft\Office\14.0\Excel\Security"   // Office 2010
+            };
+
+            foreach (string path in registryPaths)
+            {
+                try
+                {
+                    using var key = Registry.CurrentUser.OpenSubKey(path);
+                    var value = key?.GetValue("AccessVBOM");
+                    if (value != null && (int)value == 1)
+                    {
+                        return true;
+                    }
+                }
+                catch { /* Try next path */ }
+            }
+
+            return false; // Assume not enabled if cannot read registry
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Creates VBA trust guidance result
+    /// </summary>
+    private static VbaTrustRequiredResult CreateVbaTrustGuidance()
+    {
+        return new VbaTrustRequiredResult
+        {
+            Success = false,
+            ErrorMessage = "VBA trust access is not enabled",
+            IsTrustEnabled = false,
+            Explanation = "VBA operations require 'Trust access to the VBA project object model' to be enabled in Excel settings. This is a one-time setup that allows programmatic access to VBA code."
+        };
+    }
+
+    /// <summary>
+    /// Validate that file is macro-enabled (.xlsm) for VBA operations
+    /// </summary>
+    private static (bool IsValid, string? ErrorMessage) ValidateVbaFile(string filePath)
+    {
+        string extension = Path.GetExtension(filePath).ToLowerInvariant();
+        if (extension != ".xlsm")
+        {
+            return (false, $"VBA operations require macro-enabled workbooks (.xlsm). Current file has extension: {extension}");
+        }
+        return (true, null);
+    }
+
+    private static string ExtractProcedureName(string codeLine)
+    {
+        var parts = codeLine.Trim().Split(new[] { ' ', '(' }, StringSplitOptions.RemoveEmptyEntries);
+        for (int i = 0; i < parts.Length; i++)
+        {
+            if (parts[i] == "Sub" || parts[i] == "Function")
+            {
+                if (i + 1 < parts.Length)
+                {
+                    return parts[i + 1];
+                }
+            }
+        }
+        return string.Empty;
+    }
+}

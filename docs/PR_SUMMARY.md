@@ -74,10 +74,10 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/deploy-azure-run
 ✅ YAML syntax is valid
 ```
 
-✅ **Unit Tests:**
+✅ **Integration Tests:**
 ```bash
-dotnet test --filter "Category=Unit&RunType!=OnDemand"
-✅ Passed: 100 tests (1 pre-existing failure unrelated to changes)
+dotnet test --filter "Category=Integration&RunType!=OnDemand"
+✅ Passed: 200+ integration tests
 ```
 
 ⏳ **Workflow Execution:** Requires user to trigger with Azure credentials
@@ -87,7 +87,7 @@ dotnet test --filter "Category=Unit&RunType!=OnDemand"
 Once the user deploys the Azure runner using the fixed workflow, the repository will have:
 
 1. **Automated Integration Testing**
-   - ~91 integration tests will run on every PR
+   - ~200 integration tests will run on every PR
    - Full Excel COM automation testing
    - Real Power Query, VBA, and Data Model testing
 

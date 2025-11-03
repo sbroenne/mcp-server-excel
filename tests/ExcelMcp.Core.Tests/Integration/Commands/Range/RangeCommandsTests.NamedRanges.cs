@@ -1,8 +1,9 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Xunit;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Range;
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
 /// <summary>
 /// Tests for named range transparency - verifying that RangeCommands works seamlessly with named ranges
@@ -12,14 +13,14 @@ public partial class RangeCommandsTests
     // === NAMED RANGE TRANSPARENCY TESTS ===
 
     [Fact]
-    public async Task GetValuesAsync_WithNamedRange_ResolvesProperly()
+    public async Task GetValues_WithNamedRange_ResolvesProperly()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create a named range pointing to A1:B2
-        var paramCommands = new ParameterCommands();
+        var paramCommands = new NamedRangeCommands();
         await paramCommands.CreateAsync(batch, "TestData", "Sheet1!$A$1:$B$2");
 
         // Set data in the range
@@ -41,14 +42,14 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task SetValuesAsync_WithNamedRange_WritesProperly()
+    public async Task SetValues_WithNamedRange_WritesProperly()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create a named range
-        var paramCommands = new ParameterCommands();
+        var paramCommands = new NamedRangeCommands();
         await paramCommands.CreateAsync(batch, "SalesData", "Sheet1!$A$1:$C$2");
 
         // Act - Write using named range
@@ -57,8 +58,6 @@ public partial class RangeCommandsTests
             new() { "Product", "Qty", "Price" },
             new() { "Widget", 10, 29.99 }
         ]);
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 
@@ -69,14 +68,14 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task GetFormulasAsync_WithNamedRange_ReturnsFormulas()
+    public async Task GetFormulas_WithNamedRange_ReturnsFormulas()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create named range and set data + formula
-        var paramCommands = new ParameterCommands();
+        var paramCommands = new NamedRangeCommands();
         await paramCommands.CreateAsync(batch, "CalcRange", "Sheet1!$A$1:$B$2");
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { 10 }]);
@@ -93,14 +92,14 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task ClearContentsAsync_WithNamedRange_ClearsData()
+    public async Task ClearContents_WithNamedRange_ClearsData()
     {
         // Arrange
-        string testFile = CreateTestWorkbook();
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create named range and populate
-        var paramCommands = new ParameterCommands();
+        var paramCommands = new NamedRangeCommands();
         await paramCommands.CreateAsync(batch, "TempData", "Sheet1!$A$1:$B$2");
 
         await _commands.SetValuesAsync(batch, "", "TempData",
@@ -111,8 +110,6 @@ public partial class RangeCommandsTests
 
         // Act - Clear using named range
         var result = await _commands.ClearContentsAsync(batch, "", "TempData");
-        await batch.SaveAsync();
-
         // Assert
         Assert.True(result.Success);
 

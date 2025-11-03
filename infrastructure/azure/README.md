@@ -7,7 +7,7 @@ This directory contains Infrastructure as Code (IaC) for automating the deployme
 **Deploy directly from GitHub UI!**
 
 📚 **Setup Guide:** [`GITHUB_ACTIONS_DEPLOYMENT.md`](GITHUB_ACTIONS_DEPLOYMENT.md)  
-🔧 **Manual Installation:** [`docs/MANUAL_RUNNER_INSTALLATION.md`](../../docs/MANUAL_RUNNER_INSTALLATION.md)
+🔧 **Manual Installation:** [`docs/AZURE_SELFHOSTED_RUNNER_SETUP.md`](../../docs/AZURE_SELFHOSTED_RUNNER_SETUP.md#manual-installation)
 
 **Quick steps:**
 1. Create Azure App Registration with OIDC (one-time, 10 minutes)

@@ -6,6 +6,37 @@ applyTo: "**"
 
 > **⚠️ NON-NEGOTIABLE rules for all ExcelMcp development**
 
+## Rule 0: Success Flag Must Match Reality (CRITICAL - NEW)
+
+**NEVER set `Success = true` when `ErrorMessage` is set. This is EXTREMELY serious!**
+
+```csharp
+// ❌ CRITICAL BUG: Confuses LLMs and users
+result.Success = true;
+result.ErrorMessage = "Query imported but failed to load...";
+
+// ✅ CORRECT: Success only when NO errors
+if (!loadResult.Success) {
+    result.Success = false;  // MUST be false!
+    result.ErrorMessage = $"Failed: {loadResult.ErrorMessage}";
+}
+```
+
+**Invariant:** `Success == true` ⟹ `ErrorMessage == null || ErrorMessage == ""`
+
+**Why Critical:** LLMs see Success=true and assume operation worked, causing workflow failures and silent data corruption.
+
+**Enforcement:**
+- Regression tests verify this invariant (PowerQuerySuccessErrorRegressionTests)
+- Code review MUST check every `Success = ` assignment
+- Search pattern: `Success.*true.*ErrorMessage`
+
+**Examples of bugs found:**
+- PowerQueryCommands.ImportAsync: Success=true when load to data model failed
+- PowerQueryCommands.TestConnectionAsync: Success=true when refresh failed
+
+ rules for all ExcelMcp development**
+
 ## Rule 1: No Silent Test Failures
 
 Tests must fail loudly. Never catch exceptions without re-throwing or use conditional assertions that always pass.
@@ -67,12 +98,13 @@ Delete commented-out code (use git history). Exception: Documentation files only
 
 
 
-## Rule 9: Search Open Source Repositories for Working COM Examples First
+## Rule 9: Search External GitHub Repositories for Working Examples First
 
 **BEFORE** creating new Excel COM Interop code or troubleshooting COM issues:
-- **ALWAYS** search OTHER open source GitHub repositories (NOT this repo) for working examples
+- **ALWAYS** search OTHER open source GitHub repositories for working examples
+- **NEVER** search your own repository - only search external projects
 - Look for repositories with Excel automation, VBA code, or Office interop projects
-- Search for the specific COM object/method you need (e.g., "PivotTable CreatePivotTable VBA", "QueryTable Refresh VBA", "ListObject VBA")
+- Search for the specific COM object/method you need (e.g., "PivotTable CreatePivotTable VBA", "QueryTable Refresh VBA", "ModelMeasures.Add VBA")
 - Study proven patterns from other projects before writing new code
 - Avoid reinventing solutions - learn from working implementations in the wild
 
@@ -112,6 +144,91 @@ When debugging test failures, **ALWAYS run tests individually** - never run all 
 
 **Why:** Tests depend on production code, not the reverse. Production code with test dependencies is broken architecture.
 
+
+
+## Rule 12: Test Class Compliance Checklist
+
+**Every new test class MUST pass the compliance checklist before PR submission.**
+
+**Verify:**
+- ✅ Uses `IClassFixture<TempDirectoryFixture>` (NOT manual IDisposable)
+- ✅ Each test creates unique file via `CoreTestHelper.CreateUniqueTestFileAsync()`
+- ✅ NEVER shares test files between tests
+- ✅ VBA tests use `.xlsm` extension (NOT .xlsx renamed)
+- ✅ Binary assertions only (NO "accept both" patterns)
+- ✅ All required traits present (Category, Speed, Layer, RequiresExcel, Feature)
+- ✅ Batch API pattern used correctly (no ValueTask.FromResult wrapper)
+- ✅ NO duplicate helper methods (use CoreTestHelper)
+
+**Why:** Systematic compliance prevents test pollution, file lock issues, silent failures, and maintenance nightmares. See [testing-strategy.instructions.md](testing-strategy.instructions.md) for complete checklist.
+
+**Enforcement:** PR reviewers MUST check compliance before approval.
+
+---
+
+## Rule 13: Comprehensive Bug Fixes
+
+**Every bug fix MUST include all 6 components before PR submission.**
+
+**Required Components:**
+1. ✅ **Code Fix** - Minimal surgical changes to fix root cause
+2. ✅ **Tests** - Minimum 5-8 new tests (regression + edge cases + backwards compat)
+3. ✅ **Documentation** - Update 3+ files (tool docs, user docs, prompts)
+4. ✅ **Workflow Hints** - Update SuggestedNextActions and error messages
+5. ✅ **Quality Verification** - Build passes, all tests green, 0 warnings
+6. ✅ **Summary Docs** - Create BUG-FIX-*.md, TESTS-*.md, DOCS-*.md
+
+**Process:** Follow [bug-fixing-checklist.instructions.md](bug-fixing-checklist.instructions.md) for complete 6-step process.
+
+**Why:** Incomplete bug fixes lead to regressions, confusion, and wasted time. Comprehensive fixes prevent future issues.
+
+**Example:** Refresh + loadDestination bug = 1 code file + 13 tests + 5 doc files + 3 summaries = complete fix.
+
+---
+
+## Rule 14: No SaveAsync Unless Testing Persistence
+
+**Tests must NOT call `batch.SaveAsync()` unless explicitly testing persistence.**
+
+**When SaveAsync is FORBIDDEN:**
+- ❌ Test only verifies operation returns success/error
+- ❌ Test only checks in-memory state (lists, views, metadata)
+- ❌ Test doesn't re-open the file to verify changes persisted
+- ❌ SaveAsync called before assertions (breaks subsequent operations)
+- ❌ SaveAsync called multiple times in same test
+
+**When SaveAsync is REQUIRED:**
+- ✅ Round-trip test: Create/Update → Save → Re-open → Verify persistence
+- ✅ Integration test explicitly validating save behavior
+- ✅ Test verifying data survives workbook close/reopen
+
+**Correct Pattern:**
+```csharp
+// ❌ WRONG: Unnecessary save, slows down test
+await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+var result = await _commands.CreateAsync(batch, "Test");
+await batch.SaveAsync();  // ❌ Not needed!
+Assert.True(result.Success);
+
+// ✅ CORRECT: No save, batch auto-disposes
+await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+var result = await _commands.CreateAsync(batch, "Test");
+Assert.True(result.Success);  // ✅ Batch disposes without saving
+
+// ✅ CORRECT: Persistence test with round-trip
+await using var batch1 = await ExcelSession.BeginBatchAsync(testFile);
+await _commands.CreateAsync(batch1, "Test");
+await batch1.SaveAsync();  // ✅ Save for persistence
+
+await using var batch2 = await ExcelSession.BeginBatchAsync(testFile);  
+var result = await _commands.ListAsync(batch2);
+Assert.Contains(result.Items, i => i.Name == "Test");  // ✅ Verify persisted
+```
+
+**Why:** SaveAsync is slow (~2-5s per call) and unnecessary for most tests. Tests should verify business logic, not save behavior. Removing unnecessary saves makes test suite 50%+ faster.
+
+**Audit Command:** `git grep "await batch.SaveAsync()" -- tests/ | wc -l` should trend toward zero.
+
 ---
 
 ## Quick Reference
@@ -129,3 +246,141 @@ When debugging test failures, **ALWAYS run tests individually** - never run all 
 | 9. GitHub search | Search OTHER repos for VBA/COM examples FIRST | 1-2 min |
 | 10. Test debugging | Run tests one by one, never all together | Per test |
 | 11. No test refs | Production NEVER references tests | Always |
+| 12. Test compliance | Pass checklist before PR submission | 2-3 min |
+| 13. Bug fixes | Complete 6-step process (fix, test, doc, hints, verify, summarize) | 30-60 min |
+| 14. No SaveAsync | Remove unless testing persistence | Per test |
+| 15. Enum mappings | All enum values mapped in ToActionString() | Always |
+| 16. Test scope | Only run tests for code you changed | Per change |
+| 17. MCP error checks | Check result.Success before JsonSerializer.Serialize | Every method |
+
+
+
+---
+
+## Rule 15: Complete Enum Mappings (CRITICAL)
+
+**Every enum value MUST have a mapping in ToActionString(). Missing mappings cause unhandled exceptions.**
+
+```csharp
+// ❌ WRONG: Incomplete mapping
+public static string ToActionString(this RangeAction action) => action switch
+{
+    RangeAction.GetValues => "get-values",
+    RangeAction.SetValues => "set-values",
+    // Missing GetUsedRange, GetCurrentRegion, etc. → ArgumentException!
+    _ => throw new ArgumentException($"Unknown RangeAction: {action}")
+};
+
+// ✅ CORRECT: All enum values mapped
+public static string ToActionString(this RangeAction action) => action switch
+{
+    RangeAction.GetValues => "get-values",
+    RangeAction.SetValues => "set-values",
+    RangeAction.GetUsedRange => "get-used-range",  // ✅ All values
+    RangeAction.GetCurrentRegion => "get-current-region",
+    // ... all other values
+    _ => throw new ArgumentException($"Unknown RangeAction: {action}")
+};
+```
+
+**Why Critical:** Missing mappings cause MCP Server to throw exceptions instead of returning JSON, confusing LLMs.
+
+**Enforcement:**
+- Regression tests for all enum mappings
+- When adding enum value, add mapping immediately
+- Code review MUST verify completeness
+
+**Example Bug:** `GetUsedRange` missing → "An error occurred invoking 'excel_range'" (not JSON!)
+
+---
+
+## Rule 16: Test Only What You Changed (CRITICAL - PERFORMANCE)
+
+**ALWAYS run tests ONLY for the specific code you modified. Integration tests take a very long time.**
+
+**Wrong:**
+```bash
+# ❌ NEVER: Runs ALL integration tests (10+ minutes)
+dotnet test --filter "Category=Integration&RunType!=OnDemand"
+```
+
+**Correct:**
+```bash
+# ✅ CORRECT: Test only the feature you changed
+dotnet test --filter "Feature=PowerQuery&RunType!=OnDemand"  # PowerQuery changes only
+dotnet test --filter "Feature=Connection&RunType!=OnDemand"  # Connection changes only
+dotnet test --filter "Feature=Sheet&RunType!=OnDemand"       # Sheet changes only
+```
+
+**Why Critical:** Integration tests require Excel COM automation and are SLOW. Running all tests wastes time and resources.
+
+**Enforcement:**
+- Only run tests for files you modified
+- Use Feature trait to target specific test groups
+- Full test suite runs in CI/CD pipeline only
+
+---
+
+## Rule 17: MCP Tools Must Check result.Success Before Serializing (CRITICAL)
+
+**Every MCP tool method that calls Core Commands MUST check `result.Success` before returning JSON.**
+
+```csharp
+// ❌ CRITICAL ERROR: Returns HTTP 200 with error JSON
+private static async Task<string> SomeAction(...)
+{
+    var result = await commands.SomeAsync(batch, param);
+    return JsonSerializer.Serialize(result, JsonOptions); // ❌ No error check!
+}
+
+// ✅ CORRECT: Throws HTTP 500 exception on error
+private static async Task<string> SomeAction(...)
+{
+    var result = await commands.SomeAsync(batch, param);
+    
+    if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+    {
+        throw new ModelContextProtocol.McpException($"action failed for '{param}': {result.ErrorMessage}");
+    }
+    
+    return JsonSerializer.Serialize(result, JsonOptions); // ✅ Only on success!
+}
+```
+
+**Why Critical:**
+- ❌ HTTP 200 + `{success: false}` confuses LLMs (looks like success)
+- ✅ HTTP 500 + exception message is clear error signal
+- MCP protocol expects exceptions for errors, not success responses with error flags
+
+**Enforcement:**
+- Run coverage check: `error checks >= serializations` (should be 100%+)
+- Code review MUST verify error checks before serialization
+- See `MCP-EXCEPTION-HANDLING-FIX-PLAN.md` for complete pattern
+
+**Coverage Check:**
+```powershell
+# From repository root
+$file = "src/ExcelMcp.McpServer/Tools/YourTool.cs"
+$content = Get-Content $file -Raw
+$checks = ([regex]::Matches($content, 'if\s*\(\s*!result\.Success')).Count
+$serializes = ([regex]::Matches($content, 'JsonSerializer\.Serialize\(result')).Count
+Write-Host "Coverage: $checks / $serializes = $([math]::Round(($checks/$serializes)*100,0))%"
+# Must be 100% or higher
+```
+
+**Common Mistake:**
+```csharp
+// ❌ WRONG: Empty success block doesn't prevent error serialization
+if (result.Success)
+{
+    // Empty - useless!
+}
+return JsonSerializer.Serialize(result, JsonOptions); // Still returns on failure!
+```
+
+**Exception: BatchSessionTool**
+- BatchSessionTool creates anonymous success objects directly
+- Throws McpException for validation errors before serialization
+- This pattern is correct for session management (doesn't use Core Command results)
+
+---

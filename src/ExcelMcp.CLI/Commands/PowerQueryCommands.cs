@@ -187,23 +187,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Updated Power Query '[cyan]{queryName}[/]' from [cyan]{mCodeFile}[/]");
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
         // Display suggested next actions
-        if (result.SuggestedNextActions?.Any() == true)
-        {
-            AnsiConsole.MarkupLine("[yellow]Suggested next steps:[/]");
-            foreach (var action in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  [dim]•[/] {action.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 
@@ -287,23 +271,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Imported Power Query '[cyan]{queryName}[/]' from [cyan]{mCodeFile}[/]");
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
         // Display suggested next actions
-        if (result.SuggestedNextActions?.Any() == true)
-        {
-            AnsiConsole.MarkupLine("[yellow]Suggested next steps:[/]");
-            foreach (var action in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  [dim]•[/] {action.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 
@@ -353,22 +321,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Refreshed Power Query '[cyan]{queryName}[/]'");
         }
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
-        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-        {
-            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-            foreach (var suggestion in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 
@@ -469,22 +421,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Deleted Power Query '[cyan]{queryName}[/]'");
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
-        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-        {
-            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-            foreach (var suggestion in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 
@@ -504,7 +440,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         var task = Task.Run(async () =>
         {
             await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.SourcesAsync(batch);
+            return await _coreCommands.ListExcelSourcesAsync(batch);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -546,107 +482,34 @@ public class PowerQueryCommands : IPowerQueryCommands
     }
 
     /// <inheritdoc />
+    [Obsolete("pq-test has been removed. Use table-info or parameter-get instead.")]
     public int Test(string[] args)
     {
-        if (args.Length < 3)
-        {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-test <file.xlsx> <source-name>");
-            return 1;
-        }
-
-        string filePath = args[1];
-        string sourceName = args[2];
-
-        AnsiConsole.MarkupLine($"[bold]Testing source:[/] [cyan]{sourceName}[/]\n");
-
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.TestAsync(batch, sourceName);
-        });
-        var result = task.GetAwaiter().GetResult();
-
-        if (!result.Success)
-        {
-            AnsiConsole.MarkupLine($"[red]✗[/] {result.ErrorMessage?.EscapeMarkup()}");
-            AnsiConsole.MarkupLine($"[yellow]Tip:[/] Use '[cyan]pq-sources[/]' to see all available sources");
-            return 1;
-        }
-
-        AnsiConsole.MarkupLine($"[green]✓[/] Source '[cyan]{sourceName}[/]' exists and can be loaded");
-
-        if (result.ErrorMessage != null)
-        {
-            AnsiConsole.MarkupLine($"\n[yellow]⚠[/] {result.ErrorMessage}");
-        }
-        else
-        {
-            AnsiConsole.MarkupLine($"\n[green]✓[/] Query refreshes successfully");
-        }
-
-        AnsiConsole.MarkupLine($"\n[dim]Power Query M code to use:[/]");
-        string mCode = $"Excel.CurrentWorkbook(){{{{[Name=\"{sourceName}\"]}}}}[Content]";
-        var panel = new Panel(mCode.EscapeMarkup())
-        {
-            Border = BoxBorder.Rounded,
-            BorderStyle = new Style(Color.Grey)
-        };
-        AnsiConsole.Write(panel);
-
-        return 0;
+        AnsiConsole.MarkupLine("[red]Command Removed:[/] pq-test has been deprecated.\n");
+        AnsiConsole.MarkupLine("[yellow]This command was confusing because it tested Excel sources (tables/ranges), not Power Query queries.[/]\n");
+        
+        AnsiConsole.MarkupLine("[bold]Use instead:[/]");
+        AnsiConsole.MarkupLine("  [cyan]table-info[/] file.xlsx TableName          Check if table exists (returns info)");
+        AnsiConsole.MarkupLine("  [cyan]parameter-get[/] file.xlsx RangeName      Check if named range exists (returns value)");
+        AnsiConsole.MarkupLine("  [cyan]pq-sources[/] file.xlsx                   List all available sources\n");
+        
+        AnsiConsole.MarkupLine("[dim]Note: If the operation succeeds, the source exists. If it fails, it doesn't.[/]");
+        return 1;
     }
 
-    /// <inheritdoc />
+    [Obsolete("pq-peek has been removed. Use table-info or parameter-get instead.")]
     public int Peek(string[] args)
     {
-        if (args.Length < 3)
-        {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-peek <file.xlsx> <source-name>");
-            return 1;
-        }
-
-        string filePath = args[1];
-        string sourceName = args[2];
-
-        AnsiConsole.MarkupLine($"[bold]Preview of:[/] [cyan]{sourceName}[/]\n");
-
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.PeekAsync(batch, sourceName);
-        });
-        var result = task.GetAwaiter().GetResult();
-
-        if (!result.Success)
-        {
-            AnsiConsole.MarkupLine($"[red]✗[/] {result.ErrorMessage?.EscapeMarkup()}");
-            AnsiConsole.MarkupLine($"[yellow]Tip:[/] Use '[cyan]pq-sources[/]' to see all available sources");
-            return 1;
-        }
-
-        if (result.Data.Count > 0)
-        {
-            AnsiConsole.MarkupLine($"[green]Named Range Value:[/] {result.Data[0][0]}");
-            AnsiConsole.MarkupLine($"[dim]Type: Single cell or range[/]");
-        }
-        else if (result.ColumnCount > 0)
-        {
-            AnsiConsole.MarkupLine($"[green]Table found:[/]");
-            AnsiConsole.MarkupLine($"  Rows: {result.RowCount}");
-            AnsiConsole.MarkupLine($"  Columns: {result.ColumnCount}");
-
-            if (result.Headers.Count > 0)
-            {
-                string columns = string.Join(", ", result.Headers);
-                if (result.ColumnCount > result.Headers.Count)
-                {
-                    columns += "...";
-                }
-                AnsiConsole.MarkupLine($"  Columns: {columns}");
-            }
-        }
-
-        return 0;
+        AnsiConsole.MarkupLine("[red]Command Removed:[/] pq-peek has been deprecated.\n");
+        AnsiConsole.MarkupLine("[yellow]This command was confusing because it peeked at Excel sources (tables/ranges), not Power Query queries.[/]\n");
+        
+        AnsiConsole.MarkupLine("[bold]Use instead:[/]");
+        AnsiConsole.MarkupLine("  [cyan]table-info[/] file.xlsx TableName          Preview table (includes row/column count, headers)");
+        AnsiConsole.MarkupLine("  [cyan]parameter-get[/] file.xlsx RangeName      Get named range value");
+        AnsiConsole.MarkupLine("  [cyan]pq-view[/] file.xlsx QueryName           View Power Query M code\n");
+        
+        AnsiConsole.MarkupLine("[dim]The new commands are more intuitive: table commands for tables, parameter commands for ranges.[/]");
+        return 1;
     }
 
     /// <inheritdoc />
@@ -724,22 +587,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         }
 
         AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' is now Connection Only");
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
-        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-        {
-            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-            foreach (var suggestion in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 
@@ -774,15 +621,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         {
             AnsiConsole.MarkupLine($"[yellow]Privacy Level Required[/]");
             AnsiConsole.MarkupLine($"[dim]{result.ErrorMessage.EscapeMarkup()}[/]");
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
             return 1;
         }
 
@@ -797,22 +635,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' loaded to worksheet '{sheetName}'");
         AnsiConsole.MarkupLine($"[dim]Rows Loaded: {result.RowsLoaded}[/]");
         AnsiConsole.MarkupLine($"[dim]Workflow Status: {result.WorkflowStatus}[/]");
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
-        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-        {
-            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-            foreach (var suggestion in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 
@@ -846,15 +668,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         {
             AnsiConsole.MarkupLine($"[yellow]Privacy Level Required[/]");
             AnsiConsole.MarkupLine($"[dim]{result.ErrorMessage.EscapeMarkup()}[/]");
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
             return 1;
         }
 
@@ -869,22 +682,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' loaded to Data Model");
         AnsiConsole.MarkupLine($"[dim]Rows Loaded: {result.RowsLoaded}, Tables in Data Model: {result.TablesInDataModel}[/]");
         AnsiConsole.MarkupLine($"[dim]Workflow Status: {result.WorkflowStatus}[/]");
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
-        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-        {
-            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-            foreach (var suggestion in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 
@@ -919,15 +716,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         {
             AnsiConsole.MarkupLine($"[yellow]Privacy Level Required[/]");
             AnsiConsole.MarkupLine($"[dim]{result.ErrorMessage.EscapeMarkup()}[/]");
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
             return 1;
         }
 
@@ -963,22 +751,6 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         AnsiConsole.MarkupLine($"[dim]Total Tables in Data Model: {result.TablesInDataModel}[/]");
         AnsiConsole.MarkupLine($"[dim]Workflow Status: {result.WorkflowStatus}[/]");
-
-        // Display workflow hints if available
-        if (!string.IsNullOrEmpty(result.WorkflowHint))
-        {
-            AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-        }
-
-        if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-        {
-            AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-            foreach (var suggestion in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-            }
-        }
-
         return 0;
     }
 

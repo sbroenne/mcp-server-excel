@@ -22,8 +22,9 @@ public partial class DataModelCommands
             // Check if workbook has Data Model
             if (!HasDataModelTables(ctx.Book))
             {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
+                // Empty Data Model is valid - return empty list (LLM-friendly)
+                result.Success = true;
+                result.Tables = new List<DataModelTableInfo>();
                 return result;
             }
 
@@ -34,20 +35,11 @@ public partial class DataModelCommands
 
                 ForEachTable(model, (Action<dynamic, int>)((table, index) =>
                 {
-                    // Try to get refresh date (may not always be available)
-                    DateTime? refreshDate = null;
-                    try
-                    {
-                        refreshDate = table.RefreshDate;
-                    }
-                    catch { /* RefreshDate not always accessible */ }
-
                     var tableInfo = new DataModelTableInfo
                     {
                         Name = ComInterop.ComUtilities.SafeGetString(table, "Name"),
                         SourceName = ComInterop.ComUtilities.SafeGetString(table, "SourceName"),
-                        RecordCount = ComInterop.ComUtilities.SafeGetInt(table, "RecordCount"),
-                        RefreshDate = refreshDate
+                        RecordCount = ComInterop.ComUtilities.SafeGetInt(table, "RecordCount")
                     };
 
                     result.Tables.Add(tableInfo);
@@ -191,11 +183,6 @@ public partial class DataModelCommands
                             suggestions.Add($"Try measure: {m}");
                             if (suggestions.Count >= 3) break;
                         }
-                    }
-
-                    if (suggestions.Any())
-                    {
-                        result.SuggestedNextActions = suggestions;
                     }
 
                     return result;
@@ -513,13 +500,6 @@ public partial class DataModelCommands
                 // Get table properties
                 result.SourceName = ComInterop.ComUtilities.SafeGetString(table, "SourceName");
                 result.RecordCount = ComInterop.ComUtilities.SafeGetInt(table, "RecordCount");
-
-                // Try to get refresh date (may not always be available)
-                try
-                {
-                    result.RefreshDate = table.RefreshDate;
-                }
-                catch { /* RefreshDate not always accessible */ }
 
                 // Get columns
                 ComInterop.ComUtilities.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>

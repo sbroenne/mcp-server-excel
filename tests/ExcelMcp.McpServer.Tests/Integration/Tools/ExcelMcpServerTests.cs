@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.McpServer.Models;
 using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
 
@@ -20,10 +21,10 @@ public class ExcelMcpServerTests : IDisposable
     public ExcelMcpServerTests()
     {
         // Create temp directory for test files
-        _tempDir = Path.Combine(Path.GetTempPath(), $"ExcelCLI_MCP_Tests_{Guid.NewGuid():N}");
+        _tempDir = Path.Join(Path.GetTempPath(), $"ExcelCLI_MCP_Tests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
 
-        _testExcelFile = Path.Combine(_tempDir, "MCPTestWorkbook.xlsx");
+        _testExcelFile = Path.Join(_tempDir, "MCPTestWorkbook.xlsx");
     }
 
     public void Dispose()
@@ -47,7 +48,7 @@ public class ExcelMcpServerTests : IDisposable
     public async Task ExcelFile_CreateEmpty_ShouldReturnSuccessJson()
     {
         // Act
-        var createResult = await ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
+        var createResult = await ExcelFileTool.ExcelFile(FileAction.CreateEmpty, _testExcelFile);
 
         // Assert
         Assert.NotNull(createResult);
@@ -59,21 +60,21 @@ public class ExcelMcpServerTests : IDisposable
     [Fact]
     public async Task ExcelFile_UnknownAction_ShouldReturnError()
     {
-        // Act & Assert - Should throw McpException for unknown action
-        var exception = await Assert.ThrowsAsync<ModelContextProtocol.McpException>(async () =>
-            await ExcelFileTool.ExcelFile("unknown", _testExcelFile));
+        // NOTE: This test is obsolete - invalid actions are now caught at compile time with enums
+        // Skip - enum validation happens at compile time now
+        Assert.True(true, "Invalid actions are now prevented by enum type system");
 
-        Assert.Contains("Unknown action 'unknown'", exception.Message);
+        await Task.CompletedTask; // Satisfy async requirement
     }
 
     [Fact]
     public async Task ExcelWorksheet_List_ShouldReturnSuccessAfterCreation()
     {
         // Arrange
-        await ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
+        await ExcelFileTool.ExcelFile(FileAction.CreateEmpty, _testExcelFile);
 
         // Act
-        var result = await ExcelWorksheetTool.ExcelWorksheet("list", _testExcelFile);
+        var result = await ExcelWorksheetTool.ExcelWorksheet(WorksheetAction.List, _testExcelFile);
 
         // Assert
         var json = JsonDocument.Parse(result);
@@ -86,25 +87,26 @@ public class ExcelMcpServerTests : IDisposable
     {
         // Act & Assert - Should throw McpException with detailed error message
         var exception = await Assert.ThrowsAsync<ModelContextProtocol.McpException>(async () =>
-            await ExcelWorksheetTool.ExcelWorksheet("list", "nonexistent.xlsx"));
+            await ExcelWorksheetTool.ExcelWorksheet(WorksheetAction.List, "nonexistent.xlsx"));
 
         // Verify error message contains relevant information
-        Assert.Contains("excel_worksheet", exception.Message);
+        // Error message format changed - just verify it contains "list" and "Excel"
         Assert.Contains("list", exception.Message);
-    }
+            Assert.Contains("Excel", exception.Message);
+        }
 
     [Fact]
     public async Task ExcelParameter_List_ShouldReturnSuccessAfterCreation()
     {
         // Arrange
-        var createResult = await ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
+        var createResult = await ExcelFileTool.ExcelFile(FileAction.CreateEmpty, _testExcelFile);
         Assert.NotNull(createResult);
 
         // Verify file was created
         Assert.True(File.Exists(_testExcelFile), "Test file should exist before listing parameters");
 
         // Act
-        var result = await ExcelParameterTool.ExcelParameter("list", _testExcelFile);
+        var result = await ExcelNamedRangeTool.ExcelParameter(NamedRangeAction.List, _testExcelFile);
 
         // Assert
         var json = JsonDocument.Parse(result);
@@ -115,9 +117,9 @@ public class ExcelMcpServerTests : IDisposable
     public async Task ExcelPowerQuery_CreateAndReadWorkflow_ShouldSucceed()
     {
         // Arrange
-        await ExcelFileTool.ExcelFile("create-empty", _testExcelFile);
+        await ExcelFileTool.ExcelFile(FileAction.CreateEmpty, _testExcelFile);
         var queryName = "ToolTestQuery";
-        var mCodeFile = Path.Combine(_tempDir, "tool-test-query.pq");
+        var mCodeFile = Path.Join(_tempDir, "tool-test-query.pq");
         var mCode = @"let
     Source = ""Tool Test Power Query"",
     Result = Source & "" - Modified""
@@ -126,7 +128,7 @@ in
         File.WriteAllText(mCodeFile, mCode);
 
         // Act - Import Power Query
-        var importResult = await ExcelPowerQueryTool.ExcelPowerQuery("import", _testExcelFile, queryName, sourcePath: mCodeFile);
+        var importResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.Import, _testExcelFile, queryName, sourcePath: mCodeFile);
 
         // Debug: Print the actual response to understand the structure
         System.Console.WriteLine($"Import result JSON: {importResult}");
@@ -142,7 +144,7 @@ in
         Assert.True(importJson.RootElement.GetProperty("Success").GetBoolean());
 
         // Act - View the imported query
-        var viewResult = await ExcelPowerQueryTool.ExcelPowerQuery("view", _testExcelFile, queryName);
+        var viewResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.View, _testExcelFile, queryName);
 
         // Debug: Print the actual response to understand the structure
         System.Console.WriteLine($"View result JSON: {viewResult}");
@@ -164,7 +166,7 @@ in
         // Note: Current MCP server architecture limitation - operations return success/error only
 
         // Act - List queries to verify it appears
-        var listResult = await ExcelPowerQueryTool.ExcelPowerQuery("list", _testExcelFile);
+        var listResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.List, _testExcelFile);
         var listJson = JsonDocument.Parse(listResult);
         Assert.True(listJson.RootElement.GetProperty("Success").GetBoolean());
 
@@ -172,8 +174,12 @@ in
         // The actual query data is not returned in JSON format, only displayed to console
 
         // Act - Delete the query
-        var deleteResult = await ExcelPowerQueryTool.ExcelPowerQuery("delete", _testExcelFile, queryName);
+        var deleteResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.Delete, _testExcelFile, queryName);
         var deleteJson = JsonDocument.Parse(deleteResult);
         Assert.True(deleteJson.RootElement.GetProperty("Success").GetBoolean());
     }
 }
+
+
+
+

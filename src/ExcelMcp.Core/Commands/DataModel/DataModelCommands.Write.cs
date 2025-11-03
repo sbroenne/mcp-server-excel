@@ -55,11 +55,6 @@ public partial class DataModelCommands
                         }
                     }
 
-                    if (suggestions.Any())
-                    {
-                        result.SuggestedNextActions = suggestions;
-                    }
-
                     return result;
                 }
 
@@ -67,13 +62,6 @@ public partial class DataModelCommands
                 measure.Delete();
 
                 result.Success = true;
-                result.SuggestedNextActions =
-                [
-                    $"Measure '{measureName}' deleted successfully",
-                    "Use 'model-list-measures' to verify deletion",
-                    "Changes saved to workbook"
-                ];
-                result.WorkflowHint = "Measure deleted. Next, verify remaining measures or create new ones.";
             }
             catch (Exception ex)
             {
@@ -171,23 +159,10 @@ public partial class DataModelCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = DataModelErrorMessages.RelationshipNotFound(fromTable, fromColumn, toTable, toColumn);
-                    result.SuggestedNextActions =
-                    [
-                        "Use 'model-list-relationships' to see available relationships",
-                        "Check table and column names for typos",
-                        "Verify the relationship exists in the Data Model"
-                    ];
                     return result;
                 }
 
                 result.Success = true;
-                result.SuggestedNextActions =
-                [
-                    $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} deleted successfully",
-                    "Use 'model-list-relationships' to verify deletion",
-                    "Changes saved to workbook"
-                ];
-                result.WorkflowHint = "Relationship deleted. Next, verify remaining relationships or create new ones.";
             }
             catch (Exception ex)
             {
@@ -251,12 +226,6 @@ public partial class DataModelCommands
                     ComUtilities.Release(ref existingMeasure);
                     result.Success = false;
                     result.ErrorMessage = $"Measure '{measureName}' already exists in the Data Model";
-                    result.SuggestedNextActions =
-                    [
-                        "Use 'model-update-measure' to modify existing measure",
-                        "Choose a different measure name",
-                        "Delete the existing measure first"
-                    ];
                     return result;
                 }
 
@@ -264,31 +233,23 @@ public partial class DataModelCommands
                 // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
                 measures = model.ModelMeasures;
 
-                // Get format object if specified
-                if (!string.IsNullOrEmpty(formatType))
-                {
-                    formatObject = GetFormatObject(model, formatType);
-                }
+                // Get format object - ALWAYS returns a valid format object (never null)
+                // Fixed: Always provide format object to avoid failures on reopened Data Model files
+                formatObject = GetFormatObject(model, formatType);
 
                 // Create the measure using Excel COM API (Office 2016+)
                 // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.modelmeasures.add
+                // FIXED: FormatInformation is REQUIRED (not optional as docs state)
+                // See: docs/KNOWN-ISSUES.md for details
                 newMeasure = measures.Add(
-                    MeasureName: measureName,
-                    AssociatedTable: table,
-                    Formula: daxFormula,
-                    FormatInformation: formatObject,
-                    Description: description ?? ""
+                    measureName,                                        // MeasureName (required)
+                    table,                                              // AssociatedTable (required)
+                    daxFormula,                                         // Formula (required) - must be valid DAX
+                    formatObject,                                       // FormatInformation (required) - NEVER null/Type.Missing
+                    string.IsNullOrEmpty(description) ? Type.Missing : description  // Description (optional)
                 );
 
                 result.Success = true;
-                result.SuggestedNextActions =
-                [
-                    $"Measure '{measureName}' created successfully in table '{tableName}'",
-                    "Use 'model-view-measure' to verify the measure",
-                    "Use 'model-list-measures' to see all measures",
-                    "Changes saved to workbook"
-                ];
-                result.WorkflowHint = "Measure created. Next, test the measure in a PivotTable or verify its formula.";
             }
             catch (Exception ex)
             {
@@ -297,7 +258,8 @@ public partial class DataModelCommands
             }
             finally
             {
-                ComUtilities.Release(ref formatObject);
+                // Note: formatObject is a property reference from the model (not a new object)
+                // Do NOT release formatObject - it's owned by the model
                 ComUtilities.Release(ref newMeasure);
                 ComUtilities.Release(ref measures);
                 ComUtilities.Release(ref table);
@@ -382,13 +344,6 @@ public partial class DataModelCommands
                 }
 
                 result.Success = true;
-                result.SuggestedNextActions =
-                [
-                    $"Measure '{measureName}' updated: {string.Join(", ", updates)}",
-                    "Use 'model-view-measure' to verify changes",
-                    "Changes saved to workbook"
-                ];
-                result.WorkflowHint = "Measure updated. Next, test the changes in a PivotTable or verify the formula.";
             }
             catch (Exception ex)
             {
@@ -397,7 +352,8 @@ public partial class DataModelCommands
             }
             finally
             {
-                ComUtilities.Release(ref formatObject);
+                // Note: formatObject is a property reference from the model (not a new object)
+                // Do NOT release formatObject - it's owned by the model
                 ComUtilities.Release(ref measure);
                 ComUtilities.Release(ref model);
             }
@@ -479,11 +435,6 @@ public partial class DataModelCommands
                     ComUtilities.Release(ref existingRel);
                     result.Success = false;
                     result.ErrorMessage = $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} already exists";
-                    result.SuggestedNextActions =
-                    [
-                        "Use 'model-update-relationship' to modify relationship",
-                        "Use 'model-list-relationships' to view all relationships"
-                    ];
                     return result;
                 }
 
@@ -500,13 +451,6 @@ public partial class DataModelCommands
                 newRelationship.Active = active;
 
                 result.Success = true;
-                result.SuggestedNextActions =
-                [
-                    $"Relationship created: {fromTable}.{fromColumn} → {toTable}.{toColumn} ({(active ? "Active" : "Inactive")})",
-                    "Use 'model-list-relationships' to verify the relationship",
-                    "Changes saved to workbook"
-                ];
-                result.WorkflowHint = "Relationship created. Next, test DAX calculations that use this relationship.";
             }
             catch (Exception ex)
             {
@@ -561,11 +505,6 @@ public partial class DataModelCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = DataModelErrorMessages.RelationshipNotFound(fromTable, fromColumn, toTable, toColumn);
-                    result.SuggestedNextActions =
-                    [
-                        "Use 'model-list-relationships' to see available relationships",
-                        "Check table and column names for typos"
-                    ];
                     return result;
                 }
 
@@ -581,13 +520,6 @@ public partial class DataModelCommands
                     : $"changed from {(wasActive ? "active" : "inactive")} to {(active ? "active" : "inactive")}";
 
                 result.Success = true;
-                result.SuggestedNextActions =
-                [
-                    $"Relationship {fromTable}.{fromColumn} → {toTable}.{toColumn} {stateChange}",
-                    "Use 'model-list-relationships' to verify the change",
-                    "Changes saved to workbook"
-                ];
-                result.WorkflowHint = "Relationship updated. Next, verify DAX calculations that use this relationship.";
             }
             catch (Exception ex)
             {

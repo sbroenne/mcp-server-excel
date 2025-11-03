@@ -83,22 +83,6 @@ public class SheetCommands : ISheetCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Created worksheet '{sheetName.EscapeMarkup()}'");
-
-            // Display workflow hints if available
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-
             return 0;
         }
         else
@@ -141,22 +125,6 @@ public class SheetCommands : ISheetCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Renamed '{oldName.EscapeMarkup()}' to '{newName.EscapeMarkup()}'");
-
-            // Display workflow hints if available
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-
             return 0;
         }
         else
@@ -199,22 +167,6 @@ public class SheetCommands : ISheetCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Copied '{sourceName.EscapeMarkup()}' to '{targetName.EscapeMarkup()}'");
-
-            // Display workflow hints if available
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
-            {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
-
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
-            {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
-
             return 0;
         }
         else
@@ -256,22 +208,367 @@ public class SheetCommands : ISheetCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Deleted worksheet '{sheetName.EscapeMarkup()}'");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
 
-            // Display workflow hints if available
-            if (!string.IsNullOrEmpty(result.WorkflowHint))
+    // === TAB COLOR COMMANDS ===
+
+    public int SetTabColor(string[] args)
+    {
+        if (args.Length < 6)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] sheet-set-tab-color <file.xlsx> <sheet-name> <red> <green> <blue>");
+            AnsiConsole.MarkupLine("[dim]RGB values: 0-255[/]");
+            return 1;
+        }
+
+        var filePath = args[1];
+        var sheetName = args[2];
+        
+        if (!int.TryParse(args[3], out int red) || !int.TryParse(args[4], out int green) || !int.TryParse(args[5], out int blue))
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] RGB values must be integers (0-255)");
+            return 1;
+        }
+
+        OperationResult result;
+        try
+        {
+            var task = Task.Run(async () =>
             {
-                AnsiConsole.MarkupLine($"[dim]{result.WorkflowHint.EscapeMarkup()}[/]");
-            }
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                var setResult = await _coreCommands.SetTabColorAsync(batch, sheetName, red, green, blue);
+                await batch.SaveAsync();
+                return setResult;
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
-            if (result.SuggestedNextActions != null && result.SuggestedNextActions.Any())
+        if (result.Success)
+        {
+            var hexColor = $"#{red:X2}{green:X2}{blue:X2}";
+            AnsiConsole.MarkupLine($"[green]✓[/] Set tab color for '{sheetName.EscapeMarkup()}' to {hexColor} (RGB: {red}, {green}, {blue})");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int GetTabColor(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] sheet-get-tab-color <file.xlsx> <sheet-name>");
+            return 1;
+        }
+
+        var filePath = args[1];
+        var sheetName = args[2];
+
+        TabColorResult result;
+        try
+        {
+            var task = Task.Run(async () =>
             {
-                AnsiConsole.MarkupLine("\n[bold]Suggested Next Actions:[/]");
-                foreach (var suggestion in result.SuggestedNextActions)
-                {
-                    AnsiConsole.MarkupLine($"  • {suggestion.EscapeMarkup()}");
-                }
-            }
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                return await _coreCommands.GetTabColorAsync(batch, sheetName);
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
 
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[bold]Sheet:[/] {sheetName.EscapeMarkup()}");
+            
+            if (result.HasColor)
+            {
+                AnsiConsole.MarkupLine($"[bold]Color:[/] {result.HexColor} (Red: {result.Red}, Green: {result.Green}, Blue: {result.Blue})");
+            }
+            else
+            {
+                AnsiConsole.MarkupLine("[dim]No custom tab color set (using default)[/]");
+            }
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int ClearTabColor(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] sheet-clear-tab-color <file.xlsx> <sheet-name>");
+            return 1;
+        }
+
+        var filePath = args[1];
+        var sheetName = args[2];
+
+        OperationResult result;
+        try
+        {
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                var clearResult = await _coreCommands.ClearTabColorAsync(batch, sheetName);
+                await batch.SaveAsync();
+                return clearResult;
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Cleared tab color for '{sheetName.EscapeMarkup()}'");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    // === VISIBILITY COMMANDS ===
+
+    public int SetVisibility(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] sheet-set-visibility <file.xlsx> <sheet-name> <visible|hidden|veryhidden>");
+            return 1;
+        }
+
+        var filePath = args[1];
+        var sheetName = args[2];
+        var visibilityStr = args[3].ToLowerInvariant();
+
+        SheetVisibility visibility = visibilityStr switch
+        {
+            "visible" => SheetVisibility.Visible,
+            "hidden" => SheetVisibility.Hidden,
+            "veryhidden" => SheetVisibility.VeryHidden,
+            _ => (SheetVisibility)(-999) // Invalid value
+        };
+
+        if ((int)visibility == -999)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Visibility must be 'visible', 'hidden', or 'veryhidden'");
+            return 1;
+        }
+
+        OperationResult result;
+        try
+        {
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                var setResult = await _coreCommands.SetVisibilityAsync(batch, sheetName, visibility);
+                await batch.SaveAsync();
+                return setResult;
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Set visibility for '{sheetName.EscapeMarkup()}' to {visibilityStr}");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int GetVisibility(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] sheet-get-visibility <file.xlsx> <sheet-name>");
+            return 1;
+        }
+
+        var filePath = args[1];
+        var sheetName = args[2];
+
+        SheetVisibilityResult result;
+        try
+        {
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                return await _coreCommands.GetVisibilityAsync(batch, sheetName);
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[bold]Sheet:[/] {sheetName.EscapeMarkup()}");
+            AnsiConsole.MarkupLine($"[bold]Visibility:[/] {result.VisibilityName}");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int Show(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] sheet-show <file.xlsx> <sheet-name>");
+            return 1;
+        }
+
+        var filePath = args[1];
+        var sheetName = args[2];
+
+        OperationResult result;
+        try
+        {
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                var showResult = await _coreCommands.ShowAsync(batch, sheetName);
+                await batch.SaveAsync();
+                return showResult;
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] '{sheetName.EscapeMarkup()}' is now visible");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int Hide(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] sheet-hide <file.xlsx> <sheet-name>");
+            return 1;
+        }
+
+        var filePath = args[1];
+        var sheetName = args[2];
+
+        OperationResult result;
+        try
+        {
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                var hideResult = await _coreCommands.HideAsync(batch, sheetName);
+                await batch.SaveAsync();
+                return hideResult;
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] '{sheetName.EscapeMarkup()}' is now hidden (user can unhide via Excel UI)");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int VeryHide(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] sheet-very-hide <file.xlsx> <sheet-name>");
+            return 1;
+        }
+
+        var filePath = args[1];
+        var sheetName = args[2];
+
+        OperationResult result;
+        try
+        {
+            var task = Task.Run(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+                var veryHideResult = await _coreCommands.VeryHideAsync(batch, sheetName);
+                await batch.SaveAsync();
+                return veryHideResult;
+            });
+            result = task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] '{sheetName.EscapeMarkup()}' is now very hidden (requires code to unhide)");
             return 0;
         }
         else

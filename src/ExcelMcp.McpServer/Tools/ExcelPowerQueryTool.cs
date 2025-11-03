@@ -4,6 +4,7 @@ using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -14,16 +15,21 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// LLM Usage Patterns:
 /// - Use "list" to see all Power Queries in a workbook
 /// - Use "view" to examine M code for a specific query
-/// - Use "import" to add new queries from .pq files (DEFAULT: auto-loads to worksheet for validation)
+/// - Use "import" to add new queries from .pq files (use loadDestination parameter: worksheet|data-model|both|connection-only)
 /// - Use "export" to save M code to files for version control
 /// - Use "update" to modify existing query M code (preserves existing load configuration)
-/// - Use "refresh" to refresh query data from source
+/// - Use "refresh" to refresh query data from source (optionally specify loadDestination to apply load config while refreshing)
 /// - Use "delete" to remove queries
 /// - Use "set-load-to-table" to load query data to worksheet (visible to users, NOT in Data Model)
 /// - Use "set-load-to-data-model" to load to Excel's Power Pivot Data Model (ready for DAX measures)
 /// - Use "set-load-to-both" to load to BOTH worksheet AND Power Pivot Data Model
 /// - Use "set-connection-only" to prevent data loading (M code not validated)
 /// - Use "get-load-config" to check current loading configuration
+///
+/// REFRESH WITH LOAD DESTINATION (NEW):
+/// - Refresh connection-only query AND apply load config in one call: refresh(loadDestination: 'worksheet')
+/// - Eliminates need for two calls: set-load-to-table + refresh
+/// - Example: excel_powerquery(action: 'refresh', queryName: 'Sales', loadDestination: 'data-model')
 ///
 /// IMPORTANT FOR DATA MODEL WORKFLOWS:
 /// - "set-load-to-table" loads data to WORKSHEET ONLY (users see formatted table, but NOT in Power Pivot)
@@ -52,19 +58,16 @@ public static class ExcelPowerQueryTool
   3. commit_excel_batch(batchId: batch.batchId, save: true)
 
 PRIMARY ACTIONS:
-- import: Add Power Query from .pq file (use loadDestination parameter for data model workflows)
-- set-load-to-data-model: Load query data to Power Pivot Data Model (ready for DAX measures)
-- set-load-to-table: Load query data to worksheet (visible to users, NOT in data model)
-- set-load-to-both: Load to BOTH worksheet AND data model
-
-All actions: list, view, import, export, update, refresh, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config.
+- Import: Add Power Query from .pq file (use loadDestination parameter for data model workflows)
+- SetLoadToDataModel: Load query data to Power Pivot Data Model (ready for DAX measures)
+- SetLoadToTable: Load query data to worksheet (visible to users, NOT in data model)
+- SetLoadToBoth: Load to BOTH worksheet AND data model
 
 After loading to Data Model, use excel_datamodel tool for DAX measures and relationships.")]
     public static async Task<string> ExcelPowerQuery(
         [Required]
-        [RegularExpression("^(list|view|import|export|update|refresh|delete|set-load-to-table|set-load-to-data-model|set-load-to-both|set-connection-only|get-load-config)$")]
-        [Description("Action: list, view, import, export, update, refresh, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config")]
-        string action,
+        [Description("Action to perform (enum values displayed as dropdown in MCP clients)")]
+        PowerQueryAction action,
 
         [Required]
         [FileExtensions(Extensions = "xlsx,xlsm")]
@@ -89,12 +92,12 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
         string? targetSheet = null,
 
         [RegularExpression("^(worksheet|data-model|both|connection-only)$")]
-        [Description(@"Load destination for imported query (for import action only). Options:
+        [Description(@"Load destination for query (for import/refresh actions). Options:
   - 'worksheet': Load to worksheet as table (DEFAULT - users can see/validate data)
   - 'data-model': Load to Power Pivot Data Model (for DAX measures/relationships)
   - 'both': Load to both worksheet AND Data Model
   - 'connection-only': Don't load data (M code imported but not executed)
-Default: 'worksheet'")]
+For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is connection-only.")]
         string? loadDestination = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
@@ -105,24 +108,27 @@ Default: 'worksheet'")]
             // Create commands
             var dataModelCommands = new DataModelCommands();
             var powerQueryCommands = new PowerQueryCommands(dataModelCommands);
-            var parameterCommands = new ParameterCommands();
 
-            return action.ToLowerInvariant() switch
+            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+            return action switch
             {
-                "list" => await ListPowerQueriesAsync(powerQueryCommands, excelPath, batchId),
-                "view" => await ViewPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
-                "import" => await ImportPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, batchId),
-                "export" => await ExportPowerQueryAsync(powerQueryCommands, excelPath, queryName, targetPath, batchId),
-                "update" => await UpdatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, batchId),
-                "refresh" => await RefreshPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
-                "delete" => await DeletePowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
-                "set-load-to-table" => await SetLoadToTableAsync(powerQueryCommands, excelPath, queryName, targetSheet, batchId),
-                "set-load-to-data-model" => await SetLoadToDataModelAsync(powerQueryCommands, excelPath, queryName, batchId),
-                "set-load-to-both" => await SetLoadToBothAsync(powerQueryCommands, excelPath, queryName, targetSheet, batchId),
-                "set-connection-only" => await SetConnectionOnlyAsync(powerQueryCommands, excelPath, queryName, batchId),
-                "get-load-config" => await GetLoadConfigAsync(powerQueryCommands, excelPath, queryName, batchId),
-                _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action '{action}'. Supported: list, view, import, export, update, refresh, delete, set-load-to-table, set-load-to-data-model, set-load-to-both, set-connection-only, get-load-config")
+                PowerQueryAction.List => await ListPowerQueriesAsync(powerQueryCommands, excelPath, batchId),
+                PowerQueryAction.View => await ViewPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
+                PowerQueryAction.Import => await ImportPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, batchId),
+                PowerQueryAction.Export => await ExportPowerQueryAsync(powerQueryCommands, excelPath, queryName, targetPath, batchId),
+                PowerQueryAction.Update => await UpdatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, batchId),
+                PowerQueryAction.Refresh => await RefreshPowerQueryAsync(powerQueryCommands, excelPath, queryName, loadDestination, targetSheet, batchId),
+                PowerQueryAction.Delete => await DeletePowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
+                PowerQueryAction.SetLoadToTable => await SetLoadToTableAsync(powerQueryCommands, excelPath, queryName, targetSheet, batchId),
+                PowerQueryAction.SetLoadToDataModel => await SetLoadToDataModelAsync(powerQueryCommands, excelPath, queryName, batchId),
+                PowerQueryAction.SetLoadToBoth => await SetLoadToBothAsync(powerQueryCommands, excelPath, queryName, targetSheet, batchId),
+                PowerQueryAction.SetConnectionOnly => await SetConnectionOnlyAsync(powerQueryCommands, excelPath, queryName, batchId),
+                PowerQueryAction.GetLoadConfig => await GetLoadConfigAsync(powerQueryCommands, excelPath, queryName, batchId),
+                PowerQueryAction.Errors => await ErrorsPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
+                PowerQueryAction.LoadTo => await LoadToPowerQueryAsync(powerQueryCommands, excelPath, queryName, targetSheet, batchId),
+                PowerQueryAction.ListExcelSources => await ListExcelSourcesAsync(powerQueryCommands, excelPath, batchId),
+                PowerQueryAction.Eval => await EvalPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, batchId),
+                _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
             };
         }
         catch (ModelContextProtocol.McpException)
@@ -131,7 +137,7 @@ Default: 'worksheet'")]
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action, excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
             throw; // Unreachable but satisfies compiler
         }
     }
@@ -145,24 +151,10 @@ Default: 'worksheet'")]
             async (batch) => await commands.ListAsync(batch));
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the Excel file exists and is accessible",
-                "Verify the file path and try again"
-            ];
-            result.WorkflowHint = "List failed. Ensure the file exists and retry.";
+
             throw new ModelContextProtocol.McpException($"list failed for '{excelPath}': {result.ErrorMessage}");
         }
-        else
-        {
-            result.SuggestedNextActions =
-            [
-                "Use 'view' to inspect a query's M code",
-                "Use 'import' to add a new Power Query",
-                "Use 'delete' to remove a query"
-            ];
-            result.WorkflowHint = "Power Queries listed. Next, view, import, or delete queries as needed.";
-        }
+
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -176,26 +168,12 @@ Default: 'worksheet'")]
             excelPath,
             save: false,
             async (batch) => await commands.ViewAsync(batch, queryName));
+        
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the query name is correct",
-                "Use 'list' to see available queries"
-            ];
-            result.WorkflowHint = "View failed. Ensure the query exists and retry.";
             throw new ModelContextProtocol.McpException($"view failed for '{excelPath}': {result.ErrorMessage}");
         }
-        else
-        {
-            result.SuggestedNextActions =
-            [
-                "Use 'update' to modify the query's M code",
-                "Use 'get-load-config' to check if query is loaded anywhere",
-                "Use 'set-load-to-table' to load data to worksheet"
-            ];
-            result.WorkflowHint = "Query M code viewed. Check load config or load to destination.";
-        }
+
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -222,16 +200,13 @@ Default: 'worksheet'")]
             // Enhance guidance for batch mode (Core doesn't know about batch mode)
             bool isConnectionOnly = destination.ToLowerInvariant() == "connection-only";
 
-            result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterImport(
-                isConnectionOnly: isConnectionOnly,
-                hasErrors: false,
-                usedBatchMode: usedBatchMode);
-
-            result.WorkflowHint = isConnectionOnly
-                ? "Query imported as connection-only in batch mode. Use set-load-to-table to load data or continue adding operations."
-                : $"Query imported and loaded to {destination} in batch mode. Continue adding operations to this batch.";
         }
         // Otherwise, Core's guidance is already correct (for both success and failure cases) - don't overwrite it!
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"import failed for '{queryName}': {result.ErrorMessage}");
+        }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -246,25 +221,12 @@ Default: 'worksheet'")]
             excelPath,
             save: false,
             async (batch) => await commands.ExportAsync(batch, queryName, targetPath));
-        if (result.Success)
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Edit the exported M code file as needed",
-                "Use 'update' to re-import modified code",
-                "Use 'get-load-config' to check current load configuration"
-            ];
-            result.WorkflowHint = "Query exported. Edit file, then use 'update' to apply changes.";
+            throw new ModelContextProtocol.McpException($"export failed for '{queryName}' to '{targetPath}': {result.ErrorMessage}");
         }
-        else
-        {
-            result.SuggestedNextActions =
-            [
-                "Check that the target path is valid and writable",
-                "Verify the query name and try again"
-            ];
-            result.WorkflowHint = "Export failed. Ensure the path and query are correct.";
-        }
+
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -280,62 +242,96 @@ Default: 'worksheet'")]
             save: true,
             async (batch) => await commands.UpdateAsync(batch, queryName, sourcePath));
 
-        // Use workflow guidance with batch mode awareness
-        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
-
-        if (result.Success)
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterUpdate(
-                configPreserved: true,
-                hasErrors: false,
-                usedBatchMode: usedBatchMode);
+            throw new ModelContextProtocol.McpException($"update failed for '{queryName}': {result.ErrorMessage}");
+        }
 
-            result.WorkflowHint = usedBatchMode
-                ? "Query updated in batch mode. Configuration preserved. Continue with more operations."
-                : "Query updated successfully. Configuration preserved. For multiple updates, use begin_excel_batch.";
-        }
-        else
-        {
-            result.SuggestedNextActions =
-            [
-                "Check that the source M code file exists and is accessible",
-                "Verify the query name and try again"
-            ];
-            result.WorkflowHint = "Update failed. Ensure the file and query are correct.";
-        }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RefreshPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
+    private static async Task<string> RefreshPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? loadDestination, string? targetSheet, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for refresh action");
+
+        // If loadDestination is specified, apply load configuration first
+        if (!string.IsNullOrEmpty(loadDestination))
+        {
+            var destination = loadDestination.ToLowerInvariant();
+            OperationResult? loadResult = null;
+
+            // Apply load configuration before refresh
+            switch (destination)
+            {
+                case "worksheet":
+                    string sheet = targetSheet ?? queryName;
+                    loadResult = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: true,
+                        async (batch) => await commands.SetLoadToTableAsync(batch, queryName, sheet));
+                    break;
+
+                case "data-model":
+                    var dmResult = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: true,
+                        async (batch) => await commands.SetLoadToDataModelAsync(batch, queryName));
+                    loadResult = new OperationResult
+                    {
+                        Success = dmResult.Success,
+                        ErrorMessage = dmResult.ErrorMessage,
+                        FilePath = dmResult.FilePath
+                    };
+                    break;
+
+                case "both":
+                    string sheetBoth = targetSheet ?? queryName;
+                    var bothResult = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: true,
+                        async (batch) => await commands.SetLoadToBothAsync(batch, queryName, sheetBoth));
+                    loadResult = new OperationResult
+                    {
+                        Success = bothResult.Success,
+                        ErrorMessage = bothResult.ErrorMessage,
+                        FilePath = bothResult.FilePath
+                    };
+                    break;
+
+                case "connection-only":
+                    loadResult = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: true,
+                        async (batch) => await commands.SetConnectionOnlyAsync(batch, queryName));
+                    break;
+            }
+
+            // If load configuration failed, throw exception
+            if (loadResult != null && !loadResult.Success)
+            {
+                throw new ModelContextProtocol.McpException($"Failed to apply load configuration '{destination}' for query '{queryName}' in '{excelPath}': {loadResult.ErrorMessage}");
+            }
+
+            // Load configuration applied successfully, now the refresh will use it
+            // Continue to refresh below (SetLoadToTable/DataModel already refreshes, but we'll ensure it's fresh)
+        }
 
         var result = await ExcelToolsBase.WithBatchAsync(
             batchId,
             excelPath,
             save: true,
             async (batch) => await commands.RefreshAsync(batch, queryName));
-        if (result.Success)
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Use 'view' to inspect the query M code",
-                "Use worksheet 'read' to verify loaded data",
-                "Use 'get-load-config' to check load settings"
-            ];
-            result.WorkflowHint = "Query refreshed successfully. Next, view code or verify data.";
+            throw new ModelContextProtocol.McpException($"refresh failed for '{queryName}': {result.ErrorMessage}");
         }
-        else
-        {
-            result.SuggestedNextActions =
-            [
-                "Check the query M code for errors using 'view'",
-                "Verify data source connectivity",
-                "Review privacy level settings if needed"
-            ];
-            result.WorkflowHint = "Refresh failed. Check query code and data source.";
-        }
+
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -349,26 +345,12 @@ Default: 'worksheet'")]
             excelPath,
             save: true,
             async (batch) => await commands.DeleteAsync(batch, queryName));
-        if (result.Success)
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Use 'list' to verify query was removed",
-                "Use 'import' to add a new query",
-                "Review remaining queries with 'list'"
-            ];
-            result.WorkflowHint = "Query deleted successfully. Next, verify with list.";
+            throw new ModelContextProtocol.McpException($"delete failed for '{queryName}': {result.ErrorMessage}");
         }
-        else
-        {
-            result.SuggestedNextActions =
-            [
-                "Check that the query name is correct",
-                "Use 'list' to see available queries",
-                "Verify the file is not read-only"
-            ];
-            result.WorkflowHint = "Delete failed. Ensure the query exists and file is writable.";
-        }
+
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -383,28 +365,9 @@ Default: 'worksheet'")]
             save: true,
             async (batch) => await commands.SetLoadToTableAsync(batch, queryName, targetSheet ?? ""));
 
-        // Use workflow guidance with batch mode awareness
-        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
-
-        if (result.Success)
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterLoadConfig(
-                loadMode: "LoadToTable",
-                usedBatchMode: usedBatchMode);
-
-            result.WorkflowHint = usedBatchMode
-                ? "Load-to-table configured in batch mode. Continue configuring other queries."
-                : "Load-to-table configured. For configuring multiple queries, use begin_excel_batch.";
-        }
-        else
-        {
-            result.SuggestedNextActions =
-            [
-                "Check that the query exists using 'list'",
-                "Verify the target sheet name is correct",
-                "Review privacy level settings if needed"
-            ];
-            result.WorkflowHint = "Set-load-to-table failed. Check query and sheet names.";
+            throw new ModelContextProtocol.McpException($"set-load-to-table failed for '{queryName}': {result.ErrorMessage}");
         }
 
         // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
@@ -422,28 +385,9 @@ Default: 'worksheet'")]
             save: true,
             async (batch) => await commands.SetLoadToDataModelAsync(batch, queryName));
 
-        // Use workflow guidance with batch mode awareness
-        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
-
-        if (result.Success)
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions = PowerQueryWorkflowGuidance.GetNextStepsAfterLoadConfig(
-                loadMode: "LoadToDataModel",
-                usedBatchMode: usedBatchMode);
-
-            result.WorkflowHint = usedBatchMode
-                ? "Load-to-data-model configured in batch mode. Continue configuring other queries."
-                : "Load-to-data-model configured. For configuring multiple queries, use begin_excel_batch.";
-        }
-        else
-        {
-            result.SuggestedNextActions =
-            [
-                "Check that the query exists using 'list'",
-                "Review query M code for errors using 'view'",
-                "Verify query data loads successfully with 'refresh'"
-            ];
-            result.WorkflowHint = "Set-load-to-data-model failed. Check query exists and has valid M code.";
+            throw new ModelContextProtocol.McpException($"set-load-to-data-model failed for '{queryName}': {result.ErrorMessage}");
         }
 
         // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
@@ -460,6 +404,11 @@ Default: 'worksheet'")]
             excelPath,
             save: true,
             async (batch) => await commands.SetLoadToBothAsync(batch, queryName, targetSheet ?? ""));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-load-to-both failed for '{queryName}': {result.ErrorMessage}");
+        }
 
         // Result now includes dual atomic operation verification metrics:
         // RowsLoadedToTable, RowsLoadedToModel, TablesInDataModel, WorkflowStatus (Complete/Partial/Failed)
@@ -481,25 +430,12 @@ Default: 'worksheet'")]
             excelPath,
             save: true,
             async (batch) => await commands.SetConnectionOnlyAsync(batch, queryName));
-        if (result.Success)
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Use 'get-load-config' to confirm connection-only setting",
-                "Use 'set-load-to-table' to load data to worksheet later",
-                "Use 'view' to inspect the query M code"
-            ];
-            result.WorkflowHint = "Connection-only configured. Query will not load data automatically.";
+            throw new ModelContextProtocol.McpException($"set-connection-only failed for '{queryName}': {result.ErrorMessage}");
         }
-        else
-        {
-            result.SuggestedNextActions =
-            [
-                "Check that the query exists using 'list'",
-                "Verify the file is not read-only"
-            ];
-            result.WorkflowHint = "Set-connection-only failed. Ensure the query exists.";
-        }
+
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -513,24 +449,88 @@ Default: 'worksheet'")]
             excelPath,
             save: false,
             async (batch) => await commands.GetLoadConfigAsync(batch, queryName));
-        if (result.Success)
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Use 'set-load-to-table' or 'set-load-to-data-model' to change load destination",
-                "Use 'refresh' to update data (only works if loaded to table/model)",
-                "Use 'view' to inspect the query M code"
-            ];
-            result.WorkflowHint = "Load configuration retrieved. Modify settings or refresh if already loaded.";
+            throw new ModelContextProtocol.McpException($"get-load-config failed for '{queryName}': {result.ErrorMessage}");
         }
-        else
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> ErrorsPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
+    {
+        if (string.IsNullOrEmpty(queryName))
+            throw new ModelContextProtocol.McpException("queryName is required for errors action");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: false,
+            async (batch) => await commands.ErrorsAsync(batch, queryName));
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-            result.SuggestedNextActions =
-            [
-                "Check that the query exists using 'list'",
-                "Verify the query name is correct"
-            ];
-            result.WorkflowHint = "Get-load-config failed. Ensure the query exists.";
+            throw new ModelContextProtocol.McpException($"errors failed for '{queryName}' in '{excelPath}': {result.ErrorMessage}");
+        }
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> LoadToPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? targetSheet, string? batchId)
+    {
+        if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(targetSheet))
+            throw new ModelContextProtocol.McpException("queryName and targetSheet are required for load-to action");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: true,
+            async (batch) => await commands.LoadToAsync(batch, queryName, targetSheet));
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"load-to failed for '{queryName}' to '{targetSheet}' in '{excelPath}': {result.ErrorMessage}");
+        }
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> ListExcelSourcesAsync(PowerQueryCommands commands, string excelPath, string? batchId)
+    {
+        // list-excel-sources action lists all available sources (doesn't require queryName)
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: false,
+            async (batch) => await commands.ListExcelSourcesAsync(batch));
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"list-excel-sources failed for '{excelPath}': {result.ErrorMessage}");
+        }
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> EvalPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, string? batchId)
+    {
+        if (string.IsNullOrEmpty(sourcePath))
+            throw new ModelContextProtocol.McpException("sourcePath is required for eval action (M code file to evaluate)");
+
+        // Read M code from file
+        string mExpression;
+        try
+        {
+            mExpression = File.ReadAllText(sourcePath);
+        }
+        catch (Exception ex)
+        {
+            throw new ModelContextProtocol.McpException($"Failed to read M code from '{sourcePath}': {ex.Message}");
+        }
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: false,
+            async (batch) => await commands.EvalAsync(batch, mExpression));
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"eval failed for M code in '{sourcePath}' in '{excelPath}': {result.ErrorMessage}");
         }
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
