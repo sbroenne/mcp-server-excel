@@ -79,25 +79,235 @@ public static class ExcelWorksheetTool
         {
             var sheetCommands = new SheetCommands();
 
-            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
-            return action switch
+            // Switch directly on enum with inline logic
+            switch (action)
             {
-                WorksheetAction.List => await ListWorksheetsAsync(sheetCommands, excelPath, batchId),
-                WorksheetAction.Create => await CreateWorksheetAsync(sheetCommands, excelPath, sheetName, batchId),
-                WorksheetAction.Rename => await RenameWorksheetAsync(sheetCommands, excelPath, sheetName, targetName, batchId),
-                WorksheetAction.Copy => await CopyWorksheetAsync(sheetCommands, excelPath, sheetName, targetName, batchId),
-                WorksheetAction.Delete => await DeleteWorksheetAsync(sheetCommands, excelPath, sheetName, batchId),
-                WorksheetAction.SetTabColor => await SetTabColorAsync(sheetCommands, excelPath, sheetName, red, green, blue, batchId),
-                WorksheetAction.GetTabColor => await GetTabColorAsync(sheetCommands, excelPath, sheetName, batchId),
-                WorksheetAction.ClearTabColor => await ClearTabColorAsync(sheetCommands, excelPath, sheetName, batchId),
-                WorksheetAction.SetVisibility => await SetVisibilityAsync(sheetCommands, excelPath, sheetName, visibility, batchId),
-                WorksheetAction.GetVisibility => await GetVisibilityAsync(sheetCommands, excelPath, sheetName, batchId),
-                WorksheetAction.Show => await ShowAsync(sheetCommands, excelPath, sheetName, batchId),
-                WorksheetAction.Hide => await HideAsync(sheetCommands, excelPath, sheetName, batchId),
-                WorksheetAction.VeryHide => await VeryHideAsync(sheetCommands, excelPath, sheetName, batchId),
-                _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action: {action} ({action.ToActionString()})")
-            };
+                case WorksheetAction.List:
+                {
+                    var result = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: false,
+                        sheetCommands.ListAsync);
+
+                    var count = result.Worksheets?.Count ?? 0;
+                    var inBatch = !string.IsNullOrEmpty(batchId);
+
+                    return JsonSerializer.Serialize(new
+                    {
+                        success = result.Success,
+                        worksheets = result.Worksheets,
+                        workflowHint = $"Found {count} worksheet(s). Use excel_range for data operations.",
+                        suggestedNextActions = count == 0
+                            ? new[] { "Workbook is empty - this shouldn't happen. Check file integrity." }
+                            : new[]
+                            {
+                                "Use excel_range for data operations (get-values, set-values, clear-*)",
+                                "Use 'create' to add new worksheets",
+                                "Use 'set-tab-color' to organize sheets visually",
+                                inBatch ? "Continue batch operations" : count > 3 ? "Use excel_batch for multiple sheet operations (faster)" : "Use 'rename' or 'copy' to manage sheets"
+                            }
+                    }, ExcelToolsBase.JsonOptions);
+                }
+
+                case WorksheetAction.Create:
+                {
+                    if (string.IsNullOrEmpty(sheetName))
+                        throw new ModelContextProtocol.McpException("sheetName is required for create action");
+
+                    var result = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: true,
+                        async (batch) => await sheetCommands.CreateAsync(batch, sheetName));
+
+                    bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+
+                    return JsonSerializer.Serialize(new
+                    {
+                        result.Success,
+                        workflowHint = $"Worksheet '{sheetName}' created successfully.",
+                        suggestedNextActions = new[]
+                        {
+                            "Use excel_range 'set-values' to add data to the new sheet",
+                            "Use 'set-tab-color' to color-code this sheet",
+                            usedBatchMode ? "Create more worksheets in this batch" : "Creating multiple sheets? Use excel_batch (faster)"
+                        }
+                    }, ExcelToolsBase.JsonOptions);
+                }
+
+                case WorksheetAction.Rename:
+                {
+                    if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
+                        throw new ModelContextProtocol.McpException("sheetName and targetName are required for rename action");
+
+                    var result = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: true,
+                        async (batch) => await sheetCommands.RenameAsync(batch, sheetName, targetName));
+
+                    return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                }
+
+                case WorksheetAction.Copy:
+                {
+                    if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
+                        throw new ModelContextProtocol.McpException("sheetName and targetName are required for copy action");
+
+                    var result = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: true,
+                        async (batch) => await sheetCommands.CopyAsync(batch, sheetName, targetName));
+
+                    return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                }
+
+                case WorksheetAction.Delete:
+                {
+                    if (string.IsNullOrEmpty(sheetName))
+                        throw new ModelContextProtocol.McpException("sheetName is required for delete action");
+
+                    var result = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: true,
+                        async (batch) => await sheetCommands.DeleteAsync(batch, sheetName));
+
+                    return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                }
+
+                case WorksheetAction.SetTabColor:
+                {
+                    if (string.IsNullOrEmpty(sheetName))
+                        throw new ModelContextProtocol.McpException("sheetName is required for set-tab-color action");
+
+                    if (!red.HasValue || !green.HasValue || !blue.HasValue)
+                        throw new ModelContextProtocol.McpException("red, green, and blue values (0-255) are required for set-tab-color action");
+
+                    var result = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: true,
+                        async (batch) => await sheetCommands.SetTabColorAsync(batch, sheetName, red.Value, green.Value, blue.Value));
+
+                    return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                }
+
+                case WorksheetAction.GetTabColor:
+                {
+                    if (string.IsNullOrEmpty(sheetName))
+                        throw new ModelContextProtocol.McpException("sheetName is required for get-tab-color action");
+
+                    var result = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: false,
+                        async (batch) => await sheetCommands.GetTabColorAsync(batch, sheetName));
+
+                    return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                }
+
+                case WorksheetAction.ClearTabColor:
+                {
+                    if (string.IsNullOrEmpty(sheetName))
+                        throw new ModelContextProtocol.McpException("sheetName is required for clear-tab-color action");
+
+                    var result = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: true,
+                        async (batch) => await sheetCommands.ClearTabColorAsync(batch, sheetName));
+
+                    return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                }
+
+                case WorksheetAction.SetVisibility:
+                {
+                    if (string.IsNullOrEmpty(sheetName))
+                        throw new ModelContextProtocol.McpException("sheetName is required for set-visibility action");
+
+                    if (string.IsNullOrEmpty(visibility))
+                        throw new ModelContextProtocol.McpException("visibility (visible|hidden|veryhidden) is required for set-visibility action");
+
+                    SheetVisibility visibilityLevel = visibility.ToLowerInvariant() switch
+                    {
+                        "visible" => SheetVisibility.Visible,
+                        "hidden" => SheetVisibility.Hidden,
+                        "veryhidden" => SheetVisibility.VeryHidden,
+                        _ => throw new ModelContextProtocol.McpException($"Invalid visibility value '{visibility}'. Use: visible, hidden, or veryhidden")
+                    };
+
+                    var result = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: true,
+                        async (batch) => await sheetCommands.SetVisibilityAsync(batch, sheetName, visibilityLevel));
+
+                    return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                }
+
+                case WorksheetAction.GetVisibility:
+                {
+                    if (string.IsNullOrEmpty(sheetName))
+                        throw new ModelContextProtocol.McpException("sheetName is required for get-visibility action");
+
+                    var result = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: false,
+                        async (batch) => await sheetCommands.GetVisibilityAsync(batch, sheetName));
+
+                    return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                }
+
+                case WorksheetAction.Show:
+                {
+                    if (string.IsNullOrEmpty(sheetName))
+                        throw new ModelContextProtocol.McpException("sheetName is required for show action");
+
+                    var result = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: true,
+                        async (batch) => await sheetCommands.ShowAsync(batch, sheetName));
+
+                    return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                }
+
+                case WorksheetAction.Hide:
+                {
+                    if (string.IsNullOrEmpty(sheetName))
+                        throw new ModelContextProtocol.McpException("sheetName is required for hide action");
+
+                    var result = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: true,
+                        async (batch) => await sheetCommands.HideAsync(batch, sheetName));
+
+                    return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                }
+
+                case WorksheetAction.VeryHide:
+                {
+                    if (string.IsNullOrEmpty(sheetName))
+                        throw new ModelContextProtocol.McpException("sheetName is required for very-hide action");
+
+                    var result = await ExcelToolsBase.WithBatchAsync(
+                        batchId,
+                        excelPath,
+                        save: true,
+                        async (batch) => await sheetCommands.VeryHideAsync(batch, sheetName));
+
+                    return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                }
+
+                default:
+                    throw new ModelContextProtocol.McpException(
+                        $"Unknown action: {action} ({action.ToActionString()})");
+            }
         }
         catch (ModelContextProtocol.McpException)
         {
@@ -108,252 +318,5 @@ public static class ExcelWorksheetTool
             ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
             throw;
         }
-    }
-
-    private static async Task<string> ListWorksheetsAsync(SheetCommands commands, string filePath, string? batchId)
-    {
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: false,
-            async (batch) => await commands.ListAsync(batch));
-
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        // Add workflow hints
-        var count = result.Worksheets?.Count ?? 0;
-        var inBatch = !string.IsNullOrEmpty(batchId);
-
-        return JsonSerializer.Serialize(new
-        {
-            success = result.Success,
-            worksheets = result.Worksheets,
-            workflowHint = $"Found {count} worksheet(s). Use excel_range for data operations.",
-            suggestedNextActions = count == 0
-                ? new[] { "Workbook is empty - this shouldn't happen. Check file integrity." }
-                : new[]
-                {
-                    "Use excel_range for data operations (get-values, set-values, clear-*)",
-                    "Use 'create' to add new worksheets",
-                    "Use 'set-tab-color' to organize sheets visually",
-                    inBatch ? "Continue batch operations" : count > 3 ? "Use excel_batch for multiple sheet operations (faster)" : "Use 'rename' or 'copy' to manage sheets"
-                }
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> CreateWorksheetAsync(SheetCommands commands, string filePath, string? sheetName, string? batchId)
-    {
-        if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for create action");
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: true,
-            async (batch) => await commands.CreateAsync(batch, sheetName));
-
-        // Use workflow guidance with batch mode awareness
-        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
-
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        // Add workflow hints
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            workflowHint = $"Worksheet '{sheetName}' created successfully.",
-            suggestedNextActions = new[]
-            {
-                "Use excel_range 'set-values' to add data to the new sheet",
-                "Use 'set-tab-color' to color-code this sheet",
-                usedBatchMode ? "Create more worksheets in this batch" : "Creating multiple sheets? Use excel_batch (faster)"
-            }
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> RenameWorksheetAsync(SheetCommands commands, string filePath, string? sheetName, string? targetName, string? batchId)
-    {
-        if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
-            throw new ModelContextProtocol.McpException("sheetName and targetName are required for rename action");
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: true,
-            async (batch) => await commands.RenameAsync(batch, sheetName, targetName));
-
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> CopyWorksheetAsync(SheetCommands commands, string filePath, string? sheetName, string? targetName, string? batchId)
-    {
-        if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
-            throw new ModelContextProtocol.McpException("sheetName and targetName are required for copy action");
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: true,
-            async (batch) => await commands.CopyAsync(batch, sheetName, targetName));
-
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> DeleteWorksheetAsync(SheetCommands commands, string filePath, string? sheetName, string? batchId)
-    {
-        if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for delete action");
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: true,
-            async (batch) => await commands.DeleteAsync(batch, sheetName));
-
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    // === TAB COLOR OPERATIONS ===
-
-    private static async Task<string> SetTabColorAsync(SheetCommands commands, string filePath, string? sheetName, int? red, int? green, int? blue, string? batchId)
-    {
-        if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for set-tab-color action");
-
-        if (!red.HasValue || !green.HasValue || !blue.HasValue)
-            throw new ModelContextProtocol.McpException("red, green, and blue values (0-255) are required for set-tab-color action");
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: true,
-            async (batch) => await commands.SetTabColorAsync(batch, sheetName, red.Value, green.Value, blue.Value));
-
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> GetTabColorAsync(SheetCommands commands, string filePath, string? sheetName, string? batchId)
-    {
-        if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for get-tab-color action");
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: false,
-            async (batch) => await commands.GetTabColorAsync(batch, sheetName));
-
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> ClearTabColorAsync(SheetCommands commands, string filePath, string? sheetName, string? batchId)
-    {
-        if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for clear-tab-color action");
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: true,
-            async (batch) => await commands.ClearTabColorAsync(batch, sheetName));
-
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    // === VISIBILITY OPERATIONS ===
-
-    private static async Task<string> SetVisibilityAsync(SheetCommands commands, string filePath, string? sheetName, string? visibility, string? batchId)
-    {
-        if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for set-visibility action");
-
-        if (string.IsNullOrEmpty(visibility))
-            throw new ModelContextProtocol.McpException("visibility (visible|hidden|veryhidden) is required for set-visibility action");
-
-        SheetVisibility visibilityLevel = visibility.ToLowerInvariant() switch
-        {
-            "visible" => SheetVisibility.Visible,
-            "hidden" => SheetVisibility.Hidden,
-            "veryhidden" => SheetVisibility.VeryHidden,
-            _ => throw new ModelContextProtocol.McpException($"Invalid visibility value '{visibility}'. Use: visible, hidden, or veryhidden")
-        };
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: true,
-            async (batch) => await commands.SetVisibilityAsync(batch, sheetName, visibilityLevel));
-
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> GetVisibilityAsync(SheetCommands commands, string filePath, string? sheetName, string? batchId)
-    {
-        if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for get-visibility action");
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: false,
-            async (batch) => await commands.GetVisibilityAsync(batch, sheetName));
-
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> ShowAsync(SheetCommands commands, string filePath, string? sheetName, string? batchId)
-    {
-        if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for show action");
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: true,
-            async (batch) => await commands.ShowAsync(batch, sheetName));
-
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> HideAsync(SheetCommands commands, string filePath, string? sheetName, string? batchId)
-    {
-        if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for hide action");
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: true,
-            async (batch) => await commands.HideAsync(batch, sheetName));
-
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> VeryHideAsync(SheetCommands commands, string filePath, string? sheetName, string? batchId)
-    {
-        if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for very-hide action");
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: true,
-            async (batch) => await commands.VeryHideAsync(batch, sheetName));
-
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 }

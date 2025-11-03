@@ -14,26 +14,39 @@ A comprehensive command-line interface tool for **Excel development workflows** 
 
 ## 🚀 Quick Start
 
-### Download Pre-built Binary (Recommended)
+### Install as .NET Global Tool (Recommended)
 
-```powershell
-# Download from https://github.com/sbroenne/mcp-server-excel/releases
-# Extract excelcli-{version}-windows.zip to C:\Tools\excelcli
+```bash
+# Install globally (requires .NET 8 SDK)
+dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
-# Add to PATH (optional)
-$env:PATH += ";C:\Tools\excelcli"
+# Verify installation
+excelcli --version
 
 # Basic usage
 excelcli create-empty "test.xlsx"
-excelcli sheet-read "test.xlsx" "Sheet1"
+excelcli sheet-list "test.xlsx"
 
-# For VBA operations (one-time manual setup in Excel)
-# Enable VBA trust: Excel → File → Options → Trust Center → Trust Center Settings
-# → Macro Settings → Check "Trust access to the VBA project object model"
-excelcli create-empty "macros.xlsm"
+# Update to latest version
+dotnet tool update --global Sbroenne.ExcelMcp.CLI
+
+# Uninstall
+dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 ```
 
-### Build from Source
+### For VBA Operations (One-Time Setup)
+
+```powershell
+# Enable VBA trust in Excel (manual, one-time):
+# Excel → File → Options → Trust Center → Trust Center Settings
+# → Macro Settings → Check "Trust access to the VBA project object model"
+
+# Then use .xlsm files for VBA operations
+excelcli create-empty "macros.xlsm"
+excelcli vba-import "macros.xlsm" "Module1" "code.vba"
+```
+
+### Build from Source (For Developers)
 
 ```powershell
 # Clone and build
@@ -44,7 +57,7 @@ dotnet build -c Release
 # Run tests (requires Excel installed locally)
 dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA"
 
-# Basic usage
+# Run from build output
 .\src\ExcelMcp.CLI\bin\Release\net8.0\excelcli.exe create-empty "test.xlsx"
 ```
 

@@ -70,19 +70,21 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "clean": "cd .. && dotnet clean src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release",
+    "build:mcp-server": "npm run clean && cd .. && dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release -r win-x64 --self-contained -o vscode-extension/bin --verbosity minimal",
+    "vscode:prepublish": "npm run build:mcp-server && npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "vsce package",
+    "package": "npm run build:mcp-server && vsce package",
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
-    "@types/node": "^22.18.13",
+    "@types/node": "^22.19.0",
     "@types/vscode": "^1.105.0",
     "@typescript-eslint/eslint-plugin": "^8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
     "@vscode/vsce": "^3.6.2",
-    "eslint": "^9.38.0",
+    "eslint": "^9.39.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.2"
   }

@@ -1,6 +1,6 @@
 # excel_pivottable Tool
 
-**Actions**: list, get-info, create-from-range, create-from-table, delete, refresh, list-fields, add-row-field, add-column-field, add-value-field, add-filter-field, remove-field, set-field-function, set-field-name, set-field-format, set-field-filter, sort-field, get-data
+**Actions**: list, get-info, create-from-range, create-from-table, create-from-datamodel, delete, refresh, list-fields, add-row-field, add-column-field, add-value-field, add-filter-field, remove-field, set-field-function, set-field-name, set-field-format, set-field-filter, sort-field, get-data
 
 **When to use excel_pivottable**:
 - Create PivotTables from ranges or tables
@@ -15,13 +15,19 @@
 - Value field functions: Sum, Count, Average, Max, Min, etc.
 
 **Action disambiguation**:
-- create-from-range: Create PivotTable from range address
-- create-from-table: Create PivotTable from Excel Table
+- create-from-range: Create PivotTable from range address (sheetName + range parameters)
+- create-from-table: Create PivotTable from Excel Table/ListObject (excelTableName = worksheet table name)
+- create-from-datamodel: Create PivotTable from Power Pivot Data Model table (dataModelTableName = Data Model table name)
 - add-row-field: Field goes to row area
 - add-column-field: Field goes to column area
 - add-value-field: Field goes to values area (calculations)
 - add-filter-field: Field goes to filter area
 - set-field-function: Change aggregation (Sum, Count, etc.)
+
+**Parameter guidance for create actions**:
+- create-from-range: sheetName, range, destinationSheet, destinationCell, pivotTableName
+- create-from-table: excelTableName (Excel Table name), destinationSheet, destinationCell, pivotTableName
+- create-from-datamodel: dataModelTableName (Data Model table name), destinationSheet, destinationCell, pivotTableName
 
 **Common mistakes**:
 - Creating PivotTable without source data → Prepare data first
