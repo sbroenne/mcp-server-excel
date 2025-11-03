@@ -316,6 +316,12 @@ if ($CheckNaming) {
     Write-Host "===========================" -ForegroundColor Cyan
     Write-Host ""
     
+    # Known intentional exceptions (documented in CORE-METHOD-RENAMING-SUMMARY.md)
+    $knownExceptions = @{
+        "TableAction" = @("ApplyFilterValues", "SortMulti")  # Method overloads
+        "FileAction" = @("CloseWorkbook")  # MCP-specific session management
+    }
+    
     $namingIssues = @()
     $hasNamingIssues = $false
     
@@ -325,6 +331,15 @@ if ($CheckNaming) {
             -InterfacePath $interface.Path `
             -EnumName $interface.Enum `
             -ToolActionsPath $toolActionsPath
+        
+        # Filter out known exceptions
+        if ($knownExceptions.ContainsKey($interface.Enum)) {
+            $exceptions = $knownExceptions[$interface.Enum]
+            $mismatches = $mismatches | Where-Object {
+                $mismatch = $_
+                -not ($exceptions | Where-Object { $mismatch -like "*Enum '$_'*" })
+            }
+        }
         
         if ($mismatches.Count -gt 0) {
             $hasNamingIssues = $true
@@ -338,6 +353,22 @@ if ($CheckNaming) {
         }
     }
     
+    # Report known exceptions
+    $totalExceptions = 0
+    foreach ($enumName in $knownExceptions.Keys) {
+        $totalExceptions += $knownExceptions[$enumName].Count
+    }
+    
+    if ($totalExceptions -gt 0) {
+        Write-Host ""
+        Write-Host "📝 Known Intentional Exceptions: $totalExceptions" -ForegroundColor Gray
+        foreach ($enumName in $knownExceptions.Keys) {
+            Write-Host "   $enumName`: " -NoNewline -ForegroundColor Gray
+            Write-Host ($knownExceptions[$enumName] -join ", ") -ForegroundColor Gray
+        }
+        Write-Host "   (Documented in CORE-METHOD-RENAMING-SUMMARY.md)" -ForegroundColor Gray
+    }
+    
     if ($hasNamingIssues) {
         Write-Host ""
         Write-Host "⚠️  NAMING MISMATCHES DETECTED!" -ForegroundColor Red
@@ -347,6 +378,7 @@ if ($CheckNaming) {
         Write-Host "  2. Decide: Rename Core methods OR rename enum values" -ForegroundColor Yellow
         Write-Host "  3. Update all references (implementations, tools, tests, CLI)" -ForegroundColor Yellow
         Write-Host "  4. Run 'dotnet build' to verify" -ForegroundColor Yellow
+        Write-Host "  5. If intentional, add to knownExceptions in audit script" -ForegroundColor Yellow
         Write-Host ""
         
         if ($FailOnGaps) {
@@ -355,6 +387,7 @@ if ($CheckNaming) {
     } else {
         Write-Host ""
         Write-Host "✅ All naming consistent - enum values match Core method names!" -ForegroundColor Green
+        Write-Host "   (Excluding $totalExceptions documented intentional exceptions)" -ForegroundColor Gray
     }
 }
 
