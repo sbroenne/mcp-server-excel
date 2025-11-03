@@ -1,14 +1,15 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Git pre-commit hook to check for COM object leaks, Core Commands coverage, naming consistency, and MCP Server functionality
+    Git pre-commit hook to check for COM object leaks, Core Commands coverage, naming consistency, Success flag violations, and MCP Server functionality
 
 .DESCRIPTION
-    Runs four checks before allowing commits:
+    Runs five checks before allowing commits:
     1. COM leak checker - ensures no Excel COM objects are leaked
     2. Coverage audit - ensures 100% Core Commands are exposed via MCP Server
     3. Naming consistency - ensures enum names match Core method names exactly
-    4. Smoke test - validates all 11 MCP tools work correctly
+    4. Success flag validation - ensures Success=true never paired with ErrorMessage (Rule 0)
+    5. Smoke test - validates all 11 MCP tools work correctly
 
     Ensures code quality and prevents regression.
 
@@ -62,6 +63,29 @@ try {
 catch {
     Write-Host ""
     Write-Host "❌ Error running coverage audit: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host ""
+Write-Host "🔍 Checking Success flag violations (Rule 0)..." -ForegroundColor Cyan
+
+try {
+    $successFlagScript = Join-Path $rootDir "scripts\check-success-flag.ps1"
+    & $successFlagScript
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "❌ Success flag violations detected!" -ForegroundColor Red
+        Write-Host "   CRITICAL: Success=true with ErrorMessage confuses LLMs and causes data corruption." -ForegroundColor Red
+        Write-Host "   Fix the violations before committing (add Success=false in catch blocks)." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "✅ Success flag check passed - all flags match reality" -ForegroundColor Green
+}
+catch {
+    Write-Host ""
+    Write-Host "❌ Error running success flag check: $($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
 
