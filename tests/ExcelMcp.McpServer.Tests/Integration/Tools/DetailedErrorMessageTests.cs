@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ModelContextProtocol;
 using Sbroenne.ExcelMcp.McpServer.Models;
 using Sbroenne.ExcelMcp.McpServer.Tools;
@@ -113,24 +114,30 @@ public class DetailedErrorMessageTests : IDisposable
     }
 
     [Fact]
-    public async Task ExcelVba_WithNonMacroEnabledFile_ShouldThrowDetailedError()
+    public async Task ExcelVba_WithNonMacroEnabledFile_ReturnsEmptyList()
     {
         // Arrange - Create .xlsx file (not macro-enabled)
         await ExcelFileTool.ExcelFile(FileAction.CreateEmpty, _testExcelFile);
 
-        // Act & Assert - VBA operations require .xlsm
-        var exception = await Assert.ThrowsAsync<McpException>(async () =>
-            await ExcelVbaTool.ExcelVba(VbaAction.List, _testExcelFile));
+        // Act - VBA List on .xlsx file
+        var result = await ExcelVbaTool.ExcelVba(VbaAction.List, _testExcelFile);
+        
+        _output.WriteLine($"Result JSON: {result}");
 
-        _output.WriteLine($"Error message: {exception.Message}");
+        // Parse JSON response
+        var json = JsonDocument.Parse(result);
+        var success = json.RootElement.GetProperty("success").GetBoolean();
+        var count = json.RootElement.GetProperty("count").GetInt32();
 
-        // Verify detailed components
-        Assert.Contains("list", exception.Message);
-        Assert.Contains(_testExcelFile, exception.Message);
-        Assert.Contains("macro-enabled", exception.Message.ToLower());
-        Assert.Contains(".xlsm", exception.Message);
+        // Assert - .xlsx files have no VBA modules, returns success with empty list
+        Assert.True(success, "VBA list on .xlsx should succeed (return empty list)");
+        Assert.Equal(0, count);
+        
+        // Verify helpful workflow hints are provided
+        var workflowHint = json.RootElement.GetProperty("workflowHint").GetString() ?? "";
+        Assert.Contains("No VBA modules", workflowHint);
 
-        _output.WriteLine("✅ Verified: VBA operation includes detailed file type requirements");
+        _output.WriteLine("✅ Verified: VBA list on .xlsx returns success with empty list and helpful hints");
     }
 
     [Fact]

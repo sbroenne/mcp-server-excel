@@ -312,11 +312,7 @@ public static class ExcelRangeTool
             save: false,
             async (batch) => await commands.GetValuesAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"get-values failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -333,11 +329,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.SetValuesAsync(batch, sheetName ?? "", rangeAddress!, values!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-values failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -354,11 +346,7 @@ public static class ExcelRangeTool
             save: false,
             async (batch) => await commands.GetFormulasAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"get-formulas failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -375,11 +363,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.SetFormulasAsync(batch, sheetName ?? "", rangeAddress!, formulas!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-formulas failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -396,11 +380,7 @@ public static class ExcelRangeTool
             save: false,
             async (batch) => await commands.GetNumberFormatsAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"get-number-formats failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -417,11 +397,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.SetNumberFormatAsync(batch, sheetName ?? "", rangeAddress!, formatCode!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-number-format failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -438,11 +414,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.SetNumberFormatsAsync(batch, sheetName ?? "", rangeAddress!, formats!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-number-formats failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -459,11 +431,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.ClearAllAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"clear-all failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -478,11 +446,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.ClearContentsAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"clear-contents failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -497,11 +461,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.ClearFormatsAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"clear-formats failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -520,11 +480,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.CopyAsync(batch, sourceSheet ?? "", sourceRange!, targetSheet ?? "", targetRange!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"copy failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -541,11 +497,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.CopyValuesAsync(batch, sourceSheet ?? "", sourceRange!, targetSheet ?? "", targetRange!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"copy-values failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -562,11 +514,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.CopyFormulasAsync(batch, sourceSheet ?? "", sourceRange!, targetSheet ?? "", targetRange!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"copy-formulas failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -590,11 +538,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.InsertCellsAsync(batch, sheetName ?? "", rangeAddress!, shiftDirection));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"insert-cells failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -616,11 +560,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.DeleteCellsAsync(batch, sheetName ?? "", rangeAddress!, shiftDirection));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"delete-cells failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -635,11 +575,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.InsertRowsAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"insert-rows failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -654,11 +590,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.DeleteRowsAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"delete-rows failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -673,11 +605,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.InsertColumnsAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"insert-columns failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -692,11 +620,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.DeleteColumnsAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"delete-columns failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -723,11 +647,7 @@ public static class ExcelRangeTool
             save: false,
             async (batch) => await commands.FindAsync(batch, sheetName ?? "", rangeAddress!, searchValue!, options));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"find failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -755,11 +675,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.ReplaceAsync(batch, sheetName ?? "", rangeAddress!, searchValue!, replaceValue!, options));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"replace failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -778,11 +694,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.SortAsync(batch, sheetName ?? "", rangeAddress!, sortColumns!, hasHeaders ?? true));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"sort failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -799,11 +711,7 @@ public static class ExcelRangeTool
             save: false,
             async (batch) => await commands.GetUsedRangeAsync(batch, sheetName!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"get-used-range failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -820,11 +728,7 @@ public static class ExcelRangeTool
             save: false,
             async (batch) => await commands.GetCurrentRegionAsync(batch, sheetName!, cellAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"get-current-region failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -839,11 +743,7 @@ public static class ExcelRangeTool
             save: false,
             async (batch) => await commands.GetInfoAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"get-range-info failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -864,11 +764,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.AddHyperlinkAsync(batch, sheetName!, cellAddress!, url!, displayText, tooltip));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"add-hyperlink failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -885,11 +781,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.RemoveHyperlinkAsync(batch, sheetName!, rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"remove-hyperlink failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -904,11 +796,7 @@ public static class ExcelRangeTool
             save: false,
             async (batch) => await commands.ListHyperlinksAsync(batch, sheetName!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"list-hyperlinks failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -925,11 +813,7 @@ public static class ExcelRangeTool
             save: false,
             async (batch) => await commands.GetHyperlinkAsync(batch, sheetName!, cellAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"get-hyperlink failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -954,11 +838,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.SetStyleAsync(batch, sheetName ?? "", rangeAddress!, styleName!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-style failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(new
         {
             success = true,
@@ -992,11 +872,7 @@ public static class ExcelRangeTool
             save: false,
             async (batch) => await commands.GetStyleAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"get-style failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(new
         {
             success = true,
@@ -1053,11 +929,7 @@ public static class ExcelRangeTool
                 fillColor, borderStyle, borderColor, borderWeight,
                 horizontalAlignment, verticalAlignment, wrapText, orientation));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"format-range failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -1098,11 +970,7 @@ public static class ExcelRangeTool
                 showErrorAlert, errorStyle, errorTitle, errorMessage,
                 ignoreBlank, showDropdown));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"validate-range failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -1122,11 +990,7 @@ public static class ExcelRangeTool
             save: false,
             async (batch) => await commands.GetValidationAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"get-validation failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -1146,11 +1010,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.RemoveValidationAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"remove-validation failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -1170,11 +1030,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.AutoFitColumnsAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"auto-fit-columns failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -1194,11 +1050,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.AutoFitRowsAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"auto-fit-rows failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -1218,11 +1070,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.MergeCellsAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"merge-cells failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -1242,11 +1090,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.UnmergeCellsAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"unmerge-cells failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -1266,11 +1110,7 @@ public static class ExcelRangeTool
             save: false,
             async (batch) => await commands.GetMergeInfoAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"get-merge-info failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -1297,11 +1137,7 @@ public static class ExcelRangeTool
             async (batch) => await commands.AddConditionalFormattingAsync(batch, sheetName ?? "", rangeAddress!,
                 ruleType!, formula1, formula2, formatStyle));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"add-conditional-formatting failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -1321,11 +1157,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.ClearConditionalFormattingAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"clear-conditional-formatting failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -1349,11 +1181,7 @@ public static class ExcelRangeTool
             save: true,
             async (batch) => await commands.SetCellLockAsync(batch, sheetName ?? "", rangeAddress!, locked!.Value));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-cell-lock failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -1373,11 +1201,7 @@ public static class ExcelRangeTool
             save: false,
             async (batch) => await commands.GetCellLockAsync(batch, sheetName ?? "", rangeAddress!));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"get-cell-lock failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 }

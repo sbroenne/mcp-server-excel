@@ -119,12 +119,7 @@ public static class ExcelWorksheetTool
             async (batch) => await commands.ListAsync(batch));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"list failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints
         var count = result.Worksheets?.Count ?? 0;
         var inBatch = !string.IsNullOrEmpty(batchId);
@@ -161,12 +156,7 @@ public static class ExcelWorksheetTool
         bool usedBatchMode = !string.IsNullOrEmpty(batchId);
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"create failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints
         return JsonSerializer.Serialize(new
         {
@@ -193,12 +183,7 @@ public static class ExcelWorksheetTool
             async (batch) => await commands.RenameAsync(batch, sheetName, targetName));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"rename failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -214,12 +199,7 @@ public static class ExcelWorksheetTool
             async (batch) => await commands.CopyAsync(batch, sheetName, targetName));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"copy failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -235,12 +215,7 @@ public static class ExcelWorksheetTool
             async (batch) => await commands.DeleteAsync(batch, sheetName));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"delete failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -260,11 +235,7 @@ public static class ExcelWorksheetTool
             save: true,
             async (batch) => await commands.SetTabColorAsync(batch, sheetName, red.Value, green.Value, blue.Value));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-tab-color failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -279,11 +250,7 @@ public static class ExcelWorksheetTool
             save: false,
             async (batch) => await commands.GetTabColorAsync(batch, sheetName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"get-tab-color failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -298,11 +265,7 @@ public static class ExcelWorksheetTool
             save: true,
             async (batch) => await commands.ClearTabColorAsync(batch, sheetName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"clear-tab-color failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -330,11 +293,7 @@ public static class ExcelWorksheetTool
             save: true,
             async (batch) => await commands.SetVisibilityAsync(batch, sheetName, visibilityLevel));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-visibility failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -349,11 +308,7 @@ public static class ExcelWorksheetTool
             save: false,
             async (batch) => await commands.GetVisibilityAsync(batch, sheetName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"get-visibility failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -368,11 +323,7 @@ public static class ExcelWorksheetTool
             save: true,
             async (batch) => await commands.ShowAsync(batch, sheetName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"show failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -387,11 +338,7 @@ public static class ExcelWorksheetTool
             save: true,
             async (batch) => await commands.HideAsync(batch, sheetName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"hide failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -406,11 +353,7 @@ public static class ExcelWorksheetTool
             save: true,
             async (batch) => await commands.VeryHideAsync(batch, sheetName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"very-hide failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 }

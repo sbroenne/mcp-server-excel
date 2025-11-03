@@ -97,11 +97,7 @@ public static class ExcelVbaTool
             async (batch) => await commands.ListAsync(batch));
 
         // If listing failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"list failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         var moduleCount = result.Scripts?.Count ?? 0;
         return JsonSerializer.Serialize(new
         {
@@ -129,12 +125,7 @@ public static class ExcelVbaTool
             async (batch) => await commands.ViewAsync(batch, moduleName));
 
         // If view failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"view failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -150,12 +141,7 @@ public static class ExcelVbaTool
             async (batch) => await commands.ExportAsync(batch, moduleName, targetPath));
 
         // If export failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"export failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -171,11 +157,7 @@ public static class ExcelVbaTool
             async (batch) => await commands.ImportAsync(batch, moduleName, sourcePath));
 
         // If import failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"import failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(new
         {
             success = true,
@@ -206,12 +188,7 @@ public static class ExcelVbaTool
             async (batch) => await commands.UpdateAsync(batch, moduleName, sourcePath));
 
         // If update failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"update failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -234,11 +211,7 @@ public static class ExcelVbaTool
             async (batch) => await commands.RunAsync(batch, moduleName, paramArray));
 
         // If VBA execution failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"run failed for '{moduleName}' in '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(new
         {
             success = true,
@@ -267,12 +240,7 @@ public static class ExcelVbaTool
             async (batch) => await commands.DeleteAsync(batch, moduleName));
 
         // If delete failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"delete failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 }

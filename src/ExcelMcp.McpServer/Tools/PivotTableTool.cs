@@ -142,11 +142,7 @@ public static class PivotTableTool
             async (batch) => await commands.ListAsync(batch)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"list failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         if (result.PivotTables == null || !result.PivotTables.Any())
         {
 
@@ -165,11 +161,7 @@ public static class PivotTableTool
             async (batch) => await commands.GetAsync(batch, pivotTableName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"get-info failed for '{pivotTableName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
@@ -188,11 +180,7 @@ public static class PivotTableTool
             async (batch) => await commands.CreateFromRangeAsync(batch, sourceSheet!, sourceRange!, destSheet!, destCell!, pivotTableName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"create-from-range failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
@@ -210,11 +198,7 @@ public static class PivotTableTool
             async (batch) => await commands.CreateFromTableAsync(batch, tableName!, destSheet!, destCell!, pivotTableName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"create-from-table failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
@@ -228,11 +212,7 @@ public static class PivotTableTool
             async (batch) => await commands.DeleteAsync(batch, pivotTableName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"delete failed for '{pivotTableName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
@@ -246,11 +226,7 @@ public static class PivotTableTool
             async (batch) => await commands.RefreshAsync(batch, pivotTableName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"refresh failed for '{pivotTableName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
@@ -264,11 +240,7 @@ public static class PivotTableTool
             async (batch) => await commands.ListFieldsAsync(batch, pivotTableName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"list-fields failed for '{pivotTableName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
@@ -283,11 +255,7 @@ public static class PivotTableTool
             async (batch) => await commands.AddRowFieldAsync(batch, pivotTableName!, fieldName!, position)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"add-row-field failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
@@ -302,11 +270,7 @@ public static class PivotTableTool
             async (batch) => await commands.AddColumnFieldAsync(batch, pivotTableName!, fieldName!, position)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"add-column-field failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
@@ -333,11 +297,7 @@ public static class PivotTableTool
             async (batch) => await commands.AddValueFieldAsync(batch, pivotTableName!, fieldName!, function, customName)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"add-value-field failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
@@ -352,11 +312,7 @@ public static class PivotTableTool
             async (batch) => await commands.AddFilterFieldAsync(batch, pivotTableName!, fieldName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"add-filter-field failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
@@ -371,11 +327,7 @@ public static class PivotTableTool
             async (batch) => await commands.RemoveFieldAsync(batch, pivotTableName!, fieldName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"remove-field failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
@@ -398,11 +350,7 @@ public static class PivotTableTool
             async (batch) => await commands.SetFieldFunctionAsync(batch, pivotTableName!, fieldName!, function)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-field-function failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
@@ -419,11 +367,7 @@ public static class PivotTableTool
             async (batch) => await commands.SetFieldNameAsync(batch, pivotTableName!, fieldName!, customName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-field-name failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
@@ -440,11 +384,7 @@ public static class PivotTableTool
             async (batch) => await commands.SetFieldFormatAsync(batch, pivotTableName!, fieldName!, numberFormat!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-field-format failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
@@ -458,11 +398,7 @@ public static class PivotTableTool
             async (batch) => await commands.GetDataAsync(batch, pivotTableName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"get-data failed for '{pivotTableName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
@@ -490,11 +426,7 @@ public static class PivotTableTool
             async (batch) => await commands.SetFieldFilterAsync(batch, pivotTableName!, fieldName!, values)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-field-filter failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
@@ -521,11 +453,7 @@ public static class PivotTableTool
             async (batch) => await commands.SortFieldAsync(batch, pivotTableName!, fieldName!, direction)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"sort-field failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 }

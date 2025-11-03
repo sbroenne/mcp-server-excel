@@ -351,66 +351,63 @@ dotnet test --filter "Feature=Sheet&RunType!=OnDemand"       # Sheet changes onl
 
 ---
 
-## Rule 17: MCP Tools Must Check result.Success Before Serializing (CRITICAL)
+## Rule 17: MCP Tools Must Return JSON Responses (CORRECTED)
 
-**Every MCP tool method that calls Core Commands MUST check `result.Success` before returning JSON.**
+**Every MCP tool method that calls Core Commands MUST return JSON responses, not throw exceptions for business errors.**
 
 ```csharp
-// ❌ CRITICAL ERROR: Returns HTTP 200 with error JSON
-private static async Task<string> SomeAction(...)
-{
-    var result = await commands.SomeAsync(batch, param);
-    return JsonSerializer.Serialize(result, JsonOptions); // ❌ No error check!
-}
-
-// ✅ CORRECT: Throws HTTP 500 exception on error
+// ❌ WRONG: Throws exception for business logic errors
 private static async Task<string> SomeAction(...)
 {
     var result = await commands.SomeAsync(batch, param);
     
     if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
     {
-        throw new ModelContextProtocol.McpException($"action failed for '{param}': {result.ErrorMessage}");
+        throw new ModelContextProtocol.McpException($"action failed: {result.ErrorMessage}");  // ❌ Wrong!
     }
     
-    return JsonSerializer.Serialize(result, JsonOptions); // ✅ Only on success!
+    return JsonSerializer.Serialize(result, JsonOptions);
 }
-```
 
-**Why Critical:**
-- ❌ HTTP 200 + `{success: false}` confuses LLMs (looks like success)
-- ✅ HTTP 500 + exception message is clear error signal
-- MCP protocol expects exceptions for errors, not success responses with error flags
-
-**Enforcement:**
-- Run coverage check: `error checks >= serializations` (should be 100%+)
-- Code review MUST verify error checks before serialization
-- See `MCP-EXCEPTION-HANDLING-FIX-PLAN.md` for complete pattern
-
-**Coverage Check:**
-```powershell
-# From repository root
-$file = "src/ExcelMcp.McpServer/Tools/YourTool.cs"
-$content = Get-Content $file -Raw
-$checks = ([regex]::Matches($content, 'if\s*\(\s*!result\.Success')).Count
-$serializes = ([regex]::Matches($content, 'JsonSerializer\.Serialize\(result')).Count
-Write-Host "Coverage: $checks / $serializes = $([math]::Round(($checks/$serializes)*100,0))%"
-# Must be 100% or higher
-```
-
-**Common Mistake:**
-```csharp
-// ❌ WRONG: Empty success block doesn't prevent error serialization
-if (result.Success)
+// ✅ CORRECT: Always return JSON - let result.Success indicate errors
+private static async Task<string> SomeAction(...)
 {
-    // Empty - useless!
+    var result = await commands.SomeAsync(batch, param);
+    
+    // Always return JSON (success or failure) - MCP clients handle the success flag
+    return JsonSerializer.Serialize(result, JsonOptions);
 }
-return JsonSerializer.Serialize(result, JsonOptions); // Still returns on failure!
 ```
 
-**Exception: BatchSessionTool**
-- BatchSessionTool creates anonymous success objects directly
-- Throws McpException for validation errors before serialization
-- This pattern is correct for session management (doesn't use Core Command results)
+**When to Throw McpException:**
+- ✅ **Parameter validation** - missing required params, invalid formats
+- ✅ **Pre-conditions** - file not found, batch not found, invalid state
+- ❌ **NOT for business logic errors** - table not found, query failed, etc.
 
+**Why:**
+- ✅ MCP clients expect JSON responses with `success: false` for business errors
+- ✅ HTTP 200 + JSON error = client can parse and handle gracefully
+- ❌ HTTP 500 + exception = harder for clients to handle programmatically
+- ✅ Core Commands return result objects with `Success` flag - serialize them!
+
+**Example - Business Error (return JSON):**
+```csharp
+// Core returns: { Success = false, ErrorMessage = "Table 'Sales' not found" }
+// MCP Tool: Return this as-is
+return JsonSerializer.Serialize(result, JsonOptions);
+// Client gets: {"success": false, "errorMessage": "Table 'Sales' not found"}
+```
+
+**Example - Validation Error (throw exception):**
+```csharp
+// Missing required parameter
+if (string.IsNullOrWhiteSpace(tableName))
+{
+    throw new ModelContextProtocol.McpException("tableName is required for create-from-table action");
+}
+```
+
+**Historical Note:** This rule was corrected on 2025-01-03 after discovering that tests expected JSON responses, not exceptions. The previous pattern (throwing McpException for business errors) was incorrect and caused MCP clients to receive unhandled errors instead of parseable JSON.
+
+---
 ---
