@@ -10,7 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> AppendRowsAsync(IExcelBatch batch, string tableName, List<List<object?>> rows)
+    public async Task<OperationResult> AppendAsync(IExcelBatch batch, string tableName, List<List<object?>> rows)
     {
         // Security: Validate table name
         ValidateTableName(tableName);

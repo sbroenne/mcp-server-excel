@@ -306,7 +306,7 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public async Task<TableInfoResult> GetInfoAsync(IExcelBatch batch, string tableName)
+    public async Task<TableInfoResult> GetAsync(IExcelBatch batch, string tableName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);

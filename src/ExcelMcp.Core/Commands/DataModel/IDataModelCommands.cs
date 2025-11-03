@@ -22,22 +22,22 @@ public interface IDataModelCommands
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Name of the table to list columns from</param>
     /// <returns>Result containing list of columns with metadata</returns>
-    Task<DataModelTableColumnsResult> ListTableColumnsAsync(IExcelBatch batch, string tableName);
+    Task<DataModelTableColumnsResult> ListColumnsAsync(IExcelBatch batch, string tableName);
 
     /// <summary>
-    /// Views complete table details including columns and measures
+    /// Gets complete table details including columns and measures
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
-    /// <param name="tableName">Name of the table to view</param>
+    /// <param name="tableName">Name of the table to get</param>
     /// <returns>Result containing complete table information</returns>
-    Task<DataModelTableViewResult> ViewTableAsync(IExcelBatch batch, string tableName);
+    Task<DataModelTableViewResult> GetTableAsync(IExcelBatch batch, string tableName);
 
     /// <summary>
     /// Gets overall Data Model summary statistics
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <returns>Result containing model metadata (table count, measure count, etc.)</returns>
-    Task<DataModelInfoResult> GetModelInfoAsync(IExcelBatch batch);
+    Task<DataModelInfoResult> GetInfoAsync(IExcelBatch batch);
 
     /// <summary>
     /// Lists all DAX measures in the model
@@ -48,12 +48,12 @@ public interface IDataModelCommands
     Task<DataModelMeasureListResult> ListMeasuresAsync(IExcelBatch batch, string? tableName = null);
 
     /// <summary>
-    /// Views complete measure details and DAX formula
+    /// Gets complete measure details and DAX formula
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
-    /// <param name="measureName">Name of the measure to view</param>
+    /// <param name="measureName">Name of the measure to get</param>
     /// <returns>Result containing complete measure information</returns>
-    Task<DataModelMeasureViewResult> ViewMeasureAsync(IExcelBatch batch, string measureName);
+    Task<DataModelMeasureViewResult> GetAsync(IExcelBatch batch, string measureName);
 
     /// <summary>
     /// Exports measure DAX formula to file with metadata

@@ -6,7 +6,7 @@ applyTo: "**"
 
 > **⚠️ NON-NEGOTIABLE rules for all ExcelMcp development**
 
-## Rule 0: Success Flag Must Match Reality (CRITICAL - NEW)
+## Rule 0: Success Flag Must Match Reality (CRITICAL)
 
 **NEVER set `Success = true` when `ErrorMessage` is set. This is EXTREMELY serious!**
 
@@ -26,14 +26,44 @@ if (!loadResult.Success) {
 
 **Why Critical:** LLMs see Success=true and assume operation worked, causing workflow failures and silent data corruption.
 
+**Common Bug Pattern (43 violations found 2025-01-28):**
+```csharp
+// ❌ WRONG: Optimistic Success setting without catch block correction
+var result = new OperationResult();
+result.Success = true;  // Set optimistically
+
+try {
+    // ... do work ...
+    return result;
+} catch (Exception ex) {
+    // ❌ BUG: Forgot to set Success = false!
+    result.ErrorMessage = $"Error: {ex.Message}";
+    return result;  // Returns Success=true with ErrorMessage! 
+}
+
+// ✅ CORRECT: Set Success in try block, always false in catch
+var result = new OperationResult();
+
+try {
+    // ... do work ...
+    result.Success = true;  // Only set true on actual success
+    return result;
+} catch (Exception ex) {
+    result.Success = false;  // ✅ Always false in catch!
+    result.ErrorMessage = $"Error: {ex.Message}";
+    return result;
+}
+```
+
 **Enforcement:**
+- Pre-commit hook runs `check-success-flag.ps1` to detect violations
 - Regression tests verify this invariant (PowerQuerySuccessErrorRegressionTests)
 - Code review MUST check every `Success = ` assignment
 - Search pattern: `Success.*true.*ErrorMessage`
 
 **Examples of bugs found:**
-- PowerQueryCommands.ImportAsync: Success=true when load to data model failed
-- PowerQueryCommands.TestConnectionAsync: Success=true when refresh failed
+- 43 violations across Connection, PowerQuery, DataModel, VBA, Range, Table commands
+- All followed pattern: `Success = true` at start, `ErrorMessage` set in catch without `Success = false`
 
  rules for all ExcelMcp development**
 

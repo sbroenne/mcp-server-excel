@@ -132,7 +132,7 @@ public class DataModelCommands : IDataModelCommands
         var task = Task.Run(async () =>
         {
             await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ViewMeasureAsync(batch, measureName);
+            return await _coreCommands.GetAsync(batch, measureName);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -376,7 +376,7 @@ public class DataModelCommands : IDataModelCommands
         var task = Task.Run(async () =>
         {
             await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ListTableColumnsAsync(batch, tableName);
+            return await _coreCommands.ListColumnsAsync(batch, tableName);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -429,7 +429,7 @@ public class DataModelCommands : IDataModelCommands
         var task = Task.Run(async () =>
         {
             await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ViewTableAsync(batch, tableName);
+            return await _coreCommands.GetTableAsync(batch, tableName);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -489,7 +489,7 @@ public class DataModelCommands : IDataModelCommands
         var task = Task.Run(async () =>
         {
             await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.GetModelInfoAsync(batch);
+            return await _coreCommands.GetInfoAsync(batch);
         });
         var result = task.GetAwaiter().GetResult();
 

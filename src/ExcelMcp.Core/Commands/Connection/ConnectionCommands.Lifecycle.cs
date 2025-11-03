@@ -276,7 +276,7 @@ public partial class ConnectionCommands
     /// <summary>
     /// Updates existing connection from JSON file
     /// </summary>
-    public async Task<OperationResult> UpdateAsync(IExcelBatch batch, string connectionName, string jsonFilePath)
+    public async Task<OperationResult> UpdatePropertiesAsync(IExcelBatch batch, string connectionName, string jsonFilePath)
     {
         var result = new OperationResult
         {

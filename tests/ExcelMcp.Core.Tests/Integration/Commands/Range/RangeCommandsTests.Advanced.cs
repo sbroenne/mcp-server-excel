@@ -274,7 +274,7 @@ public partial class RangeCommandsTests
         Assert.True(result.Success, $"GetHyperlink failed: {result.ErrorMessage}");
         Assert.NotEmpty(result.Hyperlinks);
         var hyperlink = result.Hyperlinks[0];
-        Assert.Equal("https://example.com", hyperlink.Address);
+        Assert.Equal("https://example.com/", hyperlink.Address); // Excel normalizes URLs by adding trailing slash
         Assert.Contains("Example", hyperlink.DisplayText);
     }
 }

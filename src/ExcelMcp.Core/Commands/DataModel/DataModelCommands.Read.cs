@@ -142,7 +142,7 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<DataModelMeasureViewResult> ViewMeasureAsync(IExcelBatch batch, string measureName)
+    public async Task<DataModelMeasureViewResult> GetAsync(IExcelBatch batch, string measureName)
     {
         var result = new DataModelMeasureViewResult
         {
@@ -387,7 +387,7 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<DataModelTableColumnsResult> ListTableColumnsAsync(IExcelBatch batch, string tableName)
+    public async Task<DataModelTableColumnsResult> ListColumnsAsync(IExcelBatch batch, string tableName)
     {
         var result = new DataModelTableColumnsResult
         {
@@ -464,7 +464,7 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<DataModelTableViewResult> ViewTableAsync(IExcelBatch batch, string tableName)
+    public async Task<DataModelTableViewResult> GetTableAsync(IExcelBatch batch, string tableName)
     {
         var result = new DataModelTableViewResult
         {
@@ -556,7 +556,7 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<DataModelInfoResult> GetModelInfoAsync(IExcelBatch batch)
+    public async Task<DataModelInfoResult> GetInfoAsync(IExcelBatch batch)
     {
         var result = new DataModelInfoResult { FilePath = batch.WorkbookPath };
 

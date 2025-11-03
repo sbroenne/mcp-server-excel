@@ -1,13 +1,15 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Git pre-commit hook to check for COM object leaks, Core Commands coverage, and MCP Server functionality
+    Git pre-commit hook to check for COM object leaks, Core Commands coverage, naming consistency, Success flag violations, and MCP Server functionality
 
 .DESCRIPTION
-    Runs three checks before allowing commits:
+    Runs five checks before allowing commits:
     1. COM leak checker - ensures no Excel COM objects are leaked
     2. Coverage audit - ensures 100% Core Commands are exposed via MCP Server
-    3. Smoke test - validates all 11 MCP tools work correctly
+    3. Naming consistency - ensures enum names match Core method names exactly
+    4. Success flag validation - ensures Success=true never paired with ErrorMessage (Rule 0)
+    5. Smoke test - validates all 11 MCP tools work correctly
 
     Ensures code quality and prevents regression.
 
@@ -42,24 +44,48 @@ catch {
 }
 
 Write-Host ""
-Write-Host "🔍 Checking Core Commands coverage..." -ForegroundColor Cyan
+Write-Host "🔍 Checking Core Commands coverage and naming..." -ForegroundColor Cyan
 
 try {
     $auditScript = Join-Path $rootDir "scripts\audit-core-coverage.ps1"
-    & $auditScript -FailOnGaps
+    & $auditScript -CheckNaming -FailOnGaps
 
     if ($LASTEXITCODE -ne 0) {
         Write-Host ""
-        Write-Host "❌ Coverage gaps detected! All Core methods must be exposed via MCP Server." -ForegroundColor Red
-        Write-Host "   Fix the gaps before committing (add enum values and mappings)." -ForegroundColor Red
+        Write-Host "❌ Coverage or naming issues detected!" -ForegroundColor Red
+        Write-Host "   All Core methods must be exposed via MCP Server with matching names." -ForegroundColor Red
+        Write-Host "   Fix the issues before committing (add/rename enum values and mappings)." -ForegroundColor Red
         exit 1
     }
 
-    Write-Host "✅ Coverage audit passed - 100% coverage maintained" -ForegroundColor Green
+    Write-Host "✅ Coverage and naming checks passed - 100% coverage with consistent names" -ForegroundColor Green
 }
 catch {
     Write-Host ""
     Write-Host "❌ Error running coverage audit: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host ""
+Write-Host "🔍 Checking Success flag violations (Rule 0)..." -ForegroundColor Cyan
+
+try {
+    $successFlagScript = Join-Path $rootDir "scripts\check-success-flag.ps1"
+    & $successFlagScript
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "❌ Success flag violations detected!" -ForegroundColor Red
+        Write-Host "   CRITICAL: Success=true with ErrorMessage confuses LLMs and causes data corruption." -ForegroundColor Red
+        Write-Host "   Fix the violations before committing (add Success=false in catch blocks)." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "✅ Success flag check passed - all flags match reality" -ForegroundColor Green
+}
+catch {
+    Write-Host ""
+    Write-Host "❌ Error running success flag check: $($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
 

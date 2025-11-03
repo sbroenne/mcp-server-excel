@@ -204,7 +204,7 @@ public class ConnectionCommands : IConnectionCommands
         var task = Task.Run(async () =>
         {
             await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var result = await _coreCommands.UpdateAsync(batch, connectionName, jsonPath);
+            var result = await _coreCommands.UpdatePropertiesAsync(batch, connectionName, jsonPath);
             await batch.SaveAsync();
             return result;
         });

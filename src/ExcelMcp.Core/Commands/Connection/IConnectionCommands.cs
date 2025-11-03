@@ -29,9 +29,9 @@ public interface IConnectionCommands
     Task<OperationResult> ExportAsync(IExcelBatch batch, string connectionName, string jsonFilePath);
 
     /// <summary>
-    /// Updates existing connection from JSON file
+    /// Updates existing connection properties from JSON file
     /// </summary>
-    Task<OperationResult> UpdateAsync(IExcelBatch batch, string connectionName, string jsonFilePath);
+    Task<OperationResult> UpdatePropertiesAsync(IExcelBatch batch, string connectionName, string jsonFilePath);
 
     /// <summary>
     /// Refreshes connection data

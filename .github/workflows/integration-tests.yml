@@ -33,6 +33,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Configure Git safe directory
+      run: git config --global --add safe.directory ${{ github.workspace }}
+      shell: pwsh
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:

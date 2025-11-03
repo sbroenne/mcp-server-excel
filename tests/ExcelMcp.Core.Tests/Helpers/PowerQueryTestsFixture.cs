@@ -44,10 +44,6 @@ public class PowerQueryTestsFixture : IAsyncLifetime
     /// </summary>
     public async Task InitializeAsync()
     {
-        Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        Console.WriteLine("TESTING: Power Query Creation (via fixture initialization)");
-        Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        
         var sw = Stopwatch.StartNew();
         
         TestFilePath = Path.Join(_tempDir, "PowerQuery.xlsx");
@@ -55,10 +51,6 @@ public class PowerQueryTestsFixture : IAsyncLifetime
         
         try
         {
-            // ═══════════════════════════════════════════════════════
-            // TEST 1: File Creation
-            // ═══════════════════════════════════════════════════════
-            Console.WriteLine("  [1/4] Testing: File creation...");
             var fileCommands = new FileCommands();
             var createFileResult = await fileCommands.CreateEmptyAsync(TestFilePath);
             if (!createFileResult.Success)
@@ -66,25 +58,15 @@ public class PowerQueryTestsFixture : IAsyncLifetime
                     $"CREATION TEST FAILED: File creation failed: {createFileResult.ErrorMessage}");
             
             CreationResult.FileCreated = true;
-            Console.WriteLine("        ✅ File created successfully");
             
             await using var batch = await ExcelSession.BeginBatchAsync(TestFilePath);
             
-            // ═══════════════════════════════════════════════════════
-            // TEST 2: M Code File Creation
-            // ═══════════════════════════════════════════════════════
-            Console.WriteLine("  [2/4] Testing: M code file creation...");
             var mCodeFiles = new string[3];
             mCodeFiles[0] = CreateMCodeFile("BasicQuery", CreateBasicMCode());
             mCodeFiles[1] = CreateMCodeFile("DataQuery", CreateDataQueryMCode());
             mCodeFiles[2] = CreateMCodeFile("RefreshableQuery", CreateRefreshableQueryMCode());
             CreationResult.MCodeFilesCreated = 3;
-            Console.WriteLine("        ✅ Created 3 M code files");
             
-            // ═══════════════════════════════════════════════════════
-            // TEST 3: PowerQueryCommands.ImportAsync()
-            // ═══════════════════════════════════════════════════════
-            Console.WriteLine("  [3/4] Testing: PowerQueryCommands.ImportAsync() for 3 queries...");
             var dataModelCommands = new DataModelCommands();
             var powerQueryCommands = new PowerQueryCommands(dataModelCommands);
             
@@ -104,41 +86,24 @@ public class PowerQueryTestsFixture : IAsyncLifetime
                     $"CREATION TEST FAILED: ImportAsync(RefreshableQuery) failed: {import3.ErrorMessage}");
                 
             CreationResult.QueriesImported = 3;
-            Console.WriteLine("        ✅ Imported 3 Power Queries");
-            
+                        
             // ═══════════════════════════════════════════════════════
             // TEST 4: Persistence (Save)
             // ═══════════════════════════════════════════════════════
-            Console.WriteLine("  [4/4] Testing: Batch.SaveAsync() persistence...");
             await batch.SaveAsync();
-            Console.WriteLine("        ✅ Power Queries saved successfully");
-            
+                        
             sw.Stop();
             CreationResult.Success = true;
             CreationResult.CreationTimeSeconds = sw.Elapsed.TotalSeconds;
             
-            Console.WriteLine();
-            Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Console.WriteLine($"✅ CREATION TEST PASSED in {sw.Elapsed.TotalSeconds:F1}s");
-            Console.WriteLine($"   📄 {CreationResult.MCodeFilesCreated} M code files created");
-            Console.WriteLine($"   📊 {CreationResult.QueriesImported} Power Queries imported");
-            Console.WriteLine($"   💾 File: {TestFilePath}");
-            Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Console.WriteLine();
-        }
+                                                                                                        }
         catch (Exception ex)
         {
             CreationResult.Success = false;
             CreationResult.ErrorMessage = ex.Message;
             
             sw.Stop();
-            Console.WriteLine();
-            Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Console.WriteLine($"❌ CREATION TEST FAILED after {sw.Elapsed.TotalSeconds:F1}s");
-            Console.WriteLine($"   Error: {ex.Message}");
-            Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Console.WriteLine();
-            
+                                                                                    
             throw; // Fail all tests in class (correct behavior - no point testing if creation failed)
         }
     }

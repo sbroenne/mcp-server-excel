@@ -837,7 +837,7 @@ public static class ExcelRangeTool
             batchId,
             filePath,
             save: false,
-            async (batch) => await commands.GetRangeInfoAsync(batch, sheetName ?? "", rangeAddress!));
+            async (batch) => await commands.GetInfoAsync(batch, sheetName ?? "", rangeAddress!));
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {

@@ -11,7 +11,7 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 
 **🛡️ 100% Safe - Uses Excel's Native COM API**
 
-Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time. Currently supports 80+ operations with active development expanding capabilities.
+Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time. Currently supports 166 operations across 11 specialized tools with active development expanding capabilities.
 
 **Requirements:** Windows OS + Excel 2016+
 
@@ -42,38 +42,39 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 **11 specialized MCP tools** for comprehensive Excel automation:
 
-1. **Power Query & M Code** (11 actions) - Create, edit, refactor Power Query transformations with AI assistance
-2. **Power Pivot / Data Model** (14 actions) - Build DAX measures, manage relationships, export to .dax files for Git workflows
-3. **Excel Tables** (22 actions) - Automate table creation, filtering, sorting, column management, structured references
+1. **Power Query & M Code** (16 actions) - Create, edit, optimize Power Query transformations with AI assistance
+2. **Power Pivot / Data Model** (15 actions) - Build DAX measures, manage relationships, discover model structure, export to .dax files for Git workflows
+3. **Excel Tables** (26 actions) - Automate table creation, filtering, sorting, column management, structured references, number formatting
 4. **PivotTables** (20 actions) - Create and configure PivotTables for interactive data analysis
-5. **Ranges & Data** (38+ actions) - Get/set values/formulas, number formatting (currency, percentage, date), visual formatting (font, fill, border, alignment, wrap text), data validation (dropdowns, rules), find/replace, sort, insert/delete, hyperlinks
+5. **Ranges & Data** (45 actions) - Get/set values/formulas, number formatting, visual formatting (font, fill, border, alignment), data validation, find/replace, sort, insert/delete, hyperlinks, merge, conditional formatting, cell protection
 6. **VBA Macros** (7 actions) - Export, import, run VBA code with version control integration
 7. **Data Connections** (11 actions) - Manage OLEDB, ODBC, Text, Web connections and properties
-8. **Worksheets** (5 actions) - Create, rename, copy, delete worksheets
-9. **Named Ranges** (6 actions) - Manage parameters and configuration through named ranges
-10. **File Operations** (1 action) - Create Excel workbooks (.xlsx/.xlsm)
+8. **Worksheets** (13 actions) - Lifecycle management, tab colors, visibility controls
+9. **Named Ranges** (7 actions) - Manage parameters and configuration through named ranges
+10. **File Operations** (3 actions) - Create Excel workbooks (.xlsx/.xlsm), close workbook, test
 11. **Batch Sessions** (3 actions) - Group multiple operations for better performance
+
+**Total: 11 tools with 166 actions**
 
 **AI-Powered Workflows:**
 - 💬 Natural language Excel commands through GitHub Copilot or Claude
-- 🔄 Refactor Power Query M code for performance and readability  
+- 🔄 Optimize Power Query M code for performance and readability  
 - 📊 Build complex DAX measures with AI guidance
-- 🧪 Enhance VBA macros with error handling and best practices
-- 📋 Automate repetitive data transformations and analysis
+- 📋 Automate repetitive data transformations and formatting
 
 
 ---
 
 ## 💡 Example Use Cases
 
-**"Refactor this slow Power Query"**  
+**"Optimize all my Power Queries in this workbook"**  
 → AI analyzes M code, optimizes query folding, improves step organization
-
-**"Add error handling to my VBA macro"**  
-→ AI exports code, adds Try-Catch patterns, implements logging, updates module
 
 **"Create a PivotTable showing sales by region and product"**  
 → AI creates PivotTable, adds fields, sets aggregations, applies formatting
+
+**"Format revenue columns as currency with bold headers and blue background"**  
+→ AI applies number formatting, font styles, and cell colors
 
 **"Build a DAX measure for year-over-year growth"**  
 → AI writes DAX formula, sets currency format, adds to Data Model

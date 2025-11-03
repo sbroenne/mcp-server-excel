@@ -139,7 +139,7 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<RangeInfoResult> GetRangeInfoAsync(IExcelBatch batch, string sheetName, string rangeAddress)
+    public async Task<RangeInfoResult> GetInfoAsync(IExcelBatch batch, string sheetName, string rangeAddress)
     {
         var result = new RangeInfoResult
         {

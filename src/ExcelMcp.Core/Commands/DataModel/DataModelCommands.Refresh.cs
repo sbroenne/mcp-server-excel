@@ -66,10 +66,10 @@ public partial class DataModelCommands
                     }
                     catch (Exception refreshEx)
                     {
+                        result.Success = false;
                         // Model.Refresh() may not be supported in all Excel versions
                         // Fall back to refreshing tables individually
                         result.ErrorMessage = $"Model-level refresh not supported. Try refreshing tables individually. Error: {refreshEx.Message}";
-                        result.Success = false;
                     }
                 }
             }

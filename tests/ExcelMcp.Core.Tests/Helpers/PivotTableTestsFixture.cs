@@ -45,10 +45,6 @@ public class PivotTableTestsFixture : IAsyncLifetime
     /// </summary>
     public async Task InitializeAsync()
     {
-        Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        Console.WriteLine("TESTING: PivotTable Data Preparation (via fixture initialization)");
-        Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        
         var sw = Stopwatch.StartNew();
         
         TestFilePath = Path.Join(_tempDir, "PivotTableTest.xlsx");
@@ -56,10 +52,6 @@ public class PivotTableTestsFixture : IAsyncLifetime
         
         try
         {
-            // ═══════════════════════════════════════════════════════
-            // TEST 1: File Creation
-            // ═══════════════════════════════════════════════════════
-            Console.WriteLine("  [1/3] Testing: File creation...");
             var fileCommands = new FileCommands();
             var createFileResult = await fileCommands.CreateEmptyAsync(TestFilePath);
             if (!createFileResult.Success)
@@ -67,15 +59,8 @@ public class PivotTableTestsFixture : IAsyncLifetime
                     $"CREATION TEST FAILED: File creation failed: {createFileResult.ErrorMessage}");
             
             CreationResult.FileCreated = true;
-            Console.WriteLine("        ✅ File created successfully");
             
             await using var batch = await ExcelSession.BeginBatchAsync(TestFilePath);
-            
-            // ═══════════════════════════════════════════════════════
-            // TEST 2: Sales Data Creation
-            // ═══════════════════════════════════════════════════════
-            Console.WriteLine("  [2/3] Testing: Sales data creation...");
-            
             await batch.Execute<int>((ctx, ct) =>
             {
                 dynamic sheet = ctx.Book.Worksheets.Item(1);
@@ -117,26 +102,12 @@ public class PivotTableTestsFixture : IAsyncLifetime
             });
             
             CreationResult.DataRowsCreated = 5;
-            Console.WriteLine("        ✅ Created 5 rows of sales data");
             
-            // ═══════════════════════════════════════════════════════
-            // TEST 3: Persistence (Save)
-            // ═══════════════════════════════════════════════════════
-            Console.WriteLine("  [3/3] Testing: Batch.SaveAsync() persistence...");
             await batch.SaveAsync();
-            Console.WriteLine("        ✅ Data saved successfully");
             
             sw.Stop();
             CreationResult.Success = true;
             CreationResult.CreationTimeSeconds = sw.Elapsed.TotalSeconds;
-            
-            Console.WriteLine();
-            Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Console.WriteLine($"✅ CREATION TEST PASSED in {sw.Elapsed.TotalSeconds:F1}s");
-            Console.WriteLine($"   📊 {CreationResult.DataRowsCreated} rows of sales data prepared");
-            Console.WriteLine($"   💾 File: {TestFilePath}");
-            Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Console.WriteLine();
         }
         catch (Exception ex)
         {
@@ -144,13 +115,7 @@ public class PivotTableTestsFixture : IAsyncLifetime
             CreationResult.ErrorMessage = ex.Message;
             
             sw.Stop();
-            Console.WriteLine();
-            Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Console.WriteLine($"❌ CREATION TEST FAILED after {sw.Elapsed.TotalSeconds:F1}s");
-            Console.WriteLine($"   Error: {ex.Message}");
-            Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Console.WriteLine();
-            
+                                                                                    
             throw; // Fail all tests in class (correct behavior - no point testing if creation failed)
         }
     }

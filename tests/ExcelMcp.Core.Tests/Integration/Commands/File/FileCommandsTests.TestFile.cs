@@ -9,14 +9,14 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.File;
 public partial class FileCommandsTests
 {
     [Fact]
-    public async Task TestFile_ExistingValidFile_ReturnsSuccess()
+    public async Task Test_ExistingValidFile_ReturnsSuccess()
     {
         // Arrange - Create a valid file
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(FileCommandsTests), nameof(TestFile_ExistingValidFile_ReturnsSuccess), _tempDir);
+            nameof(FileCommandsTests), nameof(Test_ExistingValidFile_ReturnsSuccess), _tempDir);
 
         // Act
-        var result = await _fileCommands.TestFileAsync(testFile);
+        var result = await _fileCommands.TestAsync(testFile);
 
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
@@ -28,13 +28,13 @@ public partial class FileCommandsTests
     }
 
     [Fact]
-    public async Task TestFile_NonExistent_ReturnsFailure()
+    public async Task Test_NonExistent_ReturnsFailure()
     {
         // Arrange
         string testFile = Path.Join(_tempDir, $"NonExistent_{Guid.NewGuid():N}.xlsx");
 
         // Act
-        var result = await _fileCommands.TestFileAsync(testFile);
+        var result = await _fileCommands.TestAsync(testFile);
 
         // Assert
         Assert.False(result.Success);
@@ -48,7 +48,7 @@ public partial class FileCommandsTests
     [InlineData("TestFile.xls", ".xls")]
     [InlineData("TestFile.csv", ".csv")]
     [InlineData("TestFile.txt", ".txt")]
-    public async Task TestFile_InvalidExtension_ReturnsFailure(string fileName, string expectedExt)
+    public async Task Test_InvalidExtension_ReturnsFailure(string fileName, string expectedExt)
     {
         // Arrange
         string testFile = Path.Join(_tempDir, $"{Guid.NewGuid():N}_{fileName}");
@@ -57,7 +57,7 @@ public partial class FileCommandsTests
         System.IO.File.WriteAllText(testFile, "test content");
 
         // Act
-        var result = await _fileCommands.TestFileAsync(testFile);
+        var result = await _fileCommands.TestAsync(testFile);
 
         // Assert
         Assert.False(result.Success);

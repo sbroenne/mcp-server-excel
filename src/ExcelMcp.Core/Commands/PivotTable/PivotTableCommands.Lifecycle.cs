@@ -111,7 +111,7 @@ public partial class PivotTableCommands
     /// <summary>
     /// Gets detailed information about a PivotTable
     /// </summary>
-    public async Task<PivotTableInfoResult> GetInfoAsync(IExcelBatch batch, string pivotTableName)
+    public async Task<PivotTableInfoResult> GetAsync(IExcelBatch batch, string pivotTableName)
     {
         return await batch.Execute((ctx, ct) =>
         {

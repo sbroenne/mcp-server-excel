@@ -229,7 +229,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             batchId,
             filePath,
             save: false,
-            async (batch) => await commands.ViewMeasureAsync(batch, measureName));
+            async (batch) => await commands.GetAsync(batch, measureName));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -383,7 +383,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             batchId,
             filePath,
             save: false,
-            async (batch) => await commands.ListTableColumnsAsync(batch, tableName));
+            async (batch) => await commands.ListColumnsAsync(batch, tableName));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -411,7 +411,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             batchId,
             filePath,
             save: false,
-            async (batch) => await commands.ViewTableAsync(batch, tableName));
+            async (batch) => await commands.GetTableAsync(batch, tableName));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -433,7 +433,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             batchId,
             filePath,
             save: false,
-            async (batch) => await commands.GetModelInfoAsync(batch));
+            async (batch) => await commands.GetInfoAsync(batch));
 
         // If operation failed, throw exception with detailed error message
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))

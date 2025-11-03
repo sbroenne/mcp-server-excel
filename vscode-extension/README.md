@@ -7,12 +7,21 @@
 
 **Control Microsoft Excel with AI through GitHub Copilot - just ask in natural language!**
 
-Instead of clicking through Excel menus or writing complex VBA, simply ask:
-- *"Create a Power Query that combines Sales.csv and Products.csv on ProductID"*
-- *"Add a DAX measure in Power Pivot calculating year-over-year revenue growth"*
-- *"Create a PivotTable showing sales by region and product category"*
-- *"Export all VBA modules to separate files for Git version control"*
-- *"Create a table with filters and sort by Revenue descending"*
+Instead of clicking through Excel menus, simply ask:
+
+**Data Transformation & Analysis:**
+- *"Optimize all my Power Queries in this workbook for better performance"*
+- *"Create a PivotTable from SalesData table showing top 10 products by region"*
+- *"Build a DAX measure calculating year-over-year growth with proper time intelligence"*
+
+**Formatting & Styling (No Programming Required):**
+- *"Format revenue columns as currency, make headers bold with blue background"*
+- *"Apply conditional formatting to highlight values above $10,000 in red"*
+- *"Convert this range to an Excel Table with filters and totals row"*
+
+**Workflow Automation:**
+- *"Find all cells containing 'Q1 2024' and replace with 'Q1 2025'"*
+- *"Add data validation dropdowns to Status column with options: Active, Pending, Completed"*
 
 **Quick Example:**
 
@@ -33,7 +42,7 @@ Result: A working Excel file with the query ready to use
 Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), Excel MCP Server uses **Excel's official COM API**. This ensures:
 - ✅ **Zero risk of document corruption** - Excel handles all file operations safely
 - ✅ **Interactive development** - See changes in real-time as you work with live Excel files
-- ✅ **Growing feature set** - Currently supports 80+ operations across Power Query, Power Pivot, VBA, PivotTables, Tables, and more (active development)
+- ✅ **Comprehensive automation** - Currently supports 166 operations across 11 specialized tools (active development)
 
 ## 👥 Who Should Use This?
 
@@ -71,17 +80,18 @@ The Excel MCP Server provides **11 specialized tools** for comprehensive Excel a
 
 | Tool | Operations | Purpose |
 |------|------------|---------|
-| **excel_powerquery** | 12 actions | Power Query M code: create, view, import, export, update, delete, load configuration |
-| **excel_datamodel** | 13 actions | Power Pivot (Data Model): DAX measures, relationships, discover structure |
-| **excel_table** | 24 actions | Excel Tables: lifecycle, columns, filters, sorts, structured references, formatting |
-| **excel_pivottable** | 17 actions | PivotTables: create, field management, aggregations, filters, sorting |
-| **excel_range** | 31 actions | Ranges: get/set values/formulas, clear, copy, insert/delete, find/replace, formatting, validation |
+| **excel_powerquery** | 16 actions | Power Query M code: create, view, import, export, update, delete, load configuration, errors, eval |
+| **excel_datamodel** | 15 actions | Power Pivot (Data Model): DAX measures, relationships, discover structure (tables, columns) |
+| **excel_table** | 26 actions | Excel Tables: lifecycle, columns, filters, sorts, structured references, number formatting |
+| **excel_pivottable** | 20 actions | PivotTables: create, field management, aggregations, filters, sorting, extract data |
+| **excel_range** | 45 actions | Ranges: get/set values/formulas, formatting, validation, clear, copy, insert/delete, find/replace, merge, conditional formatting, cell protection |
 | **excel_vba** | 7 actions | VBA: list, view, export, import, update, run, delete modules |
 | **excel_connection** | 11 actions | Connections: OLEDB/ODBC/Text/Web management, properties, refresh, test |
-| **excel_worksheet** | 12 actions | Worksheets: lifecycle, tab colors, visibility (list, create, rename, copy, delete, show/hide) |
-| **excel_parameter** | 7 actions | Named ranges: list, get, set, create, delete, update, bulk create |
-| **excel_file** | 1 action | File creation: create empty .xlsx/.xlsm workbooks |
-| **Batch Session Tools** | 3 actions | Multi-operation performance: begin-batch, execute-in-batch, commit-batch |
+| **excel_worksheet** | 13 actions | Worksheets: lifecycle, tab colors, visibility (list, create, rename, copy, delete, show/hide, very-hide) |
+| **excel_namedrange** | 7 actions | Named ranges: list, get, set, create, delete, update, bulk create |
+| **excel_file** | 3 actions | File operations: create empty .xlsx/.xlsm workbooks, close workbook, test |
+| **excel_batch** | 3 actions | Multi-operation performance: begin, commit, list |
+| **Total** | **166 actions** | **11 tools for comprehensive Excel automation** |
 
 ## Troubleshooting
 

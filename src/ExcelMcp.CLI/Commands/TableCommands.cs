@@ -209,7 +209,7 @@ public class CliTableCommands : ITableCommands
         var task = Task.Run(async () =>
         {
             await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.GetInfoAsync(batch, tableName);
+            return await _coreCommands.GetAsync(batch, tableName);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -375,7 +375,7 @@ public class CliTableCommands : ITableCommands
         var task = Task.Run(async () =>
         {
             await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.AppendRowsAsync(batch, tableName, rows);
+            return await _coreCommands.AppendAsync(batch, tableName, rows);
         });
         var result = task.GetAwaiter().GetResult();
 
