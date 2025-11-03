@@ -135,15 +135,6 @@ public static class TableTool
         );
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
-        if (result.Tables == null || !result.Tables.Any())
-        {
-
-        }
-        else
-        {
-
-        }
-
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -288,14 +279,12 @@ public static class TableTool
 
         foreach (var line in lines)
         {
-            var row = new List<object?>();
             var values = line.Split(',');
-
-            foreach (var value in values)
+            var row = values.Select(value =>
             {
                 var trimmed = value.Trim().Trim('"');
-                row.Add(string.IsNullOrEmpty(trimmed) ? null : trimmed);
-            }
+                return string.IsNullOrEmpty(trimmed) ? null : (object?)trimmed;
+            }).ToList();
 
             rows.Add(row);
         }

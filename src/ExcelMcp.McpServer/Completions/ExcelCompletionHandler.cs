@@ -166,13 +166,12 @@ public static class ExcelCompletionHandler
     private static JsonObject CreateCompletionResult(List<string> suggestions)
     {
         var values = new JsonArray();
-        foreach (var suggestion in suggestions)
+        foreach (var item in suggestions.Select(suggestion => new JsonObject
         {
-            var item = new JsonObject
-            {
-                ["value"] = suggestion,
-                ["description"] = $"Autocomplete: {suggestion}"
-            };
+            ["value"] = suggestion,
+            ["description"] = $"Autocomplete: {suggestion}"
+        }))
+        {
             values.Add(item);
         }
 

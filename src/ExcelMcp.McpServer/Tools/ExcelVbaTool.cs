@@ -147,8 +147,10 @@ public static class ExcelVbaTool
 
     private static async Task<string> ImportVbaScriptAsync(VbaCommands commands, string filePath, string? moduleName, string? sourcePath, string? batchId)
     {
-        if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(sourcePath))
-            throw new ModelContextProtocol.McpException("moduleName and sourcePath are required for import action");
+        if (string.IsNullOrEmpty(moduleName))
+            throw new ModelContextProtocol.McpException("moduleName is required for import action");
+        if (string.IsNullOrEmpty(sourcePath))
+            throw new ModelContextProtocol.McpException("sourcePath is required for import action");
 
         var result = await ExcelToolsBase.WithBatchAsync(
             batchId,
@@ -198,11 +200,17 @@ public static class ExcelVbaTool
             throw new ModelContextProtocol.McpException("moduleName (format: 'Module.Procedure') is required for run action");
 
         // Parse parameters if provided
-        var paramArray = string.IsNullOrEmpty(parameters)
-            ? Array.Empty<string>()
-            : parameters.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                       .Select(p => p.Trim())
-                       .ToArray();
+        string[] paramArray;
+        if (string.IsNullOrEmpty(parameters))
+        {
+            paramArray = Array.Empty<string>();
+        }
+        else
+        {
+            paramArray = parameters.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                   .Select(p => p.Trim())
+                                   .ToArray();
+        }
 
         var result = await ExcelToolsBase.WithBatchAsync(
             batchId,

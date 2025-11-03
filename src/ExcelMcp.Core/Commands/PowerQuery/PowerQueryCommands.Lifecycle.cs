@@ -315,10 +315,6 @@ public partial class PowerQueryCommands
         }
 
         // Connection-only query or restore not needed
-        if (result.Success)
-        {
-        }
-
         return result;
     }
 
