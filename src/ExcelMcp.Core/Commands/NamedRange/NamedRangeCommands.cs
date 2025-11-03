@@ -110,9 +110,7 @@ public partial class NamedRangeCommands : INamedRangeCommands
 
         if (errors.Count > 0)
         {
-        }
-        else
-        {
+            result.ErrorMessage = string.Join("; ", errors);
         }
 
         return result;

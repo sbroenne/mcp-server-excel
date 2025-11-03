@@ -402,14 +402,12 @@ public class CliTableCommands : ITableCommands
 
         foreach (var line in lines)
         {
-            var row = new List<object?>();
             var values = line.Split(',');
-
-            foreach (var value in values)
+            var row = values.Select(value =>
             {
                 var trimmed = value.Trim().Trim('"');
-                row.Add(string.IsNullOrEmpty(trimmed) ? null : trimmed);
-            }
+                return string.IsNullOrEmpty(trimmed) ? null : (object?)trimmed;
+            }).ToList();
 
             rows.Add(row);
         }

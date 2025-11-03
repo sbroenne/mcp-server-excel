@@ -183,8 +183,12 @@ public static class ExcelWorksheetTool
                     if (string.IsNullOrEmpty(sheetName))
                         throw new ModelContextProtocol.McpException("sheetName is required for set-tab-color action");
 
-                    if (!red.HasValue || !green.HasValue || !blue.HasValue)
-                        throw new ModelContextProtocol.McpException("red, green, and blue values (0-255) are required for set-tab-color action");
+                    if (!red.HasValue)
+                        throw new ModelContextProtocol.McpException("red value (0-255) is required for set-tab-color action");
+                    if (!green.HasValue)
+                        throw new ModelContextProtocol.McpException("green value (0-255) is required for set-tab-color action");
+                    if (!blue.HasValue)
+                        throw new ModelContextProtocol.McpException("blue value (0-255) is required for set-tab-color action");
 
                     var result = await ExcelToolsBase.WithBatchAsync(
                         batchId,

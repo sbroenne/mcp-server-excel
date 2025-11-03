@@ -242,13 +242,11 @@ public static class PivotTableTool
 
                         // Parse aggregation function
                         AggregationFunction function = AggregationFunction.Sum; // Default
-                        if (!string.IsNullOrEmpty(aggregationFunction))
+                        if (!string.IsNullOrEmpty(aggregationFunction) && 
+                            !Enum.TryParse<AggregationFunction>(aggregationFunction, true, out function))
                         {
-                            if (!Enum.TryParse<AggregationFunction>(aggregationFunction, true, out function))
-                            {
-                                throw new ModelContextProtocol.McpException(
-                                    $"Invalid aggregation function '{aggregationFunction}'. Valid values: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP");
-                            }
+                            throw new ModelContextProtocol.McpException(
+                                $"Invalid aggregation function '{aggregationFunction}'. Valid values: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP");
                         }
 
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, true,
@@ -372,13 +370,11 @@ public static class PivotTableTool
 
                         // Parse sort direction
                         SortDirection direction = SortDirection.Ascending; // Default
-                        if (!string.IsNullOrEmpty(sortDirection))
+                        if (!string.IsNullOrEmpty(sortDirection) && 
+                            !Enum.TryParse<SortDirection>(sortDirection, true, out direction))
                         {
-                            if (!Enum.TryParse<SortDirection>(sortDirection, true, out direction))
-                            {
-                                throw new ModelContextProtocol.McpException(
-                                    $"Invalid sort direction '{sortDirection}'. Valid values: Ascending, Descending");
-                            }
+                            throw new ModelContextProtocol.McpException(
+                                $"Invalid sort direction '{sortDirection}'. Valid values: Ascending, Descending");
                         }
 
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, true,
