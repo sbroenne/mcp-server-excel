@@ -57,7 +57,7 @@ Result: A professionally optimized Power Query with documented improvements
 Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), ExcelMcp uses **Excel's official COM API**. This ensures:
 - ✅ **Zero risk of document corruption** - Excel handles all file operations safely
 - ✅ **Interactive development** - See changes in real-time as you work with live Excel files
-- ✅ **Comprehensive automation** - Currently supports 166 operations across 12 specialized tools covering Power Query, Data Model/DAX, VBA, PivotTables, Excel Tables, ranges, and more
+- ✅ **Comprehensive automation** - Currently supports 166 operations across 11 specialized tools covering Power Query, Data Model/DAX, VBA, PivotTables, Excel Tables, ranges, and more
 
 ## 👥 Who Should Use This?
 
@@ -273,7 +273,7 @@ This means you get:
 
 ## 🔟 MCP Tools Overview
 
-**12 specialized tools for comprehensive Excel automation:**
+**11 specialized tools for comprehensive Excel automation:**
 
 1. **excel_powerquery** (16 actions) - Power Query M code: create, view, import, export, update, delete, manage load destinations, privacy levels, errors, eval, list Excel sources
 2. **excel_datamodel** (15 actions) - Power Pivot (Data Model): CRUD DAX measures/relationships, discover structure (tables, columns), export to .dax files
@@ -286,7 +286,8 @@ This means you get:
 9. **excel_namedrange** (7 actions) - Named ranges: list, get, set, create, create-bulk, delete, update
 10. **excel_file** (3 actions) - File operations: create empty .xlsx/.xlsm workbooks, close workbook, test
 11. **excel_batch** (3 actions) - Multi-operation performance: begin, commit, list
-12. **Total: 12 tools with 166 actions**
+
+**Total: 11 tools with 166 actions**
 
 > 📚 **[Complete MCP Server Guide →](src/ExcelMcp.McpServer/README.md)** - Detailed tool documentation and examples
 

@@ -11,7 +11,7 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 
 **🛡️ 100% Safe - Uses Excel's Native COM API**
 
-Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time. Currently supports 166 operations across 12 specialized tools with active development expanding capabilities.
+Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time. Currently supports 166 operations across 11 specialized tools with active development expanding capabilities.
 
 **Requirements:** Windows OS + Excel 2016+
 
@@ -40,7 +40,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 ## 🛠️ What You Can Do
 
-**12 specialized MCP tools** for comprehensive Excel automation:
+**11 specialized MCP tools** for comprehensive Excel automation:
 
 1. **Power Query & M Code** (16 actions) - Create, edit, optimize Power Query transformations with AI assistance
 2. **Power Pivot / Data Model** (15 actions) - Build DAX measures, manage relationships, discover model structure, export to .dax files for Git workflows
@@ -53,7 +53,8 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 9. **Named Ranges** (7 actions) - Manage parameters and configuration through named ranges
 10. **File Operations** (3 actions) - Create Excel workbooks (.xlsx/.xlsm), close workbook, test
 11. **Batch Sessions** (3 actions) - Group multiple operations for better performance
-12. **Total: 12 tools with 166 actions**
+
+**Total: 11 tools with 166 actions**
 
 **AI-Powered Workflows:**
 - 💬 Natural language Excel commands through GitHub Copilot or Claude

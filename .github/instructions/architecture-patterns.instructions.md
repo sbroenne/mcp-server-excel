@@ -87,17 +87,17 @@ public int MyCommand(string[] args)
 ## MCP Server Resource-Based Tools
 
 **11 Focused Tools:**
-1. `excel_file` - File operations
-2. `excel_powerquery` - Power Query M code  
-3. `excel_worksheet` - Worksheet lifecycle
-4. `excel_range` - Range operations (values, formulas, hyperlinks)
-5. `excel_parameter` - Named ranges
-6. `excel_table` - Excel Table (ListObject) operations
-7. `excel_connection` - Connection management
-8. `excel_datamodel` - Data Model / Power Pivot
-9. `excel_vba` - VBA macros
-10. `begin_excel_batch` - Start batch session
-11. `commit_excel_batch` - Save/discard batch session
+1. `excel_batch` - Batch session management (start, commit, discard)
+2. `excel_connection` - Data connections (OLEDB, ODBC, Text, Web)
+3. `excel_datamodel` - Power Pivot / Data Model / DAX measures
+4. `excel_file` - File operations (create, close, test)
+5. `excel_namedrange` - Named ranges (parameters)
+6. `excel_pivottable` - PivotTables for interactive analysis
+7. `excel_powerquery` - Power Query M code management
+8. `excel_range` - Range operations (values, formulas, hyperlinks)
+9. `excel_table` - Excel Tables (ListObjects)
+10. `excel_vba` - VBA macros
+11. `excel_worksheet` - Worksheet lifecycle management
 
 ### Action-Based Routing
 ```csharp
