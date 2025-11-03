@@ -1,5 +1,19 @@
 name: Release CLI
 
+# This workflow uses NuGet Trusted Publishing via OIDC (OpenID Connect)
+# The NuGet/login action exchanges GitHub OIDC tokens for short-lived NuGet API keys
+# See: docs/NUGET_TRUSTED_PUBLISHING.md for setup instructions
+#
+# Required GitHub Secret:
+# - NUGET_USER: Your NuGet.org username (profile name, NOT email)
+#
+# Required NuGet.org Configuration:
+# - Package: Sbroenne.ExcelMcp.CLI
+# - Trusted Publisher: GitHub Actions
+# - Owner: sbroenne
+# - Repository: mcp-server-excel
+# - Workflow: release-cli.yml
+
 on:
   push:
     tags:
@@ -12,6 +26,8 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+      packages: write
+      id-token: write  # Required for NuGet Trusted Publishing via OIDC
 
     steps:
     - uses: actions/checkout@v4
@@ -53,6 +69,31 @@ jobs:
         Write-Output "ℹ️ ExcelMcp has no unit tests by architectural decision"
         Write-Output "   See docs/ADR-001-NO-UNIT-TESTS.md for rationale"
         Write-Output "   Integration tests run on Azure self-hosted runner with Excel"
+      shell: pwsh
+
+    - name: Pack NuGet Package
+      run: dotnet pack src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-build --output ./nupkg
+
+    - name: NuGet login (OIDC → temp API key)
+      uses: NuGet/login@v1
+      id: nuget-login
+      with:
+        user: ${{ secrets.NUGET_USER }}  # Your nuget.org username (profile name), NOT email
+
+    - name: Publish to NuGet.org (Trusted Publishing)
+      run: |
+        $version = $env:PACKAGE_VERSION
+        $packagePath = "nupkg/Sbroenne.ExcelMcp.CLI.$version.nupkg"
+
+        Write-Output "Publishing $packagePath to NuGet.org using Trusted Publishing (OIDC)..."
+
+        dotnet nuget push $packagePath `
+          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} `
+          --source https://api.nuget.org/v3/index.json `
+          --skip-duplicate
+
+        Write-Output "🚀 Published Sbroenne.ExcelMcp.CLI.$version to NuGet.org"
+        Write-Output "🔗 Package will be available at: https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI/$version"
       shell: pwsh
 
     - name: Create CLI Release Package
@@ -147,7 +188,16 @@ jobs:
         $releaseNotes += "- Connection management (OLEDB, ODBC, Text, Web)`n"
         $releaseNotes += "- CI/CD integration ready`n`n"
         $releaseNotes += "### Installation`n`n"
-        $releaseNotes += "**Download Binary**`n"
+        $releaseNotes += "**Option 1: .NET Tool (Recommended)**`n"
+        $releaseNotes += "``````powershell`n"
+        $releaseNotes += "# Install globally`n"
+        $releaseNotes += "dotnet tool install --global Sbroenne.ExcelMcp.CLI --version $version`n`n"
+        $releaseNotes += "# Run CLI`n"
+        $releaseNotes += "excelcli`n`n"
+        $releaseNotes += "# Update`n"
+        $releaseNotes += "dotnet tool update --global Sbroenne.ExcelMcp.CLI`n"
+        $releaseNotes += "``````n`n"
+        $releaseNotes += "**Option 2: Download Binary**`n"
         $releaseNotes += "1. Download ExcelMcp-CLI-$version-windows.zip`n"
         $releaseNotes += "2. Extract to your preferred directory`n"
         $releaseNotes += "3. See QUICK-START.md for usage examples`n`n"

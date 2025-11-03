@@ -4,7 +4,68 @@ This document outlines the separate build and release processes for ExcelMcp com
 
 ## Release Workflows
 
-### 1. MCP Server Releases (`mcp-v*` tags)
+### 1. ComInterop Library Releases (`cominterop-v*` tags)
+
+**Workflow**: `.github/workflows/release-cominterop.yml`
+**Trigger**: Tags starting with `cominterop-v` (e.g., `cominterop-v1.0.0`)
+
+**Features**:
+
+- Builds and packages only the ComInterop library
+- Publishes to NuGet as a reusable library (using OIDC trusted publishing)
+- Creates GitHub release with library-focused documentation
+- Foundation layer for Excel COM automation
+- Can be used independently in any .NET Excel automation project
+
+**Release Artifacts**:
+
+- NuGet package: `Sbroenne.ExcelMcp.ComInterop` on NuGet.org
+- No binary ZIP (library only, consumed via NuGet)
+
+**Publishing Method**:
+- Uses OIDC (OpenID Connect) trusted publishing for secure NuGet authentication
+- No API keys stored in secrets - authentication via GitHub identity
+- Publishes to NuGet.org within the same workflow that creates the GitHub release
+
+**Use Cases**:
+
+- Low-level COM interop for Excel automation projects
+- STA threading and OLE message filtering
+- Excel session and batch operation management
+- Reusable foundation for custom Excel automation tools
+
+### 2. Core Library Releases (`core-v*` tags)
+
+**Workflow**: `.github/workflows/release-core.yml`
+**Trigger**: Tags starting with `core-v` (e.g., `core-v1.0.0`)
+
+**Features**:
+
+- Builds and packages only the Core library
+- Publishes to NuGet as a reusable library (using OIDC trusted publishing)
+- Creates GitHub release with library-focused documentation
+- Business logic layer for Excel automation
+- Shared by MCP Server and CLI
+
+**Release Artifacts**:
+
+- NuGet package: `Sbroenne.ExcelMcp.Core` on NuGet.org
+- No binary ZIP (library only, consumed via NuGet)
+- Includes dependency on ComInterop
+
+**Publishing Method**:
+- Uses OIDC (OpenID Connect) trusted publishing for secure NuGet authentication
+- No API keys stored in secrets - authentication via GitHub identity
+- Publishes to NuGet.org within the same workflow that creates the GitHub release
+
+**Use Cases**:
+
+- High-level Excel automation commands
+- Power Query, VBA, Data Model, worksheets, ranges, tables operations
+- Building custom Excel automation tools
+- Integrating Excel operations into .NET applications
+
+### 3. MCP Server Releases (`mcp-v*` tags)
 
 **Workflow**: `.github/workflows/release-mcp-server.yml`
 **Trigger**: Tags starting with `mcp-v` (e.g., `mcp-v1.0.0`)
@@ -34,7 +95,7 @@ This document outlines the separate build and release processes for ExcelMcp com
 - Conversational Excel development workflows
 - Model Context Protocol implementations
 
-### 2. CLI Releases (`cli-v*` tags)
+### 4. CLI Releases (`cli-v*` tags)
 
 **Workflow**: `.github/workflows/release-cli.yml`
 **Trigger**: Tags starting with `cli-v` (e.g., `cli-v1.0.0`)
@@ -42,15 +103,23 @@ This document outlines the separate build and release processes for ExcelMcp com
 **Features**:
 
 - Builds and packages only the CLI tool
+- Publishes to NuGet as a .NET global tool (using OIDC trusted publishing)
 - Creates standalone CLI distribution
+- Creates GitHub release with CLI-focused documentation
 - Focused on direct automation workflows
-- No NuGet publishing (binary-only distribution)
 
 **Release Artifacts**:
 
+- NuGet package: `Sbroenne.ExcelMcp.CLI` on NuGet.org (as .NET global tool)
 - `ExcelMcp-CLI-{version}-windows.zip` - Complete CLI package
-- Includes all 40+ commands documentation
+- Includes all 89+ commands documentation
 - Quick start guide for CLI usage
+
+**Publishing Method**:
+- Uses OIDC (OpenID Connect) trusted publishing for secure NuGet authentication
+- No API keys stored in secrets - authentication via GitHub identity
+- Publishes to NuGet.org within the same workflow that creates the GitHub release
+- Package configured as .NET global tool (PackAsTool=true)
 
 **Use Cases**:
 
@@ -59,7 +128,7 @@ This document outlines the separate build and release processes for ExcelMcp com
 - Development workflows and testing
 - Command-line Excel operations
 
-### 3. VS Code Extension Releases (`vscode-v*` tags)
+### 5. VS Code Extension Releases (`vscode-v*` tags)
 
 **Workflow**: `.github/workflows/release-vscode-extension.yml`
 **Trigger**: Tags starting with `vscode-v` (e.g., `vscode-v1.0.0`)
@@ -86,43 +155,75 @@ This document outlines the separate build and release processes for ExcelMcp com
 
 ## Version Management
 
-### Independent Versioning
+### Versioning Strategy
 
-- **MCP Server**: Independent version numbers (e.g., mcp-v1.2.0)
-- **CLI**: Independent version numbers (e.g., cli-v2.1.0)
+**Independent Packages:**
+- **ComInterop Library**: Independent version numbers (e.g., cominterop-v1.0.0)
+- **Core Library**: Independent version numbers (e.g., core-v1.0.0)
 - **VS Code Extension**: Independent version numbers (e.g., vscode-v1.0.5)
+
+**Co-Released Packages:**
+- **MCP Server & CLI**: Typically co-released with Core (e.g., mcp-v1.2.0, cli-v1.2.0, core-v1.2.0)
+- These are wrappers around Core targeting different use cases (AI integration vs command-line)
+- When Core is updated, both MCP Server and CLI should usually be released together
 
 ### Development Strategy
 
-- **MCP Server**: Focus on AI integration features, conversational interfaces
-- **CLI**: Focus on automation efficiency, command completeness, CI/CD integration
+- **ComInterop**: Focus on COM interop reliability, session management, retry logic
+- **Core**: Focus on Excel automation commands, business logic, data operations
+- **MCP Server & CLI**: Wrappers around Core for different consumption patterns
+  - **MCP Server**: AI integration features, conversational interfaces
+  - **CLI**: Direct automation, command completeness, CI/CD integration
 - **VS Code Extension**: Focus on developer experience, VS Code integration, MCP management
 
 ## Release Process Examples
 
-### Releasing MCP Server Only
+### Releasing ComInterop Library Only
 
 ```bash
-# Create and push MCP server release tag
-git tag mcp-v1.3.0
-git push origin mcp-v1.3.0
+# Create and push ComInterop library release tag
+git tag cominterop-v1.0.0
+git push origin cominterop-v1.0.0
 
-# This triggers release-mcp-server.yml which:
-# - Builds MCP server
+# This triggers release-cominterop.yml which:
+# - Builds ComInterop library
 # - Publishes to NuGet using OIDC trusted publishing
-# - Creates GitHub release with MCP-focused docs and binary ZIP
+# - Creates GitHub release with library-focused docs
 ```
 
-### Releasing CLI Only
+### Releasing Core + MCP Server + CLI Together (Typical)
 
 ```bash
-# Create and push CLI release tag
-git tag cli-v2.2.0
-git push origin cli-v2.2.0
+# Core, MCP Server, and CLI are typically released together
+# since MCP Server and CLI are wrappers around Core
 
-# This triggers release-cli.yml which:
-# - Builds CLI only
-# - Creates binary distribution (no NuGet publishing)
+# 1. Release Core first
+git tag core-v1.2.0
+git push origin core-v1.2.0
+# Wait 5-10 minutes for NuGet indexing
+
+# 2. Release MCP Server and CLI together (same version as Core)
+git tag mcp-v1.2.0
+git push origin mcp-v1.2.0
+
+git tag cli-v1.2.0
+git push origin cli-v1.2.0
+
+# This ensures all wrapper packages are aligned with Core
+```
+
+### Releasing Core Only (Rare)
+
+```bash
+# Only release Core if changes don't affect MCP Server/CLI wrappers
+git tag core-v1.2.1
+git push origin core-v1.2.1
+
+# This triggers release-core.yml which:
+# - Builds Core library
+# - Publishes to NuGet using OIDC trusted publishing
+# - Creates GitHub release with library-focused docs
+```
 # - Creates GitHub release with CLI-focused docs
 ```
 
@@ -144,6 +245,8 @@ git push origin vscode-v1.0.5
 ### Separate Focus Areas
 
 - **Main README.md**: MCP Server focused (AI assistant integration)
+- **src/ExcelMcp.ComInterop/README.md**: ComInterop library (low-level COM automation)
+- **src/ExcelMcp.Core/README.md**: Core library (high-level Excel commands)
 - **docs/CLI.md**: CLI focused (direct automation)
 - **vscode-extension/README.md**: VS Code Extension focused (developer experience)
 - **Release Notes**: Tailored to the specific component being released
@@ -156,17 +259,21 @@ git push origin vscode-v1.0.5
 
 ## Benefits of This Approach
 
-1. **Targeted Releases**: Users can get updates for just the tool they use
-2. **Independent Development**: MCP, CLI, and VS Code Extension can evolve at different paces
-3. **Focused Documentation**: Release notes and docs match user intent
-4. **Reduced Package Size**: Users download only what they need
-5. **Clear Separation**: MCP for AI workflows, CLI for automation, VS Code Extension for IDE integration
-6. **Flexibility**: Each component released independently as needed
+1. **Targeted Releases**: Users can get updates for just the component they use
+2. **Independent Development**: Libraries, MCP Server, CLI, and VS Code Extension can evolve at different paces
+3. **Reusable Components**: ComInterop and Core can be used in other projects
+4. **Focused Documentation**: Release notes and docs match user intent
+5. **Reduced Package Size**: Users download only what they need
+6. **Clear Separation**: Libraries for building, MCP for AI workflows, CLI for automation, VS Code for IDE
+7. **Flexibility**: Each component released independently as needed
+8. **NuGet Ecosystem**: Libraries and tools available via NuGet package manager
 
 ## Tag Patterns
 
-- `mcp-v*`: MCP Server only
-- `cli-v*`: CLI only  
-- `vscode-v*`: VS Code Extension only
+- `cominterop-v*`: ComInterop library only (NuGet package)
+- `core-v*`: Core library only (NuGet package)
+- `mcp-v*`: MCP Server only (NuGet .NET tool + binary)
+- `cli-v*`: CLI only (NuGet .NET tool + binary)
+- `vscode-v*`: VS Code Extension only (VSIX)
 
 This approach provides maximum flexibility while maintaining the integrated ExcelMcp ecosystem.

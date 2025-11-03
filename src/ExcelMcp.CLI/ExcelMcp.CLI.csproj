@@ -19,12 +19,18 @@
 
     <!-- Package-specific properties -->
     <PackageId>Sbroenne.ExcelMcp.CLI</PackageId>
-    <Description>A command-line interface tool for automating Microsoft Excel operations using COM interop by Sbroenne. Designed for coding agents like GitHub Copilot to programmatically manage Excel workbooks, Power Query queries, worksheets, and named ranges. Supports Windows x64 and ARM64.</Description>
-    <PackageTags>excel;cli;powerquery;automation;com;coding-agent;github-copilot;mcp;arm64;windows;sbroenne</PackageTags>
+    <Title>Sbroenne ExcelMcp Command-Line Interface</Title>
+    <Description>A command-line interface tool for automating Microsoft Excel operations using COM interop by Sbroenne. Designed for coding agents like GitHub Copilot to programmatically manage Excel workbooks, Power Query queries, worksheets, and named ranges. Supports Windows x64 and ARM64. Includes 89+ commands for Excel automation.</Description>
+    <PackageTags>excel;cli;powerquery;automation;com;coding-agent;github-copilot;mcp;arm64;windows;dotnet-tool;sbroenne</PackageTags>
     <PackageReadmeFile>CLI.md</PackageReadmeFile>
-    <PackageReleaseNotes>Initial open source release of ExcelMcp.CLI with complete CRUD operations</PackageReleaseNotes>
+    <PackageReleaseNotes>See https://github.com/sbroenne/mcp-server-excel/releases for release notes</PackageReleaseNotes>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IsPublishable>true</IsPublishable>
+
+    <!-- .NET Tool Configuration -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>excelcli</ToolCommandName>
 
     <!-- Package Validation -->
     <EnablePackageValidation>true</EnablePackageValidation>

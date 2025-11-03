@@ -13,12 +13,25 @@
     <FileVersion>1.0.0.0</FileVersion>
 
     <PackageId>Sbroenne.ExcelMcp.ComInterop</PackageId>
-    <Description>COM interop utilities for Excel automation by Sbroenne. Provides low-level COM object lifecycle management and OLE message filtering.</Description>
-    <PackageTags>excel;automation;com;interop;ole;sbroenne</PackageTags>
+    <Title>Sbroenne ExcelMcp COM Interop Library</Title>
+    <Description>COM interop utilities for Excel automation by Sbroenne. Provides low-level COM object lifecycle management, STA threading, OLE message filtering, and Excel session management. Foundation library for robust Excel COM automation.</Description>
+    <PackageTags>excel;automation;com;interop;ole;sta;threading;excel-automation;windows;sbroenne</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>See https://github.com/sbroenne/mcp-server-excel/releases for release notes</PackageReleaseNotes>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    
+    <!-- Package Validation -->
+    <EnablePackageValidation>true</EnablePackageValidation>
 
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Include README and LICENSE in package -->
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers">

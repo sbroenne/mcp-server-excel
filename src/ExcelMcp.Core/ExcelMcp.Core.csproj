@@ -16,13 +16,27 @@
 
     <!-- Package Information -->
     <PackageId>Sbroenne.ExcelMcp.Core</PackageId>
-    <Description>Core library for Excel automation operations via COM interop by Sbroenne. Shared by ExcelMcp and ExcelMcp.McpServer.</Description>
-    <PackageTags>excel;automation;com;powerquery;vba;core;mcp;sbroenne</PackageTags>
+    <Title>Sbroenne ExcelMcp Core Library</Title>
+    <Description>Core library for Excel automation operations via COM interop by Sbroenne. Provides high-level commands for Power Query, VBA, Data Model (Power Pivot), worksheets, ranges, tables, parameters, and connections. Shared by ExcelMcp.McpServer and ExcelMcp.CLI.</Description>
+    <PackageTags>excel;automation;com;powerquery;vba;datamodel;dax;pivot;core;mcp;sbroenne</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>See https://github.com/sbroenne/mcp-server-excel/releases for release notes</PackageReleaseNotes>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    
+    <!-- Package Validation -->
+    <EnablePackageValidation>true</EnablePackageValidation>
 
     <!-- Documentation -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Include README and LICENSE in package -->
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\ExcelMcp.ComInterop\ExcelMcp.ComInterop.csproj" />
   </ItemGroup>
