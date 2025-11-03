@@ -115,19 +115,25 @@ jobs:
       run: |
         cd vscode-extension
         npx @vscode/vsce package --no-dependencies --allow-missing-repository
-
+        
         $version = "${{ env.PACKAGE_VERSION }}"
-        $vsixFile = "excelmcp-$version.vsix"
-
-        # Rename if needed
-        $existingVsix = Get-ChildItem -Path . -Filter "excelmcp-*.vsix" -File | Select-Object -First 1
-        if ($existingVsix -and $existingVsix.Name -ne $vsixFile) {
-          Rename-Item $existingVsix.FullName -NewName $vsixFile
+        
+        # vsce creates filename based on package.json name (excel-mcp)
+        $actualVsix = Get-ChildItem -Path . -Filter "*.vsix" -File | Select-Object -First 1
+        if (-not $actualVsix) {
+          Write-Error "No VSIX file found"
+          exit 1
         }
-
-        Write-Output "Created $vsixFile"
-        Get-Item $vsixFile | Format-Table Name, Length
-        "VSIX_PATH=vscode-extension/$vsixFile" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        
+        $targetName = "excelmcp-$version.vsix"
+        if ($actualVsix.Name -ne $targetName) {
+          Rename-Item $actualVsix.FullName -NewName $targetName
+          Write-Output "Renamed $($actualVsix.Name) to $targetName"
+        }
+        
+        Write-Output "Created $targetName"
+        Get-Item $targetName | Format-Table Name, Length
+        "VSIX_PATH=vscode-extension/$targetName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       shell: pwsh
 
     - name: Publish to VS Code Marketplace
