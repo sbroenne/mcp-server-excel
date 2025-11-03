@@ -89,6 +89,9 @@ _ReSharper*/
 *.nuget.props
 *.nuget.targets
 
+# NuGet package output directory (for testing)
+nupkg/
+
 # Visual Studio cache files
 *.[Cc]ache
 !?*.[Cc]ache/
