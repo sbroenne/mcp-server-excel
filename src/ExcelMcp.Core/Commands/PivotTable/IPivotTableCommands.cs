@@ -56,6 +56,20 @@ public interface IPivotTableCommands
         string pivotTableName);
     
     /// <summary>
+    /// Creates PivotTable from Power Pivot Data Model table
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="tableName">Name of the Data Model table</param>
+    /// <param name="destinationSheet">Destination worksheet name</param>
+    /// <param name="destinationCell">Destination cell address (e.g., "A1")</param>
+    /// <param name="pivotTableName">Name for the new PivotTable</param>
+    /// <returns>Created PivotTable name and available fields</returns>
+    Task<PivotTableCreateResult> CreateFromDataModelAsync(IExcelBatch batch, 
+        string tableName, 
+        string destinationSheet, string destinationCell, 
+        string pivotTableName);
+    
+    /// <summary>
     /// Deletes PivotTable completely
     /// </summary>
     /// <param name="batch">Excel batch session</param>

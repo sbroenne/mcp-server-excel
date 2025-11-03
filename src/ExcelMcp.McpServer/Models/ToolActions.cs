@@ -262,6 +262,7 @@ public enum PivotTableAction
     Get,
     CreateFromRange,
     CreateFromTable,
+    CreateFromDataModel,
     Delete,
     Refresh,
 

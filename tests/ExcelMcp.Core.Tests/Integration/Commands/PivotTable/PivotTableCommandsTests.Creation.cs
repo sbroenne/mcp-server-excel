@@ -60,6 +60,26 @@ public partial class PivotTableCommandsTests
     }
 
     [Fact]
+    public async Task CreateFromDataModel_NoDataModel_ReturnsError()
+    {
+        // Arrange - Use regular file without Data Model
+        var testFile = await CreateTestFileWithDataAsync(nameof(CreateFromDataModel_NoDataModel_ReturnsError));
+
+        // Act - Try to create PivotTable from Data Model when none exists
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var result = await _pivotCommands.CreateFromDataModelAsync(
+            batch,
+            "AnyTable",
+            "SalesData",
+            "F1",
+            "FailedPivot");
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Workbook does not contain a Power Pivot Data Model", result.ErrorMessage);
+    }
+
+    [Fact]
     public async Task AddRowField_WithValidField_AddsFieldToRows()
     {
         // Arrange

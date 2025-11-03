@@ -243,4 +243,52 @@ public class PivotTableCommands
             return 1;
         }
     }
+
+    public int CreateFromDataModel(string[] args)
+    {
+        if (args.Length < 6)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] pivot-create-from-datamodel <file.xlsx> <dataModelTableName> <destSheet> <destCell> <pivotTableName>");
+            AnsiConsole.MarkupLine("[dim]Example:[/] pivot-create-from-datamodel sales.xlsx ConsumptionMilestones Analysis A1 MilestonesPivot");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+        string destSheet = args[3];
+        string destCell = args[4];
+        string pivotTableName = args[5];
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.CreateFromDataModelAsync(batch, tableName, destSheet, destCell, pivotTableName);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Created PivotTable '{result.PivotTableName}' from Data Model table '{tableName}'");
+            AnsiConsole.MarkupLine($"  Sheet: {result.SheetName}");
+            AnsiConsole.MarkupLine($"  Range: {result.Range}");
+            AnsiConsole.MarkupLine($"  Source: {result.SourceData}");
+            AnsiConsole.MarkupLine($"  Records: {result.SourceRowCount:N0}");
+            AnsiConsole.MarkupLine($"  Available fields: {result.AvailableFields.Count}");
+
+            if (result.AvailableFields.Any())
+            {
+                AnsiConsole.MarkupLine($"\n[dim]Fields:[/] {string.Join(", ", result.AvailableFields)}");
+            }
+
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
 }

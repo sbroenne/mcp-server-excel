@@ -38,7 +38,7 @@ public static class PivotTableTool
     /// Manage Excel PivotTables - comprehensive PivotTable creation, field management, and analysis
     /// </summary>
     [McpServerTool(Name = "excel_pivottable")]
-    [Description("Manage Excel PivotTables for interactive data summarization. Create PivotTables from ranges or tables, add fields to Row/Column/Value/Filter areas, configure aggregations, apply filters, and extract results. Auto-detects field types (numeric, text, date) for LLM guidance. Supports: list, get-info, create-from-range, create-from-table, delete, refresh, list-fields, add-row-field, add-column-field, add-value-field, add-filter-field, remove-field, set-field-function, set-field-name, set-field-format, get-data, set-field-filter, sort-field.")]
+    [Description("Manage Excel PivotTables for interactive data summarization. Create PivotTables from ranges, tables, or Data Model tables, add fields to Row/Column/Value/Filter areas, configure aggregations, apply filters, and extract results. Auto-detects field types (numeric, text, date) for LLM guidance. Supports: list, get-info, create-from-range, create-from-table, create-from-datamodel, delete, refresh, list-fields, add-row-field, add-column-field, add-value-field, add-filter-field, remove-field, set-field-function, set-field-name, set-field-format, get-data, set-field-filter, sort-field.")]
     public static async Task<string> PivotTable(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
@@ -105,6 +105,7 @@ public static class PivotTableTool
                 PivotTableAction.Get => await GetPivotTableInfo(pivotCommands, excelPath, pivotTableName, batchId),
                 PivotTableAction.CreateFromRange => await CreateFromRange(pivotCommands, excelPath, sheetName, range, destinationSheet, destinationCell, pivotTableName, batchId),
                 PivotTableAction.CreateFromTable => await CreateFromTable(pivotCommands, excelPath, customName, destinationSheet, destinationCell, pivotTableName, batchId),
+                PivotTableAction.CreateFromDataModel => await CreateFromDataModel(pivotCommands, excelPath, customName, destinationSheet, destinationCell, pivotTableName, batchId),
                 PivotTableAction.Delete => await DeletePivotTable(pivotCommands, excelPath, pivotTableName, batchId),
                 PivotTableAction.Refresh => await RefreshPivotTable(pivotCommands, excelPath, pivotTableName, batchId),
                 PivotTableAction.ListFields => await ListFields(pivotCommands, excelPath, pivotTableName, batchId),
@@ -199,6 +200,28 @@ public static class PivotTableTool
         );
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
+        return JsonSerializer.Serialize(result, JsonOptions);
+    }
+
+    private static async Task<string> CreateFromDataModel(PivotTableCommands commands, string filePath,
+        string? tableName, string? destSheet, string? destCell, string? pivotTableName, string? batchId)
+    {
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "create-from-datamodel");
+        if (string.IsNullOrWhiteSpace(destSheet)) ExcelToolsBase.ThrowMissingParameter(nameof(destSheet), "create-from-datamodel");
+        if (string.IsNullOrWhiteSpace(destCell)) ExcelToolsBase.ThrowMissingParameter(nameof(destCell), "create-from-datamodel");
+        if (string.IsNullOrWhiteSpace(pivotTableName)) ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "create-from-datamodel");
+
+        var result = await ExcelToolsBase.WithBatchAsync(batchId,
+            filePath,
+            true,
+            async (batch) => await commands.CreateFromDataModelAsync(batch, tableName!, destSheet!, destCell!, pivotTableName!)
+        );
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"create-from-datamodel failed: {result.ErrorMessage}");
+        }
+
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 

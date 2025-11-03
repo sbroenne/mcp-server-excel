@@ -195,6 +195,7 @@ public static class ActionExtensions
         PivotTableAction.Get => "get",
         PivotTableAction.CreateFromRange => "create-from-range",
         PivotTableAction.CreateFromTable => "create-from-table",
+        PivotTableAction.CreateFromDataModel => "create-from-datamodel",
         PivotTableAction.Delete => "delete",
         PivotTableAction.Refresh => "refresh",
         PivotTableAction.ListFields => "list-fields",

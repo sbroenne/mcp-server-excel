@@ -145,6 +145,7 @@ class Program
                 // PivotTable commands
                 "pivot-list" => pivot.List(args),
                 "pivot-create-from-range" => pivot.CreateFromRange(args),
+                "pivot-create-from-datamodel" => pivot.CreateFromDataModel(args),
                 "pivot-add-row-field" => pivot.AddRowField(args),
                 "pivot-add-value-field" => pivot.AddValueField(args),
                 "pivot-refresh" => pivot.Refresh(args),
@@ -407,6 +408,8 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]pivot-list[/] file.xlsx                          List all PivotTables");
         AnsiConsole.MarkupLine("  [cyan]pivot-create-from-range[/] file.xlsx src-sheet src-range dest-sheet dest-cell name");
         AnsiConsole.MarkupLine("    [dim]Example: pivot-create-from-range sales.xlsx Data A1:D100 Analysis A1 SalesPivot[/]");
+        AnsiConsole.MarkupLine("  [cyan]pivot-create-from-datamodel[/] file.xlsx table-name dest-sheet dest-cell name");
+        AnsiConsole.MarkupLine("    [dim]Example: pivot-create-from-datamodel sales.xlsx ConsumptionMilestones Analysis A1 MilestonesPivot[/]");
         AnsiConsole.MarkupLine("  [cyan]pivot-add-row-field[/] file.xlsx pivot-name field [[position]]");
         AnsiConsole.MarkupLine("  [cyan]pivot-add-value-field[/] file.xlsx pivot-name field [[function]] [[custom-name]]");
         AnsiConsole.MarkupLine("    [dim]Functions: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, VarP[/]");
