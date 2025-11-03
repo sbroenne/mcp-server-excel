@@ -321,4 +321,191 @@ public partial class PivotTableCommands
             }
         });
     }
+
+    /// <summary>
+    /// Creates a PivotTable from a Power Pivot Data Model table
+    /// Uses xlExternal source type with "ThisWorkbookDataModel" connection
+    /// </summary>
+    public async Task<PivotTableCreateResult> CreateFromDataModelAsync(IExcelBatch batch,
+        string tableName,
+        string destinationSheet, string destinationCell,
+        string pivotTableName)
+    {
+        return await batch.Execute((ctx, ct) =>
+        {
+            dynamic? model = null;
+            dynamic? modelTable = null;
+            dynamic? destWorksheet = null;
+            dynamic? destRangeObj = null;
+            dynamic? pivotCaches = null;
+            dynamic? pivotCache = null;
+            dynamic? pivotTable = null;
+
+            try
+            {
+                // STEP 1: Verify Data Model exists and find the table
+                model = ctx.Book.Model;
+                if (model == null)
+                {
+                    throw new InvalidOperationException("Workbook does not contain a Power Pivot Data Model");
+                }
+
+                // Find the table in the Data Model
+                dynamic? modelTables = null;
+                bool tableFound = false;
+                try
+                {
+                    modelTables = model.ModelTables;
+                    for (int i = 1; i <= modelTables.Count; i++)
+                    {
+                        dynamic? tbl = null;
+                        try
+                        {
+                            tbl = modelTables.Item(i);
+                            if (tbl.Name == tableName)
+                            {
+                                modelTable = tbl;
+                                tableFound = true;
+                                break;
+                            }
+                        }
+                        finally
+                        {
+                            if (tbl != null && tbl != modelTable)
+                            {
+                                ComUtilities.Release(ref tbl);
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref modelTables);
+                }
+
+                if (!tableFound || modelTable == null)
+                {
+                    throw new InvalidOperationException($"Table '{tableName}' not found in Data Model");
+                }
+
+                // Get columns from the Data Model table
+                var headers = new List<string>();
+                int recordCount = 0;
+
+                try
+                {
+                    recordCount = ComUtilities.SafeGetInt(modelTable, "RecordCount");
+
+                    // Get columns
+                    dynamic? modelColumns = null;
+                    try
+                    {
+                        modelColumns = modelTable.ModelTableColumns;
+                        for (int i = 1; i <= modelColumns.Count; i++)
+                        {
+                            dynamic? column = null;
+                            try
+                            {
+                                column = modelColumns.Item(i);
+                                var colName = ComUtilities.SafeGetString(column, "Name");
+                                if (!string.IsNullOrWhiteSpace(colName))
+                                {
+                                    headers.Add(colName);
+                                }
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref column);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref modelColumns);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException($"Failed to read columns from Data Model table '{tableName}': {ex.Message}");
+                }
+
+                if (headers.Count == 0)
+                {
+                    throw new InvalidOperationException($"Data Model table '{tableName}' has no columns");
+                }
+
+                // STEP 2: Create PivotCache from Data Model
+                // Using xlExternal (2) with "ThisWorkbookDataModel" connection
+                pivotCaches = ctx.Book.PivotCaches();
+
+                // xlExternal = 2
+                pivotCache = pivotCaches.Create(
+                    SourceType: 2,
+                    SourceData: "ThisWorkbookDataModel"
+                );
+
+                // STEP 3: Create PivotTable from cache
+                destWorksheet = ctx.Book.Worksheets.Item(destinationSheet);
+                destRangeObj = destWorksheet.Range[destinationCell];
+
+                pivotTable = pivotCache.CreatePivotTable(
+                    TableDestination: destRangeObj,
+                    TableName: pivotTableName
+                );
+
+                // STEP 4: Refresh to materialize the PivotTable structure
+                pivotTable.RefreshTable();
+
+                return new PivotTableCreateResult
+                {
+                    Success = true,
+                    PivotTableName = pivotTableName,
+                    SheetName = destinationSheet,
+                    Range = pivotTable.TableRange2.Address,
+                    SourceData = $"ThisWorkbookDataModel[{tableName}]",
+                    SourceRowCount = recordCount,
+                    AvailableFields = headers,
+                    FilePath = batch.WorkbookPath
+                };
+            }
+            catch (Exception ex)
+            {
+                // Cleanup on failure
+                if (pivotTable != null)
+                {
+                    try
+                    {
+                        dynamic? tableRange = null;
+                        try
+                        {
+                            tableRange = pivotTable.TableRange2;
+                            tableRange.Clear();
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref tableRange);
+                        }
+                    }
+                    catch { /* Ignore cleanup errors */ }
+                }
+
+                return new PivotTableCreateResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to create PivotTable from Data Model table: {ex.Message}",
+                    FilePath = batch.WorkbookPath
+                };
+            }
+            finally
+            {
+                ComUtilities.Release(ref pivotTable);
+                ComUtilities.Release(ref pivotCache);
+                ComUtilities.Release(ref pivotCaches);
+                ComUtilities.Release(ref destRangeObj);
+                ComUtilities.Release(ref destWorksheet);
+                ComUtilities.Release(ref modelTable);
+                ComUtilities.Release(ref model);
+            }
+        });
+    }
 }
