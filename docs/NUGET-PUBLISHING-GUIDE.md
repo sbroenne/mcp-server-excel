@@ -43,32 +43,48 @@ ExcelMcp consists of four NuGet packages:
 
 ## Publishing Order
 
-When releasing multiple packages with breaking changes, follow this order to ensure dependencies are available:
+### Typical Release Pattern
+
+**Core + MCP Server + CLI are typically released together** since MCP Server and CLI are wrappers around Core targeting different use cases.
 
 ```
-1. ComInterop (foundation layer)
+1. ComInterop (if updated - foundation layer)
    ↓
-2. Core (depends on ComInterop)
-   ↓
-3. MCP Server and/or CLI (both depend on Core)
+2. Core + MCP Server + CLI (released together with aligned versions)
 ```
 
-**Example:**
+**Example - Typical Release:**
 ```bash
-# 1. Release ComInterop first
+# 1. Release ComInterop first (if it has changes)
 git tag cominterop-v1.1.0
 git push origin cominterop-v1.1.0
+# Wait 5-10 minutes for NuGet indexing
 
-# 2. Wait for NuGet publishing to complete, then release Core
+# 2. Release Core
 git tag core-v1.1.0
 git push origin core-v1.1.0
+# Wait 5-10 minutes for NuGet indexing
 
-# 3. Wait for Core publishing, then release MCP Server and CLI
-git tag mcp-v1.3.0
-git push origin mcp-v1.3.0
+# 3. Release MCP Server and CLI together (same version as Core)
+git tag mcp-v1.1.0
+git push origin mcp-v1.1.0
 
-git tag cli-v2.2.0
-git push origin cli-v2.2.0
+git tag cli-v1.1.0
+git push origin cli-v1.1.0
+```
+
+### Independent Releases (Rare)
+
+For rare cases where only specific packages need updates:
+
+```bash
+# Release only ComInterop
+git tag cominterop-v1.0.1
+git push origin cominterop-v1.0.1
+
+# Release only Core (if changes don't affect wrappers)
+git tag core-v1.1.1
+git push origin core-v1.1.1
 ```
 
 ## NuGet Trusted Publishing Setup
@@ -206,19 +222,29 @@ git push origin cli-v2.2.0
 
 ## Version Numbering
 
-Each package has independent versioning following Semantic Versioning (SemVer):
+All packages follow Semantic Versioning (SemVer):
 
 - **MAJOR** version (1.x.x): Breaking API changes
 - **MINOR** version (x.1.x): New features, backward compatible
 - **PATCH** version (x.x.1): Bug fixes, backward compatible
 
-### Version Alignment Guidance
+### Version Alignment Strategy
 
-While packages have independent versions, consider aligning major versions for clarity:
+**Core, MCP Server, and CLI use aligned versions** since they are released together:
+- When Core updates to v1.2.0, both MCP Server and CLI should be released as v1.2.0
+- These packages are tightly coupled - MCP Server and CLI are wrappers around Core
 
-- **ComInterop v1.x.x** → **Core v1.x.x** → **MCP Server v1.x.x**, **CLI v1.x.x**
+**ComInterop has independent versioning:**
+- ComInterop can have different version numbers (e.g., ComInterop v1.1.0, Core v1.2.0)
+- Update ComInterop independently when only COM interop layer changes
 
-Breaking changes in ComInterop or Core should trigger major version bumps in dependent packages.
+**Example version progression:**
+```
+Release 1: cominterop-v1.0.0, core-v1.0.0, mcp-v1.0.0, cli-v1.0.0
+Release 2: cominterop-v1.0.0, core-v1.1.0, mcp-v1.1.0, cli-v1.1.0  (Core + wrappers updated)
+Release 3: cominterop-v1.1.0, core-v1.1.0, mcp-v1.1.0, cli-v1.1.0  (Only ComInterop updated)
+Release 4: cominterop-v1.1.0, core-v1.2.0, mcp-v1.2.0, cli-v1.2.0  (Core + wrappers updated)
+```
 
 ## Package Testing
 

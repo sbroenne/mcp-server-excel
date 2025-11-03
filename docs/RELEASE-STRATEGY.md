@@ -155,20 +155,25 @@ This document outlines the separate build and release processes for ExcelMcp com
 
 ## Version Management
 
-### Independent Versioning
+### Versioning Strategy
 
+**Independent Packages:**
 - **ComInterop Library**: Independent version numbers (e.g., cominterop-v1.0.0)
 - **Core Library**: Independent version numbers (e.g., core-v1.0.0)
-- **MCP Server**: Independent version numbers (e.g., mcp-v1.2.0)
-- **CLI**: Independent version numbers (e.g., cli-v2.1.0)
 - **VS Code Extension**: Independent version numbers (e.g., vscode-v1.0.5)
+
+**Co-Released Packages:**
+- **MCP Server & CLI**: Typically co-released with Core (e.g., mcp-v1.2.0, cli-v1.2.0, core-v1.2.0)
+- These are wrappers around Core targeting different use cases (AI integration vs command-line)
+- When Core is updated, both MCP Server and CLI should usually be released together
 
 ### Development Strategy
 
 - **ComInterop**: Focus on COM interop reliability, session management, retry logic
 - **Core**: Focus on Excel automation commands, business logic, data operations
-- **MCP Server**: Focus on AI integration features, conversational interfaces
-- **CLI**: Focus on automation efficiency, command completeness, CI/CD integration
+- **MCP Server & CLI**: Wrappers around Core for different consumption patterns
+  - **MCP Server**: AI integration features, conversational interfaces
+  - **CLI**: Direct automation, command completeness, CI/CD integration
 - **VS Code Extension**: Focus on developer experience, VS Code integration, MCP management
 
 ## Release Process Examples
@@ -186,43 +191,39 @@ git push origin cominterop-v1.0.0
 # - Creates GitHub release with library-focused docs
 ```
 
-### Releasing Core Library Only
+### Releasing Core + MCP Server + CLI Together (Typical)
 
 ```bash
-# Create and push Core library release tag
-git tag core-v1.0.0
-git push origin core-v1.0.0
+# Core, MCP Server, and CLI are typically released together
+# since MCP Server and CLI are wrappers around Core
+
+# 1. Release Core first
+git tag core-v1.2.0
+git push origin core-v1.2.0
+# Wait 5-10 minutes for NuGet indexing
+
+# 2. Release MCP Server and CLI together (same version as Core)
+git tag mcp-v1.2.0
+git push origin mcp-v1.2.0
+
+git tag cli-v1.2.0
+git push origin cli-v1.2.0
+
+# This ensures all wrapper packages are aligned with Core
+```
+
+### Releasing Core Only (Rare)
+
+```bash
+# Only release Core if changes don't affect MCP Server/CLI wrappers
+git tag core-v1.2.1
+git push origin core-v1.2.1
 
 # This triggers release-core.yml which:
 # - Builds Core library
 # - Publishes to NuGet using OIDC trusted publishing
 # - Creates GitHub release with library-focused docs
 ```
-
-### Releasing MCP Server Only
-
-```bash
-# Create and push MCP server release tag
-git tag mcp-v1.3.0
-git push origin mcp-v1.3.0
-
-# This triggers release-mcp-server.yml which:
-# - Builds MCP server
-# - Publishes to NuGet using OIDC trusted publishing
-# - Creates GitHub release with MCP-focused docs and binary ZIP
-```
-
-### Releasing CLI Only
-
-```bash
-# Create and push CLI release tag
-git tag cli-v2.2.0
-git push origin cli-v2.2.0
-
-# This triggers release-cli.yml which:
-# - Builds CLI only
-# - Publishes to NuGet using OIDC trusted publishing (as .NET global tool)
-# - Creates binary distribution
 # - Creates GitHub release with CLI-focused docs
 ```
 

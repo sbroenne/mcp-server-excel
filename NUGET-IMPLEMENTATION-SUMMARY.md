@@ -114,12 +114,17 @@ Once trusted publishers are configured, test the release workflows:
 # Release ComInterop first (foundation layer)
 git tag cominterop-v1.0.0
 git push origin cominterop-v1.0.0
+# Wait 5-10 minutes for NuGet indexing
 
-# Wait for workflow to complete, then release Core
+# Release Core, MCP Server, and CLI together (typical pattern)
+# These are released together since MCP/CLI are wrappers around Core
 git tag core-v1.0.0
 git push origin core-v1.0.0
+# Wait 5-10 minutes for NuGet indexing
 
-# Wait for Core publishing, then release CLI
+git tag mcp-v1.0.0
+git push origin mcp-v1.0.0
+
 git tag cli-v1.0.0
 git push origin cli-v1.0.0
 ```
@@ -128,13 +133,20 @@ Monitor the workflows at: https://github.com/sbroenne/mcp-server-excel/actions
 
 ## Publishing Order (Important!)
 
-When releasing multiple packages with breaking changes, follow this dependency order:
+**Typical Release Pattern:**
+Core, MCP Server, and CLI are typically released together since MCP Server and CLI are wrappers around Core.
 
 ```
-1. ComInterop (foundation) → 2. Core (depends on ComInterop) → 3. CLI/MCP Server (depend on Core)
+1. ComInterop (if updated - foundation layer)
+   ↓
+2. Core + MCP Server + CLI (released together with aligned versions)
 ```
 
-This ensures dependencies are available on NuGet.org before dependent packages are published.
+**Version Alignment:**
+- Core, MCP Server, and CLI should use the same version number (e.g., all v1.2.0)
+- ComInterop can have independent version (e.g., ComInterop v1.1.0, Core/MCP/CLI v1.2.0)
+
+This ensures users get consistent versions of the wrapper packages aligned with Core.
 
 ## Installation Commands
 
