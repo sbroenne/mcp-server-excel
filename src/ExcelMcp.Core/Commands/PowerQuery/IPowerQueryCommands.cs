@@ -101,19 +101,9 @@ public interface IPowerQueryCommands
     Task<OperationResult> DeleteAsync(IExcelBatch batch, string queryName);
 
     /// <summary>
-    /// Lists available data sources (Excel.CurrentWorkbook() sources)
+    /// Lists available data sources (Excel.CurrentWorkbook() sources: tables and named ranges)
     /// </summary>
-    Task<WorksheetListResult> SourcesAsync(IExcelBatch batch);
-
-    /// <summary>
-    /// Tests connectivity to a Power Query data source
-    /// </summary>
-    Task<OperationResult> TestAsync(IExcelBatch batch, string sourceName);
-
-    /// <summary>
-    /// Previews sample data from a Power Query data source
-    /// </summary>
-    Task<WorksheetDataResult> PeekAsync(IExcelBatch batch, string sourceName);
+    Task<WorksheetListResult> ListExcelSourcesAsync(IExcelBatch batch);
 
     /// <summary>
     /// Evaluates M code expressions interactively

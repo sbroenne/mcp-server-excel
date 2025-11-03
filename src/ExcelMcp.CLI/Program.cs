@@ -62,8 +62,6 @@ class Program
                 "pq-export" => await powerQuery.Export(args),
                 "pq-import" => await powerQuery.Import(args),
                 "pq-sources" => powerQuery.Sources(args),
-                "pq-test" => powerQuery.Test(args),
-                "pq-peek" => powerQuery.Peek(args),
                 "pq-verify" => powerQuery.Eval(args),
                 "pq-refresh" => powerQuery.Refresh(args),
                 "pq-errors" => powerQuery.Errors(args),
@@ -314,9 +312,7 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]pq-refresh[/] file.xlsx query-name            Refresh a specific Power Query");
         AnsiConsole.MarkupLine("  [cyan]pq-loadto[/] file.xlsx query-name sheet       Load Power Query to worksheet");
         AnsiConsole.MarkupLine("  [cyan]pq-delete[/] file.xlsx query-name             Delete Power Query");
-        AnsiConsole.MarkupLine("  [cyan]pq-sources[/] file.xlsx query-name            List data sources used by query");
-        AnsiConsole.MarkupLine("  [cyan]pq-test[/] file.xlsx query-name               Test Power Query syntax");
-        AnsiConsole.MarkupLine("  [cyan]pq-peek[/] file.xlsx query-name               Preview query results (first rows)");
+        AnsiConsole.MarkupLine("  [cyan]pq-sources[/] file.xlsx                       List Excel tables/ranges available to Power Query");
         AnsiConsole.MarkupLine("  [cyan]pq-verify[/] file.xlsx query-name             Evaluate Power Query expression");
         AnsiConsole.MarkupLine("  [cyan]pq-errors[/] file.xlsx query-name             View Power Query errors");
         AnsiConsole.WriteLine();

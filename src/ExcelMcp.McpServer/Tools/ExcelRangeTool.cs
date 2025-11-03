@@ -264,11 +264,12 @@ public static class ExcelRangeTool
                 RangeAction.Sort => await SortAsync(rangeCommands, excelPath, sheetName, rangeAddress, sortColumns, hasHeaders, batchId),
                 RangeAction.GetUsedRange => await GetUsedRangeAsync(rangeCommands, excelPath, sheetName, batchId),
                 RangeAction.GetCurrentRegion => await GetCurrentRegionAsync(rangeCommands, excelPath, sheetName, cellAddress, batchId),
-                RangeAction.GetRangeInfo => await GetRangeInfoAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
+                RangeAction.GetInfo => await GetRangeInfoAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
                 RangeAction.AddHyperlink => await AddHyperlinkAsync(rangeCommands, excelPath, sheetName, cellAddress, url, displayText, tooltip, batchId),
                 RangeAction.RemoveHyperlink => await RemoveHyperlinkAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
                 RangeAction.ListHyperlinks => await ListHyperlinksAsync(rangeCommands, excelPath, sheetName, batchId),
                 RangeAction.GetHyperlink => await GetHyperlinkAsync(rangeCommands, excelPath, sheetName, cellAddress, batchId),
+                RangeAction.GetStyle => await GetStyleAsync(rangeCommands, excelPath, sheetName, rangeAddress, batchId),
                 RangeAction.SetStyle => await SetStyleAsync(rangeCommands, excelPath, sheetName, rangeAddress, styleName, batchId),
                 RangeAction.FormatRange => await FormatRangeAsync(rangeCommands, excelPath, sheetName, rangeAddress, fontName, fontSize, bold, italic, underline, fontColor, fillColor, borderStyle, borderColor, borderWeight, horizontalAlignment, verticalAlignment, wrapText, orientation, batchId),
                 RangeAction.ValidateRange => await ValidateRangeAsync(rangeCommands, excelPath, sheetName, rangeAddress, validationType, validationOperator, validationFormula1, validationFormula2, showInputMessage, inputTitle, inputMessage, showErrorAlert, errorStyle, errorTitle, errorMessage, ignoreBlank, showDropdown, batchId),
@@ -971,6 +972,50 @@ public static class ExcelRangeTool
                 "Apply additional styles to other ranges",
                 "Use 'format-range' for manual formatting if built-in styles don't meet needs",
                 "Save changes with commit_excel_batch if in batch mode"
+            }
+        }, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> GetStyleAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-style");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.GetStyleAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"get-style failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            success = true,
+            filePath,
+            sheetName,
+            rangeAddress,
+            styleName = result.StyleName,
+            isBuiltInStyle = result.IsBuiltInStyle,
+            styleDescription = result.StyleDescription,
+            workflowHint = result.IsBuiltInStyle
+                ? "Built-in style detected. Use 'set-style' to apply this style to other ranges."
+                : "Custom style or no style applied. Use 'set-style' to apply a built-in style.",
+            suggestedNextActions = new[]
+            {
+                result.IsBuiltInStyle
+                    ? "Apply this style to other ranges with 'set-style'"
+                    : "Apply a built-in style with 'set-style'",
+                "Use 'format-range' for custom formatting",
+                "Inspect other ranges to compare styles"
             }
         }, ExcelToolsBase.JsonOptions);
     }

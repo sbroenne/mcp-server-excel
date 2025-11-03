@@ -102,7 +102,7 @@ public static class PivotTableTool
             return action switch
             {
                 PivotTableAction.List => await ListPivotTables(pivotCommands, excelPath, batchId),
-                PivotTableAction.GetInfo => await GetPivotTableInfo(pivotCommands, excelPath, pivotTableName, batchId),
+                PivotTableAction.Get => await GetPivotTableInfo(pivotCommands, excelPath, pivotTableName, batchId),
                 PivotTableAction.CreateFromRange => await CreateFromRange(pivotCommands, excelPath, sheetName, range, destinationSheet, destinationCell, pivotTableName, batchId),
                 PivotTableAction.CreateFromTable => await CreateFromTable(pivotCommands, excelPath, customName, destinationSheet, destinationCell, pivotTableName, batchId),
                 PivotTableAction.Delete => await DeletePivotTable(pivotCommands, excelPath, pivotTableName, batchId),

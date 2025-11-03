@@ -32,10 +32,8 @@ public enum PowerQueryAction
     SetConnectionOnly,
     GetLoadConfig,
     Errors,
-    Test,
     LoadTo,
-    Sources,
-    Peek,
+    ListExcelSources,
     Eval
 }
 
@@ -105,7 +103,7 @@ public enum RangeAction
     // Discovery Operations
     GetUsedRange,
     GetCurrentRegion,
-    GetRangeInfo,
+    GetInfo,
 
     // Hyperlink Operations
     AddHyperlink,
@@ -114,6 +112,7 @@ public enum RangeAction
     GetHyperlink,
 
     // Formatting & Validation
+    GetStyle,
     SetStyle,
     FormatRange,
     ValidateRange,
@@ -190,10 +189,10 @@ public enum ConnectionAction
 public enum DataModelAction
 {
     ListTables,
-    ViewTable,
+    GetTable,
     ListColumns,
     ListMeasures,
-    ViewMeasure,
+    Get,
     ExportMeasure,
     CreateMeasure,
     UpdateMeasure,
@@ -202,7 +201,7 @@ public enum DataModelAction
     CreateRelationship,
     UpdateRelationship,
     DeleteRelationship,
-    GetModelInfo,
+    GetInfo,
     Refresh
 }
 
@@ -213,7 +212,7 @@ public enum TableAction
 {
     // Lifecycle
     List,
-    Info,
+    Get,
     Create,
     Rename,
     Delete,
@@ -260,7 +259,7 @@ public enum PivotTableAction
 {
     // Lifecycle
     List,
-    GetInfo,
+    Get,
     CreateFromRange,
     CreateFromTable,
     Delete,

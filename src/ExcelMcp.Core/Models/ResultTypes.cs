@@ -73,12 +73,12 @@ public enum SheetVisibility
     /// Sheet is visible (xlSheetVisible = -1)
     /// </summary>
     Visible = -1,
-    
+
     /// <summary>
     /// Sheet is hidden but user can unhide via Excel UI (xlSheetHidden = 0)
     /// </summary>
     Hidden = 0,
-    
+
     /// <summary>
     /// Sheet is very hidden, requires code to unhide (xlSheetVeryHidden = 2)
     /// </summary>
@@ -94,22 +94,22 @@ public class TabColorResult : ResultBase
     /// Whether the sheet has a tab color set
     /// </summary>
     public bool HasColor { get; set; }
-    
+
     /// <summary>
     /// Red component (0-255), null if no color
     /// </summary>
     public int? Red { get; set; }
-    
+
     /// <summary>
     /// Green component (0-255), null if no color
     /// </summary>
     public int? Green { get; set; }
-    
+
     /// <summary>
     /// Blue component (0-255), null if no color
     /// </summary>
     public int? Blue { get; set; }
-    
+
     /// <summary>
     /// Hex color string (#RRGGBB), null if no color
     /// </summary>
@@ -125,7 +125,7 @@ public class SheetVisibilityResult : ResultBase
     /// Visibility level
     /// </summary>
     public SheetVisibility Visibility { get; set; }
-    
+
     /// <summary>
     /// Visibility name (Visible, Hidden, VeryHidden)
     /// </summary>
@@ -771,6 +771,37 @@ public class RangeHyperlinkResult : ResultBase
     /// List of hyperlinks
     /// </summary>
     public List<HyperlinkInfo> Hyperlinks { get; set; } = [];
+}
+
+/// <summary>
+/// Result for Excel range style operations
+/// </summary>
+public class RangeStyleResult : ResultBase
+{
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range address (e.g., A1:D10)
+    /// </summary>
+    public string RangeAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Current style name applied to the range (first cell)
+    /// </summary>
+    public string StyleName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether this is a built-in Excel style
+    /// </summary>
+    public bool IsBuiltInStyle { get; set; }
+
+    /// <summary>
+    /// Additional style information if available
+    /// </summary>
+    public string? StyleDescription { get; set; }
 }
 
 /// <summary>
@@ -1699,72 +1730,72 @@ public class RangeValidationResult : ResultBase
     /// Sheet name
     /// </summary>
     public string SheetName { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Range address
     /// </summary>
     public string RangeAddress { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Whether the range has validation
     /// </summary>
     public bool HasValidation { get; set; }
-    
+
     /// <summary>
     /// Validation type (list, whole, decimal, date, time, textlength, custom)
     /// </summary>
     public string? ValidationType { get; set; }
-    
+
     /// <summary>
     /// Validation operator (between, equal, greaterthan, etc.)
     /// </summary>
     public string? ValidationOperator { get; set; }
-    
+
     /// <summary>
     /// First formula/value
     /// </summary>
     public string? Formula1 { get; set; }
-    
+
     /// <summary>
     /// Second formula/value (for Between operator)
     /// </summary>
     public string? Formula2 { get; set; }
-    
+
     /// <summary>
     /// Whether to ignore blank cells
     /// </summary>
     public bool IgnoreBlank { get; set; }
-    
+
     /// <summary>
     /// Whether to show input message
     /// </summary>
     public bool ShowInputMessage { get; set; }
-    
+
     /// <summary>
     /// Input message title
     /// </summary>
     public string? InputTitle { get; set; }
-    
+
     /// <summary>
     /// Input message text
     /// </summary>
     public string? InputMessage { get; set; }
-    
+
     /// <summary>
     /// Whether to show error alert
     /// </summary>
     public bool ShowErrorAlert { get; set; }
-    
+
     /// <summary>
     /// Error alert style (stop, warning, information)
     /// </summary>
     public string? ErrorStyle { get; set; }
-    
+
     /// <summary>
     /// Error alert title
     /// </summary>
     public string? ErrorTitle { get; set; }
-    
+
     /// <summary>
     /// Error alert message text
     /// </summary>
@@ -1784,12 +1815,12 @@ public class RangeMergeInfoResult : ResultBase
     /// Sheet name
     /// </summary>
     public string SheetName { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Range address
     /// </summary>
     public string RangeAddress { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Whether the range contains merged cells
     /// </summary>
@@ -1805,12 +1836,12 @@ public class RangeLockInfoResult : ResultBase
     /// Sheet name
     /// </summary>
     public string SheetName { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Range address
     /// </summary>
     public string RangeAddress { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Whether the cells are locked
     /// </summary>
