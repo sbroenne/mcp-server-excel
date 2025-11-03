@@ -76,7 +76,7 @@ public partial class PivotTableCommandsTests
 
         // Assert
         Assert.False(result.Success);
-        Assert.Contains("does not contain a Power Pivot Data Model", result.ErrorMessage);
+        Assert.Contains("Workbook does not contain a Power Pivot Data Model", result.ErrorMessage);
     }
 
     [Fact]
