@@ -217,11 +217,7 @@ public static class PivotTableTool
             async (batch) => await commands.CreateFromDataModelAsync(batch, tableName!, destSheet!, destCell!, pivotTableName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"create-from-datamodel failed: {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
