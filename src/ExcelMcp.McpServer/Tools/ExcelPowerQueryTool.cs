@@ -149,12 +149,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             excelPath,
             save: false,
             async (batch) => await commands.ListAsync(batch));
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"list failed for '{excelPath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -169,11 +164,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             save: false,
             async (batch) => await commands.ViewAsync(batch, queryName));
         
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"view failed for '{excelPath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -203,11 +194,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
         }
         // Otherwise, Core's guidance is already correct (for both success and failure cases) - don't overwrite it!
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"import failed for '{queryName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -222,11 +209,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             save: false,
             async (batch) => await commands.ExportAsync(batch, queryName, targetPath));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"export failed for '{queryName}' to '{targetPath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -242,11 +225,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             save: true,
             async (batch) => await commands.UpdateAsync(batch, queryName, sourcePath));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"update failed for '{queryName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -327,11 +306,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             save: true,
             async (batch) => await commands.RefreshAsync(batch, queryName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"refresh failed for '{queryName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -346,11 +321,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             save: true,
             async (batch) => await commands.DeleteAsync(batch, queryName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"delete failed for '{queryName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -365,11 +336,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             save: true,
             async (batch) => await commands.SetLoadToTableAsync(batch, queryName, targetSheet ?? ""));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-load-to-table failed for '{queryName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -385,11 +352,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             save: true,
             async (batch) => await commands.SetLoadToDataModelAsync(batch, queryName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-load-to-data-model failed for '{queryName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -405,11 +368,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             save: true,
             async (batch) => await commands.SetLoadToBothAsync(batch, queryName, targetSheet ?? ""));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-load-to-both failed for '{queryName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Result now includes dual atomic operation verification metrics:
         // RowsLoadedToTable, RowsLoadedToModel, TablesInDataModel, WorkflowStatus (Complete/Partial/Failed)
         // DataLoadedToTable, DataLoadedToModel, ConfigurationApplied
@@ -431,11 +390,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             save: true,
             async (batch) => await commands.SetConnectionOnlyAsync(batch, queryName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-connection-only failed for '{queryName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -450,11 +405,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             save: false,
             async (batch) => await commands.GetLoadConfigAsync(batch, queryName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"get-load-config failed for '{queryName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -468,10 +419,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             excelPath,
             save: false,
             async (batch) => await commands.ErrorsAsync(batch, queryName));
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"errors failed for '{queryName}' in '{excelPath}': {result.ErrorMessage}");
-        }
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -485,10 +433,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             excelPath,
             save: true,
             async (batch) => await commands.LoadToAsync(batch, queryName, targetSheet));
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"load-to failed for '{queryName}' to '{targetSheet}' in '{excelPath}': {result.ErrorMessage}");
-        }
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -500,10 +445,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             excelPath,
             save: false,
             async (batch) => await commands.ListExcelSourcesAsync(batch));
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"list-excel-sources failed for '{excelPath}': {result.ErrorMessage}");
-        }
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -528,10 +470,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             excelPath,
             save: false,
             async (batch) => await commands.EvalAsync(batch, mExpression));
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"eval failed for M code in '{sourcePath}' in '{excelPath}': {result.ErrorMessage}");
-        }
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 }

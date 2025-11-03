@@ -134,12 +134,7 @@ public static class TableTool
             async (batch) => await commands.ListAsync(batch)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"list failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         if (result.Tables == null || !result.Tables.Any())
         {
 
@@ -165,16 +160,7 @@ public static class TableTool
             async (batch) => await commands.CreateAsync(batch, sheetName!, tableName!, range!, hasHeaders, tableStyle)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"create failed for table '{tableName}': {result.ErrorMessage}");
-        }
-
-
-
-
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -189,16 +175,7 @@ public static class TableTool
             async (batch) => await commands.GetAsync(batch, tableName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"info failed for table '{tableName}': {result.ErrorMessage}");
-        }
-
-
-
-
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -214,16 +191,7 @@ public static class TableTool
             async (batch) => await commands.RenameAsync(batch, tableName!, newName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"rename failed for table '{tableName}': {result.ErrorMessage}");
-        }
-
-
-
-
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -238,16 +206,7 @@ public static class TableTool
             async (batch) => await commands.DeleteAsync(batch, tableName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"delete failed for table '{tableName}': {result.ErrorMessage}");
-        }
-
-
-
-
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -263,11 +222,7 @@ public static class TableTool
             async (batch) => await commands.ResizeAsync(batch, tableName!, newRange!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"resize failed for table '{tableName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -282,11 +237,7 @@ public static class TableTool
             async (batch) => await commands.ToggleTotalsAsync(batch, tableName!, showTotals)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"toggle-totals failed for table '{tableName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -303,11 +254,7 @@ public static class TableTool
             async (batch) => await commands.SetColumnTotalAsync(batch, tableName!, columnName!, totalFunction!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-column-total failed for table '{tableName}', column '{columnName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -326,11 +273,7 @@ public static class TableTool
             async (batch) => await commands.AppendAsync(batch, tableName!, rows)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"append failed for table '{tableName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -372,11 +315,7 @@ public static class TableTool
             async (batch) => await commands.SetStyleAsync(batch, tableName!, tableStyle!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-style failed for table '{tableName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -391,11 +330,7 @@ public static class TableTool
             async (batch) => await commands.AddToDataModelAsync(batch, tableName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"add-to-datamodel failed for table '{tableName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -414,11 +349,7 @@ public static class TableTool
             async (batch) => await commands.ApplyFilterAsync(batch, tableName!, columnName!, criteria!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"apply-filter failed for table '{tableName}', column '{columnName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -446,11 +377,7 @@ public static class TableTool
             async (batch) => await commands.ApplyFilterAsync(batch, tableName!, columnName!, filterValues)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"apply-filter-values failed for table '{tableName}', column '{columnName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -465,11 +392,7 @@ public static class TableTool
             async (batch) => await commands.ClearFiltersAsync(batch, tableName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"clear-filters failed for table '{tableName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -484,11 +407,7 @@ public static class TableTool
             async (batch) => await commands.GetFiltersAsync(batch, tableName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"get-filters failed for table '{tableName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -520,11 +439,7 @@ public static class TableTool
             async (batch) => await commands.AddColumnAsync(batch, tableName!, columnName!, position)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"add-column failed for table '{tableName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -540,11 +455,7 @@ public static class TableTool
             async (batch) => await commands.RemoveColumnAsync(batch, tableName!, columnName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"remove-column failed for table '{tableName}', column '{columnName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -561,11 +472,7 @@ public static class TableTool
             async (batch) => await commands.RenameColumnAsync(batch, tableName!, oldColumnName!, newColumnName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"rename-column failed for table '{tableName}', column '{oldColumnName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -592,11 +499,7 @@ public static class TableTool
             async (batch) => await commands.GetStructuredReferenceAsync(batch, tableName!, region, columnName)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"get-structured-reference failed for table '{tableName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -612,11 +515,7 @@ public static class TableTool
             async (batch) => await commands.SortAsync(batch, tableName!, columnName!, ascending)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"sort failed for table '{tableName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -647,11 +546,7 @@ public static class TableTool
             async (batch) => await commands.SortAsync(batch, tableName!, sortColumns)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"sort-multi failed for table '{tableName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -671,11 +566,7 @@ public static class TableTool
             async (batch) => await commands.GetColumnNumberFormatAsync(batch, tableName!, columnName!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"get-column-number-format failed for table '{tableName}' column '{columnName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -695,11 +586,7 @@ public static class TableTool
             async (batch) => await commands.SetColumnNumberFormatAsync(batch, tableName!, columnName!, formatCode!)
         );
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-column-number-format failed for table '{tableName}' column '{columnName}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 }

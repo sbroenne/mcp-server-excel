@@ -98,7 +98,14 @@ public static class ExcelFileTool
         }
         else
         {
-            throw new ModelContextProtocol.McpException($"create-empty failed for '{excelPath}': {result.ErrorMessage}");
+            // Return JSON error response
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = result.ErrorMessage,
+                filePath = excelPath,
+                message = result.ErrorMessage
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 
@@ -157,7 +164,19 @@ public static class ExcelFileTool
         }
         else
         {
-            throw new ModelContextProtocol.McpException($"test failed for '{excelPath}': {result.ErrorMessage}");
+            // Return JSON error response instead of throwing
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                filePath = result.FilePath,
+                exists = result.Exists,
+                isValid = result.IsValid,
+                extension = result.Extension,
+                size = result.Size,
+                lastModified = result.LastModified,
+                errorMessage = result.ErrorMessage,
+                message = result.ErrorMessage
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 }

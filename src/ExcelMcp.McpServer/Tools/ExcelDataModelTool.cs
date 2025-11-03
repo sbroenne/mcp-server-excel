@@ -193,12 +193,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             async (batch) => await commands.ListTablesAsync(batch));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"list-tables failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -211,12 +206,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             async (batch) => await commands.ListMeasuresAsync(batch));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"list-measures failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -232,12 +222,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             async (batch) => await commands.GetAsync(batch, measureName));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"view-measure failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -256,12 +241,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             async (batch) => await commands.ExportMeasureAsync(batch, measureName, outputPath));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"export-measure failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -274,12 +254,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             async (batch) => await commands.ListRelationshipsAsync(batch));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"list-relationships failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -292,12 +267,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             async (batch) => await commands.RefreshAsync(batch));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"refresh failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -315,13 +285,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             async (batch) => await commands.DeleteMeasureAsync(batch, measureName));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-
-            throw new ModelContextProtocol.McpException($"delete-measure failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Success - add workflow guidance
 
 
@@ -358,13 +322,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             async (batch) => await commands.DeleteRelationshipAsync(batch, fromTable, fromColumn, toTable, toColumn));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-
-            throw new ModelContextProtocol.McpException($"delete-relationship failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Success - add workflow guidance
 
 
@@ -386,13 +344,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             async (batch) => await commands.ListColumnsAsync(batch, tableName));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-
-            throw new ModelContextProtocol.McpException($"list-columns failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Success - add workflow guidance
 
 
@@ -414,13 +366,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             async (batch) => await commands.GetTableAsync(batch, tableName));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-
-            throw new ModelContextProtocol.McpException($"view-table failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Success - add workflow guidance
 
 
@@ -436,13 +382,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             async (batch) => await commands.GetInfoAsync(batch));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-
-            throw new ModelContextProtocol.McpException($"get-model-info failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Success - add workflow guidance
 
 
@@ -476,13 +416,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
                 formatString, description));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-
-            throw new ModelContextProtocol.McpException($"create-measure failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Success - add workflow guidance
 
 
@@ -504,13 +438,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             async (batch) => await commands.UpdateMeasureAsync(batch, measureName, daxFormula, formatString, description));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-
-            throw new ModelContextProtocol.McpException($"update-measure failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Success - add workflow guidance
 
 
@@ -548,13 +476,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
                 isActive ?? true));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-
-            throw new ModelContextProtocol.McpException($"create-relationship failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Success - add workflow guidance
 
 
@@ -597,13 +519,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
                 isActive.Value));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-
-            throw new ModelContextProtocol.McpException($"update-relationship failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Success - add workflow guidance
 
 

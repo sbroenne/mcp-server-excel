@@ -79,7 +79,7 @@ public class ExcelMcpServerTests : IDisposable
         // Assert
         var json = JsonDocument.Parse(result);
         // Should succeed (return success: true) when file exists
-        Assert.True(json.RootElement.GetProperty("Success").GetBoolean());
+        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public class ExcelMcpServerTests : IDisposable
 
         // Assert
         var json = JsonDocument.Parse(result);
-        Assert.True(json.RootElement.GetProperty("Success").GetBoolean());
+        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
     }
 
     [Fact]
@@ -141,7 +141,7 @@ in
             Assert.Fail($"Import operation failed with error: {importErrorProperty.GetString()}");
         }
 
-        Assert.True(importJson.RootElement.GetProperty("Success").GetBoolean());
+        Assert.True(importJson.RootElement.GetProperty("success").GetBoolean());
 
         // Act - View the imported query
         var viewResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.View, _testExcelFile, queryName);
@@ -160,7 +160,7 @@ in
         }
         else
         {
-            Assert.True(viewJson.RootElement.GetProperty("Success").GetBoolean());
+            Assert.True(viewJson.RootElement.GetProperty("success").GetBoolean());
         }
 
         // Note: Current MCP server architecture limitation - operations return success/error only
@@ -168,7 +168,7 @@ in
         // Act - List queries to verify it appears
         var listResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.List, _testExcelFile);
         var listJson = JsonDocument.Parse(listResult);
-        Assert.True(listJson.RootElement.GetProperty("Success").GetBoolean());
+        Assert.True(listJson.RootElement.GetProperty("success").GetBoolean());
 
         // Note: Current MCP server architecture limitation - list operations only return success/error
         // The actual query data is not returned in JSON format, only displayed to console
@@ -176,7 +176,7 @@ in
         // Act - Delete the query
         var deleteResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.Delete, _testExcelFile, queryName);
         var deleteJson = JsonDocument.Parse(deleteResult);
-        Assert.True(deleteJson.RootElement.GetProperty("Success").GetBoolean());
+        Assert.True(deleteJson.RootElement.GetProperty("success").GetBoolean());
     }
 }
 

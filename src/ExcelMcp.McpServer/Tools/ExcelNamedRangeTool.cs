@@ -100,12 +100,7 @@ Actions available as dropdown in MCP clients.")]
             async (batch) => await commands.ListAsync(batch));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"list failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints
         var count = result.NamedRanges?.Count ?? 0;
         var inBatch = !string.IsNullOrEmpty(batchId);
@@ -145,12 +140,7 @@ Actions available as dropdown in MCP clients.")]
             async (batch) => await commands.GetAsync(batch, namedRangeName));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"get failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints
         return JsonSerializer.Serialize(new
         {
@@ -179,12 +169,7 @@ Actions available as dropdown in MCP clients.")]
             async (batch) => await commands.SetAsync(batch, namedRangeName, value));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"set failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints
         var inBatch = !string.IsNullOrEmpty(batchId);
         
@@ -213,12 +198,7 @@ Actions available as dropdown in MCP clients.")]
             async (batch) => await commands.UpdateAsync(batch, namedRangeName, value));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"update failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -234,12 +214,7 @@ Actions available as dropdown in MCP clients.")]
             async (batch) => await commands.CreateAsync(batch, namedRangeName, value));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"create failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints
         var inBatch = !string.IsNullOrEmpty(batchId);
         
@@ -268,12 +243,7 @@ Actions available as dropdown in MCP clients.")]
             async (batch) => await commands.DeleteAsync(batch, namedRangeName));
 
         // If operation failed, throw exception with detailed error message
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-
-            throw new ModelContextProtocol.McpException($"delete failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 

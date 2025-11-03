@@ -108,11 +108,7 @@ public static class ExcelConnectionTool
             save: false,
             async (batch) => await commands.ListAsync(batch));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"list failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints
         var count = result.Connections?.Count ?? 0;
         var powerQueryCount = result.Connections?.Count(c => c.IsPowerQuery) ?? 0;
@@ -149,11 +145,7 @@ public static class ExcelConnectionTool
             save: false,
             async (batch) => await commands.ViewAsync(batch, connectionName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"view failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -171,11 +163,7 @@ public static class ExcelConnectionTool
             save: true,
             async (batch) => await commands.ImportAsync(batch, connectionName, jsonPath));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"import failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints
         var inBatch = !string.IsNullOrEmpty(batchId);
         
@@ -207,11 +195,7 @@ public static class ExcelConnectionTool
             save: false,
             async (batch) => await commands.ExportAsync(batch, connectionName, jsonPath));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"export failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -229,11 +213,7 @@ public static class ExcelConnectionTool
             save: true,
             async (batch) => await commands.UpdatePropertiesAsync(batch, connectionName, jsonPath));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"update failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -248,11 +228,7 @@ public static class ExcelConnectionTool
             save: true,
             async (batch) => await commands.RefreshAsync(batch, connectionName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"refresh failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints
         var inBatch = !string.IsNullOrEmpty(batchId);
         
@@ -280,11 +256,7 @@ public static class ExcelConnectionTool
             save: true,
             async (batch) => await commands.DeleteAsync(batch, connectionName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"delete failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -302,11 +274,7 @@ public static class ExcelConnectionTool
             save: true,
             async (batch) => await commands.LoadToAsync(batch, connectionName, sheetName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"loadto failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -321,11 +289,7 @@ public static class ExcelConnectionTool
             save: false,
             async (batch) => await commands.GetPropertiesAsync(batch, connectionName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"properties failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -341,11 +305,7 @@ public static class ExcelConnectionTool
             save: true,
             async (batch) => await commands.SetPropertiesAsync(batch, connectionName, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"set-properties failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
@@ -360,11 +320,7 @@ public static class ExcelConnectionTool
             save: false,
             async (batch) => await commands.TestAsync(batch, connectionName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-        {
-            throw new ModelContextProtocol.McpException($"test failed for '{filePath}': {result.ErrorMessage}");
-        }
-
+        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 }
