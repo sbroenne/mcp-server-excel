@@ -249,6 +249,9 @@ Assert.Contains(result.Items, i => i.Name == "Test");  // ✅ Verify persisted
 | 12. Test compliance | Pass checklist before PR submission | 2-3 min |
 | 13. Bug fixes | Complete 6-step process (fix, test, doc, hints, verify, summarize) | 30-60 min |
 | 14. No SaveAsync | Remove unless testing persistence | Per test |
+| 15. Enum mappings | All enum values mapped in ToActionString() | Always |
+| 16. Test scope | Only run tests for code you changed | Per change |
+| 17. MCP error checks | Check result.Success before JsonSerializer.Serialize | Every method |
 
 
 
@@ -315,5 +318,69 @@ dotnet test --filter "Feature=Sheet&RunType!=OnDemand"       # Sheet changes onl
 - Only run tests for files you modified
 - Use Feature trait to target specific test groups
 - Full test suite runs in CI/CD pipeline only
+
+---
+
+## Rule 17: MCP Tools Must Check result.Success Before Serializing (CRITICAL)
+
+**Every MCP tool method that calls Core Commands MUST check `result.Success` before returning JSON.**
+
+```csharp
+// ❌ CRITICAL ERROR: Returns HTTP 200 with error JSON
+private static async Task<string> SomeAction(...)
+{
+    var result = await commands.SomeAsync(batch, param);
+    return JsonSerializer.Serialize(result, JsonOptions); // ❌ No error check!
+}
+
+// ✅ CORRECT: Throws HTTP 500 exception on error
+private static async Task<string> SomeAction(...)
+{
+    var result = await commands.SomeAsync(batch, param);
+    
+    if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+    {
+        throw new ModelContextProtocol.McpException($"action failed for '{param}': {result.ErrorMessage}");
+    }
+    
+    return JsonSerializer.Serialize(result, JsonOptions); // ✅ Only on success!
+}
+```
+
+**Why Critical:**
+- ❌ HTTP 200 + `{success: false}` confuses LLMs (looks like success)
+- ✅ HTTP 500 + exception message is clear error signal
+- MCP protocol expects exceptions for errors, not success responses with error flags
+
+**Enforcement:**
+- Run coverage check: `error checks >= serializations` (should be 100%+)
+- Code review MUST verify error checks before serialization
+- See `MCP-EXCEPTION-HANDLING-FIX-PLAN.md` for complete pattern
+
+**Coverage Check:**
+```powershell
+# From repository root
+$file = "src/ExcelMcp.McpServer/Tools/YourTool.cs"
+$content = Get-Content $file -Raw
+$checks = ([regex]::Matches($content, 'if\s*\(\s*!result\.Success')).Count
+$serializes = ([regex]::Matches($content, 'JsonSerializer\.Serialize\(result')).Count
+Write-Host "Coverage: $checks / $serializes = $([math]::Round(($checks/$serializes)*100,0))%"
+# Must be 100% or higher
+```
+
+**Common Mistake:**
+```csharp
+// ❌ WRONG: Empty success block doesn't prevent error serialization
+if (result.Success)
+{
+    // Empty - useless!
+}
+return JsonSerializer.Serialize(result, JsonOptions); // Still returns on failure!
+```
+
+**Exception: BatchSessionTool**
+- BatchSessionTool creates anonymous success objects directly
+- Throws McpException for validation errors before serialization
+- This pattern is correct for session management (doesn't use Core Command results)
 
 ---

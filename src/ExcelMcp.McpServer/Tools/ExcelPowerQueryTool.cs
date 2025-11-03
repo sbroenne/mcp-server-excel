@@ -221,9 +221,10 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             excelPath,
             save: false,
             async (batch) => await commands.ExportAsync(batch, queryName, targetPath));
-        if (result.Success)
-        {
 
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"export failed for '{queryName}' to '{targetPath}': {result.ErrorMessage}");
         }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -241,12 +242,9 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             save: true,
             async (batch) => await commands.UpdateAsync(batch, queryName, sourcePath));
 
-        // Use workflow guidance with batch mode awareness
-        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
-
-        if (result.Success)
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-
+            throw new ModelContextProtocol.McpException($"update failed for '{queryName}': {result.ErrorMessage}");
         }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -328,11 +326,10 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             excelPath,
             save: true,
             async (batch) => await commands.RefreshAsync(batch, queryName));
-        if (result.Success)
-        {
-            // Update workflow hints based on whether loadDestination was applied
-            bool loadDestinationApplied = !string.IsNullOrEmpty(loadDestination);
 
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"refresh failed for '{queryName}': {result.ErrorMessage}");
         }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -348,9 +345,10 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             excelPath,
             save: true,
             async (batch) => await commands.DeleteAsync(batch, queryName));
-        if (result.Success)
-        {
 
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"delete failed for '{queryName}': {result.ErrorMessage}");
         }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -367,16 +365,9 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             save: true,
             async (batch) => await commands.SetLoadToTableAsync(batch, queryName, targetSheet ?? ""));
 
-        // Use workflow guidance with batch mode awareness
-        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
-
-        if (result.Success)
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-
-        }
-        else
-        {
-
+            throw new ModelContextProtocol.McpException($"set-load-to-table failed for '{queryName}': {result.ErrorMessage}");
         }
 
         // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
@@ -394,16 +385,9 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             save: true,
             async (batch) => await commands.SetLoadToDataModelAsync(batch, queryName));
 
-        // Use workflow guidance with batch mode awareness
-        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
-
-        if (result.Success)
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
-
-        }
-        else
-        {
-
+            throw new ModelContextProtocol.McpException($"set-load-to-data-model failed for '{queryName}': {result.ErrorMessage}");
         }
 
         // Return result as JSON (including PowerQueryPrivacyErrorResult if privacy error occurred)
@@ -420,6 +404,11 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             excelPath,
             save: true,
             async (batch) => await commands.SetLoadToBothAsync(batch, queryName, targetSheet ?? ""));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-load-to-both failed for '{queryName}': {result.ErrorMessage}");
+        }
 
         // Result now includes dual atomic operation verification metrics:
         // RowsLoadedToTable, RowsLoadedToModel, TablesInDataModel, WorkflowStatus (Complete/Partial/Failed)
@@ -441,9 +430,10 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             excelPath,
             save: true,
             async (batch) => await commands.SetConnectionOnlyAsync(batch, queryName));
-        if (result.Success)
-        {
 
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"set-connection-only failed for '{queryName}': {result.ErrorMessage}");
         }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -459,9 +449,10 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             excelPath,
             save: false,
             async (batch) => await commands.GetLoadConfigAsync(batch, queryName));
-        if (result.Success)
-        {
 
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"get-load-config failed for '{queryName}': {result.ErrorMessage}");
         }
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
