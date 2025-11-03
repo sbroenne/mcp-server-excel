@@ -45,10 +45,6 @@ public class TableTestsFixture : IAsyncLifetime
     /// </summary>
     public async Task InitializeAsync()
     {
-        Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        Console.WriteLine("TESTING: Table Creation (via fixture initialization)");
-        Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        
         var sw = Stopwatch.StartNew();
         
         TestFilePath = Path.Join(_tempDir, "TableTest.xlsx");
@@ -56,10 +52,7 @@ public class TableTestsFixture : IAsyncLifetime
         
         try
         {
-            // ═══════════════════════════════════════════════════════
             // TEST 1: File Creation
-            // ═══════════════════════════════════════════════════════
-            Console.WriteLine("  [1/3] Testing: File creation...");
             var fileCommands = new FileCommands();
             var createFileResult = await fileCommands.CreateEmptyAsync(TestFilePath);
             if (!createFileResult.Success)
@@ -67,14 +60,10 @@ public class TableTestsFixture : IAsyncLifetime
                     $"CREATION TEST FAILED: File creation failed: {createFileResult.ErrorMessage}");
             
             CreationResult.FileCreated = true;
-            Console.WriteLine("        ✅ File created successfully");
             
             await using var batch = await ExcelSession.BeginBatchAsync(TestFilePath);
             
-            // ═══════════════════════════════════════════════════════
             // TEST 2: Data Creation and Table Creation
-            // ═══════════════════════════════════════════════════════
-            Console.WriteLine("  [2/3] Testing: Data and Table creation...");
             
             // Create sample sales data
             await batch.Execute<int>((ctx, ct) =>
@@ -122,40 +111,19 @@ public class TableTestsFixture : IAsyncLifetime
                     $"CREATION TEST FAILED: Table creation failed: {createTableResult.ErrorMessage}");
                 
             CreationResult.TablesCreated = 1;
-            Console.WriteLine("        ✅ Table 'SalesTable' created with 4 rows of data");
             
-            // ═══════════════════════════════════════════════════════
             // TEST 3: Persistence (Save)
-            // ═══════════════════════════════════════════════════════
-            Console.WriteLine("  [3/3] Testing: Batch.SaveAsync() persistence...");
             await batch.SaveAsync();
-            Console.WriteLine("        ✅ Table saved successfully");
             
             sw.Stop();
             CreationResult.Success = true;
             CreationResult.CreationTimeSeconds = sw.Elapsed.TotalSeconds;
-            
-            Console.WriteLine();
-            Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Console.WriteLine($"✅ CREATION TEST PASSED in {sw.Elapsed.TotalSeconds:F1}s");
-            Console.WriteLine($"   📊 {CreationResult.TablesCreated} table created with sample data");
-            Console.WriteLine($"   💾 File: {TestFilePath}");
-            Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Console.WriteLine();
         }
         catch (Exception ex)
         {
             CreationResult.Success = false;
             CreationResult.ErrorMessage = ex.Message;
-            
             sw.Stop();
-            Console.WriteLine();
-            Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Console.WriteLine($"❌ CREATION TEST FAILED after {sw.Elapsed.TotalSeconds:F1}s");
-            Console.WriteLine($"   Error: {ex.Message}");
-            Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Console.WriteLine();
-            
             throw; // Fail all tests in class (correct behavior - no point testing if creation failed)
         }
     }

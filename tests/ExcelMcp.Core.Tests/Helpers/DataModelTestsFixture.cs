@@ -45,10 +45,6 @@ public class DataModelTestsFixture : IAsyncLifetime
     /// </summary>
     public async Task InitializeAsync()
     {
-        Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        Console.WriteLine("TESTING: Data Model Creation (via fixture initialization)");
-        Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        
         var sw = Stopwatch.StartNew();
         
         TestFilePath = Path.Join(_tempDir, "DataModel.xlsx");
@@ -56,10 +52,6 @@ public class DataModelTestsFixture : IAsyncLifetime
         
         try
         {
-            // ═══════════════════════════════════════════════════════
-            // TEST 1: File Creation
-            // ═══════════════════════════════════════════════════════
-            Console.WriteLine("  [1/6] Testing: File creation...");
             var fileCommands = new FileCommands();
             var createFileResult = await fileCommands.CreateEmptyAsync(TestFilePath);
             if (!createFileResult.Success)
@@ -67,24 +59,14 @@ public class DataModelTestsFixture : IAsyncLifetime
                     $"CREATION TEST FAILED: File creation failed: {createFileResult.ErrorMessage}");
             
             CreationResult.FileCreated = true;
-            Console.WriteLine("        ✅ File created successfully");
             
             await using var batch = await ExcelSession.BeginBatchAsync(TestFilePath);
             
-            // ═══════════════════════════════════════════════════════
-            // TEST 2: Table Creation
-            // ═══════════════════════════════════════════════════════
-            Console.WriteLine("  [2/6] Testing: Table creation (3 tables with data)...");
             await CreateSalesTableAsync(batch);
             await CreateCustomersTableAsync(batch);
             await CreateProductsTableAsync(batch);
             CreationResult.TablesCreated = 3;
-            Console.WriteLine("        ✅ Created 3 tables: SalesTable, CustomersTable, ProductsTable");
             
-            // ═══════════════════════════════════════════════════════
-            // TEST 3: AddToDataModel Command
-            // ═══════════════════════════════════════════════════════
-            Console.WriteLine("  [3/6] Testing: TableCommands.AddToDataModelAsync() for 3 tables...");
             var tableCommands = new TableCommands();
             var dataModelCommands = new DataModelCommands();
             
@@ -104,13 +86,8 @@ public class DataModelTestsFixture : IAsyncLifetime
                     $"CREATION TEST FAILED: AddToDataModel(ProductsTable) failed: {addProducts.ErrorMessage}");
                 
             CreationResult.TablesLoadedToModel = 3;
-            Console.WriteLine("        ✅ All 3 tables loaded into Data Model");
             
-            // ═══════════════════════════════════════════════════════
-            // TEST 4: CreateRelationship Command
-            // ═══════════════════════════════════════════════════════
-            Console.WriteLine("  [4/6] Testing: DataModelCommands.CreateRelationshipAsync() for 2 relationships...");
-            var rel1 = await dataModelCommands.CreateRelationshipAsync(batch, 
+            var rel1 = await dataModelCommands.CreateRelationshipAsync(batch,
                 "SalesTable", "CustomerID", "CustomersTable", "CustomerID", active: true);
             if (!rel1.Success)
                 throw new InvalidOperationException(
@@ -123,12 +100,7 @@ public class DataModelTestsFixture : IAsyncLifetime
                     $"CREATION TEST FAILED: CreateRelationship(Sales→Products) failed: {rel2.ErrorMessage}");
                 
             CreationResult.RelationshipsCreated = 2;
-            Console.WriteLine("        ✅ Created 2 relationships: Sales→Customers, Sales→Products");
             
-            // ═══════════════════════════════════════════════════════
-            // TEST 5: CreateMeasure Command
-            // ═══════════════════════════════════════════════════════
-            Console.WriteLine("  [5/6] Testing: DataModelCommands.CreateMeasureAsync() for 3 measures...");
             var m1 = await dataModelCommands.CreateMeasureAsync(batch, "SalesTable", "Total Sales",
                 "SUM(SalesTable[Amount])", "Currency", "Total sales revenue");
             if (!m1.Success)
@@ -148,42 +120,24 @@ public class DataModelTestsFixture : IAsyncLifetime
                     $"CREATION TEST FAILED: CreateMeasure(Total Customers) failed: {m3.ErrorMessage}");
                 
             CreationResult.MeasuresCreated = 3;
-            Console.WriteLine("        ✅ Created 3 measures: Total Sales, Average Sale, Total Customers");
-            
+                        
             // ═══════════════════════════════════════════════════════
             // TEST 6: Persistence (Save)
             // ═══════════════════════════════════════════════════════
-            Console.WriteLine("  [6/6] Testing: Batch.SaveAsync() persistence...");
             await batch.SaveAsync();
-            Console.WriteLine("        ✅ Data Model saved successfully");
-            
+                        
             sw.Stop();
             CreationResult.Success = true;
             CreationResult.CreationTimeSeconds = sw.Elapsed.TotalSeconds;
             
-            Console.WriteLine();
-            Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Console.WriteLine($"✅ CREATION TEST PASSED in {sw.Elapsed.TotalSeconds:F1}s");
-            Console.WriteLine($"   📊 {CreationResult.TablesCreated} tables created and loaded");
-            Console.WriteLine($"   🔗 {CreationResult.RelationshipsCreated} relationships established");
-            Console.WriteLine($"   📏 {CreationResult.MeasuresCreated} DAX measures defined");
-            Console.WriteLine($"   💾 File: {TestFilePath}");
-            Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Console.WriteLine();
-        }
+                                                                                                                    }
         catch (Exception ex)
         {
             CreationResult.Success = false;
             CreationResult.ErrorMessage = ex.Message;
             
             sw.Stop();
-            Console.WriteLine();
-            Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Console.WriteLine($"❌ CREATION TEST FAILED after {sw.Elapsed.TotalSeconds:F1}s");
-            Console.WriteLine($"   Error: {ex.Message}");
-            Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Console.WriteLine();
-            
+                                                                                    
             throw; // Fail all tests in class (correct behavior - no point testing if creation failed)
         }
     }
