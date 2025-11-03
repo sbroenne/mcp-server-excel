@@ -772,6 +772,113 @@ excelcli table-sort-multi sales.xlsx SalesTable Year:desc Quarter:desc Amount:de
 - Multi-column sort: Excel supports max 3 sort levels
 - Table structure preserved: Headers and totals row maintained
 
+## PivotTable Commands (`pivot-*`)
+
+Manage Excel PivotTables for interactive data analysis and summarization. Create PivotTables from ranges, Excel Tables, or Power Pivot Data Model tables.
+
+### Overview
+
+PivotTables provide powerful data analysis capabilities:
+- Dynamic data summarization with drag-and-drop field configuration
+- Multiple aggregation functions (Sum, Count, Average, Max, Min, etc.)
+- Row, Column, Value, and Filter field areas
+- Automatic refresh from source data
+- Integration with Power Pivot Data Model for large datasets
+
+### Creation Commands
+
+**pivot-create-from-range** - Create PivotTable from range
+
+```powershell
+excelcli pivot-create-from-range <file.xlsx> <source-sheet> <source-range> <dest-sheet> <dest-cell> <pivot-name>
+```
+
+Example:
+```powershell
+excelcli pivot-create-from-range sales.xlsx Data A1:D100 Analysis A1 SalesPivot
+```
+
+Creates a PivotTable from a data range with headers. The range must include at least 2 rows (headers + data).
+
+**pivot-create-from-datamodel** - Create PivotTable from Power Pivot Data Model table
+
+```powershell
+excelcli pivot-create-from-datamodel <file.xlsx> <datamodel-table-name> <dest-sheet> <dest-cell> <pivot-name>
+```
+
+Example:
+```powershell
+excelcli pivot-create-from-datamodel sales.xlsx ConsumptionMilestones Analysis A1 MilestonesPivot
+```
+
+Creates a PivotTable from a table in the Power Pivot Data Model. This enables:
+- Analysis of large datasets (millions of rows)
+- Use of DAX measures in PivotTables
+- Relationships between multiple tables
+- Professional BI solutions integrated with Power BI
+
+**Use Cases:**
+- Automating analytical dashboards with Data Model tables
+- Creating PivotTables from imported data models
+- Integrating with Azure consumption planning tools (e.g., CP Toolkit)
+
+**Requirements:**
+- Workbook must contain a Power Pivot Data Model
+- Table must exist in the Data Model (use `dm-list-tables` to verify)
+
+### Management Commands
+
+**pivot-list** - List all PivotTables
+
+```powershell
+excelcli pivot-list <file.xlsx>
+```
+
+Displays all PivotTables in the workbook with details:
+- PivotTable name and sheet location
+- Source data reference
+- Field counts (Row, Column, Value fields)
+
+**pivot-add-row-field** - Add field to Row area
+
+```powershell
+excelcli pivot-add-row-field <file.xlsx> <pivot-name> <field-name> [position]
+```
+
+Example:
+```powershell
+excelcli pivot-add-row-field sales.xlsx SalesPivot Region
+excelcli pivot-add-row-field sales.xlsx SalesPivot Product 2
+```
+
+**pivot-add-value-field** - Add field to Values area
+
+```powershell
+excelcli pivot-add-value-field <file.xlsx> <pivot-name> <field-name> [function] [custom-name]
+```
+
+Example:
+```powershell
+excelcli pivot-add-value-field sales.xlsx SalesPivot Amount Sum "Total Sales"
+excelcli pivot-add-value-field sales.xlsx SalesPivot Quantity Count
+```
+
+Supported aggregation functions: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP
+
+**pivot-refresh** - Refresh PivotTable data
+
+```powershell
+excelcli pivot-refresh <file.xlsx> <pivot-name>
+```
+
+Refreshes the PivotTable to reflect changes in source data.
+
+**Workflow Hints:**
+- Create PivotTable from Data Model for large datasets and DAX measures
+- Use `dm-list-tables` to find available Data Model tables
+- Add Row fields for grouping, Value fields for calculations
+- Refresh PivotTables after source data changes
+
 ## VBA VBA Commands (`vba-*`)
 
 **⚠️ VBA commands require macro-enabled (.xlsm) files!**
