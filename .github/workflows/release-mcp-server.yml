@@ -120,19 +120,19 @@ jobs:
         $version = $env:PACKAGE_VERSION
         $packageId = "sbroenne.excelmcp.mcpserver"
         $readmeUrl = "https://api.nuget.org/v3-flatcontainer/$packageId/$version/readme"
-        
+
         Write-Output "Waiting for NuGet CDN to propagate package README..."
         Write-Output "Checking: $readmeUrl"
-        
+
         $maxAttempts = 3  # 3 attempts * 10 minutes = 30 minutes max (safe margin for NuGet propagation)
         $pollIntervalSeconds = 600  # 10 minutes between polls
         $attempt = 0
         $found = $false
-        
+
         while ($attempt -lt $maxAttempts -and -not $found) {
           $attempt++
           Write-Output "Attempt $attempt of $maxAttempts..."
-          
+
           try {
             $response = Invoke-WebRequest -Uri $readmeUrl -UseBasicParsing -ErrorAction SilentlyContinue
             if ($response.StatusCode -eq 200) {
@@ -147,13 +147,13 @@ jobs:
           } catch {
             Write-Output "README not yet available (expected during propagation)"
           }
-          
+
           if (-not $found -and $attempt -lt $maxAttempts) {
             Write-Output "Waiting $pollIntervalSeconds seconds (10 minutes) before next check..."
             Start-Sleep -Seconds $pollIntervalSeconds
           }
         }
-        
+
         if ($found) {
           Write-Output "✅ NuGet package README is propagated and ready for MCP Registry validation"
         } else {
@@ -193,18 +193,18 @@ jobs:
       run: |
         $version = $env:PACKAGE_VERSION
         $packageId = "sbroenne.excelmcp.mcpserver"
-        
+
         Write-Output "Publishing to MCP Registry..."
         Write-Output "Server name: io.github.sbroenne/mcp-server-excel"
         Write-Output "Package ID: $packageId"
         Write-Output "Version: $version"
         Write-Output ""
-        
+
         # Verify README is accessible before publishing
         $readmeUrl = "https://api.nuget.org/v3-flatcontainer/$packageId/$version/readme"
         Write-Output "Pre-publish verification:"
         Write-Output "Checking README at: $readmeUrl"
-        
+
         try {
           $readmeContent = Invoke-WebRequest -Uri $readmeUrl -UseBasicParsing | Select-Object -ExpandProperty Content
           if ($readmeContent -match "mcp-name:\s+io\.github\.sbroenne/mcp-server-excel") {
@@ -215,16 +215,16 @@ jobs:
         } catch {
           Write-Output "⚠️ Could not verify README accessibility - publishing may fail validation"
         }
-        
+
         Write-Output ""
         Write-Output "Proceeding with MCP Registry publish..."
-        
+
         # Navigate to MCP Server .mcp directory (where server.json is located)
         Set-Location src/ExcelMcp.McpServer/.mcp
-        
+
         # Publish to registry (verbose mode for debugging)
         ../../../mcp-publisher.exe publish --verbose
-        
+
         Write-Output "🚀 Published to MCP Registry"
         Write-Output "🔗 Server available at: https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel"
       shell: pwsh
@@ -237,16 +237,16 @@ jobs:
         Write-Output "========================================"
         Write-Output "MCP Registry Publishing Status Summary"
         Write-Output "========================================"
-        
+
         $installStatus = "${{ steps.install-mcp-publisher.outcome }}"
         $loginStatus = "${{ steps.login-mcp-registry.outcome }}"
         $publishStatus = "${{ steps.publish-mcp-registry.outcome }}"
-        
+
         Write-Output "Install MCP Publisher: $installStatus"
         Write-Output "Login to MCP Registry: $loginStatus"
         Write-Output "Publish to MCP Registry: $publishStatus"
         Write-Output ""
-        
+
         if ($publishStatus -eq "success") {
           Write-Output "✅ MCP Registry publishing succeeded!"
           Write-Output "🔗 Server available at: https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel"
@@ -258,7 +258,7 @@ jobs:
           Write-Output "   Known issue: MCP Registry validation may fail despite correct README format"
           Write-Output "   See: https://github.com/sbroenne/mcp-server-excel/issues/XXX"
         }
-        
+
         Write-Output "========================================"
       shell: pwsh
 
