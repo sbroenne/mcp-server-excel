@@ -4,6 +4,7 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Connections;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
+using Sbroenne.ExcelMcp.Core.Security;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -144,6 +145,9 @@ public partial class ConnectionCommands
     /// </summary>
     public async Task<OperationResult> ImportAsync(IExcelBatch batch, string connectionName, string jsonFilePath)
     {
+        // Validate file path to prevent path traversal attacks
+        jsonFilePath = PathValidator.ValidateExistingFile(jsonFilePath, nameof(jsonFilePath));
+
         var result = new OperationResult
         {
             FilePath = batch.WorkbookPath,
@@ -210,6 +214,9 @@ public partial class ConnectionCommands
     /// </summary>
     public async Task<OperationResult> ExportAsync(IExcelBatch batch, string connectionName, string jsonFilePath)
     {
+        // Validate output file path to prevent path traversal attacks
+        jsonFilePath = PathValidator.ValidateOutputFile(jsonFilePath, nameof(jsonFilePath), allowOverwrite: true);
+
         var result = new OperationResult
         {
             FilePath = batch.WorkbookPath,
@@ -278,6 +285,9 @@ public partial class ConnectionCommands
     /// </summary>
     public async Task<OperationResult> UpdatePropertiesAsync(IExcelBatch batch, string connectionName, string jsonFilePath)
     {
+        // Validate file path to prevent path traversal attacks
+        jsonFilePath = PathValidator.ValidateExistingFile(jsonFilePath, nameof(jsonFilePath));
+
         var result = new OperationResult
         {
             FilePath = batch.WorkbookPath,

@@ -4,6 +4,7 @@ using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Security;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
@@ -454,10 +455,11 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
         if (string.IsNullOrEmpty(sourcePath))
             throw new ModelContextProtocol.McpException("sourcePath is required for eval action (M code file to evaluate)");
 
-        // Read M code from file
+        // Validate and read M code from file
         string mExpression;
         try
         {
+            sourcePath = PathValidator.ValidateExistingFile(sourcePath, nameof(sourcePath));
             mExpression = File.ReadAllText(sourcePath);
         }
         catch (Exception ex)
