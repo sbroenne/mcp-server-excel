@@ -97,14 +97,22 @@
 
 **Available styles:**
 - See completions for styleName parameter (47+ built-in styles)
-- Use elicitation ange_formatting to gather formatting requirements
+- Use elicitation 
+ange_formatting to gather formatting requirements
 
 **Workflow:**
-1. Check if built-in style meets needs (99% of cases)
-2. Apply style with single set-style action
-3. Only use ormat-range for brand-specific colors or one-off designs
+1. Check current formatting with get-style if modifying existing ranges
+2. Check if built-in style meets needs (99% of cases)
+3. Apply style with single set-style action
+4. Only use format-range for brand-specific colors or one-off designs
 
 ## Quick Examples
+
+**Inspect current formatting:**
+```javascript
+excel_range(action: 'get-style', rangeAddress: 'A1')
+// Returns: { styleName: 'Heading 1', isBuiltInStyle: true, ... }
+```
 
 **Apply heading:**
 ```javascript

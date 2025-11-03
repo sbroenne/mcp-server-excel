@@ -976,6 +976,50 @@ public static class ExcelRangeTool
         }, ExcelToolsBase.JsonOptions);
     }
 
+    private static async Task<string> GetStyleAsync(
+        RangeCommands commands,
+        string filePath,
+        string? sheetName,
+        string? rangeAddress,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-style");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.GetStyleAsync(batch, sheetName ?? "", rangeAddress!));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"get-style failed for '{filePath}': {result.ErrorMessage}");
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            success = true,
+            filePath,
+            sheetName,
+            rangeAddress,
+            styleName = result.StyleName,
+            isBuiltInStyle = result.IsBuiltInStyle,
+            styleDescription = result.StyleDescription,
+            workflowHint = result.IsBuiltInStyle 
+                ? "Built-in style detected. Use 'set-style' to apply this style to other ranges."
+                : "Custom style or no style applied. Use 'set-style' to apply a built-in style.",
+            suggestedNextActions = new[]
+            {
+                result.IsBuiltInStyle 
+                    ? "Apply this style to other ranges with 'set-style'"
+                    : "Apply a built-in style with 'set-style'",
+                "Use 'format-range' for custom formatting",
+                "Inspect other ranges to compare styles"
+            }
+        }, ExcelToolsBase.JsonOptions);
+    }
+
     private static async Task<string> FormatRangeAsync(
         RangeCommands commands,
         string filePath,
