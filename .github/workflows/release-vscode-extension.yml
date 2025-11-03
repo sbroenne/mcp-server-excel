@@ -144,107 +144,39 @@ jobs:
         $tagName = "${{ github.ref_name }}"
         $version = "${{ env.PACKAGE_VERSION }}"
         $vsixFile = "${{ env.VSIX_PATH }}"
-
-        # Check marketplace publishing results
-        $marketplaceStatus = "❌ Not published"
-
+        
+        $marketplaceStatus = "Not published"
         if ("${{ steps.publishToMarketplace.outcome }}" -eq "success") {
-          $marketplaceStatus = "✅ Published to VS Code Marketplace"
+          $marketplaceStatus = "Published to VS Code Marketplace"
         }
-
-        # Create release notes
-        $releaseNotes = @"
-## ExcelMcp VS Code Extension $tagName
-
-### One-Click Excel MCP Server Installation for VS Code
-
-This extension automatically registers the ExcelMcp MCP server with VS Code, enabling AI assistants like GitHub Copilot to control Microsoft Excel through 10 specialized tools.
-
-### Installation Options
-
-**Option 1: VS Code Marketplace (Recommended)**
-- Search for "ExcelMcp" in VS Code Extensions
-- Click Install
-- Extension auto-installs .NET 8 runtime and includes bundled MCP server
-
-**Option 2: Manual VSIX Install**
-- Download ``excelmcp-$version.vsix`` below
-- In VS Code: ``Ctrl+Shift+P`` → "Install from VSIX"
-- Select the downloaded VSIX file
-
-### Publishing Status
-
-- $marketplaceStatus
-
-### Key Features
-- ✅ **Zero Configuration** - Automatic MCP server registration
-- ✅ **Automatic .NET Installation** - Uses .NET Install Tool extension  
-- ✅ **Bundled MCP Server** - No separate tool installation required
-- ✅ **Works Everywhere** - All VS Code workspaces, no per-workspace config
-- ✅ **10 Excel Tools** - 108+ actions for Excel automation
-
-### Excel Tools Available (108+ actions)
-
-1. **excel_powerquery** (11 actions) - Power Query M code management
-2. **excel_datamodel** (20 actions) - DAX measures & Data Model
-3. **table** (22 actions) - Excel Tables/ListObjects
-4. **excel_range** (30+ actions) - Range operations
-5. **excel_vba** (7 actions) - VBA macros
-6. **excel_connection** (11 actions) - Data connections
-7. **excel_worksheet** (5 actions) - Worksheet lifecycle
-8. **excel_parameter** (6 actions) - Named ranges
-9. **excel_file** (1 action) - File creation
-10. **excel_version** (1 action) - Update checking
-
-### Requirements
-
-- **Windows OS** - Excel COM automation requires Windows
-- **Microsoft Excel 2016+** - Must be installed on your system
-- **.NET 8 Runtime** - **Automatically installed** by the extension
-- **VS Code 1.105.0+** - For MCP support
-
-### Benefits vs Manual Configuration
-
-Before (Manual):
-- ❌ Install .NET 8 SDK manually
-- ❌ Run ``dotnet tool install`` command
-- ❌ Create ``.vscode/mcp.json`` manually
-- ❌ Error-prone JSON editing
-- ❌ Per-workspace setup
-
-After (Extension):
-- ✅ One-click install from Marketplace
-- ✅ .NET runtime auto-installed
-- ✅ MCP server bundled with extension
-- ✅ Works in all workspaces
-- ✅ Welcome message guides users
-
-### Documentation
-
-- [Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/vscode-extension/INSTALL.md)
-- [Developer Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/vscode-extension/DEVELOPMENT.md)
-- [Main Repository](https://github.com/sbroenne/mcp-server-excel)
-
-### Package Details
-
-- **Size**: ~28 MB (includes framework-dependent MCP server executable)
-- **Files**: Extension code + .NET framework-dependent MCP server
-- **Dependencies**: ms-dotnettools.vscode-dotnet-runtime (auto-installs .NET 8)
-- **License**: MIT
-"@
-
-        Set-Content -Path "release_notes.md" -Value $releaseNotes
-
-        # Create the release
-        gh release create "$tagName" `
-          "$vsixFile" `
-          --title "ExcelMcp VS Code Extension $tagName" `
-          --notes-file release_notes.md
-
-        Write-Output "✅ Released ExcelMcp VS Code Extension $version"
-        Write-Output "📦 Package: excelmcp-$version.vsix"
-        Write-Output "🔗 Release: https://github.com/sbroenne/mcp-server-excel/releases/tag/$tagName"
-        Write-Output "📊 Marketplace: $marketplaceStatus"
+        
+        $notes = "## ExcelMcp VS Code Extension $tagName`n`n"
+        $notes += "### One-Click Excel MCP Server Installation for VS Code`n`n"
+        $notes += "This extension automatically registers the ExcelMcp MCP server with VS Code.`n`n"
+        $notes += "### Installation Options`n`n"
+        $notes += "**Option 1: VS Code Marketplace** - Search for ExcelMcp and click Install`n"
+        $notes += "**Option 2: Manual VSIX** - Download excelmcp-$version.vsix below and install via VS Code`n`n"
+        $notes += "### Publishing Status: $marketplaceStatus`n`n"
+        $notes += "### Key Features`n"
+        $notes += "- Zero Configuration - Automatic MCP server registration`n"
+        $notes += "- Automatic .NET Installation`n"
+        $notes += "- Bundled MCP Server`n"
+        $notes += "- Works in all VS Code workspaces`n"
+        $notes += "- 10 Excel Tools with 108+ actions`n`n"
+        $notes += "### Requirements`n"
+        $notes += "- Windows OS`n"
+        $notes += "- Microsoft Excel 2016+`n"
+        $notes += "- VS Code 1.105.0+`n"
+        $notes += "- .NET 8 Runtime (auto-installed by extension)`n`n"
+        $notes += "### Documentation`n"
+        $notes += "- [Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/vscode-extension/INSTALL.md)`n"
+        $notes += "- [Main Repository](https://github.com/sbroenne/mcp-server-excel)`n"
+        
+        $notes | Out-File -FilePath "release_notes.md" -Encoding utf8
+        
+        gh release create "$tagName" "$vsixFile" --title "ExcelMcp VS Code Extension $tagName" --notes-file release_notes.md
+        
+        Write-Output "Released ExcelMcp VS Code Extension $version"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       shell: pwsh
