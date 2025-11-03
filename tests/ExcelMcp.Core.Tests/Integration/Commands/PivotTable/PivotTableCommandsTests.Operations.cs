@@ -63,7 +63,7 @@ public partial class PivotTableCommandsTests
         Assert.True(createResult.Success);
 
         // Act - No save needed
-        var result = await _pivotCommands.GetInfoAsync(batch, "TestPivot");
+        var result = await _pivotCommands.GetAsync(batch, "TestPivot");
 
         // Assert
         Assert.True(result.Success, $"GetInfo failed: {result.ErrorMessage}");
@@ -81,7 +81,7 @@ public partial class PivotTableCommandsTests
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _pivotCommands.GetInfoAsync(batch, "NonExistent");
+        var result = await _pivotCommands.GetAsync(batch, "NonExistent");
 
         // Assert
         Assert.False(result.Success);

@@ -156,7 +156,7 @@ public interface IRangeCommands
     /// Gets range information (address, dimensions, number formats)
     /// Excel COM: Range.Address, Range.Rows.Count, Range.Columns.Count, Range.NumberFormat
     /// </summary>
-    Task<RangeInfoResult> GetRangeInfoAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    Task<RangeInfoResult> GetInfoAsync(IExcelBatch batch, string sheetName, string rangeAddress);
 
     // === HYPERLINK OPERATIONS ===
 

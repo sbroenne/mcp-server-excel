@@ -162,7 +162,7 @@ public static class PivotTableTool
         var result = await ExcelToolsBase.WithBatchAsync(batchId,
             filePath,
             false,
-            async (batch) => await commands.GetInfoAsync(batch, pivotTableName!)
+            async (batch) => await commands.GetAsync(batch, pivotTableName!)
         );
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))

@@ -57,10 +57,10 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task GetRangeInfo_ValidAddress_ReturnsMetadata()
+    public async Task GetInfo_ValidAddress_ReturnsMetadata()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetRangeInfo_ValidAddress_ReturnsMetadata), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetInfo_ValidAddress_ReturnsMetadata), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:D10",
@@ -69,7 +69,7 @@ public partial class RangeCommandsTests
         ]);
 
         // Act
-        var result = await _commands.GetRangeInfoAsync(batch, "Sheet1", "A1:D10");
+        var result = await _commands.GetInfoAsync(batch, "Sheet1", "A1:D10");
 
         // Assert
         Assert.True(result.Success);

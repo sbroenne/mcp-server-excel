@@ -131,7 +131,7 @@ public static class ExcelFileTool
     /// </summary>
     private static async Task<string> TestFileAsync(FileCommands fileCommands, string excelPath)
     {
-        var result = await fileCommands.TestFileAsync(excelPath);
+        var result = await fileCommands.TestAsync(excelPath);
 
         if (result.Success)
         {

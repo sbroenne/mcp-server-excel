@@ -18,7 +18,8 @@
 
 param(
     [switch]$Verbose,
-    [switch]$FailOnGaps
+    [switch]$FailOnGaps,
+    [switch]$CheckNaming
 )
 
 $ErrorActionPreference = "Stop"
@@ -65,6 +66,81 @@ function Count-EnumValues {
     }
 
     return 0
+}
+
+# Function to extract method names from Core interface (without "Async" suffix)
+function Get-CoreMethodNames {
+    param([string]$InterfacePath)
+
+    if (-not (Test-Path $InterfacePath)) {
+        return @()
+    }
+
+    $content = Get-Content $InterfacePath -Raw
+    $matches = [regex]::Matches($content, 'Task<[^>]+>\s+(\w+)Async\s*\(')
+    $methodNames = @()
+    foreach ($match in $matches) {
+        $methodNames += $match.Groups[1].Value
+    }
+    return $methodNames
+}
+
+# Function to extract enum value names
+function Get-EnumValueNames {
+    param([string]$EnumName, [string]$ToolActionsPath)
+
+    if (-not (Test-Path $ToolActionsPath)) {
+        return @()
+    }
+
+    $content = Get-Content $ToolActionsPath -Raw
+    $enumPattern = "public\s+enum\s+$EnumName\s*\{([^}]+)\}"
+    if ($content -match $enumPattern) {
+        $enumBody = $Matches[1]
+        $enumValues = @()
+        $lines = $enumBody -split "`n" | Where-Object {
+            $_ -match '^\s*(\w+)' -and $_ -notmatch '^\s*//'
+        }
+        foreach ($line in $lines) {
+            if ($line -match '^\s*(\w+)') {
+                $enumValues += $Matches[1]
+            }
+        }
+        return $enumValues
+    }
+
+    return @()
+}
+
+# Function to check naming consistency
+function Check-NamingConsistency {
+    param(
+        [string]$InterfaceName,
+        [string]$InterfacePath,
+        [string]$EnumName,
+        [string]$ToolActionsPath
+    )
+
+    $methodNames = Get-CoreMethodNames -InterfacePath $InterfacePath
+    $enumValues = Get-EnumValueNames -EnumName $EnumName -ToolActionsPath $ToolActionsPath
+
+    $mismatches = @()
+
+    # Check each method has matching enum
+    foreach ($method in $methodNames) {
+        if ($enumValues -notcontains $method) {
+            $mismatches += "Method '$method' has no matching enum value"
+        }
+    }
+
+    # Check each enum has matching method
+    foreach ($enum in $enumValues) {
+        if ($methodNames -notcontains $enum) {
+            $mismatches += "Enum '$enum' has no matching method"
+        }
+    }
+
+    return $mismatches
 }
 
 # Define interfaces to check
@@ -229,4 +305,57 @@ Write-Host ""
 Write-Host "Audit completed at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Gray
 
 # Explicitly exit with success code (no gaps detected)
+if ($FailOnGaps -and $hasGaps) {
+    exit 1
+}
+
+# Naming consistency check (if requested)
+if ($CheckNaming) {
+    Write-Host ""
+    Write-Host "🔤 Naming Consistency Check" -ForegroundColor Cyan
+    Write-Host "===========================" -ForegroundColor Cyan
+    Write-Host ""
+    
+    $namingIssues = @()
+    $hasNamingIssues = $false
+    
+    foreach ($interface in $interfaces) {
+        $mismatches = Check-NamingConsistency `
+            -InterfaceName $interface.Name `
+            -InterfacePath $interface.Path `
+            -EnumName $interface.Enum `
+            -ToolActionsPath $toolActionsPath
+        
+        if ($mismatches.Count -gt 0) {
+            $hasNamingIssues = $true
+            Write-Host "❌ $($interface.Name) → $($interface.Enum):" -ForegroundColor Red
+            foreach ($mismatch in $mismatches) {
+                Write-Host "   $mismatch" -ForegroundColor Yellow
+            }
+            Write-Host ""
+        } else {
+            Write-Host "✅ $($interface.Name) → $($interface.Enum): All names match" -ForegroundColor Green
+        }
+    }
+    
+    if ($hasNamingIssues) {
+        Write-Host ""
+        Write-Host "⚠️  NAMING MISMATCHES DETECTED!" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "Action Required:" -ForegroundColor Yellow
+        Write-Host "  1. Review naming mismatches above" -ForegroundColor Yellow
+        Write-Host "  2. Decide: Rename Core methods OR rename enum values" -ForegroundColor Yellow
+        Write-Host "  3. Update all references (implementations, tools, tests, CLI)" -ForegroundColor Yellow
+        Write-Host "  4. Run 'dotnet build' to verify" -ForegroundColor Yellow
+        Write-Host ""
+        
+        if ($FailOnGaps) {
+            exit 1
+        }
+    } else {
+        Write-Host ""
+        Write-Host "✅ All naming consistent - enum values match Core method names!" -ForegroundColor Green
+    }
+}
+
 exit 0

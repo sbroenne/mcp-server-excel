@@ -31,7 +31,7 @@ public interface ITableCommands
     /// <summary>
     /// Gets detailed information about an Excel Table
     /// </summary>
-    Task<TableInfoResult> GetInfoAsync(IExcelBatch batch, string tableName);
+    Task<TableInfoResult> GetAsync(IExcelBatch batch, string tableName);
 
     /// <summary>
     /// Resizes an Excel Table to a new range
@@ -51,7 +51,7 @@ public interface ITableCommands
     /// <summary>
     /// Appends rows to an Excel Table (table auto-expands)
     /// </summary>
-    Task<OperationResult> AppendRowsAsync(IExcelBatch batch, string tableName, List<List<object?>> rows);
+    Task<OperationResult> AppendAsync(IExcelBatch batch, string tableName, List<List<object?>> rows);
 
     /// <summary>
     /// Changes the style of an Excel Table

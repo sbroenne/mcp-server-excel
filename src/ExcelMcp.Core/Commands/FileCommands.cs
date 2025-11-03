@@ -110,7 +110,7 @@ public class FileCommands : IFileCommands
     }
 
     /// <inheritdoc />
-    public async Task<FileValidationResult> TestFileAsync(string filePath)
+    public async Task<FileValidationResult> TestAsync(string filePath)
     {
         try
         {

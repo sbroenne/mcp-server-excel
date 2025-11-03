@@ -56,7 +56,7 @@ public class CliDataModelCommandsTests
     }
 
     [Fact]
-    public void ViewMeasure_WithMissingMeasureNameArg_ReturnsErrorExitCode()
+    public void Get_WithMissingMeasureNameArg_ReturnsErrorExitCode()
     {
         // Arrange
         string[] args = { "dm-view-measure", "SomeFile.xlsx" }; // Missing measure name

@@ -68,10 +68,10 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
     /// LLM use case: "show me the columns in this data model table"
     /// </summary>
     [Fact]
-    public async Task ViewTable_WithValidTable_ReturnsCompleteInfo()
+    public async Task GetTable_WithValidTable_ReturnsCompleteInfo()
     {
         await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
-        var result = await _dataModelCommands.ViewTableAsync(batch, "SalesTable");
+        var result = await _dataModelCommands.GetTableAsync(batch, "SalesTable");
 
         Assert.True(result.Success, $"ViewTable failed: {result.ErrorMessage}");
         Assert.Equal("SalesTable", result.TableName);
@@ -86,10 +86,10 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
     /// LLM use case: "show me information about this data model"
     /// </summary>
     [Fact]
-    public async Task GetModelInfo_WithRealisticDataModel_ReturnsAccurateStatistics()
+    public async Task GetInfo_WithRealisticDataModel_ReturnsAccurateStatistics()
     {
         await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
-        var result = await _dataModelCommands.GetModelInfoAsync(batch);
+        var result = await _dataModelCommands.GetInfoAsync(batch);
 
         Assert.True(result.Success, $"GetModelInfo failed: {result.ErrorMessage}");
         Assert.Equal(3, result.TableCount);
@@ -129,10 +129,10 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
     /// LLM use case: "show me the DAX formula for this measure"
     /// </summary>
     [Fact]
-    public async Task ViewMeasure_WithRealisticDataModel_ReturnsValidDAXFormula()
+    public async Task Get_WithRealisticDataModel_ReturnsValidDAXFormula()
     {
         await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
-        var result = await _dataModelCommands.ViewMeasureAsync(batch, "Total Sales");
+        var result = await _dataModelCommands.GetAsync(batch, "Total Sales");
 
         Assert.True(result.Success, $"ViewMeasure failed: {result.ErrorMessage}");
         Assert.NotNull(result.DaxFormula);
@@ -183,7 +183,7 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
         Assert.True(updateResult.Success);
 
         // Verify update
-        var viewResult = await _dataModelCommands.ViewMeasureAsync(batch, measureName);
+        var viewResult = await _dataModelCommands.GetAsync(batch, measureName);
         Assert.Contains("AVERAGE", viewResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
     }
 

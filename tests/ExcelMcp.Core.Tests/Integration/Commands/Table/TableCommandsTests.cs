@@ -72,7 +72,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     public async Task Info_WithValidTable_ReturnsTableDetails()
     {
         await using var batch = await ExcelSession.BeginBatchAsync(_tableFile);
-        var result = await _tableCommands.GetInfoAsync(batch, "SalesTable");
+        var result = await _tableCommands.GetAsync(batch, "SalesTable");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Table);
@@ -162,14 +162,14 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         
-        var initialInfo = await _tableCommands.GetInfoAsync(batch, "SalesTable");
+        var initialInfo = await _tableCommands.GetAsync(batch, "SalesTable");
         Assert.True(initialInfo.Success);
 
         var result = await _tableCommands.ResizeAsync(batch, "SalesTable", "A1:D10");
         Assert.True(result.Success);
 
         // Verify resize
-        var resizedInfo = await _tableCommands.GetInfoAsync(batch, "SalesTable");
+        var resizedInfo = await _tableCommands.GetAsync(batch, "SalesTable");
         Assert.Equal(9, resizedInfo.Table!.RowCount); // 10 rows - 1 header
     }
 
@@ -188,14 +188,14 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         
-        var initialInfo = await _tableCommands.GetInfoAsync(batch, "SalesTable");
+        var initialInfo = await _tableCommands.GetAsync(batch, "SalesTable");
         var initialColumnCount = initialInfo.Table!.Columns!.Count;
 
         var result = await _tableCommands.AddColumnAsync(batch, "SalesTable", "NewColumn");
         Assert.True(result.Success);
 
         // Verify column added
-        var updatedInfo = await _tableCommands.GetInfoAsync(batch, "SalesTable");
+        var updatedInfo = await _tableCommands.GetAsync(batch, "SalesTable");
         Assert.Equal(initialColumnCount + 1, updatedInfo.Table!.Columns!.Count);
         Assert.Contains("NewColumn", updatedInfo.Table.Columns);
     }
@@ -215,7 +215,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         Assert.True(result.Success);
 
         // Verify rename
-        var info = await _tableCommands.GetInfoAsync(batch, "SalesTable");
+        var info = await _tableCommands.GetAsync(batch, "SalesTable");
         Assert.Contains("Revenue", info.Table!.Columns!);
         Assert.DoesNotContain("Amount", info.Table.Columns);
     }
@@ -229,9 +229,9 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     /// LLM use case: "add these rows to the table"
     /// </summary>
     [Fact]
-    public async Task AppendRows_WithNewData_AddsRowsToTable()
+    public async Task Append_WithNewData_AddsRowsToTable()
     {
-        var testFile = await CreateTestFileWithTableAsync(nameof(AppendRows_WithNewData_AddsRowsToTable));
+        var testFile = await CreateTestFileWithTableAsync(nameof(Append_WithNewData_AddsRowsToTable));
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         
@@ -241,11 +241,11 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
             new() { "East", "Gadget", 600, DateTime.Now }
         };
 
-        var result = await _tableCommands.AppendRowsAsync(batch, "SalesTable", newRows);
+        var result = await _tableCommands.AppendAsync(batch, "SalesTable", newRows);
         Assert.True(result.Success);
 
         // Verify rows added
-        var info = await _tableCommands.GetInfoAsync(batch, "SalesTable");
+        var info = await _tableCommands.GetAsync(batch, "SalesTable");
         Assert.True(info.Table!.RowCount >= 6); // Original 4 + appended 2
     }
 
@@ -322,7 +322,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         Assert.True(result.Success);
 
         // Verify totals enabled
-        var info = await _tableCommands.GetInfoAsync(batch, "SalesTable");
+        var info = await _tableCommands.GetAsync(batch, "SalesTable");
         Assert.True(info.Table!.ShowTotals);
     }
 

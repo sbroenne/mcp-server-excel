@@ -186,7 +186,7 @@ public static class TableTool
             batchId,
             filePath,
             false, // don't save for info operation
-            async (batch) => await commands.GetInfoAsync(batch, tableName!)
+            async (batch) => await commands.GetAsync(batch, tableName!)
         );
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
@@ -323,7 +323,7 @@ public static class TableTool
             batchId,
             filePath,
             true, // save changes
-            async (batch) => await commands.AppendRowsAsync(batch, tableName!, rows)
+            async (batch) => await commands.AppendAsync(batch, tableName!, rows)
         );
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))

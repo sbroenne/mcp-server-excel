@@ -20,5 +20,5 @@ public interface IFileCommands
     /// </summary>
     /// <param name="filePath">Path to the Excel file to validate</param>
     /// <returns>File validation result with existence, size, extension, and validity information</returns>
-    Task<FileValidationResult> TestFileAsync(string filePath);
+    Task<FileValidationResult> TestAsync(string filePath);
 }

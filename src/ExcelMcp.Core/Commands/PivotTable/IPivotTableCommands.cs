@@ -24,7 +24,7 @@ public interface IPivotTableCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>
     /// <returns>All fields with positions, aggregation functions, filter states</returns>
-    Task<PivotTableInfoResult> GetInfoAsync(IExcelBatch batch, string pivotTableName);
+    Task<PivotTableInfoResult> GetAsync(IExcelBatch batch, string pivotTableName);
     
     /// <summary>
     /// Creates PivotTable from Excel range with auto-detection of headers

@@ -227,7 +227,7 @@ public static class ExcelConnectionTool
             batchId,
             filePath,
             save: true,
-            async (batch) => await commands.UpdateAsync(batch, connectionName, jsonPath));
+            async (batch) => await commands.UpdatePropertiesAsync(batch, connectionName, jsonPath));
 
         if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
         {
