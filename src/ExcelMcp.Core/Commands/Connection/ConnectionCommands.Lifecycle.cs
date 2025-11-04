@@ -362,6 +362,14 @@ public partial class ConnectionCommands
     /// </summary>
     public async Task<OperationResult> RefreshAsync(IExcelBatch batch, string connectionName)
     {
+        return await RefreshAsync(batch, connectionName, timeout: null);
+    }
+
+    /// <summary>
+    /// Refreshes connection data with timeout
+    /// </summary>
+    public async Task<OperationResult> RefreshAsync(IExcelBatch batch, string connectionName, TimeSpan? timeout)
+    {
         var result = new OperationResult
         {
             FilePath = batch.WorkbookPath,
@@ -393,7 +401,7 @@ public partial class ConnectionCommands
                 result.ErrorMessage = $"Error refreshing connection: {ex.Message}";
                 return result;
             }
-        }, timeout: TimeSpan.FromMinutes(5));  // Heavy operation: request extended timeout
+        }, timeout: timeout ?? TimeSpan.FromMinutes(2));  // Default 2 minutes for connection refresh, LLM can override
     }
 
     /// <summary>

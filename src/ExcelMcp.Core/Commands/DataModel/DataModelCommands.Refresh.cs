@@ -14,6 +14,12 @@ public partial class DataModelCommands
     /// <inheritdoc />
     public async Task<OperationResult> RefreshAsync(IExcelBatch batch, string? tableName = null)
     {
+        return await RefreshAsync(batch, tableName, TimeSpan.FromMinutes(2));  // Default 2 minutes for Data Model refresh, LLM can override
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResult> RefreshAsync(IExcelBatch batch, string? tableName, TimeSpan? timeout)
+    {
         var result = new OperationResult
         {
             FilePath = batch.WorkbookPath,
@@ -84,6 +90,6 @@ public partial class DataModelCommands
             }
 
             return result;
-        }, timeout: TimeSpan.FromMinutes(5));  // Heavy operation: request extended timeout
+        }, timeout: timeout ?? TimeSpan.FromMinutes(2));  // Default 2 minutes for Data Model refresh, LLM can override
     }
 }

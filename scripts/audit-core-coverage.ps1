@@ -29,7 +29,7 @@ Write-Host "🔍 Core Commands Coverage Audit" -ForegroundColor Cyan
 Write-Host "=================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Function to count async methods in Core interface files
+# Function to count unique async method names in Core interface files (handles overloads)
 function Count-CoreMethods {
     param([string]$InterfacePath, [string]$InterfaceName)
 
@@ -39,9 +39,16 @@ function Count-CoreMethods {
     }
 
     $content = Get-Content $InterfacePath -Raw
-    # Count lines like: Task<Something> MethodAsync(
-    $matches = [regex]::Matches($content, 'Task<[^>]+>\s+\w+Async\s*\(')
-    return $matches.Count
+    # Extract all method names and count unique ones (handles overloads)
+    $matches = [regex]::Matches($content, 'Task<[^>]+>\s+(\w+)Async\s*\(')
+    $uniqueMethodNames = @()
+    foreach ($match in $matches) {
+        $methodName = $match.Groups[1].Value
+        if ($uniqueMethodNames -notcontains $methodName) {
+            $uniqueMethodNames += $methodName
+        }
+    }
+    return $uniqueMethodNames.Count
 }
 
 # Function to count enum values
@@ -68,7 +75,7 @@ function Count-EnumValues {
     return 0
 }
 
-# Function to extract method names from Core interface (without "Async" suffix)
+# Function to extract unique method names from Core interface (without "Async" suffix, handles overloads)
 function Get-CoreMethodNames {
     param([string]$InterfacePath)
 
@@ -78,11 +85,14 @@ function Get-CoreMethodNames {
 
     $content = Get-Content $InterfacePath -Raw
     $matches = [regex]::Matches($content, 'Task<[^>]+>\s+(\w+)Async\s*\(')
-    $methodNames = @()
+    $uniqueMethodNames = @()
     foreach ($match in $matches) {
-        $methodNames += $match.Groups[1].Value
+        $methodName = $match.Groups[1].Value
+        if ($uniqueMethodNames -notcontains $methodName) {
+            $uniqueMethodNames += $methodName
+        }
     }
-    return $methodNames
+    return $uniqueMethodNames
 }
 
 # Function to extract enum value names

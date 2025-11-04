@@ -102,7 +102,10 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
         string? loadDestination = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
-        string? batchId = null)
+        string? batchId = null,
+
+        [Description("Timeout in minutes for Power Query operations. Default: 5 minutes for refresh operations, 2 minutes for others")]
+        double? timeout = null)
     {
         try
         {
@@ -118,7 +121,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
                 PowerQueryAction.Import => await ImportPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, batchId),
                 PowerQueryAction.Export => await ExportPowerQueryAsync(powerQueryCommands, excelPath, queryName, targetPath, batchId),
                 PowerQueryAction.Update => await UpdatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, batchId),
-                PowerQueryAction.Refresh => await RefreshPowerQueryAsync(powerQueryCommands, excelPath, queryName, loadDestination, targetSheet, batchId),
+                                PowerQueryAction.Refresh => await RefreshPowerQueryAsync(powerQueryCommands, excelPath, queryName, loadDestination, targetSheet, timeout, batchId),
                 PowerQueryAction.Delete => await DeletePowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
                 PowerQueryAction.SetLoadToTable => await SetLoadToTableAsync(powerQueryCommands, excelPath, queryName, targetSheet, batchId),
                 PowerQueryAction.SetLoadToDataModel => await SetLoadToDataModelAsync(powerQueryCommands, excelPath, queryName, batchId),
@@ -230,7 +233,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RefreshPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? loadDestination, string? targetSheet, string? batchId)
+    private static async Task<string> RefreshPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? loadDestination, string? targetSheet, double? timeoutMinutes, string? batchId)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for refresh action");
@@ -303,11 +306,14 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
 
         try
         {
+            // Apply operation-specific timeout default (5 minutes for refresh)
+            var timeoutSpan = timeoutMinutes.HasValue ? (TimeSpan?)TimeSpan.FromMinutes(timeoutMinutes.Value) : null;
+            
             var result = await ExcelToolsBase.WithBatchAsync(
                 batchId,
                 excelPath,
                 save: true,
-                async (batch) => await commands.RefreshAsync(batch, queryName));
+                async (batch) => await commands.RefreshAsync(batch, queryName, timeoutSpan));
 
             // Always return JSON (success or failure) - MCP clients handle the success flag
             return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);

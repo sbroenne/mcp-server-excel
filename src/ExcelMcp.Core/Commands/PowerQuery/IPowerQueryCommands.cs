@@ -47,6 +47,11 @@ public interface IPowerQueryCommands
     Task<PowerQueryRefreshResult> RefreshAsync(IExcelBatch batch, string queryName);
 
     /// <summary>
+    /// Refreshes a Power Query to update its data with error detection and timeout
+    /// </summary>
+    Task<PowerQueryRefreshResult> RefreshAsync(IExcelBatch batch, string queryName, TimeSpan? timeout);
+
+    /// <summary>
     /// Shows errors from Power Query operations
     /// </summary>
     Task<PowerQueryViewResult> ErrorsAsync(IExcelBatch batch, string queryName);
