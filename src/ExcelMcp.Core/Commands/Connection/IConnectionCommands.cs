@@ -39,6 +39,11 @@ public interface IConnectionCommands
     Task<OperationResult> RefreshAsync(IExcelBatch batch, string connectionName);
 
     /// <summary>
+    /// Refreshes connection data with timeout
+    /// </summary>
+    Task<OperationResult> RefreshAsync(IExcelBatch batch, string connectionName, TimeSpan? timeout);
+
+    /// <summary>
     /// Deletes a connection
     /// </summary>
     Task<OperationResult> DeleteAsync(IExcelBatch batch, string connectionName);

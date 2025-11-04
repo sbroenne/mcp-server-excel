@@ -140,6 +140,9 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
         [Description("Cross-filter direction (for create-relationship, update-relationship): Single (default), Both")]
         string? crossFilterDirection = null,
 
+        [Description("Timeout in minutes for data model operations. Default: 2 minutes")]
+        double? timeout = null,
+
         [Description("Optional batch ID for grouping operations")]
         string? batchId = null)
     {
@@ -156,7 +159,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
                 DataModelAction.Get => await ViewMeasureAsync(dataModelCommands, excelPath, measureName, batchId),
                 DataModelAction.ExportMeasure => await ExportMeasureAsync(dataModelCommands, excelPath, measureName, outputPath, batchId),
                 DataModelAction.ListRelationships => await ListRelationshipsAsync(dataModelCommands, excelPath, batchId),
-                DataModelAction.Refresh => await RefreshAsync(dataModelCommands, excelPath, batchId),
+                DataModelAction.Refresh => await RefreshAsync(dataModelCommands, excelPath, timeout, batchId),
                 DataModelAction.DeleteMeasure => await DeleteMeasureAsync(dataModelCommands, excelPath, measureName, batchId),
                 DataModelAction.DeleteRelationship => await DeleteRelationshipAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, batchId),
                 DataModelAction.GetTable => await ViewTableAsync(dataModelCommands, excelPath, tableName, batchId),
@@ -259,15 +262,16 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RefreshAsync(DataModelCommands commands, string filePath, string? batchId)
+    private static async Task<string> RefreshAsync(DataModelCommands commands, string filePath, double? timeoutMinutes, string? batchId)
     {
         try
         {
+            var timeoutSpan = timeoutMinutes.HasValue ? (TimeSpan?)TimeSpan.FromMinutes(timeoutMinutes.Value) : null;
             var result = await ExcelToolsBase.WithBatchAsync(
                 batchId,
                 filePath,
                 save: true,
-                async (batch) => await commands.RefreshAsync(batch));
+                async (batch) => await commands.RefreshAsync(batch, null, timeoutSpan));
 
             // If operation failed, throw exception with detailed error message
             // Always return JSON (success or failure) - MCP clients handle the success flag

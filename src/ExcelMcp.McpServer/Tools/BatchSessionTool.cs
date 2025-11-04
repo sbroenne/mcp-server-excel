@@ -39,14 +39,17 @@ Use begin to start a session, commit to end it, list to debug.")]
         string? batchId = null,
 
         [Description("Save changes before closing? Default true. Set false to discard - used with 'commit' action")]
-        bool save = true)
+        bool save = true,
+        
+        [Description("Timeout in minutes for batch operations. Default: 2 minutes for save operations")]
+        double? timeout = null)
     {
         try
         {
             return action switch
             {
                 BatchAction.Begin => await BeginBatchAsync(filePath!),
-                BatchAction.Commit => await CommitBatchAsync(batchId!, save),
+                BatchAction.Commit => await CommitBatchAsync(batchId!, save, timeout),
                 BatchAction.List => ListBatches(),
                 _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
             };
@@ -120,7 +123,7 @@ Use begin to start a session, commit to end it, list to debug.")]
         return JsonSerializer.Serialize(result, _jsonOptions);
     }
 
-    private static async Task<string> CommitBatchAsync(string batchId, bool save)
+    private static async Task<string> CommitBatchAsync(string batchId, bool save, double? timeoutMinutes)
     {
         // Validate batch ID
         if (string.IsNullOrWhiteSpace(batchId))
@@ -141,7 +144,8 @@ Use begin to start a session, commit to end it, list to debug.")]
             // Save if requested (with extended timeout for large workbooks)
             if (save)
             {
-                await batch.SaveAsync();
+                var timeoutSpan = timeoutMinutes.HasValue ? (TimeSpan?)TimeSpan.FromMinutes(timeoutMinutes.Value) : null;
+                await batch.SaveAsync(timeout: timeoutSpan);
             }
 
             // Dispose (closes workbook and releases Excel)
@@ -156,7 +160,7 @@ Use begin to start a session, commit to end it, list to debug.")]
                 message = save
                     ? $"Batch committed. Workbook saved: {filePath}"
                     : $"Batch discarded. Workbook closed without saving: {filePath}",
-                workflowHint = save 
+                workflowHint = save
                     ? "Changes saved. Batch complete."
                     : "Changes discarded. Batch complete."
             };

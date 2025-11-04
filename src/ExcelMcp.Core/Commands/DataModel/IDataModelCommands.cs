@@ -99,6 +99,15 @@ public interface IDataModelCommands
     Task<OperationResult> RefreshAsync(IExcelBatch batch, string? tableName = null);
 
     /// <summary>
+    /// Refreshes Data Model table(s) with timeout
+    /// </summary>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
+    /// <param name="tableName">Optional: Specific table to refresh (if null, refreshes entire model)</param>
+    /// <param name="timeout">Timeout for the refresh operation</param>
+    /// <returns>Result indicating success or failure</returns>
+    Task<OperationResult> RefreshAsync(IExcelBatch batch, string? tableName, TimeSpan? timeout);
+
+    /// <summary>
     /// Creates a new DAX measure in the Data Model
     /// Uses Excel COM API: ModelMeasures.Add method (Office 2016+)
     /// </summary>

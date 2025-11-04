@@ -66,7 +66,10 @@ public static class ExcelConnectionTool
         int? refreshPeriod = null,
 
         [Description("Optional batch ID for grouping operations")]
-        string? batchId = null)
+        string? batchId = null,
+
+        [Description("Timeout in minutes for connection operations. Default: 2 minutes")]
+        double? timeout = null)
     {
         try
         {
@@ -80,7 +83,7 @@ public static class ExcelConnectionTool
                 ConnectionAction.Import => await ImportConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
                 ConnectionAction.Export => await ExportConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
                 ConnectionAction.UpdateProperties => await UpdateConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
-                ConnectionAction.Refresh => await RefreshConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
+                ConnectionAction.Refresh => await RefreshConnectionAsync(connectionCommands, excelPath, connectionName, timeout, batchId),
                 ConnectionAction.Delete => await DeleteConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
                 ConnectionAction.Test => await TestConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
                 ConnectionAction.LoadTo => await LoadToWorksheetAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
@@ -218,18 +221,21 @@ public static class ExcelConnectionTool
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RefreshConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? batchId)
+    private static async Task<string> RefreshConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, double? timeoutMinutes, string? batchId)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ModelContextProtocol.McpException("connectionName is required for refresh action");
 
         try
         {
+            // Apply timeout parameter (default 2 minutes for connection operations)
+            var timeoutSpan = timeoutMinutes.HasValue ? (TimeSpan?)TimeSpan.FromMinutes(timeoutMinutes.Value) : null;
+            
             var result = await ExcelToolsBase.WithBatchAsync(
                 batchId,
                 filePath,
                 save: true,
-                async (batch) => await commands.RefreshAsync(batch, connectionName));
+                async (batch) => await commands.RefreshAsync(batch, connectionName, timeoutSpan));
 
             // Always return JSON (success or failure) - MCP clients handle the success flag
             // Add workflow hints

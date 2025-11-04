@@ -307,10 +307,8 @@ internal sealed class ExcelBatch : IExcelBatch
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(ExcelBatch));
 
-        // Determine effective timeout (default 2 minutes, max 5 minutes, save operations can be slow)
-        var effectiveTimeout = timeout.HasValue
-            ? (timeout.Value > MaxOperationTimeout ? MaxOperationTimeout : timeout.Value)
-            : TimeSpan.FromMinutes(5); // Save operations get 5-minute default (larger than normal operations)
+        // Determine effective timeout (save operations default 2 minutes, no maximum limit)
+        var effectiveTimeout = timeout ?? TimeSpan.FromMinutes(2); // Save operations get 2-minute default
 
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 

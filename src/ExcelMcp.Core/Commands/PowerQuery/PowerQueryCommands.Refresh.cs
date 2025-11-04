@@ -13,6 +13,12 @@ public partial class PowerQueryCommands
     /// <inheritdoc />
     public async Task<PowerQueryRefreshResult> RefreshAsync(IExcelBatch batch, string queryName)
     {
+        return await RefreshAsync(batch, queryName, timeout: null);
+    }
+
+    /// <inheritdoc />
+    public async Task<PowerQueryRefreshResult> RefreshAsync(IExcelBatch batch, string queryName, TimeSpan? timeout)
+    {
         var result = new PowerQueryRefreshResult
         {
             FilePath = batch.WorkbookPath,
@@ -146,7 +152,7 @@ public partial class PowerQueryCommands
                 result.ErrorMessage = $"Error refreshing query: {ex.Message}";
                 return result;
             }
-        }, timeout: TimeSpan.FromMinutes(5));  // Heavy operation: request extended timeout
+        }, timeout: timeout ?? TimeSpan.FromMinutes(5));  // Default 5 minutes for Power Query refresh, LLM can override
     }
 
     /// <inheritdoc />
