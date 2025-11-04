@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
@@ -112,7 +113,7 @@ public static class ExcelConnectionTool
         // Add workflow hints
         var count = result.Connections?.Count ?? 0;
         var powerQueryCount = result.Connections?.Count(c => c.IsPowerQuery) ?? 0;
-        
+
         return JsonSerializer.Serialize(new
         {
             result.Success,
@@ -166,7 +167,7 @@ public static class ExcelConnectionTool
         // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints
         var inBatch = !string.IsNullOrEmpty(batchId);
-        
+
         return JsonSerializer.Serialize(new
         {
             result.Success,
@@ -222,27 +223,65 @@ public static class ExcelConnectionTool
         if (string.IsNullOrEmpty(connectionName))
             throw new ModelContextProtocol.McpException("connectionName is required for refresh action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: true,
-            async (batch) => await commands.RefreshAsync(batch, connectionName));
-
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        // Add workflow hints
-        var inBatch = !string.IsNullOrEmpty(batchId);
-        
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            workflowHint = $"Connection '{connectionName}' refreshed successfully. Data updated.",
-            suggestedNextActions = new[]
+            var result = await ExcelToolsBase.WithBatchAsync(
+                batchId,
+                filePath,
+                save: true,
+                async (batch) => await commands.RefreshAsync(batch, connectionName));
+
+            // Always return JSON (success or failure) - MCP clients handle the success flag
+            // Add workflow hints
+            var inBatch = !string.IsNullOrEmpty(batchId);
+
+            return JsonSerializer.Serialize(new
             {
-                "Use excel_range 'get-values' to verify the refreshed data",
-                "Use 'properties' to check refresh settings",
-                inBatch ? "Refresh more connections in this batch" : "Refreshing multiple? Use excel_batch (faster)"
-            }
-        }, ExcelToolsBase.JsonOptions);
+                result.Success,
+                workflowHint = $"Connection '{connectionName}' refreshed successfully. Data updated.",
+                suggestedNextActions = new[]
+                {
+                    "Use excel_range 'get-values' to verify the refreshed data",
+                    "Use 'properties' to check refresh settings",
+                    inBatch ? "Refresh more connections in this batch" : "Refreshing multiple? Use excel_batch (faster)"
+                }
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (TimeoutException ex)
+        {
+            // Enrich timeout error with operation-specific guidance
+            var result = new OperationResult
+            {
+                Success = false,
+                ErrorMessage = ex.Message,
+                FilePath = filePath,
+                Action = "refresh",
+
+                SuggestedNextActions = new List<string>
+                {
+                    "Check if Excel is showing a credential prompt or dialog",
+                    "Verify the data source is accessible (database server, network share, etc.)",
+                    "For OLEDB/ODBC connections, test connectivity outside Excel",
+                    "Check firewall rules if connecting to remote data sources"
+                },
+
+                OperationContext = new Dictionary<string, object>
+                {
+                    { "OperationType", "Connection.Refresh" },
+                    { "ConnectionName", connectionName },
+                    { "TimeoutReached", true },
+                    { "UsedMaxTimeout", ex.Message.Contains("maximum timeout") }
+                },
+
+                IsRetryable = !ex.Message.Contains("maximum timeout"),
+
+                RetryGuidance = ex.Message.Contains("maximum timeout")
+                    ? "Maximum timeout (5 minutes) reached. Do not retry automatically - check data source connectivity manually."
+                    : "Retry acceptable if data source connectivity issue is transient. Timeout is already at maximum (5 minutes)."
+            };
+
+            return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static async Task<string> DeleteConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? batchId)

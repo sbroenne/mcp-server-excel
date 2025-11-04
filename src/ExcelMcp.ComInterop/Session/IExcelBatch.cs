@@ -58,12 +58,15 @@ public interface IExcelBatch : IAsyncDisposable
     /// <typeparam name="T">Return type of the operation</typeparam>
     /// <param name="operation">Synchronous COM operation to execute</param>
     /// <param name="cancellationToken">Optional cancellation token</param>
+    /// <param name="timeout">Optional timeout override. If not specified, uses default (2 minutes). Maximum is 5 minutes.</param>
     /// <returns>Result of the operation</returns>
     /// <exception cref="ObjectDisposedException">Batch has already been disposed</exception>
     /// <exception cref="InvalidOperationException">Excel COM error occurred</exception>
+    /// <exception cref="TimeoutException">Operation exceeded the timeout period</exception>
     Task<T> Execute<T>(
         Func<ExcelContext, CancellationToken, T> operation,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        TimeSpan? timeout = null);
 
     /// <summary>
     /// Executes a genuinely async operation within this batch.
@@ -73,12 +76,15 @@ public interface IExcelBatch : IAsyncDisposable
     /// <typeparam name="T">Return type of the operation</typeparam>
     /// <param name="operation">Async operation to execute</param>
     /// <param name="cancellationToken">Optional cancellation token</param>
+    /// <param name="timeout">Optional timeout override. If not specified, uses default (2 minutes). Maximum is 5 minutes.</param>
     /// <returns>Result of the operation</returns>
     /// <exception cref="ObjectDisposedException">Batch has already been disposed</exception>
     /// <exception cref="InvalidOperationException">Excel COM error occurred</exception>
+    /// <exception cref="TimeoutException">Operation exceeded the timeout period</exception>
     Task<T> ExecuteAsync<T>(
         Func<ExcelContext, CancellationToken, Task<T>> operation,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        TimeSpan? timeout = null);
 
     /// <summary>
     /// Saves changes to the workbook.

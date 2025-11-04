@@ -62,7 +62,14 @@ Result: A professionally optimized Power Query with documented improvements
 Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), ExcelMcp uses **Excel's official COM API**. This ensures:
 - ✅ **Zero risk of document corruption** - Excel handles all file operations safely
 - ✅ **Interactive development** - See changes in real-time as you work with live Excel files
+- ✅ **Timeout protection** - Built-in safeguards prevent indefinite hangs (2-min default, 5-min max)
 - ✅ **Comprehensive automation** - Currently supports 166 operations across 11 specialized tools covering Power Query, Data Model/DAX, VBA, PivotTables, Excel Tables, ranges, and more
+
+**🔧 Advanced Features:**
+- **Batch Operations** - Group multiple operations in a single Excel session for 75-90% faster execution
+- **Timeout Protection** - Automatic timeout enforcement with rich error messages and LLM-friendly guidance ([docs](docs/TIMEOUT-IMPLEMENTATION-GUIDE.md))
+- **Progress Logging** - Real-time operation status updates via stderr (MCP protocol compatible)
+- **Error Recovery** - Intelligent retry suggestions and operation-specific troubleshooting guidance
 
 ## 👥 Who Should Use This?
 

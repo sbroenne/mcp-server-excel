@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
@@ -260,15 +261,53 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
 
     private static async Task<string> RefreshAsync(DataModelCommands commands, string filePath, string? batchId)
     {
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: true,
-            async (batch) => await commands.RefreshAsync(batch));
+        try
+        {
+            var result = await ExcelToolsBase.WithBatchAsync(
+                batchId,
+                filePath,
+                save: true,
+                async (batch) => await commands.RefreshAsync(batch));
 
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+            // If operation failed, throw exception with detailed error message
+            // Always return JSON (success or failure) - MCP clients handle the success flag
+            return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        }
+        catch (TimeoutException ex)
+        {
+            // Enrich timeout error with operation-specific guidance
+            var result = new OperationResult
+            {
+                Success = false,
+                ErrorMessage = ex.Message,
+                FilePath = filePath,
+                Action = "refresh",
+
+                SuggestedNextActions = new List<string>
+                {
+                    "Check if Excel is showing a dialog or is unresponsive",
+                    "Verify all data source connections in the Data Model are accessible",
+                    "For large Data Models (millions of rows), refresh may genuinely require 5+ minutes",
+                    "Consider refreshing individual tables instead of entire model (use tableName parameter)"
+                },
+
+                OperationContext = new Dictionary<string, object>
+                {
+                    { "OperationType", "DataModel.Refresh" },
+                    { "RefreshScope", "EntireModel" },
+                    { "TimeoutReached", true },
+                    { "UsedMaxTimeout", ex.Message.Contains("maximum timeout") }
+                },
+
+                IsRetryable = !ex.Message.Contains("maximum timeout"),
+
+                RetryGuidance = ex.Message.Contains("maximum timeout")
+                    ? "Maximum timeout (5 minutes) reached. Do not retry entire model refresh - try refreshing individual tables or check data source performance."
+                    : "Retry acceptable if transient. For large models, consider table-by-table refresh strategy."
+            };
+
+            return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static async Task<string> DeleteMeasureAsync(DataModelCommands commands, string filePath, string? measureName, string? batchId)

@@ -19,6 +19,26 @@ public abstract class ResultBase
     /// File path of the Excel file
     /// </summary>
     public string? FilePath { get; set; }
+
+    /// <summary>
+    /// Suggested next actions for LLMs/users (e.g., "Check for Excel dialogs", "Verify data source connection")
+    /// </summary>
+    public List<string>? SuggestedNextActions { get; set; }
+
+    /// <summary>
+    /// Additional context for the operation (e.g., timeout values, operation type, affected items)
+    /// </summary>
+    public Dictionary<string, object>? OperationContext { get; set; }
+
+    /// <summary>
+    /// Whether this operation can be safely retried (default: true, false for max timeout or unrecoverable errors)
+    /// </summary>
+    public bool IsRetryable { get; set; } = true;
+
+    /// <summary>
+    /// Guidance on how to retry the operation (e.g., "Increase timeout", "Break into smaller operations")
+    /// </summary>
+    public string? RetryGuidance { get; set; }
 }
 
 /// <summary>

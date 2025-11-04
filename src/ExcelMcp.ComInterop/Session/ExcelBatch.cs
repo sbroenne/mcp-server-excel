@@ -29,6 +29,17 @@ internal sealed class ExcelBatch : IExcelBatch
         })
         .Build();
 
+    /// <summary>
+    /// Default timeout for most Excel operations (list, get, set, etc.).
+    /// </summary>
+    private static readonly TimeSpan DefaultOperationTimeout = TimeSpan.FromMinutes(2);
+
+    /// <summary>
+    /// Maximum allowed timeout to prevent runaway operations.
+    /// Heavy operations like refresh can request up to this limit.
+    /// </summary>
+    private static readonly TimeSpan MaxOperationTimeout = TimeSpan.FromMinutes(5);
+
     // COM state (STA thread only)
     private dynamic? _excel;
     private dynamic? _workbook;
@@ -66,6 +77,11 @@ internal sealed class ExcelBatch : IExcelBatch
                 dynamic tempExcel = Activator.CreateInstance(excelType)!;
                 tempExcel.Visible = false;
                 tempExcel.DisplayAlerts = false;
+
+                // Disable macro security warnings for unattended automation
+                // msoAutomationSecurityForceDisable = 3 (disable all macros, no prompts)
+                // See: https://learn.microsoft.com/en-us/office/vba/api/word.application.automationsecurity
+                tempExcel.AutomationSecurity = 3; // msoAutomationSecurityForceDisable
 
                 // Open workbook
                 dynamic tempWorkbook = tempExcel.Workbooks.Open(_workbookPath);
@@ -149,11 +165,18 @@ internal sealed class ExcelBatch : IExcelBatch
     // Synchronous COM operations
     public async Task<T> Execute<T>(
         Func<ExcelContext, CancellationToken, T> operation,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        TimeSpan? timeout = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(ExcelBatch));
 
+        // Clamp timeout between default and max
+        var effectiveTimeout = timeout.HasValue
+            ? TimeSpan.FromMilliseconds(Math.Min(timeout.Value.TotalMilliseconds, MaxOperationTimeout.TotalMilliseconds))
+            : DefaultOperationTimeout;
+
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var startTime = DateTime.UtcNow;
 
         // Post operation to STA thread
         await _workQueue.Writer.WriteAsync(() =>
@@ -175,17 +198,56 @@ internal sealed class ExcelBatch : IExcelBatch
             return Task.CompletedTask;
         }, cancellationToken);
 
-        return await tcs.Task;
+        // Add timeout protection
+        using var timeoutCts = new CancellationTokenSource(effectiveTimeout);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+
+        try
+        {
+            Console.Error.WriteLine($"[EXCEL-BATCH] Starting operation (timeout: {effectiveTimeout.TotalMinutes:F1}min)");
+            return await tcs.Task.WaitAsync(linkedCts.Token);
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            var duration = DateTime.UtcNow - startTime;
+            var usedMaxTimeout = effectiveTimeout >= MaxOperationTimeout;
+
+            Console.Error.WriteLine($"[EXCEL-BATCH] TIMEOUT after {duration.TotalSeconds:F1}s (limit: {effectiveTimeout.TotalMinutes:F1}min, max: {usedMaxTimeout})");
+
+            var message = usedMaxTimeout
+                ? $"Excel operation exceeded maximum timeout of {MaxOperationTimeout.TotalMinutes} minutes (actual: {duration.TotalMinutes:F1} min). " +
+                  "This indicates Excel is hung, unresponsive, or the operation is too complex. " +
+                  "Check if Excel is showing a dialog or consider breaking the operation into smaller steps."
+                : $"Excel operation timed out after {effectiveTimeout.TotalMinutes} minutes (actual: {duration.TotalMinutes:F1} min). " +
+                  $"For large datasets or complex operations, more time may be needed (maximum: {MaxOperationTimeout.TotalMinutes} min).";
+
+            throw new TimeoutException(message);
+        }
+        finally
+        {
+            var duration = DateTime.UtcNow - startTime;
+            if (tcs.Task.IsCompletedSuccessfully)
+            {
+                Console.Error.WriteLine($"[EXCEL-BATCH] Completed in {duration.TotalSeconds:F1}s");
+            }
+        }
     }
 
     // Genuinely async operations (file I/O, etc.)
     public async Task<T> ExecuteAsync<T>(
         Func<ExcelContext, CancellationToken, Task<T>> operation,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        TimeSpan? timeout = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(ExcelBatch));
 
+        // Clamp timeout between default and max
+        var effectiveTimeout = timeout.HasValue
+            ? TimeSpan.FromMilliseconds(Math.Min(timeout.Value.TotalMilliseconds, MaxOperationTimeout.TotalMilliseconds))
+            : DefaultOperationTimeout;
+
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var startTime = DateTime.UtcNow;
 
         // Post operation to STA thread
         await _workQueue.Writer.WriteAsync(async () =>
@@ -206,7 +268,39 @@ internal sealed class ExcelBatch : IExcelBatch
             }
         }, cancellationToken);
 
-        return await tcs.Task;
+        // Add timeout protection
+        using var timeoutCts = new CancellationTokenSource(effectiveTimeout);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+
+        try
+        {
+            Console.Error.WriteLine($"[EXCEL-BATCH] Starting async operation (timeout: {effectiveTimeout.TotalMinutes:F1}min)");
+            return await tcs.Task.WaitAsync(linkedCts.Token);
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            var duration = DateTime.UtcNow - startTime;
+            var usedMaxTimeout = effectiveTimeout >= MaxOperationTimeout;
+
+            Console.Error.WriteLine($"[EXCEL-BATCH] TIMEOUT after {duration.TotalSeconds:F1}s (limit: {effectiveTimeout.TotalMinutes:F1}min, max: {usedMaxTimeout})");
+
+            var message = usedMaxTimeout
+                ? $"Excel operation exceeded maximum timeout of {MaxOperationTimeout.TotalMinutes} minutes (actual: {duration.TotalMinutes:F1} min). " +
+                  "This indicates Excel is hung, unresponsive, or the operation is too complex. " +
+                  "Check if Excel is showing a dialog or consider breaking the operation into smaller steps."
+                : $"Excel operation timed out after {effectiveTimeout.TotalMinutes} minutes (actual: {duration.TotalMinutes:F1} min). " +
+                  $"For large datasets or complex operations, more time may be needed (maximum: {MaxOperationTimeout.TotalMinutes} min).";
+
+            throw new TimeoutException(message);
+        }
+        finally
+        {
+            var duration = DateTime.UtcNow - startTime;
+            if (tcs.Task.IsCompletedSuccessfully)
+            {
+                Console.Error.WriteLine($"[EXCEL-BATCH] Async operation completed in {duration.TotalSeconds:F1}s");
+            }
+        }
     }
 
     public Task SaveAsync(CancellationToken cancellationToken = default)
@@ -235,10 +329,10 @@ internal sealed class ExcelBatch : IExcelBatch
                 // Map common Excel COM error codes to meaningful messages
                 string errorMessage = ex.HResult switch
                 {
-                    unchecked((int)0x800A03EC) => 
+                    unchecked((int)0x800A03EC) =>
                         $"Cannot save '{Path.GetFileName(_workbookPath)}'. " +
                         "The file may be read-only, locked by another process, or the path may not exist.",
-                    unchecked((int)0x800AC472) => 
+                    unchecked((int)0x800AC472) =>
                         $"Cannot save '{Path.GetFileName(_workbookPath)}'. " +
                         "The file is locked for editing by another user or process.",
                     _ => $"Failed to save workbook '{Path.GetFileName(_workbookPath)}': {ex.Message}"
@@ -266,7 +360,7 @@ internal sealed class ExcelBatch : IExcelBatch
     {
         // Excel temp file access errors during concurrent saves (transient)
         // "Microsoft Excel cannot access the file 'C:\...\Temp\...'..."
-        if (ex.Message.Contains("Temp", StringComparison.OrdinalIgnoreCase) && 
+        if (ex.Message.Contains("Temp", StringComparison.OrdinalIgnoreCase) &&
             (ex.Message.Contains("cannot access") || ex.Message.Contains("being used by another program")))
         {
             return true;
