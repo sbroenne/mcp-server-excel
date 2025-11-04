@@ -224,7 +224,7 @@ dotnet test --filter "FullyQualifiedName~NewFeatureTests"
 
 ---
 
-### Step 6: Create Summary Documentation
+### Step 6: Document in PR Description
 
 **Actions:**
 1. ✅ **Bug fix summary** - Explain what was broken and how it's fixed
@@ -232,57 +232,62 @@ dotnet test --filter "FullyQualifiedName~NewFeatureTests"
 3. ✅ **Documentation summary** - List all doc changes
 4. ✅ **User impact** - Explain workflow improvements
 
-**Create 3 Summary Files:**
+**PR Description Template:**
 
-**1. BUG-FIX-[FEATURE].md:**
 ```markdown
-# Bug Fix: [Feature Name]
+## Bug Fix: [Feature Name]
 
-## Problem Report
+### Problem Report
 User reported: [exact issue]
+Issue: #[issue-number]
 
-## Root Cause
-[Technical explanation]
+### Root Cause
+[Technical explanation of why it broke]
 
-## Solution
-[What was changed]
+### Solution
+**Files Changed:**
+- `path/to/file1.cs` - [what changed]
+- `path/to/file2.cs` - [what changed]
 
-## Behavior Changes
-Before: [old behavior]
-After: [new behavior]
+**Behavior Changes:**
+- **Before:** [old behavior]
+- **After:** [new behavior]
 
-## Backwards Compatibility
-✅ Fully backwards compatible
+### Test Coverage
+**Added X tests covering Y scenarios:**
+
+**Core Layer Tests:**
+1. `TestClass.TestMethod1` - [scenario]
+2. `TestClass.TestMethod2` - [scenario]
+
+**MCP Server Tests:**
+1. `ToolTests.EndToEndTest1` - [scenario]
+2. `ToolTests.EndToEndTest2` - [scenario]
+
+**Test Files:**
+- `tests/ExcelMcp.Core.Tests/.../FeatureCommandsTests.NewFeature.cs`
+- `tests/ExcelMcp.McpServer.Tests/.../FeatureToolTests.cs`
+
+### Documentation Updates
+**Files Updated:**
+1. `docs/COMMANDS.md` - Added new parameter documentation
+2. `src/ExcelMcp.McpServer/Prompts/Content/excel_tool.md` - Updated action guide
+3. `ToolClass.cs` - Enhanced SuggestedNextActions
+
+### Backwards Compatibility
+✅ Fully backwards compatible - new parameters are optional with sensible defaults
+
+### User Impact
+[Workflow improvements - e.g., "Users can now accomplish X in 1 call instead of 2"]
 ```
 
-**2. TESTS-[FEATURE].md:**
-```markdown
-# Test Coverage for [Feature] Bug Fix
+**Why No Separate Files:**
+- ✅ PR description is the canonical summary (searchable via GitHub)
+- ✅ Git history preserves all details
+- ✅ Prevents accumulation of temporary SUMMARY/FIX files
+- ✅ Relevant docs already updated in permanent locations
 
-## Summary
-Added X tests covering Y scenarios
-
-## Test Files Created
-1. Core layer: [file path] (X tests)
-2. MCP Server: [file path] (Y tests)
-
-## Test Scenarios
-- Scenario 1: [description]
-- Scenario 2: [description]
-```
-
-**3. DOCS-[FEATURE].md:**
-```markdown
-# Documentation Updates for [Feature]
-
-## Files Updated
-1. Tool documentation
-2. User documentation  
-3. Prompts
-
-## User-Facing Changes
-[Workflow improvements]
-```
+**See:** `.github/instructions/documentation-structure.instructions.md` for documentation standards
 
 ---
 
@@ -316,9 +321,9 @@ Added X tests covering Y scenarios
 **Problem:** Bug appears in different form later  
 **Solution:** Understand WHY it broke, not just WHAT is broken
 
-### ❌ Mistake 8: No Summary Documentation
+### ❌ Mistake 8: Incomplete PR Description
 **Problem:** Hard to understand what changed and why  
-**Solution:** Create summary docs explaining fix, tests, and impact
+**Solution:** Write comprehensive PR description with bug summary, fix explanation, test coverage, and doc updates
 
 ---
 
@@ -359,13 +364,13 @@ Added X tests covering Y scenarios
 - [ ] All unit tests pass (141+ tests)
 - [ ] New tests execute successfully
 - [ ] No regressions in existing functionality
-- [ ] Summary documentation created (3 files)
+- [ ] PR description includes comprehensive summary
 
 ### PR Readiness
 - [ ] Branch created (not main)
 - [ ] Commit messages descriptive
 - [ ] PR description includes bug report link
-- [ ] Summary docs included in PR
+- [ ] PR description documents fix, tests, and docs updated
 - [ ] Ready for review
 
 ---
@@ -373,7 +378,7 @@ Added X tests covering Y scenarios
 ## 📊 Bug Fix Metrics
 
 **Good Bug Fix:**
-- ✅ 1 bug report → 5-8 new tests → 3+ doc files updated
+- ✅ 1 bug report → 5-8 new tests → 3+ doc files updated → comprehensive PR description
 - ✅ Backwards compatible (0 breaking changes)
 - ✅ Build passing, all tests green
 - ✅ User workflow improved (fewer steps)
@@ -383,7 +388,8 @@ Added X tests covering Y scenarios
 - 🐛 1 root cause (parameter ignored)
 - 💻 2 files changed (ExcelPowerQueryTool.cs, prompts)
 - ✅ 13 tests added (7 Core + 6 MCP Server)
-- 📚 5 files documented (tool, COMMANDS.md, prompts, 3 summaries)
+- 📚 5 files documented (tool, COMMANDS.md, prompts)
+- 📄 Comprehensive PR description (no separate summary files)
 - 🎯 Result: 2 operations → 1 operation (50% workflow improvement)
 
 ---
@@ -406,3 +412,4 @@ Added X tests covering Y scenarios
 - [Testing Strategy](testing-strategy.instructions.md) - Test architecture and patterns
 - [Development Workflow](development-workflow.instructions.md) - PR process and CI/CD
 - [MCP Server Guide](mcp-server-guide.instructions.md) - MCP tool patterns
+- [Documentation Structure](documentation-structure.instructions.md) - Where to put docs, avoid temporary files

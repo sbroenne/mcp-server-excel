@@ -340,6 +340,32 @@ Copy-Item "C:\actions-runner\.credentials" "C:\Backup\.credentials.bak"
 
 ## Troubleshooting
 
+### Runner Token Generation Fails
+
+**Symptoms:** Automated deployment workflow fails with "Failed to generate runner registration token" or "Resource not accessible by integration" (403 error)
+
+**Root Cause:** The `GITHUB_TOKEN` cannot create runner registration tokens via direct REST API calls, even with `actions: write` permission. This is a GitHub security restriction.
+
+**Solution:** Use GitHub CLI instead of curl
+
+**Before (Failed):**
+```bash
+curl -L -X POST \
+  -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+  https://api.github.com/repos/.../actions/runners/registration-token
+```
+
+**After (Fixed):**
+```bash
+gh api --method POST \
+  /repos/${{ github.repository }}/actions/runners/registration-token \
+  --jq '.token'
+```
+
+**Why It Works:** The GitHub CLI (`gh`) has proper authentication mechanisms that work with runner operations, while direct API calls are blocked for security reasons.
+
+**Verification:** The automated deployment workflow (`.github/workflows/deploy-azure-runner.yml`) already uses this fix. If you're implementing manual deployment, use `gh api` instead of `curl` for token generation.
+
 ### Runner Not Appearing in GitHub
 
 **Symptoms:** Runner not listed in Settings → Actions → Runners
