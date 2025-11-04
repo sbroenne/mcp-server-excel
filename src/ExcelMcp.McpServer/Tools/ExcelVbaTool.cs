@@ -158,24 +158,7 @@ public static class ExcelVbaTool
             save: true,
             async (batch) => await commands.ImportAsync(batch, moduleName, sourcePath));
 
-        // If import failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(new
-        {
-            success = true,
-            moduleName,
-            sourcePath,
-            message = $"VBA module '{moduleName}' imported successfully",
-            workflowHint = "Module imported. Use 'run' to execute or 'view' to inspect code.",
-            suggestedNextActions = new[]
-            {
-                batchId != null
-                    ? $"Continue using batchId '{batchId}' to import more modules"
-                    : "Use excel_batch for importing multiple modules (75-90% faster)",
-                "Use 'run' action to execute the imported macro",
-                "Use 'view' to verify the imported code"
-            }
-        }, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> UpdateVbaScriptAsync(VbaCommands commands, string filePath, string? moduleName, string? sourcePath, string? batchId)
@@ -218,22 +201,7 @@ public static class ExcelVbaTool
             save: false, // VBA execution doesn't save unless VBA code does
             async (batch) => await commands.RunAsync(batch, moduleName, paramArray));
 
-        // If VBA execution failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(new
-        {
-            success = true,
-            moduleName,
-            parameters = paramArray,
-            message = "VBA procedure executed successfully",
-            workflowHint = "Macro executed. Check results with excel_range if data was modified.",
-            suggestedNextActions = new[]
-            {
-                "Use excel_range 'get-values' to verify data changes",
-                "Use 'list' to see all available macros",
-                "Save workbook if macro made changes"
-            }
-        }, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> DeleteVbaScriptAsync(VbaCommands commands, string filePath, string? moduleName, string? batchId)
