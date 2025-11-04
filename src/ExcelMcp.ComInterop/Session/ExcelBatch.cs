@@ -303,9 +303,14 @@ internal sealed class ExcelBatch : IExcelBatch
         }
     }
 
-    public Task SaveAsync(CancellationToken cancellationToken = default)
+    public async Task SaveAsync(CancellationToken cancellationToken = default, TimeSpan? timeout = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(ExcelBatch));
+
+        // Determine effective timeout (default 2 minutes, max 5 minutes, save operations can be slow)
+        var effectiveTimeout = timeout.HasValue
+            ? (timeout.Value > MaxOperationTimeout ? MaxOperationTimeout : timeout.Value)
+            : TimeSpan.FromMinutes(5); // Save operations get 5-minute default (larger than normal operations)
 
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -353,7 +358,19 @@ internal sealed class ExcelBatch : IExcelBatch
             await Task.CompletedTask;
         });
 
-        return tcs.Task;
+        // Apply timeout protection
+        try
+        {
+            await tcs.Task.WaitAsync(effectiveTimeout, cancellationToken);
+        }
+        catch (TimeoutException)
+        {
+            // Rethrow with contextual message
+            throw new TimeoutException(
+                $"Excel save operation timed out after {effectiveTimeout.TotalMinutes:F2} minutes. " +
+                $"The workbook '{Path.GetFileName(_workbookPath)}' may have many changes or Excel may be busy. " +
+                $"Maximum timeout is {MaxOperationTimeout.TotalMinutes} minutes.");
+        }
     }
 
     private static bool IsTransientSaveError(COMException ex)
