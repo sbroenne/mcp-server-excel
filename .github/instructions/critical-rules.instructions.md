@@ -206,13 +206,13 @@ When debugging test failures, **ALWAYS run tests individually** - never run all 
 3. ✅ **Documentation** - Update 3+ files (tool docs, user docs, prompts)
 4. ✅ **Workflow Hints** - Update SuggestedNextActions and error messages
 5. ✅ **Quality Verification** - Build passes, all tests green, 0 warnings
-6. ✅ **Summary Docs** - Create BUG-FIX-*.md, TESTS-*.md, DOCS-*.md
+6. ✅ **PR Description** - Comprehensive summary (bug report, fix, tests, docs updated)
 
 **Process:** Follow [bug-fixing-checklist.instructions.md](bug-fixing-checklist.instructions.md) for complete 6-step process.
 
 **Why:** Incomplete bug fixes lead to regressions, confusion, and wasted time. Comprehensive fixes prevent future issues.
 
-**Example:** Refresh + loadDestination bug = 1 code file + 13 tests + 5 doc files + 3 summaries = complete fix.
+**Example:** Refresh + loadDestination bug = 1 code file + 13 tests + 5 doc files + detailed PR description = complete fix.
 
 ---
 

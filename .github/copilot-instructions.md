@@ -15,6 +15,7 @@
 - 🔄 [Development Workflow](instructions/development-workflow.instructions.md) - PR process, CI/CD
 - 🐛 [Bug Fixing Checklist](instructions/bug-fixing-checklist.instructions.md) - 6-step bug fix process
 - 📚 [README Management](instructions/readme-management.instructions.md) - Documentation quick reference
+- 📁 [Documentation Structure](instructions/documentation-structure.instructions.md) - Where to put docs, avoid temporary files
 
 ---
 
@@ -48,6 +49,7 @@
 - **Add MCP tool** → Follow [MCP Server Guide](instructions/mcp-server-guide.instructions.md)
 - **Create PR** → Follow [Development Workflow](instructions/development-workflow.instructions.md)
 - **Fix bug** → Use [Bug Fixing Checklist](instructions/bug-fixing-checklist.instructions.md) (6-step process)
+- **Add documentation** → Use [Documentation Structure](instructions/documentation-structure.instructions.md) (avoid temporary files)
 - **Migrate tests to batch API** → See BATCH-API-MIGRATION-PLAN.md for comprehensive guide
 - **Create simple tests** → Use ConnectionCommandsSimpleTests.cs or SetupCommandsSimpleTests.cs as template
 - **Range API implementation** → See [Range API Specification](../specs/RANGE-API-SPECIFICATION.md) for complete design (38 methods, MCP-first, breaking changes acceptable)
