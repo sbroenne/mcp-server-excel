@@ -42,7 +42,7 @@ public partial class PowerQueryCommandsTimeoutTests : IDisposable
     {
         // Arrange
         string testFile = await CreateTestFileAsync(nameof(RefreshAsync_RequestsExtendedTimeout));
-        
+
         // Create a simple Power Query
         string mCode = """
             let
@@ -56,9 +56,9 @@ public partial class PowerQueryCommandsTimeoutTests : IDisposable
         try
         {
             await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-            
+
             // Import query
-            var importResult = await _commands.ImportAsync(batch, "TestQuery", mFile, 
+            var importResult = await _commands.ImportAsync(batch, "TestQuery", mFile,
                 loadDestination: "worksheet", worksheetName: "Sheet1");
             Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
 
@@ -81,7 +81,7 @@ public partial class PowerQueryCommandsTimeoutTests : IDisposable
     {
         // Arrange
         string testFile = await CreateTestFileAsync(nameof(RefreshAsync_SlowQuery_DoesNotTimeoutWithExtendedTimeout));
-        
+
         // Create a query that takes some time (but less than 5 minutes)
         string mCode = """
             let
@@ -95,7 +95,7 @@ public partial class PowerQueryCommandsTimeoutTests : IDisposable
         try
         {
             await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-            
+
             // Import query
             var importResult = await _commands.ImportAsync(batch, "SlowQuery", mFile,
                 loadDestination: "worksheet", worksheetName: "Sheet1");
