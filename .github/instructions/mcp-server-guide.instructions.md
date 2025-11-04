@@ -70,6 +70,37 @@ public static async Task<string> ExcelTool(ToolAction action, ...)
     {
         throw; // Re-throw MCP exceptions as-is
     }
+    catch (TimeoutException ex)
+    {
+        // Enrich timeout errors with operation-specific guidance
+        var result = new OperationResult
+        {
+            Success = false,
+            ErrorMessage = ex.Message,
+            FilePath = excelPath,
+            Action = action.ToActionString(),
+            
+            SuggestedNextActions = new List<string>
+            {
+                "Check if Excel is showing a dialog or prompt",
+                "Verify data source connectivity",
+                "For large datasets, operation may need more time"
+            },
+            
+            OperationContext = new Dictionary<string, object>
+            {
+                { "OperationType", "ToolName.ActionName" },
+                { "TimeoutReached", true }
+            },
+            
+            IsRetryable = !ex.Message.Contains("maximum timeout"),
+            RetryGuidance = ex.Message.Contains("maximum timeout")
+                ? "Maximum timeout reached. Check connectivity manually."
+                : "Retry acceptable if issue is transient."
+        };
+        
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    }
     catch (Exception ex)
     {
         ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
@@ -77,6 +108,35 @@ public static async Task<string> ExcelTool(ToolAction action, ...)
     }
 }
 ```
+
+### Timeout Exception Enrichment
+
+**When to enrich TimeoutException:**
+- Heavy operations: refresh, data model operations, large range operations
+- Catch TimeoutException separately from general exceptions
+- Return enriched OperationResult with LLM guidance fields
+
+**Pattern:**
+```csharp
+catch (TimeoutException ex)
+{
+    var result = new OperationResult
+    {
+        Success = false,
+        ErrorMessage = ex.Message,
+        
+        // LLM guidance fields
+        SuggestedNextActions = new List<string> { /* operation-specific */ },
+        OperationContext = new Dictionary<string, object> { /* diagnostics */ },
+        IsRetryable = !ex.Message.Contains("maximum timeout"),
+        RetryGuidance = /* retry strategy */
+    };
+    
+    return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+}
+```
+
+**See:** `docs/TIMEOUT-IMPLEMENTATION-GUIDE.md` for complete examples.
 
 ### Async Handling
 MCP tools are synchronous, wrap async Core methods:

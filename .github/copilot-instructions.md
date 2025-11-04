@@ -161,6 +161,8 @@ After completing significant tasks, update these instructions with lessons learn
 
 **Pre-Commit:** Search for TODO/FIXME/HACK markers, resolve all, delete commented-out code, verify tests pass, update docs if behavior changed.
 
+**Timeout Protection:** Excel batch operations have 2-minute default timeout, 5-minute maximum. Heavy operations (refresh, data model) request extended timeout via `timeout: TimeSpan.FromMinutes(5)` parameter. MCP tools catch TimeoutException and enrich with operation-specific guidance (SuggestedNextActions, IsRetryable, RetryGuidance). Test timeout behavior with `[Trait("Feature", "Timeout")]` tests.
+
 ---
 
 ## 📚 How Path-Specific Instructions Work

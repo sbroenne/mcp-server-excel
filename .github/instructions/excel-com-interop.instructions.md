@@ -13,6 +13,28 @@ applyTo: "src/ExcelMcp.Core/**/*.cs"
 3. **Release COM Objects** - Use `Marshal.ReleaseComObject()` and `GC.Collect()`
 4. **QueryTable Refresh REQUIRED** - `.Refresh(false)` synchronous for persistence
 5. **NEVER use RefreshAll()** - Async/unreliable; use individual `connection.Refresh()` or `queryTable.Refresh(false)`
+6. **Timeout Protection** - All batch operations have 2-minute default timeout; heavy operations request 5-minute timeout
+
+## Timeout Handling
+
+### Request Extended Timeout for Heavy Operations
+
+```csharp
+// Heavy refresh operations - request 5-minute timeout
+return await batch.Execute((ctx, ct) =>
+{
+    // Refresh operation...
+    return result;
+}, 
+cancellationToken: default,
+timeout: TimeSpan.FromMinutes(5));  // ✅ Request extended timeout
+```
+
+**Operations requiring extended timeout:**
+- Power Query refresh (large datasets)
+- Connection refresh (slow data sources)
+- Data Model refresh (millions of rows)
+- Large range operations (very large datasets)
 
 ## Resource Management
 
