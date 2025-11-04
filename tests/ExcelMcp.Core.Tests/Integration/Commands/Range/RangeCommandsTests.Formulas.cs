@@ -125,8 +125,8 @@ public partial class RangeCommandsTests
     {
         // Arrange - Create a realistic sales report with complex formulas
         string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(RangeCommandsTests), 
-            nameof(ComplexFormulas_RealisticBusinessScenario_CalculatesCorrectly), 
+            nameof(RangeCommandsTests),
+            nameof(ComplexFormulas_RealisticBusinessScenario_CalculatesCorrectly),
             _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
@@ -171,10 +171,10 @@ public partial class RangeCommandsTests
 
         // Step 5: Add summary statistics row with complex formulas
         await _commands.SetValuesAsync(batch, "Sheet1", "A7", [new() { "TOTALS" }]);
-        
+
         var summaryFormulas = new List<List<string>>
         {
-            new() { 
+            new() {
                 "=SUM(B2:B5)",  // Q1 Total
                 "=SUM(C2:C5)",  // Q2 Total
                 "=SUM(D2:D5)",  // Q3 Total
@@ -250,5 +250,196 @@ public partial class RangeCommandsTests
         Assert.Contains("AVERAGE", performanceResult.Formulas[0][0]);
         Assert.Contains("CONCATENATE", summaryTotalsResult.Formulas[0][5]);
         Assert.Contains("TEXT", growthRatesResult.Formulas[0][0]);
+    }
+
+    // === EDGE CASE TESTS ===
+
+    [Fact]
+    public async Task SetFormulas_CrossSheetReferences_CalculatesCorrectly()
+    {
+        // Arrange - Test that our API correctly handles cross-sheet formula references
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(RangeCommandsTests),
+            nameof(SetFormulas_CrossSheetReferences_CalculatesCorrectly),
+            _tempDir);
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+
+        // Create second sheet (add after Sheet1 to avoid reordering)
+        await batch.Execute<int>((ctx, ct) =>
+        {
+            dynamic sheets = ctx.Book.Worksheets;
+            dynamic sheet1 = sheets.Item(1);
+            dynamic sheet2 = sheets.Add(After: sheet1);
+            sheet2.Name = "Data";
+            return 0;
+        });
+
+        // Set up source data on "Data" sheet
+        await _commands.SetValuesAsync(batch, "Data", "A1:A3",
+        [
+            new() { 100 },
+            new() { 200 },
+            new() { 300 }
+        ]);
+
+        // Act - Set formulas on Sheet1 that reference Data sheet
+        var formulas = new List<List<string>>
+        {
+            new() { "=Data!A1", "=Data!A2", "=Data!A3" },
+            new() { "=SUM(Data!A1:A3)", "=AVERAGE(Data!A1:A3)", "=MAX(Data!A1:A3)" }
+        };
+        var result = await _commands.SetFormulasAsync(batch, "Sheet1", "A1:C2", formulas);
+
+        // Assert
+        Assert.True(result.Success, $"SetFormulas with cross-sheet references failed: {result.ErrorMessage}");
+
+        // Verify formulas are preserved with sheet references
+        var formulaResult = await _commands.GetFormulasAsync(batch, "Sheet1", "A1:C2");
+        Assert.True(formulaResult.Success);
+
+        // Verify formula strings contain sheet references
+        Assert.Contains("Data!", formulaResult.Formulas[0][0]);
+        Assert.Contains("Data!", formulaResult.Formulas[0][1]);
+        Assert.Contains("Data!", formulaResult.Formulas[0][2]);
+        Assert.Contains("Data!", formulaResult.Formulas[1][0]);
+
+        // Verify calculated values from cross-sheet references
+        Assert.Equal(100.0, Convert.ToDouble(formulaResult.Values[0][0]));
+        Assert.Equal(200.0, Convert.ToDouble(formulaResult.Values[0][1]));
+        Assert.Equal(300.0, Convert.ToDouble(formulaResult.Values[0][2]));
+        Assert.Equal(600.0, Convert.ToDouble(formulaResult.Values[1][0])); // SUM
+        Assert.Equal(200.0, Convert.ToDouble(formulaResult.Values[1][1])); // AVERAGE
+        Assert.Equal(300.0, Convert.ToDouble(formulaResult.Values[1][2])); // MAX
+    }
+
+    [Fact]
+    public async Task SetFormulas_AbsoluteAndRelativeReferences_PreservesReferenceTypes()
+    {
+        // Arrange - Test that our API preserves absolute ($A$1) vs relative (A1) reference types
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(RangeCommandsTests),
+            nameof(SetFormulas_AbsoluteAndRelativeReferences_PreservesReferenceTypes),
+            _tempDir);
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+
+        // Set up source data
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3",
+        [
+            new() { 10 },
+            new() { 20 },
+            new() { 30 }
+        ]);
+
+        // Act - Set formulas with different reference types
+        var formulas = new List<List<string>>
+        {
+            new() { "=$A$1",      "=A1",       "=$A1",      "=A$1" },  // Row 1: Different reference types
+            new() { "=$A$1*2",    "=A1*2",     "=$A1*2",    "=A$1*2" }, // Row 2: Reference types in expressions
+            new() { "=SUM($A$1:$A$3)", "=SUM(A1:A3)", "=SUM($A1:A3)", "=SUM(A$1:A$3)" } // Row 3: Range references
+        };
+        var result = await _commands.SetFormulasAsync(batch, "Sheet1", "B1:E3", formulas);
+
+        // Assert
+        Assert.True(result.Success, $"SetFormulas with reference types failed: {result.ErrorMessage}");
+
+        // Verify formula strings are preserved exactly as set (round-trip test)
+        var formulaResult = await _commands.GetFormulasAsync(batch, "Sheet1", "B1:E3");
+        Assert.True(formulaResult.Success);
+
+        // Row 1 - Reference type preservation
+        Assert.Equal("=$A$1", formulaResult.Formulas[0][0]);     // Absolute
+        Assert.Equal("=A1", formulaResult.Formulas[0][1]);       // Relative
+        Assert.Equal("=$A1", formulaResult.Formulas[0][2]);      // Mixed (column absolute)
+        Assert.Equal("=A$1", formulaResult.Formulas[0][3]);      // Mixed (row absolute)
+
+        // Row 2 - Reference types in expressions
+        Assert.Contains("$A$1", formulaResult.Formulas[1][0]);   // Absolute in expression
+        Assert.Contains("A1", formulaResult.Formulas[1][1]);     // Relative in expression
+        Assert.Contains("$A1", formulaResult.Formulas[1][2]);    // Mixed in expression
+        Assert.Contains("A$1", formulaResult.Formulas[1][3]);    // Mixed in expression
+
+        // Row 3 - Range references
+        Assert.Contains("$A$1:$A$3", formulaResult.Formulas[2][0]); // Absolute range
+        Assert.Contains("A1:A3", formulaResult.Formulas[2][1]);     // Relative range
+        Assert.Contains("$A1:A3", formulaResult.Formulas[2][2]);    // Mixed range
+        Assert.Contains("A$1:A$3", formulaResult.Formulas[2][3]);   // Mixed range
+
+        // Verify all formulas calculate correctly (value should be same regardless of reference type)
+        Assert.Equal(10.0, Convert.ToDouble(formulaResult.Values[0][0])); // All reference A1
+        Assert.Equal(10.0, Convert.ToDouble(formulaResult.Values[0][1]));
+        Assert.Equal(10.0, Convert.ToDouble(formulaResult.Values[0][2]));
+        Assert.Equal(10.0, Convert.ToDouble(formulaResult.Values[0][3]));
+
+        Assert.Equal(20.0, Convert.ToDouble(formulaResult.Values[1][0])); // All multiply by 2
+        Assert.Equal(20.0, Convert.ToDouble(formulaResult.Values[1][1]));
+        Assert.Equal(20.0, Convert.ToDouble(formulaResult.Values[1][2]));
+        Assert.Equal(20.0, Convert.ToDouble(formulaResult.Values[1][3]));
+
+        Assert.Equal(60.0, Convert.ToDouble(formulaResult.Values[2][0])); // All SUM A1:A3
+        Assert.Equal(60.0, Convert.ToDouble(formulaResult.Values[2][1]));
+        Assert.Equal(60.0, Convert.ToDouble(formulaResult.Values[2][2]));
+        Assert.Equal(60.0, Convert.ToDouble(formulaResult.Values[2][3]));
+    }
+
+    [Fact]
+    public async Task SetFormulas_LargeFormulaSet_HandlesEfficientlyInBulk()
+    {
+        // Arrange - Test that our batch API handles large formula sets efficiently
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(RangeCommandsTests),
+            nameof(SetFormulas_LargeFormulaSet_HandlesEfficientlyInBulk),
+            _tempDir);
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+
+        // Set up source data (1000 rows)
+        const int rowCount = 1000;
+        var sourceValues = new List<List<object?>>();
+        for (int i = 1; i <= rowCount; i++)
+        {
+            sourceValues.Add([i, i * 2, i * 3]); // Columns A, B, C
+        }
+        await _commands.SetValuesAsync(batch, "Sheet1", $"A1:C{rowCount}", sourceValues);
+
+        // Generate 1000 formulas for column D (sum of A, B, C)
+        var formulas = new List<List<string>>();
+        for (int i = 1; i <= rowCount; i++)
+        {
+            formulas.Add([$"=A{i}+B{i}+C{i}"]); // Each row sums A, B, C
+        }
+
+        // Act - Set all 1000 formulas in one batch operation
+        var startTime = DateTime.UtcNow;
+        var result = await _commands.SetFormulasAsync(batch, "Sheet1", $"D1:D{rowCount}", formulas);
+        var duration = DateTime.UtcNow - startTime;
+
+        // Assert
+        Assert.True(result.Success, $"SetFormulas for large set failed: {result.ErrorMessage}");
+
+        // Verify performance (should complete in reasonable time - under 10 seconds for 1000 formulas)
+        Assert.True(duration.TotalSeconds < 10,
+            $"Large formula set took too long: {duration.TotalSeconds:F2} seconds (expected < 10s)");
+
+        // Sample verification - check first, middle, and last formulas
+        var sampleResult = await _commands.GetFormulasAsync(batch, "Sheet1", "D1");
+        Assert.Equal("=A1+B1+C1", sampleResult.Formulas[0][0]);
+        Assert.Equal(6.0, Convert.ToDouble(sampleResult.Values[0][0])); // 1+2+3
+
+        var middleResult = await _commands.GetFormulasAsync(batch, "Sheet1", "D500");
+        Assert.Equal("=A500+B500+C500", middleResult.Formulas[0][0]);
+        Assert.Equal(3000.0, Convert.ToDouble(middleResult.Values[0][0])); // 500+1000+1500
+
+        var lastResult = await _commands.GetFormulasAsync(batch, "Sheet1", $"D{rowCount}");
+        Assert.Equal($"=A{rowCount}+B{rowCount}+C{rowCount}", lastResult.Formulas[0][0]);
+        Assert.Equal(6000.0, Convert.ToDouble(lastResult.Values[0][0])); // 1000+2000+3000
+
+        // Verify bulk read performance - retrieve all 1000 formulas at once
+        startTime = DateTime.UtcNow;
+        var bulkResult = await _commands.GetFormulasAsync(batch, "Sheet1", $"D1:D{rowCount}");
+        duration = DateTime.UtcNow - startTime;
+
+        Assert.True(bulkResult.Success);
+        Assert.Equal(rowCount, bulkResult.Formulas.Count);
+        Assert.True(duration.TotalSeconds < 5,
+            $"Bulk formula read took too long: {duration.TotalSeconds:F2} seconds (expected < 5s)");
     }
 }
