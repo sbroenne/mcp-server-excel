@@ -164,7 +164,7 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             excelPath,
             save: false,
             async (batch) => await commands.ViewAsync(batch, queryName));
-        
+
         // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -301,14 +301,53 @@ For import: DEFAULT is 'worksheet'. For refresh: applies load config if query is
             // Continue to refresh below (SetLoadToTable/DataModel already refreshes, but we'll ensure it's fresh)
         }
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await commands.RefreshAsync(batch, queryName));
+        try
+        {
+            var result = await ExcelToolsBase.WithBatchAsync(
+                batchId,
+                excelPath,
+                save: true,
+                async (batch) => await commands.RefreshAsync(batch, queryName));
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+            // Always return JSON (success or failure) - MCP clients handle the success flag
+            return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        }
+        catch (TimeoutException ex)
+        {
+            // Enrich timeout error with operation-specific guidance
+            var result = new PowerQueryRefreshResult
+            {
+                Success = false,
+                ErrorMessage = ex.Message,
+                QueryName = queryName,
+                FilePath = excelPath,
+                RefreshTime = DateTime.Now,
+
+                SuggestedNextActions = new List<string>
+                {
+                    "Check if Excel is showing a 'Privacy Level' dialog or credential prompt",
+                    "Verify the data source is accessible (network connection, database availability)",
+                    "For large datasets, consider filtering data at source or breaking into smaller queries",
+                    "Use batch mode (begin_excel_batch) if not already using it to optimize multiple operations"
+                },
+
+                OperationContext = new Dictionary<string, object>
+                {
+                    { "OperationType", "PowerQuery.Refresh" },
+                    { "QueryName", queryName },
+                    { "TimeoutReached", true },
+                    { "UsedMaxTimeout", ex.Message.Contains("maximum timeout") }
+                },
+
+                IsRetryable = !ex.Message.Contains("maximum timeout"),
+
+                RetryGuidance = ex.Message.Contains("maximum timeout")
+                    ? "Operation reached maximum timeout (5 minutes). Do not retry automatically - manual intervention needed to check Excel state and data source."
+                    : "Operation can be retried if transient data source issue suspected. Current timeout is already at maximum (5 minutes)."
+            };
+
+            return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static async Task<string> DeletePowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)

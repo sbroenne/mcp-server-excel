@@ -146,7 +146,7 @@ public partial class PowerQueryCommands
                 result.ErrorMessage = $"Error refreshing query: {ex.Message}";
                 return result;
             }
-        });
+        }, timeout: TimeSpan.FromMinutes(5));  // Heavy operation: request extended timeout
     }
 
     /// <inheritdoc />

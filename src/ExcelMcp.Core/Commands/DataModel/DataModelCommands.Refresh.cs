@@ -84,6 +84,6 @@ public partial class DataModelCommands
             }
 
             return result;
-        });
+        }, timeout: TimeSpan.FromMinutes(5));  // Heavy operation: request extended timeout
     }
 }

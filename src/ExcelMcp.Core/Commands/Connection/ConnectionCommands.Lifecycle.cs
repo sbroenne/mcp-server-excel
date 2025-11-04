@@ -393,7 +393,7 @@ public partial class ConnectionCommands
                 result.ErrorMessage = $"Error refreshing connection: {ex.Message}";
                 return result;
             }
-        });
+        }, timeout: TimeSpan.FromMinutes(5));  // Heavy operation: request extended timeout
     }
 
     /// <summary>
