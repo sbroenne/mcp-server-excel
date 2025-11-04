@@ -839,21 +839,7 @@ public static class ExcelRangeTool
             async (batch) => await commands.SetStyleAsync(batch, sheetName ?? "", rangeAddress!, styleName!));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(new
-        {
-            success = true,
-            filePath,
-            sheetName,
-            rangeAddress,
-            styleName,
-            workflowHint = "Built-in style applied. Use 'get-range-info' to verify formatting.",
-            suggestedNextActions = new[]
-            {
-                "Apply additional styles to other ranges",
-                "Use 'format-range' for manual formatting if built-in styles don't meet needs",
-                "Save changes with commit_excel_batch if in batch mode"
-            }
-        }, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> GetStyleAsync(
