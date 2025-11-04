@@ -138,7 +138,7 @@ Use begin to start a session, commit to end it, list to debug.")]
 
         try
         {
-            // Save if requested
+            // Save if requested (with extended timeout for large workbooks)
             if (save)
             {
                 await batch.SaveAsync();
@@ -162,6 +162,38 @@ Use begin to start a session, commit to end it, list to debug.")]
             };
 
             return JsonSerializer.Serialize(result, _jsonOptions);
+        }
+        catch (TimeoutException ex)
+        {
+            // Timeout during save - provide LLM guidance
+            var result = new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                filePath = filePath,
+                action = "commit",
+                suggestedNextActions = new[]
+                {
+                    "Large workbook detected - save operation timed out",
+                    "Try again - timeout was likely transient",
+                    "Check if Excel is showing a dialog or prompt",
+                    "Verify the file is not locked by another process",
+                    "Consider using save=false to discard changes if stuck"
+                },
+                operationContext = new Dictionary<string, object>
+                {
+                    { "OperationType", "BatchSession.Commit" },
+                    { "SaveRequested", save },
+                    { "TimeoutReached", true },
+                    { "WorkbookPath", filePath }
+                },
+                isRetryable = !ex.Message.Contains("maximum timeout"),
+                retryGuidance = ex.Message.Contains("maximum timeout")
+                    ? "Maximum timeout reached. Check for Excel dialogs or file locks manually."
+                    : "Retry acceptable - timeout may have been transient."
+            };
+
+            return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
         }
         catch
         {

@@ -91,8 +91,10 @@ public interface IExcelBatch : IAsyncDisposable
     /// This is an explicit save - changes are NOT automatically saved on dispose.
     /// </summary>
     /// <param name="cancellationToken">Optional cancellation token</param>
+    /// <param name="timeout">Optional timeout override. If not specified, uses default (2 minutes). Maximum is 5 minutes.</param>
     /// <exception cref="ObjectDisposedException">Batch has already been disposed</exception>
     /// <exception cref="InvalidOperationException">Save failed (e.g., file is read-only)</exception>
-    Task SaveAsync(CancellationToken cancellationToken = default);
+    /// <exception cref="TimeoutException">Save operation exceeded the timeout period</exception>
+    Task SaveAsync(CancellationToken cancellationToken = default, TimeSpan? timeout = null);
 
 }
