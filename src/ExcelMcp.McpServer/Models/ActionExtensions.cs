@@ -221,5 +221,18 @@ public static class ActionExtensions
         BatchAction.List => "list",
         _ => throw new ArgumentException($"Unknown BatchAction: {action}")
     };
+
+    public static string ToActionString(this QueryTableAction action) => action switch
+    {
+        QueryTableAction.List => "list",
+        QueryTableAction.Get => "get",
+        QueryTableAction.CreateFromConnection => "create-from-connection",
+        QueryTableAction.CreateFromQuery => "create-from-query",
+        QueryTableAction.Refresh => "refresh",
+        QueryTableAction.RefreshAll => "refresh-all",
+        QueryTableAction.UpdateProperties => "update-properties",
+        QueryTableAction.Delete => "delete",
+        _ => throw new ArgumentException($"Unknown QueryTableAction: {action}")
+    };
 }
 

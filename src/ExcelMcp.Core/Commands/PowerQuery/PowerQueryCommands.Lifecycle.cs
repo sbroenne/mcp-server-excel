@@ -242,10 +242,8 @@ public partial class PowerQueryCommands
 
         string mCode = await File.ReadAllTextAsync(mCodeFile);
 
-        // STEP 1: Capture current load configuration BEFORE update
-        var loadConfigBefore = await GetLoadConfigAsync(batch, queryName);
-
-        // STEP 2: Update the query M code
+        // Update the query M code
+        // NOTE: Excel preserves load configuration when updating query.Formula property
         result = await batch.Execute<OperationResult>((ctx, ct) =>
         {
             dynamic? query = null;
@@ -294,27 +292,6 @@ public partial class PowerQueryCommands
             }
         });
 
-        // STEP 3: Restore load configuration if query was loaded before
-        if (result.Success && loadConfigBefore.Success)
-        {
-            if (loadConfigBefore.LoadMode == PowerQueryLoadMode.LoadToTable ||
-                loadConfigBefore.LoadMode == PowerQueryLoadMode.LoadToBoth)
-            {
-                string targetSheet = loadConfigBefore.TargetSheet ?? queryName;
-                var restoreResult = await SetLoadToTableAsync(batch, queryName, targetSheet);
-
-                if (!restoreResult.Success)
-                {
-                    result.ErrorMessage = $"Query updated but failed to restore load configuration: {restoreResult.ErrorMessage}";
-                    return result;
-                }
-
-                // Successfully updated and restored load configuration
-                return result;
-            }
-        }
-
-        // Connection-only query or restore not needed
         return result;
     }
 

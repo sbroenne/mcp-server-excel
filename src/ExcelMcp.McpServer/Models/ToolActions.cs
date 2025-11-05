@@ -296,3 +296,18 @@ public enum BatchAction
     List
 }
 
+/// <summary>
+/// Actions available for excel_querytable tool
+/// </summary>
+public enum QueryTableAction
+{
+    List,
+    Get,
+    CreateFromConnection,
+    CreateFromQuery,
+    Refresh,
+    RefreshAll,
+    UpdateProperties,
+    Delete
+}
+
