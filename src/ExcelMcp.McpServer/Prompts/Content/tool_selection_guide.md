@@ -22,7 +22,9 @@
 ## STEP 2: Quick Decision Tree
 
 **User wants to work with DATA FROM EXTERNAL SOURCES:**
-→ excel_powerquery (databases, APIs, CSV, web data)
+→ excel_powerquery (databases, APIs, CSV, web data with M code transformations)
+→ excel_querytable (simple data imports from connections, no M code complexity)
+→ excel_connection (connection lifecycle management)
 → NOT excel_table (that's for data ALREADY in Excel)
 
 **User wants ANALYTICS / DAX MEASURES:**
@@ -83,6 +85,18 @@
 1. excel_powerquery(import, loadDestination='data-model')
 2. excel_datamodel(create-measure) with DAX formulas
 3. excel_datamodel(create-relationship) to link tables
+
+**Pattern: Simple data import without M code**
+1. excel_connection(list) to find connection
+2. excel_worksheet(create) to create target sheet
+3. excel_querytable(create-from-connection) for simple import
+4. excel_range(get-values) to read imported data
+
+**Pattern: Load Power Query to worksheet (simpler alternative)**
+1. excel_powerquery(import) with M code
+2. excel_worksheet(create) for target sheet
+3. excel_querytable(create-from-query) instead of excel_powerquery load-to
+4. excel_querytable(refresh) to update data
 
 **Pattern: Format existing data**
 1. excel_range(get-used-range) to discover bounds

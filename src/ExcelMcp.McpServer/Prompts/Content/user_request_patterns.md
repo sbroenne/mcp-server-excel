@@ -26,15 +26,25 @@
 
 **"Load this CSV file"**
 → excel_powerquery(import, sourcePath='file.csv', loadDestination='worksheet')
+→ excel_querytable(create-from-connection) for simple imports (no M code)
 → NOT excel_table (that's for existing data)
 
 **"Import data from SQL Server"**
 → User must create connection in Excel UI first (OLEDB limitation)
-→ Then excel_connection(refresh) or excel_powerquery
+→ Then excel_querytable(create-from-connection) for simple import
+→ Or excel_powerquery for complex transformations
+
+**"Load Power Query results to worksheet"**
+→ excel_querytable(create-from-query) - simpler than excel_powerquery load-to
+→ OR excel_powerquery(import, loadDestination='worksheet')
 
 **"Put data in Data Model for DAX"**
 → excel_powerquery(import, loadDestination='data-model')
 → NOT 'worksheet' (that won't work for DAX)
+
+**"Refresh data from external source"**
+→ excel_querytable(refresh) - synchronous, guaranteed persistence
+→ excel_querytable(refresh-all) - all QueryTables in workbook
 
 ## Bulk Operation Requests
 
@@ -100,11 +110,17 @@
 **"What Power Queries are in this file?"**
 → excel_powerquery(list)
 
+**"What QueryTables exist?"**
+→ excel_querytable(list)
+
 **"Show me all DAX measures"**
 → excel_datamodel(list-measures)
 
 **"What sheets exist?"**
 → excel_worksheet(list)
+
+**"What connections are available?"**
+→ excel_connection(list)
 
 **"Are there any active batch sessions?"**
 → list_excel_batches
