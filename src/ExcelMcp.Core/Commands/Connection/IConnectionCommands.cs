@@ -19,6 +19,12 @@ public interface IConnectionCommands
     Task<ConnectionViewResult> ViewAsync(IExcelBatch batch, string connectionName);
 
     /// <summary>
+    /// Creates a new connection in the workbook
+    /// </summary>
+    Task<OperationResult> CreateAsync(IExcelBatch batch, string connectionName,
+        string connectionString, string? commandText = null, string? description = null);
+
+    /// <summary>
     /// Imports connection from JSON file
     /// </summary>
     Task<OperationResult> ImportAsync(IExcelBatch batch, string connectionName, string jsonFilePath);

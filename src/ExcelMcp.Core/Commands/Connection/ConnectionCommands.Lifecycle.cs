@@ -102,9 +102,9 @@ public partial class ConnectionCommands
                 result.Type = ConnectionHelpers.GetConnectionTypeName(conn.Type);
                 result.IsPowerQuery = PowerQueryHelpers.IsPowerQueryConnection(conn);
 
-                // Get connection string (sanitized for security)
+                // Get connection string (raw for LLM usage - sanitization removed)
                 string? rawConnectionString = GetConnectionString(conn);
-                result.ConnectionString = ConnectionHelpers.SanitizeConnectionString(rawConnectionString);
+                result.ConnectionString = rawConnectionString ?? "";
 
                 // Get command text and type
                 result.CommandText = GetCommandText(conn);
@@ -135,6 +135,47 @@ public partial class ConnectionCommands
             {
                 result.Success = false;
                 result.ErrorMessage = $"Error viewing connection: {ex.Message}";
+                return result;
+            }
+        });
+    }
+
+    /// <summary>
+    /// Creates a new connection in the workbook
+    /// </summary>
+    public async Task<OperationResult> CreateAsync(IExcelBatch batch, string connectionName,
+        string connectionString, string? commandText = null, string? description = null)
+    {
+        var result = new OperationResult
+        {
+            FilePath = batch.WorkbookPath,
+            Action = "create"
+        };
+
+        return await batch.Execute((ctx, ct) =>
+        {
+            try
+            {
+                // Create connection definition
+                var definition = new ConnectionDefinition
+                {
+                    Name = connectionName,
+                    Description = description ?? "",
+                    ConnectionString = connectionString,
+                    CommandText = commandText ?? "",
+                    SavePassword = false // Default to secure setting
+                };
+
+                // Create the connection using existing helper method
+                CreateConnection(ctx.Book, connectionName, definition);
+
+                result.Success = true;
+                return result;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Error creating connection: {ex.Message}";
                 return result;
             }
         });
@@ -250,7 +291,7 @@ public partial class ConnectionCommands
                     Name = connectionName,
                     Description = conn.Description?.ToString() ?? "",
                     Type = ConnectionHelpers.GetConnectionTypeName(conn.Type),
-                    ConnectionString = ConnectionHelpers.SanitizeConnectionString(GetConnectionString(conn)),
+                    ConnectionString = GetConnectionString(conn) ?? "",
                     CommandText = GetCommandText(conn),
                     CommandType = GetCommandType(conn),
                     BackgroundQuery = GetBackgroundQuerySetting(conn),
@@ -389,7 +430,15 @@ public partial class ConnectionCommands
                     return result;
                 }
 
-                // Refresh the connection
+                // Check if this is a Power Query connection (handle separately)
+                if (PowerQueryHelpers.IsPowerQueryConnection(conn))
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Use excel_powerquery 'refresh' instead.";
+                    return result;
+                }
+
+                // Pure COM passthrough - just refresh the connection
                 conn.Refresh();
 
                 result.Success = true;
