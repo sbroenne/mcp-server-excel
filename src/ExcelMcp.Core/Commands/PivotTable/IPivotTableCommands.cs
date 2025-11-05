@@ -82,8 +82,9 @@ public interface IPivotTableCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable to refresh</param>
+    /// <param name="timeout">Optional timeout for the refresh operation</param>
     /// <returns>Refresh timestamp, record count, any structural changes</returns>
-    Task<PivotTableRefreshResult> RefreshAsync(IExcelBatch batch, string pivotTableName);
+    Task<PivotTableRefreshResult> RefreshAsync(IExcelBatch batch, string pivotTableName, TimeSpan? timeout = null);
     
     // === FIELD MANAGEMENT (WITH IMMEDIATE VALIDATION) ===
     

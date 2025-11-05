@@ -202,7 +202,7 @@ public static class ExcelVbaTool
             batchId,
             filePath,
             save: false, // VBA execution doesn't save unless VBA code does
-            async (batch) => await commands.RunAsync(batch, moduleName, paramArray));
+            async (batch) => await commands.RunAsync(batch, moduleName, null, paramArray));
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }

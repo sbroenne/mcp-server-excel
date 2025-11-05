@@ -36,7 +36,7 @@ public interface IQueryTableCommands
     /// <summary>
     /// Refreshes a QueryTable using synchronous pattern for guaranteed persistence
     /// </summary>
-    Task<OperationResult> RefreshAsync(IExcelBatch batch, string queryTableName);
+    Task<OperationResult> RefreshAsync(IExcelBatch batch, string queryTableName, TimeSpan? timeout = null);
 
     /// <summary>
     /// Updates QueryTable properties (refresh settings, formatting options)
@@ -52,5 +52,5 @@ public interface IQueryTableCommands
     /// <summary>
     /// Refreshes all QueryTables in the workbook using synchronous pattern
     /// </summary>
-    Task<OperationResult> RefreshAllAsync(IExcelBatch batch);
+    Task<OperationResult> RefreshAllAsync(IExcelBatch batch, TimeSpan? timeout = null);
 }
