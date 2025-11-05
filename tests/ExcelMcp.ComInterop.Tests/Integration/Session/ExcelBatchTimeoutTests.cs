@@ -52,7 +52,8 @@ public class ExcelBatchTimeoutTests
 
             // Verify exception message (formatted in minutes)
             Assert.Contains("timed out after", exception.Message);
-            Assert.Contains("0,00166", exception.Message); // 100ms = 0.00166 min
+            // Culture-agnostic check: verify the message contains a small number (100ms ≈ 0.00166 min)
+            Assert.Matches(@"0[.,]0+1\d+", exception.Message); // Matches "0.00166" or "0,00166"
             _output.WriteLine($"✓ TimeoutException thrown: {exception.Message}");
         }
         finally
@@ -84,7 +85,8 @@ public class ExcelBatchTimeoutTests
 
             // Verify exception message (formatted in minutes)
             Assert.Contains("timed out after", exception.Message);
-            Assert.Contains("0,00166", exception.Message); // 100ms = 0.00166 min  
+            // Culture-agnostic check: verify the message contains a small number (100ms ≈ 0.00166 min)
+            Assert.Matches(@"0[.,]0+1\d+", exception.Message); // Matches "0.00166" or "0,00166"
             _output.WriteLine($"✓ Async TimeoutException thrown: {exception.Message}");
         }
         finally
@@ -233,7 +235,8 @@ public class ExcelBatchTimeoutTests
 
             // Verify exception message contains helpful information (formatted in minutes)
             Assert.Contains("timed out", exception.Message.ToLowerInvariant());
-            Assert.Contains("0,00333", exception.Message); // 200ms = 0.00333 min
+            // Culture-agnostic check: verify the message contains a small number (200ms ≈ 0.00333 min)
+            Assert.Matches(@"0[.,]0+3\d+", exception.Message); // Matches "0.00333" or "0,00333"
             _output.WriteLine($"✓ Exception message: {exception.Message}");
         }
         finally
