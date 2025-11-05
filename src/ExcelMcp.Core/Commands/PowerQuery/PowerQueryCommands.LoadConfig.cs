@@ -89,6 +89,8 @@ public partial class PowerQueryCommands
             dynamic? targetSheet = null;
             dynamic? queryTables = null;
             dynamic? queryTable = null;
+            string normalizedName = ""; // Declare once at top for reuse
+
             try
             {
                 // STEP 1: Verify query exists
@@ -100,6 +102,8 @@ public partial class PowerQueryCommands
                     result.WorkflowStatus = "Failed";
                     return result;
                 }
+
+                normalizedName = queryName.Replace(" ", "_"); // Initialize here
 
                 // STEP 2: Find or create target sheet
                 sheets = ctx.Book.Worksheets;
@@ -132,9 +136,63 @@ public partial class PowerQueryCommands
                     targetSheet.Name = sheetName;
                 }
 
-                // STEP 3: Configure query (remove old connections, create new QueryTable)
+                // STEP 3: Clean up existing QueryTables on target sheet BEFORE creating new one
+                // This fixes both bugs:
+                // - Bug #1: Column preservation (fresh QueryTable gets new column structure)
+                // - Bug #2: Column accumulation (prevents multiple QueryTables on same sheet)
+                dynamic? usedRange = null;
+                try
+                {
+                    queryTables = targetSheet.QueryTables;
+
+                    // Iterate backwards to safely delete items
+                    for (int qt = queryTables.Count; qt >= 1; qt--)
+                    {
+                        dynamic? qt_obj = null;
+                        try
+                        {
+                            qt_obj = queryTables.Item(qt);
+                            string qtName = qt_obj.Name?.ToString() ?? "";
+
+                            // Delete any QueryTable that matches this query name
+                            if (qtName.Contains(normalizedName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                qt_obj.Delete();
+                            }
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref qt_obj);
+                        }
+                    }
+                    ComUtilities.Release(ref queryTables);
+                    queryTables = null;
+
+                    // CRITICAL: Clear the worksheet content to prevent data accumulation
+                    // When QueryTable is deleted, its data remains on the sheet
+                    // Must clear before creating fresh QueryTable
+                    try
+                    {
+                        usedRange = targetSheet.UsedRange;
+                        usedRange.Clear(); // Clears both content and formatting
+                    }
+                    catch
+                    {
+                        // If UsedRange fails (empty sheet), that's OK
+                    }
+                }
+                catch
+                {
+                    // If cleanup fails, continue anyway - QueryTable might not exist yet
+                }
+                finally
+                {
+                    ComUtilities.Release(ref usedRange);
+                }
+
+                // STEP 4: Configure query (remove old connections, create fresh QueryTable)
                 ConnectionHelpers.RemoveConnections(ctx.Book, queryName);
-                PowerQueryHelpers.RemoveQueryTables(ctx.Book, queryName);
+                PowerQueryHelpers.RemoveQueryTables(ctx.Book, queryName); // Clean up any other sheets
 
                 var queryTableOptions = new PowerQueryHelpers.QueryTableOptions
                 {
@@ -153,7 +211,6 @@ public partial class PowerQueryCommands
 
                 // STEP 4: VERIFY data was actually loaded
                 queryTables = targetSheet.QueryTables;
-                string normalizedName = queryName.Replace(" ", "_");
                 bool foundQueryTable = false;
                 int rowsLoaded = 0;
 
@@ -368,7 +425,7 @@ public partial class PowerQueryCommands
 
                 return result;
             }
-            catch (COMException comEx) when (comEx.Message.Contains("protected", StringComparison.OrdinalIgnoreCase) || 
+            catch (COMException comEx) when (comEx.Message.Contains("protected", StringComparison.OrdinalIgnoreCase) ||
                                              comEx.Message.Contains("sensitivity label", StringComparison.OrdinalIgnoreCase))
             {
                 // Microsoft Purview sensitivity label error - encrypted file
@@ -387,8 +444,8 @@ public partial class PowerQueryCommands
                     // If we can't get M code due to COM error, continue without file path
                 }
 
-                string filePathInfo = !string.IsNullOrEmpty(filePath) 
-                    ? $"\n\nSource file: {filePath}" 
+                string filePathInfo = !string.IsNullOrEmpty(filePath)
+                    ? $"\n\nSource file: {filePath}"
                     : "";
 
                 result.Success = false;
@@ -404,7 +461,7 @@ public partial class PowerQueryCommands
                                     "  - Export source data to CSV and use Csv.Document()\n" +
                                     "  - Use ODBC or SQL connection if source is a database\n\n" +
                                     "Technical details: https://learn.microsoft.com/en-us/power-query/connectors/excel#known-issues-and-limitations";
-                
+
                 result.WorkflowStatus = "Failed";
                 return result;
             }

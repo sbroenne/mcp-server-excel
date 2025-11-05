@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.PowerQuery;
 using Sbroenne.ExcelMcp.Core.Security;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -266,6 +267,51 @@ public partial class PowerQueryCommands
 
                 // Update M code
                 query.Formula = mCode;
+
+                // CRITICAL FIX: After updating formula, recreate QueryTable if loaded to worksheet
+                // This ensures column structure updates when M code changes (e.g., adding/removing columns)
+                // Excel's QueryTable locks column structure at creation - must recreate to apply changes
+                string? loadedSheet = DetermineLoadedSheet(ctx.Book, queryName);
+                if (!string.IsNullOrEmpty(loadedSheet))
+                {
+                    // Query is loaded to worksheet - recreate QueryTable to update column structure
+                    dynamic? targetSheet = null;
+                    dynamic? usedRange = null;
+                    try
+                    {
+                        targetSheet = ctx.Book.Worksheets.Item(loadedSheet);
+
+                        // Delete existing QueryTables for this query on the sheet
+                        PowerQueryHelpers.RemoveQueryTablesFromSheet(targetSheet, queryName);
+
+                        // CRITICAL: Clear the worksheet content to prevent data accumulation
+                        // When QueryTable is deleted, its data remains on the sheet
+                        // Must clear before creating fresh QueryTable
+                        try
+                        {
+                            usedRange = targetSheet.UsedRange;
+                            usedRange.Clear(); // Clears both content and formatting
+                        }
+                        catch
+                        {
+                            // If UsedRange fails (empty sheet), that's OK
+                        }
+
+                        // Create fresh QueryTable with updated column structure
+                        var queryTableOptions = new PowerQueryHelpers.QueryTableOptions
+                        {
+                            Name = queryName,
+                            RefreshImmediately = true // Refresh to load data
+                        };
+                        PowerQueryHelpers.CreateQueryTable(targetSheet, queryName, queryTableOptions);
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref usedRange);
+                        ComUtilities.Release(ref targetSheet);
+                    }
+                }
+
                 result.Success = true;
 
                 return result;

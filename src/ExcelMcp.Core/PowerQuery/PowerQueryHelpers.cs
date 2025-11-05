@@ -105,6 +105,51 @@ public static class PowerQueryHelpers
     }
 
     /// <summary>
+    /// Removes QueryTables associated with a query name from a specific worksheet
+    /// </summary>
+    /// <param name="worksheet">Excel worksheet COM object</param>
+    /// <param name="name">Name of the query (spaces will be replaced with underscores for QueryTable names)</param>
+    public static void RemoveQueryTablesFromSheet(dynamic worksheet, string name)
+    {
+        dynamic? queryTables = null;
+
+        try
+        {
+            queryTables = worksheet.QueryTables;
+            string normalizedName = name.Replace(" ", "_");
+
+            // Iterate backwards to safely delete items
+            for (int qt = queryTables.Count; qt >= 1; qt--)
+            {
+                dynamic? queryTable = null;
+                try
+                {
+                    queryTable = queryTables.Item(qt);
+                    string queryTableName = queryTable.Name?.ToString() ?? "";
+
+                    // Match QueryTable names that contain the normalized name
+                    if (queryTableName.Contains(normalizedName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        queryTable.Delete();
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref queryTable);
+                }
+            }
+        }
+        catch
+        {
+            // Ignore errors when removing QueryTables - they may not exist
+        }
+        finally
+        {
+            ComUtilities.Release(ref queryTables);
+        }
+    }
+
+    /// <summary>
     /// Options for creating QueryTable connections
     /// </summary>
     public class QueryTableOptions
@@ -131,8 +176,10 @@ public static class PowerQueryHelpers
 
         /// <summary>
         /// Whether to preserve column information
+        /// IMPORTANT: Set to FALSE to allow column structure changes when query is updated
+        /// If TRUE, column structure is locked at QueryTable creation time
         /// </summary>
-        public bool PreserveColumnInfo { get; init; } = true;
+        public bool PreserveColumnInfo { get; init; } = false;
 
         /// <summary>
         /// Whether to preserve formatting
