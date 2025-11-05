@@ -10,23 +10,8 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
 /// Excel connection management tool for MCP server.
-/// Handles data connections (OLEDB, ODBC, Text, Web, etc.) for Excel automation.
-///
-/// LLM Usage Patterns:
-/// - Use "list" to see all connections in a workbook
-/// - Use "view" to inspect connection details (connection string, command text)
-/// - Use "export" to save connection definitions to JSON for version control
-/// - Use "update" to modify existing connections from JSON definitions
-/// - Use "refresh" to update data from external sources
-/// - Use "loadto" to load connection data to a worksheet
-/// - Use "properties" to check connection configuration (background query, refresh settings)
-/// - Use "set-properties" to configure connection behavior
-/// - Use "test" to validate connection without refreshing data
-/// - Use "delete" to remove obsolete connections
-///
-/// Note: Power Query connections are detected and users are redirected to excel_powerquery tool.
-/// Regular connections (OLEDB, ODBC, Text, Web) use standard connection strings.
-/// Password sanitization is applied automatically for security.
+/// Manages Excel data connections (OLEDB, ODBC, Text, Web, etc.) for data refresh operations.
+/// Power Query connections automatically redirect to excel_powerquery tool.
 /// </summary>
 [McpServerToolType]
 public static class ExcelConnectionTool
