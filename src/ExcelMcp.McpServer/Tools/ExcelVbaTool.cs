@@ -58,7 +58,10 @@ public static class ExcelVbaTool
         string? parameters = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
-        string? batchId = null)
+        string? batchId = null,
+
+        [Description("Timeout in minutes for VBA operations. Default: 2 minutes (VBA run may need more)")]
+        double? timeout = null)
     {
         try
         {

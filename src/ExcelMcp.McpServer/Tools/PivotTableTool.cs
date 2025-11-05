@@ -100,7 +100,10 @@ public static class PivotTableTool
         int? position = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
-        string? batchId = null)
+        string? batchId = null,
+
+        [Description("Timeout in minutes for PivotTable operations. Default: 2 minutes (refresh may need more)")]
+        double? timeout = null)
     {
         try
         {

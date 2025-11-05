@@ -78,7 +78,10 @@ public static class TableTool
         string? formatCode = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
-        string? batchId = null)
+        string? batchId = null,
+
+        [Description("Timeout in minutes for table operations. Default: 2 minutes (large tables may need more)")]
+        double? timeout = null)
     {
         try
         {

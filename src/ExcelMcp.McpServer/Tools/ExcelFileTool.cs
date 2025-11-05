@@ -30,7 +30,10 @@ public static class ExcelFileTool
         string excelPath,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
-        string? batchId = null)
+        string? batchId = null,
+
+        [Description("Timeout in minutes for file operations. Default: 2 minutes")]
+        double? timeout = null)
     {
         try
         {

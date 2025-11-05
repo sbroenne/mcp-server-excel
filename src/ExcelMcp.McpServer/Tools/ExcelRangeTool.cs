@@ -231,7 +231,10 @@ public static class ExcelRangeTool
         string? formatStyle = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
-        string? batchId = null)
+        string? batchId = null,
+
+        [Description("Timeout in minutes for range operations. Default: 2 minutes (large ranges may need more)")]
+        double? timeout = null)
     {
         try
         {
