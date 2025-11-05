@@ -129,6 +129,7 @@ public static class ActionExtensions
     {
         ConnectionAction.List => "list",
         ConnectionAction.View => "view",
+        ConnectionAction.Create => "create",
         ConnectionAction.Import => "import",
         ConnectionAction.Export => "export",
         ConnectionAction.UpdateProperties => "update-properties",

@@ -172,6 +172,7 @@ public enum ConnectionAction
 {
     List,
     View,
+    Create,
     Import,
     Export,
     UpdateProperties,

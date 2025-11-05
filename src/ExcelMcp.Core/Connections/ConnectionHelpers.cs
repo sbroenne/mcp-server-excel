@@ -73,34 +73,7 @@ public static class ConnectionHelpers
         };
     }
 
-    /// <summary>
-    /// Sanitizes connection string by masking password
-    /// SECURITY: Always use this before displaying or exporting connection strings
-    /// </summary>
-    /// <param name="connectionString">Connection string that may contain password</param>
-    /// <returns>Sanitized connection string with password masked</returns>
-    public static string SanitizeConnectionString(string? connectionString)
-    {
-        if (connectionString == null)
-        {
-            return null!;
-        }
 
-        if (string.IsNullOrEmpty(connectionString))
-        {
-            return connectionString;
-        }
-
-        // Regex pattern to match sensitive fields in connection strings:
-        // Password, Pwd, AccessToken, AccountKey, AccessKey, ApiKey, etc.
-        // Handles both semicolon-terminated and end-of-string cases
-        return System.Text.RegularExpressions.Regex.Replace(
-            connectionString,
-            @"(password|pwd|apikey|accesstoken|accountkey|accesskey)\s*=\s*[^;]*",
-            "$1=***REDACTED***",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase
-        );
-    }
 
     /// <summary>
     /// Removes connections associated with a query or connection name

@@ -35,7 +35,7 @@ public static class ExcelConnectionTool
     /// Manage Excel data connections - OLEDB, ODBC, Text, Web, and other connection types
     /// </summary>
     [McpServerTool(Name = "excel_connection")]
-    [Description("Manage Excel data connections. Supports: list, view, import, export, update, refresh, delete, loadto, properties, set-properties, test.")]
+    [Description("Manage Excel data connections. Supports: list, view, create, import, export, update, refresh, delete, loadto, properties, set-properties, test.")]
     public static async Task<string> ExcelConnection(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
@@ -49,6 +49,15 @@ public static class ExcelConnectionTool
         [StringLength(255, MinimumLength = 1)]
         [Description("Connection name")]
         string? connectionName = null,
+
+        [Description("Connection string (for create action)")]
+        string? connectionString = null,
+
+        [Description("Command text/SQL query (for create action, optional)")]
+        string? commandText = null,
+
+        [Description("Connection description (for create action, optional)")]
+        string? description = null,
 
         [Description("JSON file path for import/export/update, or sheet name for loadto")]
         string? targetPath = null,
@@ -80,6 +89,7 @@ public static class ExcelConnectionTool
             {
                 ConnectionAction.List => await ListConnectionsAsync(connectionCommands, excelPath, batchId),
                 ConnectionAction.View => await ViewConnectionAsync(connectionCommands, excelPath, connectionName, batchId),
+                ConnectionAction.Create => await CreateConnectionAsync(connectionCommands, excelPath, connectionName, connectionString, commandText, description, batchId),
                 ConnectionAction.Import => await ImportConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
                 ConnectionAction.Export => await ExportConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
                 ConnectionAction.UpdateProperties => await UpdateConnectionAsync(connectionCommands, excelPath, connectionName, targetPath, batchId),
@@ -122,18 +132,23 @@ public static class ExcelConnectionTool
             result.Success,
             result.Connections,
             workflowHint = count == 0
-                ? "No connections found. Import .odc files or use excel_powerquery for Power Query connections."
+                ? "No connections found. Create connections via Excel UI or import from .odc files."
                 : powerQueryCount > 0
-                    ? $"Found {count} connection(s) ({powerQueryCount} Power Query). Use excel_powerquery for PQ connections."
-                    : $"Found {count} connection(s). Use 'refresh' to update data or 'export' to backup definitions.",
+                    ? $"Found {count} connection(s): {count - powerQueryCount} regular, {powerQueryCount} Power Query. Different tools needed."
+                    : $"Found {count} regular connection(s). Ready for refresh or data operations.",
             suggestedNextActions = count == 0
-                ? new[] { "Use 'import' to add connections from .odc files", "Use excel_powerquery for M code connections" }
+                ? new[] {
+                    "Use 'import' to add connections from .odc files",
+                    "Use excel_powerquery for M code connections",
+                    "Create connections via Excel UI (Data → Get Data)"
+                }
                 : new[]
                 {
-                    powerQueryCount > 0 ? "Use excel_powerquery for Power Query connections" : null,
-                    "Use 'refresh' to update connection data",
-                    "Use 'export' to backup connection definitions as JSON",
-                    "Use 'view' to inspect connection strings"
+                    powerQueryCount > 0 ? "Use excel_powerquery tool for Power Query connections" : null,
+                    "Use 'refresh' to update data from external sources",
+                    "Use 'view' to inspect connection details and credentials",
+                    "Use 'properties' to check refresh settings and background query status",
+                    "Use 'export' to backup connection definitions as JSON"
                 }.Where(s => s != null).ToArray()!
         }, ExcelToolsBase.JsonOptions);
     }
@@ -150,7 +165,33 @@ public static class ExcelConnectionTool
             async (batch) => await commands.ViewAsync(batch, connectionName));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        // Add workflow hints for viewing connection details
+        var inBatch = !string.IsNullOrEmpty(batchId);
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ConnectionName,
+            result.ConnectionString,
+            result.CommandText,
+            result.IsPowerQuery,
+            workflowHint = result.IsPowerQuery
+                ? $"Power Query connection '{connectionName}' detected. Use excel_powerquery tool for management."
+                : $"Connection '{connectionName}' details retrieved. Ready for refresh or configuration.",
+            suggestedNextActions = result.IsPowerQuery ? new[]
+            {
+                "Use excel_powerquery 'view' to see the M code for this Power Query connection",
+                "Use excel_powerquery 'refresh' to update this Power Query data",
+                "Use excel_powerquery 'list' to see all Power Query connections"
+            } : new[]
+            {
+                "Use excel_connection 'refresh' to update data from this connection",
+                "Use excel_connection 'test' to validate connection without refreshing data",
+                "Use excel_connection 'properties' to check refresh settings and background query status",
+                "Use excel_connection 'export' to backup this connection definition",
+                inBatch ? "View more connections in this batch" : "Need to check multiple connections? Use excel_batch for efficiency"
+            }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ImportConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? jsonPath, string? batchId)
@@ -174,13 +215,14 @@ public static class ExcelConnectionTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            workflowHint = $"Connection '{connectionName}' imported from {jsonPath}.",
+            workflowHint = $"Connection '{connectionName}' imported successfully from {jsonPath}. Ready for use.",
             suggestedNextActions = new[]
             {
-                "Use 'test' to verify the connection works",
-                "Use 'refresh' to load data from the connection",
-                "Use 'loadto' to load connection data to a specific worksheet",
-                inBatch ? "Import more connections in this batch" : "Importing multiple? Use excel_batch (faster)"
+                "Use excel_connection 'test' to verify the imported connection works",
+                "Use excel_connection 'refresh' to load latest data from the data source",
+                "Use excel_connection 'loadto' to load connection data to a specific worksheet",
+                "Use excel_connection 'view' to inspect the imported connection details",
+                inBatch ? "Import more connections in this batch" : "Importing multiple connections? Use excel_batch for efficiency"
             }
         }, ExcelToolsBase.JsonOptions);
     }
@@ -230,7 +272,7 @@ public static class ExcelConnectionTool
         {
             // Apply timeout parameter (default 2 minutes for connection operations)
             var timeoutSpan = timeoutMinutes.HasValue ? (TimeSpan?)TimeSpan.FromMinutes(timeoutMinutes.Value) : null;
-            
+
             var result = await ExcelToolsBase.WithBatchAsync(
                 batchId,
                 filePath,
@@ -238,20 +280,64 @@ public static class ExcelConnectionTool
                 async (batch) => await commands.RefreshAsync(batch, connectionName, timeoutSpan));
 
             // Always return JSON (success or failure) - MCP clients handle the success flag
-            // Add workflow hints
+            // Add workflow hints based on actual result and operation context
             var inBatch = !string.IsNullOrEmpty(batchId);
 
-            return JsonSerializer.Serialize(new
+            if (result.Success)
             {
-                result.Success,
-                workflowHint = $"Connection '{connectionName}' refreshed successfully. Data updated.",
-                suggestedNextActions = new[]
+                // Check if connection is connection-only (no data loaded)
+                bool isConnectionOnly = result.OperationContext?.ContainsKey("IsConnectionOnly") == true &&
+                                      (bool)result.OperationContext["IsConnectionOnly"];
+
+                return JsonSerializer.Serialize(new
                 {
-                    "Use excel_range 'get-values' to verify the refreshed data",
-                    "Use 'properties' to check refresh settings",
-                    inBatch ? "Refresh more connections in this batch" : "Refreshing multiple? Use excel_batch (faster)"
-                }
-            }, ExcelToolsBase.JsonOptions);
+                    result.Success,
+                    workflowHint = isConnectionOnly
+                        ? $"Connection '{connectionName}' validated successfully. Connection is working but no data is loaded to worksheets."
+                        : $"Connection '{connectionName}' refreshed successfully. External data has been updated in the workbook.",
+                    suggestedNextActions = isConnectionOnly ? new[]
+                    {
+                        "Connection validation confirmed - data source is accessible",
+                        "Use excel_connection 'loadto' to load data to a specific worksheet",
+                        "Use excel_connection 'view' to see connection details and last refresh time",
+                        "Connection-only means no QueryTables exist - data source ready for use",
+                        inBatch ? "Validate more connections in this batch" : "Testing multiple connections? Use excel_batch for efficiency"
+                    } : new[]
+                    {
+                        "Data refresh completed - external data source has been queried",
+                        "Use excel_range 'get-values' or 'get-used-range' to examine refreshed data",
+                        "Use excel_connection 'view' to verify last refresh timestamp",
+                        "Use excel_connection 'properties' to check auto-refresh settings",
+                        inBatch ? "Refresh more connections in this batch" : "Refreshing multiple connections? Use excel_batch for better performance"
+                    }
+                }, ExcelToolsBase.JsonOptions);
+            }
+            else
+            {
+                // Failed refresh - check for specific error types
+                bool isPowerQueryConnection = result.ErrorMessage?.Contains("Power Query connection") == true;
+
+                return JsonSerializer.Serialize(new
+                {
+                    result.Success,
+                    result.ErrorMessage,
+                    workflowHint = $"Connection '{connectionName}' refresh failed - data source issue detected.",
+                    suggestedNextActions = isPowerQueryConnection ? new[]
+                    {
+                        "Power Query connections detected - use excel_powerquery 'refresh' instead",
+                        "Use excel_powerquery 'list' to see all Power Query connections",
+                        "Use excel_connection 'list' to see regular data connections only",
+                        "Power Query connections require different refresh mechanism"
+                    } : new[]
+                    {
+                        "Check if data source is accessible (database server, file share, web service)",
+                        "Use excel_connection 'view' to inspect connection string and credentials",
+                        "Verify network connectivity and firewall rules for external data sources",
+                        "Use excel_connection 'test' to validate connection without refreshing data",
+                        "Check if credentials have expired or need updating"
+                    }
+                }, ExcelToolsBase.JsonOptions);
+            }
         }
         catch (TimeoutException ex)
         {
@@ -265,10 +351,12 @@ public static class ExcelConnectionTool
 
                 SuggestedNextActions = new List<string>
                 {
-                    "Check if Excel is showing a credential prompt or dialog",
-                    "Verify the data source is accessible (database server, network share, etc.)",
-                    "For OLEDB/ODBC connections, test connectivity outside Excel",
-                    "Check firewall rules if connecting to remote data sources"
+                    "Connection refresh timed out - check for blocking dialogs in Excel",
+                    "Verify the data source is responsive (database server, network share, web service)",
+                    "For OLEDB/ODBC connections, test connectivity using Windows ODBC Data Source Administrator",
+                    "Check firewall rules and network connectivity to remote data sources",
+                    "Look for credential prompts or authentication dialogs that may be hidden",
+                    "Large datasets may require longer refresh times - consider data filtering at source"
                 },
 
                 OperationContext = new Dictionary<string, object>
@@ -282,8 +370,8 @@ public static class ExcelConnectionTool
                 IsRetryable = !ex.Message.Contains("maximum timeout"),
 
                 RetryGuidance = ex.Message.Contains("maximum timeout")
-                    ? "Maximum timeout (5 minutes) reached. Do not retry automatically - check data source connectivity manually."
-                    : "Retry acceptable if data source connectivity issue is transient. Timeout is already at maximum (5 minutes)."
+                    ? "Maximum timeout (5 minutes) reached. Check data source connectivity and resolve any authentication prompts before retrying."
+                    : "Retry acceptable after checking for hidden dialogs and verifying data source connectivity. Consider using 'test' action first."
             };
 
             return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -366,6 +454,86 @@ public static class ExcelConnectionTool
             async (batch) => await commands.TestAsync(batch, connectionName));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        // Add workflow hints for connection testing
+        var inBatch = !string.IsNullOrEmpty(batchId);
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Connection '{connectionName}' test successful - data source is accessible and responding."
+                : $"Connection '{connectionName}' test failed - data source connectivity issue detected.",
+            suggestedNextActions = result.Success ? new[]
+            {
+                "Connection is working - use excel_connection 'refresh' to load actual data",
+                "Use excel_connection 'loadto' to load connection data to a specific worksheet",
+                "Use excel_connection 'properties' to configure refresh settings",
+                "Use excel_connection 'view' to inspect connection details",
+                inBatch ? "Test more connections in this batch" : "Testing multiple connections? Use excel_batch for efficiency"
+            } : new[]
+            {
+                "Connection test failed - check if data source is accessible",
+                "Use excel_connection 'view' to inspect connection string and credentials",
+                "Verify network connectivity and firewall rules for external data sources",
+                "Check if credentials have expired or need updating",
+                "For OLEDB/ODBC connections, test using Windows ODBC Data Source Administrator"
+            }
+        }, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> CreateConnectionAsync(
+        ConnectionCommands commands,
+        string excelPath,
+        string? connectionName,
+        string? connectionString,
+        string? commandText,
+        string? description,
+        string? batchId)
+    {
+        if (string.IsNullOrWhiteSpace(connectionName))
+            throw new ModelContextProtocol.McpException("connectionName is required for create action");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+            throw new ModelContextProtocol.McpException("connectionString is required for create action");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: true,
+            async (batch) => await commands.CreateAsync(batch, connectionName, connectionString, commandText, description));
+
+        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            throw new ModelContextProtocol.McpException($"create action failed for '{connectionName}': {result.ErrorMessage}");
+        }
+
+        var inBatch = !string.IsNullOrEmpty(batchId);
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            connectionName,
+            workflowHint = result.Success
+                ? $"Connection '{connectionName}' created successfully and ready for use."
+                : $"Connection '{connectionName}' creation failed - check connection string format and parameters.",
+            suggestedNextActions = result.Success ? new[]
+            {
+                "Test the new connection with excel_connection 'test' to verify connectivity",
+                "Use excel_connection 'refresh' to load data from the connection",
+                "Use excel_connection 'loadto' to load connection data to a specific worksheet",
+                "Use excel_connection 'properties' to configure refresh settings (background query, auto-refresh)",
+                "Use excel_connection 'view' to inspect the created connection details",
+                inBatch ? "Create more connections in this batch" : "Creating multiple connections? Use excel_batch for efficiency"
+            } : new[]
+            {
+                "Connection creation failed - verify connection string format is correct",
+                "For TEXT connections, use format: 'TEXT;C:\\path\\to\\file.csv'",
+                "For OLEDB connections, include Provider and connection parameters",
+                "For ODBC connections, reference a valid DSN or use connection string format",
+                "Use excel_connection 'view' on existing connections to see working examples"
+            }
+        }, ExcelToolsBase.JsonOptions);
     }
 }
