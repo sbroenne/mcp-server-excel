@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -426,6 +427,72 @@ in
         var derivedRefreshResult = await _powerQueryCommands.RefreshAsync(batch, "DerivedQuery");
         Assert.True(derivedRefreshResult.Success,
             $"Derived query refresh failed: {derivedRefreshResult.ErrorMessage}");
+    }
+
+    #endregion
+
+    #region Regression Tests
+
+    /// <summary>
+    /// REGRESSION TEST for reported LLM bug:
+    /// 1. Create PowerQuery that loads to sheet - works
+    /// 2. Update the query and run again
+    /// 3. Query turns into connection-only (BUG!)
+    ///
+    /// This test verifies that UpdateAsync preserves the load configuration.
+    /// </summary>
+    [Fact]
+    public async Task Update_QueryLoadedToSheet_PreservesLoadConfiguration()
+    {
+        // Arrange
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(PowerQueryCommandsTests),
+            nameof(Update_QueryLoadedToSheet_PreservesLoadConfiguration),
+            _tempDir);
+
+        var queryName = "LoadedQuery_" + Guid.NewGuid().ToString("N").Substring(0, 8);
+        var sheetName = "DataSheet";
+        var initialQueryFile = CreateUniqueTestQueryFile("Initial");
+        var updatedQueryFile = Path.Join(_tempDir, $"updated_{Guid.NewGuid():N}.pq");
+        System.IO.File.WriteAllText(updatedQueryFile,
+            @"let
+    UpdatedSource = #table(
+        {""NewCol1"", ""NewCol2""},
+        {
+            {""Updated1"", ""Updated2""},
+            {""Data1"", ""Data2""}
+        }
+    )
+in
+    UpdatedSource");
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
+
+        // STEP 1: Import query and load to worksheet
+        var importResult = await _powerQueryCommands.ImportAsync(batch, queryName, initialQueryFile, "worksheet", sheetName);
+        Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
+
+        // Verify initial load configuration
+        var loadConfigBefore = await _powerQueryCommands.GetLoadConfigAsync(batch, queryName);
+        Assert.True(loadConfigBefore.Success, "GetLoadConfig before update failed");
+        Assert.Equal(PowerQueryLoadMode.LoadToTable, loadConfigBefore.LoadMode);
+        Assert.Equal(sheetName, loadConfigBefore.TargetSheet);
+
+        // STEP 2: Update the query M code
+        var updateResult = await _powerQueryCommands.UpdateAsync(batch, queryName, updatedQueryFile);
+        Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
+
+        // STEP 3: Verify load configuration is PRESERVED (regression check)
+        var loadConfigAfter = await _powerQueryCommands.GetLoadConfigAsync(batch, queryName);
+        Assert.True(loadConfigAfter.Success, "GetLoadConfig after update failed");
+
+        // THE BUG: This assertion should pass but might fail if UpdateAsync doesn't restore load config
+        Assert.Equal(PowerQueryLoadMode.LoadToTable, loadConfigAfter.LoadMode);
+        Assert.Equal(sheetName, loadConfigAfter.TargetSheet);
+
+        // STEP 4: Verify data is still loaded to the sheet (not connection-only)
+        var listResult = await _sheetCommands.ListAsync(batch);
+        Assert.Contains(listResult.Worksheets, s => s.Name == sheetName);
     }
 
     #endregion
