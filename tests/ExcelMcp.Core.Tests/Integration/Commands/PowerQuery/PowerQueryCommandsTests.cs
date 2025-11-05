@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -493,6 +494,230 @@ in
         // STEP 4: Verify data is still loaded to the sheet (not connection-only)
         var listResult = await _sheetCommands.ListAsync(batch);
         Assert.Contains(listResult.Worksheets, s => s.Name == sheetName);
+    }
+
+    /// <summary>
+    /// LLM use case: "update a query to change column structure and verify columns update"
+    ///
+    /// Scenario:
+    /// 1. Create a PowerQuery with one column and load to a worksheet
+    /// 2. Check that there is only one column
+    /// 3. Update the query and load again
+    /// 4. Check that there is only one column
+    /// 5. Update the query to create two columns and load again
+    /// 6. Check that there are two columns
+    /// </summary>
+    [Fact]
+    public async Task Update_QueryColumnStructure_UpdatesWorksheetColumns()
+    {
+        // Arrange
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(PowerQueryCommandsTests),
+            nameof(Update_QueryColumnStructure_UpdatesWorksheetColumns),
+            _tempDir);
+
+        var queryName = "ColumnStructureQuery_" + Guid.NewGuid().ToString("N").Substring(0, 8);
+        var sheetName = "DataSheet";
+
+        // STEP 1: Create query with ONE column
+        var oneColumnQueryFile = Path.Join(_tempDir, $"onecolumn_{Guid.NewGuid():N}.pq");
+        System.IO.File.WriteAllText(oneColumnQueryFile,
+            @"let
+    Source = #table(
+        {""Column1""},
+        {
+            {""Value1""},
+            {""Value2""}
+        }
+    )
+in
+    Source");
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
+
+        var importResult = await _powerQueryCommands.ImportAsync(batch, queryName, oneColumnQueryFile, "worksheet", sheetName);
+        Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
+
+        // STEP 2: Verify there is only ONE column
+        var rangeCommands = new RangeCommands();
+        var usedRange1 = await rangeCommands.GetUsedRangeAsync(batch, sheetName);
+        Assert.True(usedRange1.Success, $"GetUsedRange failed: {usedRange1.ErrorMessage}");
+        Assert.Equal(1, usedRange1.ColumnCount);
+
+        // STEP 3: Update query (still one column, different data)
+        var oneColumnUpdatedFile = Path.Join(_tempDir, $"onecolumn_updated_{Guid.NewGuid():N}.pq");
+        System.IO.File.WriteAllText(oneColumnUpdatedFile,
+            @"let
+    Source = #table(
+        {""Column1""},
+        {
+            {""UpdatedValue1""},
+            {""UpdatedValue2""},
+            {""UpdatedValue3""}
+        }
+    )
+in
+    Source");
+
+        var updateResult1 = await _powerQueryCommands.UpdateAsync(batch, queryName, oneColumnUpdatedFile);
+        Assert.True(updateResult1.Success, $"First update failed: {updateResult1.ErrorMessage}");
+
+        // Refresh to reload data
+        var refreshResult1 = await _powerQueryCommands.RefreshAsync(batch, queryName);
+        Assert.True(refreshResult1.Success, $"First refresh failed: {refreshResult1.ErrorMessage}");
+
+        // STEP 4: Check that there is still only ONE column
+        var usedRange2 = await rangeCommands.GetUsedRangeAsync(batch, sheetName);
+        Assert.True(usedRange2.Success, $"GetUsedRange after first update failed: {usedRange2.ErrorMessage}");
+        Assert.Equal(1, usedRange2.ColumnCount);
+
+        // STEP 5: Update the query to create TWO columns
+        var twoColumnQueryFile = Path.Join(_tempDir, $"twocolumn_{Guid.NewGuid():N}.pq");
+        System.IO.File.WriteAllText(twoColumnQueryFile,
+            @"let
+    Source = #table(
+        {""Column1"", ""Column2""},
+        {
+            {""A"", ""B""},
+            {""C"", ""D""},
+            {""E"", ""F""}
+        }
+    )
+in
+    Source");
+
+        var updateResult2 = await _powerQueryCommands.UpdateAsync(batch, queryName, twoColumnQueryFile);
+        Assert.True(updateResult2.Success, $"Second update failed: {updateResult2.ErrorMessage}");
+
+        // Refresh to reload data with new column structure
+        var refreshResult2 = await _powerQueryCommands.RefreshAsync(batch, queryName);
+        Assert.True(refreshResult2.Success, $"Second refresh failed: {refreshResult2.ErrorMessage}");
+
+        // STEP 6: Check that there are now TWO columns
+        // BUG: This assertion will FAIL because Excel's QueryTable doesn't update column structure on refresh
+        var usedRange3 = await rangeCommands.GetUsedRangeAsync(batch, sheetName);
+        Assert.True(usedRange3.Success, $"GetUsedRange after second update failed: {usedRange3.ErrorMessage}");
+
+        // Diagnostic: Capture actual column structure before assertion
+        var values = await rangeCommands.GetValuesAsync(batch, sheetName, usedRange3.RangeAddress);
+        Assert.True(values.Success, $"GetValues failed: {values.ErrorMessage}");
+
+        // Get column headers to see what columns Excel created
+        var headerRow = values.Values.FirstOrDefault();
+        var columnNames = headerRow != null
+            ? string.Join(", ", headerRow.Select(c => c?.ToString() ?? "null"))
+            : "No headers found";
+
+        // This will fail and show us what the actual columns are
+        Assert.True(usedRange3.ColumnCount == 2,
+            $"Expected 2 columns but got {usedRange3.ColumnCount}. " +
+            $"Actual columns: [{columnNames}]");
+
+        // Additional assertion that will also fail
+        Assert.True(values.ColumnCount == 2,
+            $"Expected 2 columns in values but got {values.ColumnCount}. " +
+            $"Columns: [{columnNames}]");
+    }
+
+    /// <summary>
+    /// REGRESSION TEST: Reproduces column ACCUMULATION bug when using delete/recreate workaround
+    ///
+    /// Bug scenario (early test approach):
+    /// 1. Create query with 1 column (Column1)
+    /// 2. Update M code to 2 columns (Column1, Column2)
+    /// 3. Delete query + SetLoadToTable (recreate QueryTable) + Refresh
+    /// 4. BUG: Excel creates 3 columns (Column1, Column1, Column2) - ACCUMULATES instead of replacing!
+    ///
+    /// This reproduces the exact scenario from early testing where we saw 3 columns.
+    /// </summary>
+    [Fact]
+    public async Task Update_QueryColumnStructureWithDeleteRecreate_AccumulatesColumns()
+    {
+        // Arrange
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(PowerQueryCommandsTests),
+            nameof(Update_QueryColumnStructureWithDeleteRecreate_AccumulatesColumns),
+            _tempDir);
+
+        var queryName = "AccumulationBug_" + Guid.NewGuid().ToString("N").Substring(0, 8);
+        var sheetName = "TestSheet";
+
+        // STEP 1: Create query with 1 column
+        var oneColumnFile = Path.Join(_tempDir, $"initial_{Guid.NewGuid():N}.pq");
+        System.IO.File.WriteAllText(oneColumnFile,
+            @"let
+    Source = #table(
+        {""Column1""},
+        {
+            {""A""},
+            {""B""}
+        }
+    )
+in
+    Source");
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
+
+        // Import and load to worksheet
+        var importResult = await _powerQueryCommands.ImportAsync(batch, queryName, oneColumnFile, "worksheet", sheetName);
+        Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
+
+        // Verify initial state: 1 column
+        var rangeCommands = new RangeCommands();
+        var usedRange1 = await rangeCommands.GetUsedRangeAsync(batch, sheetName);
+        Assert.True(usedRange1.Success);
+        Assert.Equal(1, usedRange1.ColumnCount);
+
+        // STEP 2: Update M code to 2 columns
+        var twoColumnFile = Path.Join(_tempDir, $"updated_{Guid.NewGuid():N}.pq");
+        System.IO.File.WriteAllText(twoColumnFile,
+            @"let
+    Source = #table(
+        {""Column1"", ""Column2""},
+        {
+            {""X"", ""Y""},
+            {""Z"", ""W""}
+        }
+    )
+in
+    Source");
+
+        var updateResult = await _powerQueryCommands.UpdateAsync(batch, queryName, twoColumnFile);
+        Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
+
+        // STEP 3: Apply the DELETE + RECREATE workaround (this causes the 3-column bug!)
+        var deleteResult = await _powerQueryCommands.DeleteAsync(batch, queryName);
+        Assert.True(deleteResult.Success, $"Delete failed: {deleteResult.ErrorMessage}");
+
+        var reimportResult = await _powerQueryCommands.ImportAsync(batch, queryName, twoColumnFile, "connection-only");
+        Assert.True(reimportResult.Success, $"Re-import failed: {reimportResult.ErrorMessage}");
+
+        var setLoadResult = await _powerQueryCommands.SetLoadToTableAsync(batch, queryName, sheetName);
+        Assert.True(setLoadResult.Success, $"SetLoadToTable failed: {setLoadResult.ErrorMessage}");
+
+        var refreshResult = await _powerQueryCommands.RefreshAsync(batch, queryName);
+        Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
+
+        // STEP 4: Check for column accumulation bug
+        var usedRange2 = await rangeCommands.GetUsedRangeAsync(batch, sheetName);
+        Assert.True(usedRange2.Success);
+
+        // Get actual column headers
+        var values = await rangeCommands.GetValuesAsync(batch, sheetName, usedRange2.RangeAddress);
+        Assert.True(values.Success);
+
+        var headerRow = values.Values.FirstOrDefault();
+        var columnNames = headerRow != null
+            ? string.Join(", ", headerRow.Select(c => c?.ToString() ?? "null"))
+            : "No headers found";
+
+        // DIAGNOSTIC OUTPUT: This should show us the 3-column accumulation bug!
+        // Expected bug behavior: Excel shows 3 columns (Column1, Column1, Column2)
+        // The workaround of delete+recreate causes Excel to APPEND the new QueryTable instead of replacing
+        Assert.True(usedRange2.ColumnCount == 2,
+            $"COLUMN ACCUMULATION BUG REPRODUCED! Expected 2 columns but got {usedRange2.ColumnCount}. " +
+            $"Actual columns: [{columnNames}]. " +
+            $"This proves that delete+recreate causes Excel to append QueryTable columns instead of replacing them.");
     }
 
     #endregion
