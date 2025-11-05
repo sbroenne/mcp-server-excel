@@ -94,7 +94,10 @@ Actions available as dropdown in MCP clients.")]
         bool? refreshImmediately = null,
 
         [Description("Optional batch ID for grouping operations")]
-        string? batchId = null)
+        string? batchId = null,
+
+        [Description("Timeout in minutes for QueryTable operations. Default: 2 minutes (refresh may need more)")]
+        double? timeout = null)
     {
         try
         {

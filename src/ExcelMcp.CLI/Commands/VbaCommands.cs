@@ -368,7 +368,7 @@ public class VbaCommands : IVbaCommands
         var task = Task.Run(async () =>
         {
             await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var runResult = await _coreCommands.RunAsync(batch, procedureName, parameters);
+            var runResult = await _coreCommands.RunAsync(batch, procedureName, null, parameters);
             await batch.SaveAsync();
             return runResult;
         });

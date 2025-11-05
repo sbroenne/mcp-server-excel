@@ -99,7 +99,7 @@ public partial class QueryTableCommands : IQueryTableCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> RefreshAsync(IExcelBatch batch, string queryTableName)
+    public async Task<OperationResult> RefreshAsync(IExcelBatch batch, string queryTableName, TimeSpan? timeout = null)
     {
         return await batch.Execute((ctx, ct) =>
         {
@@ -139,11 +139,11 @@ public partial class QueryTableCommands : IQueryTableCommands
             }
 
             return result;
-        });
+        }, timeout: timeout);
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> RefreshAllAsync(IExcelBatch batch)
+    public async Task<OperationResult> RefreshAllAsync(IExcelBatch batch, TimeSpan? timeout = null)
     {
         return await batch.Execute((ctx, ct) =>
         {
@@ -226,7 +226,7 @@ public partial class QueryTableCommands : IQueryTableCommands
             }
 
             return result;
-        });
+        }, timeout: timeout);
     }
 
     /// <inheritdoc />

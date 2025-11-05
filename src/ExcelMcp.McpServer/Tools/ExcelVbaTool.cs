@@ -58,7 +58,10 @@ public static class ExcelVbaTool
         string? parameters = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
-        string? batchId = null)
+        string? batchId = null,
+
+        [Description("Timeout in minutes for VBA operations. Default: 2 minutes (VBA run may need more)")]
+        double? timeout = null)
     {
         try
         {
@@ -199,7 +202,7 @@ public static class ExcelVbaTool
             batchId,
             filePath,
             save: false, // VBA execution doesn't save unless VBA code does
-            async (batch) => await commands.RunAsync(batch, moduleName, paramArray));
+            async (batch) => await commands.RunAsync(batch, moduleName, null, paramArray));
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }

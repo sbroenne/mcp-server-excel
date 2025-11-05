@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class VbaCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> RunAsync(IExcelBatch batch, string procedureName, params string[] parameters)
+    public async Task<OperationResult> RunAsync(IExcelBatch batch, string procedureName, TimeSpan? timeout, params string[] parameters)
     {
         var result = new OperationResult
         {
@@ -64,7 +64,7 @@ public partial class VbaCommands
                 result.ErrorMessage = $"Error running procedure '{procedureName}': {ex.Message}";
                 return result;
             }
-        });
+        }, timeout: timeout);
     }
 
     /// <inheritdoc />

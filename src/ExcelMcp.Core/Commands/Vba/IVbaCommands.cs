@@ -36,7 +36,7 @@ public interface IVbaCommands
     /// <summary>
     /// Runs a VBA procedure with optional parameters
     /// </summary>
-    Task<OperationResult> RunAsync(IExcelBatch batch, string procedureName, params string[] parameters);
+    Task<OperationResult> RunAsync(IExcelBatch batch, string procedureName, TimeSpan? timeout, params string[] parameters);
 
     /// <summary>
     /// Deletes a VBA module

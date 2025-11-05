@@ -88,7 +88,7 @@ End Sub";
         Assert.True(importResult.Success);
 
         // Act - Run the macro
-        var runResult = await _scriptCommands.RunAsync(batch, "TestModule.TestProcedure");
+        var runResult = await _scriptCommands.RunAsync(batch, "TestModule.TestProcedure", null);
 
         // Assert - Should succeed when VBA trust is enabled
         Assert.True(runResult.Success, $"Run should succeed with VBA trust enabled. Error: {runResult.ErrorMessage}");

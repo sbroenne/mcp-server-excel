@@ -252,7 +252,7 @@ public partial class PivotTableCommands
     /// <summary>
     /// Refreshes a PivotTable
     /// </summary>
-    public async Task<PivotTableRefreshResult> RefreshAsync(IExcelBatch batch, string pivotTableName)
+    public async Task<PivotTableRefreshResult> RefreshAsync(IExcelBatch batch, string pivotTableName, TimeSpan? timeout = null)
     {
         return await batch.Execute((ctx, ct) =>
         {
@@ -296,7 +296,7 @@ public partial class PivotTableCommands
                 ComUtilities.Release(ref pivotCache);
                 ComUtilities.Release(ref pivot);
             }
-        });
+        }, timeout: timeout);
     }
 
     /// <summary>
