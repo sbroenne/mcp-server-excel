@@ -33,29 +33,29 @@ public partial class QueryTableCommandsTests
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(QueryTableCommandsTests), nameof(List_WithQueryTable_ReturnsQueryTable), _tempDir);
 
-        // Create a QueryTable from Power Query (using existing PowerQueryHelpers)
-        await using var batch1 = await ExcelSession.BeginBatchAsync(testFile);
-        
-        // First create a simple Power Query
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+
+        // First create a simple Power Query - need to write M code to file
+        var mCodeFile = Path.Combine(_tempDir, "TestQuery.pq");
+        var mCode = "let Source = #table({\"Column1\"}, {{\"Value1\"}, {\"Value2\"}}) in Source";
+        await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
+
         var dataModelCommands = new Sbroenne.ExcelMcp.Core.Commands.DataModelCommands();
         var pqCommands = new Sbroenne.ExcelMcp.Core.Commands.PowerQueryCommands(dataModelCommands);
-        var mCode = "let Source = #table({\"Column1\"}, {{\"Value1\"}, {\"Value2\"}}) in Source";
-        var importResult = await pqCommands.ImportAsync(batch1, "TestQuery", mCode);
+        var importResult = await pqCommands.ImportAsync(batch, "TestQuery", mCodeFile, loadDestination: "connection-only");
         Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
-        
+
         // Create a worksheet for the QueryTable
         var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
-        var createSheetResult = await sheetCommands.CreateAsync(batch1, "QuerySheet");
+        var createSheetResult = await sheetCommands.CreateAsync(batch, "QuerySheet");
         Assert.True(createSheetResult.Success, $"Create sheet failed: {createSheetResult.ErrorMessage}");
-        
-        // Create QueryTable from the Power Query
-        var createResult = await _commands.CreateFromQueryAsync(batch1, "QuerySheet", "TestQueryTable", "TestQuery");
-        Assert.True(createResult.Success, $"Create QueryTable failed: {createResult.ErrorMessage}");
-        await batch1.SaveAsync();
 
-        // Act - List QueryTables
-        await using var batch2 = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _commands.ListAsync(batch2);
+        // Create QueryTable from the Power Query
+        var createResult = await _commands.CreateFromQueryAsync(batch, "QuerySheet", "TestQueryTable", "TestQuery");
+        Assert.True(createResult.Success, $"Create QueryTable failed: {createResult.ErrorMessage}");
+
+        // Act - List QueryTables in same batch
+        var result = await _commands.ListAsync(batch);
 
         // Assert
         Assert.True(result.Success, $"List failed: {result.ErrorMessage}");

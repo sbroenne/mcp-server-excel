@@ -18,16 +18,18 @@ public partial class QueryTableCommandsTests
             nameof(QueryTableCommandsTests), nameof(Get_ExistingQueryTable_ReturnsDetails), _tempDir);
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         // Create QueryTable
         var dataModelCommands = new Sbroenne.ExcelMcp.Core.Commands.DataModelCommands();
         var pqCommands = new Sbroenne.ExcelMcp.Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"Column1\"}, {{\"Data1\"}}) in Source";
-        await pqCommands.ImportAsync(batch, "MyQuery", mCode);
-        
+        var mCodeFile = Path.Combine(_tempDir, "MyQuery.pq");
+        await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
+        await pqCommands.ImportAsync(batch, "MyQuery", mCodeFile, loadDestination: "connection-only");
+
         var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
         await sheetCommands.CreateAsync(batch, "Sheet1");
-        
+
         await _commands.CreateFromQueryAsync(batch, "Sheet1", "MyQT", "MyQuery");
 
         // Act
@@ -66,16 +68,18 @@ public partial class QueryTableCommandsTests
             nameof(QueryTableCommandsTests), nameof(Refresh_ExistingQueryTable_RefreshesSuccessfully), _tempDir);
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         // Create QueryTable
         var dataModelCommands = new Sbroenne.ExcelMcp.Core.Commands.DataModelCommands();
         var pqCommands = new Sbroenne.ExcelMcp.Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"Name\"}, {{\"Test\"}}) in Source";
-        await pqCommands.ImportAsync(batch, "RefreshQuery", mCode);
-        
+        var mCodeFile = Path.Combine(_tempDir, "RefreshQuery.pq");
+        await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
+        await pqCommands.ImportAsync(batch, "RefreshQuery", mCodeFile, loadDestination: "connection-only");
+
         var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
         await sheetCommands.CreateAsync(batch, "RefreshSheet");
-        
+
         await _commands.CreateFromQueryAsync(batch, "RefreshSheet", "RefreshQT", "RefreshQuery");
 
         // Act
@@ -110,19 +114,23 @@ public partial class QueryTableCommandsTests
             nameof(QueryTableCommandsTests), nameof(RefreshAll_MultipleQueryTables_RefreshesAll), _tempDir);
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         // Create multiple QueryTables
         var dataModelCommands = new Sbroenne.ExcelMcp.Core.Commands.DataModelCommands();
         var pqCommands = new Sbroenne.ExcelMcp.Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode1 = "let Source = #table({\"A\"}, {{1}}) in Source";
         var mCode2 = "let Source = #table({\"B\"}, {{2}}) in Source";
-        await pqCommands.ImportAsync(batch, "Q1", mCode1);
-        await pqCommands.ImportAsync(batch, "Q2", mCode2);
-        
+        var mCodeFile1 = Path.Combine(_tempDir, "Q1.pq");
+        var mCodeFile2 = Path.Combine(_tempDir, "Q2.pq");
+        await System.IO.File.WriteAllTextAsync(mCodeFile1, mCode1);
+        await System.IO.File.WriteAllTextAsync(mCodeFile2, mCode2);
+        await pqCommands.ImportAsync(batch, "Q1", mCodeFile1, loadDestination: "connection-only");
+        await pqCommands.ImportAsync(batch, "Q2", mCodeFile2, loadDestination: "connection-only");
+
         var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
         await sheetCommands.CreateAsync(batch, "S1");
         await sheetCommands.CreateAsync(batch, "S2");
-        
+
         await _commands.CreateFromQueryAsync(batch, "S1", "QT1", "Q1");
         await _commands.CreateFromQueryAsync(batch, "S2", "QT2", "Q2");
 
@@ -157,16 +165,18 @@ public partial class QueryTableCommandsTests
             nameof(QueryTableCommandsTests), nameof(UpdateProperties_ExistingQueryTable_UpdatesSuccessfully), _tempDir);
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         // Create QueryTable with default options
         var dataModelCommands = new Sbroenne.ExcelMcp.Core.Commands.DataModelCommands();
         var pqCommands = new Sbroenne.ExcelMcp.Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"X\"}, {{\"Y\"}}) in Source";
-        await pqCommands.ImportAsync(batch, "UpdateQuery", mCode);
-        
+        var mCodeFile = Path.Combine(_tempDir, "UpdateQuery.pq");
+        await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
+        await pqCommands.ImportAsync(batch, "UpdateQuery", mCodeFile, loadDestination: "connection-only");
+
         var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
         await sheetCommands.CreateAsync(batch, "UpdateSheet");
-        
+
         await _commands.CreateFromQueryAsync(batch, "UpdateSheet", "UpdateQT", "UpdateQuery");
 
         // Act
@@ -179,7 +189,7 @@ public partial class QueryTableCommandsTests
 
         // Assert
         Assert.True(result.Success, $"UpdateProperties failed: {result.ErrorMessage}");
-        
+
         // Verify updated properties
         var getResult = await _commands.GetAsync(batch, "UpdateQT");
         Assert.True(getResult.Success);
