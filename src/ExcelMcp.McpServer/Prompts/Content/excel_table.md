@@ -12,6 +12,8 @@
 **Server-specific behavior**:
 - Tables have AutoFilter by default
 - Structured references: =Table1[@ColumnName]
+- Column names can be any string including purely numeric (e.g., "60" for 60 months)
+- Table names must follow Excel rules (start with letter/underscore, alphanumeric only)
 - add-to-datamodel: Adds table to Power Pivot (requires data model)
 - resize: Changes table range boundaries
 
