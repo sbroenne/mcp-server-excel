@@ -87,7 +87,7 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 ## 🎯 What You Can Do
 
 **Development & Automation:**
-- 🔄 **Power Query** - 16 operations: create/edit M code, manage transformations, load configurations (worksheet, data model, connection only), error diagnostics, M code evaluation
+- 🔄 **Power Query** - 16 operations: **atomic workflows** (create, update-and-refresh, refresh-all), manage transformations, load configurations (worksheet, data model, connection only), error diagnostics, M code evaluation
 - 📊 **Power Pivot (Data Model)** - 15 operations: build DAX measures, manage relationships, discover model structure (tables, columns), export to .dax files
 - 🎨 **Excel Tables** - 26 operations: automate formatting, filtering, sorting, structured references, number formats, column management
 - 📈 **PivotTables** - 20 operations: create and configure PivotTables for interactive analysis
@@ -101,6 +101,14 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 <summary>📚 <strong>See Complete Feature List (100+ Operations)</strong></summary>
 
 ### Power Query & M Code (16 operations)
+**✨ NEW: Atomic Operations** - Single-call workflows replace multi-step patterns:
+- **Create** - Import + load in one operation (replaces import → load workflow)
+- **Update & Refresh** - Update M code + refresh data atomically
+- **Refresh All** - Batch refresh all queries in workbook
+- **Update M Code** - Stage code changes without refreshing data
+- **Unload** - Convert loaded query to connection-only
+
+**Core Operations:**
 - Create, read, update, delete Power Query transformations
 - Export/import M code for version control
 - Manage query load destinations (worksheet/data model/connection-only/both)

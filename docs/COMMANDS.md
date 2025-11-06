@@ -170,6 +170,88 @@ excelcli pq-refresh-all "Sales.xlsx"
 
 Refreshes all Power Queries in the workbook in a single operation. Useful for batch data refreshes.
 
+### Real-World Workflow Examples
+
+**Scenario 1: Initial Project Setup**
+
+Setting up a new data pipeline with Power Query:
+
+```powershell
+# Create workbook
+excelcli create-empty "DataPipeline.xlsx"
+
+# Import and load multiple queries atomically (vs old import + loadto pattern)
+excelcli pq-create "DataPipeline.xlsx" "Sales" "queries/sales.pq" --destination both
+excelcli pq-create "DataPipeline.xlsx" "Customers" "queries/customers.pq" --destination data-model
+excelcli pq-create "DataPipeline.xlsx" "Products" "queries/products.pq" --destination worksheet
+
+# Result: All queries created and data loaded in 3 commands (vs 6 with old workflow)
+```
+
+**Scenario 2: Iterative Development**
+
+Developing and testing Power Query transformations:
+
+```powershell
+# Stage M code changes without waiting for refresh (fast iteration)
+excelcli pq-update-mcode "DataPipeline.xlsx" "Sales" "queries/sales-v2.pq"
+excelcli pq-update-mcode "DataPipeline.xlsx" "Customers" "queries/customers-v2.pq"
+
+# Test changes manually in Excel UI, then refresh when ready
+excelcli pq-refresh "DataPipeline.xlsx" "Sales"
+
+# Or update and refresh together when code is finalized
+excelcli pq-update-and-refresh "DataPipeline.xlsx" "Products" "queries/products-final.pq"
+```
+
+**Scenario 3: Production Data Refresh**
+
+Deploying updates to production workbooks:
+
+```powershell
+# Atomic update + refresh for production (ensures code and data are in sync)
+excelcli pq-update-and-refresh "Production.xlsx" "Sales" "prod/sales.pq"
+excelcli pq-update-and-refresh "Production.xlsx" "Inventory" "prod/inventory.pq"
+
+# Or batch refresh all queries without code changes
+excelcli pq-refresh-all "Production.xlsx"
+
+# Result: Production data current in single atomic operation per query
+```
+
+**Scenario 4: Cleanup and Optimization**
+
+Managing queries for performance:
+
+```powershell
+# Remove data from unused queries to reduce file size
+excelcli pq-unload "Analytics.xlsx" "OldQuery"
+excelcli pq-unload "Analytics.xlsx" "TempTransform"
+
+# Keep queries as connection-only for reference without loading data
+excelcli pq-list "Analytics.xlsx"  # Verify queries still exist
+```
+
+**Comparison: Old vs New Workflows**
+
+```powershell
+# OLD WORKFLOW (2 commands per query):
+excelcli pq-import "file.xlsx" "Sales" "sales.pq"
+excelcli pq-loadto "file.xlsx" "Sales" "SalesSheet"
+
+# NEW WORKFLOW (1 atomic command):
+excelcli pq-create "file.xlsx" "Sales" "sales.pq" --destination worksheet
+
+# OLD WORKFLOW (2 commands for update + refresh):
+excelcli pq-update "file.xlsx" "Sales" "sales.pq"
+excelcli pq-refresh "file.xlsx" "Sales"
+
+# NEW WORKFLOW (1 atomic command):
+excelcli pq-update-and-refresh "file.xlsx" "Sales" "sales.pq"
+
+# Time savings: ~50% fewer commands, atomic operations prevent intermediate states
+```
+
 ## Sheet Commands (`sheet-*`)
 
 Manage worksheet lifecycle (create, rename, copy, delete), tab colors, and visibility. For data operations, use `range-*` commands.
