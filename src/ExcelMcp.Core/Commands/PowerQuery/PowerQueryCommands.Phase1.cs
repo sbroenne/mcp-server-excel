@@ -2,7 +2,7 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using System.Runtime.InteropServices;
 
-namespace Sbroenne.ExcelMcp.Core.Commands.PowerQuery;
+namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
 /// Power Query commands - Phase 1 API (Atomic operations with explicit intent)
@@ -126,13 +126,13 @@ public partial class PowerQueryCommands
                             sheet = ctx.Book.Worksheets.Item(worksheetName!);
                             queryTable = CreateQueryTableForQuery(sheet, query);
                             queryTable.Refresh(false);
-                            
+
                             var connection2 = FindConnectionForQuery(ctx.Book, queryName);
                             if (connection2 != null)
                             {
                                 ctx.Book.Model.DataModelConnection.RefreshAsync();
                             }
-                            
+
                             result.DataLoaded = true;
                             result.RowsLoaded = queryTable.ResultRange.Rows.Count - 1;
                             break;
@@ -276,16 +276,475 @@ public partial class PowerQueryCommands
     }
 
     /// <summary>
+    /// Sets query load destination and refreshes data atomically
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="queryName">Name of the query</param>
+    /// <param name="loadTo">Where to load the data</param>
+    /// <param name="worksheetName">Target worksheet (required for LoadToTable/LoadToBoth)</param>
+    /// <returns>Result with load configuration and refresh status</returns>
+    public async Task<PowerQueryLoadResult> LoadToAsync(
+        IExcelBatch batch,
+        string queryName,
+        PowerQueryLoadMode loadTo,
+        string? worksheetName = null)
+    {
+        var result = new PowerQueryLoadResult
+        {
+            FilePath = batch.WorkbookPath,
+            QueryName = queryName,
+            LoadDestination = loadTo,
+            WorksheetName = worksheetName
+        };
+
+        try
+        {
+            if ((loadTo == PowerQueryLoadMode.LoadToTable || loadTo == PowerQueryLoadMode.LoadToBoth) 
+                && string.IsNullOrWhiteSpace(worksheetName))
+            {
+                result.Success = false;
+                result.ErrorMessage = "Worksheet name required for LoadToTable/LoadToBoth";
+                return result;
+            }
+
+            return await batch.Execute((ctx, ct) =>
+            {
+                dynamic? queries = null;
+                dynamic? query = null;
+                dynamic? sheet = null;
+                dynamic? queryTable = null;
+
+                try
+                {
+                    queries = ctx.Book.Queries;
+                    query = ComInterop.ComUtilities.FindQuery(ctx.Book, queryName);
+
+                    if (query == null)
+                    {
+                        result.Success = false;
+                        result.ErrorMessage = $"Query '{queryName}' not found";
+                        return result;
+                    }
+
+                    // Apply load destination
+                    switch (loadTo)
+                    {
+                        case PowerQueryLoadMode.LoadToTable:
+                            sheet = ctx.Book.Worksheets.Item(worksheetName!);
+                            queryTable = CreateQueryTableForQuery(sheet, query);
+                            queryTable.Refresh(false);
+                            result.ConfigurationApplied = true;
+                            result.DataRefreshed = true;
+                            result.RowsLoaded = queryTable.ResultRange.Rows.Count - 1;
+                            break;
+
+                        case PowerQueryLoadMode.LoadToDataModel:
+                            var connection = FindConnectionForQuery(ctx.Book, queryName);
+                            if (connection != null)
+                            {
+                                connection.OLEDBConnection.Connection = $"Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
+                                ctx.Book.Model.DataModelConnection.RefreshAsync();
+                                result.ConfigurationApplied = true;
+                                result.DataRefreshed = true;
+                                result.RowsLoaded = -1;
+                            }
+                            break;
+
+                        case PowerQueryLoadMode.LoadToBoth:
+                            sheet = ctx.Book.Worksheets.Item(worksheetName!);
+                            queryTable = CreateQueryTableForQuery(sheet, query);
+                            queryTable.Refresh(false);
+
+                            var connection2 = FindConnectionForQuery(ctx.Book, queryName);
+                            if (connection2 != null)
+                            {
+                                ctx.Book.Model.DataModelConnection.RefreshAsync();
+                            }
+
+                            result.ConfigurationApplied = true;
+                            result.DataRefreshed = true;
+                            result.RowsLoaded = queryTable.ResultRange.Rows.Count - 1;
+                            break;
+
+                        case PowerQueryLoadMode.ConnectionOnly:
+                            result.ConfigurationApplied = true;
+                            result.DataRefreshed = false;
+                            result.RowsLoaded = 0;
+                            break;
+                    }
+
+                    result.Success = true;
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        "Verify data was loaded correctly",
+                        "Use RefreshAsync() to reload data from source",
+                        "Update M code with UpdateMCodeAsync() if needed"
+                    };
+
+                    return result;
+                }
+                catch (COMException ex)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Excel COM error applying load destination: {ex.Message}";
+                    result.IsRetryable = ex.HResult == -2147417851;
+                    return result;
+                }
+                finally
+                {
+                    ComInterop.ComUtilities.Release(ref queryTable!);
+                    ComInterop.ComUtilities.Release(ref sheet!);
+                    ComInterop.ComUtilities.Release(ref query!);
+                    ComInterop.ComUtilities.Release(ref queries!);
+                }
+            }, cancellationToken: default);
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Error applying load destination: {ex.Message}";
+            result.IsRetryable = false;
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Converts query to connection-only (removes data load)
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="queryName">Name of the query</param>
+    /// <returns>Operation result</returns>
+    public async Task<OperationResult> UnloadAsync(
+        IExcelBatch batch,
+        string queryName)
+    {
+        var result = new OperationResult
+        {
+            FilePath = batch.WorkbookPath,
+            Action = "unload"
+        };
+
+        return await batch.Execute((ctx, ct) =>
+        {
+            dynamic? queries = null;
+            dynamic? query = null;
+            dynamic? sheets = null;
+
+            try
+            {
+                queries = ctx.Book.Queries;
+                query = ComInterop.ComUtilities.FindQuery(ctx.Book, queryName);
+
+                if (query == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Query '{queryName}' not found";
+                    return result;
+                }
+
+                // Remove QueryTables from all worksheets
+                sheets = ctx.Book.Worksheets;
+                for (int i = 1; i <= sheets.Count; i++)
+                {
+                    dynamic? sheet = null;
+                    dynamic? queryTables = null;
+                    try
+                    {
+                        sheet = sheets.Item(i);
+                        queryTables = sheet.QueryTables;
+                        
+                        for (int j = queryTables.Count; j >= 1; j--)
+                        {
+                            dynamic? qt = null;
+                            try
+                            {
+                                qt = queryTables.Item(j);
+                                string qtName = qt.Name;
+                                if (qtName.Contains(queryName))
+                                {
+                                    qt.Delete();
+                                }
+                            }
+                            finally
+                            {
+                                ComInterop.ComUtilities.Release(ref qt!);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        ComInterop.ComUtilities.Release(ref queryTables!);
+                        ComInterop.ComUtilities.Release(ref sheet!);
+                    }
+                }
+
+                result.Success = true;
+                result.SuggestedNextActions = new List<string>
+                {
+                    "Query is now connection-only",
+                    "Use LoadToAsync() to load data when ready",
+                    "M code is preserved and can be edited"
+                };
+
+                return result;
+            }
+            catch (COMException ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Excel COM error removing data load: {ex.Message}";
+                result.IsRetryable = ex.HResult == -2147417851;
+                return result;
+            }
+            finally
+            {
+                ComInterop.ComUtilities.Release(ref sheets!);
+                ComInterop.ComUtilities.Release(ref query!);
+                ComInterop.ComUtilities.Release(ref queries!);
+            }
+        }, cancellationToken: default);
+    }
+
+    /// <summary>
+    /// Validates M code syntax without creating a query
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="mCodeFile">Path to M code file</param>
+    /// <returns>Validation result with syntax errors if any</returns>
+    public async Task<PowerQueryValidationResult> ValidateSyntaxAsync(
+        IExcelBatch batch,
+        string mCodeFile)
+    {
+        var result = new PowerQueryValidationResult
+        {
+            FilePath = batch.WorkbookPath
+        };
+
+        try
+        {
+            if (!File.Exists(mCodeFile))
+            {
+                result.Success = false;
+                result.ErrorMessage = $"M code file not found: {mCodeFile}";
+                return result;
+            }
+
+            var mCode = await File.ReadAllTextAsync(mCodeFile);
+            if (string.IsNullOrWhiteSpace(mCode))
+            {
+                result.Success = false;
+                result.ErrorMessage = "M code file is empty";
+                result.IsValid = false;
+                return result;
+            }
+
+            return await batch.Execute((ctx, ct) =>
+            {
+                dynamic? queries = null;
+                dynamic? testQuery = null;
+
+                try
+                {
+                    queries = ctx.Book.Queries;
+
+                    // Create temporary query to test syntax
+                    string testName = $"__ValidationTest_{Guid.NewGuid():N}";
+                    testQuery = queries.Add(testName, mCode);
+
+                    // If we got here, syntax is valid
+                    result.IsValid = true;
+                    result.Success = true;
+                    result.SuggestedNextActions = new List<string>
+                    {
+                        "M code syntax is valid",
+                        "Use CreateAsync() to create query with this M code",
+                        "Use UpdateMCodeAsync() to update existing query"
+                    };
+
+                    // Delete test query
+                    testQuery.Delete();
+
+                    return result;
+                }
+                catch (COMException ex)
+                {
+                    result.IsValid = false;
+                    result.Success = false;
+                    result.ErrorMessage = $"M code syntax error: {ex.Message}";
+                    result.ValidationErrors = new List<string> { ex.Message };
+                    result.IsRetryable = false;
+                    return result;
+                }
+                finally
+                {
+                    ComInterop.ComUtilities.Release(ref testQuery!);
+                    ComInterop.ComUtilities.Release(ref queries!);
+                }
+            }, cancellationToken: default);
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Error validating M code: {ex.Message}";
+            result.IsValid = false;
+            result.IsRetryable = false;
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Updates M code and refreshes data in one atomic operation (convenience method)
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="queryName">Name of the query</param>
+    /// <param name="mCodeFile">Path to new M code file</param>
+    /// <returns>Operation result</returns>
+    public async Task<OperationResult> UpdateAndRefreshAsync(
+        IExcelBatch batch,
+        string queryName,
+        string mCodeFile)
+    {
+        var result = new OperationResult
+        {
+            FilePath = batch.WorkbookPath,
+            Action = "update-and-refresh"
+        };
+
+        try
+        {
+            // Update M code
+            var updateResult = await UpdateMCodeAsync(batch, queryName, mCodeFile);
+            if (!updateResult.Success)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Failed to update M code: {updateResult.ErrorMessage}";
+                return result;
+            }
+
+            // Refresh data
+            var refreshResult = await RefreshAsync(batch, queryName);
+            if (!refreshResult.Success)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"M code updated but refresh failed: {refreshResult.ErrorMessage}";
+                return result;
+            }
+
+            result.Success = true;
+            result.SuggestedNextActions = new List<string>
+            {
+                "M code updated and data refreshed successfully",
+                "Verify data matches expectations",
+                "Use GetLoadConfigAsync() to check load configuration"
+            };
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Error updating and refreshing: {ex.Message}";
+            result.IsRetryable = false;
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Refreshes all Power Query queries in the workbook
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <returns>Operation result with refresh summary</returns>
+    public async Task<OperationResult> RefreshAllAsync(IExcelBatch batch)
+    {
+        var result = new OperationResult
+        {
+            FilePath = batch.WorkbookPath
+        };
+
+        return await batch.Execute((ctx, ct) =>
+        {
+            dynamic? queries = null;
+
+            try
+            {
+                queries = ctx.Book.Queries;
+                int totalQueries = queries.Count;
+                int refreshedCount = 0;
+                var errors = new List<string>();
+
+                for (int i = 1; i <= totalQueries; i++)
+                {
+                    dynamic? query = null;
+                    try
+                    {
+                        query = queries.Item(i);
+                        string queryName = query.Name;
+
+                        // Refresh via connection
+                        var connection = FindConnectionForQuery(ctx.Book, queryName);
+                        if (connection != null)
+                        {
+                            try
+                            {
+                                connection.Refresh();
+                                refreshedCount++;
+                            }
+                            catch (COMException ex)
+                            {
+                                errors.Add($"{queryName}: {ex.Message}");
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        ComInterop.ComUtilities.Release(ref query!);
+                    }
+                }
+
+                // ✅ Rule 0: Success = false when errors exist
+                if (errors.Any())
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Some queries failed to refresh: {string.Join(", ", errors)}";
+                }
+                else
+                {
+                    result.Success = true;
+                }
+
+                result.SuggestedNextActions = new List<string>
+                {
+                    $"Refreshed {refreshedCount} of {totalQueries} queries successfully",
+                    errors.Any() ? $"{errors.Count} queries had errors" : "All queries refreshed",
+                    "Use RefreshAsync() to refresh individual queries"
+                };
+
+                return result;
+            }
+            catch (COMException ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Excel COM error refreshing queries: {ex.Message}";
+                result.IsRetryable = ex.HResult == -2147417851;
+                return result;
+            }
+            finally
+            {
+                ComInterop.ComUtilities.Release(ref queries!);
+            }
+        }, cancellationToken: default);
+    }
+
+    /// <summary>
     /// Helper method to create QueryTable for a query
     /// </summary>
     private dynamic CreateQueryTableForQuery(dynamic sheet, dynamic query)
     {
         string queryName = query.Name;
         string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
-        
+
         dynamic range = sheet.Range["A1"];
         dynamic queryTable = sheet.QueryTables.Add(connectionString, range, $"Table_{queryName}");
-        
+
         queryTable.Name = $"Query_{queryName}";
         queryTable.RefreshStyle = 1;  // xlInsertDeleteCells
         queryTable.RowNumbers = false;
@@ -336,7 +795,7 @@ public partial class PowerQueryCommands
         {
             ComInterop.ComUtilities.Release(ref connections!);
         }
-        
+
         return null;
     }
 }
