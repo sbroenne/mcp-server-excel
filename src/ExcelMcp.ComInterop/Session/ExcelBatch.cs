@@ -1,7 +1,5 @@
 using System.Runtime.InteropServices;
 using System.Threading.Channels;
-using Polly;
-using Polly.Retry;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
@@ -16,18 +14,6 @@ internal sealed class ExcelBatch : IExcelBatch
     private readonly Thread _staThread;
     private readonly CancellationTokenSource _shutdownCts;
     private bool _disposed;
-
-    // Polly retry pipeline for transient save errors
-    private static readonly ResiliencePipeline _saveRetryPipeline = new ResiliencePipelineBuilder()
-        .AddRetry(new RetryStrategyOptions
-        {
-            ShouldHandle = new PredicateBuilder().Handle<COMException>(ex => IsTransientSaveError(ex)),
-            MaxRetryAttempts = 3,
-            Delay = TimeSpan.FromMilliseconds(100),
-            BackoffType = DelayBackoffType.Exponential,
-            UseJitter = true
-        })
-        .Build();
 
     /// <summary>
     /// Default timeout for most Excel operations (list, get, set, etc.).
@@ -317,14 +303,8 @@ internal sealed class ExcelBatch : IExcelBatch
         {
             try
             {
-                // Use Polly retry pipeline for transient Excel temp file conflicts
-                await _saveRetryPipeline.ExecuteAsync(async ct =>
-                {
-                    ct.ThrowIfCancellationRequested();
-                    _workbook!.Save();
-                    await Task.CompletedTask;
-                }, cancellationToken);
-
+                cancellationToken.ThrowIfCancellationRequested();
+                _workbook!.Save();
                 tcs.SetResult();
             }
             catch (COMException ex)

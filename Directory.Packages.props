@@ -18,8 +18,6 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="9.0.10" />
     <PackageVersion Include="System.Text.Json" Version="9.0.10" />
-    <!-- Resilience (Polly) -->
-    <PackageVersion Include="Polly.Core" Version="8.5.0" />
     <!-- NuGet API Client -->
     <PackageVersion Include="NuGet.Protocol" Version="6.12.1" />
     <PackageVersion Include="NuGet.Versioning" Version="6.12.1" />
