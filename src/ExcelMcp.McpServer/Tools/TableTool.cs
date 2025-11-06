@@ -23,6 +23,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Excel Tables provide AutoFilter, structured references ([@Column]), dynamic expansion, and visual formatting
 /// - Tables can be used standalone OR referenced in Power Query: Excel.CurrentWorkbook(){[Name="TableName"]}[Content]
 /// - Table names must start with a letter/underscore, contain only alphanumeric and underscore characters
+/// - Column names can be any string, including purely numeric values (e.g., "60" for 60 months)
 /// - Deleting a table converts it back to a range but preserves data
 /// - For comprehensive Power Pivot operations (DAX measures, relationships, calculated columns), use excel_datamodel tools
 /// </summary>
@@ -58,8 +59,7 @@ public static class TableTool
         string? range = null,
 
         [StringLength(255, MinimumLength = 1)]
-        [RegularExpression(@"^[a-zA-Z_][a-zA-Z0-9_]*$")]
-        [Description("New table name (required for rename) or column name (required for set-column-total)")]
+        [Description("New table name (required for rename) or column name (required for add-column, rename-column, etc.). Table names must follow Excel naming rules (start with letter/underscore, alphanumeric only). Column names can be any string including numbers.")]
         string? newName = null,
 
         [Description("Whether the range has headers (default: true for create) or show totals (for toggle-totals)")]

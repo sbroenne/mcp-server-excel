@@ -407,4 +407,80 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     }
 
     #endregion
+
+    #region Numeric Column Name Tests (3 tests)
+
+    /// <summary>
+    /// Tests adding a column with a purely numeric name.
+    /// LLM use case: "add a column named 60 for 60 months data"
+    /// Regression test for: Column names can be numeric (e.g. 60 for 60 months)
+    /// </summary>
+    [Fact]
+    public async Task AddColumn_WithNumericName_AddsColumnSuccessfully()
+    {
+        var testFile = await CreateTestFileWithTableAsync(nameof(AddColumn_WithNumericName_AddsColumnSuccessfully));
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        
+        var initialInfo = await _tableCommands.GetAsync(batch, "SalesTable");
+        var initialColumnCount = initialInfo.Table!.Columns!.Count;
+
+        // Add column with purely numeric name
+        var result = await _tableCommands.AddColumnAsync(batch, "SalesTable", "60");
+        Assert.True(result.Success, $"Failed to add numeric column: {result.ErrorMessage}");
+
+        // Verify column added
+        var updatedInfo = await _tableCommands.GetAsync(batch, "SalesTable");
+        Assert.Equal(initialColumnCount + 1, updatedInfo.Table!.Columns!.Count);
+        Assert.Contains("60", updatedInfo.Table.Columns);
+    }
+
+    /// <summary>
+    /// Tests renaming a column to a purely numeric name.
+    /// LLM use case: "rename this column to 12 for 12 months"
+    /// Regression test for: Column names can be numeric (e.g. 60 for 60 months)
+    /// </summary>
+    [Fact]
+    public async Task RenameColumn_ToNumericName_RenamesSuccessfully()
+    {
+        var testFile = await CreateTestFileWithTableAsync(nameof(RenameColumn_ToNumericName_RenamesSuccessfully));
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        
+        // Rename "Amount" column to numeric name "60"
+        var result = await _tableCommands.RenameColumnAsync(batch, "SalesTable", "Amount", "60");
+        Assert.True(result.Success, $"Failed to rename to numeric column name: {result.ErrorMessage}");
+
+        // Verify column renamed
+        var updatedInfo = await _tableCommands.GetAsync(batch, "SalesTable");
+        Assert.Contains("60", updatedInfo.Table!.Columns!);
+        Assert.DoesNotContain("Amount", updatedInfo.Table.Columns);
+    }
+
+    /// <summary>
+    /// Tests renaming a numeric column to another numeric name.
+    /// LLM use case: "rename column 60 to 120"
+    /// Regression test for: Column names can be numeric (e.g. 60 for 60 months)
+    /// </summary>
+    [Fact]
+    public async Task RenameColumn_NumericToNumeric_RenamesSuccessfully()
+    {
+        var testFile = await CreateTestFileWithTableAsync(nameof(RenameColumn_NumericToNumeric_RenamesSuccessfully));
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        
+        // First add a numeric column
+        await _tableCommands.AddColumnAsync(batch, "SalesTable", "60");
+        
+        // Then rename it to another numeric name
+        var result = await _tableCommands.RenameColumnAsync(batch, "SalesTable", "60", "120");
+        Assert.True(result.Success, $"Failed to rename numeric column to numeric name: {result.ErrorMessage}");
+
+        // Verify column renamed
+        var updatedInfo = await _tableCommands.GetAsync(batch, "SalesTable");
+        Assert.Contains("120", updatedInfo.Table!.Columns!);
+        Assert.DoesNotContain("60", updatedInfo.Table.Columns);
+    }
+
+    #endregion
 }
