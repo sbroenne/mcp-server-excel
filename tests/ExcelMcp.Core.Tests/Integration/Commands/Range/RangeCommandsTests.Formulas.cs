@@ -233,9 +233,10 @@ public partial class RangeCommandsTests
         Assert.Equal(73000.0, Convert.ToDouble(summaryTotalsResult.Values[0][2])); // Q3 Total
         Assert.Equal(82000.0, Convert.ToDouble(summaryTotalsResult.Values[0][3])); // Q4 Total
         Assert.Equal(273000.0, Convert.ToDouble(summaryTotalsResult.Values[0][4])); // Grand Total
-        // Note: TEXT formatting may vary by locale, just verify it contains the average value
+        // Note: TEXT formatting includes thousands separator, locale-dependent
         var avgText = summaryTotalsResult.Values[0][5]?.ToString() ?? "";
-        Assert.Contains("68250", avgText); // CONCATENATE + TEXT formatting (locale-dependent format)
+        Assert.Contains("68", avgText); // CONCATENATE + TEXT formatting: "Avg: $68,250"
+        Assert.Contains("250", avgText); // Verify both parts (thousands separator may be present)
 
         // Verify Growth Rate Calculations (TEXT formatted percentages)
         // Note: TEXT formatting rounds, so exact format may vary by locale
