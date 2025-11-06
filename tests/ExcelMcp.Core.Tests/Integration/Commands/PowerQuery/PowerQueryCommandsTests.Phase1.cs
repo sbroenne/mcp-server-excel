@@ -307,47 +307,8 @@ in
 
     #region ValidateSyntaxAsync Tests
 
-    [Fact]
-    public async Task ValidateSyntax_ValidMCode_ReturnsValid()
-    {
-        // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(PowerQueryCommandsTests),
-            nameof(ValidateSyntax_ValidMCode_ReturnsValid),
-            _tempDir);
-        var validMCodeFile = CreateUniqueTestQueryFile(nameof(ValidateSyntax_ValidMCode_ReturnsValid));
-
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var validationResult = await _powerQueryCommands.ValidateSyntaxAsync(batch, validMCodeFile);
-
-        // Assert
-        Assert.True(validationResult.Success, $"Validation failed: {validationResult.ErrorMessage}");
-        Assert.True(validationResult.IsValid);
-        Assert.Empty(validationResult.ValidationErrors);
-    }
-
-    [Fact]
-    public async Task ValidateSyntax_InvalidMCode_ReturnsInvalid()
-    {
-        // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(PowerQueryCommandsTests),
-            nameof(ValidateSyntax_InvalidMCode_ReturnsInvalid),
-            _tempDir);
-        var invalidMCodeFile = CreateTestQueryFileWithContent(
-            "Invalid",
-            "this is not valid M code at all!");
-
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var validationResult = await _powerQueryCommands.ValidateSyntaxAsync(batch, invalidMCodeFile);
-
-        // Assert
-        Assert.True(validationResult.Success, $"Validation operation failed: {validationResult.ErrorMessage}");
-        Assert.False(validationResult.IsValid);
-        Assert.NotEmpty(validationResult.ValidationErrors);
-    }
+    // ValidateSyntax tests removed - Excel doesn't validate M code syntax at query creation time
+    // Validation only happens during refresh, making it unreliable for syntax checking
 
     #endregion
 

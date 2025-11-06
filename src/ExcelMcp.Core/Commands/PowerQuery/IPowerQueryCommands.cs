@@ -161,14 +161,8 @@ public interface IPowerQueryCommands
     /// <returns>OperationResult with unload status</returns>
     Task<OperationResult> UnloadAsync(IExcelBatch batch, string queryName);
 
-    /// <summary>
-    /// Validates M code syntax without creating a permanent query
-    /// PHASE 1: Pre-flight validation for safer imports
-    /// </summary>
-    /// <param name="batch">Excel batch session</param>
-    /// <param name="mCodeFile">Path to M code file</param>
-    /// <returns>PowerQueryValidationResult with syntax validation details</returns>
-    Task<PowerQueryValidationResult> ValidateSyntaxAsync(IExcelBatch batch, string mCodeFile);
+    // ValidateSyntaxAsync removed - Excel doesn't validate M code syntax at query creation time.
+    // Validation only happens during refresh, making syntax-only validation unreliable.
 
     /// <summary>
     /// Convenience method: Updates M code then refreshes data

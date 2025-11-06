@@ -23,9 +23,10 @@ public enum FileAction
 /// - UpdateMCode: Update formula only (explicit separation from refresh)
 /// - LoadTo: Atomic configure + refresh (replaces SetLoadTo* + Refresh)
 /// - Unload: Convert to connection-only (inverse of LoadTo)
-/// - ValidateSyntax: Pre-flight validation (safer imports)
 /// - UpdateAndRefresh: Convenience wrapper (UpdateMCode + Refresh)
 /// - RefreshAll: Batch refresh all queries
+/// 
+/// NOTE: ValidateSyntax removed - Excel validation timing differs from test expectations
 /// </remarks>
 public enum PowerQueryAction
 {
@@ -45,12 +46,11 @@ public enum PowerQueryAction
     LoadTo,
     ListExcelSources,
     Eval,
-    
+
     // Phase 1: Atomic Operations
     Create,
     UpdateMCode,
     Unload,
-    ValidateSyntax,
     UpdateAndRefresh,
     RefreshAll
 }

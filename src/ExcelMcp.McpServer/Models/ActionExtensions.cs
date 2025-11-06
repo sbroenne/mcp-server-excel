@@ -31,15 +31,14 @@ public static class ActionExtensions
         PowerQueryAction.LoadTo => "load-to",
         PowerQueryAction.ListExcelSources => "list-excel-sources",
         PowerQueryAction.Eval => "eval",
-        
+
         // Phase 1: Atomic Operations
         PowerQueryAction.Create => "create",
         PowerQueryAction.UpdateMCode => "update-mcode",
         PowerQueryAction.Unload => "unload",
-        PowerQueryAction.ValidateSyntax => "validate-syntax",
         PowerQueryAction.UpdateAndRefresh => "update-and-refresh",
         PowerQueryAction.RefreshAll => "refresh-all",
-        
+
         _ => throw new ArgumentException($"Unknown PowerQueryAction: {action}")
     };
 

@@ -110,14 +110,36 @@ public partial class PowerQueryCommands
                             break;
 
                         case PowerQueryLoadMode.LoadToDataModel:
-                            // Load to Data Model
-                            var connection = FindConnectionForQuery(ctx.Book, queryName);
-                            if (connection != null)
+                            // Load to Data Model using Connections.Add2 method
+                            dynamic? connections = null;
+                            dynamic? dmConnection = null;
+                            try
                             {
-                                connection.OLEDBConnection.Connection = $"Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
-                                ctx.Book.Model.DataModelConnection.RefreshAsync();
+                                connections = ctx.Book.Connections;
+                                string connectionName = $"Query - {queryName}";
+                                string description = $"Connection to the '{queryName}' query in the workbook.";
+                                string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
+                                string commandText = $"\"{queryName}\"";
+                                int commandType = 6; // Data Model command type
+                                bool createModelConnection = true; // CRITICAL: This loads to Data Model
+                                bool importRelationships = false;
+
+                                dmConnection = connections.Add2(
+                                    connectionName,
+                                    description,
+                                    connectionString,
+                                    commandText,
+                                    commandType,
+                                    createModelConnection,
+                                    importRelationships
+                                );
                                 result.DataLoaded = true;
                                 result.RowsLoaded = -1;  // Data Model doesn't expose row count easily
+                            }
+                            finally
+                            {
+                                ComInterop.ComUtilities.Release(ref dmConnection!);
+                                ComInterop.ComUtilities.Release(ref connections!);
                             }
                             break;
 
@@ -127,10 +149,34 @@ public partial class PowerQueryCommands
                             queryTable = CreateQueryTableForQuery(sheet, query);
                             queryTable.Refresh(false);
 
-                            var connection2 = FindConnectionForQuery(ctx.Book, queryName);
-                            if (connection2 != null)
+                            // Also load to Data Model
+                            dynamic? connectionsBoth = null;
+                            dynamic? dmConnectionBoth = null;
+                            try
                             {
-                                ctx.Book.Model.DataModelConnection.RefreshAsync();
+                                connectionsBoth = ctx.Book.Connections;
+                                string connectionName = $"Query - {queryName}";
+                                string description = $"Connection to the '{queryName}' query in the workbook.";
+                                string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
+                                string commandText = $"\"{queryName}\"";
+                                int commandType = 6;
+                                bool createModelConnection = true;
+                                bool importRelationships = false;
+
+                                dmConnectionBoth = connectionsBoth.Add2(
+                                    connectionName,
+                                    description,
+                                    connectionString,
+                                    commandText,
+                                    commandType,
+                                    createModelConnection,
+                                    importRelationships
+                                );
+                            }
+                            finally
+                            {
+                                ComInterop.ComUtilities.Release(ref dmConnectionBoth!);
+                                ComInterop.ComUtilities.Release(ref connectionsBoth!);
                             }
 
                             result.DataLoaded = true;
@@ -299,7 +345,7 @@ public partial class PowerQueryCommands
 
         try
         {
-            if ((loadTo == PowerQueryLoadMode.LoadToTable || loadTo == PowerQueryLoadMode.LoadToBoth) 
+            if ((loadTo == PowerQueryLoadMode.LoadToTable || loadTo == PowerQueryLoadMode.LoadToBoth)
                 && string.IsNullOrWhiteSpace(worksheetName))
             {
                 result.Success = false;
@@ -339,14 +385,37 @@ public partial class PowerQueryCommands
                             break;
 
                         case PowerQueryLoadMode.LoadToDataModel:
-                            var connection = FindConnectionForQuery(ctx.Book, queryName);
-                            if (connection != null)
+                            // Load to Data Model using Connections.Add2 method
+                            dynamic? connectionsLoadTo = null;
+                            dynamic? dmConnectionLoadTo = null;
+                            try
                             {
-                                connection.OLEDBConnection.Connection = $"Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
-                                ctx.Book.Model.DataModelConnection.RefreshAsync();
+                                connectionsLoadTo = ctx.Book.Connections;
+                                string connectionName = $"Query - {queryName}";
+                                string description = $"Connection to the '{queryName}' query in the workbook.";
+                                string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
+                                string commandText = $"\"{queryName}\"";
+                                int commandType = 6;
+                                bool createModelConnection = true;
+                                bool importRelationships = false;
+
+                                dmConnectionLoadTo = connectionsLoadTo.Add2(
+                                    connectionName,
+                                    description,
+                                    connectionString,
+                                    commandText,
+                                    commandType,
+                                    createModelConnection,
+                                    importRelationships
+                                );
                                 result.ConfigurationApplied = true;
                                 result.DataRefreshed = true;
                                 result.RowsLoaded = -1;
+                            }
+                            finally
+                            {
+                                ComInterop.ComUtilities.Release(ref dmConnectionLoadTo!);
+                                ComInterop.ComUtilities.Release(ref connectionsLoadTo!);
                             }
                             break;
 
@@ -355,10 +424,34 @@ public partial class PowerQueryCommands
                             queryTable = CreateQueryTableForQuery(sheet, query);
                             queryTable.Refresh(false);
 
-                            var connection2 = FindConnectionForQuery(ctx.Book, queryName);
-                            if (connection2 != null)
+                            // Also load to Data Model
+                            dynamic? connectionsLoadToBoth = null;
+                            dynamic? dmConnectionLoadToBoth = null;
+                            try
                             {
-                                ctx.Book.Model.DataModelConnection.RefreshAsync();
+                                connectionsLoadToBoth = ctx.Book.Connections;
+                                string connectionName = $"Query - {queryName}";
+                                string description = $"Connection to the '{queryName}' query in the workbook.";
+                                string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
+                                string commandText = $"\"{queryName}\"";
+                                int commandType = 6;
+                                bool createModelConnection = true;
+                                bool importRelationships = false;
+
+                                dmConnectionLoadToBoth = connectionsLoadToBoth.Add2(
+                                    connectionName,
+                                    description,
+                                    connectionString,
+                                    commandText,
+                                    commandType,
+                                    createModelConnection,
+                                    importRelationships
+                                );
+                            }
+                            finally
+                            {
+                                ComInterop.ComUtilities.Release(ref dmConnectionLoadToBoth!);
+                                ComInterop.ComUtilities.Release(ref connectionsLoadToBoth!);
                             }
 
                             result.ConfigurationApplied = true;
@@ -452,7 +545,7 @@ public partial class PowerQueryCommands
                     {
                         sheet = sheets.Item(i);
                         queryTables = sheet.QueryTables;
-                        
+
                         for (int j = queryTables.Count; j >= 1; j--)
                         {
                             dynamic? qt = null;
@@ -503,6 +596,11 @@ public partial class PowerQueryCommands
             }
         }, cancellationToken: default);
     }
+
+    /*
+    // ValidateSyntaxAsync removed - Excel doesn't validate M code syntax at query creation time.
+    // Validation only happens during refresh, making syntax-only validation unreliable.
+    // Users should use CreateAsync + RefreshAsync to discover syntax errors.
 
     /// <summary>
     /// Validates M code syntax without creating a query
@@ -568,7 +666,7 @@ public partial class PowerQueryCommands
                 catch (COMException ex)
                 {
                     result.IsValid = false;
-                    result.Success = false;
+                    result.Success = true;  // Validation succeeded (found that M code is invalid)
                     result.ErrorMessage = $"M code syntax error: {ex.Message}";
                     result.ValidationErrors = new List<string> { ex.Message };
                     result.IsRetryable = false;
@@ -590,6 +688,11 @@ public partial class PowerQueryCommands
             return result;
         }
     }
+    */
+
+    // ValidateSyntaxAsync removed - Excel doesn't validate M code syntax at query creation time.
+    // Validation only happens during refresh, making syntax-only validation unreliable.
+    // Users should use CreateAsync + RefreshAsync to discover syntax errors.
 
     /// <summary>
     /// Updates M code and refreshes data in one atomic operation (convenience method)
@@ -743,9 +846,11 @@ public partial class PowerQueryCommands
         string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
 
         dynamic range = sheet.Range["A1"];
-        dynamic queryTable = sheet.QueryTables.Add(connectionString, range, $"Table_{queryName}");
+        // Use Type.Missing for 3rd parameter (working pattern from diagnostic tests)
+        dynamic queryTable = sheet.QueryTables.Add(connectionString, range, Type.Missing);
 
-        queryTable.Name = $"Query_{queryName}";
+        queryTable.Name = queryName;
+        queryTable.CommandText = $"SELECT * FROM [{queryName}]";  // Set AFTER creation (working pattern)
         queryTable.RefreshStyle = 1;  // xlInsertDeleteCells
         queryTable.RowNumbers = false;
         queryTable.FillAdjacentFormulas = false;
@@ -758,6 +863,7 @@ public partial class PowerQueryCommands
         queryTable.RefreshPeriod = 0;
         queryTable.PreserveColumnInfo = true;
 
+        // Note: Caller is responsible for calling Refresh(false) after QueryTable is returned
         return queryTable;
     }
 
