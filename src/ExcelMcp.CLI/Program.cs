@@ -68,6 +68,13 @@ class Program
                 "pq-loadto" => powerQuery.LoadTo(args),
                 "pq-delete" => powerQuery.Delete(args),
 
+                // Power Query Phase 1 commands - Atomic operations
+                "pq-create" => await powerQuery.Create(args),
+                "pq-update-mcode" => await powerQuery.UpdateMCode(args),
+                "pq-unload" => await powerQuery.Unload(args),
+                "pq-update-and-refresh" => await powerQuery.UpdateAndRefresh(args),
+                "pq-refresh-all" => await powerQuery.RefreshAll(args),
+
                 // Power Query Load Configuration commands
                 "pq-set-connection-only" => powerQuery.SetConnectionOnly(args),
                 "pq-set-load-to-table" => powerQuery.SetLoadToTable(args),

@@ -107,6 +107,69 @@ excelcli pq-loadto <file.xlsx> <query-name> <sheet-name>
 excelcli pq-delete <file.xlsx> <query-name>
 ```
 
+### Phase 1 Commands - Atomic Operations ✨ **NEW**
+
+These commands provide atomic operations for cleaner Power Query workflows:
+
+**pq-create** - Create new Power Query with atomic import + load
+
+```powershell
+excelcli pq-create <file.xlsx> <query-name> <mcode-file> [--destination worksheet|data-model|both|connection-only] [--target-sheet SheetName]
+
+# Examples
+excelcli pq-create "Sales.xlsx" "ImportData" "query.pq"                              # Default: load to worksheet
+excelcli pq-create "Sales.xlsx" "DataModel" "query.pq" --destination data-model    # Load to Power Pivot
+excelcli pq-create "Sales.xlsx" "Both" "query.pq" --destination both                # Load to both
+excelcli pq-create "Sales.xlsx" "Connection" "query.pq" --destination connection-only  # Connection only
+excelcli pq-create "Sales.xlsx" "Custom" "query.pq" --target-sheet "MySheet"        # Custom worksheet
+```
+
+Creates a new Power Query with M code and loads data in a single atomic operation. Replaces the two-step workflow of `pq-import` + `pq-loadto`.
+
+**pq-update-mcode** - Update M code only (no refresh)
+
+```powershell
+excelcli pq-update-mcode <file.xlsx> <query-name> <mcode-file>
+
+# Example
+excelcli pq-update-mcode "Sales.xlsx" "ImportData" "updated-query.pq"
+```
+
+Updates only the M code without refreshing data. Use when you want to stage code changes before refreshing.
+
+**pq-unload** - Convert query to connection-only
+
+```powershell
+excelcli pq-unload <file.xlsx> <query-name>
+
+# Example
+excelcli pq-unload "Sales.xlsx" "TempQuery"
+```
+
+Removes data from worksheet/data model while keeping the query definition. Inverse of `pq-loadto`.
+
+**pq-update-and-refresh** - Update M code and refresh in one operation
+
+```powershell
+excelcli pq-update-and-refresh <file.xlsx> <query-name> <mcode-file>
+
+# Example
+excelcli pq-update-and-refresh "Sales.xlsx" "ImportData" "new-query.pq"
+```
+
+Updates M code and immediately refreshes data. Replaces the two-step workflow of `pq-update` + `pq-refresh`.
+
+**pq-refresh-all** - Refresh all Power Queries
+
+```powershell
+excelcli pq-refresh-all <file.xlsx>
+
+# Example
+excelcli pq-refresh-all "Sales.xlsx"
+```
+
+Refreshes all Power Queries in the workbook in a single operation. Useful for batch data refreshes.
+
 ## Sheet Commands (`sheet-*`)
 
 Manage worksheet lifecycle (create, rename, copy, delete), tab colors, and visibility. For data operations, use `range-*` commands.
