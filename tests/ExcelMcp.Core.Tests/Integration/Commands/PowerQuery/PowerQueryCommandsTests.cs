@@ -19,7 +19,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "PowerQuery")]
 [Trait("Speed", "Medium")]
-public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
+public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
 {
     private readonly IPowerQueryCommands _powerQueryCommands;
     private readonly IFileCommands _fileCommands;
@@ -854,6 +854,18 @@ in
 
         System.IO.File.WriteAllText(uniqueFile, mCode);
         return uniqueFile;
+    }
+
+    /// <summary>
+    /// Creates a test query file with custom M code content.
+    /// Returns absolute path to .pq file.
+    /// </summary>
+    private string CreateTestQueryFileWithContent(string uniqueName, string mCode)
+    {
+        var fileName = $"{uniqueName}_{Guid.NewGuid():N}.pq";
+        var filePath = Path.Combine(_tempDir, fileName);
+        System.IO.File.WriteAllText(filePath, mCode);
+        return filePath;
     }
 
     #endregion
