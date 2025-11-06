@@ -3,6 +3,7 @@ using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
+using Sbroenne.ExcelMcp.ComInterop;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
@@ -566,7 +567,59 @@ in
         var refreshResult1 = await _powerQueryCommands.RefreshAsync(batch, queryName);
         Assert.True(refreshResult1.Success, $"First refresh failed: {refreshResult1.ErrorMessage}");
 
-        // STEP 4: Check that there is still only ONE column
+        // STEP 4: Verify QueryTable still exists (not converted to range) and check column count
+        var queryTableCheck1 = await batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheets = null;
+            dynamic? sheet = null;
+            dynamic? queryTables = null;
+            try
+            {
+                sheets = ctx.Book.Worksheets;
+                for (int i = 1; i <= sheets.Count; i++)
+                {
+                    dynamic? currentSheet = null;
+                    try
+                    {
+                        currentSheet = sheets.Item(i);
+                        if (currentSheet.Name == sheetName)
+                        {
+                            sheet = currentSheet;
+                            currentSheet = null;
+                            break;
+                        }
+                    }
+                    finally
+                    {
+                        if (currentSheet != null)
+                            ComUtilities.Release(ref currentSheet);
+                    }
+                }
+
+                if (sheet == null)
+                    return (false, 0);
+
+                queryTables = sheet.QueryTables;
+                int qtCount = queryTables.Count;
+                return (qtCount > 0, qtCount);
+            }
+            finally
+            {
+                if (queryTables != null)
+                    ComUtilities.Release(ref queryTables);
+                if (sheet != null)
+                    ComUtilities.Release(ref sheet);
+                if (sheets != null)
+                    ComUtilities.Release(ref sheets);
+            }
+        });
+
+        Assert.True(queryTableCheck1.Item1, "After first update, QueryTable should still exist (not converted to range)");
+        Assert.True(queryTableCheck1.Item2 == 1,
+            $"After first update, expected exactly 1 QueryTable but found {queryTableCheck1.Item2}. " +
+            "Multiple QueryTables indicates improper cleanup during UpdateAsync.");
+
+        // Check that there is still only ONE column
         var usedRange2 = await rangeCommands.GetUsedRangeAsync(batch, sheetName);
         Assert.True(usedRange2.Success, $"GetUsedRange after first update failed: {usedRange2.ErrorMessage}");
         Assert.Equal(1, usedRange2.ColumnCount);
@@ -593,7 +646,59 @@ in
         var refreshResult2 = await _powerQueryCommands.RefreshAsync(batch, queryName);
         Assert.True(refreshResult2.Success, $"Second refresh failed: {refreshResult2.ErrorMessage}");
 
-        // STEP 6: Check that there are now TWO columns
+        // STEP 6: Verify QueryTable still exists (not converted to range) and check column structure
+        var queryTableCheck2 = await batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheets = null;
+            dynamic? sheet = null;
+            dynamic? queryTables = null;
+            try
+            {
+                sheets = ctx.Book.Worksheets;
+                for (int i = 1; i <= sheets.Count; i++)
+                {
+                    dynamic? currentSheet = null;
+                    try
+                    {
+                        currentSheet = sheets.Item(i);
+                        if (currentSheet.Name == sheetName)
+                        {
+                            sheet = currentSheet;
+                            currentSheet = null;
+                            break;
+                        }
+                    }
+                    finally
+                    {
+                        if (currentSheet != null)
+                            ComUtilities.Release(ref currentSheet);
+                    }
+                }
+
+                if (sheet == null)
+                    return (false, 0);
+
+                queryTables = sheet.QueryTables;
+                int qtCount = queryTables.Count;
+                return (qtCount > 0, qtCount);
+            }
+            finally
+            {
+                if (queryTables != null)
+                    ComUtilities.Release(ref queryTables);
+                if (sheet != null)
+                    ComUtilities.Release(ref sheet);
+                if (sheets != null)
+                    ComUtilities.Release(ref sheets);
+            }
+        });
+
+        Assert.True(queryTableCheck2.Item1, "After second update, QueryTable should still exist (not converted to range)");
+        Assert.True(queryTableCheck2.Item2 == 1,
+            $"After second update, expected exactly 1 QueryTable but found {queryTableCheck2.Item2}. " +
+            "Multiple QueryTables indicates improper cleanup during UpdateAsync.");
+
+        // Check that there are now TWO columns
         // BUG: This assertion will FAIL because Excel's QueryTable doesn't update column structure on refresh
         var usedRange3 = await rangeCommands.GetUsedRangeAsync(batch, sheetName);
         Assert.True(usedRange3.Success, $"GetUsedRange after second update failed: {usedRange3.ErrorMessage}");
@@ -620,15 +725,18 @@ in
     }
 
     /// <summary>
-    /// REGRESSION TEST: Reproduces column ACCUMULATION bug when using delete/recreate workaround
+    /// REGRESSION TEST: Verifies column accumulation bug is FIXED when using delete/recreate workaround
     ///
-    /// Bug scenario (early test approach):
+    /// Original bug scenario:
     /// 1. Create query with 1 column (Column1)
     /// 2. Update M code to 2 columns (Column1, Column2)
     /// 3. Delete query + SetLoadToTable (recreate QueryTable) + Refresh
-    /// 4. BUG: Excel creates 3 columns (Column1, Column1, Column2) - ACCUMULATES instead of replacing!
+    /// 4. BUG (FIXED): Excel created 3-4 columns (Column1, Column1, Column2) - ACCUMULATED instead of replacing!
     ///
-    /// This reproduces the exact scenario from early testing where we saw 3 columns.
+    /// Root cause: SetLoadToTableAsync called usedRange.Clear() before creating QueryTable
+    /// Fix: Removed usedRange.Clear(), only delete query-specific QueryTables
+    ///
+    /// This test verifies the bug is NOW FIXED and columns are NOT accumulated.
     /// </summary>
     [Fact]
     public async Task Update_QueryColumnStructureWithDeleteRecreate_AccumulatesColumns()
@@ -698,11 +806,11 @@ in
         var refreshResult = await _powerQueryCommands.RefreshAsync(batch, queryName);
         Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
 
-        // STEP 4: Check for column accumulation bug
+        // STEP 4: Verify the bug is FIXED - should have exactly 2 columns (NOT accumulated)
         var usedRange2 = await rangeCommands.GetUsedRangeAsync(batch, sheetName);
         Assert.True(usedRange2.Success);
 
-        // Get actual column headers
+        // Get actual column headers for diagnostics
         var values = await rangeCommands.GetValuesAsync(batch, sheetName, usedRange2.RangeAddress);
         Assert.True(values.Success);
 
@@ -711,13 +819,14 @@ in
             ? string.Join(", ", headerRow.Select(c => c?.ToString() ?? "null"))
             : "No headers found";
 
-        // DIAGNOSTIC OUTPUT: This should show us the 3-column accumulation bug!
-        // Expected bug behavior: Excel shows 3 columns (Column1, Column1, Column2)
-        // The workaround of delete+recreate causes Excel to APPEND the new QueryTable instead of replacing
+        // REGRESSION ASSERTION: Verify bug is FIXED - exactly 2 columns (NOT 3-4 due to accumulation)
+        // Original bug: Would get 3-4 columns (Column1, Column1, Column2) or (Column1, Column2, Column1, Column2)
+        // Expected after fix: Exactly 2 columns (Column1, Column2)
         Assert.True(usedRange2.ColumnCount == 2,
-            $"COLUMN ACCUMULATION BUG REPRODUCED! Expected 2 columns but got {usedRange2.ColumnCount}. " +
+            $"REGRESSION: Column accumulation bug should be FIXED! Expected 2 columns but got {usedRange2.ColumnCount}. " +
             $"Actual columns: [{columnNames}]. " +
-            $"This proves that delete+recreate causes Excel to append QueryTable columns instead of replacing them.");
+            $"If this fails with >2 columns, the bug has regressed. " +
+            $"If this fails with <2 columns, something else is wrong.");
     }
 
     #endregion
