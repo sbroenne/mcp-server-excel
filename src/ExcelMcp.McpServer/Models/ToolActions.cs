@@ -25,25 +25,18 @@ public enum FileAction
 /// - Unload: Convert to connection-only (inverse of LoadTo)
 /// - UpdateAndRefresh: Convenience wrapper (UpdateMCode + Refresh)
 /// - RefreshAll: Batch refresh all queries
-/// 
+///
 /// NOTE: ValidateSyntax removed - Excel validation timing differs from test expectations
 /// </remarks>
 public enum PowerQueryAction
 {
     List,
     View,
-    Import,
     Export,
-    Update,
     Refresh,
     Delete,
-    SetLoadToTable,
-    SetLoadToDataModel,
-    SetLoadToBoth,
-    SetConnectionOnly,
     GetLoadConfig,
     Errors,
-    LoadTo,
     ListExcelSources,
     Eval,
 
@@ -52,7 +45,8 @@ public enum PowerQueryAction
     UpdateMCode,
     Unload,
     UpdateAndRefresh,
-    RefreshAll
+    RefreshAll,
+    LoadTo
 }
 
 /// <summary>

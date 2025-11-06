@@ -25,7 +25,7 @@ public partial class QueryTableCommandsTests
         var mCode = "let Source = #table({\"Name\", \"Value\"}, {{\"A\", 1}, {\"B\", 2}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "DataQuery.pq");
         await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
-        var importResult = await pqCommands.ImportAsync(batch, "DataQuery", mCodeFile, loadDestination: "connection-only");
+        var importResult = await pqCommands.CreateAsync(batch, "DataQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
         Assert.True(importResult.Success);
 
         // Create worksheet
@@ -83,7 +83,7 @@ public partial class QueryTableCommandsTests
         var mCode = "let Source = #table({\"Col1\"}, {{\"Val1\"}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "TestQuery.pq");
         await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
-        await pqCommands.ImportAsync(batch, "TestQuery", mCodeFile, loadDestination: "connection-only");
+        await pqCommands.CreateAsync(batch, "TestQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
         await sheetCommands.CreateAsync(batch, "Sheet1");
@@ -124,7 +124,7 @@ public partial class QueryTableCommandsTests
         var mCode = "let Source = #table({\"A\"}, {{1}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "Q1.pq");
         await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
-        await pqCommands.ImportAsync(batch, "Q1", mCodeFile, loadDestination: "connection-only");
+        await pqCommands.CreateAsync(batch, "Q1", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
         await sheetCommands.CreateAsync(batch, "S1");
@@ -160,3 +160,7 @@ public partial class QueryTableCommandsTests
         Assert.Contains("not found", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 }
+
+
+
+

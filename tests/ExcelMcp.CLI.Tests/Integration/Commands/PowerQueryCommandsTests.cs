@@ -65,31 +65,4 @@ public class CliPowerQueryCommandsTests
         // Assert - CLI returns 1 for error (invalid file extension)
         Assert.Equal(1, exitCode);
     }
-
-    [Theory]
-    [InlineData("pq-import")]
-    [InlineData("pq-update")]
-    public async Task AsyncCommands_WithMissingArgs_ReturnsErrorExitCode(string command)
-    {
-        // Arrange
-        string[] args = { command }; // Missing required arguments
-
-        // Act & Assert - Handle potential markup exceptions
-        try
-        {
-            int exitCode = command switch
-            {
-                "pq-import" => await _cliCommands.Import(args),
-                "pq-update" => await _cliCommands.Update(args),
-                _ => throw new ArgumentException($"Unknown command: {command}")
-            };
-            Assert.Equal(1, exitCode); // CLI returns 1 for error (missing arguments)
-        }
-        catch (Exception ex)
-        {
-            // CLI has markup issues - document current behavior
-            Assert.True(ex is InvalidOperationException || ex is ArgumentException,
-                $"Unexpected exception type: {ex.GetType().Name}: {ex.Message}");
-        }
-    }
 }

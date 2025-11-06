@@ -51,12 +51,12 @@ public partial class PowerQueryCommands
                 return result;
             }
 
+            // Default to query name for worksheet name (Excel's default behavior)
             if ((loadTo == PowerQueryLoadMode.LoadToTable || loadTo == PowerQueryLoadMode.LoadToBoth)
                 && string.IsNullOrWhiteSpace(worksheetName))
             {
-                result.Success = false;
-                result.ErrorMessage = "Worksheet name required when loading to table";
-                return result;
+                worksheetName = queryName;
+                result.WorksheetName = worksheetName;
             }
 
             // Read M code
@@ -101,8 +101,27 @@ public partial class PowerQueryCommands
                             break;
 
                         case PowerQueryLoadMode.LoadToTable:
-                            // Load to worksheet table
-                            sheet = ctx.Book.Worksheets.Item(worksheetName!);
+                            // Load to worksheet table - create sheet if it doesn't exist
+                            dynamic? worksheets = null;
+                            try
+                            {
+                                worksheets = ctx.Book.Worksheets;
+                                try
+                                {
+                                    sheet = worksheets.Item(worksheetName!);
+                                }
+                                catch (System.Runtime.InteropServices.COMException)
+                                {
+                                    // Sheet doesn't exist, create it
+                                    sheet = worksheets.Add();
+                                    sheet.Name = worksheetName;
+                                }
+                            }
+                            finally
+                            {
+                                ComInterop.ComUtilities.Release(ref worksheets!);
+                            }
+                            
                             queryTable = CreateQueryTableForQuery(sheet, query);
                             queryTable.Refresh(false);  // Synchronous refresh
                             result.DataLoaded = true;
@@ -144,8 +163,27 @@ public partial class PowerQueryCommands
                             break;
 
                         case PowerQueryLoadMode.LoadToBoth:
-                            // Load to both worksheet and Data Model
-                            sheet = ctx.Book.Worksheets.Item(worksheetName!);
+                            // Load to both worksheet and Data Model - create sheet if it doesn't exist
+                            dynamic? worksheetsBoth = null;
+                            try
+                            {
+                                worksheetsBoth = ctx.Book.Worksheets;
+                                try
+                                {
+                                    sheet = worksheetsBoth.Item(worksheetName!);
+                                }
+                                catch (System.Runtime.InteropServices.COMException)
+                                {
+                                    // Sheet doesn't exist, create it
+                                    sheet = worksheetsBoth.Add();
+                                    sheet.Name = worksheetName;
+                                }
+                            }
+                            finally
+                            {
+                                ComInterop.ComUtilities.Release(ref worksheetsBoth!);
+                            }
+                            
                             queryTable = CreateQueryTableForQuery(sheet, query);
                             queryTable.Refresh(false);
 
@@ -596,99 +634,6 @@ public partial class PowerQueryCommands
             }
         }, cancellationToken: default);
     }
-
-    /*
-    // ValidateSyntaxAsync removed - Excel doesn't validate M code syntax at query creation time.
-    // Validation only happens during refresh, making syntax-only validation unreliable.
-    // Users should use CreateAsync + RefreshAsync to discover syntax errors.
-
-    /// <summary>
-    /// Validates M code syntax without creating a query
-    /// </summary>
-    /// <param name="batch">Excel batch session</param>
-    /// <param name="mCodeFile">Path to M code file</param>
-    /// <returns>Validation result with syntax errors if any</returns>
-    public async Task<PowerQueryValidationResult> ValidateSyntaxAsync(
-        IExcelBatch batch,
-        string mCodeFile)
-    {
-        var result = new PowerQueryValidationResult
-        {
-            FilePath = batch.WorkbookPath
-        };
-
-        try
-        {
-            if (!File.Exists(mCodeFile))
-            {
-                result.Success = false;
-                result.ErrorMessage = $"M code file not found: {mCodeFile}";
-                return result;
-            }
-
-            var mCode = await File.ReadAllTextAsync(mCodeFile);
-            if (string.IsNullOrWhiteSpace(mCode))
-            {
-                result.Success = false;
-                result.ErrorMessage = "M code file is empty";
-                result.IsValid = false;
-                return result;
-            }
-
-            return await batch.Execute((ctx, ct) =>
-            {
-                dynamic? queries = null;
-                dynamic? testQuery = null;
-
-                try
-                {
-                    queries = ctx.Book.Queries;
-
-                    // Create temporary query to test syntax
-                    string testName = $"__ValidationTest_{Guid.NewGuid():N}";
-                    testQuery = queries.Add(testName, mCode);
-
-                    // If we got here, syntax is valid
-                    result.IsValid = true;
-                    result.Success = true;
-                    result.SuggestedNextActions = new List<string>
-                    {
-                        "M code syntax is valid",
-                        "Use CreateAsync() to create query with this M code",
-                        "Use UpdateMCodeAsync() to update existing query"
-                    };
-
-                    // Delete test query
-                    testQuery.Delete();
-
-                    return result;
-                }
-                catch (COMException ex)
-                {
-                    result.IsValid = false;
-                    result.Success = true;  // Validation succeeded (found that M code is invalid)
-                    result.ErrorMessage = $"M code syntax error: {ex.Message}";
-                    result.ValidationErrors = new List<string> { ex.Message };
-                    result.IsRetryable = false;
-                    return result;
-                }
-                finally
-                {
-                    ComInterop.ComUtilities.Release(ref testQuery!);
-                    ComInterop.ComUtilities.Release(ref queries!);
-                }
-            }, cancellationToken: default);
-        }
-        catch (Exception ex)
-        {
-            result.Success = false;
-            result.ErrorMessage = $"Error validating M code: {ex.Message}";
-            result.IsValid = false;
-            result.IsRetryable = false;
-            return result;
-        }
-    }
-    */
 
     // ValidateSyntaxAsync removed - Excel doesn't validate M code syntax at query creation time.
     // Validation only happens during refresh, making syntax-only validation unreliable.

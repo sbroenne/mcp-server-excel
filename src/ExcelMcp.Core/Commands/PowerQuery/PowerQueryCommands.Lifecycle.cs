@@ -206,142 +206,6 @@ public partial class PowerQueryCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> UpdateAsync(IExcelBatch batch, string queryName, string mCodeFile)
-    {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "pq-update"
-        };
-
-        // Validate query name length (Excel limit: 120 characters)
-        if (string.IsNullOrWhiteSpace(queryName))
-        {
-            result.Success = false;
-            result.ErrorMessage = "Query name cannot be empty or whitespace";
-            return result;
-        }
-
-        if (queryName.Length > 120)
-        {
-            result.Success = false;
-            result.ErrorMessage = $"Query name exceeds Excel's 120-character limit (current length: {queryName.Length})";
-            return result;
-        }
-
-        // Validate and normalize the M code file path to prevent path traversal attacks
-        try
-        {
-            mCodeFile = PathValidator.ValidateExistingFile(mCodeFile, nameof(mCodeFile));
-        }
-        catch (Exception ex)
-        {
-            result.Success = false;
-            result.ErrorMessage = $"Invalid M code file path: {ex.Message}";
-            return result;
-        }
-
-        string mCode = await File.ReadAllTextAsync(mCodeFile);
-
-        // Update the query M code
-        // NOTE: Excel preserves load configuration when updating query.Formula property
-        result = await batch.Execute<OperationResult>((ctx, ct) =>
-        {
-            dynamic? query = null;
-            try
-            {
-                query = ComUtilities.FindQuery(ctx.Book, queryName);
-                if (query == null)
-                {
-                    var queryNames = GetQueryNames(ctx.Book);
-                    string? suggestion = FindClosestMatch(queryName, queryNames);
-
-                    result.Success = false;
-                    result.ErrorMessage = $"Query '{queryName}' not found";
-                    if (suggestion != null)
-                    {
-                        result.ErrorMessage += $". Did you mean '{suggestion}'?";
-                    }
-                    return result;
-                }
-
-                // Update M code
-                query.Formula = mCode;
-
-                // CRITICAL FIX: After updating formula, recreate QueryTable if loaded to worksheet
-                // This ensures column structure updates when M code changes (e.g., adding/removing columns)
-                // Excel's QueryTable locks column structure at creation - must recreate to apply changes
-                string? loadedSheet = DetermineLoadedSheet(ctx.Book, queryName);
-                if (!string.IsNullOrEmpty(loadedSheet))
-                {
-                    // Query is loaded to worksheet - recreate QueryTable to update column structure
-                    dynamic? targetSheet = null;
-                    dynamic? usedRange = null;
-                    try
-                    {
-                        targetSheet = ctx.Book.Worksheets.Item(loadedSheet);
-
-                        // Delete existing QueryTables for this query on the sheet
-                        PowerQueryHelpers.RemoveQueryTablesFromSheet(targetSheet, queryName);
-
-                        // CRITICAL: Clear the worksheet content to prevent data accumulation
-                        // When QueryTable is deleted, its data remains on the sheet
-                        // Must clear before creating fresh QueryTable
-                        try
-                        {
-                            usedRange = targetSheet.UsedRange;
-                            usedRange.Clear(); // Clears both content and formatting
-                        }
-                        catch
-                        {
-                            // If UsedRange fails (empty sheet), that's OK
-                        }
-
-                        // Create fresh QueryTable with updated column structure
-                        var queryTableOptions = new PowerQueryHelpers.QueryTableOptions
-                        {
-                            Name = queryName,
-                            RefreshImmediately = true // Refresh to load data
-                        };
-                        PowerQueryHelpers.CreateQueryTable(targetSheet, queryName, queryTableOptions);
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref usedRange);
-                        ComUtilities.Release(ref targetSheet);
-                    }
-                }
-
-                result.Success = true;
-
-                return result;
-            }
-            catch (COMException comEx) when (comEx.Message.Contains("Information is needed in order to combine data") ||
-                                             comEx.Message.Contains("Formula.Firewall", StringComparison.OrdinalIgnoreCase))
-            {
-                // Privacy level error - must be configured manually in Excel UI
-                result.Success = false;
-                result.ErrorMessage = "Privacy level error: This query combines data from multiple sources. " +
-                                    "Open the file in Excel and configure privacy levels manually: " +
-                                    "File → Options → Privacy. See COMMANDS.md for details.";
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error updating query: {ex.Message}";
-                return result;
-            }
-            finally
-            {
-                ComUtilities.Release(ref query);
-            }
-        });
-
-        return result;
-    }
-
-    /// <inheritdoc />
     public async Task<OperationResult> ExportAsync(IExcelBatch batch, string queryName, string outputFile)
     {
         var result = new OperationResult
@@ -410,157 +274,198 @@ public partial class PowerQueryCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> ImportAsync(IExcelBatch batch, string queryName, string mCodeFile, string loadDestination = "worksheet", string? worksheetName = null)
+    public async Task<PowerQueryLoadConfigResult> GetLoadConfigAsync(IExcelBatch batch, string queryName)
     {
-        var result = new OperationResult
+        var result = new PowerQueryLoadConfigResult
         {
             FilePath = batch.WorkbookPath,
-            Action = "pq-import"
+            QueryName = queryName
         };
 
-        // Validate query name length (Excel limit: 120 characters)
-        if (string.IsNullOrWhiteSpace(queryName))
+        // Validate query name
+        if (!ValidateQueryName(queryName, out string? validationError))
         {
             result.Success = false;
-            result.ErrorMessage = "Query name cannot be empty or whitespace";
+            result.ErrorMessage = validationError;
             return result;
         }
 
-        if (queryName.Length > 120)
+        return await batch.Execute<PowerQueryLoadConfigResult>((ctx, ct) =>
         {
-            result.Success = false;
-            result.ErrorMessage = $"Query name exceeds Excel's 120-character limit (current length: {queryName.Length})";
-            return result;
-        }
-
-        // Validate loadDestination parameter
-        var validDestinations = new[] { "worksheet", "data-model", "both", "connection-only" };
-        if (!validDestinations.Contains(loadDestination.ToLowerInvariant()))
-        {
-            result.Success = false;
-            result.ErrorMessage = $"Invalid loadDestination: '{loadDestination}'. Valid values: {string.Join(", ", validDestinations)}";
-            return result;
-        }
-
-        // Validate and normalize the M code file path to prevent path traversal attacks
-        try
-        {
-            mCodeFile = PathValidator.ValidateExistingFile(mCodeFile, nameof(mCodeFile));
-        }
-        catch (Exception ex)
-        {
-            result.Success = false;
-            result.ErrorMessage = $"Invalid M code file path: {ex.Message}";
-            return result;
-        }
-
-        string mCode = await File.ReadAllTextAsync(mCodeFile);
-
-        result = await batch.Execute<OperationResult>((ctx, ct) =>
-        {
-            dynamic? existingQuery = null;
-            dynamic? queriesCollection = null;
-            dynamic? newQuery = null;
+            dynamic? query = null;
+            dynamic? worksheets = null;
+            dynamic? connections = null;
+            dynamic? names = null;
             try
             {
-                // Check if query already exists
-                existingQuery = ComUtilities.FindQuery(ctx.Book, queryName);
-                if (existingQuery != null)
+                query = ComUtilities.FindQuery(ctx.Book, queryName);
+                if (query == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = $"Query '{queryName}' already exists. Use pq-update to modify it.";
+                    result.ErrorMessage = $"Query '{queryName}' not found";
                     return result;
                 }
 
-                // Add new query
-                queriesCollection = ctx.Book.Queries;
-                newQuery = queriesCollection.Add(queryName, mCode);
+                // Check for QueryTables first (table loading)
+                bool hasTableConnection = false;
+                bool hasDataModelConnection = false;
+                string? targetSheet = null;
 
+                worksheets = ctx.Book.Worksheets;
+                for (int ws = 1; ws <= worksheets.Count; ws++)
+                {
+                    dynamic? worksheet = null;
+                    dynamic? queryTables = null;
+                    try
+                    {
+                        worksheet = worksheets.Item(ws);
+                        queryTables = worksheet.QueryTables;
+
+                        for (int qt = 1; qt <= queryTables.Count; qt++)
+                        {
+                            dynamic? queryTable = null;
+                            try
+                            {
+                                queryTable = queryTables.Item(qt);
+                                string qtName = queryTable.Name?.ToString() ?? "";
+
+                                // Check if this QueryTable is for our query
+                                if (qtName.Equals(queryName.Replace(" ", "_"), StringComparison.OrdinalIgnoreCase) ||
+                                    qtName.Contains(queryName.Replace(" ", "_")))
+                                {
+                                    hasTableConnection = true;
+                                    targetSheet = worksheet.Name;
+                                    ComUtilities.Release(ref queryTable);
+                                    break;
+                                }
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref queryTable);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref queryTables);
+                        ComUtilities.Release(ref worksheet);
+                    }
+                    if (hasTableConnection) break;
+                }
+
+                // Check for connections (for data model or other types)
+                connections = ctx.Book.Connections;
+                for (int i = 1; i <= connections.Count; i++)
+                {
+                    dynamic? conn = null;
+                    try
+                    {
+                        conn = connections.Item(i);
+                        string connName = conn.Name?.ToString() ?? "";
+
+                        if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
+                            connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                        {
+                            result.HasConnection = true;
+
+                            // If we don't have a table connection but have a workbook connection,
+                            // it's likely a data model connection
+                            if (!hasTableConnection)
+                            {
+                                hasDataModelConnection = true;
+                            }
+                        }
+                        else if (connName.Equals($"DataModel_{queryName}", StringComparison.OrdinalIgnoreCase))
+                        {
+                            // This is our explicit data model connection marker
+                            result.HasConnection = true;
+                            hasDataModelConnection = true;
+                        }
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref conn);
+                    }
+                }
+
+                // Always check for named range markers that indicate data model loading
+                // (even if we have table connections, for LoadToBoth mode)
+                if (!hasDataModelConnection)
+                {
+                    // Check for our data model marker
+                    try
+                    {
+                        names = ctx.Book.Names;
+                        string markerName = $"DataModel_Query_{queryName}";
+
+                        for (int i = 1; i <= names.Count; i++)
+                        {
+                            dynamic? existingName = null;
+                            try
+                            {
+                                existingName = names.Item(i);
+                                if (existingName.Name.ToString() == markerName)
+                                {
+                                    hasDataModelConnection = true;
+                                    ComUtilities.Release(ref existingName);
+                                    break;
+                                }
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref existingName);
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Cannot check names
+                    }
+
+                    // Fallback: Check if the query has data model indicators
+                    if (!hasDataModelConnection)
+                    {
+                        hasDataModelConnection = CheckQueryDataModelConfiguration(query, ctx.Book);
+                    }
+                }
+
+                // Determine load mode
+                if (hasTableConnection && hasDataModelConnection)
+                {
+                    result.LoadMode = PowerQueryLoadMode.LoadToBoth;
+                }
+                else if (hasTableConnection)
+                {
+                    result.LoadMode = PowerQueryLoadMode.LoadToTable;
+                }
+                else if (hasDataModelConnection)
+                {
+                    result.LoadMode = PowerQueryLoadMode.LoadToDataModel;
+                }
+                else
+                {
+                    result.LoadMode = PowerQueryLoadMode.ConnectionOnly;
+                }
+
+                result.TargetSheet = targetSheet;
+                result.IsLoadedToDataModel = hasDataModelConnection;
                 result.Success = true;
-                return result;
-            }
-            catch (COMException comEx) when (comEx.Message.Contains("Information is needed in order to combine data") ||
-                                             comEx.Message.Contains("Formula.Firewall", StringComparison.OrdinalIgnoreCase))
-            {
-                // Privacy level error - must be configured manually in Excel UI
-                result.Success = false;
-                result.ErrorMessage = "Privacy level error: This query combines data from multiple sources. " +
-                                    "Open the file in Excel and configure privacy levels manually: " +
-                                    "File → Options → Privacy. See COMMANDS.md for details.";
                 return result;
             }
             catch (Exception ex)
             {
                 result.Success = false;
-                result.ErrorMessage = $"Error importing query: {ex.Message}";
+                result.ErrorMessage = $"Error getting load config: {ex.Message}";
                 return result;
             }
             finally
             {
-                ComUtilities.Release(ref newQuery);
-                ComUtilities.Release(ref queriesCollection);
-                ComUtilities.Release(ref existingQuery);
+                ComUtilities.Release(ref names);
+                ComUtilities.Release(ref connections);
+                ComUtilities.Release(ref worksheets);
+                ComUtilities.Release(ref query);
             }
         });
-
-        // Auto-load based on loadDestination parameter
-        if (result.Success)
-        {
-            var destination = loadDestination.ToLowerInvariant();
-            OperationResult? loadResult = null;
-
-            switch (destination)
-            {
-                case "worksheet":
-                    string targetSheet = worksheetName ?? queryName;
-                    loadResult = await SetLoadToTableAsync(batch, queryName, targetSheet);
-                    break;
-
-                case "data-model":
-                    var dmResult = await SetLoadToDataModelAsync(batch, queryName);
-                    loadResult = new OperationResult
-                    {
-                        Success = dmResult.Success,
-                        ErrorMessage = dmResult.ErrorMessage,
-                        FilePath = dmResult.FilePath
-                    };
-                    break;
-
-                case "both":
-                    string targetSheetBoth = worksheetName ?? queryName;
-                    var bothResult = await SetLoadToBothAsync(batch, queryName, targetSheetBoth);
-                    loadResult = new OperationResult
-                    {
-                        Success = bothResult.Success,
-                        ErrorMessage = bothResult.ErrorMessage,
-                        FilePath = bothResult.FilePath
-                    };
-                    break;
-
-                case "connection-only":
-                    // No loading - query imported but not executed
-                    return result;
-            }
-
-            // Handle loading result
-            if (loadResult != null && !loadResult.Success)
-            {
-                // Loading failed - this is a FAILURE, not success
-                result.Success = false;
-                result.ErrorMessage = $"Query imported but failed to load to {destination}: {loadResult.ErrorMessage}";
-                return result;
-            }
-            else if (loadResult != null && loadResult.Success)
-            {
-                // CRITICAL: Save the workbook to persist changes
-                await batch.SaveAsync();
-
-                // Query was loaded successfully
-                return result;
-            }
-        }
-
-        return result;
     }
 
     /// <inheritdoc />

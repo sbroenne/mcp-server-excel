@@ -19,7 +19,7 @@ Suggested Next Actions:
 ```
 
 ### New Features
-- `--connection-only` flag for `pq-import` to create queries without loading data to worksheets
+- Phase 1 atomic operations: `pq-create`, `pq-update-mcode`, `pq-update-and-refresh`, `pq-unload`, `pq-refresh-all`
 - All commands display workflow hints and suggested actions after success
 
 ---
@@ -56,27 +56,11 @@ excelcli pq-list <file.xlsx>
 excelcli pq-view <file.xlsx> <query-name>
 ```
 
-**pq-import** - Create or import query from file
-
-```powershell
-excelcli pq-import <file.xlsx> <query-name> <source.pq> [--privacy-level <None|Private|Organizational|Public>]
-```
-
-Import a Power Query from an M code file. If the query combines data from multiple sources and privacy level is not specified, you'll receive guidance on which privacy level to choose.
-
 **pq-export** - Export query to file
 
 ```powershell
 excelcli pq-export <file.xlsx> <query-name> <output.pq>
 ```
-
-**pq-update** - Update existing query from file
-
-```powershell
-excelcli pq-update <file.xlsx> <query-name> <code.pq> [--privacy-level <None|Private|Organizational|Public>]
-```
-
-Update an existing Power Query with new M code. If the query combines data from multiple sources and privacy level is not specified, you'll receive guidance on which privacy level to choose.
 
 **pq-refresh** - Refresh query data
 
@@ -235,21 +219,15 @@ excelcli pq-list "Analytics.xlsx"  # Verify queries still exist
 **Comparison: Old vs New Workflows**
 
 ```powershell
-# OLD WORKFLOW (2 commands per query):
-excelcli pq-import "file.xlsx" "Sales" "sales.pq"
-excelcli pq-loadto "file.xlsx" "Sales" "SalesSheet"
+# OLD WORKFLOW: Phase 3 commands (REMOVED)
+# pq-import was removed - use pq-create instead
+# pq-update was removed - use pq-update-mcode or pq-update-and-refresh instead
 
-# NEW WORKFLOW (1 atomic command):
-excelcli pq-create "file.xlsx" "Sales" "sales.pq" --destination worksheet
+# NEW WORKFLOW (Phase 1 - atomic operations):
+excelcli pq-create "file.xlsx" "Sales" "sales.pq"  # Create + load in one step
+excelcli pq-update-and-refresh "file.xlsx" "Sales" "sales.pq"  # Update + refresh in one step
 
-# OLD WORKFLOW (2 commands for update + refresh):
-excelcli pq-update "file.xlsx" "Sales" "sales.pq"
-excelcli pq-refresh "file.xlsx" "Sales"
-
-# NEW WORKFLOW (1 atomic command):
-excelcli pq-update-and-refresh "file.xlsx" "Sales" "sales.pq"
-
-# Time savings: ~50% fewer commands, atomic operations prevent intermediate states
+# Time savings: Atomic operations prevent intermediate states and reduce command count
 ```
 
 ## Sheet Commands (`sheet-*`)

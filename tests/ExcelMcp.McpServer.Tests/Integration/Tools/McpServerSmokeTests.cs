@@ -203,13 +203,13 @@ in
         File.WriteAllText(_testQueryFile, mCode);
 
         var importQueryResult = await ExcelPowerQueryTool.ExcelPowerQuery(
-            PowerQueryAction.Import,
+            PowerQueryAction.Create,
             _testExcelFile,
             queryName: "CsvData",
             sourcePath: _testQueryFile,
             loadDestination: "connection-only",
             batchId: batchId);
-        AssertSuccess(importQueryResult, "Import Power Query in batch");
+        AssertSuccess(importQueryResult, "Create Power Query in batch");
 
         var listQueriesResult = await ExcelPowerQueryTool.ExcelPowerQuery(
             PowerQueryAction.List,
