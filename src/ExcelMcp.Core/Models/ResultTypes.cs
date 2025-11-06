@@ -435,6 +435,102 @@ public class PowerQueryLoadToBothResult : OperationResult
 }
 
 /// <summary>
+/// Result for Power Query create operations (Phase 1 API)
+/// Atomic operation: Import M code + Load data to destination in ONE call
+/// </summary>
+public class PowerQueryCreateResult : OperationResult
+{
+    /// <summary>
+    /// Name of the created query
+    /// </summary>
+    public string QueryName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Load destination applied
+    /// </summary>
+    public PowerQueryLoadMode LoadDestination { get; set; }
+
+    /// <summary>
+    /// Target worksheet name (if LoadToTable or LoadToBoth)
+    /// </summary>
+    public string? WorksheetName { get; set; }
+
+    /// <summary>
+    /// Whether the query was created successfully
+    /// </summary>
+    public bool QueryCreated { get; set; }
+
+    /// <summary>
+    /// Whether data was loaded (true for all except ConnectionOnly)
+    /// </summary>
+    public bool DataLoaded { get; set; }
+
+    /// <summary>
+    /// Number of rows loaded (0 if ConnectionOnly)
+    /// </summary>
+    public int RowsLoaded { get; set; }
+}
+
+/// <summary>
+/// Result for Power Query load operations (Phase 1 API)
+/// Atomic operation: Set destination + Refresh data in ONE call
+/// </summary>
+public class PowerQueryLoadResult : OperationResult
+{
+    /// <summary>
+    /// Name of the query
+    /// </summary>
+    public string QueryName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Load destination applied
+    /// </summary>
+    public PowerQueryLoadMode LoadDestination { get; set; }
+
+    /// <summary>
+    /// Target worksheet name (if applicable)
+    /// </summary>
+    public string? WorksheetName { get; set; }
+
+    /// <summary>
+    /// Whether load configuration was applied
+    /// </summary>
+    public bool ConfigurationApplied { get; set; }
+
+    /// <summary>
+    /// Whether data was refreshed
+    /// </summary>
+    public bool DataRefreshed { get; set; }
+
+    /// <summary>
+    /// Number of rows loaded
+    /// </summary>
+    public int RowsLoaded { get; set; }
+}
+
+/// <summary>
+/// Result for Power Query syntax validation (Phase 1 API)
+/// Pre-flight syntax check before creating permanent query
+/// </summary>
+public class PowerQueryValidationResult : ResultBase
+{
+    /// <summary>
+    /// Whether the M code syntax is valid
+    /// </summary>
+    public bool IsValid { get; set; }
+
+    /// <summary>
+    /// Validation errors (if any)
+    /// </summary>
+    public List<string> ValidationErrors { get; set; } = new();
+
+    /// <summary>
+    /// M code expression that was validated
+    /// </summary>
+    public string? MCodeExpression { get; set; }
+}
+
+/// <summary>
 /// Result for listing named ranges/parameters
 /// </summary>
 public class NamedRangeListResult : ResultBase
