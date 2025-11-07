@@ -6,6 +6,8 @@ using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
+#pragma warning disable CA1861 // Avoid constant arrays as arguments - workflow hints are contextual per-call
+
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
@@ -113,7 +115,21 @@ public static class PivotTableTool
                     {
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, false,
                             commands.ListAsync);
-                        return JsonSerializer.Serialize(result, JsonOptions);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.PivotTables,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Found {result.PivotTables.Count} PivotTable(s) - ready for analysis or field management"
+                                : "Failed to list PivotTables - check workbook contains PivotTables",
+                            suggestedNextActions = result.Success
+                                ? result.PivotTables.Count == 0
+                                    ? new[] { "Create PivotTable with create-from-range, create-from-table, or create-from-datamodel", "Load data into workbook first", "Check if PivotTables exist in different sheets" }
+                                    : new[] { $"Use get to view {result.PivotTables[0].Name} details", "Use list-fields to see available fields", "Use refresh to update data from source" }
+                                : new[] { "Verify file path is correct", "Check workbook opens in Excel", "Ensure workbook permissions allow access" }
+                        }, JsonOptions);
                     }
 
                 case PivotTableAction.Get:
@@ -123,7 +139,20 @@ public static class PivotTableTool
 
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, false,
                             async (batch) => await commands.GetAsync(batch, pivotTableName!));
-                        return JsonSerializer.Serialize(result, JsonOptions);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.PivotTable,
+                            result.Fields,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"{result.PivotTable.Name}: {result.PivotTable.RowFieldCount} rows, {result.PivotTable.ColumnFieldCount} cols, {result.PivotTable.ValueFieldCount} values, {result.Fields.Count} total fields"
+                                : $"PivotTable '{pivotTableName}' not found or inaccessible",
+                            suggestedNextActions = result.Success
+                                ? new[] { "Use add-row-field, add-column-field, or add-value-field to configure", "Use refresh to update with latest source data", "Use get-data to extract PivotTable results" }
+                                : new[] { "Use list to see all available PivotTables", "Check PivotTable name spelling", "Verify PivotTable exists in workbook" }
+                        }, JsonOptions);
                     }
 
                 case PivotTableAction.CreateFromRange:
@@ -142,7 +171,24 @@ public static class PivotTableTool
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, true,
                             async (batch) => await commands.CreateFromRangeAsync(batch, sheetName!, range!,
                                 destinationSheet!, destinationCell!, pivotTableName!));
-                        return JsonSerializer.Serialize(result, JsonOptions);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.PivotTableName,
+                            result.SheetName,
+                            result.Range,
+                            result.SourceData,
+                            result.SourceRowCount,
+                            result.AvailableFields,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"PivotTable '{result.PivotTableName}' created at {result.SheetName}!{result.Range} from {result.SourceRowCount} rows, {result.AvailableFields.Count} fields available"
+                                : "Failed to create PivotTable from range - check source range contains headers and data",
+                            suggestedNextActions = result.Success
+                                ? new[] { $"Use add-row-field with fields: {string.Join(", ", result.AvailableFields.Take(3))}", "Use add-value-field to summarize data", "Use add-filter-field to enable interactive filtering" }
+                                : new[] { "Verify source range contains header row", "Check source range has at least 2 rows (headers + data)", "Ensure range address is valid (e.g., A1:D100)" }
+                        }, JsonOptions);
                     }
 
                 case PivotTableAction.CreateFromTable:
@@ -159,7 +205,24 @@ public static class PivotTableTool
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, true,
                             async (batch) => await commands.CreateFromTableAsync(batch, tableName!,
                                 destinationSheet!, destinationCell!, pivotTableName!));
-                        return JsonSerializer.Serialize(result, JsonOptions);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.PivotTableName,
+                            result.SheetName,
+                            result.Range,
+                            result.SourceData,
+                            result.SourceRowCount,
+                            result.AvailableFields,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"PivotTable '{result.PivotTableName}' created at {result.SheetName}!{result.Range} from Excel Table '{tableName}' ({result.SourceRowCount} rows)"
+                                : $"Failed to create PivotTable from table '{tableName}' - verify table exists",
+                            suggestedNextActions = result.Success
+                                ? new[] { $"Use add-row-field with fields: {string.Join(", ", result.AvailableFields.Take(3))}", "Use add-value-field to calculate aggregations", "Use refresh when source table data changes" }
+                                : new[] { "Use table-list to see available Excel Tables", "Check table name spelling", "Ensure table contains data rows" }
+                        }, JsonOptions);
                     }
 
                 case PivotTableAction.CreateFromDataModel:
@@ -176,7 +239,24 @@ public static class PivotTableTool
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, true,
                             async (batch) => await commands.CreateFromDataModelAsync(batch, dataModelTableName!,
                                 destinationSheet!, destinationCell!, pivotTableName!));
-                        return JsonSerializer.Serialize(result, JsonOptions);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.PivotTableName,
+                            result.SheetName,
+                            result.Range,
+                            result.SourceData,
+                            result.SourceRowCount,
+                            result.AvailableFields,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"PivotTable '{result.PivotTableName}' created from Data Model table '{dataModelTableName}' ({result.SourceRowCount} rows) with DAX measures support"
+                                : $"Failed to create PivotTable from Data Model table '{dataModelTableName}'",
+                            suggestedNextActions = result.Success
+                                ? new[] { $"Use add-row-field with fields: {string.Join(", ", result.AvailableFields.Take(3))}", "Use add-value-field to add DAX measures", "Leverage relationships between Data Model tables" }
+                                : new[] { "Use dm-list-tables to see available Data Model tables", "Verify Data Model contains data (use dm-refresh)", "Check table name spelling" }
+                        }, JsonOptions);
                     }
 
                 case PivotTableAction.Delete:
@@ -186,7 +266,18 @@ public static class PivotTableTool
 
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, true,
                             async (batch) => await commands.DeleteAsync(batch, pivotTableName!));
-                        return JsonSerializer.Serialize(result, JsonOptions);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"PivotTable '{pivotTableName}' deleted - analysis removed from workbook"
+                                : $"Failed to delete PivotTable '{pivotTableName}'",
+                            suggestedNextActions = result.Success
+                                ? new[] { "Use list to verify deletion", "Create new PivotTable if needed", "Source data remains unchanged" }
+                                : new[] { "Verify PivotTable name is correct", "Check PivotTable isn't protected", "Use list to see available PivotTables" }
+                        }, JsonOptions);
                     }
 
                 case PivotTableAction.Refresh:
@@ -196,7 +287,29 @@ public static class PivotTableTool
 
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, true,
                             async (batch) => await commands.RefreshAsync(batch, pivotTableName!));
-                        return JsonSerializer.Serialize(result, JsonOptions);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.PivotTableName,
+                            result.RefreshTime,
+                            result.SourceRecordCount,
+                            result.PreviousRecordCount,
+                            result.StructureChanged,
+                            result.NewFields,
+                            result.RemovedFields,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? result.StructureChanged
+                                    ? $"Refreshed '{result.PivotTableName}': {result.SourceRecordCount} rows (was {result.PreviousRecordCount}), structure changed - {result.NewFields.Count} new, {result.RemovedFields.Count} removed"
+                                    : $"Refreshed '{result.PivotTableName}': {result.SourceRecordCount} rows (was {result.PreviousRecordCount})"
+                                : $"Failed to refresh PivotTable '{pivotTableName}' - check source data connectivity",
+                            suggestedNextActions = result.Success
+                                ? result.StructureChanged
+                                    ? new[] { $"Review new fields: {string.Join(", ", result.NewFields.Take(3))}", $"Update field configuration if needed", "Verify removed fields didn't break analysis" }
+                                    : new[] { "Use get-data to extract refreshed results", "Verify data changes as expected", "Continue with field configuration or analysis" }
+                                : new[] { "Check source data connection is valid", "Verify source table/range still exists", "Ensure source data is accessible" }
+                        }, JsonOptions);
                     }
 
                 case PivotTableAction.ListFields:
@@ -206,7 +319,21 @@ public static class PivotTableTool
 
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, false,
                             async (batch) => await commands.ListFieldsAsync(batch, pivotTableName!));
-                        return JsonSerializer.Serialize(result, JsonOptions);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.Fields,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"{result.Fields.Count} field(s) in '{pivotTableName}' - ready for field configuration"
+                                : $"Failed to list fields for PivotTable '{pivotTableName}'",
+                            suggestedNextActions = result.Success
+                                ? result.Fields.Count == 0
+                                    ? new[] { "Use add-row-field to add grouping dimensions", "Use add-value-field to add calculations", "Check source data contains fields" }
+                                    : new[] { $"Use add-row-field with available fields", "Use add-value-field for aggregations", "Use set-field-function to change calculations" }
+                                : new[] { "Verify PivotTable name is correct", "Use list to see available PivotTables", "Refresh PivotTable if structure changed" }
+                        }, JsonOptions);
                     }
 
                 case PivotTableAction.AddRowField:
@@ -218,7 +345,27 @@ public static class PivotTableTool
 
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, true,
                             async (batch) => await commands.AddRowFieldAsync(batch, pivotTableName!, fieldName!, position));
-                        return JsonSerializer.Serialize(result, JsonOptions);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.FieldName,
+                            result.CustomName,
+                            result.Area,
+                            result.Position,
+                            result.Function,
+                            result.NumberFormat,
+                            result.AvailableValues,
+                            result.SampleValue,
+                            result.DataType,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Added '{result.FieldName}' as row field at position {result.Position} - grouping enabled"
+                                : $"Failed to add row field '{fieldName}' to PivotTable '{pivotTableName}'",
+                            suggestedNextActions = result.Success
+                                ? new[] { "Use add-column-field or add-value-field to complete analysis", "Use add-filter-field for interactive filtering", "Use refresh if source data changed" }
+                                : new[] { "Use list-fields to see available field names", "Check field name spelling", "Verify PivotTable exists (use list)" }
+                        }, JsonOptions);
                     }
 
                 case PivotTableAction.AddColumnField:
@@ -230,7 +377,27 @@ public static class PivotTableTool
 
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, true,
                             async (batch) => await commands.AddColumnFieldAsync(batch, pivotTableName!, fieldName!, position));
-                        return JsonSerializer.Serialize(result, JsonOptions);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.FieldName,
+                            result.CustomName,
+                            result.Area,
+                            result.Position,
+                            result.Function,
+                            result.NumberFormat,
+                            result.AvailableValues,
+                            result.SampleValue,
+                            result.DataType,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Added '{result.FieldName}' as column field at position {result.Position} - cross-tabulation enabled"
+                                : $"Failed to add column field '{fieldName}' to PivotTable '{pivotTableName}'",
+                            suggestedNextActions = result.Success
+                                ? new[] { "Use add-value-field to calculate aggregations across columns", "Use add-row-field for grouping", "Use get-data to extract cross-tab results" }
+                                : new[] { "Use list-fields to see available field names", "Check field name spelling", "Verify PivotTable exists (use list)" }
+                        }, JsonOptions);
                     }
 
                 case PivotTableAction.AddValueField:
@@ -251,7 +418,27 @@ public static class PivotTableTool
 
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, true,
                             async (batch) => await commands.AddValueFieldAsync(batch, pivotTableName!, fieldName!, function, customName));
-                        return JsonSerializer.Serialize(result, JsonOptions);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.FieldName,
+                            result.CustomName,
+                            result.Area,
+                            result.Position,
+                            result.Function,
+                            result.NumberFormat,
+                            result.AvailableValues,
+                            result.SampleValue,
+                            result.DataType,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Added value field '{result.CustomName}' ({result.Function}) at position {result.Position} - aggregation configured"
+                                : $"Failed to add value field '{fieldName}' to PivotTable '{pivotTableName}'",
+                            suggestedNextActions = result.Success
+                                ? new[] { "Use set-field-format to apply number formatting", "Use set-field-name to customize display name", "Use get-data to extract aggregated results" }
+                                : new[] { "Use list-fields to see available field names", "Check field name spelling", "Verify field is numeric for Sum/Average functions" }
+                        }, JsonOptions);
                     }
 
                 case PivotTableAction.AddFilterField:
@@ -263,7 +450,27 @@ public static class PivotTableTool
 
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, true,
                             async (batch) => await commands.AddFilterFieldAsync(batch, pivotTableName!, fieldName!));
-                        return JsonSerializer.Serialize(result, JsonOptions);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.FieldName,
+                            result.CustomName,
+                            result.Area,
+                            result.Position,
+                            result.Function,
+                            result.NumberFormat,
+                            result.AvailableValues,
+                            result.SampleValue,
+                            result.DataType,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Added filter field '{result.FieldName}' - interactive filtering enabled with {result.AvailableValues.Count} possible values"
+                                : $"Failed to add filter field '{fieldName}' to PivotTable '{pivotTableName}'",
+                            suggestedNextActions = result.Success
+                                ? new[] { $"Use set-field-filter with values from: {string.Join(", ", result.AvailableValues.Take(5))}", "Use get-data to view filtered results", "Add more filter fields for multi-dimensional filtering" }
+                                : new[] { "Use list-fields to see available field names", "Check field name spelling", "Verify PivotTable exists (use list)" }
+                        }, JsonOptions);
                     }
 
                 case PivotTableAction.RemoveField:
@@ -275,7 +482,27 @@ public static class PivotTableTool
 
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, true,
                             async (batch) => await commands.RemoveFieldAsync(batch, pivotTableName!, fieldName!));
-                        return JsonSerializer.Serialize(result, JsonOptions);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.FieldName,
+                            result.CustomName,
+                            result.Area,
+                            result.Position,
+                            result.Function,
+                            result.NumberFormat,
+                            result.AvailableValues,
+                            result.SampleValue,
+                            result.DataType,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Removed field '{result.FieldName}' from {result.Area} area - PivotTable reconfigured"
+                                : $"Failed to remove field '{fieldName}' from PivotTable '{pivotTableName}'",
+                            suggestedNextActions = result.Success
+                                ? new[] { "Use list-fields to verify field removal", "Use get to view updated PivotTable structure", "Add different fields to reconfigure analysis" }
+                                : new[] { "Use list-fields to see current field configuration", "Check field name spelling", "Verify field is currently in PivotTable" }
+                        }, JsonOptions);
                     }
 
                 case PivotTableAction.SetFieldFunction:
@@ -295,7 +522,27 @@ public static class PivotTableTool
 
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, true,
                             async (batch) => await commands.SetFieldFunctionAsync(batch, pivotTableName!, fieldName!, function));
-                        return JsonSerializer.Serialize(result, JsonOptions);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.FieldName,
+                            result.CustomName,
+                            result.Area,
+                            result.Position,
+                            result.Function,
+                            result.NumberFormat,
+                            result.AvailableValues,
+                            result.SampleValue,
+                            result.DataType,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Changed '{result.FieldName}' aggregation to {result.Function} - calculation method updated"
+                                : $"Failed to set aggregation function for field '{fieldName}' in PivotTable '{pivotTableName}'",
+                            suggestedNextActions = result.Success
+                                ? new[] { "Use get-data to view updated calculations", "Use set-field-format to apply appropriate number formatting", "Use refresh if source data changed" }
+                                : new[] { "Verify field is a value field (not row/column/filter)", "Check field name spelling", "Ensure function is valid for data type" }
+                        }, JsonOptions);
                     }
 
                 case PivotTableAction.SetFieldName:
@@ -309,7 +556,27 @@ public static class PivotTableTool
 
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, true,
                             async (batch) => await commands.SetFieldNameAsync(batch, pivotTableName!, fieldName!, customName!));
-                        return JsonSerializer.Serialize(result, JsonOptions);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.FieldName,
+                            result.CustomName,
+                            result.Area,
+                            result.Position,
+                            result.Function,
+                            result.NumberFormat,
+                            result.AvailableValues,
+                            result.SampleValue,
+                            result.DataType,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Renamed field '{result.FieldName}' to '{result.CustomName}' - display name customized"
+                                : $"Failed to rename field '{fieldName}' in PivotTable '{pivotTableName}'",
+                            suggestedNextActions = result.Success
+                                ? new[] { "Use get to view updated PivotTable with new field name", "Use set-field-format to apply number formatting", "Continue configuring field properties" }
+                                : new[] { "Check field name spelling", "Verify field exists in PivotTable (use list-fields)", "Ensure custom name is valid" }
+                        }, JsonOptions);
                     }
 
                 case PivotTableAction.SetFieldFormat:
@@ -323,7 +590,27 @@ public static class PivotTableTool
 
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, true,
                             async (batch) => await commands.SetFieldFormatAsync(batch, pivotTableName!, fieldName!, numberFormat!));
-                        return JsonSerializer.Serialize(result, JsonOptions);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.FieldName,
+                            result.CustomName,
+                            result.Area,
+                            result.Position,
+                            result.Function,
+                            result.NumberFormat,
+                            result.AvailableValues,
+                            result.SampleValue,
+                            result.DataType,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Applied number format '{result.NumberFormat}' to field '{result.FieldName}' - values formatted"
+                                : $"Failed to set number format for field '{fieldName}' in PivotTable '{pivotTableName}'",
+                            suggestedNextActions = result.Success
+                                ? new[] { "Use get-data to view formatted values", "Use set-field-name to customize field display name", "Continue configuring analysis" }
+                                : new[] { "Verify field name spelling", "Check number format code syntax", "Ensure field is a value field" }
+                        }, JsonOptions);
                     }
 
                 case PivotTableAction.GetData:
@@ -333,7 +620,25 @@ public static class PivotTableTool
 
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, false,
                             async (batch) => await commands.GetDataAsync(batch, pivotTableName!));
-                        return JsonSerializer.Serialize(result, JsonOptions);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.PivotTableName,
+                            result.Values,
+                            result.ColumnHeaders,
+                            result.RowHeaders,
+                            result.DataRowCount,
+                            result.DataColumnCount,
+                            result.GrandTotals,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Extracted {result.DataRowCount}×{result.DataColumnCount} data grid from PivotTable '{result.PivotTableName}' - analysis results ready"
+                                : $"Failed to extract data from PivotTable '{pivotTableName}'",
+                            suggestedNextActions = result.Success
+                                ? new[] { "Process extracted values for further analysis", "Export data to external system", "Use refresh to update with latest source data" }
+                                : new[] { "Verify PivotTable exists (use list)", "Check PivotTable has data (use get)", "Ensure fields are configured properly" }
+                        }, JsonOptions);
                     }
 
                 case PivotTableAction.SetFieldFilter:
@@ -358,7 +663,24 @@ public static class PivotTableTool
 
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, true,
                             async (batch) => await commands.SetFieldFilterAsync(batch, pivotTableName!, fieldName!, values));
-                        return JsonSerializer.Serialize(result, JsonOptions);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.FieldName,
+                            result.SelectedItems,
+                            result.AvailableItems,
+                            result.VisibleRowCount,
+                            result.TotalRowCount,
+                            result.ShowAll,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Filtered field '{result.FieldName}' to {result.SelectedItems.Count} of {result.AvailableItems.Count} values - showing {result.VisibleRowCount}/{result.TotalRowCount} rows"
+                                : $"Failed to filter field '{fieldName}' in PivotTable '{pivotTableName}'",
+                            suggestedNextActions = result.Success
+                                ? new[] { "Use get-data to extract filtered results", $"Selected values: {string.Join(", ", result.SelectedItems.Take(5))}", "Use refresh to update with latest source data" }
+                                : new[] { "Verify field name spelling", "Check filter values are valid for field", "Ensure field exists in PivotTable (use list-fields)" }
+                        }, JsonOptions);
                     }
 
                 case PivotTableAction.SortField:
@@ -379,7 +701,27 @@ public static class PivotTableTool
 
                         var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, true,
                             async (batch) => await commands.SortFieldAsync(batch, pivotTableName!, fieldName!, direction));
-                        return JsonSerializer.Serialize(result, JsonOptions);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.FieldName,
+                            result.CustomName,
+                            result.Area,
+                            result.Position,
+                            result.Function,
+                            result.NumberFormat,
+                            result.AvailableValues,
+                            result.SampleValue,
+                            result.DataType,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Sorted field '{result.FieldName}' {direction.ToString().ToLowerInvariant()} - data reordered"
+                                : $"Failed to sort field '{fieldName}' in PivotTable '{pivotTableName}'",
+                            suggestedNextActions = result.Success
+                                ? new[] { "Use get-data to extract sorted results", "Use add-value-field if need aggregation", "Continue configuring analysis" }
+                                : new[] { "Verify field name spelling", "Ensure field exists in PivotTable (use list-fields)", "Check field is in row or column area" }
+                        }, JsonOptions);
                     }
 
                 default:

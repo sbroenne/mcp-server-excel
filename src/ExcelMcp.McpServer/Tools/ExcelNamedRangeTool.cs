@@ -6,6 +6,8 @@ using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
+#pragma warning disable CA1861 // Avoid constant arrays as arguments - Workflow hints are contextual per-call
+
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
@@ -210,9 +212,30 @@ Actions available as dropdown in MCP clients.")]
             save: true,
             async (batch) => await commands.UpdateAsync(batch, namedRangeName, value));
 
-        // If operation failed, throw exception with detailed error message
         // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        var inBatch = !string.IsNullOrEmpty(batchId);
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Named range '{namedRangeName}' now points to {value}. Formulas referencing it will use new location."
+                : $"Failed to update '{namedRangeName}'. Verify the named range exists and cell reference is valid.",
+            suggestedNextActions = result.Success
+                ? new[]
+                {
+                    "Use 'get' to retrieve value from new location",
+                    "Use excel_range to read data from new cell reference",
+                    inBatch ? "Continue batch operations" : "Update more references? Use excel_batch for efficiency"
+                }
+                : new[]
+                {
+                    "Use 'list' to verify named range exists",
+                    "Check cell reference format (e.g., 'Sheet1!A1' or 'Sheet1!A1:B10')",
+                    "Ensure target sheet exists in workbook"
+                }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> CreateNamedRangeAsync(NamedRangeCommands commands, string filePath, string? namedRangeName, string? value, string? batchId)
@@ -255,9 +278,30 @@ Actions available as dropdown in MCP clients.")]
             save: true,
             async (batch) => await commands.DeleteAsync(batch, namedRangeName));
 
-        // If operation failed, throw exception with detailed error message
         // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        var inBatch = !string.IsNullOrEmpty(batchId);
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Named range '{namedRangeName}' deleted successfully. Formulas referencing it will show #NAME? error."
+                : $"Failed to delete '{namedRangeName}'. Verify the named range exists and is not protected.",
+            suggestedNextActions = result.Success
+                ? new[]
+                {
+                    "Use 'list' to verify deletion",
+                    "Check formulas that referenced this parameter (will show #NAME? errors)",
+                    inBatch ? "Continue batch operations" : "Delete more named ranges? Use excel_batch for efficiency"
+                }
+                : new[]
+                {
+                    "Use 'list' to verify named range exists",
+                    "Check if workbook or sheet is protected",
+                    "Verify named range name spelling is correct"
+                }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> CreateBulkNamedRangesAsync(NamedRangeCommands commands, string excelPath, string? namedRangesJson, string? batchId)
@@ -286,11 +330,6 @@ Actions available as dropdown in MCP clients.")]
             excelPath,
             save: true,
             async (batch) => await commands.CreateBulkAsync(batch, parameters));
-
-        if (!result.Success)
-        {
-            throw new ModelContextProtocol.McpException($"create-bulk failed: {result.ErrorMessage}");
-        }
 
         // Add workflow hints (CreateBulk returns OperationResult, not specialized type)
         return JsonSerializer.Serialize(new

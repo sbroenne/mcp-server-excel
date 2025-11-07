@@ -6,6 +6,8 @@ using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
+#pragma warning disable CA1861 // Avoid constant arrays as arguments - workflow hints are contextual per-call
+
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
@@ -159,6 +161,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
                 DataModelAction.DeleteMeasure => await DeleteMeasureAsync(dataModelCommands, excelPath, measureName, batchId),
                 DataModelAction.DeleteRelationship => await DeleteRelationshipAsync(dataModelCommands, excelPath, fromTable, fromColumn, toTable, toColumn, batchId),
                 DataModelAction.GetTable => await ViewTableAsync(dataModelCommands, excelPath, tableName, batchId),
+                DataModelAction.ListColumns => await ListColumnsAsync(dataModelCommands, excelPath, tableName, batchId),
                 DataModelAction.GetInfo => await GetModelInfoAsync(dataModelCommands, excelPath, batchId),
 
                 // DAX measures (requires Office 2016+)
@@ -192,9 +195,18 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             save: false,
             async (batch) => await commands.ListTablesAsync(batch));
 
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.Tables,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Found {result.Tables.Count} Data Model tables. Review structure and relationships for analytics."
+                : "Failed to list Data Model tables. Verify workbook contains Power Pivot data.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'view-table' to see detailed table information", "Use 'list-measures' to view DAX calculations", "Use 'list-relationships' to see table connections" }
+                : ["Verify workbook has Data Model enabled", "Check if tables loaded via Power Query or manual import", "Use excel_powerquery list to see available queries"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ListMeasuresAsync(DataModelCommands commands, string filePath, string? batchId)
@@ -205,9 +217,18 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             save: false,
             async (batch) => await commands.ListMeasuresAsync(batch));
 
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.Measures,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Found {result.Measures.Count} DAX measures in Data Model. Review formulas and table assignments."
+                : "Failed to list measures. Verify Data Model contains DAX measures.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'view-measure' to inspect specific DAX formulas", "Use 'export-measure' to save DAX for version control", "Use 'create-measure' to add new calculations" }
+                : ["Verify Data Model is properly configured", "Use 'list-tables' to see available tables", "Create measures via 'create-measure' action"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ViewMeasureAsync(DataModelCommands commands, string filePath, string? measureName, string? batchId)
@@ -221,9 +242,20 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             save: false,
             async (batch) => await commands.GetAsync(batch, measureName));
 
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.MeasureName,
+            result.DaxFormula,
+            result.TableName,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Retrieved DAX formula for '{measureName}'. Review calculation logic and dependencies."
+                : $"Failed to view measure '{measureName}'. Verify measure exists in Data Model.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'export-measure' to save DAX for documentation", "Use 'update-measure' to modify formula or format", "Use 'list-measures' to see all available measures" }
+                : ["Use 'list-measures' to find correct measure name", "Check for typos in measure name", "Verify Data Model is loaded"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ExportMeasureAsync(DataModelCommands commands, string filePath, string? measureName, string? outputPath, string? batchId)
@@ -240,9 +272,18 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             save: false,
             async (batch) => await commands.ExportMeasureAsync(batch, measureName, outputPath));
 
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.FilePath,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Exported measure '{measureName}' to '{outputPath}'. Store in version control for DAX management."
+                : $"Failed to export measure '{measureName}'. Verify measure exists and output path is writable.",
+            suggestedNextActions = result.Success
+                ? new[] { "Commit .dax file to version control", "Share DAX formulas with team", "Use as template for similar measures" }
+                : ["Use 'view-measure' to verify measure exists", "Check directory permissions for output path", "Ensure parent directory exists"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ListRelationshipsAsync(DataModelCommands commands, string filePath, string? batchId)
@@ -253,9 +294,18 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             save: false,
             async (batch) => await commands.ListRelationshipsAsync(batch));
 
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.Relationships,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Found {result.Relationships.Count} relationships in Data Model. Review table connections and cardinality."
+                : "Failed to retrieve relationships. Verify Data Model is loaded.",
+            suggestedNextActions = result.Success
+                ? new[] { "Review relationship directions (one-to-many, many-to-one)", "Verify active relationships for DAX calculations", "Use 'create-relationship' to add connections" }
+                : ["Use 'list-tables' to verify tables exist", "Check if Data Model is properly loaded", "Ensure workbook has Power Pivot enabled"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> RefreshAsync(DataModelCommands commands, string filePath, double? timeoutMinutes, string? batchId)
@@ -269,9 +319,17 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
                 save: true,
                 async (batch) => await commands.RefreshAsync(batch, null, timeoutSpan));
 
-            // If operation failed, throw exception with detailed error message
-            // Always return JSON (success or failure) - MCP clients handle the success flag
-            return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+            return JsonSerializer.Serialize(new
+            {
+                result.Success,
+                result.ErrorMessage,
+                workflowHint = result.Success
+                    ? "Data Model refreshed successfully. All tables reloaded from source connections."
+                    : $"Data Model refresh failed. {result.ErrorMessage}",
+                suggestedNextActions = result.Success
+                    ? new[] { "Verify data with 'list-tables' (check record counts)", "Test DAX measures with updated data", "Use 'get-model-info' for refresh summary" }
+                    : ["Check connection credentials and connectivity", "Use 'list-tables' to identify failing tables", "Review error message for specific data source issues"]
+            }, ExcelToolsBase.JsonOptions);
         }
         catch (TimeoutException ex)
         {
@@ -337,12 +395,17 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             save: true,
             async (batch) => await commands.DeleteMeasureAsync(batch, measureName));
 
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        // Success - add workflow guidance
-
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Deleted DAX measure '{measureName}' from Data Model. Changes saved to workbook."
+                : $"Failed to delete measure '{measureName}'. Verify measure exists.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'list-measures' to verify deletion", "Update dependent DAX calculations if needed", "Remove measure references from PivotTables" }
+                : ["Use 'list-measures' to find correct measure name", "Check for typos in measure name", "Verify Data Model is loaded"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> DeleteRelationshipAsync(DataModelCommands commands, string filePath,
@@ -374,12 +437,17 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             save: true,
             async (batch) => await commands.DeleteRelationshipAsync(batch, fromTable, fromColumn, toTable, toColumn));
 
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        // Success - add workflow guidance
-
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Deleted relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn}. Changes saved to workbook."
+                : $"Failed to delete relationship. Verify relationship exists.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'list-relationships' to verify deletion", "Update DAX formulas that relied on this relationship", "Consider creating alternative relationship paths" }
+                : ["Use 'list-relationships' to find correct relationship", "Check table and column names for typos", "Verify Data Model is loaded"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ViewTableAsync(DataModelCommands commands, string filePath,
@@ -396,12 +464,67 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             save: false,
             async (batch) => await commands.GetTableAsync(batch, tableName));
 
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        // Success - add workflow guidance
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.TableName,
+            result.SourceName,
+            result.RecordCount,
+            result.Columns,
+            result.MeasureCount,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Table '{tableName}' has {result.RecordCount:N0} rows, {result.Columns.Count} columns, {result.MeasureCount} measures. Source: {result.SourceName}"
+                : $"Failed to view table '{tableName}'. Verify table exists in Data Model.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'list-columns' for detailed column information", "Review source query or connection", "Check measure definitions if count > 0" }
+                : ["Use 'list-tables' to find correct table name", "Verify Data Model is loaded", "Check for typos in table name"]
+        }, ExcelToolsBase.JsonOptions);
+    }
 
+    private static async Task<string> ListColumnsAsync(DataModelCommands commands, string filePath,
+        string? tableName, string? batchId)
+    {
+        if (string.IsNullOrWhiteSpace(tableName))
+        {
+            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for list-columns action");
+        }
 
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            filePath,
+            save: false,
+            async (batch) => await commands.ListColumnsAsync(batch, tableName));
+
+        // Add workflow hints
+        var inBatch = !string.IsNullOrEmpty(batchId);
+        var columnCount = result.Columns?.Count ?? 0;
+        var calculatedCount = result.Columns?.Count(c => c.IsCalculated) ?? 0;
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            result.TableName,
+            result.Columns,
+            workflowHint = result.Success
+                ? $"Table '{tableName}' has {columnCount} columns ({calculatedCount} calculated, {columnCount - calculatedCount} regular)."
+                : $"Failed to list columns for table '{tableName}': {result.ErrorMessage}",
+            suggestedNextActions = result.Success
+                ? new[]
+                {
+                    "Use excel_datamodel 'view-table' to see full table details including measures",
+                    "Use excel_datamodel 'create-relationship' to link tables by columns",
+                    "Use excel_datamodel 'list-measures' to see DAX calculations on this table",
+                    inBatch ? "Query more tables in this batch" : "Exploring multiple tables? Use excel_batch for efficiency"
+                }
+                :
+                [
+                    "Check table name is correct with excel_datamodel 'list-tables'",
+                    "Verify Data Model exists with excel_datamodel 'get-model-info'",
+                    "Review error message for specific issue"
+                ]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> GetModelInfoAsync(DataModelCommands commands, string filePath, string? batchId)
@@ -412,12 +535,22 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             save: false,
             async (batch) => await commands.GetInfoAsync(batch));
 
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        // Success - add workflow guidance
-
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.TableCount,
+            result.MeasureCount,
+            result.RelationshipCount,
+            result.TotalRows,
+            result.TableNames,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Data Model contains {result.TableCount} tables, {result.MeasureCount} measures, {result.RelationshipCount} relationships. Total: {result.TotalRows:N0} rows."
+                : "Failed to retrieve Data Model information. Verify Data Model exists.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'list-tables' to see individual table details", "Use 'list-relationships' to review table connections", "Use 'list-measures' to see all DAX calculations" }
+                : ["Verify workbook has Power Pivot enabled", "Check if Data Model is loaded", "Try opening workbook in Excel first"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> CreateMeasureComAsync(DataModelCommands commands, string filePath,
@@ -446,12 +579,17 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             async (batch) => await commands.CreateMeasureAsync(batch, tableName, measureName, daxFormula,
                 formatString, description));
 
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        // Success - add workflow guidance
-
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Created DAX measure '{measureName}' in table '{tableName}'. Formula: {daxFormula}"
+                : $"Failed to create measure '{measureName}'. {result.ErrorMessage}",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'view-measure' to verify formula and format", "Test measure in PivotTable or DAX query", "Use 'export-measure' for version control" }
+                : ["Verify table name with 'list-tables'", "Check DAX syntax in formula", "Ensure measure name doesn't already exist"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> UpdateMeasureComAsync(DataModelCommands commands, string filePath,
@@ -468,12 +606,17 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             save: true,
             async (batch) => await commands.UpdateMeasureAsync(batch, measureName, daxFormula, formatString, description));
 
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        // Success - add workflow guidance
-
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Updated DAX measure '{measureName}'. Changes saved to workbook."
+                : $"Failed to update measure '{measureName}'. {result.ErrorMessage}",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'view-measure' to verify changes", "Refresh PivotTables using this measure", "Test formula with sample data" }
+                : ["Use 'list-measures' to verify measure exists", "Check DAX syntax if formula was changed", "Verify measure name is correct"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> CreateRelationshipComAsync(DataModelCommands commands, string filePath,
@@ -506,12 +649,17 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             async (batch) => await commands.CreateRelationshipAsync(batch, fromTable, fromColumn, toTable, toColumn,
                 isActive ?? true));
 
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        // Success - add workflow guidance
-
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Created relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn}. Active: {isActive ?? true}"
+                : $"Failed to create relationship. {result.ErrorMessage}",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'list-relationships' to verify creation", "Test DAX formulas using this relationship", "Verify relationship direction (one-to-many)" }
+                : ["Check table and column names with 'list-tables' and 'list-columns'", "Verify columns have compatible data types", "Ensure no duplicate relationships exist"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> UpdateRelationshipComAsync(DataModelCommands commands, string filePath,
@@ -549,11 +697,16 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             async (batch) => await commands.UpdateRelationshipAsync(batch, fromTable, fromColumn, toTable, toColumn,
                 isActive.Value));
 
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        // Success - add workflow guidance
-
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Updated relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn}. Active: {isActive.Value}"
+                : $"Failed to update relationship. {result.ErrorMessage}",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'list-relationships' to verify status change", "Test DAX formulas if relationship activation changed", "Verify only one relationship is active between tables" }
+                : ["Use 'list-relationships' to find correct relationship", "Check table and column names for typos", "Verify relationship exists before updating"]
+        }, ExcelToolsBase.JsonOptions);
     }
 }

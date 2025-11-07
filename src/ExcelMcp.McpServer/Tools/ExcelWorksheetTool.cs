@@ -7,6 +7,8 @@ using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
+#pragma warning disable CA1861 // Avoid constant arrays as arguments - workflow hints are contextual per-call
+
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
@@ -102,13 +104,13 @@ public static class ExcelWorksheetTool
                             workflowHint = $"Found {count} worksheet(s). Use excel_range for data operations.",
                             suggestedNextActions = count == 0
                                 ? new[] { "Workbook is empty - this shouldn't happen. Check file integrity." }
-                                : new[]
-                                {
+                                :
+                                [
                                 "Use excel_range for data operations (get-values, set-values, clear-*)",
                                 "Use 'create' to add new worksheets",
                                 "Use 'set-tab-color' to organize sheets visually",
                                 inBatch ? "Continue batch operations" : count > 3 ? "Use excel_batch for multiple sheet operations (faster)" : "Use 'rename' or 'copy' to manage sheets"
-                                }
+                                ]
                         }, ExcelToolsBase.JsonOptions);
                     }
 
@@ -149,7 +151,29 @@ public static class ExcelWorksheetTool
                             save: true,
                             async (batch) => await sheetCommands.RenameAsync(batch, sheetName, targetName));
 
-                        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Worksheet '{sheetName}' renamed to '{targetName}' successfully."
+                                : $"Failed to rename worksheet: {result.ErrorMessage}",
+                            suggestedNextActions = result.Success
+                                ? new[]
+                                {
+                                    "Update any references to the old sheet name in formulas or code",
+                                    "Use excel_range to access the renamed sheet's data",
+                                    usedBatchMode ? "Continue renaming other sheets in this batch" : "Renaming multiple sheets? Use excel_batch (faster)"
+                                }
+                                :
+                                [
+                                    "Verify the original sheet name exists using 'list' action",
+                                    "Check that the target name doesn't conflict with an existing sheet",
+                                    "Ensure the target name follows Excel naming rules (no special characters like [ ] : \\ / * ?)"
+                                ]
+                        }, ExcelToolsBase.JsonOptions);
                     }
 
                 case WorksheetAction.Copy:
@@ -163,7 +187,29 @@ public static class ExcelWorksheetTool
                             save: true,
                             async (batch) => await sheetCommands.CopyAsync(batch, sheetName, targetName));
 
-                        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Worksheet '{sheetName}' copied to '{targetName}' successfully."
+                                : $"Failed to copy worksheet: {result.ErrorMessage}",
+                            suggestedNextActions = result.Success
+                                ? new[]
+                                {
+                                    "Modify the copied sheet using excel_range (set-values, set-formulas)",
+                                    "Use 'set-tab-color' to visually distinguish the copy",
+                                    usedBatchMode ? "Copy more worksheets in this batch" : "Copying multiple sheets? Use excel_batch (faster)"
+                                }
+                                :
+                                [
+                                    "Verify the source sheet name exists using 'list' action",
+                                    "Check that the target name doesn't conflict with an existing sheet",
+                                    "Ensure the target name follows Excel naming rules"
+                                ]
+                        }, ExcelToolsBase.JsonOptions);
                     }
 
                 case WorksheetAction.Delete:
@@ -177,7 +223,29 @@ public static class ExcelWorksheetTool
                             save: true,
                             async (batch) => await sheetCommands.DeleteAsync(batch, sheetName));
 
-                        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Worksheet '{sheetName}' deleted successfully. Data is permanently removed."
+                                : $"Failed to delete worksheet: {result.ErrorMessage}",
+                            suggestedNextActions = result.Success
+                                ? new[]
+                                {
+                                    "Verify remaining worksheets using 'list' action",
+                                    "Check for broken references in formulas or VBA code",
+                                    usedBatchMode ? "Delete more worksheets in this batch" : "Deleting multiple sheets? Use excel_batch (faster)"
+                                }
+                                :
+                                [
+                                    "Verify the sheet name exists using 'list' action",
+                                    "Check if workbook has only one sheet (Excel requires at least one)",
+                                    "Ensure the sheet is not protected"
+                                ]
+                        }, ExcelToolsBase.JsonOptions);
                     }
 
                 case WorksheetAction.SetTabColor:
@@ -198,7 +266,30 @@ public static class ExcelWorksheetTool
                             save: true,
                             async (batch) => await sheetCommands.SetTabColorAsync(batch, sheetName, red.Value, green.Value, blue.Value));
 
-                        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+                        string hexColor = $"#{red.Value:X2}{green.Value:X2}{blue.Value:X2}";
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Tab color set to {hexColor} (RGB: {red.Value}, {green.Value}, {blue.Value}) for sheet '{sheetName}'."
+                                : $"Failed to set tab color: {result.ErrorMessage}",
+                            suggestedNextActions = result.Success
+                                ? new[]
+                                {
+                                    "Use 'get-tab-color' to verify the color was applied",
+                                    "Apply consistent colors to related sheets for organization",
+                                    usedBatchMode ? "Set colors for more sheets in this batch" : "Coloring multiple sheets? Use excel_batch (faster)"
+                                }
+                                :
+                                [
+                                    "Verify the sheet name exists using 'list' action",
+                                    "Check RGB values are in range 0-255",
+                                    "Use 'clear-tab-color' to remove color if needed"
+                                ]
+                        }, ExcelToolsBase.JsonOptions);
                     }
 
                 case WorksheetAction.GetTabColor:
@@ -212,7 +303,41 @@ public static class ExcelWorksheetTool
                             save: false,
                             async (batch) => await sheetCommands.GetTabColorAsync(batch, sheetName));
 
-                        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.HasColor,
+                            result.Red,
+                            result.Green,
+                            result.Blue,
+                            result.HexColor,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? (result.HasColor
+                                    ? $"Sheet '{sheetName}' has tab color: {result.HexColor} (RGB: {result.Red}, {result.Green}, {result.Blue})."
+                                    : $"Sheet '{sheetName}' has no tab color set (default).")
+                                : $"Failed to get tab color: {result.ErrorMessage}",
+                            suggestedNextActions = result.Success
+                                ? (result.HasColor
+                                    ? new[]
+                                    {
+                                        "Use 'clear-tab-color' to remove the color",
+                                        "Use 'set-tab-color' to change the color",
+                                        "Check other sheets' colors for consistent organization"
+                                    }
+                                    :
+                                    [
+                                        "Use 'set-tab-color' to add a color for visual organization",
+                                        "Apply consistent colors to related sheets",
+                                        "Use colors to categorize sheets (e.g., red for important, blue for data)"
+                                    ])
+                                :
+                                [
+                                    "Verify the sheet name exists using 'list' action",
+                                    "Check if the workbook is accessible",
+                                    "Retry the operation"
+                                ]
+                        }, ExcelToolsBase.JsonOptions);
                     }
 
                 case WorksheetAction.ClearTabColor:
@@ -226,7 +351,29 @@ public static class ExcelWorksheetTool
                             save: true,
                             async (batch) => await sheetCommands.ClearTabColorAsync(batch, sheetName));
 
-                        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Tab color cleared for sheet '{sheetName}' (reset to default)."
+                                : $"Failed to clear tab color: {result.ErrorMessage}",
+                            suggestedNextActions = result.Success
+                                ? new[]
+                                {
+                                    "Use 'get-tab-color' to verify the color was removed",
+                                    "Use 'set-tab-color' to apply a new color",
+                                    usedBatchMode ? "Clear colors from more sheets in this batch" : "Clearing multiple sheets? Use excel_batch (faster)"
+                                }
+                                :
+                                [
+                                    "Verify the sheet name exists using 'list' action",
+                                    "Check if the sheet already has no color set",
+                                    "Retry the operation"
+                                ]
+                        }, ExcelToolsBase.JsonOptions);
                     }
 
                 case WorksheetAction.SetVisibility:
@@ -251,7 +398,29 @@ public static class ExcelWorksheetTool
                             save: true,
                             async (batch) => await sheetCommands.SetVisibilityAsync(batch, sheetName, visibilityLevel));
 
-                        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Visibility set to '{visibility}' for sheet '{sheetName}'."
+                                : $"Failed to set visibility: {result.ErrorMessage}",
+                            suggestedNextActions = result.Success
+                                ? new[]
+                                {
+                                    "Use 'get-visibility' to verify the visibility level",
+                                    visibilityLevel == SheetVisibility.Hidden ? "Users can unhide this sheet via Excel UI" : (visibilityLevel == SheetVisibility.VeryHidden ? "Only code can unhide this sheet (good for protection)" : "Sheet is now visible in workbook"),
+                                    usedBatchMode ? "Set visibility for more sheets in this batch" : "Managing multiple sheets? Use excel_batch (faster)"
+                                }
+                                :
+                                [
+                                    "Verify the sheet name exists using 'list' action",
+                                    "Ensure visibility value is: visible, hidden, or veryhidden",
+                                    "Check if workbook has at least one visible sheet"
+                                ]
+                        }, ExcelToolsBase.JsonOptions);
                     }
 
                 case WorksheetAction.GetVisibility:
@@ -265,7 +434,43 @@ public static class ExcelWorksheetTool
                             save: false,
                             async (batch) => await sheetCommands.GetVisibilityAsync(batch, sheetName));
 
-                        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.Visibility,
+                            result.VisibilityName,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Sheet '{sheetName}' visibility is '{result.VisibilityName}'."
+                                : $"Failed to get visibility: {result.ErrorMessage}",
+                            suggestedNextActions = result.Success
+                                ? (result.Visibility == SheetVisibility.Visible
+                                    ? new[]
+                                    {
+                                        "Use 'hide' or 'very-hide' to hide this sheet",
+                                        "Sheet is currently visible in the workbook",
+                                        "Use 'set-visibility' for more control over visibility level"
+                                    }
+                                    : result.Visibility == SheetVisibility.Hidden
+                                        ?
+                                        [
+                                            "Use 'show' to make this sheet visible",
+                                            "Users can unhide this sheet via Excel UI",
+                                            "Use 'very-hide' for stronger protection"
+                                        ]
+                                        :
+                                        [
+                                            "Use 'show' to make this sheet visible",
+                                            "This sheet is very hidden - only code can unhide it",
+                                            "Good for protecting calculation or configuration sheets"
+                                        ])
+                                :
+                                [
+                                    "Verify the sheet name exists using 'list' action",
+                                    "Check if the workbook is accessible",
+                                    "Retry the operation"
+                                ]
+                        }, ExcelToolsBase.JsonOptions);
                     }
 
                 case WorksheetAction.Show:
@@ -279,7 +484,29 @@ public static class ExcelWorksheetTool
                             save: true,
                             async (batch) => await sheetCommands.ShowAsync(batch, sheetName));
 
-                        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Sheet '{sheetName}' is now visible in the workbook."
+                                : $"Failed to show sheet: {result.ErrorMessage}",
+                            suggestedNextActions = result.Success
+                                ? new[]
+                                {
+                                    "Use 'get-visibility' to verify the sheet is visible",
+                                    "Access the sheet's data using excel_range",
+                                    usedBatchMode ? "Show more sheets in this batch" : "Showing multiple sheets? Use excel_batch (faster)"
+                                }
+                                :
+                                [
+                                    "Verify the sheet name exists using 'list' action",
+                                    "Check if the sheet is already visible",
+                                    "Ensure the sheet is not protected"
+                                ]
+                        }, ExcelToolsBase.JsonOptions);
                     }
 
                 case WorksheetAction.Hide:
@@ -293,7 +520,30 @@ public static class ExcelWorksheetTool
                             save: true,
                             async (batch) => await sheetCommands.HideAsync(batch, sheetName));
 
-                        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Sheet '{sheetName}' is now hidden (users can unhide via Excel UI)."
+                                : $"Failed to hide sheet: {result.ErrorMessage}",
+                            suggestedNextActions = result.Success
+                                ? new[]
+                                {
+                                    "Use 'get-visibility' to verify the sheet is hidden",
+                                    "Users can unhide this sheet via Excel: Right-click sheet tab → Unhide",
+                                    "Use 'very-hide' for stronger protection (requires code to unhide)",
+                                    usedBatchMode ? "Hide more sheets in this batch" : "Hiding multiple sheets? Use excel_batch (faster)"
+                                }
+                                :
+                                [
+                                    "Verify the sheet name exists using 'list' action",
+                                    "Check if workbook has at least one visible sheet",
+                                    "Ensure the sheet is not protected"
+                                ]
+                        }, ExcelToolsBase.JsonOptions);
                     }
 
                 case WorksheetAction.VeryHide:
@@ -307,7 +557,30 @@ public static class ExcelWorksheetTool
                             save: true,
                             async (batch) => await sheetCommands.VeryHideAsync(batch, sheetName));
 
-                        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+                        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+
+                        return JsonSerializer.Serialize(new
+                        {
+                            result.Success,
+                            result.ErrorMessage,
+                            workflowHint = result.Success
+                                ? $"Sheet '{sheetName}' is now very hidden (requires code to unhide)."
+                                : $"Failed to very hide sheet: {result.ErrorMessage}",
+                            suggestedNextActions = result.Success
+                                ? new[]
+                                {
+                                    "Use 'get-visibility' to verify the sheet is very hidden",
+                                    "This sheet cannot be unhidden via Excel UI - only via code",
+                                    "Good for protecting calculation, configuration, or sensitive sheets",
+                                    usedBatchMode ? "Very hide more sheets in this batch" : "Protecting multiple sheets? Use excel_batch (faster)"
+                                }
+                                :
+                                [
+                                    "Verify the sheet name exists using 'list' action",
+                                    "Check if workbook has at least one visible sheet",
+                                    "Ensure the sheet is not protected"
+                                ]
+                        }, ExcelToolsBase.JsonOptions);
                     }
 
                 default:

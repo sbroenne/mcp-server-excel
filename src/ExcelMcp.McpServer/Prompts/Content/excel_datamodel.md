@@ -17,6 +17,8 @@
 
 **Action disambiguation**:
 - list-tables: Show all tables in data model (not worksheet tables)
+- view-table: Get detailed table info (columns, measures, row count)
+- list-columns: List columns in a specific data model table
 - list-measures: Show DAX measures only
 - create-measure: Add new DAX calculation
 - create-relationship: Link tables by columns

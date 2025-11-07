@@ -7,6 +7,8 @@ using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Security;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
+#pragma warning disable CA1861 // Avoid constant arrays as arguments - workflow hints are contextual per-call
+
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
@@ -134,6 +136,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 // Atomic Operations
                 PowerQueryAction.Create => await CreatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, targetSheet, batchId),
                 PowerQueryAction.UpdateMCode => await UpdateMCodePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, batchId),
+                PowerQueryAction.LoadTo => await LoadToPowerQueryAsync(powerQueryCommands, excelPath, queryName, loadDestination, targetSheet, batchId),
                 PowerQueryAction.Unload => await UnloadPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
                 PowerQueryAction.UpdateAndRefresh => await UpdateAndRefreshPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, batchId),
                 PowerQueryAction.RefreshAll => await RefreshAllPowerQueriesAsync(powerQueryCommands, excelPath, batchId),
@@ -159,8 +162,19 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             excelPath,
             save: false,
             async (batch) => await commands.ListAsync(batch));
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.Queries,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Found {result.Queries.Count} Power Queries. Review M code and refresh configurations."
+                : "Failed to list queries. Verify workbook has Power Query data connections.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'view' to examine M code for specific queries", "Use 'get-load-config' to check data loading settings", "Use 'refresh' to reload data from sources" }
+                : new[] { "Verify workbook has Power Query connections", "Check if workbook is macro-enabled if needed", "Use excel_connection list to see all connections" }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ViewPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
@@ -174,8 +188,19 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             save: false,
             async (batch) => await commands.ViewAsync(batch, queryName));
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.QueryName,
+            result.MCode,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"M code retrieved for '{queryName}'. Review transformations and data source connections."
+                : $"Failed to view '{queryName}'. Verify query name is correct.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'export' to save M code for version control", "Use 'update-mcode' to modify transformations", "Use 'refresh' to reload with current M code" }
+                : new[] { "Use 'list' to see all available query names", "Check for typos in query name", "Verify query exists in workbook" }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ExportPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? targetPath, string? batchId)
@@ -189,8 +214,18 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             save: false,
             async (batch) => await commands.ExportAsync(batch, queryName, targetPath));
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.FilePath,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"M code exported to '{targetPath}'. Store in version control for change tracking."
+                : $"Failed to export '{queryName}'. Verify query exists and target path is writable.",
+            suggestedNextActions = result.Success
+                ? new[] { "Commit .pq file to version control system", "Use 'update-mcode' to import modified M code", "Share .pq file with team for reuse" }
+                : new[] { "Use 'list' to verify query name", "Check directory permissions for target path", "Ensure parent directory exists" }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> RefreshPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, double? timeoutMinutes, string? batchId)
@@ -276,8 +311,17 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             save: true,
             async (batch) => await commands.DeleteAsync(batch, queryName));
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Query '{queryName}' deleted successfully. QueryTables referencing it may need cleanup."
+                : $"Failed to delete '{queryName}'. Verify query exists and is not actively refreshing.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'list' to verify deletion", "Check for orphaned QueryTables with excel_querytable list", "Export backup before deletion (if not already done)" }
+                : new[] { "Use 'list' to verify query name", "Stop any active refresh operations", "Check if query is in use by PivotTables" }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> GetLoadConfigAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
@@ -291,8 +335,20 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             save: false,
             async (batch) => await commands.GetLoadConfigAsync(batch, queryName));
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.QueryName,
+            result.LoadMode,
+            result.TargetSheet,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Load configuration: {result.LoadMode}. Data is {(result.LoadMode == PowerQueryLoadMode.ConnectionOnly ? "not loaded" : $"loaded to {result.TargetSheet ?? "worksheet/data-model"}")}."
+                : $"Failed to get load config for '{queryName}'. Verify query exists.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'load-to' to change data loading destination", "Use 'unload' to convert to connection-only", "Use 'refresh' to reload with current configuration" }
+                : new[] { "Use 'list' to verify query name", "Check query exists in workbook", "Verify query is not corrupted" }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ListExcelSourcesAsync(PowerQueryCommands commands, string excelPath, string? batchId)
@@ -303,8 +359,19 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             excelPath,
             save: false,
             async (batch) => await commands.ListExcelSourcesAsync(batch));
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.Worksheets,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Found {result.Worksheets.Count} available Excel sources. Use in M code: Excel.CurrentWorkbook(){{[Name=\"SourceName\"]}}[Content]."
+                : "Failed to list Excel sources. Verify workbook has tables or named ranges.",
+            suggestedNextActions = result.Success
+                ? new[] { "Reference sources in M code transformations", "Use excel_table list to see structured tables", "Use excel_namedrange list to see named ranges" }
+                : new[] { "Create Excel Tables with excel_table create", "Create named ranges with excel_namedrange create", "Verify workbook structure" }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> EvalPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? sourcePath, string? batchId)
@@ -329,8 +396,20 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             excelPath,
             save: false,
             async (batch) => await commands.EvalAsync(batch, mExpression));
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.QueryName,
+            result.MCode,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? "M expression evaluated successfully. Use for testing transformations."
+                : "M expression evaluation failed. Review syntax and data source availability.",
+            suggestedNextActions = result.Success
+                ? new[] { "Integrate evaluated M code into queries", "Test with different data sources", "Use 'create' to make permanent query from working code" }
+                : new[] { "Check M syntax for errors", "Verify data sources are accessible", "Test with simpler M expressions first" }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     // =========================================================================
@@ -367,8 +446,20 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             save: true,
             async (batch) => await commands.CreateAsync(batch, queryName, sourcePath, loadMode, targetSheet));
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.QueryName,
+            result.LoadDestination,
+            result.WorksheetName,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Query '{queryName}' created and data loaded to {loadMode}. M code imported from .pq file."
+                : $"Failed to create '{queryName}'. Check M code syntax and data source connectivity.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'refresh' to reload data from source", "Use 'view' to inspect M code", "Use 'get-load-config' to verify loading settings" }
+                : new[] { "Verify M code syntax in .pq file", "Check data source connectivity", "Use 'eval' to test M code before creating query" }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> UpdateMCodePowerQueryAsync(
@@ -391,8 +482,85 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             save: true,
             async (batch) => await commands.UpdateMCodeAsync(batch, queryName, sourcePath));
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"M code updated for '{queryName}'. Data NOT refreshed - use 'refresh' or 'update-and-refresh' to reload."
+                : $"Failed to update M code for '{queryName}'. Verify query exists and M syntax is valid.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'refresh' to reload data with new M code", "Use 'update-and-refresh' to update and refresh atomically next time", "Use 'view' to verify M code changes" }
+                : new[] { "Use 'list' to verify query name", "Check M syntax in .pq file", "Use 'eval' to test M code before updating" }
+        }, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> LoadToPowerQueryAsync(
+        PowerQueryCommands commands,
+        string excelPath,
+        string? queryName,
+        string? loadDestination,
+        string? targetSheet,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(queryName))
+            throw new ModelContextProtocol.McpException("queryName is required for load-to action");
+
+        // Parse loadDestination to PowerQueryLoadMode enum
+        var loadMode = ParseLoadMode(loadDestination ?? "worksheet");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: true,
+            async (batch) => await commands.LoadToAsync(batch, queryName, loadMode, targetSheet));
+
+        // Add workflow hints
+        var inBatch = !string.IsNullOrEmpty(batchId);
+        var destinationName = loadMode switch
+        {
+            PowerQueryLoadMode.LoadToTable => "worksheet",
+            PowerQueryLoadMode.LoadToDataModel => "Data Model",
+            PowerQueryLoadMode.LoadToBoth => "worksheet and Data Model",
+            _ => "connection-only"
+        };
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            result.QueryName,
+            result.LoadDestination,
+            result.WorksheetName,
+            result.ConfigurationApplied,
+            result.DataRefreshed,
+            result.RowsLoaded,
+            workflowHint = result.Success
+                ? $"Query '{queryName}' now loaded to {destinationName}. Data refreshed with {result.RowsLoaded} rows."
+                : $"Failed to load query '{queryName}': {result.ErrorMessage}",
+            suggestedNextActions = result.Success
+                ? (loadMode == PowerQueryLoadMode.LoadToDataModel || loadMode == PowerQueryLoadMode.LoadToBoth
+                    ? new[]
+                    {
+                        "Use excel_datamodel 'list-tables' to verify query appears in Data Model",
+                        "Use excel_datamodel 'create-measure' to add DAX calculations",
+                        "Use excel_datamodel 'list-relationships' to check table relationships",
+                        inBatch ? "Load more queries in this batch" : "Loading multiple queries? Use excel_batch for efficiency"
+                    }
+                    : new[]
+                    {
+                        $"Use excel_range 'get-values' to read data from worksheet '{targetSheet ?? queryName}'",
+                        "Use excel_powerquery 'refresh' to update data from source",
+                        "Use excel_table 'create' to convert range to Excel Table for filtering/sorting",
+                        inBatch ? "Load more queries in this batch" : "Loading multiple queries? Use excel_batch for efficiency"
+                    })
+                : new[]
+                {
+                    "Check if query name is correct with excel_powerquery 'list'",
+                    "Verify query is connection-only with excel_powerquery 'get-load-config'",
+                    "Review error message for specific issue"
+                }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> UnloadPowerQueryAsync(
@@ -410,8 +578,17 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             save: true,
             async (batch) => await commands.UnloadAsync(batch, queryName));
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Query '{queryName}' converted to connection-only. Data removed from worksheet/data-model."
+                : $"Failed to unload '{queryName}'. Verify query exists and is currently loaded.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'get-load-config' to verify connection-only status", "Use 'load-to' to reload data to worksheet/data-model", "Use 'list' to see updated query status" }
+                : new[] { "Use 'get-load-config' to check current load status", "Verify query is not already connection-only", "Use 'list' to verify query name" }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> UpdateAndRefreshPowerQueryAsync(
@@ -434,8 +611,17 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             save: true,
             async (batch) => await commands.UpdateAndRefreshAsync(batch, queryName, sourcePath));
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"M code updated and data refreshed for '{queryName}' atomically. Changes applied and loaded."
+                : $"Failed atomic update for '{queryName}'. M code may be partially updated - verify with 'view'.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'view' to verify M code changes", "Use excel_range to inspect loaded data", "Use 'get-load-config' to see loading configuration" }
+                : new[] { "Use 'view' to check if M code was updated", "Use 'update-mcode' then 'refresh' separately if atomic fails", "Check M syntax and data source connectivity" }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> RefreshAllPowerQueriesAsync(
@@ -449,8 +635,17 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             save: true,
             async (batch) => await commands.RefreshAllAsync(batch));
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? "All Power Queries refreshed successfully. All data reloaded from sources."
+                : "Failed to refresh all queries. Some queries may have connectivity issues.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'list' to verify all queries refreshed", "Use excel_range to inspect updated data", "Check refresh timestamps with 'list' action" }
+                : new[] { "Use 'refresh' on individual queries to isolate failures", "Check data source connectivity for failed queries", "Review error messages for specific query issues" }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static PowerQueryLoadMode ParseLoadMode(string loadDestination)

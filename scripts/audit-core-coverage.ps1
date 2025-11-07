@@ -325,23 +325,23 @@ if ($CheckNaming) {
     Write-Host "🔤 Naming Consistency Check" -ForegroundColor Cyan
     Write-Host "===========================" -ForegroundColor Cyan
     Write-Host ""
-    
+
     # Known intentional exceptions (documented in CORE-METHOD-RENAMING-SUMMARY.md)
     $knownExceptions = @{
         "TableAction" = @("ApplyFilterValues", "SortMulti")  # Method overloads
         "FileAction" = @("CloseWorkbook")  # MCP-specific session management
     }
-    
+
     $namingIssues = @()
     $hasNamingIssues = $false
-    
+
     foreach ($interface in $interfaces) {
         $mismatches = Check-NamingConsistency `
             -InterfaceName $interface.Name `
             -InterfacePath $interface.Path `
             -EnumName $interface.Enum `
             -ToolActionsPath $toolActionsPath
-        
+
         # Filter out known exceptions
         if ($knownExceptions.ContainsKey($interface.Enum)) {
             $exceptions = $knownExceptions[$interface.Enum]
@@ -350,7 +350,7 @@ if ($CheckNaming) {
                 -not ($exceptions | Where-Object { $mismatch -like "*Enum '$_'*" })
             }
         }
-        
+
         if ($mismatches.Count -gt 0) {
             $hasNamingIssues = $true
             Write-Host "❌ $($interface.Name) → $($interface.Enum):" -ForegroundColor Red
@@ -362,13 +362,13 @@ if ($CheckNaming) {
             Write-Host "✅ $($interface.Name) → $($interface.Enum): All names match" -ForegroundColor Green
         }
     }
-    
+
     # Report known exceptions
     $totalExceptions = 0
     foreach ($enumName in $knownExceptions.Keys) {
         $totalExceptions += $knownExceptions[$enumName].Count
     }
-    
+
     if ($totalExceptions -gt 0) {
         Write-Host ""
         Write-Host "📝 Known Intentional Exceptions: $totalExceptions" -ForegroundColor Gray
@@ -378,7 +378,7 @@ if ($CheckNaming) {
         }
         Write-Host "   (Documented in CORE-METHOD-RENAMING-SUMMARY.md)" -ForegroundColor Gray
     }
-    
+
     if ($hasNamingIssues) {
         Write-Host ""
         Write-Host "⚠️  NAMING MISMATCHES DETECTED!" -ForegroundColor Red
@@ -390,7 +390,7 @@ if ($CheckNaming) {
         Write-Host "  4. Run 'dotnet build' to verify" -ForegroundColor Yellow
         Write-Host "  5. If intentional, add to knownExceptions in audit script" -ForegroundColor Yellow
         Write-Host ""
-        
+
         if ($FailOnGaps) {
             exit 1
         }
@@ -399,6 +399,112 @@ if ($CheckNaming) {
         Write-Host "✅ All naming consistent - enum values match Core method names!" -ForegroundColor Green
         Write-Host "   (Excluding $totalExceptions documented intentional exceptions)" -ForegroundColor Gray
     }
+}
+
+# Switch statement completeness check
+Write-Host ""
+Write-Host "🔀 Switch Statement Completeness Check" -ForegroundColor Cyan
+Write-Host "=======================================" -ForegroundColor Cyan
+Write-Host ""
+
+# Function to extract handled enum values from switch statements
+function Get-HandledEnumValues {
+    param(
+        [string]$ToolFilePath,
+        [string]$EnumTypeName
+    )
+
+    if (-not (Test-Path $ToolFilePath)) {
+        return @()
+    }
+
+    $content = Get-Content $ToolFilePath -Raw
+
+    # Find switch statement on the enum type
+    # Pattern: "action switch" or "return action switch" where action is the enum parameter
+    # Match until we find the default case "_"
+    $switchPattern = "(?s)return\s+action\s+switch\s*\{(.*?)\s+_\s*=>"
+
+    if ($content -match $switchPattern) {
+        $switchBody = $Matches[1]
+        $handledValues = @()
+
+        # Extract all case patterns: EnumType.Value =>
+        $casePattern = "$EnumTypeName\.(\w+)\s*=>"
+        $caseMatches = [regex]::Matches($switchBody, $casePattern)
+
+        foreach ($match in $caseMatches) {
+            $enumValue = $match.Groups[1].Value
+            if ($handledValues -notcontains $enumValue) {
+                $handledValues += $enumValue
+            }
+        }
+
+        return $handledValues
+    }
+
+    return @()
+}# Check switch completeness for each tool
+$toolsPath = Join-Path $rootDir "src\ExcelMcp.McpServer\Tools"
+$switchIssues = @()
+$hasSwitchIssues = $false
+
+# Map interfaces to their tool files and enum types
+$toolMappings = @(
+    @{ Interface = "IPowerQueryCommands"; ToolFile = "ExcelPowerQueryTool.cs"; EnumType = "PowerQueryAction" }
+    @{ Interface = "ISheetCommands"; ToolFile = "ExcelWorksheetTool.cs"; EnumType = "WorksheetAction" }
+    @{ Interface = "IRangeCommands"; ToolFile = "ExcelRangeTool.cs"; EnumType = "RangeAction" }
+    @{ Interface = "ITableCommands"; ToolFile = "ExcelTableTool.cs"; EnumType = "TableAction" }
+    @{ Interface = "IConnectionCommands"; ToolFile = "ExcelConnectionTool.cs"; EnumType = "ConnectionAction" }
+    @{ Interface = "IDataModelCommands"; ToolFile = "ExcelDataModelTool.cs"; EnumType = "DataModelAction" }
+    @{ Interface = "IPivotTableCommands"; ToolFile = "ExcelPivotTableTool.cs"; EnumType = "PivotTableAction" }
+    @{ Interface = "INamedRangeCommands"; ToolFile = "ExcelNamedRangeTool.cs"; EnumType = "NamedRangeAction" }
+    @{ Interface = "IVbaCommands"; ToolFile = "ExcelVbaTool.cs"; EnumType = "VbaAction" }
+    @{ Interface = "IFileCommands"; ToolFile = "ExcelFileTool.cs"; EnumType = "FileAction" }
+)
+
+foreach ($mapping in $toolMappings) {
+    $toolFilePath = Join-Path $toolsPath $mapping.ToolFile
+    $enumValues = Get-EnumValueNames -EnumName $mapping.EnumType -ToolActionsPath $toolActionsPath
+    $handledValues = Get-HandledEnumValues -ToolFilePath $toolFilePath -EnumTypeName $mapping.EnumType
+
+    # Find unhandled enum values
+    $unhandled = $enumValues | Where-Object { $handledValues -notcontains $_ }
+
+    if ($unhandled.Count -gt 0) {
+        $hasSwitchIssues = $true
+        Write-Host "❌ $($mapping.ToolFile) ($($mapping.EnumType)):" -ForegroundColor Red
+        foreach ($value in $unhandled) {
+            Write-Host "   Missing case: $($mapping.EnumType).$value" -ForegroundColor Yellow
+            $switchIssues += "Missing case: $($mapping.EnumType).$value in $($mapping.ToolFile)"
+        }
+        Write-Host ""
+    } else {
+        Write-Host "✅ $($mapping.ToolFile): All $($enumValues.Count) enum values handled" -ForegroundColor Green
+    }
+}
+
+if ($hasSwitchIssues) {
+    Write-Host ""
+    Write-Host "⚠️  UNHANDLED ENUM VALUES DETECTED!" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Action Required:" -ForegroundColor Yellow
+    Write-Host "  1. Review missing case statements above" -ForegroundColor Yellow
+    Write-Host "  2. Add missing cases to switch statements in tool files" -ForegroundColor Yellow
+    Write-Host "  3. Implement the corresponding private methods" -ForegroundColor Yellow
+    Write-Host "  4. Run 'dotnet build' to verify compilation" -ForegroundColor Yellow
+    Write-Host "  5. Test the new actions work correctly" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "Example fix for PowerQueryAction.LoadTo:" -ForegroundColor Gray
+    Write-Host "  PowerQueryAction.LoadTo => await LoadToPowerQueryAsync(...)" -ForegroundColor Gray
+    Write-Host ""
+
+    if ($FailOnGaps) {
+        exit 1
+    }
+} else {
+    Write-Host ""
+    Write-Host "✅ All switch statements complete - every enum value is handled!" -ForegroundColor Green
 }
 
 exit 0
