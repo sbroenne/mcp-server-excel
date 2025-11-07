@@ -583,16 +583,15 @@ public class PowerQueryCommands : IPowerQueryCommands
             AnsiConsole.MarkupLine($"[dim]Rows Loaded:[/] {result.RowsLoaded}");
         }
 
-        // Display suggested next actions
-        if (result.SuggestedNextActions?.Count > 0)
+        // Workflow guidance - CLI layer responsibility
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("[dim]Suggested next actions:[/]");
+        AnsiConsole.MarkupLine($"  • Use 'pq-refresh {filePath} {queryName}' to update data");
+        if (result.LoadDestination == PowerQueryLoadMode.LoadToDataModel || result.LoadDestination == PowerQueryLoadMode.LoadToBoth)
         {
-            AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine("[dim]Suggested next actions:[/]");
-            foreach (var action in result.SuggestedNextActions)
-            {
-                AnsiConsole.MarkupLine($"  • {action.EscapeMarkup()}");
-            }
+            AnsiConsole.MarkupLine($"  • Use 'dm-create-measure' to add DAX calculations");
         }
+        AnsiConsole.MarkupLine($"  • Use 'pq-view {filePath} {queryName}' to inspect M code");
 
         return 0;
     }

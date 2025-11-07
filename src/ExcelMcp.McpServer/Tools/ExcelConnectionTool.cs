@@ -326,23 +326,13 @@ public static class ExcelConnectionTool
         }
         catch (TimeoutException ex)
         {
-            // Enrich timeout error with operation-specific guidance
+            // Enrich timeout error with operation-specific guidance (MCP layer responsibility)
             var result = new OperationResult
             {
                 Success = false,
                 ErrorMessage = ex.Message,
                 FilePath = filePath,
                 Action = "refresh",
-
-                SuggestedNextActions = new List<string>
-                {
-                    "Connection refresh timed out - check for blocking dialogs in Excel",
-                    "Verify the data source is responsive (database server, network share, web service)",
-                    "For OLEDB/ODBC connections, test connectivity using Windows ODBC Data Source Administrator",
-                    "Check firewall rules and network connectivity to remote data sources",
-                    "Look for credential prompts or authentication dialogs that may be hidden",
-                    "Large datasets may require longer refresh times - consider data filtering at source"
-                },
 
                 OperationContext = new Dictionary<string, object>
                 {
@@ -359,7 +349,31 @@ public static class ExcelConnectionTool
                     : "Retry acceptable after checking for hidden dialogs and verifying data source connectivity. Consider using 'test' action first."
             };
 
-            return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+            // MCP layer: Add workflow guidance for LLMs
+            var response = new
+            {
+                result.Success,
+                result.ErrorMessage,
+                result.FilePath,
+                result.Action,
+                result.OperationContext,
+                result.IsRetryable,
+                result.RetryGuidance,
+                
+                // Workflow hints - MCP Server layer responsibility
+                WorkflowHint = "Connection refresh timeout - verify data source accessibility",
+                SuggestedNextActions = new[]
+                {
+                    "Connection refresh timed out - check for blocking dialogs in Excel",
+                    "Verify the data source is responsive (database server, network share, web service)",
+                    "For OLEDB/ODBC connections, test connectivity using Windows ODBC Data Source Administrator",
+                    "Check firewall rules and network connectivity to remote data sources",
+                    "Look for credential prompts or authentication dialogs that may be hidden",
+                    "Large datasets may require longer refresh times - consider data filtering at source"
+                }
+            };
+
+            return JsonSerializer.Serialize(response, ExcelToolsBase.JsonOptions);
         }
     }
 

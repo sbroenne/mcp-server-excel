@@ -215,7 +215,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
         }
         catch (TimeoutException ex)
         {
-            // Enrich timeout error with operation-specific guidance
+            // Enrich timeout error with operation-specific guidance (MCP layer responsibility)
             var result = new PowerQueryRefreshResult
             {
                 Success = false,
@@ -223,14 +223,6 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 QueryName = queryName,
                 FilePath = excelPath,
                 RefreshTime = DateTime.Now,
-
-                SuggestedNextActions = new List<string>
-                {
-                    "Check if Excel is showing a 'Privacy Level' dialog or credential prompt",
-                    "Verify the data source is accessible (network connection, database availability)",
-                    "For large datasets, consider filtering data at source or breaking into smaller queries",
-                    "Use batch mode (begin_excel_batch) if not already using it to optimize multiple operations"
-                },
 
                 OperationContext = new Dictionary<string, object>
                 {
@@ -247,7 +239,30 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                     : "Operation can be retried if transient data source issue suspected. Current timeout is already at maximum (5 minutes)."
             };
 
-            return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+            // MCP layer: Add workflow guidance for LLMs
+            var response = new
+            {
+                result.Success,
+                result.ErrorMessage,
+                result.QueryName,
+                result.FilePath,
+                result.RefreshTime,
+                result.OperationContext,
+                result.IsRetryable,
+                result.RetryGuidance,
+                
+                // Workflow hints - MCP Server layer responsibility
+                WorkflowHint = "Power Query refresh timeout - check data source and Excel dialogs",
+                SuggestedNextActions = new[]
+                {
+                    "Check if Excel is showing a 'Privacy Level' dialog or credential prompt",
+                    "Verify the data source is accessible (network connection, database availability)",
+                    "For large datasets, consider filtering data at source or breaking into smaller queries",
+                    "Use batch mode (begin_excel_batch) if not already using it to optimize multiple operations"
+                }
+            };
+
+            return JsonSerializer.Serialize(response, ExcelToolsBase.JsonOptions);
         }
     }
 

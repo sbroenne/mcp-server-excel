@@ -2,6 +2,8 @@ namespace Sbroenne.ExcelMcp.Core.Models;
 
 /// <summary>
 /// Base result type for all Core operations
+/// NOTE: Core commands should NOT set SuggestedNextActions (workflow guidance is MCP/CLI layer responsibility).
+/// Core CAN set OperationContext, IsRetryable, RetryGuidance for timeout handling and technical retry metadata.
 /// </summary>
 public abstract class ResultBase
 {
@@ -21,22 +23,20 @@ public abstract class ResultBase
     public string? FilePath { get; set; }
 
     /// <summary>
-    /// Suggested next actions for LLMs/users (e.g., "Check for Excel dialogs", "Verify data source connection")
-    /// </summary>
-    public List<string>? SuggestedNextActions { get; set; }
-
-    /// <summary>
     /// Additional context for the operation (e.g., timeout values, operation type, affected items)
+    /// Used by timeout handling system to provide diagnostic information.
     /// </summary>
     public Dictionary<string, object>? OperationContext { get; set; }
 
     /// <summary>
     /// Whether this operation can be safely retried (default: true, false for max timeout or unrecoverable errors)
+    /// Used by timeout handling system to guide retry decisions.
     /// </summary>
     public bool IsRetryable { get; set; } = true;
 
     /// <summary>
     /// Guidance on how to retry the operation (e.g., "Increase timeout", "Break into smaller operations")
+    /// Used by timeout handling system to provide technical retry strategy.
     /// </summary>
     public string? RetryGuidance { get; set; }
 }

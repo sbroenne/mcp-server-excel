@@ -11,14 +11,14 @@ namespace Sbroenne.ExcelMcp.Core.Commands.QueryTable;
 public partial class QueryTableCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> CreateFromConnectionAsync(IExcelBatch batch, string sheetName, 
-        string queryTableName, string connectionName, string range = "A1", 
+    public async Task<OperationResult> CreateFromConnectionAsync(IExcelBatch batch, string sheetName,
+        string queryTableName, string connectionName, string range = "A1",
         QueryTableCreateOptions? options = null)
     {
         return await batch.Execute((ctx, ct) =>
         {
-            var result = new OperationResult 
-            { 
+            var result = new OperationResult
+            {
                 FilePath = batch.WorkbookPath,
                 Action = "create-from-connection"
             };
@@ -29,11 +29,6 @@ public partial class QueryTableCommands
             {
                 result.Success = false;
                 result.ErrorMessage = $"Connection '{connectionName}' not found";
-                result.SuggestedNextActions = new List<string>
-                {
-                    "Use excel_connection list to see available connections",
-                    "Create the connection first using excel_connection"
-                };
                 return result;
             }
 
@@ -53,11 +48,6 @@ public partial class QueryTableCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Worksheet '{sheetName}' not found";
-                    result.SuggestedNextActions = new List<string>
-                    {
-                        "Use excel_worksheet list to see available worksheets",
-                        "Create the worksheet first using excel_worksheet create"
-                    };
                     return result;
                 }
 
@@ -139,12 +129,6 @@ public partial class QueryTableCommands
                 }
 
                 result.Success = true;
-                result.SuggestedNextActions = new List<string>
-                {
-                    "Use excel_range to read the QueryTable data",
-                    "Use excel_querytable get to view QueryTable properties",
-                    "Use excel_querytable refresh to update the data"
-                };
             }
             catch (Exception ex)
             {
@@ -171,8 +155,8 @@ public partial class QueryTableCommands
     {
         return await batch.Execute((ctx, ct) =>
         {
-            var result = new OperationResult 
-            { 
+            var result = new OperationResult
+            {
                 FilePath = batch.WorkbookPath,
                 Action = "create-from-query"
             };
@@ -183,11 +167,6 @@ public partial class QueryTableCommands
             {
                 result.Success = false;
                 result.ErrorMessage = $"Power Query '{queryName}' not found";
-                result.SuggestedNextActions = new List<string>
-                {
-                    "Use excel_powerquery list to see available queries",
-                    "Import the query first using excel_powerquery import"
-                };
                 return result;
             }
             ComUtilities.Release(ref query);
@@ -204,11 +183,6 @@ public partial class QueryTableCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Worksheet '{sheetName}' not found";
-                    result.SuggestedNextActions = new List<string>
-                    {
-                        "Use excel_worksheet list to see available worksheets",
-                        "Create the worksheet first using excel_worksheet create"
-                    };
                     return result;
                 }
 
@@ -228,12 +202,6 @@ public partial class QueryTableCommands
                 PowerQueryHelpers.CreateQueryTable(worksheet, queryName, queryTableOptions);
 
                 result.Success = true;
-                result.SuggestedNextActions = new List<string>
-                {
-                    "Use excel_range to read the QueryTable data",
-                    "Use excel_querytable get to view QueryTable properties",
-                    "Use excel_querytable refresh to update the data"
-                };
             }
             catch (Exception ex)
             {
@@ -255,8 +223,8 @@ public partial class QueryTableCommands
     {
         return await batch.Execute((ctx, ct) =>
         {
-            var result = new OperationResult 
-            { 
+            var result = new OperationResult
+            {
                 FilePath = batch.WorkbookPath,
                 Action = "update-properties"
             };
@@ -266,11 +234,6 @@ public partial class QueryTableCommands
             {
                 result.Success = false;
                 result.ErrorMessage = $"QueryTable '{queryTableName}' not found";
-                result.SuggestedNextActions = new List<string>
-                {
-                    "Use excel_querytable list to see available QueryTables",
-                    "Check the QueryTable name spelling"
-                };
                 return result;
             }
 
@@ -279,28 +242,23 @@ public partial class QueryTableCommands
                 // Update only the properties that are specified
                 if (options.BackgroundQuery.HasValue)
                     queryTable.BackgroundQuery = options.BackgroundQuery.Value;
-                
+
                 if (options.RefreshOnFileOpen.HasValue)
                     queryTable.RefreshOnFileOpen = options.RefreshOnFileOpen.Value;
-                
+
                 if (options.SavePassword.HasValue)
                     queryTable.SavePassword = options.SavePassword.Value;
-                
+
                 if (options.PreserveColumnInfo.HasValue)
                     queryTable.PreserveColumnInfo = options.PreserveColumnInfo.Value;
-                
+
                 if (options.PreserveFormatting.HasValue)
                     queryTable.PreserveFormatting = options.PreserveFormatting.Value;
-                
+
                 if (options.AdjustColumnWidth.HasValue)
                     queryTable.AdjustColumnWidth = options.AdjustColumnWidth.Value;
 
                 result.Success = true;
-                result.SuggestedNextActions = new List<string>
-                {
-                    "Use excel_querytable get to verify the updated properties",
-                    "Properties will take effect on next refresh"
-                };
             }
             catch (Exception ex)
             {
@@ -329,7 +287,7 @@ public partial class QueryTableCommands
             queryTable.PreserveColumnInfo = options.PreserveColumnInfo;
             queryTable.PreserveFormatting = options.PreserveFormatting;
             queryTable.AdjustColumnWidth = options.AdjustColumnWidth;
-            
+
             // Apply refresh style for cell insertion behavior
             queryTable.RefreshStyle = 1; // xlInsertDeleteCells
         }
