@@ -22,7 +22,8 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsAsErrors />
-    <WarningsNotAsErrors>CA1416;CS8602;SYSLIB1045;IL2026;IL3050</WarningsNotAsErrors>
+    <!-- Suppress warnings for Windows-only COM interop code -->
+    <NoWarn>$(NoWarn);CA1416;CS8602;SYSLIB1045;IL2026;IL3050</NoWarn>
 
     <!-- Deterministic builds for reproducibility -->
     <Deterministic>true</Deterministic>
@@ -33,6 +34,7 @@
     <AnalysisLevel>latest</AnalysisLevel>
     <AnalysisMode>Recommended</AnalysisMode>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
 
     <!-- Generate XML documentation for all projects to enable IDE0005 analyzer -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -43,9 +45,6 @@
     <PublishReadyToRun>false</PublishReadyToRun>
     <InvariantGlobalization>false</InvariantGlobalization>
     <_SkipUpgradeNetAnalyzersNuGetWarning>true</_SkipUpgradeNetAnalyzersNuGetWarning>
-
-    <!-- Suppress specific warnings for COM interop (not treated as errors) -->
-    <WarningsNotAsErrors>CA1416;CS8602;SYSLIB1045;IL2026;IL3050</WarningsNotAsErrors>
 
   </PropertyGroup>
 

@@ -63,7 +63,7 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **98 commands** across 11 categories:
+ExcelMcp.CLI provides **109 commands** across 12 categories:
 
 | Category | Commands | Examples |
 |----------|----------|----------|
@@ -72,7 +72,8 @@ ExcelMcp.CLI provides **98 commands** across 11 categories:
 | **Power Query** | 9 | `pq-list`, `pq-create`, `pq-export`, `pq-refresh`, `pq-update-mcode` |
 | **Ranges** | 11 | `range-get-values`, `range-set-values`, `range-copy`, `range-find` |
 | **Excel Tables** | 21 | `table-create`, `table-filter`, `table-sort`, `table-add-column` |
-| **PivotTables** | 6 | `pivot-create-from-range`, `pivot-add-row-field`, `pivot-refresh` |
+| **PivotTables** | 12 | `pivot-create-from-range`, `pivot-add-row-field`, `pivot-refresh`, `pivot-delete` |
+| **QueryTables** | 5 | `querytable-list`, `querytable-get`, `querytable-refresh`, `querytable-delete` |
 | **Data Model** | 15 | `dm-create-measure`, `dm-create-relationship`, `dm-refresh` |
 | **Connections** | 11 | `conn-list`, `conn-import`, `conn-refresh`, `conn-test` |
 | **Named Ranges** | 6 | `namedrange-create`, `namedrange-get`, `namedrange-set` |
@@ -158,13 +159,38 @@ excelcli pivot-create-from-range sales.xlsx Data A1:D100 Analysis A1 SalesPivot
 
 # Configure fields
 excelcli pivot-add-row-field sales.xlsx SalesPivot Region
+excelcli pivot-add-column-field sales.xlsx SalesPivot Year
 excelcli pivot-add-value-field sales.xlsx SalesPivot Amount Sum "Total Sales"
+excelcli pivot-add-filter-field sales.xlsx SalesPivot Category
+
+# Manage PivotTable lifecycle
+excelcli pivot-get sales.xlsx SalesPivot
+excelcli pivot-list-fields sales.xlsx SalesPivot
+excelcli pivot-remove-field sales.xlsx SalesPivot Year
+excelcli pivot-delete sales.xlsx SalesPivot
 
 # Create from Data Model (for large datasets)
 excelcli pivot-create-from-datamodel sales.xlsx ConsumptionMilestones Analysis A1 MilestonesPivot
 
 # Refresh PivotTable
 excelcli pivot-refresh sales.xlsx SalesPivot
+```
+
+### QueryTable Operations
+
+```bash
+# List all QueryTables in workbook
+excelcli querytable-list data.xlsx
+
+# Get QueryTable details
+excelcli querytable-get data.xlsx "WebData"
+
+# Refresh QueryTables
+excelcli querytable-refresh data.xlsx "WebData"
+excelcli querytable-refresh-all data.xlsx
+
+# Delete QueryTable
+excelcli querytable-delete data.xlsx "WebData"
 ```
 
 ### Worksheet Management

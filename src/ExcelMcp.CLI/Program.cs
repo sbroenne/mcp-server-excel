@@ -47,6 +47,7 @@ internal sealed class Program
             var dataModel = new DataModelCommands();  // Used for dm-* commands
             var table = new CliTableCommands();
             var pivot = new PivotTableCommands();
+            var queryTable = new QueryTableCommands();
 
             return args[0].ToLowerInvariant() switch
             {
@@ -143,9 +144,22 @@ internal sealed class Program
                 "pivot-list" => pivot.List(args),
                 "pivot-create-from-range" => pivot.CreateFromRange(args),
                 "pivot-create-from-datamodel" => pivot.CreateFromDataModel(args),
+                "pivot-get" => pivot.Get(args),
+                "pivot-delete" => pivot.Delete(args),
+                "pivot-list-fields" => pivot.ListFields(args),
                 "pivot-add-row-field" => pivot.AddRowField(args),
+                "pivot-add-column-field" => pivot.AddColumnField(args),
                 "pivot-add-value-field" => pivot.AddValueField(args),
+                "pivot-add-filter-field" => pivot.AddFilterField(args),
+                "pivot-remove-field" => pivot.RemoveField(args),
                 "pivot-refresh" => pivot.Refresh(args),
+
+                // QueryTable commands
+                "querytable-list" => queryTable.List(args),
+                "querytable-get" => queryTable.Get(args),
+                "querytable-refresh" => queryTable.Refresh(args),
+                "querytable-refresh-all" => queryTable.RefreshAll(args),
+                "querytable-delete" => queryTable.Delete(args),
 
                 // Connection commands
                 "conn-list" => connection.List(args),
@@ -400,14 +414,28 @@ internal sealed class Program
 
         AnsiConsole.MarkupLine("[bold yellow]PivotTable Commands:[/]");
         AnsiConsole.MarkupLine("  [cyan]pivot-list[/] file.xlsx                          List all PivotTables");
+        AnsiConsole.MarkupLine("  [cyan]pivot-get[/] file.xlsx pivot-name                Get PivotTable information");
         AnsiConsole.MarkupLine("  [cyan]pivot-create-from-range[/] file.xlsx src-sheet src-range dest-sheet dest-cell name");
         AnsiConsole.MarkupLine("    [dim]Example: pivot-create-from-range sales.xlsx Data A1:D100 Analysis A1 SalesPivot[/]");
         AnsiConsole.MarkupLine("  [cyan]pivot-create-from-datamodel[/] file.xlsx table-name dest-sheet dest-cell name");
         AnsiConsole.MarkupLine("    [dim]Example: pivot-create-from-datamodel sales.xlsx ConsumptionMilestones Analysis A1 MilestonesPivot[/]");
+        AnsiConsole.MarkupLine("  [cyan]pivot-list-fields[/] file.xlsx pivot-name        List all fields in PivotTable");
         AnsiConsole.MarkupLine("  [cyan]pivot-add-row-field[/] file.xlsx pivot-name field [[position]]");
+        AnsiConsole.MarkupLine("  [cyan]pivot-add-column-field[/] file.xlsx pivot-name field [[position]]");
         AnsiConsole.MarkupLine("  [cyan]pivot-add-value-field[/] file.xlsx pivot-name field [[function]] [[custom-name]]");
         AnsiConsole.MarkupLine("    [dim]Functions: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, VarP[/]");
+        AnsiConsole.MarkupLine("  [cyan]pivot-add-filter-field[/] file.xlsx pivot-name field");
+        AnsiConsole.MarkupLine("  [cyan]pivot-remove-field[/] file.xlsx pivot-name field");
         AnsiConsole.MarkupLine("  [cyan]pivot-refresh[/] file.xlsx pivot-name           Refresh PivotTable data");
+        AnsiConsole.MarkupLine("  [cyan]pivot-delete[/] file.xlsx pivot-name            Delete PivotTable");
+        AnsiConsole.WriteLine();
+
+        AnsiConsole.MarkupLine("[bold yellow]QueryTable Commands:[/]");
+        AnsiConsole.MarkupLine("  [cyan]querytable-list[/] file.xlsx                    List all QueryTables");
+        AnsiConsole.MarkupLine("  [cyan]querytable-get[/] file.xlsx querytable-name    Get QueryTable information");
+        AnsiConsole.MarkupLine("  [cyan]querytable-refresh[/] file.xlsx querytable-name  Refresh specific QueryTable");
+        AnsiConsole.MarkupLine("  [cyan]querytable-refresh-all[/] file.xlsx            Refresh all QueryTables");
+        AnsiConsole.MarkupLine("  [cyan]querytable-delete[/] file.xlsx querytable-name Delete QueryTable");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Connection Commands:[/]");
