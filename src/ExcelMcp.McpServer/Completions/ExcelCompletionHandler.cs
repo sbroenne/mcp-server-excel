@@ -80,7 +80,7 @@ public static class ExcelCompletionHandler
             suggestions = MarkdownLoader.LoadCompletionValues("privacy_level.md");
         }
         // Format code completions
-        else if (argumentName == "formatCode" || argumentName == "formatString" || argumentName == "numberFormat")
+        else if (argumentName is "formatCode" or "formatString" or "numberFormat")
         {
             suggestions = MarkdownLoader.LoadCompletionValues("format_codes.md");
         }
@@ -119,7 +119,7 @@ public static class ExcelCompletionHandler
             suggestions = MarkdownLoader.LoadCompletionValues("border_weights.md");
         }
         // Color completions (common Excel theme colors)
-        else if (argumentName == "fontColor" || argumentName == "fillColor" || argumentName == "borderColor")
+        else if (argumentName is "fontColor" or "fillColor" or "borderColor")
         {
             suggestions = MarkdownLoader.LoadCompletionValues("colors_common.md");
         }

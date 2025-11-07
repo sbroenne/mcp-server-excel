@@ -127,10 +127,10 @@ public partial class PivotTableCommands : IPivotTableCommands
         return dataType switch
         {
             "Number" => true, // All functions valid for numbers
-            "Date" => function == AggregationFunction.Count || function == AggregationFunction.CountNumbers ||
-                      function == AggregationFunction.Max || function == AggregationFunction.Min,
+            "Date" => function is AggregationFunction.Count or AggregationFunction.CountNumbers or
+                      AggregationFunction.Max or AggregationFunction.Min,
             "Text" => function == AggregationFunction.Count,
-            "Boolean" => function == AggregationFunction.Count || function == AggregationFunction.Sum,
+            "Boolean" => function is AggregationFunction.Count or AggregationFunction.Sum,
             _ => function == AggregationFunction.Count
         };
     }

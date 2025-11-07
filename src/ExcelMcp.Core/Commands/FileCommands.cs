@@ -19,7 +19,7 @@ public class FileCommands : IFileCommands
 
             // Validate file extension
             string extension = Path.GetExtension(filePath).ToLowerInvariant();
-            if (extension != ".xlsx" && extension != ".xlsm")
+            if (extension is not ".xlsx" and not ".xlsm")
             {
                 return new OperationResult
                 {
@@ -123,7 +123,7 @@ public class FileCommands : IFileCommands
             string extension = exists ? Path.GetExtension(filePath).ToLowerInvariant() : "";
 
             // Validate extension
-            bool isValidExtension = extension == ".xlsx" || extension == ".xlsm";
+            bool isValidExtension = extension is ".xlsx" or ".xlsm";
 
             // Get file info if exists
             long size = 0;

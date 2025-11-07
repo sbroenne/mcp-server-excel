@@ -26,7 +26,7 @@ public partial class ConnectionCommands : IConnectionCommands
             {
                 return conn.ODBCConnection?.BackgroundQuery ?? false;
             }
-            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
+            else if (connType is 3 or 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
             {
                 // Try TextConnection first, fall back to WebConnection
                 try
@@ -68,7 +68,7 @@ public partial class ConnectionCommands : IConnectionCommands
             {
                 return conn.ODBCConnection?.RefreshOnFileOpen ?? false;
             }
-            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
+            else if (connType is 3 or 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
             {
                 // Try TextConnection first, fall back to WebConnection
                 try
@@ -110,7 +110,7 @@ public partial class ConnectionCommands : IConnectionCommands
             {
                 return conn.ODBCConnection?.SavePassword ?? false;
             }
-            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
+            else if (connType is 3 or 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
             {
                 // Try TextConnection first, fall back to WebConnection
                 try
@@ -152,7 +152,7 @@ public partial class ConnectionCommands : IConnectionCommands
             {
                 return conn.ODBCConnection?.RefreshPeriod ?? 0;
             }
-            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
+            else if (connType is 3 or 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
             {
                 // Try TextConnection first, fall back to WebConnection
                 try
@@ -470,7 +470,7 @@ public partial class ConnectionCommands : IConnectionCommands
                     }
                 }
             }
-            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV files as either
+            else if (connType is 3 or 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV files as either
             {
                 // Excel has type 3/4 confusion: CSV files created with "TEXT;filepath" may be reported as type 4 (WEB)
                 // Try TextConnection first (correct for type 3), fall back to WebConnection if that fails
@@ -576,7 +576,7 @@ public partial class ConnectionCommands : IConnectionCommands
                     SetProperty(odbc, propertyName, value.Value);
                 }
             }
-            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV files as either
+            else if (connType is 3 or 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV files as either
             {
                 // Try TextConnection first, fall back to WebConnection
                 dynamic? textOrWeb = null;

@@ -98,7 +98,7 @@ public partial class SheetCommands
                 }
 
                 // Also check if color value itself indicates no custom color
-                if (colorValue == null || colorValue == 0)
+                if (colorValue is null or (dynamic?)0)
                 {
                     result.Success = true;
                     result.HasColor = false;

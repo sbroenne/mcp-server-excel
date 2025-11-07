@@ -47,7 +47,7 @@ public static class CoreTestHelper
         var filePath = Path.Join(tempDir, fileName);
 
         // Handle Excel files (.xlsx, .xlsm)
-        if (extension == ".xlsx" || extension == ".xlsm")
+        if (extension is ".xlsx" or ".xlsm")
         {
             var fileCommands = new FileCommands();
             var result = await fileCommands.CreateEmptyAsync(filePath, overwriteIfExists: false);

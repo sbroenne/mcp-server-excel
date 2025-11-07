@@ -556,7 +556,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("[dim]Suggested next actions:[/]");
         AnsiConsole.MarkupLine($"  • Use 'pq-refresh {filePath} {queryName}' to update data");
-        if (result.LoadDestination == PowerQueryLoadMode.LoadToDataModel || result.LoadDestination == PowerQueryLoadMode.LoadToBoth)
+        if (result.LoadDestination is PowerQueryLoadMode.LoadToDataModel or PowerQueryLoadMode.LoadToBoth)
         {
             AnsiConsole.MarkupLine($"  • Use 'dm-create-measure' to add DAX calculations");
         }

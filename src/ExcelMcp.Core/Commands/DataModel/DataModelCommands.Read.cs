@@ -430,7 +430,7 @@ public partial class DataModelCommands
                         isCalculated = column.IsCalculatedColumn ?? false;
                     }
                     catch (Exception ex) when (ex is Microsoft.CSharp.RuntimeBinder.RuntimeBinderException
-                                            || ex is System.Runtime.InteropServices.COMException)
+                                            or System.Runtime.InteropServices.COMException)
                     {
                         // Ignore - property not available in this Excel version
                         isCalculated = false;
@@ -511,7 +511,7 @@ public partial class DataModelCommands
                         isCalculated = column.IsCalculatedColumn ?? false;
                     }
                     catch (Exception ex) when (ex is Microsoft.CSharp.RuntimeBinder.RuntimeBinderException
-                                            || ex is System.Runtime.InteropServices.COMException)
+                                            or System.Runtime.InteropServices.COMException)
                     {
                         // Ignore - property not available in this Excel version
                         isCalculated = false;

@@ -82,7 +82,7 @@ public partial class VbaCommands : IVbaCommands
         var parts = codeLine.Trim().Split(ProcedureSeparators, StringSplitOptions.RemoveEmptyEntries);
         for (int i = 0; i < parts.Length; i++)
         {
-            if (parts[i] == "Sub" || parts[i] == "Function")
+            if (parts[i] is "Sub" or "Function")
             {
                 if (i + 1 < parts.Length)
                 {

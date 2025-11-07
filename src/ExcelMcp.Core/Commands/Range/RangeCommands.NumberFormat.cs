@@ -51,7 +51,7 @@ public partial class RangeCommands
                 result.ColumnCount = columnCount;
 
                 // Check if we have mixed formats (DBNull or null)
-                if (numberFormats == null || numberFormats is DBNull)
+                if (numberFormats is null or DBNull)
                 {
                     // Mixed formats - must read cell-by-cell
                     dynamic? cells = null;
