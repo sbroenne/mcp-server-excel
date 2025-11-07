@@ -1146,6 +1146,18 @@ public partial class PowerQueryCommands
         string queryName = query.Name;
         string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
 
+        // Clear worksheet to prevent column accumulation (regression test requirement)
+        dynamic? usedRange = null;
+        try
+        {
+            usedRange = sheet.UsedRange;
+            usedRange.Clear();
+        }
+        finally
+        {
+            ComUtilities.Release(ref usedRange);
+        }
+
         dynamic range = sheet.Range["A1"];
         // Use Type.Missing for 3rd parameter (working pattern from diagnostic tests)
         dynamic queryTable = sheet.QueryTables.Add(connectionString, range, Type.Missing);
@@ -1162,7 +1174,7 @@ public partial class PowerQueryCommands
         queryTable.SaveData = true;
         queryTable.AdjustColumnWidth = true;
         queryTable.RefreshPeriod = 0;
-        queryTable.PreserveColumnInfo = true;
+        queryTable.PreserveColumnInfo = false;  // Allow column structure changes when M code updates
 
         // Note: Caller is responsible for calling Refresh(false) after QueryTable is returned
         return queryTable;

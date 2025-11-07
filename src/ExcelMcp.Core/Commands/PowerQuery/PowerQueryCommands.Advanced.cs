@@ -154,6 +154,18 @@ public partial class PowerQueryCommands
                         string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
                         string commandText = $"SELECT * FROM [{queryName}]";
 
+                        // Clear worksheet to prevent column accumulation (regression test requirement)
+                        dynamic? usedRange = null;
+                        try
+                        {
+                            usedRange = targetSheet.UsedRange;
+                            usedRange.Clear();
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref usedRange);
+                        }
+
                         rangeObj = targetSheet.Range["A1"];
                         queryTable = queryTables.Add(connectionString, rangeObj, commandText);
                         queryTable.Name = queryName.Replace(" ", "_");
@@ -161,7 +173,7 @@ public partial class PowerQueryCommands
 
                         // Set additional properties for better data loading
                         queryTable.BackgroundQuery = false; // Don't run in background
-                        queryTable.PreserveColumnInfo = true;
+                        queryTable.PreserveColumnInfo = false; // Allow column structure to update
                         queryTable.PreserveFormatting = true;
                         queryTable.AdjustColumnWidth = true;
 
@@ -213,12 +225,24 @@ public partial class PowerQueryCommands
                         string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
                         string commandText = $"SELECT * FROM [{queryName}]";
 
+                        // Clear worksheet to prevent column accumulation (regression test requirement)
+                        dynamic? usedRange = null;
+                        try
+                        {
+                            usedRange = targetSheet.UsedRange;
+                            usedRange.Clear();
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref usedRange);
+                        }
+
                         rangeObj = targetSheet.Range["A1"];
                         queryTable = queryTables.Add(connectionString, rangeObj, commandText);
                         queryTable.Name = queryName.Replace(" ", "_");
                         queryTable.RefreshStyle = 1; // xlInsertDeleteCells
                         queryTable.BackgroundQuery = false;
-                        queryTable.PreserveColumnInfo = true;
+                        queryTable.PreserveColumnInfo = false; // Allow column structure to update
                         queryTable.PreserveFormatting = true;
                         queryTable.AdjustColumnWidth = true;
 

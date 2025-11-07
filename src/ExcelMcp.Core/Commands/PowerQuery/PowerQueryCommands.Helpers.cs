@@ -114,7 +114,7 @@ public partial class PowerQueryCommands
             queryTable.Name = queryName.Replace(" ", "_");
             queryTable.RefreshStyle = 1; // xlInsertDeleteCells
             queryTable.BackgroundQuery = false;
-            queryTable.PreserveColumnInfo = true;
+            queryTable.PreserveColumnInfo = false;  // Allow column structure changes when M code updates
             queryTable.PreserveFormatting = true;
             queryTable.AdjustColumnWidth = true;
             queryTable.RefreshOnFileOpen = false;

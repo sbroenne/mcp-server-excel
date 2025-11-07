@@ -332,7 +332,7 @@ in
 
     /// <summary>
     /// REGRESSION TEST: Validates UpdateAsync properly handles column structure changes
-    /// 
+    ///
     /// LLM use case: "update a query to change column structure and verify columns update"
     ///
     /// Scenario:
@@ -342,7 +342,7 @@ in
     /// 4. Check that there is still only one column
     /// 5. Update the query to create two columns and load again
     /// 6. Check that there are two columns (validates column structure updates correctly)
-    /// 
+    ///
     /// Historical bug: QueryTable.PreserveColumnInfo=true prevented column updates
     /// Fix: Set PreserveColumnInfo=false and clear worksheet before recreating QueryTable
     /// </summary>
@@ -452,7 +452,7 @@ in
 
     /// <summary>
     /// REGRESSION TEST: Validates SetLoadToTableAsync prevents column accumulation
-    /// 
+    ///
     /// Historical bug scenario (delete/recreate workaround):
     /// 1. Create query with 1 column (Column1)
     /// 2. Update M code to 2 columns (Column1, Column2)
@@ -461,7 +461,7 @@ in
     ///
     /// Root cause: Deleting QueryTable left data on worksheet, causing visual concatenation
     /// Fix: Clear worksheet data before creating new QueryTable in SetLoadToTableAsync
-    /// 
+    ///
     /// This test reproduces the exact scenario from early testing where we saw accumulated columns.
     /// </summary>
     [Fact]

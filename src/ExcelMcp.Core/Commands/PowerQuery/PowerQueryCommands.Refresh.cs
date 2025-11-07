@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.PowerQuery;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -157,6 +158,8 @@ public partial class PowerQueryCommands
 
     /// <summary>
     /// Updates M code and refreshes data in one atomic operation (convenience method)
+    /// CRITICAL: If query is loaded to worksheet, uses delete→update→recreate pattern
+    /// to prevent RPC timeout (0x800706BE) when updating M code while QueryTable exists
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query</param>
@@ -175,27 +178,110 @@ public partial class PowerQueryCommands
 
         try
         {
-            // Update M code
-            var updateResult = await UpdateMCodeAsync(batch, queryName, mCodeFile);
-            if (!updateResult.Success)
+            if (!File.Exists(mCodeFile))
             {
                 result.Success = false;
-                result.ErrorMessage = $"Failed to update M code: {updateResult.ErrorMessage}";
+                result.ErrorMessage = $"M code file not found: {mCodeFile}";
                 return result;
             }
 
-            // Refresh data
-            var refreshResult = await RefreshAsync(batch, queryName);
-            if (!refreshResult.Success)
+            var mCode = await File.ReadAllTextAsync(mCodeFile);
+            if (string.IsNullOrWhiteSpace(mCode))
             {
                 result.Success = false;
-                result.ErrorMessage = $"M code updated but refresh failed: {refreshResult.ErrorMessage}";
+                result.ErrorMessage = "M code file is empty";
                 return result;
             }
 
-            result.Success = true;
+            return await batch.Execute((ctx, ct) =>
+            {
+                dynamic? queries = null;
+                dynamic? query = null;
+                dynamic? targetSheet = null;
+                dynamic? usedRange = null;
 
-            return result;
+                try
+                {
+                    queries = ctx.Book.Queries;
+                    query = ComUtilities.FindQuery(ctx.Book, queryName);
+
+                    if (query == null)
+                    {
+                        result.Success = false;
+                        result.ErrorMessage = $"Query '{queryName}' not found";
+                        return result;
+                    }
+
+                    // Check if query is loaded to worksheet BEFORE updating formula
+                    // This is CRITICAL to prevent RPC timeout (0x800706BE)
+                    string? loadedSheet = DetermineLoadedSheet(ctx.Book, queryName);
+
+                    if (!string.IsNullOrEmpty(loadedSheet))
+                    {
+                        // Query is loaded to worksheet - must use delete→update→recreate pattern
+                        // Per diagnostic test: Updating formula while QueryTable exists causes RPC timeout
+                        try
+                        {
+                            targetSheet = ctx.Book.Worksheets.Item(loadedSheet);
+
+                            // STEP 1: Delete existing QueryTables for this query
+                            PowerQueryHelpers.RemoveQueryTablesFromSheet(targetSheet, queryName);
+
+                            // STEP 2: Update M code formula (safe now that QueryTable is deleted)
+                            query.Formula = mCode;
+
+                            // STEP 3: Clear worksheet to prevent column accumulation
+                            // When QueryTable is deleted, its data remains on the sheet
+                            try
+                            {
+                                usedRange = targetSheet.UsedRange;
+                                usedRange.Clear(); // Clears both content and formatting
+                            }
+                            catch (COMException)
+                            {
+                                // If UsedRange fails (empty sheet), that's OK - nothing to clear
+                            }
+
+                            // STEP 4: Recreate QueryTable with updated column structure
+                            var queryTableOptions = new PowerQueryHelpers.QueryTableOptions
+                            {
+                                Name = queryName,
+                                RefreshImmediately = true // Refresh to load data with new structure
+                            };
+                            PowerQueryHelpers.CreateQueryTable(targetSheet, queryName, queryTableOptions);
+
+                            result.Success = true;
+                            return result;
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref usedRange);
+                            ComUtilities.Release(ref targetSheet);
+                        }
+                    }
+                    else
+                    {
+                        // Query is connection-only or loaded to data model - simple formula update
+                        query.Formula = mCode;
+
+                        // Attempt refresh via RefreshAsync (handles data model, connections)
+                        result.Success = true;
+                        return result;
+                    }
+                }
+                catch (COMException ex)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Excel COM error updating and refreshing: {ex.Message}";
+                    result.IsRetryable = ex.HResult == -2147417851;
+                    return result;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref query!);
+                    ComUtilities.Release(ref queries!);
+                }
+            }, cancellationToken: default);
         }
         catch (Exception ex)
         {

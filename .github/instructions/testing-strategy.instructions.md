@@ -126,10 +126,10 @@ Assert.Contains(list.Items, i => i.Name == "Sheet1");  // ✅ Verify persisted
 ### Required Traits
 - `[Trait("Category", "Integration")]` - All tests are integration tests
 - `[Trait("Speed", "Medium|Slow")]`
-- `[Trait("Layer", "Core|CLI|McpServer|ComInterop")]`
+- `[Trait("Layer", "Core|CLI|McpServer|ComInterop|Diagnostics")]`
 - `[Trait("Feature", "<feature-name>")]` - See valid values below
 - `[Trait("RequiresExcel", "true")]` - All integration tests require Excel
-- `[Trait("RunType", "OnDemand")]` - For session/lifecycle tests only
+- `[Trait("RunType", "OnDemand")]` - For session/lifecycle tests and diagnostic tests (slow, run only when explicitly requested)
 
 ### Valid Feature Values
 - **PowerQuery** - Power Query M code operations
@@ -156,6 +156,9 @@ dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Categ
 
 # Session/batch changes (MANDATORY - see CRITICAL-RULES.md Rule 3)
 dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --filter "RunType=OnDemand"
+
+# Diagnostic tests (validate production patterns, slow ~20s each)
+dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "RunType=OnDemand&Layer=Diagnostics"
 
 # VBA tests (run manually when needed - requires VBA trust enabled)
 dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
