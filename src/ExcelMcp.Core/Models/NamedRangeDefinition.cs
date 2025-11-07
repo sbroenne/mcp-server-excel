@@ -9,12 +9,12 @@ public class NamedRangeDefinition
     /// Name of the named range parameter
     /// </summary>
     public required string Name { get; set; }
-    
+
     /// <summary>
     /// Cell reference (e.g., "Sheet1!$A$1" or "=Sheet1!$A$1")
     /// </summary>
     public required string Reference { get; set; }
-    
+
     /// <summary>
     /// Optional initial value to set in the cell
     /// </summary>

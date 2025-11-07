@@ -1,8 +1,4 @@
-using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop;
-using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Connections;
-using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
 
 
@@ -319,7 +315,7 @@ public partial class ConnectionCommands : IConnectionCommands
                     3 => "Table",
                     4 => "Default",
                     5 => "List",
-                    _ => cmdType?.ToString()
+                    _ => "Unknown(" + (cmdType.HasValue ? cmdType.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "null") + ")"
                 };
             }
             else if (connType == 2) // ODBC
@@ -332,7 +328,7 @@ public partial class ConnectionCommands : IConnectionCommands
                     3 => "Table",
                     4 => "Default",
                     5 => "List",
-                    _ => cmdType?.ToString()
+                    _ => "Unknown(" + (cmdType.HasValue ? cmdType.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "null") + ")"
                 };
             }
         }
@@ -630,8 +626,10 @@ public partial class ConnectionCommands : IConnectionCommands
         }
     }
 
-    private static void CreateQueryTableForConnection(dynamic targetSheet, string connectionName,
-        dynamic conn, PowerQueryHelpers.QueryTableOptions options)
+    private static void CreateQueryTableForConnection(
+        dynamic targetSheet,
+        dynamic conn,
+        PowerQueryHelpers.QueryTableOptions options)
     {
         // For regular connections (not Power Query), we need connection string
         string? connectionString = GetConnectionString(conn);
@@ -687,7 +685,7 @@ public partial class ConnectionCommands : IConnectionCommands
 /// <summary>
 /// Connection definition for JSON import/export
 /// </summary>
-internal class ConnectionDefinition
+internal sealed class ConnectionDefinition
 {
     public string Name { get; set; } = "";
     public string? Description { get; set; }

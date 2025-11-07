@@ -1,6 +1,3 @@
-using System;
-using System.IO;
-using System.Threading.Tasks;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -19,6 +16,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
 [Trait("RequiresExcel", "true")]
 public partial class PowerQueryCommandsTests
 {
+    /// <inheritdoc/>
     #region CreateAsync Tests
 
     [Fact]
@@ -48,6 +46,7 @@ public partial class PowerQueryCommandsTests
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Queries, q => q.Name == queryName);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Create_LoadToTable_CreatesAndLoadsData()
@@ -85,6 +84,7 @@ public partial class PowerQueryCommandsTests
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Queries, q => q.Name == queryName);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Create_LoadToDataModel_CreatesAndLoadsToModel()
@@ -113,6 +113,7 @@ public partial class PowerQueryCommandsTests
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Queries, q => q.Name == queryName);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Create_LoadToBoth_CreatesAndLoadsToTableAndModel()
@@ -150,6 +151,7 @@ public partial class PowerQueryCommandsTests
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Queries, q => q.Name == queryName);
     }
+    /// <inheritdoc/>
 
     #endregion
 
@@ -195,6 +197,7 @@ in
         Assert.True(viewResult.Success);
         Assert.Contains("UpdatedColumn", viewResult.MCode);
     }
+    /// <inheritdoc/>
 
     #endregion
 
@@ -233,6 +236,7 @@ in
         Assert.True(loadResult.DataRefreshed);
         Assert.Equal(targetSheet, loadResult.WorksheetName);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task LoadTo_ToDataModel_LoadsToModelSuccessfully()
@@ -264,6 +268,7 @@ in
         Assert.Equal(PowerQueryLoadMode.LoadToDataModel, loadResult.LoadDestination);
         Assert.True(loadResult.DataRefreshed);
     }
+    /// <inheritdoc/>
 
     #endregion
 
@@ -302,6 +307,7 @@ in
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Queries, q => q.Name == queryName);
     }
+    /// <inheritdoc/>
 
     #endregion
 
@@ -357,6 +363,7 @@ in
         Assert.True(viewResult.Success);
         Assert.Contains("RefreshedColumn", viewResult.MCode);
     }
+    /// <inheritdoc/>
 
     #endregion
 
@@ -394,6 +401,7 @@ in
         // Assert
         Assert.True(refreshResult.Success, $"RefreshAll failed: {refreshResult.ErrorMessage}");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task RefreshAll_EmptyWorkbook_Succeeds()

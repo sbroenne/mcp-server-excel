@@ -63,23 +63,24 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **89+ commands** across 11 categories:
+ExcelMcp.CLI provides **98 commands** across 11 categories:
 
 | Category | Commands | Examples |
 |----------|----------|----------|
-| **File Operations** | 2 | `create-empty` |
+| **File Operations** | 1 | `create-empty` |
 | **Worksheets** | 13 | `sheet-list`, `sheet-create`, `sheet-rename`, `sheet-set-tab-color` |
-| **Power Query** | 8 | `pq-list`, `pq-import`, `pq-export`, `pq-refresh` |
-| **Ranges** | 10 | `range-get-values`, `range-set-values`, `range-format` |
-| **Excel Tables** | 23 | `table-create`, `table-filter`, `table-sort`, `table-add-column` |
-| **PivotTables** | 19 | `pivot-create-from-range`, `pivot-add-row-field`, `pivot-refresh` |
+| **Power Query** | 9 | `pq-list`, `pq-create`, `pq-export`, `pq-refresh`, `pq-update-mcode` |
+| **Ranges** | 11 | `range-get-values`, `range-set-values`, `range-copy`, `range-find` |
+| **Excel Tables** | 21 | `table-create`, `table-filter`, `table-sort`, `table-add-column` |
+| **PivotTables** | 6 | `pivot-create-from-range`, `pivot-add-row-field`, `pivot-refresh` |
 | **Data Model** | 15 | `dm-create-measure`, `dm-create-relationship`, `dm-refresh` |
 | **Connections** | 11 | `conn-list`, `conn-import`, `conn-refresh`, `conn-test` |
-| **Named Ranges** | 7 | `namedrange-create`, `namedrange-get`, `namedrange-set` |
-| **VBA** | 7 | `vba-list`, `vba-import`, `vba-run`, `vba-export` |
-| **Cells** | 4 | `cell-get-value`, `cell-set-value`, `cell-get-formula` |
+| **Named Ranges** | 6 | `namedrange-create`, `namedrange-get`, `namedrange-set` |
+| **VBA** | 5 | `vba-list`, `vba-import`, `vba-run`, `vba-export` |
 
 Full command reference: [COMMANDS.md](../../docs/COMMANDS.md)
+
+> **Note:** Command counts reflect the current implementation. Some categories may have additional commands in development.
 
 ---
 

@@ -416,10 +416,10 @@ public enum DeleteShiftDirection
 public class FindOptions
 {
     /// <summary>Whether to match case</summary>
-    public bool MatchCase { get; set; } = false;
+    public bool MatchCase { get; set; }
 
     /// <summary>Whether to match entire cell content</summary>
-    public bool MatchEntireCell { get; set; } = false;
+    public bool MatchEntireCell { get; set; }
 
     /// <summary>Whether to search in formulas</summary>
     public bool SearchFormulas { get; set; } = true;
@@ -428,7 +428,7 @@ public class FindOptions
     public bool SearchValues { get; set; } = true;
 
     /// <summary>Whether to search in comments</summary>
-    public bool SearchComments { get; set; } = false;
+    public bool SearchComments { get; set; }
 }
 
 /// <summary>

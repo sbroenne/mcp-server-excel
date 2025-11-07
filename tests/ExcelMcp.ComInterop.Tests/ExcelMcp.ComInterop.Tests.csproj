@@ -11,6 +11,11 @@
 
     <AssemblyName>Sbroenne.ExcelMcp.ComInterop.Tests</AssemblyName>
     <RootNamespace>Sbroenne.ExcelMcp.ComInterop.Tests</RootNamespace>
+    
+    <!-- Enable XML documentation for test project to support IDE0005 analyzer -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Suppress CS1591 - test methods don't need XML documentation -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

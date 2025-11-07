@@ -1,4 +1,10 @@
+// Explicit usings retained; pragma used to suppress IDE0005 for clarity in reflection-heavy test
+#pragma warning disable IDE0005
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
+#pragma warning restore IDE0005
 using Sbroenne.ExcelMcp.McpServer.Models;
 using Xunit;
 using Xunit.Abstractions;
@@ -19,6 +25,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Models;
 public class ActionEnumCompletenessTests
 {
     private readonly ITestOutputHelper _output;
+    /// <inheritdoc/>
 
     public ActionEnumCompletenessTests(ITestOutputHelper output)
     {
@@ -38,7 +45,7 @@ public class ActionEnumCompletenessTests
         // Find all *Action enums in Models namespace
         var actionEnums = typeof(ActionExtensions).Assembly
             .GetTypes()
-            .Where(t => t.IsEnum && t.Name.EndsWith("Action") && t.Namespace == "Sbroenne.ExcelMcp.McpServer.Models")
+            .Where(t => t.IsEnum && t.Name.EndsWith("Action", StringComparison.Ordinal) && t.Namespace == "Sbroenne.ExcelMcp.McpServer.Models")
             .ToList();
 
         _output.WriteLine($"Found {actionEnums.Count} action enums:");
@@ -97,7 +104,7 @@ public class ActionEnumCompletenessTests
             }
         }
 
-        if (failures.Any())
+        if (failures.Count > 0)
         {
             var message = $"Enum mapping failures:\n{string.Join("\n", failures)}";
             _output.WriteLine($"\n{message}");
@@ -114,7 +121,7 @@ public class ActionEnumCompletenessTests
     {
         var actionEnums = typeof(ActionExtensions).Assembly
             .GetTypes()
-            .Where(t => t.IsEnum && t.Name.EndsWith("Action") && t.Namespace == "Sbroenne.ExcelMcp.McpServer.Models")
+            .Where(t => t.IsEnum && t.Name.EndsWith("Action", StringComparison.Ordinal) && t.Namespace == "Sbroenne.ExcelMcp.McpServer.Models")
             .ToList();
 
         var failures = new List<string>();
@@ -154,7 +161,7 @@ public class ActionEnumCompletenessTests
                 .Where(g => g.Count() > 1)
                 .ToList();
 
-            if (duplicates.Any())
+            if (duplicates.Count > 0)
             {
                 foreach (var duplicate in duplicates)
                 {
@@ -164,7 +171,7 @@ public class ActionEnumCompletenessTests
             }
         }
 
-        if (failures.Any())
+        if (failures.Count > 0)
         {
             var message = $"Duplicate action string failures:\n{string.Join("\n", failures)}";
             _output.WriteLine($"\n{message}");
@@ -185,7 +192,7 @@ public class ActionEnumCompletenessTests
     {
         var actionEnums = typeof(ActionExtensions).Assembly
             .GetTypes()
-            .Where(t => t.IsEnum && t.Name.EndsWith("Action") && t.Namespace == "Sbroenne.ExcelMcp.McpServer.Models")
+            .Where(t => t.IsEnum && t.Name.EndsWith("Action", StringComparison.Ordinal) && t.Namespace == "Sbroenne.ExcelMcp.McpServer.Models")
             .ToList();
 
         _output.WriteLine($"\nExpected tool files with switch statements:");

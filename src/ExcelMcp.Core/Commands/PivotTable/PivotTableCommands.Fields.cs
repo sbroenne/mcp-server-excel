@@ -251,7 +251,7 @@ public partial class PivotTableCommands
     /// Adds a field to the Values area with aggregation
     /// </summary>
     public async Task<PivotFieldResult> AddValueFieldAsync(IExcelBatch batch, string pivotTableName,
-        string fieldName, AggregationFunction function = AggregationFunction.Sum,
+        string fieldName, AggregationFunction aggregationFunction = AggregationFunction.Sum,
         string? customName = null)
     {
         return await batch.Execute((ctx, ct) =>
@@ -276,17 +276,17 @@ public partial class PivotTableCommands
 
                 // Validate aggregation function for field data type
                 string dataType = DetectFieldDataType(field);
-                if (!IsValidAggregationForDataType(function, dataType))
+                if (!IsValidAggregationForDataType(aggregationFunction, dataType))
                 {
                     var validFunctions = GetValidAggregationsForDataType(dataType);
-                    throw new InvalidOperationException($"Aggregation function '{function}' is not valid for {dataType} field '{fieldName}'. Valid functions: {string.Join(", ", validFunctions)}");
+                    throw new InvalidOperationException($"Aggregation function '{aggregationFunction}' is not valid for {dataType} field '{fieldName}'. Valid functions: {string.Join(", ", validFunctions)}");
                 }
 
                 // Add to Values area
                 field.Orientation = XlPivotFieldOrientation.xlDataField;
 
                 // Set aggregation function with COM constant
-                int comFunction = GetComAggregationFunction(function);
+                int comFunction = GetComAggregationFunction(aggregationFunction);
                 field.Function = comFunction;
 
                 // Set custom name if provided
@@ -305,7 +305,7 @@ public partial class PivotTableCommands
                     FieldName = fieldName,
                     CustomName = field.Caption?.ToString() ?? fieldName,
                     Area = PivotFieldArea.Value,
-                    Function = function,
+                    Function = aggregationFunction,
                     DataType = dataType,
                     FilePath = batch.WorkbookPath
                 };
@@ -471,7 +471,7 @@ public partial class PivotTableCommands
     /// Sets the aggregation function for a value field
     /// </summary>
     public async Task<PivotFieldResult> SetFieldFunctionAsync(IExcelBatch batch, string pivotTableName,
-        string fieldName, AggregationFunction function)
+        string fieldName, AggregationFunction aggregationFunction)
     {
         return await batch.Execute((ctx, ct) =>
         {
@@ -511,14 +511,14 @@ public partial class PivotTableCommands
                 dynamic? sourceField = pivot.PivotFields.Item(fieldName);
                 string dataType = DetectFieldDataType(sourceField);
                 ComUtilities.Release(ref sourceField);
-                if (!IsValidAggregationForDataType(function, dataType))
+                if (!IsValidAggregationForDataType(aggregationFunction, dataType))
                 {
                     var validFunctions = GetValidAggregationsForDataType(dataType);
-                    throw new InvalidOperationException($"Aggregation function '{function}' is not valid for {dataType} field '{fieldName}'. Valid functions: {string.Join(", ", validFunctions)}");
+                    throw new InvalidOperationException($"Aggregation function '{aggregationFunction}' is not valid for {dataType} field '{fieldName}'. Valid functions: {string.Join(", ", validFunctions)}");
                 }
 
                 // Set function
-                int comFunction = GetComAggregationFunction(function);
+                int comFunction = GetComAggregationFunction(aggregationFunction);
                 field.Function = comFunction;
 
                 // Refresh
@@ -530,7 +530,7 @@ public partial class PivotTableCommands
                     FieldName = fieldName,
                     CustomName = field.Caption?.ToString() ?? fieldName,
                     Area = PivotFieldArea.Value,
-                    Function = function,
+                    Function = aggregationFunction,
                     DataType = dataType,
                     FilePath = batch.WorkbookPath
                 };

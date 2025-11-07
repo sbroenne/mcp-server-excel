@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
@@ -14,6 +15,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// Power Query connections automatically redirect to excel_powerquery tool.
 /// </summary>
 [McpServerToolType]
+[SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments", Justification = "Conditional arrays with dynamic content")]
 public static class ExcelConnectionTool
 {
     /// <summary>

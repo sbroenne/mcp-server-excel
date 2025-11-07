@@ -1,21 +1,21 @@
 <Project>
-  
+
   <PropertyGroup>
     <!-- Common properties for all projects -->
     <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
     <Authors>Stefan Broenner</Authors>
-    <Company>Sbroenne</Company>
+    <Company>Open Source Developer</Company>
     <Product>Sbroenne.ExcelMcp</Product>
     <Copyright>Copyright © 2025 Stefan Broenner</Copyright>
-    
+
     <!-- Repository information -->
     <PackageProjectUrl>https://github.com/sbroenne/mcp-server-excel</PackageProjectUrl>
     <RepositoryUrl>https://github.com/sbroenne/mcp-server-excel</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    
+
     <!-- Build settings -->
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -23,24 +23,31 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsAsErrors />
     <WarningsNotAsErrors>CA1416;CS8602;SYSLIB1045;IL2026;IL3050</WarningsNotAsErrors>
-    
+
     <!-- Deterministic builds for reproducibility -->
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
-    
+
     <!-- Code Analysis -->
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>Recommended</AnalysisMode>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    
+
+    <!-- Generate XML documentation for all projects to enable IDE0005 analyzer -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+
     <!-- Security -->
     <PublishTrimmed>false</PublishTrimmed>
     <PublishReadyToRun>false</PublishReadyToRun>
     <InvariantGlobalization>false</InvariantGlobalization>
     <_SkipUpgradeNetAnalyzersNuGetWarning>true</_SkipUpgradeNetAnalyzersNuGetWarning>
-    
-    <!-- Suppress COM interop warnings -->
-    <NoWarn>CA1416;CS8602;SYSLIB1045;IL2026;IL3050</NoWarn>
+
+    <!-- Suppress specific warnings for COM interop (not treated as errors) -->
+    <WarningsNotAsErrors>CA1416;CS8602;SYSLIB1045;IL2026;IL3050</WarningsNotAsErrors>
+
   </PropertyGroup>
-  
+
+
 </Project>

@@ -8,17 +8,17 @@ public class QueryTableCreateOptions
     /// <summary>
     /// Whether to run the query in the background (asynchronously)
     /// </summary>
-    public bool BackgroundQuery { get; init; } = false;
+    public bool BackgroundQuery { get; init; }
 
     /// <summary>
     /// Whether to refresh the QueryTable when the file is opened
     /// </summary>
-    public bool RefreshOnFileOpen { get; init; } = false;
+    public bool RefreshOnFileOpen { get; init; }
 
     /// <summary>
     /// Whether to save the password with the QueryTable
     /// </summary>
-    public bool SavePassword { get; init; } = false;
+    public bool SavePassword { get; init; }
 
     /// <summary>
     /// Whether to preserve column information when refreshing

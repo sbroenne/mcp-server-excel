@@ -21,11 +21,13 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 public class ScriptCommandsTests
 {
     private readonly VbaCommands _cliCommands;
+    /// <inheritdoc/>
 
     public ScriptCommandsTests()
     {
         _cliCommands = new VbaCommands();
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void List_WithMissingFileArg_ReturnsErrorExitCode()
@@ -39,6 +41,7 @@ public class ScriptCommandsTests
         // Assert - CLI returns 1 for error (missing arguments)
         Assert.Equal(1, exitCode);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void Export_WithMissingModuleNameArg_ReturnsErrorExitCode()
@@ -59,6 +62,7 @@ public class ScriptCommandsTests
                 $"Unexpected exception type: {ex.GetType().Name}: {ex.Message}");
         }
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void Export_WithInvalidFileExtension_ReturnsErrorExitCode()
@@ -72,6 +76,7 @@ public class ScriptCommandsTests
         // Assert - CLI returns 1 for error (invalid file extension for VBA)
         Assert.Equal(1, exitCode);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Import_WithMissingVbaFileArg_ReturnsErrorExitCode()
@@ -85,6 +90,7 @@ public class ScriptCommandsTests
         // Assert - CLI returns 1 for error (missing arguments)
         Assert.Equal(1, exitCode);
     }
+    /// <inheritdoc/>
 
     [Theory]
     [InlineData("vba-run")]

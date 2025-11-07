@@ -13,7 +13,7 @@ public partial class SheetCommands
     public async Task<OperationResult> SetTabColorAsync(IExcelBatch batch, string sheetName, int red, int green, int blue)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-tab-color" };
-        
+
         // Validate RGB values
         if (red < 0 || red > 255 || green < 0 || green > 255 || blue < 0 || blue > 255)
         {
@@ -35,14 +35,14 @@ public partial class SheetCommands
                     result.ErrorMessage = $"Sheet '{sheetName}' not found";
                     return result;
                 }
-                
+
                 // Convert RGB to BGR format (Excel's color format)
                 // BGR = (Blue << 16) | (Green << 8) | Red
                 int bgrColor = (blue << 16) | (green << 8) | red;
-                
+
                 tab = sheet.Tab;
                 tab.Color = bgrColor;
-                
+
                 result.Success = true;
                 return result;
             }
@@ -59,7 +59,7 @@ public partial class SheetCommands
             }
         });
     }
-    
+
     /// <inheritdoc />
     /// <inheritdoc />
     public async Task<TabColorResult> GetTabColorAsync(IExcelBatch batch, string sheetName)
@@ -79,15 +79,15 @@ public partial class SheetCommands
                     result.ErrorMessage = $"Sheet '{sheetName}' not found";
                     return result;
                 }
-                
+
                 tab = sheet.Tab;
                 dynamic colorValue = tab.Color;
-                
+
                 // Excel's ColorIndex.xlColorIndexAutomatic = -4105
                 // When no custom color is set, Excel might return various values
                 // Check ColorIndex property instead for more reliable detection
                 dynamic colorIndex = tab.ColorIndex;
-                
+
                 // xlColorIndexNone = -4142, xlColorIndexAutomatic = -4105
                 // If ColorIndex is negative or color value indicates no custom color
                 if (colorIndex is int idx && (idx == -4142 || idx == -4105 || idx < 0))
@@ -96,7 +96,7 @@ public partial class SheetCommands
                     result.HasColor = false;
                     return result;
                 }
-                
+
                 // Also check if color value itself indicates no custom color
                 if (colorValue == null || colorValue == 0)
                 {
@@ -104,20 +104,20 @@ public partial class SheetCommands
                     result.HasColor = false;
                     return result;
                 }
-                
+
                 // Convert BGR to RGB
                 int bgrColor = Convert.ToInt32(colorValue);
                 int red = bgrColor & 0xFF;
                 int green = (bgrColor >> 8) & 0xFF;
                 int blue = (bgrColor >> 16) & 0xFF;
-                
+
                 result.Success = true;
                 result.HasColor = true;
                 result.Red = red;
                 result.Green = green;
                 result.Blue = blue;
                 result.HexColor = $"#{red:X2}{green:X2}{blue:X2}";
-                
+
                 return result;
             }
             catch (Exception ex)
@@ -133,7 +133,7 @@ public partial class SheetCommands
             }
         });
     }
-    
+
     /// <inheritdoc />
     /// <inheritdoc />
     public async Task<OperationResult> ClearTabColorAsync(IExcelBatch batch, string sheetName)
@@ -153,11 +153,11 @@ public partial class SheetCommands
                     result.ErrorMessage = $"Sheet '{sheetName}' not found";
                     return result;
                 }
-                
+
                 tab = sheet.Tab;
                 // Set ColorIndex to xlColorIndexNone (-4142) to clear color
                 tab.ColorIndex = -4142; // xlColorIndexNone
-                
+
                 result.Success = true;
                 return result;
             }

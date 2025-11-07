@@ -1,6 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Xunit;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
@@ -9,6 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 /// </summary>
 public partial class RangeCommandsTests
 {
+    /// <inheritdoc/>
     // === HYPERLINK OPERATIONS TESTS ===
 
     [Fact]
@@ -36,6 +37,7 @@ public partial class RangeCommandsTests
         // Excel normalizes URLs - may add trailing slash
         Assert.StartsWith("https://www.example.com", hyperlinkResult.Hyperlinks[0].Address);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task RemoveHyperlink_DeletesHyperlink()
@@ -54,6 +56,7 @@ public partial class RangeCommandsTests
         var hyperlinkResult = await _commands.GetHyperlinkAsync(batch, "Sheet1", "A1");
         Assert.Empty(hyperlinkResult.Hyperlinks);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ListHyperlinks_ReturnsAllHyperlinks()

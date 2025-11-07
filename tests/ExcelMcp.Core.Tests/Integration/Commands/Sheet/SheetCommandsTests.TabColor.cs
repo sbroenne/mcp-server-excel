@@ -1,6 +1,4 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -11,6 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Sheet;
 /// </summary>
 public partial class SheetCommandsTests
 {
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetTabColor_WithValidRGB_SetsColorCorrectly()
@@ -41,6 +40,7 @@ public partial class SheetCommandsTests
 
         // Save changes
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetTabColor_WithDifferentColors_AllSetCorrectly()
@@ -84,6 +84,7 @@ public partial class SheetCommandsTests
 
         // Save changes
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task GetTabColor_WithNoColor_ReturnsHasColorFalse()
@@ -108,6 +109,7 @@ public partial class SheetCommandsTests
         Assert.Null(result.Blue);
         Assert.Null(result.HexColor);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ClearTabColor_RemovesColor()
@@ -138,6 +140,7 @@ public partial class SheetCommandsTests
 
         // Save changes
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetTabColor_WithInvalidRGB_ReturnsError()
@@ -162,6 +165,7 @@ public partial class SheetCommandsTests
         Assert.False(result2.Success);
         Assert.Contains("must be between 0 and 255", result2.ErrorMessage);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetTabColor_WithNonExistentSheet_ReturnsError()
@@ -181,6 +185,7 @@ public partial class SheetCommandsTests
         Assert.False(result.Success);
         Assert.Contains("not found", result.ErrorMessage);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task TabColor_RGBToBGRConversion_WorksCorrectly()

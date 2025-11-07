@@ -9,6 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 /// </summary>
 public partial class RangeCommandsTests
 {
+    /// <inheritdoc/>
     // === FORMULA OPERATIONS TESTS ===
 
     [Fact]
@@ -37,8 +38,11 @@ public partial class RangeCommandsTests
         // Assert
         Assert.True(result.Success);
         Assert.Equal("=SUM(A1:A3)", result.Formulas[0][0]);
-        Assert.Equal(60.0, Convert.ToDouble(result.Values[0][0]));
+        Assert.Equal(
+            60.0,
+            Convert.ToDouble(result.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetFormulas_WritesFormulasToRange()
@@ -66,10 +70,17 @@ public partial class RangeCommandsTests
 
         // Verify values
         var readResult = await _commands.GetValuesAsync(batch, "Sheet1", "B1:D1");
-        Assert.Equal(10.0, Convert.ToDouble(readResult.Values[0][0]));
-        Assert.Equal(20.0, Convert.ToDouble(readResult.Values[0][1]));
-        Assert.Equal(30.0, Convert.ToDouble(readResult.Values[0][2]));
+        Assert.Equal(
+            10.0,
+            Convert.ToDouble(readResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(
+            20.0,
+            Convert.ToDouble(readResult.Values[0][1], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(
+            30.0,
+            Convert.ToDouble(readResult.Values[0][2], System.Globalization.CultureInfo.InvariantCulture));
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetFormulas_WithJsonElementFormulas_WritesFormulasCorrectly()
@@ -116,9 +127,14 @@ public partial class RangeCommandsTests
         Assert.Equal("=AVERAGE(A1:A3)", formulaResult.Formulas[0][1]);
 
         // Verify calculated values
-        Assert.Equal(600.0, Convert.ToDouble(formulaResult.Values[0][0])); // SUM
-        Assert.Equal(200.0, Convert.ToDouble(formulaResult.Values[0][1])); // AVERAGE
+        Assert.Equal(
+            600.0,
+            Convert.ToDouble(formulaResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture)); // SUM
+        Assert.Equal(
+            200.0,
+            Convert.ToDouble(formulaResult.Values[0][1], System.Globalization.CultureInfo.InvariantCulture)); // AVERAGE
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ComplexFormulas_RealisticBusinessScenario_CalculatesCorrectly()
@@ -211,10 +227,18 @@ public partial class RangeCommandsTests
         Assert.True(growthRatesResult.Success);
 
         // Verify Total Sales calculations
-        Assert.Equal(80000.0, Convert.ToDouble(totalsResult.Values[0][0])); // Widget A: 15000+18000+22000+25000
-        Assert.Equal(60000.0, Convert.ToDouble(totalsResult.Values[1][0])); // Widget B: 12000+14000+16000+18000
-        Assert.Equal(41000.0, Convert.ToDouble(totalsResult.Values[2][0])); // Widget C: 8000+9000+11000+13000
-        Assert.Equal(92000.0, Convert.ToDouble(totalsResult.Values[3][0])); // Widget D: 20000+22000+24000+26000
+        Assert.Equal(
+            80000.0,
+            Convert.ToDouble(totalsResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture)); // Widget A: 15000+18000+22000+25000
+        Assert.Equal(
+            60000.0,
+            Convert.ToDouble(totalsResult.Values[1][0], System.Globalization.CultureInfo.InvariantCulture)); // Widget B: 12000+14000+16000+18000
+        Assert.Equal(
+            41000.0,
+            Convert.ToDouble(totalsResult.Values[2][0], System.Globalization.CultureInfo.InvariantCulture)); // Widget C: 8000+9000+11000+13000
+        Assert.Equal(
+            92000.0,
+            Convert.ToDouble(totalsResult.Values[3][0], System.Globalization.CultureInfo.InvariantCulture)); // Widget D: 20000+22000+24000+26000
 
         // Verify Performance Ratings (IF/AVERAGE logic)
         // Formula: IF(AVERAGE>20000,"Excellent",IF(AVERAGE>15000,"Good","Average"))
@@ -228,11 +252,21 @@ public partial class RangeCommandsTests
         Assert.Equal("Excellent", performanceResult.Values[3][0]);
 
         // Verify Summary Row Calculations
-        Assert.Equal(55000.0, Convert.ToDouble(summaryTotalsResult.Values[0][0])); // Q1 Total: 15000+12000+8000+20000
-        Assert.Equal(63000.0, Convert.ToDouble(summaryTotalsResult.Values[0][1])); // Q2 Total
-        Assert.Equal(73000.0, Convert.ToDouble(summaryTotalsResult.Values[0][2])); // Q3 Total
-        Assert.Equal(82000.0, Convert.ToDouble(summaryTotalsResult.Values[0][3])); // Q4 Total
-        Assert.Equal(273000.0, Convert.ToDouble(summaryTotalsResult.Values[0][4])); // Grand Total
+        Assert.Equal(
+            55000.0,
+            Convert.ToDouble(summaryTotalsResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture)); // Q1 Total: 15000+12000+8000+20000
+        Assert.Equal(
+            63000.0,
+            Convert.ToDouble(summaryTotalsResult.Values[0][1], System.Globalization.CultureInfo.InvariantCulture)); // Q2 Total
+        Assert.Equal(
+            73000.0,
+            Convert.ToDouble(summaryTotalsResult.Values[0][2], System.Globalization.CultureInfo.InvariantCulture)); // Q3 Total
+        Assert.Equal(
+            82000.0,
+            Convert.ToDouble(summaryTotalsResult.Values[0][3], System.Globalization.CultureInfo.InvariantCulture)); // Q4 Total
+        Assert.Equal(
+            273000.0,
+            Convert.ToDouble(summaryTotalsResult.Values[0][4], System.Globalization.CultureInfo.InvariantCulture)); // Grand Total
         // Note: TEXT formatting includes thousands separator, locale-dependent
         var avgText = summaryTotalsResult.Values[0][5]?.ToString() ?? "";
         Assert.Contains("68", avgText); // CONCATENATE + TEXT formatting: "Avg: $68,250"
@@ -252,6 +286,7 @@ public partial class RangeCommandsTests
         Assert.Contains("CONCATENATE", summaryTotalsResult.Formulas[0][5]);
         Assert.Contains("TEXT", growthRatesResult.Formulas[0][0]);
     }
+    /// <inheritdoc/>
 
     // === EDGE CASE TESTS ===
 
@@ -266,7 +301,7 @@ public partial class RangeCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create second sheet (add after Sheet1 to avoid reordering)
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             dynamic sheets = ctx.Book.Worksheets;
             dynamic sheet1 = sheets.Item(1);
@@ -305,13 +340,26 @@ public partial class RangeCommandsTests
         Assert.Contains("Data!", formulaResult.Formulas[1][0]);
 
         // Verify calculated values from cross-sheet references
-        Assert.Equal(100.0, Convert.ToDouble(formulaResult.Values[0][0]));
-        Assert.Equal(200.0, Convert.ToDouble(formulaResult.Values[0][1]));
-        Assert.Equal(300.0, Convert.ToDouble(formulaResult.Values[0][2]));
-        Assert.Equal(600.0, Convert.ToDouble(formulaResult.Values[1][0])); // SUM
-        Assert.Equal(200.0, Convert.ToDouble(formulaResult.Values[1][1])); // AVERAGE
-        Assert.Equal(300.0, Convert.ToDouble(formulaResult.Values[1][2])); // MAX
+        Assert.Equal(
+            100.0,
+            Convert.ToDouble(formulaResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(
+            200.0,
+            Convert.ToDouble(formulaResult.Values[0][1], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(
+            300.0,
+            Convert.ToDouble(formulaResult.Values[0][2], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(
+            600.0,
+            Convert.ToDouble(formulaResult.Values[1][0], System.Globalization.CultureInfo.InvariantCulture)); // SUM
+        Assert.Equal(
+            200.0,
+            Convert.ToDouble(formulaResult.Values[1][1], System.Globalization.CultureInfo.InvariantCulture)); // AVERAGE
+        Assert.Equal(
+            300.0,
+            Convert.ToDouble(formulaResult.Values[1][2], System.Globalization.CultureInfo.InvariantCulture)); // MAX
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetFormulas_AbsoluteAndRelativeReferences_PreservesReferenceTypes()
@@ -366,21 +414,46 @@ public partial class RangeCommandsTests
         Assert.Contains("A$1:A$3", formulaResult.Formulas[2][3]);   // Mixed range
 
         // Verify all formulas calculate correctly (value should be same regardless of reference type)
-        Assert.Equal(10.0, Convert.ToDouble(formulaResult.Values[0][0])); // All reference A1
-        Assert.Equal(10.0, Convert.ToDouble(formulaResult.Values[0][1]));
-        Assert.Equal(10.0, Convert.ToDouble(formulaResult.Values[0][2]));
-        Assert.Equal(10.0, Convert.ToDouble(formulaResult.Values[0][3]));
+        Assert.Equal(
+            10.0,
+            Convert.ToDouble(formulaResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture)); // All reference A1
+        Assert.Equal(
+            10.0,
+            Convert.ToDouble(formulaResult.Values[0][1], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(
+            10.0,
+            Convert.ToDouble(formulaResult.Values[0][2], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(
+            10.0,
+            Convert.ToDouble(formulaResult.Values[0][3], System.Globalization.CultureInfo.InvariantCulture));
 
-        Assert.Equal(20.0, Convert.ToDouble(formulaResult.Values[1][0])); // All multiply by 2
-        Assert.Equal(20.0, Convert.ToDouble(formulaResult.Values[1][1]));
-        Assert.Equal(20.0, Convert.ToDouble(formulaResult.Values[1][2]));
-        Assert.Equal(20.0, Convert.ToDouble(formulaResult.Values[1][3]));
+        Assert.Equal(
+            20.0,
+            Convert.ToDouble(formulaResult.Values[1][0], System.Globalization.CultureInfo.InvariantCulture)); // All multiply by 2
+        Assert.Equal(
+            20.0,
+            Convert.ToDouble(formulaResult.Values[1][1], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(
+            20.0,
+            Convert.ToDouble(formulaResult.Values[1][2], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(
+            20.0,
+            Convert.ToDouble(formulaResult.Values[1][3], System.Globalization.CultureInfo.InvariantCulture));
 
-        Assert.Equal(60.0, Convert.ToDouble(formulaResult.Values[2][0])); // All SUM A1:A3
-        Assert.Equal(60.0, Convert.ToDouble(formulaResult.Values[2][1]));
-        Assert.Equal(60.0, Convert.ToDouble(formulaResult.Values[2][2]));
-        Assert.Equal(60.0, Convert.ToDouble(formulaResult.Values[2][3]));
+        Assert.Equal(
+            60.0,
+            Convert.ToDouble(formulaResult.Values[2][0], System.Globalization.CultureInfo.InvariantCulture)); // All SUM A1:A3
+        Assert.Equal(
+            60.0,
+            Convert.ToDouble(formulaResult.Values[2][1], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(
+            60.0,
+            Convert.ToDouble(formulaResult.Values[2][2], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(
+            60.0,
+            Convert.ToDouble(formulaResult.Values[2][3], System.Globalization.CultureInfo.InvariantCulture));
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetFormulas_LargeFormulaSet_HandlesEfficientlyInBulk()
@@ -423,15 +496,21 @@ public partial class RangeCommandsTests
         // Sample verification - check first, middle, and last formulas
         var sampleResult = await _commands.GetFormulasAsync(batch, "Sheet1", "D1");
         Assert.Equal("=A1+B1+C1", sampleResult.Formulas[0][0]);
-        Assert.Equal(6.0, Convert.ToDouble(sampleResult.Values[0][0])); // 1+2+3
+        Assert.Equal(
+            6.0,
+            Convert.ToDouble(sampleResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture)); // 1+2+3
 
         var middleResult = await _commands.GetFormulasAsync(batch, "Sheet1", "D500");
         Assert.Equal("=A500+B500+C500", middleResult.Formulas[0][0]);
-        Assert.Equal(3000.0, Convert.ToDouble(middleResult.Values[0][0])); // 500+1000+1500
+        Assert.Equal(
+            3000.0,
+            Convert.ToDouble(middleResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture)); // 500+1000+1500
 
         var lastResult = await _commands.GetFormulasAsync(batch, "Sheet1", $"D{rowCount}");
         Assert.Equal($"=A{rowCount}+B{rowCount}+C{rowCount}", lastResult.Formulas[0][0]);
-        Assert.Equal(6000.0, Convert.ToDouble(lastResult.Values[0][0])); // 1000+2000+3000
+        Assert.Equal(
+            6000.0,
+            Convert.ToDouble(lastResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture)); // 1000+2000+3000
 
         // Verify bulk read performance - retrieve all 1000 formulas at once
         startTime = DateTime.UtcNow;

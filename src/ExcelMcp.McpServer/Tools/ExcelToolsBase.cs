@@ -53,14 +53,14 @@ public static class ExcelToolsBase
             var batch = BatchSessionTool.GetBatch(batchId);
             if (batch == null)
             {
-                throw new ModelContextProtocol.McpException(
+                throw new McpException(
                     $"Batch session '{batchId}' not found. It may have already been committed or never existed.");
             }
 
             // Verify file path matches batch
             if (!string.Equals(batch.WorkbookPath, Path.GetFullPath(filePath), StringComparison.OrdinalIgnoreCase))
             {
-                throw new ModelContextProtocol.McpException(
+                throw new McpException(
                     $"File path mismatch. Batch session is for '{batch.WorkbookPath}' but operation requested '{filePath}'.");
             }
 

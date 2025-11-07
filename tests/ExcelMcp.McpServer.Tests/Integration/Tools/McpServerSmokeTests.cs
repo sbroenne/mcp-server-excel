@@ -29,6 +29,7 @@ public class McpServerSmokeTests : IDisposable
     private readonly string _testExcelFile;
     private readonly string _testCsvFile;
     private readonly string _testQueryFile;
+    /// <inheritdoc/>
 
     public McpServerSmokeTests(ITestOutputHelper output)
     {
@@ -44,6 +45,7 @@ public class McpServerSmokeTests : IDisposable
 
         _output.WriteLine($"Test directory: {_tempDir}");
     }
+    /// <inheritdoc/>
 
     public void Dispose()
     {

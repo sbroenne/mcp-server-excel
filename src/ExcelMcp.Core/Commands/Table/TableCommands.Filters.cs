@@ -111,7 +111,7 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> ApplyFilterAsync(IExcelBatch batch, string tableName, string columnName, List<string> filterValues)
+    public async Task<OperationResult> ApplyFilterAsync(IExcelBatch batch, string tableName, string columnName, List<string> criteria)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
@@ -187,7 +187,7 @@ public partial class TableCommands
 
                 // Apply filter with multiple values
                 // Convert List<string> to string array for COM interop
-                string[] valuesArray = filterValues.ToArray();
+                string[] valuesArray = criteria.ToArray();
                 autoFilter.Range.AutoFilter(
                     Field: columnIndex,
                     Criteria1: valuesArray,

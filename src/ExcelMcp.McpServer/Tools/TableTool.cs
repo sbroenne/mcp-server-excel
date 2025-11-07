@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
@@ -28,6 +29,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - For comprehensive Power Pivot operations (DAX measures, relationships, calculated columns), use excel_datamodel tools
 /// </summary>
 [McpServerToolType]
+[SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments", Justification = "Simple workflow arrays in sealed static class")]
 public static class TableTool
 {
     /// <summary>
@@ -78,10 +80,7 @@ public static class TableTool
         string? formatCode = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
-        string? batchId = null,
-
-        [Description("Timeout in minutes for table operations. Default: 2 minutes (large tables may need more)")]
-        double? timeout = null)
+        string? batchId = null)
     {
         try
         {
@@ -478,7 +477,7 @@ public static class TableTool
         var region = Core.Models.TableRegion.Data; // Default
         if (!string.IsNullOrWhiteSpace(regionStr))
         {
-            if (!Enum.TryParse<Core.Models.TableRegion>(regionStr, true, out region))
+            if (!Enum.TryParse(regionStr, true, out region))
             {
                 throw new ModelContextProtocol.McpException($"Invalid region '{regionStr}'. Valid values: All, Data, Headers, Totals, ThisRow");
             }

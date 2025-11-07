@@ -6,6 +6,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
 public partial class RangeCommandsTests
 {
+    /// <inheritdoc/>
     [Fact]
     public async Task GetStyle_UnstyledRange_ReturnsNormalStyle()
     {
@@ -26,6 +27,7 @@ public partial class RangeCommandsTests
         Assert.True(result.IsBuiltInStyle);
         // Note: StyleDescription may be null for some styles
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task GetStyle_AfterSetStyle_ReturnsAppliedStyle()
@@ -53,6 +55,7 @@ public partial class RangeCommandsTests
         Assert.True(getResult.IsBuiltInStyle);
         // Note: StyleDescription may be null for some styles
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task GetStyle_MultipleStyles_ReturnsCorrectStyles()
@@ -94,6 +97,7 @@ public partial class RangeCommandsTests
         Assert.Equal("Currency", getCurrency.StyleName);
         Assert.True(getCurrency.IsBuiltInStyle);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task GetStyle_RangeMultipleCells_ReturnsFirstCellStyle()
@@ -120,6 +124,7 @@ public partial class RangeCommandsTests
         Assert.Equal("Good", getResult.StyleName);
         Assert.True(getResult.IsBuiltInStyle);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task GetStyle_InvalidRange_ReturnsError()
@@ -138,6 +143,8 @@ public partial class RangeCommandsTests
         // Assert
         Assert.False(result.Success);
         Assert.NotNull(result.ErrorMessage);
-        Assert.Contains("range", result.ErrorMessage.ToLower());
+        Assert.Contains(
+            "range",
+            result.ErrorMessage.ToLowerInvariant());
     }
 }

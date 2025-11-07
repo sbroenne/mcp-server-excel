@@ -15,7 +15,7 @@ public static class ConnectionTestHelper
     public static async Task CreateOleDbConnectionAsync(string filePath, string connectionName, string connectionString)
     {
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -59,7 +59,7 @@ public static class ConnectionTestHelper
     public static async Task CreateOdbcConnectionAsync(string filePath, string connectionName, string connectionString)
     {
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -90,7 +90,7 @@ public static class ConnectionTestHelper
     public static async Task CreateTextFileConnectionAsync(string filePath, string connectionName, string textFilePath)
     {
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -134,7 +134,7 @@ public static class ConnectionTestHelper
     public static async Task CreateWebConnectionAsync(string filePath, string connectionName, string url)
     {
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -171,7 +171,7 @@ public static class ConnectionTestHelper
     public static async Task CreateMultipleConnectionsAsync(string filePath, params (string name, string type, string connectionString)[] connections)
     {
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             try
             {

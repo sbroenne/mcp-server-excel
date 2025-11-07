@@ -396,7 +396,7 @@ public class RangeCommands
 
         for (int i = 4; i < args.Length; i++)
         {
-            switch (args[i].ToLower())
+            switch (args[i].ToLowerInvariant())
             {
                 case "--bold":
                     bold = true;
@@ -527,7 +527,7 @@ public class RangeCommands
         var rangeAddress = args[3];
         var validationType = args[4];
         var formula1 = args[5];
-        var formula2 = args.Length > 6 && !args[6].StartsWith("--") ? args[6] : null;
+        var formula2 = args.Length > 6 && !args[6].StartsWith("--", StringComparison.Ordinal) ? args[6] : null;
 
         // Parse optional parameters
         string? validationOperator = null;
@@ -544,7 +544,7 @@ public class RangeCommands
         int startIndex = formula2 != null ? 7 : 6;
         for (int i = startIndex; i < args.Length; i++)
         {
-            switch (args[i].ToLower())
+            switch (args[i].ToLowerInvariant())
             {
                 case "--operator":
                     if (i + 1 < args.Length)
@@ -627,9 +627,11 @@ public class RangeCommands
 
     // === HELPER METHODS ===
 
+    private static readonly string[] LineSeparators = { "\r\n", "\r", "\n" };
+
     private static List<List<object?>> ParseCsvTo2DArray(string csvData)
     {
-        var lines = csvData.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = csvData.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
 
         // Transform lines to rows using Select
         return lines.Select(line =>
@@ -666,7 +668,7 @@ public class RangeCommands
     private static List<List<string>> ParseCsvTo2DStringArray(string csvData)
     {
         var result = new List<List<string>>();
-        var lines = csvData.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = csvData.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
 
         foreach (var line in lines)
         {

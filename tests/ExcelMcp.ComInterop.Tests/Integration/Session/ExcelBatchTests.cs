@@ -62,7 +62,7 @@ public class ExcelBatchTests
 
             for (int i = 0; i < 5; i++)
             {
-                await batch.Execute<int>((ctx, ct) =>
+                await batch.Execute((ctx, ct) =>
                 {
                     operationCount++;
                     _output.WriteLine($"Batch operation {operationCount}");
@@ -101,7 +101,7 @@ public class ExcelBatchTests
             // Act
             var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-            await batch.Execute<int>((ctx, ct) =>
+            await batch.Execute((ctx, ct) =>
             {
                 dynamic sheet = ctx.Book.Worksheets.Item(1);
                 var value = sheet.Range["A1"].Value2;
@@ -141,7 +141,7 @@ public class ExcelBatchTests
             // Act - Write and save
             await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
             {
-                await batch.Execute<int>((ctx, ct) =>
+                await batch.Execute((ctx, ct) =>
                 {
                     dynamic sheet = ctx.Book.Worksheets.Item(1);
                     sheet.Range["A1"].Value2 = testValue;
@@ -158,7 +158,7 @@ public class ExcelBatchTests
             string readValue;
             await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
             {
-                readValue = await batch.Execute<string>((ctx, ct) =>
+                readValue = await batch.Execute((ctx, ct) =>
                 {
                     dynamic sheet = ctx.Book.Worksheets.Item(1);
                     var value = sheet.Range["A1"].Value2;
@@ -215,7 +215,7 @@ public class ExcelBatchTests
             await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
             {
                 // Step 1: Create new worksheet
-                await batch.Execute<int>((ctx, ct) =>
+                await batch.Execute((ctx, ct) =>
                 {
                     dynamic sheets = ctx.Book.Worksheets;
                     dynamic newSheet = sheets.Add();
@@ -225,7 +225,7 @@ public class ExcelBatchTests
                 });
 
                 // Step 2: Write data to cells
-                await batch.Execute<int>((ctx, ct) =>
+                await batch.Execute((ctx, ct) =>
                 {
                     dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
                     sheet.Range["A1"].Value2 = testValue1;
@@ -237,7 +237,7 @@ public class ExcelBatchTests
                 });
 
                 // Step 3: Create named range
-                await batch.Execute<int>((ctx, ct) =>
+                await batch.Execute((ctx, ct) =>
                 {
                     dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
                     dynamic names = ctx.Book.Names;
@@ -265,7 +265,7 @@ public class ExcelBatchTests
                 Assert.Equal(6.0, Convert.ToDouble(readData.b2)); // LEN("Value1") = 6
 
                 // Step 5: Modify existing data
-                await batch.Execute<int>((ctx, ct) =>
+                await batch.Execute((ctx, ct) =>
                 {
                     dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
                     sheet.Range["A2"].Value2 = "Modified";
@@ -364,7 +364,7 @@ public class ExcelBatchTests
                 // Perform multiple operations per batch
                 for (int op = 0; op < 3; op++)
                 {
-                    await batch.Execute<int>((ctx, ct) =>
+                    await batch.Execute((ctx, ct) =>
                     {
                         dynamic sheet = ctx.Book.Worksheets.Item(1);
                         sheet.Range[$"A{op + 1}"].Value2 = $"Batch{index}-Op{op}";
@@ -429,7 +429,7 @@ public class ExcelBatchTests
             {
                 await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-                await batch.Execute<int>((ctx, ct) =>
+                await batch.Execute((ctx, ct) =>
                 {
                     dynamic sheet = ctx.Book.Worksheets.Item(1);
                     sheet.Range["A1"].Value2 = expectedValues[testFile];

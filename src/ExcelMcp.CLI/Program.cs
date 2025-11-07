@@ -4,9 +4,9 @@ using Spectre.Console;
 
 namespace Sbroenne.ExcelMcp.CLI;
 
-class Program
+internal sealed class Program
 {
-    static async Task<int> Main(string[] args)
+    private static async Task<int> Main(string[] args)
     {
         // Set console encoding for better international character support
         Console.OutputEncoding = System.Text.Encoding.UTF8;
@@ -48,7 +48,7 @@ class Program
             var table = new CliTableCommands();
             var pivot = new PivotTableCommands();
 
-            return args[0].ToLower() switch
+            return args[0].ToLowerInvariant() switch
             {
                 // Version and help commands
                 "--version" or "-v" or "version" => ShowVersion(),
@@ -110,8 +110,8 @@ class Program
 
                 // Parameter commands
                 "namedrange-list" => param.List(args),
-                "namedrange-set" => param.Set(args),
-                "namedrange-get" => param.Get(args),
+                "namedrange-set" => param.SetValue(args),
+                "namedrange-get" => param.GetValue(args),
                 "namedrange-update" => param.Update(args),
                 "namedrange-create" => param.Create(args),
                 "namedrange-delete" => param.Delete(args),
@@ -269,11 +269,11 @@ class Program
         }
     }
 
-    static int ShowVersion()
+    private static int ShowVersion()
     {
-        var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-        var informationalVersion = System.Reflection.Assembly.GetExecutingAssembly()
-            .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? version?.ToString() ?? "Unknown";
+        var version = Assembly.GetExecutingAssembly().GetName().Version;
+        var informationalVersion = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? version?.ToString() ?? "Unknown";
 
         AnsiConsole.MarkupLine($"[bold cyan]ExcelMcp.CLI[/] [green]v{informationalVersion}[/]");
         AnsiConsole.MarkupLine("[dim]Excel Command Line Interface for Coding Agents[/]");
@@ -286,7 +286,7 @@ class Program
         return 0;
     }
 
-    static int ShowHelp()
+    private static int ShowHelp()
     {
         AnsiConsole.Write(new Rule("[bold cyan]ExcelMcp.CLI - Excel Command Line Interface for Coding Agents[/]").RuleStyle("grey"));
         AnsiConsole.WriteLine();

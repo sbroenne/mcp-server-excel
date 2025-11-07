@@ -1,6 +1,4 @@
-using System.IO;
 using Sbroenne.ExcelMcp.Core.Commands;
-using System.IO;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -18,32 +16,15 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Vba;
 [Trait("Feature", "VBA")]
 public partial class VbaCommandsTests : IClassFixture<TempDirectoryFixture>
 {
-    private readonly IVbaCommands _scriptCommands;
+    private readonly VbaCommands _scriptCommands;
     private readonly string _tempDir;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="VbaCommandsTests"/> class.
+    /// </summary>
     public VbaCommandsTests(TempDirectoryFixture fixture)
     {
         _scriptCommands = new VbaCommands();
         _tempDir = fixture.TempDir;
-    }
-
-    /// <summary>
-    /// Helper to create test VBA file
-    /// </summary>
-    private string CreateTestVbaFile(string fileName = "TestModule.vba")
-    {
-        string vbaCode = @"Option Explicit
-
-Public Function TestFunction() As String
-    TestFunction = ""Hello from VBA""
-End Function
-
-Public Sub TestSubroutine()
-    MsgBox ""Test VBA""
-End Sub";
-
-        var vbaFile = Path.Join(_tempDir, fileName);
-        System.IO.File.WriteAllText(vbaFile, vbaCode);
-        return vbaFile;
     }
 }

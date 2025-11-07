@@ -39,8 +39,7 @@ public static class ExcelCompletionHandler
             // Handle prompt argument completions
             if (refType == "ref/prompt")
             {
-                var promptName = refObj["name"]?.ToString() ?? "";
-                var suggestions = GetPromptArgumentCompletions(promptName, argumentName, argumentValue);
+                var suggestions = GetPromptArgumentCompletions(argumentName, argumentValue);
                 return CreateCompletionResult(suggestions);
             }
 
@@ -60,14 +59,14 @@ public static class ExcelCompletionHandler
         }
     }
 
-    private static List<string> GetPromptArgumentCompletions(string promptName, string? argumentName, string currentValue)
+    private static List<string> GetPromptArgumentCompletions(string? argumentName, string currentValue)
     {
         var suggestions = new List<string>();
 
         // NOTE: Action parameter completions are NOT needed here!
         // The MCP SDK auto-generates tool schema from C# enums (PowerQueryAction, RangeAction, etc.)
         // and LLMs receive all valid enum values directly in the schema.
-        // 
+        //
         // Only provide completions for freeform string parameters where suggestions add value.
 
         // Load destination completions for Power Query
@@ -133,7 +132,7 @@ public static class ExcelCompletionHandler
         var suggestions = new List<string>();
 
         // Excel file path completions
-        if (uri.StartsWith("file://", StringComparison.OrdinalIgnoreCase) || 
+        if (uri.StartsWith("file://", StringComparison.OrdinalIgnoreCase) ||
             uri.Contains(".xlsx", StringComparison.OrdinalIgnoreCase) ||
             uri.Contains(".xlsm", StringComparison.OrdinalIgnoreCase))
         {

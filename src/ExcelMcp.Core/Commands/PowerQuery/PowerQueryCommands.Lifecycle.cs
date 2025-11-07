@@ -2,7 +2,6 @@ using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Core.PowerQuery;
 using Sbroenne.ExcelMcp.Core.Security;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -132,7 +131,7 @@ public partial class PowerQueryCommands
             return result;
         }
 
-        return await batch.Execute<PowerQueryViewResult>((ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -234,7 +233,7 @@ public partial class PowerQueryCommands
             return result;
         }
 
-        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -290,7 +289,7 @@ public partial class PowerQueryCommands
             return result;
         }
 
-        return await batch.Execute<PowerQueryLoadConfigResult>((ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? query = null;
             dynamic? worksheets = null;
@@ -425,7 +424,7 @@ public partial class PowerQueryCommands
                     // Fallback: Check if the query has data model indicators
                     if (!hasDataModelConnection)
                     {
-                        hasDataModelConnection = CheckQueryDataModelConfiguration(query, ctx.Book);
+                        hasDataModelConnection = CheckQueryDataModelConfiguration(query);
                     }
                 }
 
@@ -485,7 +484,7 @@ public partial class PowerQueryCommands
             return result;
         }
 
-        return await batch.Execute<OperationResult>((ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? query = null;
             dynamic? queriesCollection = null;
@@ -553,27 +552,27 @@ public partial class PowerQueryCommands
 
     /// <summary>
     /// Creates new query from M code file with atomic import + load operation
-    /// DEFAULT: loadTo = PowerQueryLoadMode.LoadToTable (validate by executing)
+    /// DEFAULT: loadMode = PowerQueryLoadMode.LoadToTable (validate by executing)
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name for the new query</param>
     /// <param name="mCodeFile">Path to M code file</param>
-    /// <param name="loadTo">Where to load the data (default: LoadToTable)</param>
-    /// <param name="worksheetName">Target worksheet name (required for LoadToTable/LoadToBoth)</param>
+    /// <param name="loadMode">Where to load the data (default: LoadToTable)</param>
+    /// <param name="targetSheet">Target worksheet name (required for LoadToTable/LoadToBoth)</param>
     /// <returns>Result with query creation and data load status</returns>
     public async Task<PowerQueryCreateResult> CreateAsync(
         IExcelBatch batch,
         string queryName,
         string mCodeFile,
-        PowerQueryLoadMode loadTo = PowerQueryLoadMode.LoadToTable,
-        string? worksheetName = null)
+        PowerQueryLoadMode loadMode = PowerQueryLoadMode.LoadToTable,
+        string? targetSheet = null)
     {
         var result = new PowerQueryCreateResult
         {
             FilePath = batch.WorkbookPath,
             QueryName = queryName,
-            LoadDestination = loadTo,
-            WorksheetName = worksheetName
+            LoadDestination = loadMode,
+            WorksheetName = targetSheet
         };
 
         try
@@ -594,11 +593,11 @@ public partial class PowerQueryCommands
             }
 
             // Default to query name for worksheet name (Excel's default behavior)
-            if ((loadTo == PowerQueryLoadMode.LoadToTable || loadTo == PowerQueryLoadMode.LoadToBoth)
-                && string.IsNullOrWhiteSpace(worksheetName))
+            if ((loadMode == PowerQueryLoadMode.LoadToTable || loadMode == PowerQueryLoadMode.LoadToBoth)
+                && string.IsNullOrWhiteSpace(targetSheet))
             {
-                worksheetName = queryName;
-                result.WorksheetName = worksheetName;
+                targetSheet = queryName;
+                result.WorksheetName = targetSheet;
             }
 
             // Read M code
@@ -634,7 +633,7 @@ public partial class PowerQueryCommands
                     result.QueryCreated = true;
 
                     // Apply load destination based on mode
-                    switch (loadTo)
+                    switch (loadMode)
                     {
                         case PowerQueryLoadMode.ConnectionOnly:
                             // Connection only - no data load
@@ -650,13 +649,13 @@ public partial class PowerQueryCommands
                                 worksheets = ctx.Book.Worksheets;
                                 try
                                 {
-                                    sheet = worksheets.Item(worksheetName!);
+                                    sheet = worksheets.Item(targetSheet!);
                                 }
-                                catch (System.Runtime.InteropServices.COMException)
+                                catch (COMException)
                                 {
                                     // Sheet doesn't exist, create it
                                     sheet = worksheets.Add();
-                                    sheet.Name = worksheetName;
+                                    sheet.Name = targetSheet;
                                 }
                             }
                             finally
@@ -712,13 +711,13 @@ public partial class PowerQueryCommands
                                 worksheetsBoth = ctx.Book.Worksheets;
                                 try
                                 {
-                                    sheet = worksheetsBoth.Item(worksheetName!);
+                                    sheet = worksheetsBoth.Item(targetSheet!);
                                 }
-                                catch (System.Runtime.InteropServices.COMException)
+                                catch (COMException)
                                 {
                                     // Sheet doesn't exist, create it
                                     sheet = worksheetsBoth.Add();
-                                    sheet.Name = worksheetName;
+                                    sheet.Name = targetSheet;
                                 }
                             }
                             finally
@@ -880,27 +879,27 @@ public partial class PowerQueryCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query</param>
-    /// <param name="loadTo">Where to load the data</param>
-    /// <param name="worksheetName">Target worksheet (required for LoadToTable/LoadToBoth)</param>
+    /// <param name="loadMode">Where to load the data</param>
+    /// <param name="targetSheet">Target worksheet (required for LoadToTable/LoadToBoth)</param>
     /// <returns>Result with load configuration and refresh status</returns>
     public async Task<PowerQueryLoadResult> LoadToAsync(
         IExcelBatch batch,
         string queryName,
-        PowerQueryLoadMode loadTo,
-        string? worksheetName = null)
+        PowerQueryLoadMode loadMode,
+        string? targetSheet = null)
     {
         var result = new PowerQueryLoadResult
         {
             FilePath = batch.WorkbookPath,
             QueryName = queryName,
-            LoadDestination = loadTo,
-            WorksheetName = worksheetName
+            LoadDestination = loadMode,
+            WorksheetName = targetSheet
         };
 
         try
         {
-            if ((loadTo == PowerQueryLoadMode.LoadToTable || loadTo == PowerQueryLoadMode.LoadToBoth)
-                && string.IsNullOrWhiteSpace(worksheetName))
+            if ((loadMode == PowerQueryLoadMode.LoadToTable || loadMode == PowerQueryLoadMode.LoadToBoth)
+                && string.IsNullOrWhiteSpace(targetSheet))
             {
                 result.Success = false;
                 result.ErrorMessage = "Worksheet name required for LoadToTable/LoadToBoth";
@@ -927,10 +926,10 @@ public partial class PowerQueryCommands
                     }
 
                     // Apply load destination
-                    switch (loadTo)
+                    switch (loadMode)
                     {
                         case PowerQueryLoadMode.LoadToTable:
-                            sheet = ctx.Book.Worksheets.Item(worksheetName!);
+                            sheet = ctx.Book.Worksheets.Item(targetSheet!);
                             queryTable = CreateQueryTableForQuery(sheet, query);
                             queryTable.Refresh(false);
                             result.ConfigurationApplied = true;
@@ -974,7 +973,7 @@ public partial class PowerQueryCommands
                             break;
 
                         case PowerQueryLoadMode.LoadToBoth:
-                            sheet = ctx.Book.Worksheets.Item(worksheetName!);
+                            sheet = ctx.Book.Worksheets.Item(targetSheet!);
                             queryTable = CreateQueryTableForQuery(sheet, query);
                             queryTable.Refresh(false);
 

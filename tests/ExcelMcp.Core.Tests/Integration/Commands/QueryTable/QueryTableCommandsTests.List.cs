@@ -11,6 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.QueryTable;
 /// </summary>
 public partial class QueryTableCommandsTests
 {
+    /// <inheritdoc/>
     [Fact]
     public async Task List_EmptyWorkbook_ReturnsSuccessWithEmptyList()
     {
@@ -27,6 +28,7 @@ public partial class QueryTableCommandsTests
         Assert.NotNull(result.QueryTables);
         Assert.Empty(result.QueryTables);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task List_WithQueryTable_ReturnsQueryTable()
@@ -42,13 +44,13 @@ public partial class QueryTableCommandsTests
         var mCode = "let Source = #table({\"Column1\"}, {{\"Value1\"}, {\"Value2\"}}) in Source";
         await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
 
-        var dataModelCommands = new Sbroenne.ExcelMcp.Core.Commands.DataModelCommands();
-        var pqCommands = new Sbroenne.ExcelMcp.Core.Commands.PowerQueryCommands(dataModelCommands);
+        var dataModelCommands = new DataModelCommands();
+        var pqCommands = new PowerQueryCommands(dataModelCommands);
         var importResult = await pqCommands.CreateAsync(batch, "TestQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
         Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
 
         // Create a worksheet for the QueryTable
-        var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
+        var sheetCommands = new SheetCommands();
         var createSheetResult = await sheetCommands.CreateAsync(batch, "QuerySheet");
         Assert.True(createSheetResult.Success, $"Create sheet failed: {createSheetResult.ErrorMessage}");
 

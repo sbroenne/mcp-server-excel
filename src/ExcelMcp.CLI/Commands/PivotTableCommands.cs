@@ -1,7 +1,6 @@
-using Spectre.Console;
-using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
+using Sbroenne.ExcelMcp.Core.Models;
+using Spectre.Console;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -33,7 +32,7 @@ public class PivotTableCommands
 
         if (result.Success)
         {
-            if (result.PivotTables == null || !result.PivotTables.Any())
+            if (result.PivotTables == null || (result.PivotTables.Count == 0))
             {
                 AnsiConsole.MarkupLine("[yellow]No PivotTables found in workbook[/]");
                 return 0;
@@ -55,9 +54,9 @@ public class PivotTableCommands
                     pt.SheetName,
                     pt.Range,
                     pt.SourceData,
-                    pt.RowFieldCount.ToString(),
-                    pt.ColumnFieldCount.ToString(),
-                    pt.ValueFieldCount.ToString()
+                    pt.RowFieldCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    pt.ColumnFieldCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    pt.ValueFieldCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 );
             }
 
@@ -105,7 +104,7 @@ public class PivotTableCommands
             AnsiConsole.MarkupLine($"[dim]Location:[/] {result.SheetName}!{result.Range}");
             AnsiConsole.MarkupLine($"[dim]Source:[/] {result.SourceData} ({result.SourceRowCount} rows)");
 
-            if (result.AvailableFields.Any())
+            if ((result.AvailableFields.Count > 0))
             {
                 AnsiConsole.MarkupLine($"\n[yellow]Available Fields:[/]");
                 foreach (var field in result.AvailableFields)
@@ -136,7 +135,7 @@ public class PivotTableCommands
         string filePath = Path.GetFullPath(args[1]);
         string pivotTableName = args[2];
         string fieldName = args[3];
-        int? position = args.Length > 4 ? int.Parse(args[4]) : null;
+        int? position = args.Length > 4 ? int.Parse(args[4], System.Globalization.CultureInfo.InvariantCulture) : null;
 
         var task = Task.Run(async () =>
         {
@@ -178,7 +177,7 @@ public class PivotTableCommands
         AggregationFunction function = AggregationFunction.Sum;
         if (args.Length > 4)
         {
-            if (!Enum.TryParse<AggregationFunction>(args[4], true, out function))
+            if (!Enum.TryParse(args[4], true, out function))
             {
                 AnsiConsole.MarkupLine($"[red]Error:[/] Invalid function '{args[4]}'");
                 AnsiConsole.MarkupLine("[dim]Valid functions:[/] Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP");
@@ -278,7 +277,7 @@ public class PivotTableCommands
             AnsiConsole.MarkupLine($"  Records: {result.SourceRowCount:N0}");
             AnsiConsole.MarkupLine($"  Available fields: {result.AvailableFields.Count}");
 
-            if (result.AvailableFields.Any())
+            if ((result.AvailableFields.Count > 0))
             {
                 AnsiConsole.MarkupLine($"\n[dim]Fields:[/] {string.Join(", ", result.AvailableFields)}");
             }

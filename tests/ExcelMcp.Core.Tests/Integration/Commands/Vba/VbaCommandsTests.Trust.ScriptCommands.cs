@@ -1,4 +1,3 @@
-using System.IO;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -10,6 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Vba;
 /// </summary>
 public partial class VbaCommandsTests
 {
+    /// <inheritdoc/>
     [Fact]
     public async Task ScriptCommands_List_WithTrustEnabled_WorksCorrectly()
     {
@@ -25,6 +25,7 @@ public partial class VbaCommandsTests
         Assert.True(result.Success, $"List should succeed with VBA trust enabled. Error: {result.ErrorMessage}");
         Assert.NotNull(result.Scripts);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ScriptCommands_Import_WithTrustEnabled_WorksCorrectly()
@@ -43,6 +44,7 @@ public partial class VbaCommandsTests
         // Assert - Should succeed when VBA trust is enabled (as in CI environment)
         Assert.True(result.Success, $"Import should succeed with VBA trust enabled. Error: {result.ErrorMessage}");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ScriptCommands_Export_WithTrustEnabled_WorksCorrectly()
@@ -68,6 +70,7 @@ public partial class VbaCommandsTests
         Assert.True(result.Success, $"Export should succeed with VBA trust enabled. Error: {result.ErrorMessage}");
         Assert.True(System.IO.File.Exists(exportFile), "Exported file should exist");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ScriptCommands_Run_WithTrustEnabled_WorksCorrectly()
@@ -93,6 +96,7 @@ End Sub";
         // Assert - Should succeed when VBA trust is enabled
         Assert.True(runResult.Success, $"Run should succeed with VBA trust enabled. Error: {runResult.ErrorMessage}");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ScriptCommands_Delete_WithTrustEnabled_WorksCorrectly()
@@ -114,11 +118,12 @@ End Sub";
 
         // Assert - Should succeed when VBA trust is enabled
         Assert.True(result.Success, $"Delete should succeed with VBA trust enabled. Error: {result.ErrorMessage}");
-        
+
         // Verify module is gone
         var listResult = await _scriptCommands.ListAsync(batch);
         Assert.DoesNotContain(listResult.Scripts, s => s.Name == "TestModule");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ScriptCommands_View_WithTrustEnabled_WorksCorrectly()
@@ -145,6 +150,7 @@ End Sub";
         Assert.Contains("ViewTest", result.Code);
         Assert.Contains("MsgBox", result.Code);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ScriptCommands_Update_WithTrustEnabled_WorksCorrectly()
@@ -172,7 +178,7 @@ End Sub";
 
         // Assert - Should succeed
         Assert.True(result.Success, $"Update should succeed with VBA trust enabled. Error: {result.ErrorMessage}");
-        
+
         // Verify the code was updated
         var viewResult = await _scriptCommands.ViewAsync(batch, "UpdateTestModule");
         Assert.True(viewResult.Success);

@@ -1,7 +1,6 @@
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Connections;
-using Sbroenne.ExcelMcp.Core.PowerQuery;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -202,7 +201,7 @@ public partial class PowerQueryCommands
     /// <summary>
     /// Check if a query is configured for data model loading
     /// </summary>
-    private static bool CheckQueryDataModelConfiguration(dynamic query, dynamic workbook)
+    private static bool CheckQueryDataModelConfiguration(dynamic query)
     {
         try
         {

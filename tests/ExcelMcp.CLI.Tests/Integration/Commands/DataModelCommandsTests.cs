@@ -21,11 +21,13 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 public class CliDataModelCommandsTests
 {
     private readonly DataModelCommands _cliCommands;
+    /// <inheritdoc/>
 
     public CliDataModelCommandsTests()
     {
         _cliCommands = new DataModelCommands();
     }
+    /// <inheritdoc/>
 
     #region Argument Validation Tests
 
@@ -41,6 +43,7 @@ public class CliDataModelCommandsTests
         // Assert - CLI returns 1 for error (missing arguments)
         Assert.Equal(1, exitCode);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void ListMeasures_WithMissingFileArg_ReturnsErrorExitCode()
@@ -54,6 +57,7 @@ public class CliDataModelCommandsTests
         // Assert - CLI returns 1 for error (missing arguments)
         Assert.Equal(1, exitCode);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void Get_WithMissingMeasureNameArg_ReturnsErrorExitCode()
@@ -67,6 +71,7 @@ public class CliDataModelCommandsTests
         // Assert - CLI returns 1 for error (missing arguments)
         Assert.Equal(1, exitCode);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void ExportMeasure_WithMissingOutputFileArg_ReturnsErrorExitCode()
@@ -80,6 +85,7 @@ public class CliDataModelCommandsTests
         // Assert - CLI returns 1 for error (missing arguments)
         Assert.Equal(1, exitCode);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void ListRelationships_WithMissingFileArg_ReturnsErrorExitCode()
@@ -93,6 +99,7 @@ public class CliDataModelCommandsTests
         // Assert - CLI returns 1 for error (missing arguments)
         Assert.Equal(1, exitCode);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void Refresh_WithMissingFileArg_ReturnsErrorExitCode()
@@ -106,6 +113,7 @@ public class CliDataModelCommandsTests
         // Assert - CLI returns 1 for error (missing arguments)
         Assert.Equal(1, exitCode);
     }
+    /// <inheritdoc/>
 
     #endregion
 
@@ -123,6 +131,7 @@ public class CliDataModelCommandsTests
         // Assert - CLI returns 1 for missing arguments
         Assert.Equal(1, exitCode);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void DeleteRelationship_WithMissingArguments_ReturnsError()

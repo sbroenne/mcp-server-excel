@@ -65,7 +65,7 @@ public class FileCommands : IFileCommands
             // Create Excel workbook using proper resource management
             bool isMacroEnabled = extension == ".xlsm";
 
-            return await ExcelSession.CreateNew<OperationResult>(filePath, isMacroEnabled, (ctx, ct) =>
+            return await ExcelSession.CreateNew(filePath, isMacroEnabled, (ctx, ct) =>
             {
                 // Set up a basic structure with proper COM cleanup
                 dynamic? sheet = null;

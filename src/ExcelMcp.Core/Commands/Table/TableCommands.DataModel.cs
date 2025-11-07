@@ -43,7 +43,7 @@ public partial class TableCommands
                     {
                         modelTable = modelTables.Item(i);
                         string sourceTableName = modelTable.SourceName;
-                        if (sourceTableName == tableName || sourceTableName.EndsWith($"[{tableName}]"))
+                        if (sourceTableName == tableName || sourceTableName.EndsWith($"[{tableName}]", StringComparison.Ordinal))
                         {
                             result.Success = false;
                             result.ErrorMessage = $"Table '{tableName}' is already in the Data Model";

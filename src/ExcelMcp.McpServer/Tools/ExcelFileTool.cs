@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
@@ -15,6 +16,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - File validation and existence checks can be done with standard file system operations
 /// </summary>
 [McpServerToolType]
+[SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments", Justification = "Simple workflow arrays in sealed static class")]
 public static class ExcelFileTool
 {
     /// <summary>
@@ -30,10 +32,7 @@ public static class ExcelFileTool
         string excelPath,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
-        string? batchId = null,
-
-        [Description("Timeout in minutes for file operations. Default: 2 minutes")]
-        double? timeout = null)
+        string? batchId = null)
     {
         try
         {

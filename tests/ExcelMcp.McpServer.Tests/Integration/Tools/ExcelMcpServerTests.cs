@@ -17,6 +17,7 @@ public class ExcelMcpServerTests : IDisposable
 {
     private readonly string _testExcelFile;
     private readonly string _tempDir;
+    /// <inheritdoc/>
 
     public ExcelMcpServerTests()
     {
@@ -26,6 +27,7 @@ public class ExcelMcpServerTests : IDisposable
 
         _testExcelFile = Path.Join(_tempDir, "MCPTestWorkbook.xlsx");
     }
+    /// <inheritdoc/>
 
     public void Dispose()
     {
@@ -43,6 +45,7 @@ public class ExcelMcpServerTests : IDisposable
         }
         GC.SuppressFinalize(this);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelFile_CreateEmpty_ShouldReturnSuccessJson()
@@ -56,6 +59,7 @@ public class ExcelMcpServerTests : IDisposable
         Assert.True(json.RootElement.GetProperty("success").GetBoolean());
         Assert.True(File.Exists(_testExcelFile));
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelFile_UnknownAction_ShouldReturnError()
@@ -66,6 +70,7 @@ public class ExcelMcpServerTests : IDisposable
 
         await Task.CompletedTask; // Satisfy async requirement
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelWorksheet_List_ShouldReturnSuccessAfterCreation()
@@ -81,6 +86,7 @@ public class ExcelMcpServerTests : IDisposable
         // Should succeed (return success: true) when file exists
         Assert.True(json.RootElement.GetProperty("success").GetBoolean());
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelWorksheet_NonExistentFile_ShouldReturnError()
@@ -92,8 +98,9 @@ public class ExcelMcpServerTests : IDisposable
         // Verify error message contains relevant information
         // Error message format changed - just verify it contains "list" and "Excel"
         Assert.Contains("list", exception.Message);
-            Assert.Contains("Excel", exception.Message);
-        }
+        Assert.Contains("Excel", exception.Message);
+    }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelParameter_List_ShouldReturnSuccessAfterCreation()
@@ -112,6 +119,7 @@ public class ExcelMcpServerTests : IDisposable
         var json = JsonDocument.Parse(result);
         Assert.True(json.RootElement.GetProperty("success").GetBoolean());
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelPowerQuery_CreateAndReadWorkflow_ShouldSucceed()
@@ -131,7 +139,7 @@ in
         var importResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.Create, _testExcelFile, queryName, sourcePath: mCodeFile);
 
         // Debug: Print the actual response to understand the structure
-        System.Console.WriteLine($"Import result JSON: {importResult}");
+        Console.WriteLine($"Import result JSON: {importResult}");
 
         var importJson = JsonDocument.Parse(importResult);
 
@@ -147,14 +155,14 @@ in
         var viewResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.View, _testExcelFile, queryName);
 
         // Debug: Print the actual response to understand the structure
-        System.Console.WriteLine($"View result JSON: {viewResult}");
+        Console.WriteLine($"View result JSON: {viewResult}");
 
         var viewJson = JsonDocument.Parse(viewResult);
 
         // Check if it's an error response
         if (viewJson.RootElement.TryGetProperty("error", out var errorProperty))
         {
-            System.Console.WriteLine($"View operation failed with error: {errorProperty.GetString()}");
+            Console.WriteLine($"View operation failed with error: {errorProperty.GetString()}");
             // For now, just verify the operation was attempted
             Assert.True(viewJson.RootElement.TryGetProperty("error", out _));
         }

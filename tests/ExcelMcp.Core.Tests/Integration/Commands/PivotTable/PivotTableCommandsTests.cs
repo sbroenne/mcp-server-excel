@@ -1,5 +1,4 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -18,11 +17,14 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 [Trait("Feature", "PivotTables")]
 public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixture>
 {
-    protected readonly IPivotTableCommands _pivotCommands;
-    protected readonly string _pivotFile;
-    protected readonly PivotTableCreationResult _creationResult;
-    protected readonly string _tempDir;
+    private readonly PivotTableCommands _pivotCommands;
+    private readonly string _pivotFile;
+    private readonly PivotTableCreationResult _creationResult;
+    private readonly string _tempDir;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PivotTableCommandsTests"/> class.
+    /// </summary>
     public PivotTableCommandsTests(PivotTableTestsFixture fixture)
     {
         _pivotCommands = new PivotTableCommands();
@@ -35,14 +37,14 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     /// Helper to create unique test file with sales data for pivot table tests.
     /// Used when tests need unique files for specific scenarios.
     /// </summary>
-    protected async Task<string> CreateTestFileWithDataAsync(string testName)
+    private async Task<string> CreateTestFileWithDataAsync(string testName)
     {
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PivotTableCommandsTests), testName, _tempDir);
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item(1);
             sheet.Name = "SalesData";
@@ -79,9 +81,9 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
 
             return 0;
         });
-        
+
         await batch.SaveAsync();
-        
+
         return testFile;
     }
 
@@ -97,13 +99,13 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     public void DataPreparation_ViaFixture_CreatesSalesData()
     {
         // Assert the fixture creation succeeded
-        Assert.True(_creationResult.Success, 
+        Assert.True(_creationResult.Success,
             $"Data preparation failed during fixture initialization: {_creationResult.ErrorMessage}");
-        
+
         Assert.True(_creationResult.FileCreated, "File creation failed");
         Assert.Equal(5, _creationResult.DataRowsCreated);
         Assert.True(_creationResult.CreationTimeSeconds > 0);
-        
+
         // This test appears in test results as proof that creation was tested
         Console.WriteLine($"✅ Data prepared successfully in {_creationResult.CreationTimeSeconds:F1}s");
     }
@@ -118,26 +120,26 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     {
         // Close and reopen to verify persistence (new batch = new session)
         await using var batch = await ExcelSession.BeginBatchAsync(_pivotFile);
-        
+
         // Verify data persisted by reading range
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item("SalesData");
-            
+
             // Verify headers
             Assert.Equal("Region", sheet.Range["A1"].Value2?.ToString());
             Assert.Equal("Product", sheet.Range["B1"].Value2?.ToString());
             Assert.Equal("Sales", sheet.Range["C1"].Value2?.ToString());
             Assert.Equal("Date", sheet.Range["D1"].Value2?.ToString());
-            
+
             // Verify first data row
             Assert.Equal("North", sheet.Range["A2"].Value2?.ToString());
             Assert.Equal("Widget", sheet.Range["B2"].Value2?.ToString());
             Assert.Equal(100.0, Convert.ToDouble(sheet.Range["C2"].Value2));
-            
+
             return 0;
         });
-        
+
         // This proves data creation + save worked correctly
     }
 }

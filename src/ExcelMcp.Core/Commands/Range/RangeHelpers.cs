@@ -68,7 +68,7 @@ public static class RangeHelpers
                 {
                     specificError = $"Named range '{rangeAddress}' not found. No named ranges exist in this workbook.";
                 }
-                
+
                 specificError += " Use excel_namedrange(action: 'list') to see all, or excel_namedrange(action: 'create') to create one.";
                 return null;
             }
@@ -120,7 +120,7 @@ public static class RangeHelpers
                 {
                     specificError = $"Sheet '{sheetName}' not found. Workbook has no worksheets.";
                 }
-                
+
                 specificError += " Use excel_worksheet(action: 'list') to see all sheets.";
                 return null;
             }

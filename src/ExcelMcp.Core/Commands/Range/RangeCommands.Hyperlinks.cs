@@ -40,7 +40,7 @@ public partial class RangeCommands
                                url.StartsWith("ftp://", StringComparison.OrdinalIgnoreCase) ||
                                url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase)
                     ? url
-                    : System.IO.Path.GetFullPath(url);
+                    : Path.GetFullPath(url);
 
                 hyperlink = hyperlinks.Add(
                     Anchor: range,

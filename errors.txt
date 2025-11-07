@@ -1,0 +1,59 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  ExcelMcp.ComInterop -> D:\source\mcp-server-excel\src\ExcelMcp.ComInterop\bin\Debug\net8.0\Sbroenne.ExcelMcp.ComInterop.dll
+  ExcelMcp.Core -> D:\source\mcp-server-excel\src\ExcelMcp.Core\bin\Debug\net8.0\Sbroenne.ExcelMcp.Core.dll
+  ExcelMcp.ComInterop.Tests -> D:\source\mcp-server-excel\tests\ExcelMcp.ComInterop.Tests\bin\Debug\net8.0\Sbroenne.ExcelMcp.ComInterop.Tests.dll
+  ExcelMcp.Core.Tests -> D:\source\mcp-server-excel\tests\ExcelMcp.Core.Tests\bin\Debug\net8.0\Sbroenne.ExcelMcp.Core.Tests.dll
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelNamedRangeTool.cs(82,32): error CS1031: Type expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelNamedRangeTool.cs(82,32): error CS1001: Identifier expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelRangeTool.cs(232,32): error CS1031: Type expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelRangeTool.cs(232,32): error CS1001: Identifier expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelVbaTool.cs(63,32): error CS1031: Type expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelVbaTool.cs(63,32): error CS1001: Identifier expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelWorksheetTool.cs(78,32): error CS1031: Type expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelWorksheetTool.cs(78,32): error CS1001: Identifier expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\PivotTableTool.cs(103,32): error CS1031: Type expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\PivotTableTool.cs(103,32): error CS1001: Identifier expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\TableTool.cs(83,32): error CS1031: Type expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\TableTool.cs(83,32): error CS1001: Identifier expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelQueryTableTool.cs(97,32): error CS1031: Type expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelQueryTableTool.cs(97,32): error CS1001: Identifier expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.CLI\Commands\PivotTableCommands.cs(35,48): error CS0103: The name 'PivotTables' does not exist in the current context [D:\source\mcp-server-excel\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.CLI\Commands\PivotTableCommands.cs(107,18): error CS0103: The name 'AvailableFields' does not exist in the current context [D:\source\mcp-server-excel\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.CLI\Commands\TableCommands.cs(41,43): error CS0103: The name 'Tables' does not exist in the current context [D:\source\mcp-server-excel\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.CLI\Commands\PivotTableCommands.cs(280,18): error CS0103: The name 'AvailableFields' does not exist in the current context [D:\source\mcp-server-excel\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.CLI\Commands\VbaCommands.cs(186,14): error CS0103: The name 'Procedures' does not exist in the current context [D:\source\mcp-server-excel\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.CLI\Commands\TableCommands.cs(238,26): error CS0117: 'Columns' does not contain a definition for 'Count' [D:\source\mcp-server-excel\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.CLI\Commands\TableCommands.cs(617,50): error CS0103: The name 'ColumnFilters' does not exist in the current context [D:\source\mcp-server-excel\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.CLI\Commands\TableCommands.cs(631,57): error CS0103: The name 'FilterValues' does not exist in the current context [D:\source\mcp-server-excel\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.CLI\Commands\TableCommands.cs(802,36): error CS0618: 'Enum.ToString(IFormatProvider?)' is obsolete: 'The provider argument is not used. Use ToString() instead.' [D:\source\mcp-server-excel\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj]
+
+Build FAILED.
+
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelNamedRangeTool.cs(82,32): error CS1031: Type expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelNamedRangeTool.cs(82,32): error CS1001: Identifier expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelRangeTool.cs(232,32): error CS1031: Type expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelRangeTool.cs(232,32): error CS1001: Identifier expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelVbaTool.cs(63,32): error CS1031: Type expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelVbaTool.cs(63,32): error CS1001: Identifier expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelWorksheetTool.cs(78,32): error CS1031: Type expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelWorksheetTool.cs(78,32): error CS1001: Identifier expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\PivotTableTool.cs(103,32): error CS1031: Type expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\PivotTableTool.cs(103,32): error CS1001: Identifier expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\TableTool.cs(83,32): error CS1031: Type expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\TableTool.cs(83,32): error CS1001: Identifier expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelQueryTableTool.cs(97,32): error CS1031: Type expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.McpServer\Tools\ExcelQueryTableTool.cs(97,32): error CS1001: Identifier expected [D:\source\mcp-server-excel\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.CLI\Commands\PivotTableCommands.cs(35,48): error CS0103: The name 'PivotTables' does not exist in the current context [D:\source\mcp-server-excel\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.CLI\Commands\PivotTableCommands.cs(107,18): error CS0103: The name 'AvailableFields' does not exist in the current context [D:\source\mcp-server-excel\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.CLI\Commands\TableCommands.cs(41,43): error CS0103: The name 'Tables' does not exist in the current context [D:\source\mcp-server-excel\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.CLI\Commands\PivotTableCommands.cs(280,18): error CS0103: The name 'AvailableFields' does not exist in the current context [D:\source\mcp-server-excel\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.CLI\Commands\VbaCommands.cs(186,14): error CS0103: The name 'Procedures' does not exist in the current context [D:\source\mcp-server-excel\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.CLI\Commands\TableCommands.cs(238,26): error CS0117: 'Columns' does not contain a definition for 'Count' [D:\source\mcp-server-excel\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.CLI\Commands\TableCommands.cs(617,50): error CS0103: The name 'ColumnFilters' does not exist in the current context [D:\source\mcp-server-excel\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.CLI\Commands\TableCommands.cs(631,57): error CS0103: The name 'FilterValues' does not exist in the current context [D:\source\mcp-server-excel\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj]
+D:\source\mcp-server-excel\src\ExcelMcp.CLI\Commands\TableCommands.cs(802,36): error CS0618: 'Enum.ToString(IFormatProvider?)' is obsolete: 'The provider argument is not used. Use ToString() instead.' [D:\source\mcp-server-excel\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj]
+    0 Warning(s)
+    23 Error(s)
+
+Time Elapsed 00:00:00.90

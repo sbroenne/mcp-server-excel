@@ -100,10 +100,7 @@ public static class PivotTableTool
         int? position = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
-        string? batchId = null,
-
-        [Description("Timeout in minutes for PivotTable operations. Default: 2 minutes (refresh may need more)")]
-        double? timeout = null)
+        string? batchId = null)
     {
         try
         {
@@ -245,8 +242,8 @@ public static class PivotTableTool
 
                         // Parse aggregation function
                         AggregationFunction function = AggregationFunction.Sum; // Default
-                        if (!string.IsNullOrEmpty(aggregationFunction) && 
-                            !Enum.TryParse<AggregationFunction>(aggregationFunction, true, out function))
+                        if (!string.IsNullOrEmpty(aggregationFunction) &&
+                            !Enum.TryParse(aggregationFunction, true, out function))
                         {
                             throw new ModelContextProtocol.McpException(
                                 $"Invalid aggregation function '{aggregationFunction}'. Valid values: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP");
@@ -373,8 +370,8 @@ public static class PivotTableTool
 
                         // Parse sort direction
                         SortDirection direction = SortDirection.Ascending; // Default
-                        if (!string.IsNullOrEmpty(sortDirection) && 
-                            !Enum.TryParse<SortDirection>(sortDirection, true, out direction))
+                        if (!string.IsNullOrEmpty(sortDirection) &&
+                            !Enum.TryParse(sortDirection, true, out direction))
                         {
                             throw new ModelContextProtocol.McpException(
                                 $"Invalid sort direction '{sortDirection}'. Valid values: Ascending, Descending");

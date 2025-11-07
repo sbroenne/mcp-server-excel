@@ -9,6 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 /// </summary>
 public partial class RangeCommandsTests
 {
+    /// <inheritdoc/>
     // === CLEAR OPERATIONS TESTS ===
 
     [Fact]
@@ -28,6 +29,7 @@ public partial class RangeCommandsTests
         var readResult = await _commands.GetValuesAsync(batch, "Sheet1", "A1");
         Assert.Null(readResult.Values[0][0]);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ClearContents_FormattedRange_PreservesFormatting()
@@ -50,6 +52,7 @@ public partial class RangeCommandsTests
         var readResult = await _commands.GetValuesAsync(batch, "Sheet1", "A1:B2");
         Assert.All(readResult.Values, row => Assert.All(row, cell => Assert.Null(cell)));
     }
+    /// <inheritdoc/>
 
     // === COPY OPERATIONS TESTS ===
 
@@ -75,8 +78,9 @@ public partial class RangeCommandsTests
 
         var readResult = await _commands.GetValuesAsync(batch, "Sheet1", "D1:E2");
         Assert.Equal("A", readResult.Values[0][0]);
-        Assert.Equal(2.0, Convert.ToDouble(readResult.Values[1][1]));
+        Assert.Equal(2.0, Convert.ToDouble(readResult.Values[1][1], System.Globalization.CultureInfo.InvariantCulture));
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task CopyValues_CopiesOnlyValues()
@@ -95,7 +99,7 @@ public partial class RangeCommandsTests
 
         // C1 should have value 20 but no formula
         var formulaResult = await _commands.GetFormulasAsync(batch, "Sheet1", "C1");
-        Assert.Equal(20.0, Convert.ToDouble(formulaResult.Values[0][0]));
+        Assert.Equal(20.0, Convert.ToDouble(formulaResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
         Assert.Empty(formulaResult.Formulas[0][0]); // No formula
     }
 

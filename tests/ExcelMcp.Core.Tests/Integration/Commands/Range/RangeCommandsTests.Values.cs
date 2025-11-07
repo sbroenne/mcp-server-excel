@@ -1,6 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Xunit;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
@@ -9,6 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 /// </summary>
 public partial class RangeCommandsTests
 {
+    /// <inheritdoc/>
     // === VALUE OPERATIONS TESTS ===
 
     [Fact]
@@ -30,8 +31,11 @@ public partial class RangeCommandsTests
         Assert.Equal(1, result.ColumnCount);
         Assert.Single(result.Values);
         Assert.Single(result.Values[0]);
-        Assert.Equal(100.0, Convert.ToDouble(result.Values[0][0]));
+        Assert.Equal(
+            100.0,
+            Convert.ToDouble(result.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task GetValues_3x3Range_Returns2DArray()
@@ -57,9 +61,14 @@ public partial class RangeCommandsTests
         Assert.Equal(3, result.RowCount);
         Assert.Equal(3, result.ColumnCount);
         Assert.Equal(3, result.Values.Count);
-        Assert.Equal(1.0, Convert.ToDouble(result.Values[0][0]));
-        Assert.Equal(9.0, Convert.ToDouble(result.Values[2][2]));
+        Assert.Equal(
+            1.0,
+            Convert.ToDouble(result.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(
+            9.0,
+            Convert.ToDouble(result.Values[2][2], System.Globalization.CultureInfo.InvariantCulture));
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetValues_TableWithHeaders_WritesAndReadsBack()
@@ -83,8 +92,11 @@ public partial class RangeCommandsTests
         // Verify by reading back
         var readResult = await _commands.GetValuesAsync(batch, "Sheet1", "A1:B3");
         Assert.Equal("Name", readResult.Values[0][0]);
-        Assert.Equal(30.0, Convert.ToDouble(readResult.Values[1][1]));
+        Assert.Equal(
+            30.0,
+            Convert.ToDouble(readResult.Values[1][1], System.Globalization.CultureInfo.InvariantCulture));
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetValues_JsonElementStrings_WritesCorrectly()
@@ -122,6 +134,7 @@ public partial class RangeCommandsTests
         Assert.Equal("Geography", readResult.Values[0][2]);
         Assert.Equal("Country", readResult.Values[0][3]);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetValues_JsonElementMixedTypes_WritesCorrectly()
@@ -155,7 +168,9 @@ public partial class RangeCommandsTests
         // Verify by reading back
         var readResult = await _commands.GetValuesAsync(batch, "Sheet1", "A1:D1");
         Assert.Equal("Text", readResult.Values[0][0]);
-        Assert.Equal(123.0, Convert.ToDouble(readResult.Values[0][1])); // Excel stores as double
+        Assert.Equal(
+            123.0,
+            Convert.ToDouble(readResult.Values[0][1], System.Globalization.CultureInfo.InvariantCulture)); // Excel stores as double
         Assert.Equal(true, readResult.Values[0][2]);
         // Excel COM returns null (not empty string) for empty cells
         Assert.True(readResult.Values[0][3] == null || readResult.Values[0][3]?.ToString() == string.Empty);

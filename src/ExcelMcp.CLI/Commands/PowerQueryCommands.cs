@@ -9,7 +9,7 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 /// </summary>
 public class PowerQueryCommands : IPowerQueryCommands
 {
-    private readonly Core.Commands.IPowerQueryCommands _coreCommands;
+    private readonly Core.Commands.PowerQueryCommands _coreCommands;
 
     public PowerQueryCommands()
     {
@@ -459,16 +459,16 @@ public class PowerQueryCommands : IPowerQueryCommands
         AnsiConsole.WriteLine();
         switch (result.LoadMode)
         {
-            case Core.Models.PowerQueryLoadMode.ConnectionOnly:
+            case PowerQueryLoadMode.ConnectionOnly:
                 AnsiConsole.MarkupLine("[dim]Connection Only: Query data is not loaded to worksheet or data model[/]");
                 break;
-            case Core.Models.PowerQueryLoadMode.LoadToTable:
+            case PowerQueryLoadMode.LoadToTable:
                 AnsiConsole.MarkupLine("[dim]Load to Table: Query data is loaded to worksheet[/]");
                 break;
-            case Core.Models.PowerQueryLoadMode.LoadToDataModel:
+            case PowerQueryLoadMode.LoadToDataModel:
                 AnsiConsole.MarkupLine("[dim]Load to Data Model: Query data is loaded to PowerPivot data model[/]");
                 break;
-            case Core.Models.PowerQueryLoadMode.LoadToBoth:
+            case PowerQueryLoadMode.LoadToBoth:
                 AnsiConsole.MarkupLine("[dim]Load to Both: Query data is loaded to both worksheet and data model[/]");
                 break;
         }
@@ -503,7 +503,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         {
             if (args[i].Equals("--destination", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {
-                loadMode = args[i + 1].ToLower() switch
+                loadMode = args[i + 1].ToLowerInvariant() switch
                 {
                     "worksheet" => PowerQueryLoadMode.LoadToTable,
                     "data-model" => PowerQueryLoadMode.LoadToDataModel,

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
@@ -25,6 +26,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// Setup Required: Run setup-vba-trust command once before using VBA operations.
 /// </summary>
 [McpServerToolType]
+[SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments", Justification = "Simple workflow arrays in sealed static class")]
 public static class ExcelVbaTool
 {
     /// <summary>
@@ -58,10 +60,7 @@ public static class ExcelVbaTool
         string? parameters = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
-        string? batchId = null,
-
-        [Description("Timeout in minutes for VBA operations. Default: 2 minutes (VBA run may need more)")]
-        double? timeout = null)
+        string? batchId = null)
     {
         try
         {

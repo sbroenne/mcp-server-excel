@@ -26,6 +26,24 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 [McpServerToolType]
 public static class ExcelNamedRangeTool
 {
+    // Cache JsonSerializerOptions to satisfy CA1869
+    private static readonly JsonSerializerOptions s_jsonOptions = new() { PropertyNameCaseInsensitive = true };
+
+    // Cache suggestedNextActions arrays to satisfy CA1861
+    private static readonly string[] s_getNextActions = new[]
+    {
+        "Use 'set' to update this parameter value",
+        "Use this value in excel_range or excel_powerquery operations",
+        "Use 'update' to change the cell reference"
+    };
+
+    private static readonly string[] s_createBulkNextActions = new[]
+    {
+        "Use 'list' to verify all created named ranges",
+        "Use 'set' to assign initial values",
+        "Use excel_range to populate data in named range regions"
+    };
+
     /// <summary>
     /// Manage Excel parameters (named ranges) - configuration values and reusable references
     /// </summary>
@@ -61,10 +79,7 @@ Actions available as dropdown in MCP clients.")]
         string? namedRangesJson = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
-        string? batchId = null,
-
-        [Description("Timeout in minutes for named range operations. Default: 2 minutes")]
-        double? timeout = null)
+        string? batchId = null)
     {
         try
         {
@@ -107,7 +122,7 @@ Actions available as dropdown in MCP clients.")]
         // Add workflow hints
         var count = result.NamedRanges?.Count ?? 0;
         var inBatch = !string.IsNullOrEmpty(batchId);
-        
+
         return JsonSerializer.Serialize(new
         {
             result.Success,
@@ -151,12 +166,7 @@ Actions available as dropdown in MCP clients.")]
             result.NamedRangeName,
             result.Value,
             workflowHint = $"Retrieved value: {result.Value}",
-            suggestedNextActions = new[]
-            {
-                "Use 'set' to update this parameter value",
-                "Use this value in excel_range or excel_powerquery operations",
-                "Use 'update' to change the cell reference"
-            }
+            suggestedNextActions = s_getNextActions
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -175,7 +185,7 @@ Actions available as dropdown in MCP clients.")]
         // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints
         var inBatch = !string.IsNullOrEmpty(batchId);
-        
+
         return JsonSerializer.Serialize(new
         {
             result.Success,
@@ -220,7 +230,7 @@ Actions available as dropdown in MCP clients.")]
         // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints
         var inBatch = !string.IsNullOrEmpty(batchId);
-        
+
         return JsonSerializer.Serialize(new
         {
             result.Success,
@@ -261,7 +271,7 @@ Actions available as dropdown in MCP clients.")]
         {
             parameters = JsonSerializer.Deserialize<List<NamedRangeDefinition>>(
                 namedRangesJson,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                s_jsonOptions);
 
             if (parameters == null || parameters.Count == 0)
                 throw new ModelContextProtocol.McpException("namedRangesJson must contain at least one named range definition");
@@ -287,12 +297,7 @@ Actions available as dropdown in MCP clients.")]
         {
             result.Success,
             workflowHint = "Bulk named range creation completed.",
-            suggestedNextActions = new[]
-            {
-                "Use 'list' to verify all created named ranges",
-                "Use 'set' to assign initial values",
-                "Use excel_powerquery or excel_range to reference these parameters"
-            }
+            suggestedNextActions = s_createBulkNextActions
         }, ExcelToolsBase.JsonOptions);
     }
 }

@@ -6,6 +6,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
 public partial class RangeCommandsTests
 {
+    /// <inheritdoc/>
     [Fact]
     public async Task SetStyle_Heading1_AppliesSuccessfully()
     {
@@ -23,6 +24,7 @@ public partial class RangeCommandsTests
         // Assert
         Assert.True(result.Success, $"SetStyle failed: {result.ErrorMessage}");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetStyle_GoodBadNeutral_AllApplySuccessfully()
@@ -36,7 +38,7 @@ public partial class RangeCommandsTests
 
         // Act & Assert
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         var goodResult = await _commands.SetStyleAsync(batch, "Sheet1", "A1", "Good");
         Assert.True(goodResult.Success, $"Good style failed: {goodResult.ErrorMessage}");
 
@@ -46,6 +48,7 @@ public partial class RangeCommandsTests
         var neutralResult = await _commands.SetStyleAsync(batch, "Sheet1", "A3", "Neutral");
         Assert.True(neutralResult.Success, $"Neutral style failed: {neutralResult.ErrorMessage}");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetStyle_Accent1_AppliesSuccessfully()
@@ -64,6 +67,7 @@ public partial class RangeCommandsTests
         // Assert
         Assert.True(result.Success, $"Accent1 style failed: {result.ErrorMessage}");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetStyle_TotalStyle_AppliesSuccessfully()
@@ -82,6 +86,7 @@ public partial class RangeCommandsTests
         // Assert
         Assert.True(result.Success, $"Total style failed: {result.ErrorMessage}");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetStyle_CurrencyComma_AppliesSuccessfully()
@@ -95,13 +100,14 @@ public partial class RangeCommandsTests
 
         // Act & Assert
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         var currencyResult = await _commands.SetStyleAsync(batch, "Sheet1", "B5:B10", "Currency");
         Assert.True(currencyResult.Success, $"Currency style failed: {currencyResult.ErrorMessage}");
 
         var commaResult = await _commands.SetStyleAsync(batch, "Sheet1", "C5:C10", "Comma");
         Assert.True(commaResult.Success, $"Comma style failed: {commaResult.ErrorMessage}");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetStyle_InvalidStyleName_ReturnsError()
@@ -122,6 +128,7 @@ public partial class RangeCommandsTests
         Assert.NotNull(result.ErrorMessage);
         Assert.Contains("NonExistentStyle", result.ErrorMessage);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetStyle_ResetToNormal_ClearsFormatting()
@@ -135,7 +142,7 @@ public partial class RangeCommandsTests
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         // Apply fancy style
         var fancyResult = await _commands.SetStyleAsync(batch, "Sheet1", "A1", "Accent1");
         Assert.True(fancyResult.Success);

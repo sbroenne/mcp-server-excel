@@ -1,7 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
-using Xunit;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
@@ -10,6 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 /// </summary>
 public partial class RangeCommandsTests
 {
+    /// <inheritdoc/>
     // === FIND/REPLACE OPERATIONS TESTS ===
 
     [Fact]
@@ -36,6 +37,7 @@ public partial class RangeCommandsTests
         Assert.True(result.Success);
         Assert.Equal(3, result.MatchingCells.Count); // Should find 3 "Apple" cells
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Replace_ReplacesAllOccurrences()
@@ -64,6 +66,7 @@ public partial class RangeCommandsTests
         Assert.Equal("dog", readResult.Values[1][0]);
         Assert.Equal("bird", readResult.Values[2][0]);
     }
+    /// <inheritdoc/>
 
     // === SORT OPERATIONS TESTS ===
 

@@ -1,10 +1,7 @@
-using System;
-using System.IO;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -29,6 +26,7 @@ public class ExcelQueryTableBehaviorDiagnostics : IDisposable
 {
     private readonly ITestOutputHelper _output;
     private readonly string _tempDir;
+    /// <inheritdoc/>
 
     public ExcelQueryTableBehaviorDiagnostics(ITestOutputHelper output)
     {
@@ -36,6 +34,7 @@ public class ExcelQueryTableBehaviorDiagnostics : IDisposable
         _tempDir = Path.Combine(Path.GetTempPath(), $"excel-qt-diagnostics-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
     }
+    /// <inheritdoc/>
 
     public void Dispose()
     {
@@ -46,6 +45,7 @@ public class ExcelQueryTableBehaviorDiagnostics : IDisposable
         }
         GC.SuppressFinalize(this);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task DiagnoseExcelBehavior_AllScenarios()
@@ -94,7 +94,7 @@ public class ExcelQueryTableBehaviorDiagnostics : IDisposable
         {
             await Scenario4_ConnectionOnly(session);
         }
-        catch (System.Runtime.InteropServices.COMException ex) when (ex.HResult == unchecked((int)0x800706BA))
+        catch (COMException ex) when (ex.HResult == unchecked((int)0x800706BA))
         {
             _output.WriteLine($"⚠️ Excel RPC server unavailable - Excel may have crashed from previous scenarios");
             _output.WriteLine($"This is a known Excel COM limitation with rapid successive operations");
@@ -131,7 +131,7 @@ in
 
         _output.WriteLine($"Creating query: {queryName}");
 
-        await session.Execute<int>((ctx, ct) =>
+        await session.Execute((ctx, ct) =>
         {
             dynamic? queries = null;
             dynamic? query = null;
@@ -210,7 +210,7 @@ in
 
         _output.WriteLine($"Refreshing query on sheet: {sheetName}");
 
-        await session.Execute<int>((ctx, ct) =>
+        await session.Execute((ctx, ct) =>
         {
             dynamic? sheets = null;
             dynamic? sheet = null;
@@ -286,7 +286,7 @@ in
 
         _output.WriteLine($"Updating query: {queryName} with NEW M CODE (more columns)");
 
-        await session.Execute<int>((ctx, ct) =>
+        await session.Execute((ctx, ct) =>
         {
             dynamic? queries = null;
             dynamic? query = null;
@@ -322,7 +322,7 @@ in
                     try
                     {
                         // Give Excel a moment to stabilize after formula change
-                        System.Threading.Thread.Sleep(1000);
+                        Thread.Sleep(1000);
 
                         bool refreshResult = queryTable.Refresh(false);
                         _output.WriteLine($"  Refresh result: {refreshResult}");
@@ -344,7 +344,7 @@ in
                             ComUtilities.Release(ref usedRange);
                         }
                     }
-                    catch (System.Runtime.InteropServices.COMException ex) when (ex.HResult == unchecked((int)0x800706BE))
+                    catch (COMException ex) when (ex.HResult == unchecked((int)0x800706BE))
                     {
                         // RPC_E_CALL_REJECTED or RPC timeout - Excel is busy processing the formula change
                         _output.WriteLine($"  ⚠️ Excel busy (RPC timeout) - This is EXPECTED when updating M code!");
@@ -382,7 +382,7 @@ in
 
         _output.WriteLine($"Creating connection-only query: {queryName}");
 
-        await session.Execute<int>((ctx, ct) =>
+        await session.Execute((ctx, ct) =>
         {
             dynamic? queries = null;
             dynamic? query = null;
@@ -443,7 +443,7 @@ in
 
         _output.WriteLine($"Loading connection-only query to worksheet (simulating UI 'Load To')");
 
-        await session.Execute<int>((ctx, ct) =>
+        await session.Execute((ctx, ct) =>
         {
             dynamic? sheets = null;
             dynamic? sheet = null;

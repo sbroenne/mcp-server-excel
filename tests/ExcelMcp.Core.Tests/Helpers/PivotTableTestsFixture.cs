@@ -1,10 +1,6 @@
-using System;
 using System.Diagnostics;
-using System.IO;
-using System.Threading.Tasks;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -21,16 +17,17 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 public class PivotTableTestsFixture : IAsyncLifetime
 {
     private readonly string _tempDir;
-    
+
     /// <summary>
     /// Path to the test PivotTable file
     /// </summary>
     public string TestFilePath { get; private set; } = null!;
-    
+
     /// <summary>
     /// Results of data creation (exposed for validation)
     /// </summary>
     public PivotTableCreationResult CreationResult { get; private set; } = null!;
+    /// <inheritdoc/>
 
     public PivotTableTestsFixture()
     {
@@ -46,10 +43,10 @@ public class PivotTableTestsFixture : IAsyncLifetime
     public async Task InitializeAsync()
     {
         var sw = Stopwatch.StartNew();
-        
+
         TestFilePath = Path.Join(_tempDir, "PivotTableTest.xlsx");
         CreationResult = new PivotTableCreationResult();
-        
+
         try
         {
             var fileCommands = new FileCommands();
@@ -57,11 +54,11 @@ public class PivotTableTestsFixture : IAsyncLifetime
             if (!createFileResult.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: File creation failed: {createFileResult.ErrorMessage}");
-            
+
             CreationResult.FileCreated = true;
-            
+
             await using var batch = await ExcelSession.BeginBatchAsync(TestFilePath);
-            await batch.Execute<int>((ctx, ct) =>
+            await batch.Execute((ctx, ct) =>
             {
                 dynamic sheet = ctx.Book.Worksheets.Item(1);
                 sheet.Name = "SalesData";
@@ -100,11 +97,11 @@ public class PivotTableTestsFixture : IAsyncLifetime
 
                 return 0;
             });
-            
+
             CreationResult.DataRowsCreated = 5;
-            
+
             await batch.SaveAsync();
-            
+
             sw.Stop();
             CreationResult.Success = true;
             CreationResult.CreationTimeSeconds = sw.Elapsed.TotalSeconds;
@@ -113,9 +110,9 @@ public class PivotTableTestsFixture : IAsyncLifetime
         {
             CreationResult.Success = false;
             CreationResult.ErrorMessage = ex.Message;
-            
+
             sw.Stop();
-                                                                                    
+
             throw; // Fail all tests in class (correct behavior - no point testing if creation failed)
         }
     }
@@ -145,9 +142,14 @@ public class PivotTableTestsFixture : IAsyncLifetime
 /// </summary>
 public class PivotTableCreationResult
 {
+    /// <inheritdoc/>
     public bool Success { get; set; }
+    /// <inheritdoc/>
     public bool FileCreated { get; set; }
+    /// <inheritdoc/>
     public int DataRowsCreated { get; set; }
+    /// <inheritdoc/>
     public double CreationTimeSeconds { get; set; }
+    /// <inheritdoc/>
     public string? ErrorMessage { get; set; }
 }

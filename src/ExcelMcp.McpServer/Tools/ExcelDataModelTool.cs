@@ -136,10 +136,6 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
         [Description("Whether relationship is active (for create-relationship, update-relationship), default: true")]
         bool? isActive = null,
 
-        [RegularExpression("^(Single|Both)$")]
-        [Description("Cross-filter direction (for create-relationship, update-relationship): Single (default), Both")]
-        string? crossFilterDirection = null,
-
         [Description("Timeout in minutes for data model operations. Default: 2 minutes")]
         double? timeout = null,
 
@@ -377,28 +373,6 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
             filePath,
             save: true,
             async (batch) => await commands.DeleteRelationshipAsync(batch, fromTable, fromColumn, toTable, toColumn));
-
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        // Success - add workflow guidance
-
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> ListTableColumnsAsync(DataModelCommands commands, string filePath,
-        string? tableName, string? batchId)
-    {
-        if (string.IsNullOrWhiteSpace(tableName))
-        {
-            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for list-columns action");
-        }
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: false,
-            async (batch) => await commands.ListColumnsAsync(batch, tableName));
 
         // If operation failed, throw exception with detailed error message
         // Always return JSON (success or failure) - MCP clients handle the success flag

@@ -9,6 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
 /// </summary>
 public partial class ConnectionCommandsTests
 {
+    /// <inheritdoc/>
     [Fact]
     public async Task List_EmptyWorkbook_ReturnsSuccessWithEmptyList()
     {
@@ -26,6 +27,7 @@ public partial class ConnectionCommandsTests
         Assert.Empty(result.Connections);
         Assert.Equal(testFile, result.FilePath);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task List_WithTextConnection_ReturnsConnection()

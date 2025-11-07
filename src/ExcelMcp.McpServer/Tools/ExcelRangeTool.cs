@@ -3,8 +3,6 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
-using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
@@ -231,10 +229,7 @@ public static class ExcelRangeTool
         string? formatStyle = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
-        string? batchId = null,
-
-        [Description("Timeout in minutes for range operations. Default: 2 minutes (large ranges may need more)")]
-        double? timeout = null)
+        string? batchId = null)
     {
         try
         {

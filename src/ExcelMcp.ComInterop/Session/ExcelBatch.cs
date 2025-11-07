@@ -190,7 +190,6 @@ internal sealed class ExcelBatch : IExcelBatch
 
         try
         {
-            Console.Error.WriteLine($"[EXCEL-BATCH] Starting operation (timeout: {effectiveTimeout.TotalMinutes:F1}min)");
             return await tcs.Task.WaitAsync(linkedCts.Token);
         }
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
@@ -208,14 +207,6 @@ internal sealed class ExcelBatch : IExcelBatch
                   $"For large datasets or complex operations, more time may be needed (maximum: {MaxOperationTimeout.TotalMinutes} min).";
 
             throw new TimeoutException(message);
-        }
-        finally
-        {
-            var duration = DateTime.UtcNow - startTime;
-            if (tcs.Task.IsCompletedSuccessfully)
-            {
-                Console.Error.WriteLine($"[EXCEL-BATCH] Completed in {duration.TotalSeconds:F1}s");
-            }
         }
     }
 
@@ -260,7 +251,6 @@ internal sealed class ExcelBatch : IExcelBatch
 
         try
         {
-            Console.Error.WriteLine($"[EXCEL-BATCH] Starting async operation (timeout: {effectiveTimeout.TotalMinutes:F1}min)");
             return await tcs.Task.WaitAsync(linkedCts.Token);
         }
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
@@ -278,14 +268,6 @@ internal sealed class ExcelBatch : IExcelBatch
                   $"For large datasets or complex operations, more time may be needed (maximum: {MaxOperationTimeout.TotalMinutes} min).";
 
             throw new TimeoutException(message);
-        }
-        finally
-        {
-            var duration = DateTime.UtcNow - startTime;
-            if (tcs.Task.IsCompletedSuccessfully)
-            {
-                Console.Error.WriteLine($"[EXCEL-BATCH] Async operation completed in {duration.TotalSeconds:F1}s");
-            }
         }
     }
 

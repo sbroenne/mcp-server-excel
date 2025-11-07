@@ -30,8 +30,10 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.File;
 [Trait("RequiresExcel", "true")]
 public partial class FileCommandsTests : IClassFixture<TempDirectoryFixture>
 {
-    private readonly IFileCommands _fileCommands;
+    // Performance: use concrete type to satisfy CA1859 (test code, not API surface)
+    private readonly FileCommands _fileCommands;
     private readonly string _tempDir;
+    /// <inheritdoc/>
 
     public FileCommandsTests(TempDirectoryFixture fixture)
     {

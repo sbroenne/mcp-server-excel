@@ -16,6 +16,7 @@ public class ExcelFileToolErrorTests : IDisposable
 {
     private readonly ITestOutputHelper _output;
     private readonly string _tempDir;
+    /// <inheritdoc/>
 
     public ExcelFileToolErrorTests(ITestOutputHelper output)
     {
@@ -23,6 +24,7 @@ public class ExcelFileToolErrorTests : IDisposable
         _tempDir = Path.Join(Path.GetTempPath(), $"ExcelFile_Error_Tests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
     }
+    /// <inheritdoc/>
 
     public void Dispose()
     {
@@ -39,6 +41,7 @@ public class ExcelFileToolErrorTests : IDisposable
         }
         GC.SuppressFinalize(this);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelFile_CreateEmpty_ShouldWork()
@@ -61,13 +64,14 @@ public class ExcelFileToolErrorTests : IDisposable
         Assert.True(success, $"File creation failed: {result}");
         Assert.True(File.Exists(testFile), "File was not actually created");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void ExcelFile_InvalidAction_ThrowsMcpException()
     {
         // NOTE: This test is obsolete - now that we use enums, invalid actions are caught at compile time
         // Arrange
-        var testFile = Path.Join(_tempDir, "test-file.xlsx");
+        _ = Path.Join(_tempDir, "test-file.xlsx");
 
         // Skip - enum validation happens at compile time now
         Assert.True(true, "Invalid actions are now prevented by enum type system");
@@ -83,6 +87,7 @@ public class ExcelFileToolErrorTests : IDisposable
         Assert.Contains("Unknown action 'invalid-action'", exception.Message);
         */
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelFile_TestAction_WithExistingFile_ShouldReturnSuccess()
@@ -113,6 +118,7 @@ public class ExcelFileToolErrorTests : IDisposable
         Assert.True(isValid, "File should be valid");
         Assert.Equal(".xlsx", extension);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelFile_TestAction_WithNonExistentFile_ShouldReturnFailure()
@@ -138,6 +144,7 @@ public class ExcelFileToolErrorTests : IDisposable
         Assert.False(exists, "File should not exist");
         Assert.False(isValid, "File should not be valid");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelFile_TestAction_WithInvalidExtension_ShouldReturnFailure()

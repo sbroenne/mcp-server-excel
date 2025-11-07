@@ -1,7 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Xunit;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
@@ -10,6 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 /// </summary>
 public partial class RangeCommandsTests
 {
+    /// <inheritdoc/>
     // === NAMED RANGE TRANSPARENCY TESTS ===
 
     [Fact]
@@ -37,9 +38,14 @@ public partial class RangeCommandsTests
         Assert.True(result.Success);
         Assert.Equal(2, result.RowCount);
         Assert.Equal(2, result.ColumnCount);
-        Assert.Equal(1.0, Convert.ToDouble(result.Values[0][0]));
-        Assert.Equal(4.0, Convert.ToDouble(result.Values[1][1]));
+        Assert.Equal(
+            1.0,
+            Convert.ToDouble(result.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(
+            4.0,
+            Convert.ToDouble(result.Values[1][1], System.Globalization.CultureInfo.InvariantCulture));
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetValues_WithNamedRange_WritesProperly()
@@ -64,8 +70,11 @@ public partial class RangeCommandsTests
         // Verify by reading with regular range address
         var readResult = await _commands.GetValuesAsync(batch, "Sheet1", "A1:C2");
         Assert.Equal("Product", readResult.Values[0][0]);
-        Assert.Equal(29.99, Convert.ToDouble(readResult.Values[1][2]));
+        Assert.Equal(
+            29.99,
+            Convert.ToDouble(readResult.Values[1][2], System.Globalization.CultureInfo.InvariantCulture));
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task GetFormulas_WithNamedRange_ReturnsFormulas()
@@ -88,8 +97,11 @@ public partial class RangeCommandsTests
         Assert.True(result.Success);
         Assert.Empty(result.Formulas[0][0]); // A1 has no formula
         Assert.Equal("=A1*2", result.Formulas[0][1]);
-        Assert.Equal(20.0, Convert.ToDouble(result.Values[0][1]));
+        Assert.Equal(
+            20.0,
+            Convert.ToDouble(result.Values[0][1], System.Globalization.CultureInfo.InvariantCulture));
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ClearContents_WithNamedRange_ClearsData()

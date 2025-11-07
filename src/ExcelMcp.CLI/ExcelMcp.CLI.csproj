@@ -11,6 +11,9 @@
     <!-- Assembly and Namespace Configuration -->
     <AssemblyName>excelcli</AssemblyName>
     <RootNamespace>Sbroenne.ExcelMcp.CLI</RootNamespace>
+    
+    <!-- CLI doesn't need XML documentation warnings - command usage is shown in console output -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
 
     <!-- Version Information -->
     <Version>1.0.0</Version>

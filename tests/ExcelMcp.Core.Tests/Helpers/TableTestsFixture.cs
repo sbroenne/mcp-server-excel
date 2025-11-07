@@ -1,7 +1,4 @@
-using System;
 using System.Diagnostics;
-using System.IO;
-using System.Threading.Tasks;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
@@ -21,16 +18,17 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 public class TableTestsFixture : IAsyncLifetime
 {
     private readonly string _tempDir;
-    
+
     /// <summary>
     /// Path to the test Table file
     /// </summary>
     public string TestFilePath { get; private set; } = null!;
-    
+
     /// <summary>
     /// Results of Table creation (exposed for validation)
     /// </summary>
     public TableCreationResult CreationResult { get; private set; } = null!;
+    /// <inheritdoc/>
 
     public TableTestsFixture()
     {
@@ -46,10 +44,10 @@ public class TableTestsFixture : IAsyncLifetime
     public async Task InitializeAsync()
     {
         var sw = Stopwatch.StartNew();
-        
+
         TestFilePath = Path.Join(_tempDir, "TableTest.xlsx");
         CreationResult = new TableCreationResult();
-        
+
         try
         {
             // TEST 1: File Creation
@@ -58,15 +56,15 @@ public class TableTestsFixture : IAsyncLifetime
             if (!createFileResult.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: File creation failed: {createFileResult.ErrorMessage}");
-            
+
             CreationResult.FileCreated = true;
-            
+
             await using var batch = await ExcelSession.BeginBatchAsync(TestFilePath);
-            
+
             // TEST 2: Data Creation and Table Creation
-            
+
             // Create sample sales data
-            await batch.Execute<int>((ctx, ct) =>
+            await batch.Execute((ctx, ct) =>
             {
                 dynamic sheet = ctx.Book.Worksheets.Item(1);
                 sheet.Name = "Sales";
@@ -100,21 +98,21 @@ public class TableTestsFixture : IAsyncLifetime
 
                 return 0;
             });
-            
+
             // Create Table using TableCommands
             var tableCommands = new TableCommands();
             var createTableResult = await tableCommands.CreateAsync(
                 batch, "Sales", "SalesTable", "A1:D5", hasHeaders: true, tableStyle: "TableStyleMedium2");
-                
+
             if (!createTableResult.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: Table creation failed: {createTableResult.ErrorMessage}");
-                
+
             CreationResult.TablesCreated = 1;
-            
+
             // TEST 3: Persistence (Save)
             await batch.SaveAsync();
-            
+
             sw.Stop();
             CreationResult.Success = true;
             CreationResult.CreationTimeSeconds = sw.Elapsed.TotalSeconds;
@@ -153,9 +151,14 @@ public class TableTestsFixture : IAsyncLifetime
 /// </summary>
 public class TableCreationResult
 {
+    /// <inheritdoc/>
     public bool Success { get; set; }
+    /// <inheritdoc/>
     public bool FileCreated { get; set; }
+    /// <inheritdoc/>
     public int TablesCreated { get; set; }
+    /// <inheritdoc/>
     public double CreationTimeSeconds { get; set; }
+    /// <inheritdoc/>
     public string? ErrorMessage { get; set; }
 }

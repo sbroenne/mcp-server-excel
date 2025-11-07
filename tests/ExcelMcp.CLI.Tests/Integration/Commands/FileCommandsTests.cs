@@ -21,11 +21,13 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 public class CliFileCommandsTests
 {
     private readonly FileCommands _cliCommands;
+    /// <inheritdoc/>
 
     public CliFileCommandsTests()
     {
         _cliCommands = new FileCommands();
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void CreateEmpty_WithMissingArguments_ReturnsOneAndDoesNotCreateFile()
@@ -39,6 +41,7 @@ public class CliFileCommandsTests
         // Assert - CLI returns 1 for error
         Assert.Equal(1, exitCode);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void CreateEmpty_WithInvalidExtension_ReturnsOneAndDoesNotCreateFile()

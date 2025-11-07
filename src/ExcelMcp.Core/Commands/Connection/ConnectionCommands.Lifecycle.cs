@@ -13,6 +13,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 public partial class ConnectionCommands
 {
+    private static readonly JsonSerializerOptions s_jsonOptions = new() { WriteIndented = true };
+
     /// <summary>
     /// Lists all connections in a workbook
     /// </summary>
@@ -123,10 +125,7 @@ public partial class ConnectionCommands
                     Properties = GetConnectionProperties(conn)
                 };
 
-                result.DefinitionJson = JsonSerializer.Serialize(definition, new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
+                result.DefinitionJson = JsonSerializer.Serialize(definition, s_jsonOptions);
 
                 result.Success = true;
                 return result;
@@ -301,10 +300,7 @@ public partial class ConnectionCommands
                 };
 
                 // Serialize to JSON
-                string json = JsonSerializer.Serialize(definition, new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
+                string json = JsonSerializer.Serialize(definition, s_jsonOptions);
 
                 // Write to file
                 File.WriteAllText(jsonFilePath, json);

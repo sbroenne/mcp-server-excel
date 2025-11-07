@@ -21,11 +21,13 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 public class CliPowerQueryCommandsTests
 {
     private readonly PowerQueryCommands _cliCommands;
+    /// <inheritdoc/>
 
     public CliPowerQueryCommandsTests()
     {
         _cliCommands = new PowerQueryCommands();
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void List_WithMissingFileArg_ReturnsErrorExitCode()
@@ -39,6 +41,7 @@ public class CliPowerQueryCommandsTests
         // Assert - CLI returns 1 for error (missing arguments)
         Assert.Equal(1, exitCode);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void View_WithMissingArgs_ReturnsErrorExitCode()
@@ -52,6 +55,7 @@ public class CliPowerQueryCommandsTests
         // Assert - CLI returns 1 for error (missing arguments)
         Assert.Equal(1, exitCode);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void Refresh_WithInvalidFileExtension_ReturnsErrorExitCode()

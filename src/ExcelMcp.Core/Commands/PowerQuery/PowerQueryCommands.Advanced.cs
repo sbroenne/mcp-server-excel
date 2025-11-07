@@ -26,7 +26,7 @@ public partial class PowerQueryCommands
             return result;
         }
 
-        return await batch.Execute<OperationResult>((ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -253,7 +253,7 @@ public partial class PowerQueryCommands
     {
         var result = new WorksheetListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.Execute<WorksheetListResult>((ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? worksheets = null;
             dynamic? names = null;
@@ -307,7 +307,7 @@ public partial class PowerQueryCommands
                     {
                         name = names.Item(i);
                         string nameValue = name.Name;
-                        if (!nameValue.StartsWith("_"))
+                        if (!nameValue.StartsWith('_'))
                         {
                             result.Worksheets.Add(new WorksheetInfo
                             {
@@ -349,7 +349,7 @@ public partial class PowerQueryCommands
             QueryName = "_EvalExpression"
         };
 
-        return await batch.Execute<PowerQueryViewResult>((ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? queriesCollection = null;
             dynamic? tempQuery = null;

@@ -85,7 +85,7 @@ public partial class ConnectionCommands
                     RefreshImmediately = true
                 };
 
-                CreateQueryTableForConnection(targetSheet, connectionName, conn, options);
+                CreateQueryTableForConnection(targetSheet, conn, options);
 
                 result.Success = true;
                 return result;

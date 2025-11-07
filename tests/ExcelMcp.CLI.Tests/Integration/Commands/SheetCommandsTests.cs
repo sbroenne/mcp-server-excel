@@ -21,11 +21,13 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 public class SheetCommandsTests
 {
     private readonly SheetCommands _cliCommands;
+    /// <inheritdoc/>
 
     public SheetCommandsTests()
     {
         _cliCommands = new SheetCommands();
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void List_WithMissingFileArg_ReturnsErrorExitCode()
@@ -39,6 +41,7 @@ public class SheetCommandsTests
         // Assert - CLI returns 1 for error (missing arguments)
         Assert.Equal(1, exitCode);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void Create_WithMissingArgs_ReturnsErrorExitCode()
@@ -52,6 +55,7 @@ public class SheetCommandsTests
         // Assert - CLI returns 1 for error (missing arguments)
         Assert.Equal(1, exitCode);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void Rename_WithMissingNewNameArg_ReturnsErrorExitCode()
@@ -65,6 +69,7 @@ public class SheetCommandsTests
         // Assert - CLI returns 1 for error (missing arguments)
         Assert.Equal(1, exitCode);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void Copy_WithInvalidFileExtension_ReturnsErrorExitCode()

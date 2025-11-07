@@ -26,12 +26,12 @@ public partial class SheetCommands
                     result.ErrorMessage = $"Sheet '{sheetName}' not found";
                     return result;
                 }
-                
+
                 // Set visibility using the enum value (maps to XlSheetVisibility)
                 sheet.Visible = (int)visibility;
-                
+
                 result.Success = true;
-                
+
                 return result;
             }
             catch (Exception ex)
@@ -46,7 +46,7 @@ public partial class SheetCommands
             }
         });
     }
-    
+
     /// <inheritdoc />
     /// <inheritdoc />
     public async Task<SheetVisibilityResult> GetVisibilityAsync(IExcelBatch batch, string sheetName)
@@ -65,12 +65,12 @@ public partial class SheetCommands
                     result.ErrorMessage = $"Sheet '{sheetName}' not found";
                     return result;
                 }
-                
+
                 int visibilityValue = Convert.ToInt32(sheet.Visible);
                 result.Visibility = (SheetVisibility)visibilityValue;
                 result.VisibilityName = result.Visibility.ToString();
                 result.Success = true;
-                
+
                 return result;
             }
             catch (Exception ex)
@@ -85,21 +85,21 @@ public partial class SheetCommands
             }
         });
     }
-    
+
     /// <inheritdoc />
     /// <inheritdoc />
     public async Task<OperationResult> ShowAsync(IExcelBatch batch, string sheetName)
     {
         return await SetVisibilityAsync(batch, sheetName, SheetVisibility.Visible);
     }
-    
+
     /// <inheritdoc />
     /// <inheritdoc />
     public async Task<OperationResult> HideAsync(IExcelBatch batch, string sheetName)
     {
         return await SetVisibilityAsync(batch, sheetName, SheetVisibility.Hidden);
     }
-    
+
     /// <inheritdoc />
     /// <inheritdoc />
     public async Task<OperationResult> VeryHideAsync(IExcelBatch batch, string sheetName)

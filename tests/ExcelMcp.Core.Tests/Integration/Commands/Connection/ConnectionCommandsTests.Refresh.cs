@@ -1,9 +1,6 @@
-using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
-using System.IO;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
 
@@ -14,6 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
 [Trait("RequiresExcel", "true")]
 public partial class ConnectionCommandsTests
 {
+    /// <inheritdoc/>
     [Fact]
     public async Task RefreshAsync_ConnectionNotFound_ReturnsFailure()
     {
@@ -31,6 +29,7 @@ public partial class ConnectionCommandsTests
         Assert.False(result.Success);
         Assert.Contains("not found", result.ErrorMessage);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task RefreshAsync_ConnectionOnlyQuery_ReturnsSuccessWithContext()
@@ -55,6 +54,7 @@ public partial class ConnectionCommandsTests
         // Assert - Pure COM passthrough, just verify success
         Assert.True(result.Success, $"Connection-only refresh should succeed: {result.ErrorMessage}");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task RefreshAsync_ConnectionWithLoadedData_ReturnsSuccess()
@@ -84,6 +84,7 @@ public partial class ConnectionCommandsTests
         // Assert - Pure COM passthrough, just verify success
         Assert.True(result.Success, $"Refresh failed: {result.ErrorMessage}");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task RefreshAsync_WithTimeout_RespectsTimeoutParameter()
@@ -111,6 +112,7 @@ public partial class ConnectionCommandsTests
         // Assert
         Assert.True(result.Success, $"Refresh failed: {result.ErrorMessage}");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task RefreshAsync_TextConnectionMissingFile_SucceedsWithoutValidation()

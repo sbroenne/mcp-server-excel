@@ -1,7 +1,4 @@
-using System;
 using System.Diagnostics;
-using System.IO;
-using System.Threading.Tasks;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -31,6 +28,7 @@ public class PowerQueryTestsFixture : IAsyncLifetime
     /// Results of Power Query creation (exposed for validation)
     /// </summary>
     public PowerQueryCreationResult CreationResult { get; private set; } = null!;
+    /// <inheritdoc/>
 
     public PowerQueryTestsFixture()
     {
@@ -97,7 +95,7 @@ public class PowerQueryTestsFixture : IAsyncLifetime
             CreationResult.Success = true;
             CreationResult.CreationTimeSeconds = sw.Elapsed.TotalSeconds;
 
-                                                                                                        }
+        }
         catch (Exception ex)
         {
             CreationResult.Success = false;
@@ -134,7 +132,7 @@ public class PowerQueryTestsFixture : IAsyncLifetime
     private string CreateMCodeFile(string name, string mCode)
     {
         var filePath = Path.Join(_tempDir, $"{name}.pq");
-        System.IO.File.WriteAllText(filePath, mCode);
+        File.WriteAllText(filePath, mCode);
         return filePath;
     }
 
@@ -200,10 +198,16 @@ in
 /// </summary>
 public class PowerQueryCreationResult
 {
+    /// <inheritdoc/>
     public bool Success { get; set; }
+    /// <inheritdoc/>
     public bool FileCreated { get; set; }
+    /// <inheritdoc/>
     public int MCodeFilesCreated { get; set; }
+    /// <inheritdoc/>
     public int QueriesImported { get; set; }
+    /// <inheritdoc/>
     public double CreationTimeSeconds { get; set; }
+    /// <inheritdoc/>
     public string? ErrorMessage { get; set; }
 }

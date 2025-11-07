@@ -17,9 +17,12 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Sheet;
 [Trait("Feature", "Worksheets")]
 public partial class SheetCommandsTests : IClassFixture<TempDirectoryFixture>
 {
-    private readonly ISheetCommands _sheetCommands;
+    private readonly SheetCommands _sheetCommands;
     private readonly string _tempDir;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SheetCommandsTests"/> class.
+    /// </summary>
     public SheetCommandsTests(TempDirectoryFixture fixture)
     {
         _sheetCommands = new SheetCommands();

@@ -39,7 +39,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - "create" with loadDestination='both' loads to BOTH worksheet AND Power Pivot
 /// - For Power Pivot operations beyond loading data (DAX measures, relationships), use excel_datamodel or excel_powerpivot tools
 ///
-/// VALIDATION & EXECUTION:
+/// VALIDATION AND EXECUTION:
 /// - Create DEFAULT behavior: Automatically loads to worksheet (validates M code by executing it)
 /// - Validation = Execution: Power Query M code is only validated when data is actually loaded/refreshed
 /// - Connection-only queries are NOT validated until first execution
@@ -129,7 +129,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 PowerQueryAction.Delete => await DeletePowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
                 PowerQueryAction.GetLoadConfig => await GetLoadConfigAsync(powerQueryCommands, excelPath, queryName, batchId),
                 PowerQueryAction.ListExcelSources => await ListExcelSourcesAsync(powerQueryCommands, excelPath, batchId),
-                PowerQueryAction.Eval => await EvalPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, batchId),
+                PowerQueryAction.Eval => await EvalPowerQueryAsync(powerQueryCommands, excelPath, sourcePath, batchId),
 
                 // Phase 1: Atomic Operations
                 PowerQueryAction.Create => await CreatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, targetSheet, batchId),
@@ -307,7 +307,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> EvalPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, string? batchId)
+    private static async Task<string> EvalPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? sourcePath, string? batchId)
     {
         if (string.IsNullOrEmpty(sourcePath))
             throw new ModelContextProtocol.McpException("sourcePath is required for eval action (M code file to evaluate)");
@@ -346,10 +346,15 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
         string? targetSheet,
         string? batchId)
     {
-        if (string.IsNullOrEmpty(queryName))
-            throw new ModelContextProtocol.McpException("queryName is required for create action");
-        if (string.IsNullOrEmpty(sourcePath))
-            throw new ModelContextProtocol.McpException("sourcePath is required for create action (.pq file)");
+        // Validate ALL required parameters first so error message lists every missing one
+        if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(sourcePath))
+        {
+            var missing = new List<string>();
+            if (string.IsNullOrEmpty(queryName)) missing.Add("queryName");
+            if (string.IsNullOrEmpty(sourcePath)) missing.Add("sourcePath");
+            var plural = missing.Count > 1 ? "are" : "is";
+            throw new ModelContextProtocol.McpException($"{string.Join(" and ", missing)} {plural} required for create action (.pq file required)");
+        }
 
         sourcePath = PathValidator.ValidateExistingFile(sourcePath, nameof(sourcePath));
 

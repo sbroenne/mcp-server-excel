@@ -9,6 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Sheet;
 /// </summary>
 public partial class SheetCommandsTests
 {
+    /// <inheritdoc/>
     [Fact]
     public async Task List_DefaultWorkbook_ReturnsDefaultSheets()
     {
@@ -25,6 +26,7 @@ public partial class SheetCommandsTests
         Assert.NotNull(result.Worksheets);
         Assert.NotEmpty(result.Worksheets); // New Excel file has Sheet1
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Create_UniqueName_ReturnsSuccess()
@@ -34,7 +36,7 @@ public partial class SheetCommandsTests
             nameof(SheetCommandsTests), nameof(Create_UniqueName_ReturnsSuccess), _tempDir);
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         // Act
         var result = await _sheetCommands.CreateAsync(batch, "TestSheet");
 
@@ -48,6 +50,7 @@ public partial class SheetCommandsTests
 
         // Save changes
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Rename_ExistingSheet_ReturnsSuccess()
@@ -58,7 +61,7 @@ public partial class SheetCommandsTests
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         await _sheetCommands.CreateAsync(batch, "OldName");
-        
+
         // Act
         var result = await _sheetCommands.RenameAsync(batch, "OldName", "NewName");
 
@@ -73,6 +76,7 @@ public partial class SheetCommandsTests
 
         // Save changes
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Delete_NonActiveSheet_ReturnsSuccess()
@@ -83,7 +87,7 @@ public partial class SheetCommandsTests
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         await _sheetCommands.CreateAsync(batch, "ToDelete");
-        
+
         // Act
         var result = await _sheetCommands.DeleteAsync(batch, "ToDelete");
 
@@ -97,6 +101,7 @@ public partial class SheetCommandsTests
 
         // Save changes
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Copy_ExistingSheet_CreatesNewSheet()
@@ -107,7 +112,7 @@ public partial class SheetCommandsTests
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
         await _sheetCommands.CreateAsync(batch, "Source");
-        
+
         // Act
         var result = await _sheetCommands.CopyAsync(batch, "Source", "Target");
 

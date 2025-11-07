@@ -40,7 +40,7 @@ Use begin to start a session, commit to end it, list to debug.")]
 
         [Description("Save changes before closing? Default true. Set false to discard - used with 'commit' action")]
         bool save = true,
-        
+
         [Description("Timeout in minutes for batch operations. Default: 2 minutes for save operations")]
         double? timeout = null)
     {

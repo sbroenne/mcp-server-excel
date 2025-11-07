@@ -1,7 +1,4 @@
-using System;
-using System.IO;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -30,6 +27,7 @@ public class ExcelQueryTableBehaviorDiagnosticsSplit : IClassFixture<TempDirecto
 {
     private readonly ITestOutputHelper _output;
     private readonly string _tempDir;
+    /// <inheritdoc/>
 
     public ExcelQueryTableBehaviorDiagnosticsSplit(TempDirectoryFixture fixture, ITestOutputHelper output)
     {
@@ -64,7 +62,7 @@ let
 in
     Typed";
 
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             dynamic? queries = null;
             dynamic? query = null;
@@ -166,7 +164,7 @@ let
 in
     Typed";
 
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             dynamic? queries = null;
             dynamic? query = null;
@@ -272,7 +270,7 @@ let
 in
     Typed";
 
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             dynamic? queries = null;
             dynamic? query = null;
@@ -316,7 +314,7 @@ in
 
                 try
                 {
-                    System.Threading.Thread.Sleep(1000); // Let Excel process the change
+                    Thread.Sleep(1000); // Let Excel process the change
                     queryTable.Refresh(false);
                     _output.WriteLine("  ✗ Refresh succeeded (unexpected!)");
                     _output.WriteLine($"  QueryTables.Count = {queryTables.Count}");
@@ -374,7 +372,7 @@ let
 in
     Typed";
 
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             dynamic? queries = null;
             dynamic? query = null;
@@ -466,7 +464,7 @@ let
 in
     Typed";
 
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             dynamic? queries = null;
             dynamic? query = null;

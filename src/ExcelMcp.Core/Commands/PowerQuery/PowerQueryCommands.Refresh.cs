@@ -34,7 +34,7 @@ public partial class PowerQueryCommands
             return result;
         }
 
-        return await batch.Execute<PowerQueryRefreshResult>((ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -259,7 +259,7 @@ public partial class PowerQueryCommands
                 }
 
                 // ✅ Rule 0: Success = false when errors exist
-                if (errors.Any())
+                if (errors.Count > 0)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Some queries failed to refresh: {string.Join(", ", errors)}";
