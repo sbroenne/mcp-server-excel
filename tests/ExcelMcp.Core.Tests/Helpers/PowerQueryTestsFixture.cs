@@ -139,7 +139,7 @@ public class PowerQueryTestsFixture : IAsyncLifetime
     /// <summary>
     /// Creates basic M code for simple queries
     /// </summary>
-    private string CreateBasicMCode()
+    private static string CreateBasicMCode()
     {
         return @"let
     Source = #table(
@@ -157,7 +157,7 @@ in
     /// <summary>
     /// Creates M code with more data for testing
     /// </summary>
-    private string CreateDataQueryMCode()
+    private static string CreateDataQueryMCode()
     {
         return @"let
     Source = #table(
@@ -177,7 +177,7 @@ in
     /// <summary>
     /// Creates M code for refreshable query testing
     /// </summary>
-    private string CreateRefreshableQueryMCode()
+    private static string CreateRefreshableQueryMCode()
     {
         return @"let
     Source = #table(

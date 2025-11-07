@@ -162,7 +162,7 @@ public class DataModelTestsFixture : IAsyncLifetime
     /// <summary>
     /// Creates Sales worksheet with sample data and formats as Excel Table
     /// </summary>
-    private async Task CreateSalesTableAsync(IExcelBatch batch)
+    private static async Task CreateSalesTableAsync(IExcelBatch batch)
     {
         await batch.Execute((ctx, ct) =>
         {
@@ -224,7 +224,7 @@ public class DataModelTestsFixture : IAsyncLifetime
     /// <summary>
     /// Creates Customers worksheet with sample data and formats as Excel Table
     /// </summary>
-    private async Task CreateCustomersTableAsync(IExcelBatch batch)
+    private static async Task CreateCustomersTableAsync(IExcelBatch batch)
     {
         await batch.Execute((ctx, ct) =>
         {
@@ -279,7 +279,7 @@ public class DataModelTestsFixture : IAsyncLifetime
     /// <summary>
     /// Creates Products worksheet with sample data and formats as Excel Table
     /// </summary>
-    private async Task CreateProductsTableAsync(IExcelBatch batch)
+    private static async Task CreateProductsTableAsync(IExcelBatch batch)
     {
         await batch.Execute((ctx, ct) =>
         {

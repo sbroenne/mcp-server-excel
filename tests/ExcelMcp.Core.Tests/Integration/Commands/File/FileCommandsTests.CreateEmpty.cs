@@ -12,7 +12,7 @@ public partial class FileCommandsTests
     /// <summary>
     /// Helper method to verify a file is a valid Excel workbook by trying to open it
     /// </summary>
-    private async Task<bool> IsValidExcelFileAsync(string filePath)
+    private static async Task<bool> IsValidExcelFileAsync(string filePath)
     {
         try
         {

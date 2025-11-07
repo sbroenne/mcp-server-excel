@@ -209,7 +209,7 @@ public partial class RangeCommands
     /// <summary>
     /// Helper for clear operations
     /// </summary>
-    private async Task<OperationResult> ClearRangeAsync(
+    private static async Task<OperationResult> ClearRangeAsync(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,

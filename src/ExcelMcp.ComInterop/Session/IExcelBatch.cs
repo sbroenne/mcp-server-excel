@@ -57,16 +57,16 @@ public interface IExcelBatch : IAsyncDisposable
     /// </summary>
     /// <typeparam name="T">Return type of the operation</typeparam>
     /// <param name="operation">Synchronous COM operation to execute</param>
-    /// <param name="cancellationToken">Optional cancellation token</param>
     /// <param name="timeout">Optional timeout override. If not specified, uses default (2 minutes). Maximum is 5 minutes.</param>
+    /// <param name="cancellationToken">Optional cancellation token</param>
     /// <returns>Result of the operation</returns>
     /// <exception cref="ObjectDisposedException">Batch has already been disposed</exception>
     /// <exception cref="InvalidOperationException">Excel COM error occurred</exception>
     /// <exception cref="TimeoutException">Operation exceeded the timeout period</exception>
     Task<T> Execute<T>(
         Func<ExcelContext, CancellationToken, T> operation,
-        CancellationToken cancellationToken = default,
-        TimeSpan? timeout = null);
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Executes a genuinely async operation within this batch.
@@ -75,26 +75,26 @@ public interface IExcelBatch : IAsyncDisposable
     /// </summary>
     /// <typeparam name="T">Return type of the operation</typeparam>
     /// <param name="operation">Async operation to execute</param>
-    /// <param name="cancellationToken">Optional cancellation token</param>
     /// <param name="timeout">Optional timeout override. If not specified, uses default (2 minutes). Maximum is 5 minutes.</param>
+    /// <param name="cancellationToken">Optional cancellation token</param>
     /// <returns>Result of the operation</returns>
     /// <exception cref="ObjectDisposedException">Batch has already been disposed</exception>
     /// <exception cref="InvalidOperationException">Excel COM error occurred</exception>
     /// <exception cref="TimeoutException">Operation exceeded the timeout period</exception>
     Task<T> ExecuteAsync<T>(
         Func<ExcelContext, CancellationToken, Task<T>> operation,
-        CancellationToken cancellationToken = default,
-        TimeSpan? timeout = null);
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Saves changes to the workbook.
     /// This is an explicit save - changes are NOT automatically saved on dispose.
     /// </summary>
-    /// <param name="cancellationToken">Optional cancellation token</param>
     /// <param name="timeout">Optional timeout override. If not specified, uses default (2 minutes). Maximum is 5 minutes.</param>
+    /// <param name="cancellationToken">Optional cancellation token</param>
     /// <exception cref="ObjectDisposedException">Batch has already been disposed</exception>
     /// <exception cref="InvalidOperationException">Save failed (e.g., file is read-only)</exception>
     /// <exception cref="TimeoutException">Save operation exceeded the timeout period</exception>
-    Task SaveAsync(CancellationToken cancellationToken = default, TimeSpan? timeout = null);
+    Task SaveAsync(TimeSpan? timeout = null, CancellationToken cancellationToken = default);
 
 }

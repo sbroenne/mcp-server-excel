@@ -144,12 +144,12 @@ public static class ExcelSession
                 GC.WaitForPendingFinalizers();
                 GC.Collect();
             }
-        });
+        }, cancellationToken);
 
         // Now use batch API to execute the operation
         await using var batch = await BeginBatchAsync(fullPath, cancellationToken);
-        var result = await batch.Execute(operation);
-        await batch.SaveAsync();
+        var result = await batch.Execute(operation, timeout: null, cancellationToken);
+        await batch.SaveAsync(timeout: null, cancellationToken);
 
         return result;
     }
@@ -235,12 +235,12 @@ public static class ExcelSession
                 GC.WaitForPendingFinalizers();
                 GC.Collect();
             }
-        });
+        }, cancellationToken);
 
         // Now use batch API to execute the operation
         await using var batch = await BeginBatchAsync(fullPath, cancellationToken);
-        var result = await batch.ExecuteAsync(operation);
-        await batch.SaveAsync();
+        var result = await batch.ExecuteAsync(operation, timeout: null, cancellationToken);
+        await batch.SaveAsync(timeout: null, cancellationToken);
 
         return result;
     }

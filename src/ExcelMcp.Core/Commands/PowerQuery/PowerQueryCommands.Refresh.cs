@@ -288,7 +288,7 @@ public partial class PowerQueryCommands
     /// <summary>
     /// Helper method to find connection for a query
     /// </summary>
-    private dynamic? FindConnectionForQuery(dynamic workbook, string queryName)
+    private static dynamic? FindConnectionForQuery(dynamic workbook, string queryName)
     {
         dynamic? connections = null;
         try

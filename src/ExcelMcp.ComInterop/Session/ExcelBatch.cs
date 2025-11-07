@@ -151,8 +151,8 @@ internal sealed class ExcelBatch : IExcelBatch
     // Synchronous COM operations
     public async Task<T> Execute<T>(
         Func<ExcelContext, CancellationToken, T> operation,
-        CancellationToken cancellationToken = default,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(ExcelBatch));
 
@@ -213,8 +213,8 @@ internal sealed class ExcelBatch : IExcelBatch
     // Genuinely async operations (file I/O, etc.)
     public async Task<T> ExecuteAsync<T>(
         Func<ExcelContext, CancellationToken, Task<T>> operation,
-        CancellationToken cancellationToken = default,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(ExcelBatch));
 
@@ -271,7 +271,7 @@ internal sealed class ExcelBatch : IExcelBatch
         }
     }
 
-    public async Task SaveAsync(CancellationToken cancellationToken = default, TimeSpan? timeout = null)
+    public async Task SaveAsync(TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(ExcelBatch));
 

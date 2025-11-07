@@ -10,7 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class PowerQueryCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> LoadToAsync(IExcelBatch batch, string queryName, string sheetName)
+    public static async Task<OperationResult> LoadToAsync(IExcelBatch batch, string queryName, string sheetName)
     {
         var result = new OperationResult
         {

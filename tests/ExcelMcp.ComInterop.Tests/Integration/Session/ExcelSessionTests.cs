@@ -308,7 +308,7 @@ public class ExcelSessionTests : IAsyncLifetime
     }
 
     // Helper method
-    private async Task CreateTempTestFileAsync(string filePath)
+    private static async Task CreateTempTestFileAsync(string filePath)
     {
         await ExcelSession.CreateNew(filePath, isMacroEnabled: false, (ctx, ct) =>
         {

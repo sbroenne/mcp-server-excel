@@ -1141,7 +1141,7 @@ public partial class PowerQueryCommands
     /// <summary>
     /// Helper method to create QueryTable for a query
     /// </summary>
-    private dynamic CreateQueryTableForQuery(dynamic sheet, dynamic query)
+    private static dynamic CreateQueryTableForQuery(dynamic sheet, dynamic query)
     {
         string queryName = query.Name;
         string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
