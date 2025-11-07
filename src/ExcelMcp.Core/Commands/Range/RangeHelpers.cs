@@ -31,7 +31,7 @@ public static class RangeHelpers
             catch
             {
                 // List available named ranges for helpful error
-                List<string> availableRanges = new();
+                List<string> availableRanges = [];
                 dynamic? names = null;
                 try
                 {
@@ -83,7 +83,7 @@ public static class RangeHelpers
             if (sheet == null)
             {
                 // List available sheets for helpful error
-                List<string> availableSheets = new();
+                List<string> availableSheets = [];
                 dynamic? sheets = null;
                 try
                 {

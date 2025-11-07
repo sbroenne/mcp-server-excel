@@ -19,7 +19,7 @@ public partial class RangeCommandsTests
         string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(ClearAll_FormattedRange_RemovesEverything), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { "Test" }]);
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [["Test"]]);
 
         // Act
         var result = await _commands.ClearAllAsync(batch, "Sheet1", "A1");
@@ -40,8 +40,8 @@ public partial class RangeCommandsTests
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:B2",
         [
-            new() { 1, 2 },
-            new() { 3, 4 }
+            [1, 2],
+            [3, 4]
         ]);
 
         // Act
@@ -89,8 +89,8 @@ public partial class RangeCommandsTests
         string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(CopyValues_CopiesOnlyValues), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { 10 }]);
-        await _commands.SetFormulasAsync(batch, "Sheet1", "B1", [new() { "=A1*2" }]);
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [[10]]);
+        await _commands.SetFormulasAsync(batch, "Sheet1", "B1", [["=A1*2"]]);
 
         // Act
         var result = await _commands.CopyValuesAsync(batch, "Sheet1", "B1", "Sheet1", "C1");

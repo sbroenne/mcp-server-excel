@@ -21,7 +21,7 @@ public partial class VbaCommands
         {
             // For LLM-friendly behavior: .xlsx files don't support VBA, return empty list instead of error
             result.Success = true;
-            result.Scripts = new List<ScriptInfo>();
+            result.Scripts = [];
             return result;
         }
 

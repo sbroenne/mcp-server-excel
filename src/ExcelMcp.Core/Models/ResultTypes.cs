@@ -522,7 +522,7 @@ public class PowerQueryValidationResult : ResultBase
     /// <summary>
     /// Validation errors (if any)
     /// </summary>
-    public List<string> ValidationErrors { get; set; } = new();
+    public List<string> ValidationErrors { get; set; } = [];
 
     /// <summary>
     /// M code expression that was validated

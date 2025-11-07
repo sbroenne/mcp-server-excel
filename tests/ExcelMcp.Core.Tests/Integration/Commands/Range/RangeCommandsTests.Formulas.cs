@@ -22,14 +22,14 @@ public partial class RangeCommandsTests
         // Set values and formulas
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3",
         [
-            new() { 10 },
-            new() { 20 },
-            new() { 30 }
+            [10],
+            [20],
+            [30]
         ]);
 
         await _commands.SetFormulasAsync(batch, "Sheet1", "B1",
         [
-            new() { "=SUM(A1:A3)" }
+            ["=SUM(A1:A3)"]
         ]);
 
         // Act
@@ -53,9 +53,9 @@ public partial class RangeCommandsTests
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3",
         [
-            new() { 5 },
-            new() { 10 },
-            new() { 15 }
+            [5],
+            [10],
+            [15]
         ]);
 
         var formulas = new List<List<string>>
@@ -92,9 +92,9 @@ public partial class RangeCommandsTests
         // Set up source data
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3",
         [
-            new() { 100 },
-            new() { 200 },
-            new() { 300 }
+            [100],
+            [200],
+            [300]
         ]);
 
         // Simulate MCP framework JSON deserialization
@@ -149,16 +149,16 @@ public partial class RangeCommandsTests
         // Step 1: Set up headers
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:G1",
         [
-            new() { "Product", "Q1 Sales", "Q2 Sales", "Q3 Sales", "Q4 Sales", "Total Sales", "Performance" }
+            ["Product", "Q1 Sales", "Q2 Sales", "Q3 Sales", "Q4 Sales", "Total Sales", "Performance"]
         ]);
 
         // Step 2: Set up product sales data (4 products, 4 quarters each)
         await _commands.SetValuesAsync(batch, "Sheet1", "A2:E5",
         [
-            new() { "Widget A", 15000, 18000, 22000, 25000 },
-            new() { "Widget B", 12000, 14000, 16000, 18000 },
-            new() { "Widget C", 8000, 9000, 11000, 13000 },
-            new() { "Widget D", 20000, 22000, 24000, 26000 }
+            ["Widget A", 15000, 18000, 22000, 25000],
+            ["Widget B", 12000, 14000, 16000, 18000],
+            ["Widget C", 8000, 9000, 11000, 13000],
+            ["Widget D", 20000, 22000, 24000, 26000]
         ]);
 
         // Step 3: Add formulas for Total Sales (column F)
@@ -186,7 +186,7 @@ public partial class RangeCommandsTests
         Assert.True(perfResult.Success, $"Failed to set performance formulas: {perfResult.ErrorMessage}");
 
         // Step 5: Add summary statistics row with complex formulas
-        await _commands.SetValuesAsync(batch, "Sheet1", "A7", [new() { "TOTALS" }]);
+        await _commands.SetValuesAsync(batch, "Sheet1", "A7", [["TOTALS"]]);
 
         var summaryFormulas = new List<List<string>>
         {
@@ -203,7 +203,7 @@ public partial class RangeCommandsTests
         Assert.True(summaryResult.Success, $"Failed to set summary formulas: {summaryResult.ErrorMessage}");
 
         // Step 6: Add growth rate calculation (comparing Q4 to Q1)
-        await _commands.SetValuesAsync(batch, "Sheet1", "H1", [new() { "Growth Rate" }]);
+        await _commands.SetValuesAsync(batch, "Sheet1", "H1", [["Growth Rate"]]);
         var growthFormulas = new List<List<string>>
         {
             new() { "=TEXT((E2-B2)/B2,\"0.0%\")" },
@@ -313,9 +313,9 @@ public partial class RangeCommandsTests
         // Set up source data on "Data" sheet
         await _commands.SetValuesAsync(batch, "Data", "A1:A3",
         [
-            new() { 100 },
-            new() { 200 },
-            new() { 300 }
+            [100],
+            [200],
+            [300]
         ]);
 
         // Act - Set formulas on Sheet1 that reference Data sheet
@@ -374,9 +374,9 @@ public partial class RangeCommandsTests
         // Set up source data
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3",
         [
-            new() { 10 },
-            new() { 20 },
-            new() { 30 }
+            [10],
+            [20],
+            [30]
         ]);
 
         // Act - Set formulas with different reference types

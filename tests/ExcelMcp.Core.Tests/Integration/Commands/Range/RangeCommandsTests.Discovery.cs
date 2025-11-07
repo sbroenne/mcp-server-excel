@@ -19,8 +19,8 @@ public partial class RangeCommandsTests
         string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetUsedRange_SheetWithSparseData_ReturnsNonEmptyCells), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { "Start" }]);
-        await _commands.SetValuesAsync(batch, "Sheet1", "D10", [new() { "End" }]);
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [["Start"]]);
+        await _commands.SetValuesAsync(batch, "Sheet1", "D10", [["End"]]);
 
         // Act
         var result = await _commands.GetUsedRangeAsync(batch, "Sheet1");
@@ -42,9 +42,9 @@ public partial class RangeCommandsTests
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:C3",
         [
-            new() { 1, 2, 3 },
-            new() { 4, 5, 6 },
-            new() { 7, 8, 9 }
+            [1, 2, 3],
+            [4, 5, 6],
+            [7, 8, 9]
         ]);
 
         // Act - Get region from middle cell
@@ -72,7 +72,7 @@ public partial class RangeCommandsTests
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:D10",
         [
-            new() { 1, 2, 3, 4 }
+            [1, 2, 3, 4]
         ]);
 
         // Act

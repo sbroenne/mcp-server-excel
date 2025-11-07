@@ -201,7 +201,7 @@ public partial class PivotTableCommandsTests
         Assert.True(addResult.Success);
 
         // Act
-        var result = await _pivotCommands.SetFieldFilterAsync(batch, "TestPivot", "Region", new List<string> { "North" });
+        var result = await _pivotCommands.SetFieldFilterAsync(batch, "TestPivot", "Region", ["North"]);
 
         // Assert
         Assert.True(result.Success, $"SetFieldFilter failed: {result.ErrorMessage}");

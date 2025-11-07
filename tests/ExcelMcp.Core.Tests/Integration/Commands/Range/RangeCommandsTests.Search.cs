@@ -22,8 +22,8 @@ public partial class RangeCommandsTests
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:C2",
         [
-            new() { "Apple", "Banana", "Apple" },
-            new() { "Cherry", "Apple", "Banana" }
+            ["Apple", "Banana", "Apple"],
+            ["Cherry", "Apple", "Banana"]
         ]);
 
         // Act
@@ -48,9 +48,9 @@ public partial class RangeCommandsTests
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3",
         [
-            new() { "cat" },
-            new() { "dog" },
-            new() { "cat" }
+            ["cat"],
+            ["dog"],
+            ["cat"]
         ]);
 
         // Act
@@ -79,10 +79,10 @@ public partial class RangeCommandsTests
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:B4",
         [
-            new() { "Name", "Age" },
-            new() { "Charlie", 30 },
-            new() { "Alice", 25 },
-            new() { "Bob", 35 }
+            ["Name", "Age"],
+            ["Charlie", 30],
+            ["Alice", 25],
+            ["Bob", 35]
         ]);
 
         // Act - Sort by first column (Name) ascending

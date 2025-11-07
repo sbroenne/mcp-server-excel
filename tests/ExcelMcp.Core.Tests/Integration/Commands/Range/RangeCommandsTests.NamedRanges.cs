@@ -27,8 +27,8 @@ public partial class RangeCommandsTests
         // Set data in the range
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:B2",
         [
-            new() { 1, 2 },
-            new() { 3, 4 }
+            [1, 2],
+            [3, 4]
         ]);
 
         // Act - Read using named range (empty sheetName)
@@ -61,8 +61,8 @@ public partial class RangeCommandsTests
         // Act - Write using named range
         var result = await _commands.SetValuesAsync(batch, "", "SalesData",
         [
-            new() { "Product", "Qty", "Price" },
-            new() { "Widget", 10, 29.99 }
+            ["Product", "Qty", "Price"],
+            ["Widget", 10, 29.99]
         ]);
         // Assert
         Assert.True(result.Success);
@@ -87,8 +87,8 @@ public partial class RangeCommandsTests
         var paramCommands = new NamedRangeCommands();
         await paramCommands.CreateAsync(batch, "CalcRange", "Sheet1!$A$1:$B$2");
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { 10 }]);
-        await _commands.SetFormulasAsync(batch, "Sheet1", "B1", [new() { "=A1*2" }]);
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [[10]]);
+        await _commands.SetFormulasAsync(batch, "Sheet1", "B1", [["=A1*2"]]);
 
         // Act - Read formulas using named range
         var result = await _commands.GetFormulasAsync(batch, "", "CalcRange");
@@ -116,8 +116,8 @@ public partial class RangeCommandsTests
 
         await _commands.SetValuesAsync(batch, "", "TempData",
         [
-            new() { 1, 2 },
-            new() { 3, 4 }
+            [1, 2],
+            [3, 4]
         ]);
 
         // Act - Clear using named range

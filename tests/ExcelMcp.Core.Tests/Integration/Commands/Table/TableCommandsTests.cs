@@ -282,7 +282,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         var testFile = await CreateTestFileWithTableAsync(nameof(ApplyFilter_WithColumnCriteria_FiltersTable));
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _tableCommands.ApplyFilterAsync(batch, "SalesTable", "Region", new List<string> { "North" });
+        var result = await _tableCommands.ApplyFilterAsync(batch, "SalesTable", "Region", ["North"]);
 
         Assert.True(result.Success);
     }
@@ -299,7 +299,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Apply filter first
-        await _tableCommands.ApplyFilterAsync(batch, "SalesTable", "Region", new List<string> { "North" });
+        await _tableCommands.ApplyFilterAsync(batch, "SalesTable", "Region", ["North"]);
 
         // Clear filters
         var result = await _tableCommands.ClearFiltersAsync(batch, "SalesTable");

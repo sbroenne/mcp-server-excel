@@ -24,7 +24,7 @@ public partial class DataModelCommands
             {
                 // Empty Data Model is valid - return empty list (LLM-friendly)
                 result.Success = true;
-                result.Tables = new List<DataModelTableInfo>();
+                result.Tables = [];
                 return result;
             }
 
