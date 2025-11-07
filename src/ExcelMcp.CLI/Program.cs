@@ -58,22 +58,19 @@ class Program
                 // Power Query commands
                 "pq-list" => powerQuery.List(args),
                 "pq-view" => powerQuery.View(args),
-                "pq-update" => await powerQuery.Update(args),
                 "pq-export" => await powerQuery.Export(args),
-                "pq-import" => await powerQuery.Import(args),
                 "pq-sources" => powerQuery.Sources(args),
                 "pq-verify" => powerQuery.Eval(args),
                 "pq-refresh" => powerQuery.Refresh(args),
-                "pq-errors" => powerQuery.Errors(args),
-                "pq-loadto" => powerQuery.LoadTo(args),
                 "pq-delete" => powerQuery.Delete(args),
-
-                // Power Query Load Configuration commands
-                "pq-set-connection-only" => powerQuery.SetConnectionOnly(args),
-                "pq-set-load-to-table" => powerQuery.SetLoadToTable(args),
-                "pq-set-load-to-data-model" => powerQuery.SetLoadToDataModel(args),
-                "pq-set-load-to-both" => powerQuery.SetLoadToBoth(args),
                 "pq-get-load-config" => powerQuery.GetLoadConfig(args),
+
+                // Power Query Phase 1 commands - Atomic operations
+                "pq-create" => await powerQuery.Create(args),
+                "pq-update-mcode" => await powerQuery.UpdateMCode(args),
+                "pq-unload" => await powerQuery.Unload(args),
+                "pq-update-and-refresh" => await powerQuery.UpdateAndRefresh(args),
+                "pq-refresh-all" => await powerQuery.RefreshAll(args),
 
                 // Sheet commands (lifecycle only - data operations moved to range-* commands in Phase 1A)
                 "sheet-list" => sheet.List(args),
@@ -81,12 +78,12 @@ class Program
                 "sheet-delete" => sheet.Delete(args),
                 "sheet-create" => sheet.Create(args),
                 "sheet-rename" => sheet.Rename(args),
-                
+
                 // Sheet tab color commands
                 "sheet-set-tab-color" => sheet.SetTabColor(args),
                 "sheet-get-tab-color" => sheet.GetTabColor(args),
                 "sheet-clear-tab-color" => sheet.ClearTabColor(args),
-                
+
                 // Sheet visibility commands
                 "sheet-set-visibility" => sheet.SetVisibility(args),
                 "sheet-get-visibility" => sheet.GetVisibility(args),
@@ -102,11 +99,11 @@ class Program
                 "range-clear-all" => range.ClearAll(args),
                 "range-clear-contents" => range.ClearContents(args),
                 "range-clear-formats" => range.ClearFormats(args),
-                
+
                 // Range number formatting commands
                 "range-get-number-formats" => range.GetNumberFormats(args),
                 "range-set-number-format" => range.SetNumberFormat(args),
-                
+
                 // Range visual formatting and validation commands
                 "range-format" => range.FormatRange(args),
                 "range-validate" => range.ValidateRange(args),
@@ -305,25 +302,22 @@ class Program
         AnsiConsole.MarkupLine("[bold yellow]Power Query Commands:[/]");
         AnsiConsole.MarkupLine("  [cyan]pq-list[/] file.xlsx                           List all Power Queries");
         AnsiConsole.MarkupLine("  [cyan]pq-view[/] file.xlsx query-name               View Power Query M code");
-        AnsiConsole.MarkupLine("  [cyan]pq-update[/] file.xlsx query-name code.pq     Update Power Query from file");
-        AnsiConsole.MarkupLine("    Options: [dim]--privacy-level <None|Private|Organizational|Public>[/]");
         AnsiConsole.MarkupLine("  [cyan]pq-export[/] file.xlsx query-name out.pq      Export Power Query to file");
-        AnsiConsole.MarkupLine("  [cyan]pq-import[/] file.xlsx query-name src.pq      Import/create Power Query");
-        AnsiConsole.MarkupLine("    Options: [dim]--privacy-level <None|Private|Organizational|Public> --connection-only[/]");
         AnsiConsole.MarkupLine("  [cyan]pq-refresh[/] file.xlsx query-name            Refresh a specific Power Query");
-        AnsiConsole.MarkupLine("  [cyan]pq-loadto[/] file.xlsx query-name sheet       Load Power Query to worksheet");
         AnsiConsole.MarkupLine("  [cyan]pq-delete[/] file.xlsx query-name             Delete Power Query");
+        AnsiConsole.MarkupLine("  [cyan]pq-get-load-config[/] file.xlsx query         Get current load configuration");
         AnsiConsole.MarkupLine("  [cyan]pq-sources[/] file.xlsx                       List Excel tables/ranges available to Power Query");
         AnsiConsole.MarkupLine("  [cyan]pq-verify[/] file.xlsx query-name             Evaluate Power Query expression");
         AnsiConsole.MarkupLine("  [cyan]pq-errors[/] file.xlsx query-name             View Power Query errors");
         AnsiConsole.WriteLine();
 
-        AnsiConsole.MarkupLine("[bold yellow]Power Query Load Configuration:[/]");
-        AnsiConsole.MarkupLine("  [cyan]pq-set-connection-only[/] file.xlsx query     Set query to Connection Only");
-        AnsiConsole.MarkupLine("  [cyan]pq-set-load-to-table[/] file.xlsx query sheet Set query to Load to Table");
-        AnsiConsole.MarkupLine("  [cyan]pq-set-load-to-data-model[/] file.xlsx query Set query to Load to Data Model");
-        AnsiConsole.MarkupLine("  [cyan]pq-set-load-to-both[/] file.xlsx query sheet Set query to Load to Both");
-        AnsiConsole.MarkupLine("  [cyan]pq-get-load-config[/] file.xlsx query        Get current load configuration");
+        AnsiConsole.MarkupLine("[bold yellow]Power Query Phase 1 - Atomic Operations:[/]");
+        AnsiConsole.MarkupLine("  [cyan]pq-create[/] file.xlsx query src.pq           Create query + load data (atomic)");
+        AnsiConsole.MarkupLine("    Options: [dim]--destination worksheet|data-model|both|connection-only --target-sheet SheetName[/]");
+        AnsiConsole.MarkupLine("  [cyan]pq-update-mcode[/] file.xlsx query code.pq    Update M code only (no refresh)");
+        AnsiConsole.MarkupLine("  [cyan]pq-update-and-refresh[/] file.xlsx query src  Update M code + refresh (atomic)");
+        AnsiConsole.MarkupLine("  [cyan]pq-unload[/] file.xlsx query                  Convert to connection-only");
+        AnsiConsole.MarkupLine("  [cyan]pq-refresh-all[/] file.xlsx                   Refresh all queries");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Sheet Commands:[/]");
@@ -357,7 +351,7 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]range-clear-contents[/] file.xlsx sheet range       Clear contents (preserve formats)");
         AnsiConsole.MarkupLine("  [cyan]range-clear-formats[/] file.xlsx sheet range        Clear formats (preserve values)");
         AnsiConsole.WriteLine();
-        
+
         AnsiConsole.MarkupLine("[bold yellow]Range Formatting Commands:[/]");
         AnsiConsole.MarkupLine("  [cyan]range-get-number-formats[/] file.xlsx sheet range   Get number format codes (CSV output)");
         AnsiConsole.MarkupLine("  [cyan]range-set-number-format[/] file.xlsx sheet range fmt Apply number format ($#,##0.00, 0.00%, m/d/yyyy)");
@@ -466,7 +460,7 @@ class Program
         AnsiConsole.MarkupLine("  [dim]excelcli vba-import \"Plan.xlsm\" \"Helper\" \"code.vba\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli pq-list \"Plan.xlsx\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli pq-view \"Plan.xlsx\" \"Milestones\"[/]");
-        AnsiConsole.MarkupLine("  [dim]excelcli pq-import \"Plan.xlsx\" \"fnHelper\" \"function.pq\"[/]");
+        AnsiConsole.MarkupLine("  [dim]excelcli pq-create \"Plan.xlsx\" \"Helper\" \"function.pq\" --destination worksheet[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli sheet-list \"Plan.xlsx\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli range-get-values \"Plan.xlsx\" \"Data\" \"A1:D10\"[/]");
         AnsiConsole.MarkupLine("  [dim]excelcli namedrange-set \"Plan.xlsx\" \"Start_Date\" \"2025-01-01\"[/]");

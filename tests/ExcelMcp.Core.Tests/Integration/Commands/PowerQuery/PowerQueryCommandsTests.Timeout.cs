@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -58,8 +59,7 @@ public partial class PowerQueryCommandsTimeoutTests : IDisposable
             await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
             // Import query
-            var importResult = await _commands.ImportAsync(batch, "TestQuery", mFile,
-                loadDestination: "worksheet", worksheetName: "Sheet1");
+            var importResult = await _commands.CreateAsync(batch, "TestQuery", mFile, PowerQueryLoadMode.LoadToTable, "Sheet1");
             Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
 
             // Act - Refresh should request 5-minute timeout (won't actually timeout in this test)
@@ -97,8 +97,7 @@ public partial class PowerQueryCommandsTimeoutTests : IDisposable
             await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
             // Import query
-            var importResult = await _commands.ImportAsync(batch, "SlowQuery", mFile,
-                loadDestination: "worksheet", worksheetName: "Sheet1");
+            var importResult = await _commands.CreateAsync(batch, "SlowQuery", mFile, PowerQueryLoadMode.LoadToTable, "Sheet1");
             Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
 
             // Act - Refresh with extended timeout
@@ -131,3 +130,7 @@ public partial class PowerQueryCommandsTimeoutTests : IDisposable
         GC.SuppressFinalize(this);
     }
 }
+
+
+
+

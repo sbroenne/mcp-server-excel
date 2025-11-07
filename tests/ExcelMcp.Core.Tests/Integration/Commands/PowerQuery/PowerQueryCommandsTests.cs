@@ -3,6 +3,7 @@ using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
+using Sbroenne.ExcelMcp.ComInterop;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
@@ -18,7 +19,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "PowerQuery")]
 [Trait("Speed", "Medium")]
-public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
+public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
 {
     private readonly IPowerQueryCommands _powerQueryCommands;
     private readonly IFileCommands _fileCommands;
@@ -74,7 +75,7 @@ public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
-        var result = await _powerQueryCommands.ImportAsync(batch, queryName, testQueryFile, "connection-only");
+        var result = await _powerQueryCommands.CreateAsync(batch, queryName, testQueryFile, PowerQueryLoadMode.ConnectionOnly);
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
@@ -134,8 +135,8 @@ public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
-        await _powerQueryCommands.ImportAsync(batch, queryName, testQueryFile);
-        var result = await _powerQueryCommands.UpdateAsync(batch, queryName, updateFile);
+        await _powerQueryCommands.CreateAsync(batch, queryName, testQueryFile);
+        var result = await _powerQueryCommands.UpdateMCodeAsync(batch, queryName, updateFile);
 
         // Assert
         Assert.True(result.Success);
@@ -159,7 +160,7 @@ public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
-        await _powerQueryCommands.ImportAsync(batch, queryName, testQueryFile);
+        await _powerQueryCommands.CreateAsync(batch, queryName, testQueryFile);
         var result = await _powerQueryCommands.DeleteAsync(batch, queryName);
 
         // Assert
@@ -169,177 +170,6 @@ public class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
     #endregion
 
     #region Load Destination Workflows (3 tests)
-
-    /// <summary>
-    /// Tests converting connection-only query to worksheet load mode.
-    /// LLM use case: "load this query data to a worksheet"
-    /// </summary>
-    [Fact]
-    public async Task Refresh_WithLoadDestinationWorksheet_ConvertsConnectionOnlyToLoaded()
-    {
-        // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(PowerQueryCommandsTests),
-            nameof(Refresh_WithLoadDestinationWorksheet_ConvertsConnectionOnlyToLoaded),
-            _tempDir);
-        var testQueryFile = CreateUniqueTestQueryFile(nameof(Refresh_WithLoadDestinationWorksheet_ConvertsConnectionOnlyToLoaded));
-
-        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
-        var importResult = await _powerQueryCommands.ImportAsync(batch, "TestQuery", testQueryFile, "connection-only");
-        Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
-
-        // Act - Apply load configuration and refresh
-        var setLoadResult = await _powerQueryCommands.SetLoadToTableAsync(batch, "TestQuery", "TestQuery");
-        Assert.True(setLoadResult.Success, $"SetLoadToTable failed: {setLoadResult.ErrorMessage}");
-
-        var refreshResult = await _powerQueryCommands.RefreshAsync(batch, "TestQuery");
-
-        // Assert
-        Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
-        Assert.False(refreshResult.IsConnectionOnly, "Query should no longer be connection-only");
-
-        // Verify worksheet was created with data
-        var sheetsResult = await _sheetCommands.ListAsync(batch);
-        Assert.True(sheetsResult.Success);
-        Assert.Contains(sheetsResult.Worksheets, w => w.Name == "TestQuery");
-
-        // Verify QueryTable exists on worksheet
-        await batch.Execute<int>((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item("TestQuery");
-            dynamic queryTables = sheet.QueryTables;
-            Assert.True(queryTables.Count > 0, "Expected at least one QueryTable on the worksheet");
-            return 0;
-        });
-    }
-
-    /// <summary>
-    /// Tests converting connection-only query to data model load mode.
-    /// LLM use case: "load this query to the data model for DAX"
-    /// </summary>
-    [Fact]
-    public async Task Refresh_WithLoadDestinationDataModel_LoadsToDataModel()
-    {
-        // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(PowerQueryCommandsTests),
-            nameof(Refresh_WithLoadDestinationDataModel_LoadsToDataModel),
-            _tempDir);
-        var testQueryFile = CreateUniqueTestQueryFile(nameof(Refresh_WithLoadDestinationDataModel_LoadsToDataModel));
-
-        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
-        var importResult = await _powerQueryCommands.ImportAsync(batch, "TestDMQuery", testQueryFile, "connection-only");
-        Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
-
-        // Act - Apply load configuration and refresh
-        var setLoadResult = await _powerQueryCommands.SetLoadToDataModelAsync(batch, "TestDMQuery");
-        Assert.True(setLoadResult.Success, $"SetLoadToDataModel failed: {setLoadResult.ErrorMessage}");
-
-        var refreshResult = await _powerQueryCommands.RefreshAsync(batch, "TestDMQuery");
-
-        // Assert
-        Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
-        Assert.False(refreshResult.IsConnectionOnly, "Query should no longer be connection-only");
-
-        // Verify query is in Data Model
-        var dataModelCommands = new DataModelCommands();
-        var tablesResult = await dataModelCommands.ListTablesAsync(batch);
-        Assert.True(tablesResult.Success, $"Failed to list Data Model tables: {tablesResult.ErrorMessage}");
-        Assert.Contains(tablesResult.Tables, t => t.Name == "TestDMQuery");
-    }
-
-    /// <summary>
-    /// Tests loading query to both worksheet and data model.
-    /// LLM use case: "load this query to both worksheet and data model"
-    /// </summary>
-    [Fact]
-    public async Task Refresh_WithLoadDestinationBoth_LoadsToBothDestinations()
-    {
-        // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(PowerQueryCommandsTests),
-            nameof(Refresh_WithLoadDestinationBoth_LoadsToBothDestinations),
-            _tempDir);
-        var testQueryFile = CreateUniqueTestQueryFile(nameof(Refresh_WithLoadDestinationBoth_LoadsToBothDestinations));
-
-        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
-        var importResult = await _powerQueryCommands.ImportAsync(batch, "TestBothQuery", testQueryFile, "connection-only");
-        Assert.True(importResult.Success, $"Failed to import query: {importResult.ErrorMessage}");
-
-        // Act - Apply load configuration and refresh
-        var setLoadResult = await _powerQueryCommands.SetLoadToBothAsync(batch, "TestBothQuery", "TestBothQuery");
-        Assert.True(setLoadResult.Success, $"SetLoadToBoth failed: {setLoadResult.ErrorMessage}");
-
-        var refreshResult = await _powerQueryCommands.RefreshAsync(batch, "TestBothQuery");
-
-        // Assert
-        Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
-        Assert.False(refreshResult.IsConnectionOnly, "Query should no longer be connection-only");
-
-        // Verify worksheet was created with data
-        var sheetsResult = await _sheetCommands.ListAsync(batch);
-        Assert.True(sheetsResult.Success);
-        Assert.Contains(sheetsResult.Worksheets, w => w.Name == "TestBothQuery");
-
-        // Verify QueryTable exists on worksheet
-        await batch.Execute<int>((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item("TestBothQuery");
-            dynamic queryTables = sheet.QueryTables;
-            Assert.True(queryTables.Count > 0, "Expected at least one QueryTable on the worksheet");
-            return 0;
-        });
-
-        // Verify query is in Data Model
-        var dataModelCommands = new DataModelCommands();
-        var tablesResult = await dataModelCommands.ListTablesAsync(batch);
-        Assert.True(tablesResult.Success, $"Failed to list Data Model tables: {tablesResult.ErrorMessage}");
-        Assert.Contains(tablesResult.Tables, t => t.Name == "TestBothQuery");
-    }
-
-    #endregion
-
-    #region Error Handling (1 test)
-
-    /// <summary>
-    /// Tests that operations on non-existent queries return proper error messages.
-    /// LLM use case: Proper error feedback when query name is wrong
-    /// </summary>
-    [Fact]
-    public async Task Operations_WithNonExistentQuery_ReturnNotFoundError()
-    {
-        // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(PowerQueryCommandsTests),
-            nameof(Operations_WithNonExistentQuery_ReturnNotFoundError),
-            _tempDir);
-        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
-
-        // Act & Assert - Multiple operations should return "not found" error
-        var viewResult = await _powerQueryCommands.ViewAsync(batch, "NonExistentQuery");
-        Assert.False(viewResult.Success);
-        Assert.Contains("not found", viewResult.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-
-        var getConfigResult = await _powerQueryCommands.GetLoadConfigAsync(batch, "NonExistentQuery");
-        Assert.False(getConfigResult.Success);
-        Assert.Contains("not found", getConfigResult.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-
-        var setTableResult = await _powerQueryCommands.SetLoadToTableAsync(batch, "NonExistentQuery", "TestSheet");
-        Assert.False(setTableResult.Success);
-        Assert.Contains("not found", setTableResult.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-
-        var setModelResult = await _powerQueryCommands.SetLoadToDataModelAsync(batch, "NonExistentQuery");
-        Assert.False(setModelResult.Success);
-        Assert.Contains("not found", setModelResult.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-
-        var setBothResult = await _powerQueryCommands.SetLoadToBothAsync(batch, "NonExistentQuery", "TestSheet");
-        Assert.False(setBothResult.Success);
-        Assert.Contains("not found", setBothResult.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-
-        var setConnResult = await _powerQueryCommands.SetConnectionOnlyAsync(batch, "NonExistentQuery");
-        Assert.False(setConnResult.Success);
-        Assert.Contains("not found", setConnResult.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-    }
 
     #endregion
 
@@ -388,21 +218,21 @@ in
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
 
         // Import source query first
-        var sourceImportResult = await _powerQueryCommands.ImportAsync(
+        var sourceImportResult = await _powerQueryCommands.CreateAsync(
             batch,
             "SourceQuery",
             sourceQueryFile,
-            loadDestination: "worksheet");
+            loadMode: PowerQueryLoadMode.LoadToTable);
 
         Assert.True(sourceImportResult.Success,
             $"Source query import failed: {sourceImportResult.ErrorMessage}");
 
         // Import derived query (references SourceQuery)
-        var derivedImportResult = await _powerQueryCommands.ImportAsync(
+        var derivedImportResult = await _powerQueryCommands.CreateAsync(
             batch,
             "DerivedQuery",
             derivedQueryFile,
-            loadDestination: "worksheet");
+            loadMode: PowerQueryLoadMode.LoadToTable);
 
         Assert.True(derivedImportResult.Success,
             $"Derived query import failed: {derivedImportResult.ErrorMessage}");
@@ -470,7 +300,7 @@ in
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
 
         // STEP 1: Import query and load to worksheet
-        var importResult = await _powerQueryCommands.ImportAsync(batch, queryName, initialQueryFile, "worksheet", sheetName);
+        var importResult = await _powerQueryCommands.CreateAsync(batch, queryName, initialQueryFile, PowerQueryLoadMode.LoadToTable, sheetName);
         Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
 
         // Verify initial load configuration
@@ -480,7 +310,7 @@ in
         Assert.Equal(sheetName, loadConfigBefore.TargetSheet);
 
         // STEP 2: Update the query M code
-        var updateResult = await _powerQueryCommands.UpdateAsync(batch, queryName, updatedQueryFile);
+        var updateResult = await _powerQueryCommands.UpdateMCodeAsync(batch, queryName, updatedQueryFile);
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
 
         // STEP 3: Verify load configuration is PRESERVED (regression check)
@@ -494,230 +324,6 @@ in
         // STEP 4: Verify data is still loaded to the sheet (not connection-only)
         var listResult = await _sheetCommands.ListAsync(batch);
         Assert.Contains(listResult.Worksheets, s => s.Name == sheetName);
-    }
-
-    /// <summary>
-    /// LLM use case: "update a query to change column structure and verify columns update"
-    ///
-    /// Scenario:
-    /// 1. Create a PowerQuery with one column and load to a worksheet
-    /// 2. Check that there is only one column
-    /// 3. Update the query and load again
-    /// 4. Check that there is only one column
-    /// 5. Update the query to create two columns and load again
-    /// 6. Check that there are two columns
-    /// </summary>
-    [Fact]
-    public async Task Update_QueryColumnStructure_UpdatesWorksheetColumns()
-    {
-        // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(PowerQueryCommandsTests),
-            nameof(Update_QueryColumnStructure_UpdatesWorksheetColumns),
-            _tempDir);
-
-        var queryName = "ColumnStructureQuery_" + Guid.NewGuid().ToString("N").Substring(0, 8);
-        var sheetName = "DataSheet";
-
-        // STEP 1: Create query with ONE column
-        var oneColumnQueryFile = Path.Join(_tempDir, $"onecolumn_{Guid.NewGuid():N}.pq");
-        System.IO.File.WriteAllText(oneColumnQueryFile,
-            @"let
-    Source = #table(
-        {""Column1""},
-        {
-            {""Value1""},
-            {""Value2""}
-        }
-    )
-in
-    Source");
-
-        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
-
-        var importResult = await _powerQueryCommands.ImportAsync(batch, queryName, oneColumnQueryFile, "worksheet", sheetName);
-        Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
-
-        // STEP 2: Verify there is only ONE column
-        var rangeCommands = new RangeCommands();
-        var usedRange1 = await rangeCommands.GetUsedRangeAsync(batch, sheetName);
-        Assert.True(usedRange1.Success, $"GetUsedRange failed: {usedRange1.ErrorMessage}");
-        Assert.Equal(1, usedRange1.ColumnCount);
-
-        // STEP 3: Update query (still one column, different data)
-        var oneColumnUpdatedFile = Path.Join(_tempDir, $"onecolumn_updated_{Guid.NewGuid():N}.pq");
-        System.IO.File.WriteAllText(oneColumnUpdatedFile,
-            @"let
-    Source = #table(
-        {""Column1""},
-        {
-            {""UpdatedValue1""},
-            {""UpdatedValue2""},
-            {""UpdatedValue3""}
-        }
-    )
-in
-    Source");
-
-        var updateResult1 = await _powerQueryCommands.UpdateAsync(batch, queryName, oneColumnUpdatedFile);
-        Assert.True(updateResult1.Success, $"First update failed: {updateResult1.ErrorMessage}");
-
-        // Refresh to reload data
-        var refreshResult1 = await _powerQueryCommands.RefreshAsync(batch, queryName);
-        Assert.True(refreshResult1.Success, $"First refresh failed: {refreshResult1.ErrorMessage}");
-
-        // STEP 4: Check that there is still only ONE column
-        var usedRange2 = await rangeCommands.GetUsedRangeAsync(batch, sheetName);
-        Assert.True(usedRange2.Success, $"GetUsedRange after first update failed: {usedRange2.ErrorMessage}");
-        Assert.Equal(1, usedRange2.ColumnCount);
-
-        // STEP 5: Update the query to create TWO columns
-        var twoColumnQueryFile = Path.Join(_tempDir, $"twocolumn_{Guid.NewGuid():N}.pq");
-        System.IO.File.WriteAllText(twoColumnQueryFile,
-            @"let
-    Source = #table(
-        {""Column1"", ""Column2""},
-        {
-            {""A"", ""B""},
-            {""C"", ""D""},
-            {""E"", ""F""}
-        }
-    )
-in
-    Source");
-
-        var updateResult2 = await _powerQueryCommands.UpdateAsync(batch, queryName, twoColumnQueryFile);
-        Assert.True(updateResult2.Success, $"Second update failed: {updateResult2.ErrorMessage}");
-
-        // Refresh to reload data with new column structure
-        var refreshResult2 = await _powerQueryCommands.RefreshAsync(batch, queryName);
-        Assert.True(refreshResult2.Success, $"Second refresh failed: {refreshResult2.ErrorMessage}");
-
-        // STEP 6: Check that there are now TWO columns
-        // BUG: This assertion will FAIL because Excel's QueryTable doesn't update column structure on refresh
-        var usedRange3 = await rangeCommands.GetUsedRangeAsync(batch, sheetName);
-        Assert.True(usedRange3.Success, $"GetUsedRange after second update failed: {usedRange3.ErrorMessage}");
-
-        // Diagnostic: Capture actual column structure before assertion
-        var values = await rangeCommands.GetValuesAsync(batch, sheetName, usedRange3.RangeAddress);
-        Assert.True(values.Success, $"GetValues failed: {values.ErrorMessage}");
-
-        // Get column headers to see what columns Excel created
-        var headerRow = values.Values.FirstOrDefault();
-        var columnNames = headerRow != null
-            ? string.Join(", ", headerRow.Select(c => c?.ToString() ?? "null"))
-            : "No headers found";
-
-        // This will fail and show us what the actual columns are
-        Assert.True(usedRange3.ColumnCount == 2,
-            $"Expected 2 columns but got {usedRange3.ColumnCount}. " +
-            $"Actual columns: [{columnNames}]");
-
-        // Additional assertion that will also fail
-        Assert.True(values.ColumnCount == 2,
-            $"Expected 2 columns in values but got {values.ColumnCount}. " +
-            $"Columns: [{columnNames}]");
-    }
-
-    /// <summary>
-    /// REGRESSION TEST: Reproduces column ACCUMULATION bug when using delete/recreate workaround
-    ///
-    /// Bug scenario (early test approach):
-    /// 1. Create query with 1 column (Column1)
-    /// 2. Update M code to 2 columns (Column1, Column2)
-    /// 3. Delete query + SetLoadToTable (recreate QueryTable) + Refresh
-    /// 4. BUG: Excel creates 3 columns (Column1, Column1, Column2) - ACCUMULATES instead of replacing!
-    ///
-    /// This reproduces the exact scenario from early testing where we saw 3 columns.
-    /// </summary>
-    [Fact]
-    public async Task Update_QueryColumnStructureWithDeleteRecreate_AccumulatesColumns()
-    {
-        // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(PowerQueryCommandsTests),
-            nameof(Update_QueryColumnStructureWithDeleteRecreate_AccumulatesColumns),
-            _tempDir);
-
-        var queryName = "AccumulationBug_" + Guid.NewGuid().ToString("N").Substring(0, 8);
-        var sheetName = "TestSheet";
-
-        // STEP 1: Create query with 1 column
-        var oneColumnFile = Path.Join(_tempDir, $"initial_{Guid.NewGuid():N}.pq");
-        System.IO.File.WriteAllText(oneColumnFile,
-            @"let
-    Source = #table(
-        {""Column1""},
-        {
-            {""A""},
-            {""B""}
-        }
-    )
-in
-    Source");
-
-        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
-
-        // Import and load to worksheet
-        var importResult = await _powerQueryCommands.ImportAsync(batch, queryName, oneColumnFile, "worksheet", sheetName);
-        Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
-
-        // Verify initial state: 1 column
-        var rangeCommands = new RangeCommands();
-        var usedRange1 = await rangeCommands.GetUsedRangeAsync(batch, sheetName);
-        Assert.True(usedRange1.Success);
-        Assert.Equal(1, usedRange1.ColumnCount);
-
-        // STEP 2: Update M code to 2 columns
-        var twoColumnFile = Path.Join(_tempDir, $"updated_{Guid.NewGuid():N}.pq");
-        System.IO.File.WriteAllText(twoColumnFile,
-            @"let
-    Source = #table(
-        {""Column1"", ""Column2""},
-        {
-            {""X"", ""Y""},
-            {""Z"", ""W""}
-        }
-    )
-in
-    Source");
-
-        var updateResult = await _powerQueryCommands.UpdateAsync(batch, queryName, twoColumnFile);
-        Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
-
-        // STEP 3: Apply the DELETE + RECREATE workaround (this causes the 3-column bug!)
-        var deleteResult = await _powerQueryCommands.DeleteAsync(batch, queryName);
-        Assert.True(deleteResult.Success, $"Delete failed: {deleteResult.ErrorMessage}");
-
-        var reimportResult = await _powerQueryCommands.ImportAsync(batch, queryName, twoColumnFile, "connection-only");
-        Assert.True(reimportResult.Success, $"Re-import failed: {reimportResult.ErrorMessage}");
-
-        var setLoadResult = await _powerQueryCommands.SetLoadToTableAsync(batch, queryName, sheetName);
-        Assert.True(setLoadResult.Success, $"SetLoadToTable failed: {setLoadResult.ErrorMessage}");
-
-        var refreshResult = await _powerQueryCommands.RefreshAsync(batch, queryName);
-        Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
-
-        // STEP 4: Check for column accumulation bug
-        var usedRange2 = await rangeCommands.GetUsedRangeAsync(batch, sheetName);
-        Assert.True(usedRange2.Success);
-
-        // Get actual column headers
-        var values = await rangeCommands.GetValuesAsync(batch, sheetName, usedRange2.RangeAddress);
-        Assert.True(values.Success);
-
-        var headerRow = values.Values.FirstOrDefault();
-        var columnNames = headerRow != null
-            ? string.Join(", ", headerRow.Select(c => c?.ToString() ?? "null"))
-            : "No headers found";
-
-        // DIAGNOSTIC OUTPUT: This should show us the 3-column accumulation bug!
-        // Expected bug behavior: Excel shows 3 columns (Column1, Column1, Column2)
-        // The workaround of delete+recreate causes Excel to APPEND the new QueryTable instead of replacing
-        Assert.True(usedRange2.ColumnCount == 2,
-            $"COLUMN ACCUMULATION BUG REPRODUCED! Expected 2 columns but got {usedRange2.ColumnCount}. " +
-            $"Actual columns: [{columnNames}]. " +
-            $"This proves that delete+recreate causes Excel to append QueryTable columns instead of replacing them.");
     }
 
     #endregion
@@ -747,5 +353,21 @@ in
         return uniqueFile;
     }
 
+    /// <summary>
+    /// Creates a test query file with custom M code content.
+    /// Returns absolute path to .pq file.
+    /// </summary>
+    private string CreateTestQueryFileWithContent(string uniqueName, string mCode)
+    {
+        var fileName = $"{uniqueName}_{Guid.NewGuid():N}.pq";
+        var filePath = Path.Combine(_tempDir, fileName);
+        System.IO.File.WriteAllText(filePath, mCode);
+        return filePath;
+    }
+
     #endregion
 }
+
+
+
+

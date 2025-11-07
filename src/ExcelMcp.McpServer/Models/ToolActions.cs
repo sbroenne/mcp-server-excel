@@ -17,24 +17,35 @@ public enum FileAction
 /// <summary>
 /// Actions available for excel_powerquery tool
 /// </summary>
+/// <remarks>
+/// PHASE 1 ACTIONS: Atomic operations for improved workflows
+/// - Create: Atomic import + load (replaces Import + SetLoadTo* + Refresh)
+/// - UpdateMCode: Update formula only (explicit separation from refresh)
+/// - LoadTo: Atomic configure + refresh (replaces SetLoadTo* + Refresh)
+/// - Unload: Convert to connection-only (inverse of LoadTo)
+/// - UpdateAndRefresh: Convenience wrapper (UpdateMCode + Refresh)
+/// - RefreshAll: Batch refresh all queries
+///
+/// NOTE: ValidateSyntax removed - Excel validation timing differs from test expectations
+/// </remarks>
 public enum PowerQueryAction
 {
     List,
     View,
-    Import,
     Export,
-    Update,
     Refresh,
     Delete,
-    SetLoadToTable,
-    SetLoadToDataModel,
-    SetLoadToBoth,
-    SetConnectionOnly,
     GetLoadConfig,
-    Errors,
-    LoadTo,
     ListExcelSources,
-    Eval
+    Eval,
+
+    // Phase 1: Atomic Operations
+    Create,
+    UpdateMCode,
+    Unload,
+    UpdateAndRefresh,
+    RefreshAll,
+    LoadTo
 }
 
 /// <summary>

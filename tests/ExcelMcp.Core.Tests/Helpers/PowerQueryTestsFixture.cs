@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -20,12 +21,12 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 public class PowerQueryTestsFixture : IAsyncLifetime
 {
     private readonly string _tempDir;
-    
+
     /// <summary>
     /// Path to the test Power Query file
     /// </summary>
     public string TestFilePath { get; private set; } = null!;
-    
+
     /// <summary>
     /// Results of Power Query creation (exposed for validation)
     /// </summary>
@@ -45,10 +46,10 @@ public class PowerQueryTestsFixture : IAsyncLifetime
     public async Task InitializeAsync()
     {
         var sw = Stopwatch.StartNew();
-        
+
         TestFilePath = Path.Join(_tempDir, "PowerQuery.xlsx");
         CreationResult = new PowerQueryCreationResult();
-        
+
         try
         {
             var fileCommands = new FileCommands();
@@ -56,54 +57,54 @@ public class PowerQueryTestsFixture : IAsyncLifetime
             if (!createFileResult.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: File creation failed: {createFileResult.ErrorMessage}");
-            
+
             CreationResult.FileCreated = true;
-            
+
             await using var batch = await ExcelSession.BeginBatchAsync(TestFilePath);
-            
+
             var mCodeFiles = new string[3];
             mCodeFiles[0] = CreateMCodeFile("BasicQuery", CreateBasicMCode());
             mCodeFiles[1] = CreateMCodeFile("DataQuery", CreateDataQueryMCode());
             mCodeFiles[2] = CreateMCodeFile("RefreshableQuery", CreateRefreshableQueryMCode());
             CreationResult.MCodeFilesCreated = 3;
-            
+
             var dataModelCommands = new DataModelCommands();
             var powerQueryCommands = new PowerQueryCommands(dataModelCommands);
-            
-            var import1 = await powerQueryCommands.ImportAsync(batch, "BasicQuery", mCodeFiles[0]);
+
+            var import1 = await powerQueryCommands.CreateAsync(batch, "BasicQuery", mCodeFiles[0], PowerQueryLoadMode.ConnectionOnly);
             if (!import1.Success)
                 throw new InvalidOperationException(
-                    $"CREATION TEST FAILED: ImportAsync(BasicQuery) failed: {import1.ErrorMessage}");
-                
-            var import2 = await powerQueryCommands.ImportAsync(batch, "DataQuery", mCodeFiles[1]);
+                    $"CREATION TEST FAILED: CreateAsync(BasicQuery) failed: {import1.ErrorMessage}");
+
+            var import2 = await powerQueryCommands.CreateAsync(batch, "DataQuery", mCodeFiles[1], PowerQueryLoadMode.ConnectionOnly);
             if (!import2.Success)
                 throw new InvalidOperationException(
-                    $"CREATION TEST FAILED: ImportAsync(DataQuery) failed: {import2.ErrorMessage}");
-                
-            var import3 = await powerQueryCommands.ImportAsync(batch, "RefreshableQuery", mCodeFiles[2]);
+                    $"CREATION TEST FAILED: CreateAsync(DataQuery) failed: {import2.ErrorMessage}");
+
+            var import3 = await powerQueryCommands.CreateAsync(batch, "RefreshableQuery", mCodeFiles[2], PowerQueryLoadMode.ConnectionOnly);
             if (!import3.Success)
                 throw new InvalidOperationException(
-                    $"CREATION TEST FAILED: ImportAsync(RefreshableQuery) failed: {import3.ErrorMessage}");
-                
+                    $"CREATION TEST FAILED: CreateAsync(RefreshableQuery) failed: {import3.ErrorMessage}");
+
             CreationResult.QueriesImported = 3;
-                        
+
             // ═══════════════════════════════════════════════════════
             // TEST 4: Persistence (Save)
             // ═══════════════════════════════════════════════════════
             await batch.SaveAsync();
-                        
+
             sw.Stop();
             CreationResult.Success = true;
             CreationResult.CreationTimeSeconds = sw.Elapsed.TotalSeconds;
-            
+
                                                                                                         }
         catch (Exception ex)
         {
             CreationResult.Success = false;
             CreationResult.ErrorMessage = ex.Message;
-            
+
             sw.Stop();
-                                                                                    
+
             throw; // Fail all tests in class (correct behavior - no point testing if creation failed)
         }
     }

@@ -279,21 +279,13 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
         }
         catch (TimeoutException ex)
         {
-            // Enrich timeout error with operation-specific guidance
+            // Enrich timeout error with operation-specific guidance (MCP layer responsibility)
             var result = new OperationResult
             {
                 Success = false,
                 ErrorMessage = ex.Message,
                 FilePath = filePath,
                 Action = "refresh",
-
-                SuggestedNextActions = new List<string>
-                {
-                    "Check if Excel is showing a dialog or is unresponsive",
-                    "Verify all data source connections in the Data Model are accessible",
-                    "For large Data Models (millions of rows), refresh may genuinely require 5+ minutes",
-                    "Consider refreshing individual tables instead of entire model (use tableName parameter)"
-                },
 
                 OperationContext = new Dictionary<string, object>
                 {
@@ -310,7 +302,29 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
                     : "Retry acceptable if transient. For large models, consider table-by-table refresh strategy."
             };
 
-            return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+            // MCP layer: Add workflow guidance for LLMs
+            var response = new
+            {
+                result.Success,
+                result.ErrorMessage,
+                result.FilePath,
+                result.Action,
+                result.OperationContext,
+                result.IsRetryable,
+                result.RetryGuidance,
+
+                // Workflow hints - MCP Server layer responsibility
+                WorkflowHint = "Data Model refresh timeout - check for blocking dialogs or data source issues",
+                SuggestedNextActions = new[]
+                {
+                    "Check if Excel is showing a dialog or is unresponsive",
+                    "Verify all data source connections in the Data Model are accessible",
+                    "For large Data Models (millions of rows), refresh may genuinely require 5+ minutes",
+                    "Consider refreshing individual tables instead of entire model (use tableName parameter)"
+                }
+            };
+
+            return JsonSerializer.Serialize(response, ExcelToolsBase.JsonOptions);
         }
     }
 

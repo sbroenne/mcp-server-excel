@@ -145,18 +145,26 @@ Assert.Contains(list.Items, i => i.Name == "Sheet1");  // ✅ Verify persisted
 
 ## Test Execution
 
+**⚠️ CRITICAL: Always specify the test project explicitly to avoid running all test projects!**
+
 ```bash
 # Development (fast feedback - excludes VBA tests)
-dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
 # Pre-commit (comprehensive - excludes VBA tests)
-dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
 # Session/batch changes (MANDATORY - see CRITICAL-RULES.md Rule 3)
-dotnet test --filter "RunType=OnDemand"
+dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --filter "RunType=OnDemand"
 
 # VBA tests (run manually when needed - requires VBA trust enabled)
-dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
+dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
+
+# Run specific test by name (use full project path)
+dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "FullyQualifiedName~TestMethodName"
+
+# Run tests for specific feature (use project path)
+dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Feature=PowerQuery"
 ```
 
 ## Round-Trip Validation Pattern

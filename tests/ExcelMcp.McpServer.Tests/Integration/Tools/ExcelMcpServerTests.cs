@@ -127,8 +127,8 @@ in
     Result";
         File.WriteAllText(mCodeFile, mCode);
 
-        // Act - Import Power Query
-        var importResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.Import, _testExcelFile, queryName, sourcePath: mCodeFile);
+        // Act - Create Power Query
+        var importResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.Create, _testExcelFile, queryName, sourcePath: mCodeFile);
 
         // Debug: Print the actual response to understand the structure
         System.Console.WriteLine($"Import result JSON: {importResult}");

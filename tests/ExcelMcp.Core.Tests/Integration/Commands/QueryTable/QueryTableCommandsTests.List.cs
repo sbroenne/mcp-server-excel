@@ -1,4 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -42,7 +44,7 @@ public partial class QueryTableCommandsTests
 
         var dataModelCommands = new Sbroenne.ExcelMcp.Core.Commands.DataModelCommands();
         var pqCommands = new Sbroenne.ExcelMcp.Core.Commands.PowerQueryCommands(dataModelCommands);
-        var importResult = await pqCommands.ImportAsync(batch, "TestQuery", mCodeFile, loadDestination: "connection-only");
+        var importResult = await pqCommands.CreateAsync(batch, "TestQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
         Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
 
         // Create a worksheet for the QueryTable
@@ -65,3 +67,6 @@ public partial class QueryTableCommandsTests
         Assert.Equal("QuerySheet", qt.WorksheetName);
     }
 }
+
+
+

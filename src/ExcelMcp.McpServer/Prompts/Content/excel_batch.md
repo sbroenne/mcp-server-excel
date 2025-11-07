@@ -7,7 +7,7 @@
 - 🔍 **AUTO-DETECT keywords**: numbers, plurals, lists in user requests
 - ⚡ **Performance-critical**: Must use for any multi-operation workflow
 - 📝 **Examples that REQUIRE batch mode**:
-  - "import 4 files" → 4 operations = BATCH
+  - "create 4 queries" → 4 operations = BATCH
   - "create measures" → plural = BATCH  
   - "add Sales, Revenue, Profit" → list = BATCH
   - "change several things" → multiple = BATCH
@@ -32,7 +32,7 @@
 - Creating multiple batches for same file → Error (only one allowed)
 
 **Keyword detection (when to use batch)**:
-- "import 4 queries" → number = batch
+- "create 4 queries" → number = batch
 - "create measures for Sales, Revenue, Profit" → plural + list = batch
 - "add parameters: StartDate, EndDate, Region" → list = batch
 - Single operation → NO batch
@@ -42,8 +42,8 @@
 1. excel_batch(action: 'begin', filePath: 'file.xlsx') 
    → { batchId: "abc123..." }
    
-2. excel_powerquery(action: 'import', batchId: 'abc123...')
-3. excel_powerquery(action: 'import', batchId: 'abc123...')
+2. excel_powerquery(action: 'create', batchId: 'abc123...')
+3. excel_powerquery(action: 'create', batchId: 'abc123...')
 4. excel_datamodel(action: 'create-measure', batchId: 'abc123...')
 
 5. excel_batch(action: 'commit', batchId: 'abc123...', save: true)

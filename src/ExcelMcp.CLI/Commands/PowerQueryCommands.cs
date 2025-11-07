@@ -164,34 +164,6 @@ public class PowerQueryCommands : IPowerQueryCommands
     }
 
     /// <inheritdoc />
-    public async Task<int> Update(string[] args)
-    {
-        if (args.Length < 4)
-        {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-update <file.xlsx> <query-name> <mcode-file>");
-            return 1;
-        }
-
-        string filePath = args[1];
-        string queryName = args[2];
-        string mCodeFile = args[3];
-
-        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        var result = await _coreCommands.UpdateAsync(batch, queryName, mCodeFile);
-        await batch.SaveAsync();
-
-        if (!result.Success)
-        {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-            return 1;
-        }
-
-        AnsiConsole.MarkupLine($"[green]✓[/] Updated Power Query '[cyan]{queryName}[/]' from [cyan]{mCodeFile}[/]");
-        // Display suggested next actions
-        return 0;
-    }
-
-    /// <inheritdoc />
     public async Task<int> Export(string[] args)
     {
         if (args.Length < 3)
@@ -221,57 +193,6 @@ public class PowerQueryCommands : IPowerQueryCommands
             AnsiConsole.MarkupLine($"[dim]File size: {fileInfo.Length} bytes[/]");
         }
 
-        return 0;
-    }
-
-    /// <inheritdoc />
-    public async Task<int> Import(string[] args)
-    {
-        if (args.Length < 4)
-        {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-import <file.xlsx> <query-name> <mcode-file> [--destination worksheet|data-model|both|connection-only]");
-            return 1;
-        }
-
-        string filePath = args[1];
-        string queryName = args[2];
-        string mCodeFile = args[3];
-        
-        // Parse destination parameter (default: worksheet)
-        string loadDestination = "worksheet";
-        for (int i = 4; i < args.Length; i++)
-        {
-            if (args[i].Equals("--destination", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
-            {
-                loadDestination = args[i + 1];
-                break;
-            }
-            // Legacy: --connection-only flag (for backward compatibility)
-            else if (args[i].Equals("--connection-only", StringComparison.OrdinalIgnoreCase))
-            {
-                loadDestination = "connection-only";
-                break;
-            }
-        }
-
-        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        var result = await _coreCommands.ImportAsync(batch, queryName, mCodeFile, loadDestination: loadDestination);
-        await batch.SaveAsync();
-
-        if (!result.Success)
-        {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-
-            if (result.ErrorMessage?.Contains("already exists") == true)
-            {
-                AnsiConsole.MarkupLine("[yellow]Tip:[/] Use [cyan]pq-update[/] to modify existing queries");
-            }
-
-            return 1;
-        }
-
-        AnsiConsole.MarkupLine($"[green]✓[/] Imported Power Query '[cyan]{queryName}[/]' from [cyan]{mCodeFile}[/]");
-        // Display suggested next actions
         return 0;
     }
 
@@ -321,69 +242,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Refreshed Power Query '[cyan]{queryName}[/]'");
         }
-        return 0;
-    }
-
-    /// <inheritdoc />
-    public int Errors(string[] args)
-    {
-        if (args.Length < 3)
-        {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-errors <file.xlsx> <query-name>");
-            return 1;
-        }
-
-        string filePath = args[1];
-        string queryName = args[2];
-
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ErrorsAsync(batch, queryName);
-        });
-        var result = task.GetAwaiter().GetResult();
-
-        if (!result.Success)
-        {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-            return 1;
-        }
-
-        AnsiConsole.MarkupLine($"[bold]Error Status for:[/] [cyan]{queryName}[/]");
-        AnsiConsole.MarkupLine(result.MCode.EscapeMarkup());
-
-        return 0;
-    }
-
-    /// <inheritdoc />
-    public int LoadTo(string[] args)
-    {
-        if (args.Length < 4)
-        {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-loadto <file.xlsx> <query-name> <sheet-name>");
-            return 1;
-        }
-
-        string filePath = args[1];
-        string queryName = args[2];
-        string sheetName = args[3];
-
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var loadResult = await _coreCommands.LoadToAsync(batch, queryName, sheetName);
-            await batch.SaveAsync();
-            return loadResult;
-        });
-        var result = task.GetAwaiter().GetResult();
-
-        if (!result.Success)
-        {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-            return 1;
-        }
-
-        AnsiConsole.MarkupLine($"[green]✓[/] Loaded Power Query '[cyan]{queryName}[/]' to worksheet '[cyan]{sheetName}[/]'");
         return 0;
     }
 
@@ -487,12 +345,12 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         AnsiConsole.MarkupLine("[red]Command Removed:[/] pq-test has been deprecated.\n");
         AnsiConsole.MarkupLine("[yellow]This command was confusing because it tested Excel sources (tables/ranges), not Power Query queries.[/]\n");
-        
+
         AnsiConsole.MarkupLine("[bold]Use instead:[/]");
         AnsiConsole.MarkupLine("  [cyan]table-info[/] file.xlsx TableName          Check if table exists (returns info)");
         AnsiConsole.MarkupLine("  [cyan]parameter-get[/] file.xlsx RangeName      Check if named range exists (returns value)");
         AnsiConsole.MarkupLine("  [cyan]pq-sources[/] file.xlsx                   List all available sources\n");
-        
+
         AnsiConsole.MarkupLine("[dim]Note: If the operation succeeds, the source exists. If it fails, it doesn't.[/]");
         return 1;
     }
@@ -502,12 +360,12 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         AnsiConsole.MarkupLine("[red]Command Removed:[/] pq-peek has been deprecated.\n");
         AnsiConsole.MarkupLine("[yellow]This command was confusing because it peeked at Excel sources (tables/ranges), not Power Query queries.[/]\n");
-        
+
         AnsiConsole.MarkupLine("[bold]Use instead:[/]");
         AnsiConsole.MarkupLine("  [cyan]table-info[/] file.xlsx TableName          Preview table (includes row/column count, headers)");
         AnsiConsole.MarkupLine("  [cyan]parameter-get[/] file.xlsx RangeName      Get named range value");
         AnsiConsole.MarkupLine("  [cyan]pq-view[/] file.xlsx QueryName           View Power Query M code\n");
-        
+
         AnsiConsole.MarkupLine("[dim]The new commands are more intuitive: table commands for tables, parameter commands for ranges.[/]");
         return 1;
     }
@@ -552,205 +410,6 @@ public class PowerQueryCommands : IPowerQueryCommands
             AnsiConsole.MarkupLine($"[green]✓[/] M expression is valid and can be evaluated");
         }
 
-        return 0;
-    }
-
-    /// <summary>
-    /// Sets a Power Query to Connection Only mode
-    /// </summary>
-    public int SetConnectionOnly(string[] args)
-    {
-        if (args.Length < 3)
-        {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-connection-only <file.xlsx> <queryName>");
-            return 1;
-        }
-
-        string filePath = args[1];
-        string queryName = args[2];
-
-        AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Connection Only mode...[/]");
-
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var result = await _coreCommands.SetConnectionOnlyAsync(batch, queryName);
-            await batch.SaveAsync();
-            return result;
-        });
-        var result = task.GetAwaiter().GetResult();
-
-        if (!result.Success)
-        {
-            AnsiConsole.MarkupLine($"[red]✗[/] {result.ErrorMessage?.EscapeMarkup()}");
-            return 1;
-        }
-
-        AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' is now Connection Only");
-        return 0;
-    }
-
-    /// <summary>
-    /// Sets a Power Query to Load to Table mode
-    /// </summary>
-    public int SetLoadToTable(string[] args)
-    {
-        if (args.Length < 4)
-        {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-load-to-table <file.xlsx> <queryName> <sheetName>");
-            return 1;
-        }
-
-        string filePath = args[1];
-        string queryName = args[2];
-        string sheetName = args[3];
-
-        AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Load to Table mode (atomic operation, sheet: {sheetName})...[/]");
-
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var result = await _coreCommands.SetLoadToTableAsync(batch, queryName, sheetName);
-            await batch.SaveAsync();
-            return result;
-        });
-        var result = task.GetAwaiter().GetResult();
-
-        // Check for privacy error (indicated in error message)
-        if (!result.Success && result.ErrorMessage?.Contains("privacy level", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            AnsiConsole.MarkupLine($"[yellow]Privacy Level Required[/]");
-            AnsiConsole.MarkupLine($"[dim]{result.ErrorMessage.EscapeMarkup()}[/]");
-            return 1;
-        }
-
-        if (!result.Success)
-        {
-            AnsiConsole.MarkupLine($"[red]✗[/] {result.ErrorMessage?.EscapeMarkup()}");
-            AnsiConsole.MarkupLine($"[dim]Workflow Status: {result.WorkflowStatus}[/]");
-            return 1;
-        }
-
-        // Display success with verification details
-        AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' loaded to worksheet '{sheetName}'");
-        AnsiConsole.MarkupLine($"[dim]Rows Loaded: {result.RowsLoaded}[/]");
-        AnsiConsole.MarkupLine($"[dim]Workflow Status: {result.WorkflowStatus}[/]");
-        return 0;
-    }
-
-    /// <summary>
-    /// Sets a Power Query to Load to Data Model mode
-    /// </summary>
-    public int SetLoadToDataModel(string[] args)
-    {
-        if (args.Length < 3)
-        {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-load-to-data-model <file.xlsx> <queryName>");
-            return 1;
-        }
-
-        string filePath = args[1];
-        string queryName = args[2];
-
-        AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Load to Data Model mode (atomic operation)...[/]");
-
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var result = await _coreCommands.SetLoadToDataModelAsync(batch, queryName);
-            await batch.SaveAsync();
-            return result;
-        });
-        var result = task.GetAwaiter().GetResult();
-
-        // Check for privacy error (indicated in error message)
-        if (!result.Success && result.ErrorMessage?.Contains("privacy level", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            AnsiConsole.MarkupLine($"[yellow]Privacy Level Required[/]");
-            AnsiConsole.MarkupLine($"[dim]{result.ErrorMessage.EscapeMarkup()}[/]");
-            return 1;
-        }
-
-        if (!result.Success)
-        {
-            AnsiConsole.MarkupLine($"[red]✗[/] {result.ErrorMessage?.EscapeMarkup()}");
-            AnsiConsole.MarkupLine($"[dim]Workflow Status: {result.WorkflowStatus}[/]");
-            return 1;
-        }
-
-        // Display success with verification details
-        AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' loaded to Data Model");
-        AnsiConsole.MarkupLine($"[dim]Rows Loaded: {result.RowsLoaded}, Tables in Data Model: {result.TablesInDataModel}[/]");
-        AnsiConsole.MarkupLine($"[dim]Workflow Status: {result.WorkflowStatus}[/]");
-        return 0;
-    }
-
-    /// <summary>
-    /// Sets a Power Query to Load to Both modes
-    /// </summary>
-    public int SetLoadToBoth(string[] args)
-    {
-        if (args.Length < 4)
-        {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-set-load-to-both <file.xlsx> <queryName> <sheetName>");
-            return 1;
-        }
-
-        string filePath = args[1];
-        string queryName = args[2];
-        string sheetName = args[3];
-
-        AnsiConsole.MarkupLine($"[bold]Setting '{queryName}' to Load to Both modes (atomic operation, table + data model, sheet: {sheetName})...[/]");
-
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var result = await _coreCommands.SetLoadToBothAsync(batch, queryName, sheetName);
-            await batch.SaveAsync();
-            return result;
-        });
-        var result = task.GetAwaiter().GetResult();
-
-        // Check for privacy error (indicated in error message)
-        if (!result.Success && result.ErrorMessage?.Contains("privacy level", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            AnsiConsole.MarkupLine($"[yellow]Privacy Level Required[/]");
-            AnsiConsole.MarkupLine($"[dim]{result.ErrorMessage.EscapeMarkup()}[/]");
-            return 1;
-        }
-
-        if (!result.Success)
-        {
-            AnsiConsole.MarkupLine($"[red]✗[/] {result.ErrorMessage?.EscapeMarkup()}");
-            AnsiConsole.MarkupLine($"[dim]Workflow Status: {result.WorkflowStatus}[/]");
-            return 1;
-        }
-
-        // Display success with comprehensive verification details
-        AnsiConsole.MarkupLine($"[green]✓[/] Query '{queryName}' loaded to both destinations");
-
-        var table = new Table()
-            .Border(TableBorder.Rounded)
-            .AddColumn("Destination")
-            .AddColumn("Status")
-            .AddColumn("Rows Loaded");
-
-        table.AddRow(
-            "Worksheet Table",
-            result.DataLoadedToTable ? "[green]✓ Success[/]" : "[red]✗ Failed[/]",
-            result.RowsLoadedToTable.ToString()
-        );
-
-        table.AddRow(
-            "Data Model",
-            result.DataLoadedToModel ? "[green]✓ Success[/]" : "[red]✗ Failed[/]",
-            result.RowsLoadedToModel.ToString()
-        );
-
-        AnsiConsole.Write(table);
-
-        AnsiConsole.MarkupLine($"[dim]Total Tables in Data Model: {result.TablesInDataModel}[/]");
-        AnsiConsole.MarkupLine($"[dim]Workflow Status: {result.WorkflowStatus}[/]");
         return 0;
     }
 
@@ -813,6 +472,259 @@ public class PowerQueryCommands : IPowerQueryCommands
                 AnsiConsole.MarkupLine("[dim]Load to Both: Query data is loaded to both worksheet and data model[/]");
                 break;
         }
+
+        return 0;
+    }
+
+    // ========================================
+    // Phase 1 Commands - Atomic Operations
+    // ========================================
+
+    /// <summary>
+    /// Creates a new Power Query from M code file with atomic import + load
+    /// </summary>
+    public async Task<int> Create(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-create <file.xlsx> <query-name> <mcode-file> [--destination worksheet|data-model|both|connection-only] [--target-sheet SheetName]");
+            return 1;
+        }
+
+        string filePath = args[1];
+        string queryName = args[2];
+        string mCodeFile = args[3];
+
+        // Parse optional parameters
+        PowerQueryLoadMode loadMode = PowerQueryLoadMode.LoadToTable; // Default: worksheet
+        string? targetSheet = null;
+
+        for (int i = 4; i < args.Length; i++)
+        {
+            if (args[i].Equals("--destination", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                loadMode = args[i + 1].ToLower() switch
+                {
+                    "worksheet" => PowerQueryLoadMode.LoadToTable,
+                    "data-model" => PowerQueryLoadMode.LoadToDataModel,
+                    "both" => PowerQueryLoadMode.LoadToBoth,
+                    "connection-only" => PowerQueryLoadMode.ConnectionOnly,
+                    _ => PowerQueryLoadMode.LoadToTable
+                };
+                i++;
+            }
+            else if (args[i].Equals("--target-sheet", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                targetSheet = args[i + 1];
+                i++;
+            }
+        }
+
+        AnsiConsole.MarkupLine($"[bold]Creating Power Query '[cyan]{queryName}[/]'...[/]");
+
+        PowerQueryCreateResult result;
+        try
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            result = await _coreCommands.CreateAsync(batch, queryName, mCodeFile, loadMode, targetSheet);
+            await batch.SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
+
+        if (!result.Success)
+        {
+            AnsiConsole.MarkupLine($"[red]✗[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+
+        AnsiConsole.MarkupLine($"[green]✓[/] Created Power Query '[cyan]{queryName}[/]'");
+        AnsiConsole.MarkupLine($"[dim]Load Destination:[/] {result.LoadDestination}");
+        if (result.WorksheetName != null)
+        {
+            AnsiConsole.MarkupLine($"[dim]Worksheet:[/] {result.WorksheetName}");
+        }
+        if (result.DataLoaded)
+        {
+            AnsiConsole.MarkupLine($"[dim]Rows Loaded:[/] {result.RowsLoaded}");
+        }
+
+        // Workflow guidance - CLI layer responsibility
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("[dim]Suggested next actions:[/]");
+        AnsiConsole.MarkupLine($"  • Use 'pq-refresh {filePath} {queryName}' to update data");
+        if (result.LoadDestination == PowerQueryLoadMode.LoadToDataModel || result.LoadDestination == PowerQueryLoadMode.LoadToBoth)
+        {
+            AnsiConsole.MarkupLine($"  • Use 'dm-create-measure' to add DAX calculations");
+        }
+        AnsiConsole.MarkupLine($"  • Use 'pq-view {filePath} {queryName}' to inspect M code");
+
+        return 0;
+    }
+
+    /// <summary>
+    /// Updates only the M code of a Power Query (no refresh)
+    /// </summary>
+    public async Task<int> UpdateMCode(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-update-mcode <file.xlsx> <query-name> <mcode-file>");
+            return 1;
+        }
+
+        string filePath = args[1];
+        string queryName = args[2];
+        string mCodeFile = args[3];
+
+        AnsiConsole.MarkupLine($"[bold]Updating M code for '[cyan]{queryName}[/]' (no refresh)...[/]");
+
+        OperationResult result;
+        try
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            result = await _coreCommands.UpdateMCodeAsync(batch, queryName, mCodeFile);
+            await batch.SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
+
+        if (!result.Success)
+        {
+            AnsiConsole.MarkupLine($"[red]✗[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+
+        AnsiConsole.MarkupLine($"[green]✓[/] Updated M code for '[cyan]{queryName}[/]'");
+        AnsiConsole.MarkupLine("[yellow]Note:[/] Query data not refreshed. Use [cyan]pq-refresh[/] to refresh data.");
+
+        return 0;
+    }
+
+    /// <summary>
+    /// Converts a Power Query to connection-only (unloads data from worksheet/data model)
+    /// </summary>
+    public async Task<int> Unload(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-unload <file.xlsx> <query-name>");
+            return 1;
+        }
+
+        string filePath = args[1];
+        string queryName = args[2];
+
+        AnsiConsole.MarkupLine($"[bold]Converting '[cyan]{queryName}[/]' to connection-only...[/]");
+
+        OperationResult result;
+        try
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            result = await _coreCommands.UnloadAsync(batch, queryName);
+            await batch.SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
+
+        if (!result.Success)
+        {
+            AnsiConsole.MarkupLine($"[red]✗[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+
+        AnsiConsole.MarkupLine($"[green]✓[/] Converted '[cyan]{queryName}[/]' to connection-only");
+        AnsiConsole.MarkupLine("[dim]Query is now connection-only (data removed from worksheet/data model)[/]");
+
+        return 0;
+    }
+
+    /// <summary>
+    /// Updates M code AND refreshes data in one atomic operation
+    /// </summary>
+    public async Task<int> UpdateAndRefresh(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-update-and-refresh <file.xlsx> <query-name> <mcode-file>");
+            return 1;
+        }
+
+        string filePath = args[1];
+        string queryName = args[2];
+        string mCodeFile = args[3];
+
+        AnsiConsole.MarkupLine($"[bold]Updating and refreshing '[cyan]{queryName}[/]'...[/]");
+
+        OperationResult result;
+        try
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            result = await _coreCommands.UpdateAndRefreshAsync(batch, queryName, mCodeFile);
+            await batch.SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
+
+        if (!result.Success)
+        {
+            AnsiConsole.MarkupLine($"[red]✗[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+
+        AnsiConsole.MarkupLine($"[green]✓[/] Updated and refreshed '[cyan]{queryName}[/]'");
+        AnsiConsole.MarkupLine("[dim]M code updated and data refreshed in one operation[/]");
+
+        return 0;
+    }
+
+    /// <summary>
+    /// Refreshes all Power Queries in the workbook in one operation
+    /// </summary>
+    public async Task<int> RefreshAll(string[] args)
+    {
+        if (args.Length < 2)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-refresh-all <file.xlsx>");
+            return 1;
+        }
+
+        string filePath = args[1];
+
+        AnsiConsole.MarkupLine("[bold]Refreshing all Power Queries...[/]");
+
+        OperationResult result;
+        try
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            result = await _coreCommands.RefreshAllAsync(batch);
+            await batch.SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
+
+        if (!result.Success)
+        {
+            AnsiConsole.MarkupLine($"[red]✗[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+
+        AnsiConsole.MarkupLine("[green]✓[/] All Power Queries refreshed successfully");
 
         return 0;
     }

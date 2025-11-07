@@ -25,7 +25,7 @@
 ## Data Import Requests
 
 **"Load this CSV file"**
-→ excel_powerquery(import, sourcePath='file.csv', loadDestination='worksheet')
+→ excel_powerquery(create, sourcePath='file.csv', loadDestination='worksheet')
 → excel_querytable(create-from-connection) for simple imports (no M code)
 → NOT excel_table (that's for existing data)
 
@@ -36,10 +36,10 @@
 
 **"Load Power Query results to worksheet"**
 → excel_querytable(create-from-query) - simpler than excel_powerquery load-to
-→ OR excel_powerquery(import, loadDestination='worksheet')
+→ OR excel_powerquery(create, loadDestination='worksheet')
 
 **"Put data in Data Model for DAX"**
-→ excel_powerquery(import, loadDestination='data-model')
+→ excel_powerquery(create, loadDestination='data-model')
 → NOT 'worksheet' (that won't work for DAX)
 
 **"Refresh data from external source"**

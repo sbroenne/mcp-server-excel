@@ -25,7 +25,7 @@ public partial class QueryTableCommandsTests
         var mCode = "let Source = #table({\"Column1\"}, {{\"Data1\"}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "MyQuery.pq");
         await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
-        await pqCommands.ImportAsync(batch, "MyQuery", mCodeFile, loadDestination: "connection-only");
+        await pqCommands.CreateAsync(batch, "MyQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
         await sheetCommands.CreateAsync(batch, "Sheet1");
@@ -75,7 +75,7 @@ public partial class QueryTableCommandsTests
         var mCode = "let Source = #table({\"Name\"}, {{\"Test\"}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "RefreshQuery.pq");
         await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
-        await pqCommands.ImportAsync(batch, "RefreshQuery", mCodeFile, loadDestination: "connection-only");
+        await pqCommands.CreateAsync(batch, "RefreshQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
         await sheetCommands.CreateAsync(batch, "RefreshSheet");
@@ -124,8 +124,8 @@ public partial class QueryTableCommandsTests
         var mCodeFile2 = Path.Combine(_tempDir, "Q2.pq");
         await System.IO.File.WriteAllTextAsync(mCodeFile1, mCode1);
         await System.IO.File.WriteAllTextAsync(mCodeFile2, mCode2);
-        await pqCommands.ImportAsync(batch, "Q1", mCodeFile1, loadDestination: "connection-only");
-        await pqCommands.ImportAsync(batch, "Q2", mCodeFile2, loadDestination: "connection-only");
+        await pqCommands.CreateAsync(batch, "Q1", mCodeFile1, PowerQueryLoadMode.ConnectionOnly);
+        await pqCommands.CreateAsync(batch, "Q2", mCodeFile2, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
         await sheetCommands.CreateAsync(batch, "S1");
@@ -172,7 +172,7 @@ public partial class QueryTableCommandsTests
         var mCode = "let Source = #table({\"X\"}, {{\"Y\"}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "UpdateQuery.pq");
         await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
-        await pqCommands.ImportAsync(batch, "UpdateQuery", mCodeFile, loadDestination: "connection-only");
+        await pqCommands.CreateAsync(batch, "UpdateQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
         await sheetCommands.CreateAsync(batch, "UpdateSheet");
@@ -220,3 +220,7 @@ public partial class QueryTableCommandsTests
         Assert.Contains("not found", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 }
+
+
+
+

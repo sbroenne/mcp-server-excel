@@ -2,6 +2,8 @@ namespace Sbroenne.ExcelMcp.Core.Models;
 
 /// <summary>
 /// Base result type for all Core operations
+/// NOTE: Core commands should NOT set SuggestedNextActions (workflow guidance is MCP/CLI layer responsibility).
+/// Core CAN set OperationContext, IsRetryable, RetryGuidance for timeout handling and technical retry metadata.
 /// </summary>
 public abstract class ResultBase
 {
@@ -21,22 +23,20 @@ public abstract class ResultBase
     public string? FilePath { get; set; }
 
     /// <summary>
-    /// Suggested next actions for LLMs/users (e.g., "Check for Excel dialogs", "Verify data source connection")
-    /// </summary>
-    public List<string>? SuggestedNextActions { get; set; }
-
-    /// <summary>
     /// Additional context for the operation (e.g., timeout values, operation type, affected items)
+    /// Used by timeout handling system to provide diagnostic information.
     /// </summary>
     public Dictionary<string, object>? OperationContext { get; set; }
 
     /// <summary>
     /// Whether this operation can be safely retried (default: true, false for max timeout or unrecoverable errors)
+    /// Used by timeout handling system to guide retry decisions.
     /// </summary>
     public bool IsRetryable { get; set; } = true;
 
     /// <summary>
     /// Guidance on how to retry the operation (e.g., "Increase timeout", "Break into smaller operations")
+    /// Used by timeout handling system to provide technical retry strategy.
     /// </summary>
     public string? RetryGuidance { get; set; }
 }
@@ -432,6 +432,102 @@ public class PowerQueryLoadToBothResult : OperationResult
     /// Overall workflow status: "Complete" | "Failed" | "Partial"
     /// </summary>
     public string WorkflowStatus { get; set; } = "Failed";
+}
+
+/// <summary>
+/// Result for Power Query create operations (Phase 1 API)
+/// Atomic operation: Import M code + Load data to destination in ONE call
+/// </summary>
+public class PowerQueryCreateResult : OperationResult
+{
+    /// <summary>
+    /// Name of the created query
+    /// </summary>
+    public string QueryName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Load destination applied
+    /// </summary>
+    public PowerQueryLoadMode LoadDestination { get; set; }
+
+    /// <summary>
+    /// Target worksheet name (if LoadToTable or LoadToBoth)
+    /// </summary>
+    public string? WorksheetName { get; set; }
+
+    /// <summary>
+    /// Whether the query was created successfully
+    /// </summary>
+    public bool QueryCreated { get; set; }
+
+    /// <summary>
+    /// Whether data was loaded (true for all except ConnectionOnly)
+    /// </summary>
+    public bool DataLoaded { get; set; }
+
+    /// <summary>
+    /// Number of rows loaded (0 if ConnectionOnly)
+    /// </summary>
+    public int RowsLoaded { get; set; }
+}
+
+/// <summary>
+/// Result for Power Query load operations (Phase 1 API)
+/// Atomic operation: Set destination + Refresh data in ONE call
+/// </summary>
+public class PowerQueryLoadResult : OperationResult
+{
+    /// <summary>
+    /// Name of the query
+    /// </summary>
+    public string QueryName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Load destination applied
+    /// </summary>
+    public PowerQueryLoadMode LoadDestination { get; set; }
+
+    /// <summary>
+    /// Target worksheet name (if applicable)
+    /// </summary>
+    public string? WorksheetName { get; set; }
+
+    /// <summary>
+    /// Whether load configuration was applied
+    /// </summary>
+    public bool ConfigurationApplied { get; set; }
+
+    /// <summary>
+    /// Whether data was refreshed
+    /// </summary>
+    public bool DataRefreshed { get; set; }
+
+    /// <summary>
+    /// Number of rows loaded
+    /// </summary>
+    public int RowsLoaded { get; set; }
+}
+
+/// <summary>
+/// Result for Power Query syntax validation (Phase 1 API)
+/// Pre-flight syntax check before creating permanent query
+/// </summary>
+public class PowerQueryValidationResult : ResultBase
+{
+    /// <summary>
+    /// Whether the M code syntax is valid
+    /// </summary>
+    public bool IsValid { get; set; }
+
+    /// <summary>
+    /// Validation errors (if any)
+    /// </summary>
+    public List<string> ValidationErrors { get; set; } = new();
+
+    /// <summary>
+    /// M code expression that was validated
+    /// </summary>
+    public string? MCodeExpression { get; set; }
 }
 
 /// <summary>

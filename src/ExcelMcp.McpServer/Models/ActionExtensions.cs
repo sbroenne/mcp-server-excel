@@ -17,20 +17,21 @@ public static class ActionExtensions
     {
         PowerQueryAction.List => "list",
         PowerQueryAction.View => "view",
-        PowerQueryAction.Import => "import",
         PowerQueryAction.Export => "export",
-        PowerQueryAction.Update => "update",
         PowerQueryAction.Refresh => "refresh",
         PowerQueryAction.Delete => "delete",
-        PowerQueryAction.SetLoadToTable => "set-load-to-table",
-        PowerQueryAction.SetLoadToDataModel => "set-load-to-data-model",
-        PowerQueryAction.SetLoadToBoth => "set-load-to-both",
-        PowerQueryAction.SetConnectionOnly => "set-connection-only",
         PowerQueryAction.GetLoadConfig => "get-load-config",
-        PowerQueryAction.Errors => "errors",
         PowerQueryAction.LoadTo => "load-to",
         PowerQueryAction.ListExcelSources => "list-excel-sources",
         PowerQueryAction.Eval => "eval",
+
+        // Phase 1: Atomic Operations
+        PowerQueryAction.Create => "create",
+        PowerQueryAction.UpdateMCode => "update-mcode",
+        PowerQueryAction.Unload => "unload",
+        PowerQueryAction.UpdateAndRefresh => "update-and-refresh",
+        PowerQueryAction.RefreshAll => "refresh-all",
+
         _ => throw new ArgumentException($"Unknown PowerQueryAction: {action}")
     };
 

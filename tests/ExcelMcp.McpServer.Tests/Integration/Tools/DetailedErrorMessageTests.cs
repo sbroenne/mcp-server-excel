@@ -121,7 +121,7 @@ public class DetailedErrorMessageTests : IDisposable
 
         // Act - VBA List on .xlsx file
         var result = await ExcelVbaTool.ExcelVba(VbaAction.List, _testExcelFile);
-        
+
         _output.WriteLine($"Result JSON: {result}");
 
         // Parse JSON response
@@ -132,7 +132,7 @@ public class DetailedErrorMessageTests : IDisposable
         // Assert - .xlsx files have no VBA modules, returns success with empty list
         Assert.True(success, "VBA list on .xlsx should succeed (return empty list)");
         Assert.Equal(0, count);
-        
+
         // Verify helpful workflow hints are provided
         var workflowHint = json.RootElement.GetProperty("workflowHint").GetString() ?? "";
         Assert.Contains("No VBA modules", workflowHint);
@@ -167,9 +167,9 @@ public class DetailedErrorMessageTests : IDisposable
         // Arrange
         await ExcelFileTool.ExcelFile(FileAction.CreateEmpty, _testExcelFile);
 
-        // Act & Assert - Import requires queryName and sourcePath
+        // Act & Assert - Create requires queryName and sourcePath
         var exception = await Assert.ThrowsAsync<McpException>(async () =>
-            await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.Import, _testExcelFile, queryName: null, sourcePath: null));
+            await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.Create, _testExcelFile, queryName: null, sourcePath: null));
 
         _output.WriteLine($"Error message: {exception.Message}");
 
@@ -177,7 +177,7 @@ public class DetailedErrorMessageTests : IDisposable
         Assert.Contains("queryName", exception.Message);
         Assert.Contains("sourcePath", exception.Message);
         Assert.Contains("required", exception.Message);
-        Assert.Contains("import", exception.Message);
+        Assert.Contains("create", exception.Message);
 
         _output.WriteLine("✅ Verified: Missing parameters error lists all required parameters");
     }

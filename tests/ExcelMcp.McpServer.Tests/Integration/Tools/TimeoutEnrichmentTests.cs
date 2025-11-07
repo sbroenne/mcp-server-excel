@@ -37,7 +37,7 @@ public class TimeoutEnrichmentTests : IDisposable
         // Create empty workbook using FileCommands
         var fileCommands = new FileCommands();
         var result = await fileCommands.CreateEmptyAsync(testFile);
-        
+
         if (!result.Success)
         {
             throw new Exception($"Failed to create test file: {result.ErrorMessage}");
@@ -68,9 +68,9 @@ public class TimeoutEnrichmentTests : IDisposable
             // Assert - Verify we got JSON back (not an exception thrown)
             Assert.NotNull(result);
             Assert.NotEmpty(result);
-            
+
             // Verify it's valid JSON by deserializing
-            var opResult = JsonSerializer.Deserialize<OperationResult>(result, 
+            var opResult = JsonSerializer.Deserialize<OperationResult>(result,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             Assert.NotNull(opResult);
 
@@ -111,10 +111,10 @@ public class TimeoutEnrichmentTests : IDisposable
             // Assert - Verify we got JSON back with structured response
             Assert.NotNull(result);
             Assert.NotEmpty(result);
-            
+
             _output.WriteLine($"✓ ConnectionTool returns JSON result");
             _output.WriteLine($"Result: {result}");
-            
+
             // Verify timeout enrichment code exists (same pattern as PowerQuery/DataModel)
             // The actual timeout handling is tested by ExcelBatchTimeoutTests
         }
@@ -157,16 +157,11 @@ public class TimeoutEnrichmentTests : IDisposable
     [Fact]
     public void OperationResult_HasTimeoutGuidanceFields()
     {
-        // Arrange & Act - Create OperationResult with timeout guidance
+        // Arrange & Act - Create OperationResult with timeout guidance (Core layer)
         var result = new OperationResult
         {
             Success = false,
             ErrorMessage = "Operation timed out after 5 minutes (maximum timeout)",
-            SuggestedNextActions = new List<string>
-            {
-                "Check if Excel is showing a dialog",
-                "Verify data source is accessible"
-            },
             OperationContext = new Dictionary<string, object>
             {
                 { "OperationType", "PowerQuery.Refresh" },
@@ -178,30 +173,27 @@ public class TimeoutEnrichmentTests : IDisposable
         };
 
         // Assert - Verify all timeout guidance fields are present and usable
-        Assert.NotNull(result.SuggestedNextActions);
-        Assert.Equal(2, result.SuggestedNextActions.Count);
         Assert.NotNull(result.OperationContext);
         Assert.True((bool)result.OperationContext["TimeoutReached"]);
         Assert.True((bool)result.OperationContext["UsedMaxTimeout"]);
         Assert.False(result.IsRetryable);
         Assert.Contains("Do not retry", result.RetryGuidance);
 
-        _output.WriteLine("✓ OperationResult has all timeout guidance fields");
-        _output.WriteLine($"  - SuggestedNextActions: {result.SuggestedNextActions.Count} items");
+        _output.WriteLine("✓ OperationResult has timeout metadata fields (Core layer)");
         _output.WriteLine($"  - OperationContext: {result.OperationContext.Count} entries");
         _output.WriteLine($"  - IsRetryable: {result.IsRetryable}");
         _output.WriteLine($"  - RetryGuidance: {result.RetryGuidance}");
+        _output.WriteLine("  Note: SuggestedNextActions is MCP/CLI layer responsibility");
     }
 
     [Fact]
     public void OperationResult_SerializesTimeoutGuidance()
     {
-        // Arrange
+        // Arrange - Core layer only has timeout metadata, not workflow guidance
         var result = new OperationResult
         {
             Success = false,
             ErrorMessage = "Timeout occurred",
-            SuggestedNextActions = new List<string> { "Action 1", "Action 2" },
             OperationContext = new Dictionary<string, object>
             {
                 { "OperationType", "Test" },
@@ -218,15 +210,14 @@ public class TimeoutEnrichmentTests : IDisposable
             WriteIndented = true
         });
 
-        // Assert - Verify JSON contains timeout guidance
-        Assert.Contains("suggestedNextActions", json);
+        // Assert - Verify JSON contains timeout metadata (not workflow guidance)
         Assert.Contains("operationContext", json);
         Assert.Contains("isRetryable", json);
         Assert.Contains("retryGuidance", json);
-        Assert.Contains("Action 1", json);
         Assert.Contains("TimeoutReached", json);
+        Assert.DoesNotContain("suggestedNextActions", json); // Removed from Core layer
 
-        _output.WriteLine("✓ Timeout guidance serializes to JSON:");
+        _output.WriteLine("✓ Timeout metadata serializes to JSON (Core layer):");
         _output.WriteLine(json);
     }
 

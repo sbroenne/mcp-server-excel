@@ -33,7 +33,7 @@ public partial class QueryTableCommands : IQueryTableCommands
                         worksheet = worksheets.Item(ws);
                         string worksheetName = worksheet.Name;
                         sheetQueryTables = worksheet.QueryTables;
-                        
+
                         for (int qt = 1; qt <= sheetQueryTables.Count; qt++)
                         {
                             dynamic? queryTable = null;
@@ -103,8 +103,8 @@ public partial class QueryTableCommands : IQueryTableCommands
     {
         return await batch.Execute((ctx, ct) =>
         {
-            var result = new OperationResult 
-            { 
+            var result = new OperationResult
+            {
                 FilePath = batch.WorkbookPath,
                 Action = "refresh"
             };
@@ -122,11 +122,6 @@ public partial class QueryTableCommands : IQueryTableCommands
                 // CRITICAL: Use synchronous refresh for persistence
                 queryTable.Refresh(false);
                 result.Success = true;
-                result.SuggestedNextActions = new List<string>
-                {
-                    "Use excel_range to read the refreshed data",
-                    "Verify the data was updated as expected"
-                };
             }
             catch (Exception ex)
             {
@@ -147,8 +142,8 @@ public partial class QueryTableCommands : IQueryTableCommands
     {
         return await batch.Execute((ctx, ct) =>
         {
-            var result = new OperationResult 
-            { 
+            var result = new OperationResult
+            {
                 FilePath = batch.WorkbookPath,
                 Action = "refresh-all"
             };
@@ -168,7 +163,7 @@ public partial class QueryTableCommands : IQueryTableCommands
                     {
                         worksheet = worksheets.Item(ws);
                         sheetQueryTables = worksheet.QueryTables;
-                        
+
                         for (int qt = 1; qt <= sheetQueryTables.Count; qt++)
                         {
                             dynamic? queryTable = null;
@@ -176,7 +171,7 @@ public partial class QueryTableCommands : IQueryTableCommands
                             {
                                 queryTable = sheetQueryTables.Item(qt);
                                 string queryTableName = queryTable.Name?.ToString() ?? "";
-                                
+
                                 try
                                 {
                                     // CRITICAL: Use synchronous refresh for each QueryTable
@@ -218,11 +213,6 @@ public partial class QueryTableCommands : IQueryTableCommands
                 {
                     { "RefreshedCount", refreshedCount }
                 };
-                result.SuggestedNextActions = new List<string>
-                {
-                    $"Successfully refreshed {refreshedCount} QueryTable(s)",
-                    "Use excel_range to read the refreshed data"
-                };
             }
 
             return result;
@@ -234,8 +224,8 @@ public partial class QueryTableCommands : IQueryTableCommands
     {
         return await batch.Execute((ctx, ct) =>
         {
-            var result = new OperationResult 
-            { 
+            var result = new OperationResult
+            {
                 FilePath = batch.WorkbookPath,
                 Action = "delete"
             };
@@ -252,11 +242,6 @@ public partial class QueryTableCommands : IQueryTableCommands
             {
                 queryTable.Delete();
                 result.Success = true;
-                result.SuggestedNextActions = new List<string>
-                {
-                    "QueryTable deleted successfully",
-                    "Use list action to verify deletion"
-                };
             }
             catch (Exception ex)
             {
@@ -291,7 +276,7 @@ public partial class QueryTableCommands : IQueryTableCommands
             PreserveFormatting = TryGetBool(queryTable, "PreserveFormatting"),
             AdjustColumnWidth = TryGetBool(queryTable, "AdjustColumnWidth")
         };
-        
+
         // Extract range information
         try
         {
@@ -310,11 +295,11 @@ public partial class QueryTableCommands : IQueryTableCommands
                 }
             }
         }
-        catch 
+        catch
         {
             // Ignore errors getting range info
         }
-        
+
         // Extract last refresh time
         try
         {
@@ -331,11 +316,11 @@ public partial class QueryTableCommands : IQueryTableCommands
                 }
             }
         }
-        catch 
+        catch
         {
             // Ignore errors getting refresh date
         }
-        
+
         return info;
     }
 
@@ -379,7 +364,7 @@ public partial class QueryTableCommands : IQueryTableCommands
                 {
                     worksheet = worksheets.Item(ws);
                     sheetQueryTables = worksheet.QueryTables;
-                    
+
                     for (int qt = 1; qt <= sheetQueryTables.Count; qt++)
                     {
                         dynamic? queryTable = null;
@@ -387,7 +372,7 @@ public partial class QueryTableCommands : IQueryTableCommands
                         {
                             queryTable = sheetQueryTables.Item(qt);
                             string currentName = queryTable.Name?.ToString() ?? "";
-                            
+
                             if (currentName.Equals(queryTableName, StringComparison.OrdinalIgnoreCase))
                             {
                                 return worksheet.Name;
