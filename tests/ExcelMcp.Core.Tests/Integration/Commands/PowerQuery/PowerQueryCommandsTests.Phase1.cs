@@ -6,7 +6,7 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
 
 /// <summary>
-/// Integration tests for Phase 1 PowerQuery API methods
+/// Integration tests for PowerQuery atomic operations
 /// Test Coverage: CreateAsync, UpdateMCodeAsync, LoadToAsync, UnloadAsync, ValidateSyntaxAsync, UpdateAndRefreshAsync, RefreshAllAsync
 /// </summary>
 [Trait("Category", "Integration")]

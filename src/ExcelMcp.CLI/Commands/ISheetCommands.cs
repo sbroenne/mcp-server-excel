@@ -2,7 +2,7 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 
 /// <summary>
 /// Worksheet lifecycle management commands
-/// Data operations (read, write, clear, append) moved to RangeCommands in Phase 1A.
+/// Data operations (read, write, clear, append) moved to RangeCommands.
 /// </summary>
 public interface ISheetCommands
 {

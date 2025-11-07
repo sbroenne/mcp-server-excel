@@ -26,7 +26,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// - Use "delete" to remove queries
 /// - Use "get-load-config" to check current loading configuration
 ///
-/// PHASE 1 ATOMIC OPERATIONS:
+/// ATOMIC OPERATIONS:
 /// - create: Import + load in one atomic operation (replaces import + load-to)
 /// - update-mcode: Update M code without refresh (for staging changes)
 /// - update-and-refresh: Update M code + refresh in one atomic operation
@@ -58,7 +58,7 @@ public static class ExcelPowerQueryTool
   2. excel_powerquery(..., batchId: batch.batchId)  // repeat for each operation
   3. commit_excel_batch(batchId: batch.batchId, save: true)
 
-PRIMARY ACTIONS (PHASE 1 ATOMIC OPERATIONS):
+PRIMARY ACTIONS (ATOMIC OPERATIONS):
 - Create: Import Power Query from .pq file + load data in one atomic operation
 - UpdateMCode: Update M code only (no refresh - for staging changes)
 - UpdateAndRefresh: Update M code + refresh data in one atomic operation
@@ -131,7 +131,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 PowerQueryAction.ListExcelSources => await ListExcelSourcesAsync(powerQueryCommands, excelPath, batchId),
                 PowerQueryAction.Eval => await EvalPowerQueryAsync(powerQueryCommands, excelPath, sourcePath, batchId),
 
-                // Phase 1: Atomic Operations
+                // Atomic Operations
                 PowerQueryAction.Create => await CreatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, targetSheet, batchId),
                 PowerQueryAction.UpdateMCode => await UpdateMCodePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, batchId),
                 PowerQueryAction.Unload => await UnloadPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
@@ -334,7 +334,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
     }
 
     // =========================================================================
-    // PHASE 1 HANDLERS - Atomic Operations
+    // ATOMIC OPERATIONS HANDLERS
     // =========================================================================
 
     private static async Task<string> CreatePowerQueryAsync(

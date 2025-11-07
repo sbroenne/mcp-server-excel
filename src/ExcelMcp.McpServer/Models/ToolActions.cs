@@ -18,7 +18,7 @@ public enum FileAction
 /// Actions available for excel_powerquery tool
 /// </summary>
 /// <remarks>
-/// PHASE 1 ACTIONS: Atomic operations for improved workflows
+/// ATOMIC OPERATIONS: Improved workflow commands
 /// - Create: Atomic import + load (replaces Import + SetLoadTo* + Refresh)
 /// - UpdateMCode: Update formula only (explicit separation from refresh)
 /// - LoadTo: Atomic configure + refresh (replaces SetLoadTo* + Refresh)
@@ -39,7 +39,7 @@ public enum PowerQueryAction
     ListExcelSources,
     Eval,
 
-    // Phase 1: Atomic Operations
+    // Atomic Operations
     Create,
     UpdateMCode,
     Unload,

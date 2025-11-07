@@ -25,7 +25,7 @@ public static class ActionExtensions
         PowerQueryAction.ListExcelSources => "list-excel-sources",
         PowerQueryAction.Eval => "eval",
 
-        // Phase 1: Atomic Operations
+        // Atomic Operations
         PowerQueryAction.Create => "create",
         PowerQueryAction.UpdateMCode => "update-mcode",
         PowerQueryAction.Unload => "unload",

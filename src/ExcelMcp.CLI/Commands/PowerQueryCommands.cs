@@ -94,7 +94,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         else
         {
             AnsiConsole.MarkupLine("[yellow]No Power Queries found[/]");
-            AnsiConsole.MarkupLine("[dim]Create one with:[/] [cyan]ExcelCLI pq-import \"{filePath}\" \"QueryName\" \"code.pq\"[/]");
+            AnsiConsole.MarkupLine("[dim]Create one with:[/] [cyan]ExcelCLI pq-create \"{filePath}\" \"QueryName\" \"code.pq\"[/]");
         }
 
         return 0;
@@ -477,7 +477,7 @@ public class PowerQueryCommands : IPowerQueryCommands
     }
 
     // ========================================
-    // Phase 1 Commands - Atomic Operations
+    // Atomic Operations
     // ========================================
 
     /// <summary>

@@ -66,14 +66,14 @@ internal sealed class Program
                 "pq-delete" => powerQuery.Delete(args),
                 "pq-get-load-config" => powerQuery.GetLoadConfig(args),
 
-                // Power Query Phase 1 commands - Atomic operations
+                // Power Query commands - Atomic operations
                 "pq-create" => await powerQuery.Create(args),
                 "pq-update-mcode" => await powerQuery.UpdateMCode(args),
                 "pq-unload" => await powerQuery.Unload(args),
                 "pq-update-and-refresh" => await powerQuery.UpdateAndRefresh(args),
                 "pq-refresh-all" => await powerQuery.RefreshAll(args),
 
-                // Sheet commands (lifecycle only - data operations moved to range-* commands in Phase 1A)
+                // Sheet commands (lifecycle only - data operations use range-* commands)
                 "sheet-list" => sheet.List(args),
                 "sheet-copy" => sheet.Copy(args),
                 "sheet-delete" => sheet.Delete(args),
@@ -92,7 +92,7 @@ internal sealed class Program
                 "sheet-hide" => sheet.Hide(args),
                 "sheet-very-hide" => sheet.VeryHide(args),
 
-                // Range commands (data operations - replaces sheet-read/write/clear/append from Phase 1A)
+                // Range commands (data operations)
                 "range-get-values" => range.GetValues(args),
                 "range-set-values" => range.SetValues(args),
                 "range-get-formulas" => range.GetFormulas(args),
@@ -325,7 +325,7 @@ internal sealed class Program
         AnsiConsole.MarkupLine("  [cyan]pq-errors[/] file.xlsx query-name             View Power Query errors");
         AnsiConsole.WriteLine();
 
-        AnsiConsole.MarkupLine("[bold yellow]Power Query Phase 1 - Atomic Operations:[/]");
+        AnsiConsole.MarkupLine("[bold yellow]Power Query - Atomic Operations:[/]");
         AnsiConsole.MarkupLine("  [cyan]pq-create[/] file.xlsx query src.pq           Create query + load data (atomic)");
         AnsiConsole.MarkupLine("    Options: [dim]--destination worksheet|data-model|both|connection-only --target-sheet SheetName[/]");
         AnsiConsole.MarkupLine("  [cyan]pq-update-mcode[/] file.xlsx query code.pq    Update M code only (no refresh)");

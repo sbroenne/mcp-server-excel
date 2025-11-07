@@ -435,7 +435,7 @@ public class PowerQueryLoadToBothResult : OperationResult
 }
 
 /// <summary>
-/// Result for Power Query create operations (Phase 1 API)
+/// Result for Power Query create operations
 /// Atomic operation: Import M code + Load data to destination in ONE call
 /// </summary>
 public class PowerQueryCreateResult : OperationResult
@@ -472,7 +472,7 @@ public class PowerQueryCreateResult : OperationResult
 }
 
 /// <summary>
-/// Result for Power Query load operations (Phase 1 API)
+/// Result for Power Query load operations
 /// Atomic operation: Set destination + Refresh data in ONE call
 /// </summary>
 public class PowerQueryLoadResult : OperationResult
@@ -509,7 +509,7 @@ public class PowerQueryLoadResult : OperationResult
 }
 
 /// <summary>
-/// Result for Power Query syntax validation (Phase 1 API)
+/// Result for Power Query syntax validation
 /// Pre-flight syntax check before creating permanent query
 /// </summary>
 public class PowerQueryValidationResult : ResultBase
