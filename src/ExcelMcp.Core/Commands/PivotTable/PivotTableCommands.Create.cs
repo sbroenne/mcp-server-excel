@@ -344,11 +344,8 @@ public partial class PivotTableCommands
             try
             {
                 // STEP 1: Verify Data Model exists and find the table
+                // NOTE: Every workbook has a Model object, but it may be empty
                 model = ctx.Book.Model;
-                if (model == null)
-                {
-                    throw new InvalidOperationException("Workbook does not contain a Power Pivot Data Model");
-                }
 
                 // Find the table in the Data Model
                 dynamic? modelTables = null;
@@ -356,6 +353,13 @@ public partial class PivotTableCommands
                 try
                 {
                     modelTables = model.ModelTables;
+
+                    // Check if Data Model has any tables
+                    if (modelTables == null || modelTables.Count == 0)
+                    {
+                        throw new InvalidOperationException("Workbook does not contain a Power Pivot Data Model");
+                    }
+
                     for (int i = 1; i <= modelTables.Count; i++)
                     {
                         dynamic? tbl = null;
