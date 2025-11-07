@@ -9,7 +9,6 @@ public interface IPowerQueryCommands
     int View(string[] args);
     Task<int> Export(string[] args);
     int Refresh(string[] args);
-    int Errors(string[] args);
     int Delete(string[] args);
     int Sources(string[] args);
     int Test(string[] args);

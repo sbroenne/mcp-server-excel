@@ -246,37 +246,6 @@ public class PowerQueryCommands : IPowerQueryCommands
     }
 
     /// <inheritdoc />
-    public int Errors(string[] args)
-    {
-        if (args.Length < 3)
-        {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-errors <file.xlsx> <query-name>");
-            return 1;
-        }
-
-        string filePath = args[1];
-        string queryName = args[2];
-
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ErrorsAsync(batch, queryName);
-        });
-        var result = task.GetAwaiter().GetResult();
-
-        if (!result.Success)
-        {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-            return 1;
-        }
-
-        AnsiConsole.MarkupLine($"[bold]Error Status for:[/] [cyan]{queryName}[/]");
-        AnsiConsole.MarkupLine(result.MCode.EscapeMarkup());
-
-        return 0;
-    }
-
-    /// <inheritdoc />
     public int Delete(string[] args)
     {
         if (args.Length < 3)

@@ -34,11 +34,6 @@ public interface IPowerQueryCommands
     Task<PowerQueryRefreshResult> RefreshAsync(IExcelBatch batch, string queryName, TimeSpan? timeout);
 
     /// <summary>
-    /// Shows errors from Power Query operations
-    /// </summary>
-    Task<PowerQueryViewResult> ErrorsAsync(IExcelBatch batch, string queryName);
-
-    /// <summary>
     /// Gets the current load configuration of a Power Query
     /// </summary>
     Task<PowerQueryLoadConfigResult> GetLoadConfigAsync(IExcelBatch batch, string queryName);

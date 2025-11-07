@@ -128,7 +128,6 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 PowerQueryAction.Refresh => await RefreshPowerQueryAsync(powerQueryCommands, excelPath, queryName, timeout, batchId),
                 PowerQueryAction.Delete => await DeletePowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
                 PowerQueryAction.GetLoadConfig => await GetLoadConfigAsync(powerQueryCommands, excelPath, queryName, batchId),
-                PowerQueryAction.Errors => await ErrorsPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
                 PowerQueryAction.ListExcelSources => await ListExcelSourcesAsync(powerQueryCommands, excelPath, batchId),
                 PowerQueryAction.Eval => await EvalPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, batchId),
 
@@ -250,7 +249,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 result.OperationContext,
                 result.IsRetryable,
                 result.RetryGuidance,
-                
+
                 // Workflow hints - MCP Server layer responsibility
                 WorkflowHint = "Power Query refresh timeout - check data source and Excel dialogs",
                 SuggestedNextActions = new[]
@@ -292,20 +291,6 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             save: false,
             async (batch) => await commands.GetLoadConfigAsync(batch, queryName));
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> ErrorsPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
-    {
-        if (string.IsNullOrEmpty(queryName))
-            throw new ModelContextProtocol.McpException("queryName is required for errors action");
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: false,
-            async (batch) => await commands.ErrorsAsync(batch, queryName));
         // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }

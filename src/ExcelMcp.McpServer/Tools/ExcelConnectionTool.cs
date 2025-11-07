@@ -359,7 +359,7 @@ public static class ExcelConnectionTool
                 result.OperationContext,
                 result.IsRetryable,
                 result.RetryGuidance,
-                
+
                 // Workflow hints - MCP Server layer responsibility
                 WorkflowHint = "Connection refresh timeout - verify data source accessibility",
                 SuggestedNextActions = new[]

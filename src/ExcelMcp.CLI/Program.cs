@@ -62,7 +62,6 @@ class Program
                 "pq-sources" => powerQuery.Sources(args),
                 "pq-verify" => powerQuery.Eval(args),
                 "pq-refresh" => powerQuery.Refresh(args),
-                "pq-errors" => powerQuery.Errors(args),
                 "pq-delete" => powerQuery.Delete(args),
                 "pq-get-load-config" => powerQuery.GetLoadConfig(args),
 

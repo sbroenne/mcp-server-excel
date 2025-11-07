@@ -312,7 +312,7 @@ Actions: list-tables, list-measures, view-measure, export-measure, list-relation
                 result.OperationContext,
                 result.IsRetryable,
                 result.RetryGuidance,
-                
+
                 // Workflow hints - MCP Server layer responsibility
                 WorkflowHint = "Data Model refresh timeout - check for blocking dialogs or data source issues",
                 SuggestedNextActions = new[]

@@ -21,7 +21,6 @@ public static class ActionExtensions
         PowerQueryAction.Refresh => "refresh",
         PowerQueryAction.Delete => "delete",
         PowerQueryAction.GetLoadConfig => "get-load-config",
-        PowerQueryAction.Errors => "errors",
         PowerQueryAction.LoadTo => "load-to",
         PowerQueryAction.ListExcelSources => "list-excel-sources",
         PowerQueryAction.Eval => "eval",

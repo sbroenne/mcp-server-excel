@@ -36,7 +36,6 @@ public enum PowerQueryAction
     Refresh,
     Delete,
     GetLoadConfig,
-    Errors,
     ListExcelSources,
     Eval,
 
