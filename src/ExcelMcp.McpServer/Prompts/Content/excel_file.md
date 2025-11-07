@@ -26,4 +26,4 @@
 
 **Workflow optimization**:
 - After create-empty: Use begin_excel_batch for setup operations
-- Pattern: Create file → Begin batch → Add sheets → Import queries → Commit batch
+- Pattern: Create file → Begin batch → Add sheets → Create queries → Commit batch

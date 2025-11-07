@@ -3,7 +3,7 @@
 ## ⚡ STEP 1: CHECK FOR BATCH MODE FIRST (75-90% faster!)
 
 **ALWAYS DETECT THESE KEYWORDS BEFORE CHOOSING TOOLS:**
-- **Numbers**: "import 4 queries", "create 5 measures", "add 3 worksheets"
+- **Numbers**: "create 4 queries", "create 5 measures", "add 3 worksheets"
 - **Plurals**: "queries", "measures", "parameters", "relationships", "worksheets" 
 - **Lists**: "Sales, Revenue, Profit", "StartDate, EndDate, Region"
 - **Multiple items**: "each", "all", "several", "multiple"
@@ -47,17 +47,17 @@
 
 **User mentions NUMBERS, PLURALS, or LISTS:**
 → begin_excel_batch FIRST
-→ Examples: "import 4 queries", "create measures", "add parameters for X, Y, Z"
+→ Examples: "create 4 queries", "create measures", "add parameters for X, Y, Z"
 
 ## Common LLM Mistakes I Make
 
 **Mistake 1: Using excel_table for external data**
 ❌ Wrong: excel_table(action: 'create') for CSV import
-✅ Right: excel_powerquery(action: 'import', loadDestination: 'worksheet')
+✅ Right: excel_powerquery(action: 'create', loadDestination: 'worksheet')
 
 **Mistake 2: Forgetting loadDestination for Data Model**
-❌ Wrong: excel_powerquery(action: 'import') then trying to create DAX measures
-✅ Right: excel_powerquery(action: 'import', loadDestination: 'data-model')
+❌ Wrong: excel_powerquery(action: 'create') then trying to create DAX measures
+✅ Right: excel_powerquery(action: 'create', loadDestination: 'data-model')
 
 **Mistake 3: Not detecting batch opportunities (CRITICAL PERFORMANCE ISSUE)**
 ❌ Wrong: Calling excel_powerquery 4 times separately (10-20 seconds, resource waste!)
@@ -82,7 +82,7 @@
 ## Workflow Patterns I Should Know
 
 **Pattern: Import external data for analytics**
-1. excel_powerquery(import, loadDestination='data-model')
+1. excel_powerquery(create, loadDestination='data-model')
 2. excel_datamodel(create-measure) with DAX formulas
 3. excel_datamodel(create-relationship) to link tables
 
@@ -93,7 +93,7 @@
 4. excel_range(get-values) to read imported data
 
 **Pattern: Load Power Query to worksheet (simpler alternative)**
-1. excel_powerquery(import) with M code
+1. excel_powerquery(create) with M code
 2. excel_worksheet(create) for target sheet
 3. excel_querytable(create-from-query) instead of excel_powerquery load-to
 4. excel_querytable(refresh) to update data
