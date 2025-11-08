@@ -239,7 +239,7 @@ in
         AssertSuccess(createBatchSheetResult, "Create additional worksheet in batch");
 
         // PivotTable operations (with batch)
-        var createPivotResult = await PivotTableTool.PivotTable(
+        var createPivotResult = await ExcelPivotTableTool.ExcelPivotTable(
             PivotTableAction.CreateFromTable,
             _testExcelFile,
             tableName: "DataTable",
@@ -249,7 +249,7 @@ in
             batchId: batchId);
         AssertSuccess(createPivotResult, "Create PivotTable in batch");
 
-        var listPivotsResult = await PivotTableTool.PivotTable(
+        var listPivotsResult = await ExcelPivotTableTool.ExcelPivotTable(
             PivotTableAction.List,
             _testExcelFile,
             batchId: batchId);

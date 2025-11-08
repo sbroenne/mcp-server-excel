@@ -82,7 +82,7 @@ public class ActionEnumCompletenessTests
                 try
                 {
                     // Invoke ToActionString() - will throw if mapping missing
-                    var result = extensionMethod.Invoke(null, new[] { enumValue }) as string;
+                    var result = extensionMethod.Invoke(null, [enumValue]) as string;
 
                     if (string.IsNullOrWhiteSpace(result))
                     {
@@ -144,7 +144,7 @@ public class ActionEnumCompletenessTests
             {
                 try
                 {
-                    var result = extensionMethod.Invoke(null, new[] { enumValue }) as string;
+                    var result = extensionMethod.Invoke(null, [enumValue]) as string;
                     if (!string.IsNullOrWhiteSpace(result))
                     {
                         actionStrings.Add((enumValue, result.ToLowerInvariant()));

@@ -12,52 +12,9 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
 /// Excel Data Model management tool for MCP server.
-/// Provides access to Power Pivot Data Model operations.
+/// Provides access to Power Pivot Data Model operations including DAX measures, relationships, and data refresh.
 ///
-/// LLM Usage Patterns:
-///
-/// DISCOVERY:
-/// - Use "list-tables" to see all tables in the Data Model
-/// - Use "list-measures" to view all DAX measures
-/// - Use "list-relationships" to see table relationships
-/// - Use "view-table" to see detailed table information
-/// - Use "view-measure" to inspect DAX formula for a specific measure
-/// - Use "get-model-info" to get Data Model overview
-///
-/// DAX MEASURES
-/// - Use "create-measure" to add new DAX measures with optional format strings
-/// - Use "update-measure" to modify existing measure formulas or formats
-/// - Use "delete-measure" to remove a measure
-/// - Use "export-measure" to save DAX formula to a file
-///
-/// RELATIONSHIPS
-/// - Use "create-relationship" to define table relationships
-/// - Use "update-relationship" to modify relationship active status
-/// - Use "delete-relationship" to remove a relationship
-///
-/// DATA REFRESH:
-/// - Use "refresh" to update Data Model data from source connections
-///
-/// CALCULATED COLUMNS (MANUAL ONLY):
-/// - Calculated columns CANNOT be created via automation
-/// - When user asks to create calculated columns, provide these EXACT instructions:
-///
-///   "To create a calculated column in Excel's Data Model:
-///
-///   1. Click on the Data Model table tab at the bottom of the Excel window
-///   2. OR: Go to Power Pivot tab → Manage Data Model
-///   3. In Power Pivot window, select the table (e.g., 'Sales')
-///   4. Click in the 'Add Column' column header
-///   5. Type your DAX formula (e.g., '=[Revenue] - [Cost]')
-///   6. Press Enter
-///   7. Right-click the column header → Rename Column
-///   8. Set the column name (e.g., 'Profit')
-///   9. Close Power Pivot window to save changes
-///
-///   The calculated column will now be available in PivotTables and DAX measures."
-///
-/// - Alternative approach: Guide user to create DAX measures instead (measures are automated)
-/// - Measures are usually preferred over calculated columns for aggregations
+/// Note: Calculated columns cannot be created via automation and must be added manually through the Power Pivot UI.
 /// </summary>
 [McpServerToolType]
 public static class ExcelDataModelTool

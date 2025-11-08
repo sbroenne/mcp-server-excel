@@ -9,7 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// </summary>
 public partial class RangeCommands
 {
-    private static readonly int[] BorderEdges = { 7, 8, 9, 10 };
+    private static readonly int[] BorderEdges = [7, 8, 9, 10];
 
     /// <inheritdoc />
     public async Task<OperationResult> SetStyleAsync(

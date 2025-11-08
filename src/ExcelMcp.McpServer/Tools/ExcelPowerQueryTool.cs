@@ -173,7 +173,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 : "Failed to list queries. Verify workbook has Power Query data connections.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'view' to examine M code for specific queries", "Use 'get-load-config' to check data loading settings", "Use 'refresh' to reload data from sources" }
-                : new[] { "Verify workbook has Power Query connections", "Check if workbook is macro-enabled if needed", "Use excel_connection list to see all connections" }
+                : ["Verify workbook has Power Query connections", "Check if workbook is macro-enabled if needed", "Use excel_connection list to see all connections"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -199,7 +199,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 : $"Failed to view '{queryName}'. Verify query name is correct.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'export' to save M code for version control", "Use 'update-mcode' to modify transformations", "Use 'refresh' to reload with current M code" }
-                : new[] { "Use 'list' to see all available query names", "Check for typos in query name", "Verify query exists in workbook" }
+                : ["Use 'list' to see all available query names", "Check for typos in query name", "Verify query exists in workbook"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -224,7 +224,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 : $"Failed to export '{queryName}'. Verify query exists and target path is writable.",
             suggestedNextActions = result.Success
                 ? new[] { "Commit .pq file to version control system", "Use 'update-mcode' to import modified M code", "Share .pq file with team for reuse" }
-                : new[] { "Use 'list' to verify query name", "Check directory permissions for target path", "Ensure parent directory exists" }
+                : ["Use 'list' to verify query name", "Check directory permissions for target path", "Ensure parent directory exists"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -320,7 +320,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 : $"Failed to delete '{queryName}'. Verify query exists and is not actively refreshing.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'list' to verify deletion", "Check for orphaned QueryTables with excel_querytable list", "Export backup before deletion (if not already done)" }
-                : new[] { "Use 'list' to verify query name", "Stop any active refresh operations", "Check if query is in use by PivotTables" }
+                : ["Use 'list' to verify query name", "Stop any active refresh operations", "Check if query is in use by PivotTables"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -347,7 +347,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 : $"Failed to get load config for '{queryName}'. Verify query exists.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'load-to' to change data loading destination", "Use 'unload' to convert to connection-only", "Use 'refresh' to reload with current configuration" }
-                : new[] { "Use 'list' to verify query name", "Check query exists in workbook", "Verify query is not corrupted" }
+                : ["Use 'list' to verify query name", "Check query exists in workbook", "Verify query is not corrupted"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -370,7 +370,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 : "Failed to list Excel sources. Verify workbook has tables or named ranges.",
             suggestedNextActions = result.Success
                 ? new[] { "Reference sources in M code transformations", "Use excel_table list to see structured tables", "Use excel_namedrange list to see named ranges" }
-                : new[] { "Create Excel Tables with excel_table create", "Create named ranges with excel_namedrange create", "Verify workbook structure" }
+                : ["Create Excel Tables with excel_table create", "Create named ranges with excel_namedrange create", "Verify workbook structure"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -408,7 +408,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 : "M expression evaluation failed. Review syntax and data source availability.",
             suggestedNextActions = result.Success
                 ? new[] { "Integrate evaluated M code into queries", "Test with different data sources", "Use 'create' to make permanent query from working code" }
-                : new[] { "Check M syntax for errors", "Verify data sources are accessible", "Test with simpler M expressions first" }
+                : ["Check M syntax for errors", "Verify data sources are accessible", "Test with simpler M expressions first"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -458,7 +458,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 : $"Failed to create '{queryName}'. Check M code syntax and data source connectivity.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'refresh' to reload data from source", "Use 'view' to inspect M code", "Use 'get-load-config' to verify loading settings" }
-                : new[] { "Verify M code syntax in .pq file", "Check data source connectivity", "Use 'eval' to test M code before creating query" }
+                : ["Verify M code syntax in .pq file", "Check data source connectivity", "Use 'eval' to test M code before creating query"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -491,7 +491,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 : $"Failed to update M code for '{queryName}'. Verify query exists and M syntax is valid.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'refresh' to reload data with new M code", "Use 'update-and-refresh' to update and refresh atomically next time", "Use 'view' to verify M code changes" }
-                : new[] { "Use 'list' to verify query name", "Check M syntax in .pq file", "Use 'eval' to test M code before updating" }
+                : ["Use 'list' to verify query name", "Check M syntax in .pq file", "Use 'eval' to test M code before updating"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -547,19 +547,19 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                         "Use excel_datamodel 'list-relationships' to check table relationships",
                         inBatch ? "Load more queries in this batch" : "Loading multiple queries? Use excel_batch for efficiency"
                     }
-                    : new[]
-                    {
+                    :
+                    [
                         $"Use excel_range 'get-values' to read data from worksheet '{targetSheet ?? queryName}'",
                         "Use excel_powerquery 'refresh' to update data from source",
                         "Use excel_table 'create' to convert range to Excel Table for filtering/sorting",
                         inBatch ? "Load more queries in this batch" : "Loading multiple queries? Use excel_batch for efficiency"
-                    })
-                : new[]
-                {
+                    ])
+                :
+                [
                     "Check if query name is correct with excel_powerquery 'list'",
                     "Verify query is connection-only with excel_powerquery 'get-load-config'",
                     "Review error message for specific issue"
-                }
+                ]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -587,7 +587,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 : $"Failed to unload '{queryName}'. Verify query exists and is currently loaded.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'get-load-config' to verify connection-only status", "Use 'load-to' to reload data to worksheet/data-model", "Use 'list' to see updated query status" }
-                : new[] { "Use 'get-load-config' to check current load status", "Verify query is not already connection-only", "Use 'list' to verify query name" }
+                : ["Use 'get-load-config' to check current load status", "Verify query is not already connection-only", "Use 'list' to verify query name"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -620,7 +620,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 : $"Failed atomic update for '{queryName}'. M code may be partially updated - verify with 'view'.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'view' to verify M code changes", "Use excel_range to inspect loaded data", "Use 'get-load-config' to see loading configuration" }
-                : new[] { "Use 'view' to check if M code was updated", "Use 'update-mcode' then 'refresh' separately if atomic fails", "Check M syntax and data source connectivity" }
+                : ["Use 'view' to check if M code was updated", "Use 'update-mcode' then 'refresh' separately if atomic fails", "Check M syntax and data source connectivity"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -644,7 +644,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 : "Failed to refresh all queries. Some queries may have connectivity issues.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'list' to verify all queries refreshed", "Use excel_range to inspect updated data", "Check refresh timestamps with 'list' action" }
-                : new[] { "Use 'refresh' on individual queries to isolate failures", "Check data source connectivity for failed queries", "Review error messages for specific query issues" }
+                : ["Use 'refresh' on individual queries to isolate failures", "Check data source connectivity for failed queries", "Review error messages for specific query issues"]
         }, ExcelToolsBase.JsonOptions);
     }
 

@@ -35,7 +35,7 @@ public class CliDataModelCommandsTests
     public void ListTables_WithMissingFileArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "dm-list-tables" }; // Missing file path
+        string[] args = ["dm-list-tables"]; // Missing file path
 
         // Act
         int exitCode = _cliCommands.ListTables(args);
@@ -49,7 +49,7 @@ public class CliDataModelCommandsTests
     public void ListMeasures_WithMissingFileArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "dm-list-measures" }; // Missing file path
+        string[] args = ["dm-list-measures"]; // Missing file path
 
         // Act
         int exitCode = _cliCommands.ListMeasures(args);
@@ -63,7 +63,7 @@ public class CliDataModelCommandsTests
     public void Get_WithMissingMeasureNameArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "dm-view-measure", "SomeFile.xlsx" }; // Missing measure name
+        string[] args = ["dm-view-measure", "SomeFile.xlsx"]; // Missing measure name
 
         // Act
         int exitCode = _cliCommands.ViewMeasure(args);
@@ -77,7 +77,7 @@ public class CliDataModelCommandsTests
     public void ExportMeasure_WithMissingOutputFileArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "dm-export-measure", "SomeFile.xlsx", "SomeMeasure" }; // Missing output file
+        string[] args = ["dm-export-measure", "SomeFile.xlsx", "SomeMeasure"]; // Missing output file
 
         // Act
         int exitCode = _cliCommands.ExportMeasure(args);
@@ -91,7 +91,7 @@ public class CliDataModelCommandsTests
     public void ListRelationships_WithMissingFileArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "dm-list-relationships" }; // Missing file path
+        string[] args = ["dm-list-relationships"]; // Missing file path
 
         // Act
         int exitCode = _cliCommands.ListRelationships(args);
@@ -105,7 +105,7 @@ public class CliDataModelCommandsTests
     public void Refresh_WithMissingFileArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "dm-refresh" }; // Missing file path
+        string[] args = ["dm-refresh"]; // Missing file path
 
         // Act
         int exitCode = _cliCommands.Refresh(args);
@@ -123,7 +123,7 @@ public class CliDataModelCommandsTests
     public void DeleteMeasure_WithMissingArguments_ReturnsError()
     {
         // Arrange
-        string[] args = { "dm-delete-measure", "SomeFile.xlsx" };
+        string[] args = ["dm-delete-measure", "SomeFile.xlsx"];
 
         // Act
         int exitCode = _cliCommands.DeleteMeasure(args);
@@ -137,7 +137,7 @@ public class CliDataModelCommandsTests
     public void DeleteRelationship_WithMissingArguments_ReturnsError()
     {
         // Arrange - Missing columns
-        string[] args = { "dm-delete-relationship", "SomeFile.xlsx", "Table1", "Col1" };
+        string[] args = ["dm-delete-relationship", "SomeFile.xlsx", "Table1", "Col1"];
 
         // Act
         int exitCode = _cliCommands.DeleteRelationship(args);

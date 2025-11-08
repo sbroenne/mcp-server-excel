@@ -33,7 +33,7 @@ public class CliPowerQueryCommandsTests
     public void List_WithMissingFileArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "pq-list" }; // Missing file path
+        string[] args = ["pq-list"]; // Missing file path
 
         // Act
         int exitCode = _cliCommands.List(args);
@@ -47,7 +47,7 @@ public class CliPowerQueryCommandsTests
     public void View_WithMissingArgs_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "pq-view", "file.xlsx" }; // Missing query name
+        string[] args = ["pq-view", "file.xlsx"]; // Missing query name
 
         // Act
         int exitCode = _cliCommands.View(args);
@@ -61,7 +61,7 @@ public class CliPowerQueryCommandsTests
     public void Refresh_WithInvalidFileExtension_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "pq-refresh", "invalid.txt", "SomeQuery" };
+        string[] args = ["pq-refresh", "invalid.txt", "SomeQuery"];
 
         // Act
         int exitCode = _cliCommands.Refresh(args);

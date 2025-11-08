@@ -33,7 +33,7 @@ public class CliParameterCommandsTests
     public void List_WithMissingFileArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "namedrange-list" }; // Missing file path
+        string[] args = ["namedrange-list"]; // Missing file path
 
         // Act
         int exitCode = _cliCommands.List(args);
@@ -47,7 +47,7 @@ public class CliParameterCommandsTests
     public void Get_WithMissingParameterNameArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "namedrange-get", "file.xlsx" }; // Missing parameter name
+        string[] args = ["namedrange-get", "file.xlsx"]; // Missing parameter name
 
         // Act
         int exitCode = _cliCommands.GetValue(args);
@@ -61,7 +61,7 @@ public class CliParameterCommandsTests
     public void Set_WithMissingValueArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "namedrange-set", "file.xlsx", "ParamName" }; // Missing value
+        string[] args = ["namedrange-set", "file.xlsx", "ParamName"]; // Missing value
 
         // Act
         int exitCode = _cliCommands.SetValue(args);
@@ -75,7 +75,7 @@ public class CliParameterCommandsTests
     public void Create_WithMissingReferenceArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "namedrange-create", "file.xlsx", "ParamName" }; // Missing reference
+        string[] args = ["namedrange-create", "file.xlsx", "ParamName"]; // Missing reference
 
         // Act
         int exitCode = _cliCommands.Create(args);
@@ -89,7 +89,7 @@ public class CliParameterCommandsTests
     public void Set_WithInvalidFileExtension_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "namedrange-set", "invalid.txt", "ParamName", "Value" };
+        string[] args = ["namedrange-set", "invalid.txt", "ParamName", "Value"];
 
         // Act
         int exitCode = _cliCommands.SetValue(args);

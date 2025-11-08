@@ -627,7 +627,7 @@ public class RangeCommands
 
     // === HELPER METHODS ===
 
-    private static readonly string[] LineSeparators = { "\r\n", "\r", "\n" };
+    private static readonly string[] LineSeparators = ["\r\n", "\r", "\n"];
 
     private static List<List<object?>> ParseCsvTo2DArray(string csvData)
     {

@@ -989,15 +989,15 @@ public class VbaTrustRequiredResult : OperationResult
     /// <summary>
     /// Step-by-step instructions for enabling VBA trust
     /// </summary>
-    public string[] SetupInstructions { get; init; } = new[]
-    {
+    public string[] SetupInstructions { get; init; } =
+    [
         "Open Excel",
         "Go to File → Options → Trust Center",
         "Click 'Trust Center Settings'",
         "Select 'Macro Settings'",
         "Check '✓ Trust access to the VBA project object model'",
         "Click OK twice to save settings"
-    };
+    ];
 
     /// <summary>
     /// Official Microsoft documentation URL

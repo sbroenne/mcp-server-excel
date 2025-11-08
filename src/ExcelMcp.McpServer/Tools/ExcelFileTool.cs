@@ -9,11 +9,8 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
 /// Excel file management tool for MCP server.
-/// Handles Excel file creation for automation workflows.
-///
-/// LLM Usage Pattern:
-/// - Use "create-empty" for new Excel files in automation workflows
-/// - File validation and existence checks can be done with standard file system operations
+/// Manages Excel file creation for automation workflows.
+/// Supports .xlsx (standard) and .xlsm (macro-enabled) formats.
 /// </summary>
 [McpServerToolType]
 [SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments", Justification = "Simple workflow arrays in sealed static class")]

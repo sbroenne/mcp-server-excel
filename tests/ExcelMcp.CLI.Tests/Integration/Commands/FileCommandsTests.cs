@@ -33,7 +33,7 @@ public class CliFileCommandsTests
     public void CreateEmpty_WithMissingArguments_ReturnsOneAndDoesNotCreateFile()
     {
         // Arrange
-        string[] args = { "create-empty" }; // Missing file path
+        string[] args = ["create-empty"]; // Missing file path
 
         // Act
         int exitCode = _cliCommands.CreateEmpty(args);
@@ -47,7 +47,7 @@ public class CliFileCommandsTests
     public void CreateEmpty_WithInvalidExtension_ReturnsOneAndDoesNotCreateFile()
     {
         // Arrange
-        string[] args = { "create-empty", "InvalidFile.txt" };
+        string[] args = ["create-empty", "InvalidFile.txt"];
 
         // Act
         int exitCode = _cliCommands.CreateEmpty(args);

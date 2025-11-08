@@ -400,7 +400,7 @@ public class CliTableCommands : ITableCommands
     private static List<List<object?>> ParseCsvToRows(string csvData)
     {
         var rows = new List<List<object?>>();
-        var lines = csvData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = csvData.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
 
         foreach (var line in lines)
         {

@@ -32,19 +32,19 @@ public static class ExcelNamedRangeTool
     private static readonly JsonSerializerOptions s_jsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     // Cache suggestedNextActions arrays to satisfy CA1861
-    private static readonly string[] s_getNextActions = new[]
-    {
+    private static readonly string[] s_getNextActions =
+    [
         "Use 'set' to update this parameter value",
         "Use this value in excel_range or excel_powerquery operations",
         "Use 'update' to change the cell reference"
-    };
+    ];
 
-    private static readonly string[] s_createBulkNextActions = new[]
-    {
+    private static readonly string[] s_createBulkNextActions =
+    [
         "Use 'list' to verify all created named ranges",
         "Use 'set' to assign initial values",
         "Use excel_range to populate data in named range regions"
-    };
+    ];
 
     /// <summary>
     /// Manage Excel parameters (named ranges) - configuration values and reusable references
@@ -138,13 +138,13 @@ Actions available as dropdown in MCP clients.")]
                     "Use 'create' to define new named ranges as parameters",
                     inBatch ? "Add more operations in this batch session" : "Use excel_batch for creating multiple parameters (90% faster)"
                 }
-                : new[]
-                {
+                :
+                [
                     "Use 'get' to retrieve named range values",
                     "Use 'set' to update parameter values",
                     "Use excel_range with sheetName='' to reference named ranges in formulas",
                     inBatch ? "Continue batch operations" : count > 3 ? "Use excel_batch for bulk updates (90% faster)" : "Use 'update' to change cell references"
-                }
+                ]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -229,12 +229,12 @@ Actions available as dropdown in MCP clients.")]
                     "Use excel_range to read data from new cell reference",
                     inBatch ? "Continue batch operations" : "Update more references? Use excel_batch for efficiency"
                 }
-                : new[]
-                {
+                :
+                [
                     "Use 'list' to verify named range exists",
                     "Check cell reference format (e.g., 'Sheet1!A1' or 'Sheet1!A1:B10')",
                     "Ensure target sheet exists in workbook"
-                }
+                ]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -295,12 +295,12 @@ Actions available as dropdown in MCP clients.")]
                     "Check formulas that referenced this parameter (will show #NAME? errors)",
                     inBatch ? "Continue batch operations" : "Delete more named ranges? Use excel_batch for efficiency"
                 }
-                : new[]
-                {
+                :
+                [
                     "Use 'list' to verify named range exists",
                     "Check if workbook or sheet is protected",
                     "Verify named range name spelling is correct"
-                }
+                ]
         }, ExcelToolsBase.JsonOptions);
     }
 

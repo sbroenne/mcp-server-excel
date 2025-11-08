@@ -12,20 +12,11 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
 /// Excel VBA script management tool for MCP server.
-/// Handles VBA macro operations, code management, and script execution.
+/// Manages VBA macro operations, code import/export, and script execution in macro-enabled workbooks.
 ///
 /// ⚠️ IMPORTANT: Requires .xlsm files! VBA operations only work with macro-enabled Excel files.
 ///
-/// LLM Usage Patterns:
-/// - Use "list" to see all VBA modules and procedures
-/// - Use "view" to inspect VBA code without exporting
-/// - Use "export" to backup VBA code to .vba files
-/// - Use "import" to load VBA modules from files
-/// - Use "update" to modify existing VBA modules
-/// - Use "run" to execute VBA macros with parameters
-/// - Use "delete" to remove VBA modules
-///
-/// Setup Required: Run setup-vba-trust command once before using VBA operations.
+/// Prerequisites: VBA trust must be enabled for automation. Use setup-vba-trust command to configure.
 /// </summary>
 [McpServerToolType]
 [SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments", Justification = "Simple workflow arrays in sealed static class")]

@@ -147,8 +147,8 @@ Actions available as dropdown in MCP clients.")]
             suggestedNextActions = result.Success
                 ? result.QueryTables?.Count > 0
                     ? new[] { "Use get action to view QueryTable details", "Use refresh action to reload data", "Use update-properties to modify refresh settings" }
-                    : new[] { "Use create-from-connection to import from data connection", "Use create-from-query to import from Power Query" }
-                : new[] { "Verify file path is correct", "Check if workbook has data connections", "Review error message for details" }
+                    : ["Use create-from-connection to import from data connection", "Use create-from-query to import from Power Query"]
+                : ["Verify file path is correct", "Check if workbook has data connections", "Review error message for details"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -173,7 +173,7 @@ Actions available as dropdown in MCP clients.")]
                 : $"Failed to get QueryTable '{queryTableName}'. Verify name is correct and QueryTable exists in workbook.",
             suggestedNextActions = result.Success
                 ? new[] { "Use refresh action to reload data", "Use update-properties to modify settings", "Use delete to remove QueryTable" }
-                : new[] { "Use list action to see all available QueryTables", "Check QueryTable name spelling", "Review error message for details" }
+                : ["Use list action to see all available QueryTables", "Check QueryTable name spelling", "Review error message for details"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -228,7 +228,7 @@ Actions available as dropdown in MCP clients.")]
                 : $"Failed to create QueryTable from connection. Check connection name '{connectionName}' exists and destination sheet '{sheetName}' is valid.",
             suggestedNextActions = result.Success
                 ? new[] { "Use get action to view QueryTable properties", "Use refresh to reload data", "Use update-properties to modify settings" }
-                : new[] { "Use excel_connection list to verify connection exists", "Check sheet name is valid", "Review error message for details" }
+                : ["Use excel_connection list to verify connection exists", "Check sheet name is valid", "Review error message for details"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -283,7 +283,7 @@ Actions available as dropdown in MCP clients.")]
                 : $"Failed to create QueryTable from Power Query. Check query name '{queryName}' exists and destination sheet '{sheetName}' is valid.",
             suggestedNextActions = result.Success
                 ? new[] { "Use get action to view QueryTable properties", "Use refresh to reload data", "Use update-properties to modify settings" }
-                : new[] { "Use excel_powerquery list to verify query exists", "Check sheet name is valid", "Review error message for details" }
+                : ["Use excel_powerquery list to verify query exists", "Check sheet name is valid", "Review error message for details"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -307,7 +307,7 @@ Actions available as dropdown in MCP clients.")]
                 : $"Failed to refresh QueryTable '{queryTableName}'. Check data source connectivity and query validity.",
             suggestedNextActions = result.Success
                 ? new[] { "Use get action to verify updated data", "Use update-properties to modify refresh settings", "Review refreshed worksheet" }
-                : new[] { "Verify data source is accessible", "Check connection credentials", "Review error message for connectivity issues" }
+                : ["Verify data source is accessible", "Check connection credentials", "Review error message for connectivity issues"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -328,7 +328,7 @@ Actions available as dropdown in MCP clients.")]
                 : "Failed to refresh all QueryTables. One or more data sources may be inaccessible.",
             suggestedNextActions = result.Success
                 ? new[] { "Use list to see all QueryTables", "Use get to inspect individual QueryTables", "Review workbook for updated data" }
-                : new[] { "Use refresh action to refresh individual QueryTables", "Check data source connectivity", "Review error message for specific failures" }
+                : ["Use refresh action to refresh individual QueryTables", "Check data source connectivity", "Review error message for specific failures"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -372,7 +372,7 @@ Actions available as dropdown in MCP clients.")]
                 : $"Failed to update QueryTable '{queryTableName}' properties. Verify QueryTable exists and property values are valid.",
             suggestedNextActions = result.Success
                 ? new[] { "Use get action to verify updated properties", "Use refresh to test new settings", "Review QueryTable behavior" }
-                : new[] { "Use list to verify QueryTable exists", "Check property values are valid", "Review error message for details" }
+                : ["Use list to verify QueryTable exists", "Check property values are valid", "Review error message for details"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -396,7 +396,7 @@ Actions available as dropdown in MCP clients.")]
                 : $"Failed to delete QueryTable '{queryTableName}'. Verify QueryTable exists and is not protected.",
             suggestedNextActions = result.Success
                 ? new[] { "Use list to verify deletion", "Review workbook structure", "Clean up unused connections if needed" }
-                : new[] { "Use list to verify QueryTable exists", "Check if worksheet is protected", "Review error message for details" }
+                : ["Use list to verify QueryTable exists", "Check if worksheet is protected", "Review error message for details"]
         }, ExcelToolsBase.JsonOptions);
     }
 }

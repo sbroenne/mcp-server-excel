@@ -153,61 +153,79 @@ function Check-NamingConsistency {
     return $mismatches
 }
 
-# Define interfaces to check
-$interfaces = @(
-    @{
-        Name = "IPowerQueryCommands"
-        Path = "$rootDir/src/ExcelMcp.Core/Commands/PowerQuery/IPowerQueryCommands.cs"
-        Enum = "PowerQueryAction"
-    },
-    @{
-        Name = "ISheetCommands"
-        Path = "$rootDir/src/ExcelMcp.Core/Commands/Sheet/ISheetCommands.cs"
-        Enum = "WorksheetAction"
-    },
-    @{
-        Name = "IRangeCommands"
-        Path = "$rootDir/src/ExcelMcp.Core/Commands/Range/IRangeCommands.cs"
-        Enum = "RangeAction"
-    },
-    @{
-        Name = "ITableCommands"
-        Path = "$rootDir/src/ExcelMcp.Core/Commands/Table/ITableCommands.cs"
-        Enum = "TableAction"
-    },
-    @{
-        Name = "IConnectionCommands"
-        Path = "$rootDir/src/ExcelMcp.Core/Commands/Connection/IConnectionCommands.cs"
-        Enum = "ConnectionAction"
-    },
-    @{
-        Name = "IDataModelCommands"
-        Path = "$rootDir/src/ExcelMcp.Core/Commands/DataModel/IDataModelCommands.cs"
-        Enum = "DataModelAction"
-    },
-    @{
-        Name = "IPivotTableCommands"
-        Path = "$rootDir/src/ExcelMcp.Core/Commands/PivotTable/IPivotTableCommands.cs"
-        Enum = "PivotTableAction"
-    },
-    @{
-        Name = "INamedRangeCommands"
-        Path = "$rootDir/src/ExcelMcp.Core/Commands/NamedRange/INamedRangeCommands.cs"
-        Enum = "NamedRangeAction"
-    },
-    @{
-        Name = "IVbaCommands"
-        Path = "$rootDir/src/ExcelMcp.Core/Commands/Vba/IVbaCommands.cs"
-        Enum = "VbaAction"
-    },
-    @{
-        Name = "IFileCommands"
-        Path = "$rootDir/src/ExcelMcp.Core/Commands/IFileCommands.cs"
-        Enum = "FileAction"
+# Discover all enum types from ToolActions.cs
+function Get-AllEnumTypes {
+    param([string]$ToolActionsPath)
+
+    if (-not (Test-Path $ToolActionsPath)) {
+        return @()
     }
-)
+
+    $content = Get-Content $ToolActionsPath -Raw
+    $enumPattern = "public\s+enum\s+(\w+Action)\s*\{"
+    $matches = [regex]::Matches($content, $enumPattern)
+
+    $enumTypes = @()
+    foreach ($match in $matches) {
+        $enumTypes += $match.Groups[1].Value
+    }
+
+    return $enumTypes
+}
+
+# Discover interface files dynamically
+function Find-InterfaceForEnum {
+    param(
+        [string]$EnumType,
+        [string]$CommandsPath
+    )
+
+    # Map enum type to expected interface name
+    # Pattern: PowerQueryAction -> IPowerQueryCommands
+    # Special case: WorksheetAction -> ISheetCommands
+
+    $enumToInterface = @{
+        "WorksheetAction" = "ISheetCommands"  # Known exception
+    }
+
+    if ($enumToInterface.ContainsKey($EnumType)) {
+        $interfaceName = $enumToInterface[$EnumType]
+    } else {
+        # Standard pattern: {Name}Action -> I{Name}Commands
+        $baseName = $EnumType -replace 'Action$', ''
+        $interfaceName = "I${baseName}Commands"
+    }
+
+    # Search recursively for interface file
+    $interfaceFiles = Get-ChildItem -Path $CommandsPath -Recurse -Filter "$interfaceName.cs"
+
+    if ($interfaceFiles.Count -eq 0) {
+        return $null
+    }
+
+    # Return the first match (should be only one)
+    return @{
+        Name = $interfaceName
+        Path = $interfaceFiles[0].FullName
+        Enum = $EnumType
+    }
+}
 
 $toolActionsPath = "$rootDir/src/ExcelMcp.McpServer/Models/ToolActions.cs"
+
+# Dynamically discover all interfaces to check
+$commandsPath = Join-Path $rootDir "src\ExcelMcp.Core\Commands"
+$enumTypes = Get-AllEnumTypes -ToolActionsPath $toolActionsPath
+
+$interfaces = @()
+foreach ($enumType in $enumTypes) {
+    $interface = Find-InterfaceForEnum -EnumType $enumType -CommandsPath $commandsPath
+    if ($interface) {
+        $interfaces += $interface
+    } else {
+        Write-Warning "No interface found for enum type: $enumType"
+    }
+}
 
 # Track results
 $results = @()
@@ -444,43 +462,66 @@ function Get-HandledEnumValues {
     }
 
     return @()
-}# Check switch completeness for each tool
+}
+
+# Check switch completeness for each tool
 $toolsPath = Join-Path $rootDir "src\ExcelMcp.McpServer\Tools"
 $switchIssues = @()
 $hasSwitchIssues = $false
 
-# Map interfaces to their tool files and enum types
-$toolMappings = @(
-    @{ Interface = "IPowerQueryCommands"; ToolFile = "ExcelPowerQueryTool.cs"; EnumType = "PowerQueryAction" }
-    @{ Interface = "ISheetCommands"; ToolFile = "ExcelWorksheetTool.cs"; EnumType = "WorksheetAction" }
-    @{ Interface = "IRangeCommands"; ToolFile = "ExcelRangeTool.cs"; EnumType = "RangeAction" }
-    @{ Interface = "ITableCommands"; ToolFile = "ExcelTableTool.cs"; EnumType = "TableAction" }
-    @{ Interface = "IConnectionCommands"; ToolFile = "ExcelConnectionTool.cs"; EnumType = "ConnectionAction" }
-    @{ Interface = "IDataModelCommands"; ToolFile = "ExcelDataModelTool.cs"; EnumType = "DataModelAction" }
-    @{ Interface = "IPivotTableCommands"; ToolFile = "ExcelPivotTableTool.cs"; EnumType = "PivotTableAction" }
-    @{ Interface = "INamedRangeCommands"; ToolFile = "ExcelNamedRangeTool.cs"; EnumType = "NamedRangeAction" }
-    @{ Interface = "IVbaCommands"; ToolFile = "ExcelVbaTool.cs"; EnumType = "VbaAction" }
-    @{ Interface = "IFileCommands"; ToolFile = "ExcelFileTool.cs"; EnumType = "FileAction" }
-)
+# Use the same discovered interfaces (already has Interface Name and EnumType)
+$enumMappings = $interfaces
 
-foreach ($mapping in $toolMappings) {
-    $toolFilePath = Join-Path $toolsPath $mapping.ToolFile
-    $enumValues = Get-EnumValueNames -EnumName $mapping.EnumType -ToolActionsPath $toolActionsPath
-    $handledValues = Get-HandledEnumValues -ToolFilePath $toolFilePath -EnumTypeName $mapping.EnumType
+foreach ($mapping in $enumMappings) {
+    $enumValues = Get-EnumValueNames -EnumName $mapping.Enum -ToolActionsPath $toolActionsPath
+
+    # Dynamically find the tool file that uses this enum type as the first 'action' parameter
+    # Look for: EnumType action, (as first parameter after method name)
+    # This avoids false positives from references to other enum types in the same file
+    $toolFiles = Get-ChildItem -Path $toolsPath -Filter "*.cs" | Where-Object {
+        $content = Get-Content $_.FullName -Raw
+        # Match the enum type as 'action' parameter in a method signature
+        # Use singleline mode ((?s)) to match across lines, and look for the enum just before 'action,'
+        $content -match "(?s)public\s+static\s+async\s+Task<string>\s+\w+\(.*?\b$($mapping.Enum)\s+action\s*,"
+    }
+
+    if ($toolFiles.Count -eq 0) {
+        Write-Host "⚠️  No tool file found for $($mapping.Enum)" -ForegroundColor Yellow
+        continue
+    }
+
+    if ($toolFiles.Count -gt 1) {
+        # Multiple files use this enum - pick the one with matching name pattern
+        # e.g., RangeAction -> RangeTool.cs or ExcelRangeTool.cs
+        $enumBase = $mapping.Enum -replace 'Action$', ''
+        $primaryTool = $toolFiles | Where-Object {
+            $_.Name -match "$enumBase`Tool\.cs"
+        } | Select-Object -First 1
+
+        if (-not $primaryTool) {
+            # Fallback to first file
+            $primaryTool = $toolFiles[0]
+        }
+        $toolFile = $primaryTool
+    } else {
+        $toolFile = $toolFiles[0]
+    }
+
+    $handledValues = Get-HandledEnumValues -ToolFilePath $toolFile.FullName -EnumTypeName $mapping.Enum
 
     # Find unhandled enum values
     $unhandled = $enumValues | Where-Object { $handledValues -notcontains $_ }
 
     if ($unhandled.Count -gt 0) {
         $hasSwitchIssues = $true
-        Write-Host "❌ $($mapping.ToolFile) ($($mapping.EnumType)):" -ForegroundColor Red
+        Write-Host "❌ $($toolFile.Name) ($($mapping.Enum)):" -ForegroundColor Red
         foreach ($value in $unhandled) {
-            Write-Host "   Missing case: $($mapping.EnumType).$value" -ForegroundColor Yellow
-            $switchIssues += "Missing case: $($mapping.EnumType).$value in $($mapping.ToolFile)"
+            Write-Host "   Missing case: $($mapping.Enum).$value" -ForegroundColor Yellow
+            $switchIssues += "Missing case: $($mapping.Enum).$value in $($toolFile.Name)"
         }
         Write-Host ""
     } else {
-        Write-Host "✅ $($mapping.ToolFile): All $($enumValues.Count) enum values handled" -ForegroundColor Green
+        Write-Host "✅ $($toolFile.Name): All $($enumValues.Count) enum values handled" -ForegroundColor Green
     }
 }
 

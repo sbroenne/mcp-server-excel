@@ -225,7 +225,7 @@ Use begin to start a session, commit to end it, list to debug.")]
                 : "No active batches.",
             suggestedNextActions = batches.Count > 0
                 ? new[] { "Commit batches with excel_batch(action: 'commit', batchId: '...')" }
-                : new[] { "Start batch with excel_batch(action: 'begin', filePath: '...')" },
+                : ["Start batch with excel_batch(action: 'begin', filePath: '...')"],
             workflowHint = batches.Count > 0
                 ? "Active batches found. Always commit to prevent resource leaks."
                 : "No active batches."

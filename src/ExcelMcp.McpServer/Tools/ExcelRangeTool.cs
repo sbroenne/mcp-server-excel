@@ -326,7 +326,7 @@ public static class ExcelRangeTool
                 : "Failed to read range values. Verify sheet and range address are valid.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'set-values' to update cell data", "Use 'get-formulas' to see formulas instead of values", "Use excel_table 'create' to convert range to structured table" }
-                : new[] { "Verify sheet name with excel_worksheet 'list'", "Check range address format (e.g., 'A1:D10')", "Use 'get-used-range' to discover data boundaries" }
+                : ["Verify sheet name with excel_worksheet 'list'", "Check range address format (e.g., 'A1:D10')", "Use 'get-used-range' to discover data boundaries"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -355,7 +355,7 @@ public static class ExcelRangeTool
                 : "Failed to write values to range. Verify range size matches data dimensions.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'get-values' to verify written data", "Use 'set-number-format' to apply formatting", "Use excel_worksheet 'save' if using batch mode" }
-                : new[] { "Check values array dimensions match range", "Verify sheet exists with excel_worksheet 'list'", "Use 'get-range-info' to check range dimensions" }
+                : ["Check values array dimensions match range", "Verify sheet exists with excel_worksheet 'list'", "Use 'get-range-info' to check range dimensions"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -389,7 +389,7 @@ public static class ExcelRangeTool
                 : "Failed to read formulas from range. Verify sheet and range address are valid.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'set-formulas' to update calculations", "Use 'copy-formulas' to duplicate logic to another range", "Inspect formulas for dependencies and references" }
-                : new[] { "Verify sheet name with excel_worksheet 'list'", "Check range address format", "Use 'get-values' to verify range exists" }
+                : ["Verify sheet name with excel_worksheet 'list'", "Check range address format", "Use 'get-values' to verify range exists"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -418,7 +418,7 @@ public static class ExcelRangeTool
                 : "Failed to write formulas. Verify formula syntax and range dimensions.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'get-formulas' to verify written formulas", "Use 'get-values' to see calculated results", "Check for #REF! or #VALUE! errors in results" }
-                : new[] { "Check formula syntax (must start with '=')", "Verify range size matches formula array dimensions", "Test formula in Excel UI first" }
+                : ["Check formula syntax (must start with '=')", "Verify range size matches formula array dimensions", "Test formula in Excel UI first"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -451,7 +451,7 @@ public static class ExcelRangeTool
                 : "Failed to read number formats. Verify sheet and range are valid.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'set-number-format' to apply uniform formatting", "Analyze format codes to understand data types", "Use 'set-number-formats' for cell-by-cell formatting" }
-                : new[] { "Verify sheet name with excel_worksheet 'list'", "Check range address format", "Use 'get-range-info' to verify range exists" }
+                : ["Verify sheet name with excel_worksheet 'list'", "Check range address format", "Use 'get-range-info' to verify range exists"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -477,7 +477,7 @@ public static class ExcelRangeTool
                 : "Failed to apply number format. Verify format code syntax.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'get-values' to see formatted display", "Use 'get-number-formats' to verify format applied", "Common formats: '$#,##0.00' (currency), '0.00%' (percent), 'm/d/yyyy' (date)" }
-                : new[] { "Test format code in Excel UI first", "Check format string syntax (e.g., '#,##0.00')", "Use built-in Excel format codes" }
+                : ["Test format code in Excel UI first", "Check format string syntax (e.g., '#,##0.00')", "Use built-in Excel format codes"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -506,7 +506,7 @@ public static class ExcelRangeTool
                 : "Failed to apply formats. Verify format array dimensions match range.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'get-number-formats' to verify applied formats", "Use 'set-number-format' for uniform formatting instead", "Mix currency, percentage, and date formats as needed" }
-                : new[] { "Check formats array dimensions match range", "Verify all format codes are valid", "Use 'set-number-format' for simpler uniform formatting" }
+                : ["Check formats array dimensions match range", "Verify all format codes are valid", "Use 'set-number-format' for simpler uniform formatting"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -532,7 +532,7 @@ public static class ExcelRangeTool
                 : "Failed to clear range. Verify sheet and range are valid.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'set-values' to repopulate with new data", "Use 'clear-contents' to preserve formatting next time", "Verify cleared with 'get-values' (should return empty)" }
-                : new[] { "Verify sheet exists with excel_worksheet 'list'", "Check range address format", "Ensure sheet is not protected" }
+                : ["Verify sheet exists with excel_worksheet 'list'", "Check range address format", "Ensure sheet is not protected"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -556,7 +556,7 @@ public static class ExcelRangeTool
                 : "Failed to clear contents. Verify sheet and range are valid.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'set-values' to write new data with existing formatting", "Use 'get-number-formats' to see preserved formats", "Use 'clear-all' to remove formatting too" }
-                : new[] { "Verify sheet name with excel_worksheet 'list'", "Check range address format", "Ensure cells are not locked" }
+                : ["Verify sheet name with excel_worksheet 'list'", "Check range address format", "Ensure cells are not locked"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -580,7 +580,7 @@ public static class ExcelRangeTool
                 : "Failed to clear formats. Verify sheet and range are valid.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'set-number-format' to apply new formatting", "Use 'get-values' to verify data still intact", "Use 'clear-contents' to remove data instead" }
-                : new[] { "Verify sheet name exists", "Check range address format", "Use 'clear-all' to remove everything" }
+                : ["Verify sheet name exists", "Check range address format", "Use 'clear-all' to remove everything"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -608,7 +608,7 @@ public static class ExcelRangeTool
                 : "Failed to copy range. Verify source and target ranges are valid.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'get-values' on target to verify copy", "Use 'copy-values' or 'copy-formulas' for selective copying", "Modify target range independently now" }
-                : new[] { "Check source range exists with 'get-values'", "Verify target range address format", "Ensure sheets exist with excel_worksheet 'list'" }
+                : ["Check source range exists with 'get-values'", "Verify target range address format", "Ensure sheets exist with excel_worksheet 'list'"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -634,7 +634,7 @@ public static class ExcelRangeTool
                 : "Failed to copy values. Verify source and target ranges.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'get-values' on target to verify", "Original formulas become static values in target", "Use 'set-number-format' to apply formatting to target" }
-                : new[] { "Check source range has data with 'get-values'", "Verify target range address", "Use 'copy' for complete duplication" }
+                : ["Check source range has data with 'get-values'", "Verify target range address", "Use 'copy' for complete duplication"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -660,7 +660,7 @@ public static class ExcelRangeTool
                 : "Failed to copy formulas. Verify source and target ranges.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'get-formulas' on target to verify adjusted references", "Relative references updated, absolute ($) preserved", "Check for #REF! errors if references broken" }
-                : new[] { "Verify source has formulas with 'get-formulas'", "Check target range address", "Use 'copy' to include values and formatting" }
+                : ["Verify source has formulas with 'get-formulas'", "Check target range address", "Use 'copy' to include values and formatting"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -693,7 +693,7 @@ public static class ExcelRangeTool
                 : $"Failed to insert cells with {shift} shift. Verify range and shift direction.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'set-values' to populate new cells", "Use 'delete-cells' to reverse operation", "Check formulas for updated references" }
-                : new[] { "Verify range address format", "Shift must be 'Down' or 'Right'", "Ensure sheet is not protected" }
+                : ["Verify range address format", "Shift must be 'Down' or 'Right'", "Ensure sheet is not protected"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -724,7 +724,7 @@ public static class ExcelRangeTool
                 : $"Failed to delete cells with {shift} shift. Verify range and shift direction.",
             suggestedNextActions = result.Success
                 ? new[] { "Verify no #REF! errors in formulas", "Use 'insert-cells' to reverse operation", "Check surrounding data integrity" }
-                : new[] { "Verify range address format", "Shift must be 'Up' or 'Left'", "Ensure cells are not part of table or locked" }
+                : ["Verify range address format", "Shift must be 'Up' or 'Left'", "Ensure cells are not part of table or locked"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -748,7 +748,7 @@ public static class ExcelRangeTool
                 : "Failed to insert rows. Verify range address.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'set-values' to populate new rows", "Check formulas for updated row references", "Use 'delete-rows' to reverse operation" }
-                : new[] { "Verify range address (e.g., 'A5' or 'A5:A10')", "Ensure sheet exists", "Check sheet is not protected" }
+                : ["Verify range address (e.g., 'A5' or 'A5:A10')", "Ensure sheet exists", "Check sheet is not protected"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -772,7 +772,7 @@ public static class ExcelRangeTool
                 : "Failed to delete rows. Verify range address.",
             suggestedNextActions = result.Success
                 ? new[] { "Verify no #REF! errors in formulas", "Check tables adjusted boundaries correctly", "Use 'insert-rows' to reverse if needed" }
-                : new[] { "Verify range address format", "Ensure rows are not part of protected sheet", "Cannot delete if only row in sheet" }
+                : ["Verify range address format", "Ensure rows are not part of protected sheet", "Cannot delete if only row in sheet"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -796,7 +796,7 @@ public static class ExcelRangeTool
                 : "Failed to insert columns. Verify range address.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'set-values' to populate new columns", "Check formulas for updated column references", "Use 'delete-columns' to reverse operation" }
-                : new[] { "Verify range address (e.g., 'C:C' or 'C1:C10')", "Ensure sheet exists", "Check sheet is not protected" }
+                : ["Verify range address (e.g., 'C:C' or 'C1:C10')", "Ensure sheet exists", "Check sheet is not protected"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -820,7 +820,7 @@ public static class ExcelRangeTool
                 : "Failed to delete columns. Verify range address.",
             suggestedNextActions = result.Success
                 ? new[] { "Verify no #REF! errors in formulas", "Check tables adjusted boundaries correctly", "Use 'insert-columns' to reverse if needed" }
-                : new[] { "Verify range address format", "Ensure columns are not part of protected sheet", "Cannot delete if only column in sheet" }
+                : ["Verify range address format", "Ensure columns are not part of protected sheet", "Cannot delete if only column in sheet"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -862,8 +862,8 @@ public static class ExcelRangeTool
             suggestedNextActions = result.Success && result.MatchingCells.Count > 0
                 ? new[] { "Use 'replace' to update matching cells", "Use 'get-values' on specific cell addresses", "Refine search with matchCase or matchEntireCell options" }
                 : result.Success
-                    ? new[] { "No matches found - try different search value", "Check searchFormulas/searchValues options", "Expand range to search larger area" }
-                    : new[] { "Verify range address format", "Ensure sheet exists with excel_worksheet 'list'", "Check search value is not empty" }
+                    ? ["No matches found - try different search value", "Check searchFormulas/searchValues options", "Expand range to search larger area"]
+                    : ["Verify range address format", "Ensure sheet exists with excel_worksheet 'list'", "Check search value is not empty"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -900,7 +900,7 @@ public static class ExcelRangeTool
                 : "Failed to replace values. Verify search value exists.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'find' to verify all occurrences replaced", "Use 'get-values' to check specific cells", "Undo with excel_batch if needed (before commit)" }
-                : new[] { "Use 'find' first to verify matches exist", "Check searchValue spelling", "Verify replaceValue is valid for cell type" }
+                : ["Use 'find' first to verify matches exist", "Check searchValue spelling", "Verify replaceValue is valid for cell type"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -930,7 +930,7 @@ public static class ExcelRangeTool
                 : "Failed to sort range. Verify range and sort columns.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'get-values' to verify sort order", "Headers treated as data if hasHeaders=false", "Excel supports max 3 sort levels" }
-                : new[] { "Verify columnIndex is 1-based within range", "Check range has data to sort", "Ensure sheet is not protected" }
+                : ["Verify columnIndex is 1-based within range", "Check range has data to sort", "Ensure sheet is not protected"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -961,7 +961,7 @@ public static class ExcelRangeTool
                 : "Failed to get used range. Sheet may be empty or invalid.",
             suggestedNextActions = result.Success
                 ? new[] { "Use this range address for other operations", "Clear unused areas with 'clear-all'", "Export to CSV or analyze with excel_table 'create'" }
-                : new[] { "Verify sheet exists with excel_worksheet 'list'", "Check if sheet has any data", "Empty sheets return no used range" }
+                : ["Verify sheet exists with excel_worksheet 'list'", "Check if sheet has any data", "Empty sheets return no used range"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -992,7 +992,7 @@ public static class ExcelRangeTool
                 : "Failed to get current region. Verify cell address.",
             suggestedNextActions = result.Success
                 ? new[] { "Use range address for bulk operations", "Convert to table with excel_table 'create'", "Sort or filter this data block" }
-                : new[] { "Verify sheet name with excel_worksheet 'list'", "Check cell address format (e.g., 'A5')", "Cell must be part of data block" }
+                : ["Verify sheet name with excel_worksheet 'list'", "Check cell address format (e.g., 'A5')", "Cell must be part of data block"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1021,7 +1021,7 @@ public static class ExcelRangeTool
                 : "Failed to get range info. Verify range address.",
             suggestedNextActions = result.Success
                 ? new[] { "Use dimensions to validate data array sizes", "Check format before setting values", "Address shows absolute Excel reference" }
-                : new[] { "Verify range address format", "Ensure sheet exists", "Check range is valid (e.g., 'A1:D10')" }
+                : ["Verify range address format", "Ensure sheet exists", "Check range is valid (e.g., 'A1:D10')"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1051,7 +1051,7 @@ public static class ExcelRangeTool
                 : "Failed to add hyperlink. Verify cell address.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'get-hyperlink' to verify", "Add tooltip for user guidance", "Cell shows clickable link" }
-                : new[] { "Verify cell address format (e.g., 'A1')", "Check URL is valid", "Sheet must not be protected" }
+                : ["Verify cell address format (e.g., 'A1')", "Check URL is valid", "Sheet must not be protected"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1077,7 +1077,7 @@ public static class ExcelRangeTool
                 : "Failed to remove hyperlink. Verify range has hyperlink.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'list-hyperlinks' to verify removal", "Cell formatting preserved", "Works on single cell or range" }
-                : new[] { "Check if cell/range has hyperlink", "Verify range address", "Use 'list-hyperlinks' to find hyperlinks" }
+                : ["Check if cell/range has hyperlink", "Verify range address", "Use 'list-hyperlinks' to find hyperlinks"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1106,8 +1106,8 @@ public static class ExcelRangeTool
             suggestedNextActions = result.Success && hyperlinkCount > 0
                 ? new[] { "Use 'get-hyperlink' for specific cell details", "Use 'remove-hyperlink' to delete", "Hyperlinks show cell address and URL" }
                 : result.Success
-                    ? new[] { "No hyperlinks in this sheet", "Add with 'add-hyperlink'", "Check other sheets" }
-                    : new[] { "Verify sheet exists with excel_worksheet 'list'", "Check sheet name spelling", "Sheet must not be empty" }
+                    ? ["No hyperlinks in this sheet", "Add with 'add-hyperlink'", "Check other sheets"]
+                    : ["Verify sheet exists with excel_worksheet 'list'", "Check sheet name spelling", "Sheet must not be empty"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1137,7 +1137,7 @@ public static class ExcelRangeTool
                 : "No hyperlink at this cell. Verify cell address.",
             suggestedNextActions = result.Success
                 ? new[] { "Update with 'add-hyperlink' (overwrites)", "Remove with 'remove-hyperlink'", "DisplayText shows in cell" }
-                : new[] { "Use 'list-hyperlinks' to find all hyperlinks", "Verify cell has hyperlink", "Check cell address format" }
+                : ["Use 'list-hyperlinks' to find all hyperlinks", "Verify cell has hyperlink", "Check cell address format"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1171,7 +1171,7 @@ public static class ExcelRangeTool
                 : "Failed to apply style. Verify style name exists.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'get-style' to verify application", "Apply same style to other ranges", "Style includes font, fill, borders" }
-                : new[] { "Check built-in style names (e.g., 'Heading 1', 'Good', 'Bad')", "Verify range address", "Custom styles require Excel UI creation" }
+                : ["Check built-in style names (e.g., 'Heading 1', 'Good', 'Bad')", "Verify range address", "Custom styles require Excel UI creation"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1205,7 +1205,7 @@ public static class ExcelRangeTool
                 : "Range uses custom or no style.",
             suggestedNextActions = result.IsBuiltInStyle
                 ? new[] { "Apply this style to other ranges with 'set-style'", "Document style for reuse", "Built-in styles ensure consistency" }
-                : new[] { "Apply a built-in style with 'set-style'", "Use 'format-range' for custom formatting", "Check Excel UI for custom styles" }
+                : ["Apply a built-in style with 'set-style'", "Use 'format-range' for custom formatting", "Check Excel UI for custom styles"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1253,7 +1253,7 @@ public static class ExcelRangeTool
                 : "Failed to format range. Verify parameters.",
             suggestedNextActions = result.Success
                 ? new[] { "Combine with 'set-number-format' for complete formatting", "Use 'get-style' to document custom formatting", "Apply same format to other ranges" }
-                : new[] { "Check color format (hex: '#FF0000')", "Verify alignment values (left/center/right)", "Range must not be protected" }
+                : ["Check color format (hex: '#FF0000')", "Verify alignment values (left/center/right)", "Range must not be protected"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1303,7 +1303,7 @@ public static class ExcelRangeTool
                 : "Failed to apply validation. Verify type and formulas.",
             suggestedNextActions = result.Success
                 ? new[] { "Test validation by entering invalid data", "Use 'get-validation' to verify rules", "Dropdown shows for List validation type" }
-                : new[] { "Check validationType (List, WholeNumber, Decimal, Date, Time, TextLength, Custom)", "Verify formula1 syntax", "Range must not be protected" }
+                : ["Check validationType (List, WholeNumber, Decimal, Date, Time, TextLength, Custom)", "Verify formula1 syntax", "Range must not be protected"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1343,7 +1343,7 @@ public static class ExcelRangeTool
                 : "No validation rules or failed to retrieve.",
             suggestedNextActions = result.Success
                 ? new[] { "Apply same rules to other ranges with 'validate-range'", "Remove with 'remove-validation'", "Document rules for compliance" }
-                : new[] { "Range may not have validation rules", "Apply rules with 'validate-range'", "Check range address" }
+                : ["Range may not have validation rules", "Apply rules with 'validate-range'", "Check range address"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1372,7 +1372,7 @@ public static class ExcelRangeTool
                 : "Failed to remove validation.",
             suggestedNextActions = result.Success
                 ? new[] { "Verify with 'get-validation'", "Apply new rules with 'validate-range'", "Data validation removed, not cell data" }
-                : new[] { "Range may not have validation", "Check range address", "Verify range is not protected" }
+                : ["Range may not have validation", "Check range address", "Verify range is not protected"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1401,7 +1401,7 @@ public static class ExcelRangeTool
                 : "Failed to auto-fit columns.",
             suggestedNextActions = result.Success
                 ? new[] { "Verify column widths in Excel UI", "Combine with 'auto-fit-rows' for full auto-fit", "Works best with wrapped text disabled" }
-                : new[] { "Verify range address", "Check if columns contain data", "Range must not be protected" }
+                : ["Verify range address", "Check if columns contain data", "Range must not be protected"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1430,7 +1430,7 @@ public static class ExcelRangeTool
                 : "Failed to auto-fit rows.",
             suggestedNextActions = result.Success
                 ? new[] { "Verify row heights in Excel UI", "Enable wrap text for multi-line cells", "Combine with 'auto-fit-columns'" }
-                : new[] { "Verify range address", "Check if rows contain data", "Range must not be protected" }
+                : ["Verify range address", "Check if rows contain data", "Range must not be protected"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1459,7 +1459,7 @@ public static class ExcelRangeTool
                 : "Failed to merge cells.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'get-merge-info' to verify merge", "Unmerge with 'unmerge-cells'", "Only top-left value kept, others discarded" }
-                : new[] { "Verify range is multi-cell (e.g., 'A1:B2')", "Check if already merged", "Range must not be protected" }
+                : ["Verify range is multi-cell (e.g., 'A1:B2')", "Check if already merged", "Range must not be protected"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1488,7 +1488,7 @@ public static class ExcelRangeTool
                 : "Failed to unmerge cells.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'get-merge-info' to verify unmerge", "Remerge with 'merge-cells'", "Value stays in top-left cell only" }
-                : new[] { "Check if range contains merged cells", "Verify range address", "Use 'get-merge-info' to find merges" }
+                : ["Check if range contains merged cells", "Verify range address", "Use 'get-merge-info' to find merges"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1520,8 +1520,8 @@ public static class ExcelRangeTool
             suggestedNextActions = result.Success && ((dynamic)result).IsMerged
                 ? new[] { "Unmerge with 'unmerge-cells'", "MergeAddress shows full merged range", "Only top-left cell holds value" }
                 : result.Success
-                    ? new[] { "Merge cells with 'merge-cells'", "Check adjacent cells for merges", "Not merged - cells independent" }
-                    : new[] { "Verify cell address format", "Check range exists", "Ensure sheet is not empty" }
+                    ? ["Merge cells with 'merge-cells'", "Check adjacent cells for merges", "Not merged - cells independent"]
+                    : ["Verify cell address format", "Check range exists", "Ensure sheet is not empty"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1557,7 +1557,7 @@ public static class ExcelRangeTool
                 : "Failed to add conditional formatting.",
             suggestedNextActions = result.Success
                 ? new[] { "Verify formatting in Excel UI", "Clear with 'clear-conditional-formatting'", "Rules: CellValue, Expression, ColorScale, DataBar, IconSet" }
-                : new[] { "Check ruleType (CellValue, Expression, ColorScale, DataBar, IconSet)", "Verify formula syntax", "Range must not be protected" }
+                : ["Check ruleType (CellValue, Expression, ColorScale, DataBar, IconSet)", "Verify formula syntax", "Range must not be protected"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1586,7 +1586,7 @@ public static class ExcelRangeTool
                 : "Failed to clear conditional formatting.",
             suggestedNextActions = result.Success
                 ? new[] { "Add new rules with 'add-conditional-formatting'", "Static cell formatting unaffected", "Rules removed, not cell values" }
-                : new[] { "Check if range has conditional formatting", "Verify range address", "Range must not be protected" }
+                : ["Check if range has conditional formatting", "Verify range address", "Range must not be protected"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1621,7 +1621,7 @@ public static class ExcelRangeTool
                 : "Failed to set cell lock.",
             suggestedNextActions = result.Success
                 ? new[] { "Protect sheet with excel_worksheet 'protect'", "Lock applies only when sheet protected", "Use 'get-cell-lock' to verify" }
-                : new[] { "Verify range address", "Check range is not protected", "Lock property independent of protection" }
+                : ["Verify range address", "Check range is not protected", "Lock property independent of protection"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1651,7 +1651,7 @@ public static class ExcelRangeTool
                 : "Failed to get cell lock status.",
             suggestedNextActions = result.Success
                 ? new[] { "Toggle with 'set-cell-lock'", "Lock effective only when sheet protected", "By default all cells are locked" }
-                : new[] { "Verify range address", "Check range exists", "Ensure sheet is not empty" }
+                : ["Verify range address", "Check range exists", "Ensure sheet is not empty"]
         }, ExcelToolsBase.JsonOptions);
     }
 }
