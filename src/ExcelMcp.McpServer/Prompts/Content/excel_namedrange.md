@@ -1,8 +1,13 @@
-# excel_parameter Tool
+# excel_namedrange Tool
+
+**Related tools**:
+- excel_batch - Use for 2+ named range operations (75-90% faster) OR use create-bulk action
+- excel_range - For reading/writing data in named ranges (use sheetName="")
+- excel_powerquery - Named ranges can be used as Power Query parameters
 
 **Actions**: list, get, set, create, update, delete, create-bulk
 
-**When to use excel_parameter**:
+**When to use excel_namedrange**:
 - Named ranges as configuration parameters
 - Reusable cell references
 - Settings, thresholds, dates

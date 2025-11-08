@@ -1,5 +1,14 @@
 # excel_range Tool
 
+**⚠️ BEFORE CALLING 'validate-range'**: Check data_validation.md elicitation
+**⚠️ BEFORE CALLING 'format-range'**: Check range_formatting.md elicitation
+
+**Related tools**:
+- excel_batch - Use for 2+ range operations (75-90% faster)
+- excel_table - For structured tables with AutoFilter and structured references
+- excel_namedrange - For defining reusable range names
+- excel_worksheet - For sheet lifecycle (create, delete, rename)
+
 **Actions**: get-values, set-values, get-formulas, set-formulas, get-number-formats, set-number-format, set-number-formats, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink, get-style, set-style, format-range, validate-range, get-validation, remove-validation, autofit-columns, autofit-rows, merge-cells, unmerge-cells, get-merge-info, add-conditional-formatting, clear-conditional-formatting, set-cell-lock, get-cell-lock
 
 **When to use excel_range**:

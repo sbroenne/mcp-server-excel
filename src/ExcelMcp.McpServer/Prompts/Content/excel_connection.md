@@ -1,5 +1,10 @@
 # excel_connection Tool
 
+**Related tools**:
+- excel_powerquery - For creating new data connections (recommended)
+- excel_querytable - QueryTables use connections for data loading
+- excel_batch - Use for multiple connection operations (75-90% faster)
+
 **Actions**: list, view, import, export, update-properties, test, refresh, delete, load-to, get-properties, set-properties
 
 **When to use excel_connection**:

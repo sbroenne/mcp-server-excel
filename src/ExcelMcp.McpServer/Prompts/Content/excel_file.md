@@ -1,5 +1,11 @@
 # excel_file Tool
 
+**Related tools**:
+- excel_worksheet - Add sheets after creating workbook
+- excel_powerquery - Load data into new workbook
+- excel_range - Write initial data to new workbook
+- excel_vba - Use .xlsm extension for macro-enabled workbooks
+
 **Actions**: create-empty, close-workbook, test
 
 **When to use excel_file**:

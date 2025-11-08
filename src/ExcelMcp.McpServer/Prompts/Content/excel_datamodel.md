@@ -1,5 +1,13 @@
 # excel_datamodel Tool
 
+**⚠️ BEFORE CALLING 'create-measure'**: Check dax_measure.md elicitation for complete parameter checklist
+
+**Related tools**:
+- excel_powerquery - Load data to data model first (loadDestination='data-model' or 'both')
+- excel_table - Use add-to-datamodel action to add Excel tables to data model
+- excel_pivottable - Create PivotTables from data model tables
+- excel_batch - Use for creating multiple measures (75-90% faster)
+
 **Actions**: list-tables, view-table, list-columns, list-measures, view-measure, export-measure, create-measure, update-measure, delete-measure, list-relationships, create-relationship, update-relationship, delete-relationship, get-model-info, refresh
 
 **When to use excel_datamodel**:

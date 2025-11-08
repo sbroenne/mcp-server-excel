@@ -1,5 +1,11 @@
 # excel_batch Tool
 
+**⚠️ BEFORE STARTING**: Check batch_workflow.md elicitation for planning checklist
+
+**Related tools**:
+- ALL excel_* tools support batchId parameter for batch operations
+- See tool_selection_guide.md for batch mode detection keywords
+
 **Actions**: begin, commit, list
 
 **When to use excel_batch**:

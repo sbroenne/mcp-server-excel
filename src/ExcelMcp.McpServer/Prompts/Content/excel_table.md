@@ -1,5 +1,13 @@
 # excel_table Tool
 
+**⚠️ BEFORE CALLING 'create'**: Check table_creation.md elicitation for complete parameter checklist
+
+**Related tools**:
+- excel_batch - Use for 2+ table operations (75-90% faster)
+- excel_range - For reading/writing table data (use get-structured-reference to get range address)
+- excel_powerquery - For importing external data to tables
+- excel_datamodel - Use add-to-datamodel action to enable DAX measures
+
 **Actions**: list, info, create, rename, delete, resize, set-style, toggle-totals, set-column-total, append, add-to-datamodel, apply-filter, apply-filter-values, clear-filters, get-filters, add-column, remove-column, rename-column, get-structured-reference, sort, sort-multi, get-column-number-format, set-column-number-format
 
 **When to use excel_table**:
