@@ -31,9 +31,14 @@ LOAD DESTINATIONS (loadDestination parameter):
 - 'both': Load to BOTH worksheet AND Data Model
 - 'connection-only': Don't load data (M code imported but not executed)
 
+WHEN TO USE CREATE vs UPDATE:
+- Create: For NEW queries only (FAILS with 'already exists' error if query exists)
+- Update: For EXISTING queries (updates M code + refreshes data)
+- Not sure? Use List action first to check if query exists
+
 OPERATIONS GUIDANCE:
-- Create: Import M code from .pq file AND optionally load data in ONE operation
-- Update: Update M code AND refresh data in ONE operation (complete operation, keeps data fresh)
+- Create: Import M code from .pq file AND optionally load data (NEW queries only)
+- Update: Update M code AND refresh data in ONE operation (EXISTING queries only)
 - LoadTo: Apply load destination to connection-only query (make it load data to a worksheet or Data Model)
 - Unload: Convert query to connection-only (remove data, keep M code definition)
 - RefreshAll: Refresh ALL Power Queries in workbook (batch refresh)

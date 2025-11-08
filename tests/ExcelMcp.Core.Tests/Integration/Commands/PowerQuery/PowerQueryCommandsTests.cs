@@ -294,6 +294,43 @@ in
         Assert.True(result.Success);
     }
 
+    /// <summary>
+    /// Tests that attempting to Create a query that already exists returns an error.
+    /// LLM use case: "accidentally trying to create the same query twice"
+    /// Real bug: LLM using Create action on existing query instead of Update
+    /// </summary>
+    [Fact]
+    public async Task Create_DuplicateQueryName_ReturnsError()
+    {
+        // Arrange
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(PowerQueryCommandsTests),
+            nameof(Create_DuplicateQueryName_ReturnsError),
+            _tempDir);
+
+        var queryName = "TestQuery";
+        var testQueryFile = CreateUniqueTestQueryFile(nameof(Create_DuplicateQueryName_ReturnsError));
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
+
+        // Act 1: Create query first time (should succeed)
+        var firstCreate = await _powerQueryCommands.CreateAsync(batch, queryName, testQueryFile);
+        Assert.True(firstCreate.Success, $"First create should succeed: {firstCreate.ErrorMessage}");
+
+        // Act 2: Try to Create same query again (should fail)
+        var secondCreate = await _powerQueryCommands.CreateAsync(batch, queryName, testQueryFile);
+
+        // Assert: Second create should fail with clear error message
+        Assert.False(secondCreate.Success, "Second create should fail");
+        Assert.Contains("already exists", secondCreate.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(queryName, secondCreate.ErrorMessage);
+
+        // Verify query still exists and wasn't corrupted
+        var viewResult = await _powerQueryCommands.ViewAsync(batch, queryName);
+        Assert.True(viewResult.Success);
+        Assert.NotEmpty(viewResult.MCode);
+    }
+
     #endregion
 
     #region Load Destination Workflows (3 tests)
