@@ -326,6 +326,71 @@ in
         Assert.Contains(listResult.Worksheets, s => s.Name == sheetName);
     }
 
+    /// <summary>
+    /// REGRESSION TEST for reported user bug (2025-01-28):
+    /// User workflow: Create query loaded to worksheet → UpdateMCode → Refresh → query becomes connection-only
+    ///
+    /// This test validates that UpdateMCode + Refresh preserves load configuration.
+    /// Expected: Load configuration should survive both UpdateMCode AND Refresh operations.
+    /// </summary>
+    [Fact]
+    public async Task UpdateMCodeThenRefresh_QueryLoadedToSheet_PreservesLoadConfiguration()
+    {
+        // Arrange
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(PowerQueryCommandsTests),
+            nameof(UpdateMCodeThenRefresh_QueryLoadedToSheet_PreservesLoadConfiguration),
+            _tempDir);
+
+        var queryName = "LoadedQuery_" + Guid.NewGuid().ToString("N")[..8];
+        var sheetName = "DataSheet";
+        var initialQueryFile = CreateUniqueTestQueryFile("Initial");
+        var updatedQueryFile = Path.Join(_tempDir, $"updated_{Guid.NewGuid():N}.pq");
+        System.IO.File.WriteAllText(updatedQueryFile,
+            @"let
+    UpdatedSource = #table(
+        {""NewCol1"", ""NewCol2""},
+        {
+            {""Updated1"", ""Updated2""},
+            {""Data1"", ""Data2""}
+        }
+    )
+in
+    UpdatedSource");
+
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+
+        // STEP 1: Create query and load to worksheet
+        var createResult = await _powerQueryCommands.CreateAsync(batch, queryName, initialQueryFile, PowerQueryLoadMode.LoadToTable, sheetName);
+        Assert.True(createResult.Success, $"Create failed: {createResult.ErrorMessage}");
+
+        // STEP 2: Verify initial load configuration
+        var loadConfigBefore = await _powerQueryCommands.GetLoadConfigAsync(batch, queryName);
+        Assert.True(loadConfigBefore.Success, "GetLoadConfig before update failed");
+        Assert.Equal(PowerQueryLoadMode.LoadToTable, loadConfigBefore.LoadMode);
+        Assert.Equal(sheetName, loadConfigBefore.TargetSheet);
+
+        // STEP 3: Update M code (this is what user reported doing)
+        var updateResult = await _powerQueryCommands.UpdateMCodeAsync(batch, queryName, updatedQueryFile);
+        Assert.True(updateResult.Success, $"UpdateMCode failed: {updateResult.ErrorMessage}");
+
+        // STEP 4: Refresh (this is where user reported load config was lost)
+        var refreshResult = await _powerQueryCommands.RefreshAsync(batch, queryName);
+        Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
+
+        // STEP 5: THE CRITICAL CHECK - Does load config survive UpdateMCode + Refresh?
+        var loadConfigAfterRefresh = await _powerQueryCommands.GetLoadConfigAsync(batch, queryName);
+        Assert.True(loadConfigAfterRefresh.Success, "GetLoadConfig after refresh failed");
+
+        // THE BUG REPRODUCTION: This assertion might fail if Refresh loses load configuration
+        Assert.Equal(PowerQueryLoadMode.LoadToTable, loadConfigAfterRefresh.LoadMode);
+        Assert.Equal(sheetName, loadConfigAfterRefresh.TargetSheet);
+
+        // STEP 6: Verify data is actually on the sheet (not connection-only)
+        Assert.False(string.IsNullOrEmpty(loadConfigAfterRefresh.TargetSheet),
+            "Query should have a target sheet (not be connection-only)");
+    }
+
     #endregion
 
     #region Column Structure Regression Tests (2 tests)
