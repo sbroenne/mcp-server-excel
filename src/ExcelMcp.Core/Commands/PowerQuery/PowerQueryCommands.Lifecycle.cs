@@ -849,16 +849,93 @@ public partial class PowerQueryCommands
                     query.Formula = mCode;
 
                     // Auto-refresh to keep data in sync with new M code
-                    // Note: RefreshAsync handles connection-only queries gracefully
+                    // For UpdateAsync, we need to recreate QueryTables to handle column structure changes
+
+                    // Step 1: Recreate QueryTables with new schema (handles column structure changes)
+                    bool queryTableRecreated = false;
+                    dynamic? sheets = null;
+                    try
+                    {
+                        sheets = ctx.Book.Worksheets;
+                        for (int s = 1; s <= sheets.Count; s++)
+                        {
+                            dynamic? sheet = null;
+                            dynamic? queryTables = null;
+                            try
+                            {
+                                sheet = sheets.Item(s);
+                                queryTables = sheet.QueryTables;
+
+                                // Find QueryTable for this query and recreate it
+                                for (int q = queryTables.Count; q >= 1; q--)
+                                {
+                                    dynamic? qt = null;
+                                    try
+                                    {
+                                        qt = queryTables.Item(q);
+                                        string qtName = qt.Name?.ToString() ?? "";
+                                        // Use Contains like DeleteAsync does (Excel may modify QueryTable names)
+                                        if (qtName.Contains(queryName, StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            // Delete old QueryTable
+                                            qt.Delete();
+                                            ComUtilities.Release(ref qt);
+                                            qt = null; // Prevent double-release in finally block
+
+                                            // Recreate with new schema (query is still valid here)
+                                            dynamic? newQt = CreateQueryTableForQuery(sheet, query);
+                                            try
+                                            {
+                                                newQt.Refresh(false); // Synchronous refresh
+                                                queryTableRecreated = true;
+                                            }
+                                            finally
+                                            {
+                                                ComUtilities.Release(ref newQt!);
+                                            }
+                                            break; // Only one QueryTable per query per sheet
+                                        }
+                                    }
+                                    finally
+                                    {
+                                        ComUtilities.Release(ref qt);
+                                    }
+                                }
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref queryTables);
+                                ComUtilities.Release(ref sheet);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref sheets);
+                    }
+
+                    // Release query and queries now that QueryTable recreation is done
                     ComUtilities.Release(ref query!);
                     ComUtilities.Release(ref queries!);
 
-                    var refreshResult = RefreshAsync(batch, queryName).GetAwaiter().GetResult();
-
-                    result.Success = refreshResult.Success;
-                    if (!refreshResult.Success)
+                    // Step 2: Refresh connection ONLY if no QueryTables were recreated
+                    // (QueryTable refresh already happened above; connection refresh would interfere)
+                    if (!queryTableRecreated)
                     {
-                        result.ErrorMessage = $"M code updated but refresh failed: {refreshResult.ErrorMessage}";
+                        try
+                        {
+                            RefreshConnectionByQueryName(ctx.Book, queryName);
+                            result.Success = true;
+                        }
+                        catch (COMException comEx)
+                        {
+                            result.Success = false;
+                            result.ErrorMessage = $"M code updated but refresh failed: {ParsePowerQueryError(comEx)}";
+                        }
+                    }
+                    else
+                    {
+                        result.Success = true;
                     }
 
                     return result;

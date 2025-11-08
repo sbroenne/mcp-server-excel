@@ -55,74 +55,36 @@ public partial class PowerQueryCommands
                 }
 
                 // Check if query has a connection to refresh
-                dynamic? targetConnection = null;
-                dynamic? connections = null;
                 try
                 {
-                    connections = ctx.Book.Connections;
-                    for (int i = 1; i <= connections.Count; i++)
-                    {
-                        dynamic? conn = null;
-                        try
-                        {
-                            conn = connections.Item(i);
-                            string connName = conn.Name?.ToString() ?? "";
-                            if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
-                                connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
-                            {
-                                targetConnection = conn;
-                                conn = null; // Don't release - we're using it
-                                break;
-                            }
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref conn);
-                        }
-                    }
+                    // Use RefreshConnectionByQueryName helper to avoid code duplication
+                    RefreshConnectionByQueryName(ctx.Book, queryName);
+
+                    // Check for errors after refresh
+                    result.HasErrors = false;
+                    result.Success = true;
+                    result.LoadedToSheet = DetermineLoadedSheet(ctx.Book, queryName);
+
+                    // Determine if connection-only based on whether it's loaded to a sheet OR Data Model
+                    bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
+                    result.IsConnectionOnly = string.IsNullOrEmpty(result.LoadedToSheet) && !isLoadedToDataModel;
+
+                    // Add workflow guidance
                 }
-                catch { }
-                finally
+                catch (COMException comEx)
                 {
-                    ComUtilities.Release(ref connections);
+                    // Capture detailed error information
+                    result.Success = false;
+                    result.HasErrors = true;
+                    result.ErrorMessages.Add(ParsePowerQueryError(comEx));
+                    result.ErrorMessage = string.Join("; ", result.ErrorMessages);
+
+                    var errorCategory = CategorizeError(comEx);
                 }
 
-                if (targetConnection != null)
+                // If no connection found, check if query is loaded to worksheet or data model
+                if (!result.Success && result.ErrorMessages.Count == 0)
                 {
-                    try
-                    {
-                        // Attempt refresh and capture any errors
-                        targetConnection.Refresh();
-
-                        // Check for errors after refresh
-                        result.HasErrors = false;
-                        result.Success = true;
-                        result.LoadedToSheet = DetermineLoadedSheet(ctx.Book, queryName);
-
-                        // Determine if connection-only based on whether it's loaded to a sheet OR Data Model
-                        bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
-                        result.IsConnectionOnly = string.IsNullOrEmpty(result.LoadedToSheet) && !isLoadedToDataModel;
-
-                        // Add workflow guidance
-                    }
-                    catch (COMException comEx)
-                    {
-                        // Capture detailed error information
-                        result.Success = false;
-                        result.HasErrors = true;
-                        result.ErrorMessages.Add(ParsePowerQueryError(comEx));
-                        result.ErrorMessage = string.Join("; ", result.ErrorMessages);
-
-                        var errorCategory = CategorizeError(comEx);
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref targetConnection);
-                    }
-                }
-                else
-                {
-                    // No connection found - but check if query has QueryTables (may have been configured to load)
                     ComUtilities.Release(ref query);
 
                     // Check if there are QueryTables that reference this query OR if it's in Data Model
