@@ -4,7 +4,9 @@ using Sbroenne.ExcelMcp.Core.Commands;
 using Xunit;
 using Xunit.Abstractions;
 
-// Suppress Path.Combine warnings - test code with controlled temp directory paths
+// CodeQL Suppressions - Intentional for diagnostic test code:
+// - Path.Combine: All file paths use controlled temp directory, no user input
+// - Generic catch: Diagnostic tests explore Excel COM API behavior, need to catch all exceptions
 #pragma warning disable CA3003 // Review code for file path injection vulnerabilities
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
