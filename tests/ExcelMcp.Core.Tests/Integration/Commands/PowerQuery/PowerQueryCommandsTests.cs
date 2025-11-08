@@ -143,6 +143,133 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
     }
 
     /// <summary>
+    /// REGRESSION TEST for bug report: Update action merges instead of replaces M code
+    ///
+    /// Bug: UpdateAsync was concatenating/merging new M code with existing M code instead of replacing it,
+    /// resulting in severely corrupted Power Query definitions with triple-merged comments, multiple let blocks,
+    /// and invalid M syntax.
+    ///
+    /// This test validates that UpdateAsync completely REPLACES M code (not merges/appends).
+    /// LLM use case: "update this query's M code and verify it was replaced"
+    /// </summary>
+    [Fact]
+    public async Task Update_ExistingQuery_ReplacesNotMergesMCode()
+    {
+        // Arrange
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(PowerQueryCommandsTests),
+            nameof(Update_ExistingQuery_ReplacesNotMergesMCode),
+            _tempDir);
+
+        var queryName = "PQ_ReplaceTest_" + Guid.NewGuid().ToString("N")[..8];
+
+        // Original M code with distinctive markers
+        var originalFile = Path.Join(_tempDir, $"original_{Guid.NewGuid():N}.pq");
+        var originalMCode = @"let
+    OriginalSource = ""ORIGINAL_MARKER"",
+    OriginalStep = ""Should be completely removed""
+in
+    OriginalSource";
+        System.IO.File.WriteAllText(originalFile, originalMCode);
+
+        // New M code that should completely replace original
+        var newFile = Path.Join(_tempDir, $"new_{Guid.NewGuid():N}.pq");
+        var newMCode = @"let
+    NewSource = ""NEW_MARKER"",
+    NewStep = ""Should be the only content""
+in
+    NewSource";
+        System.IO.File.WriteAllText(newFile, newMCode);
+
+        // Act
+        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
+
+        // Step 1: Create query with original M code
+        var createResult = await _powerQueryCommands.CreateAsync(batch, queryName, originalFile);
+        Assert.True(createResult.Success, $"Create failed: {createResult.ErrorMessage}");
+
+        // Step 2: Update with new M code
+        var updateResult = await _powerQueryCommands.UpdateAsync(batch, queryName, newFile);
+        Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
+
+        // Step 3: View the resulting M code
+        var viewResult = await _powerQueryCommands.ViewAsync(batch, queryName);
+        Assert.True(viewResult.Success, $"View failed: {viewResult.ErrorMessage}");
+
+        // Assert - CRITICAL: Verify M code was REPLACED, not merged
+        // 1. Should contain the new M code
+        Assert.Contains("NEW_MARKER", viewResult.MCode);
+        Assert.Contains("NewSource", viewResult.MCode);
+        Assert.Contains("Should be the only content", viewResult.MCode);
+
+        // 2. Should NOT contain any traces of the original M code
+        Assert.DoesNotContain("ORIGINAL_MARKER", viewResult.MCode);
+        Assert.DoesNotContain("OriginalSource", viewResult.MCode);
+        Assert.DoesNotContain("Should be completely removed", viewResult.MCode);
+
+        // 3. Should not have duplicate 'let' or 'in' keywords (sign of merging)
+        int letCount = System.Text.RegularExpressions.Regex.Matches(viewResult.MCode, @"\blet\b").Count;
+        int inCount = System.Text.RegularExpressions.Regex.Matches(viewResult.MCode, @"\bin\b").Count;
+        Assert.Equal(1, letCount);
+        Assert.Equal(1, inCount);
+    }
+
+    /// <summary>
+    /// REGRESSION TEST: Multiple sequential updates should each completely replace M code
+    ///
+    /// This test validates that the merging bug doesn't compound with multiple updates.
+    /// LLM use case: "update this query multiple times during development"
+    /// </summary>
+    [Fact]
+    public async Task Update_MultipleSequentialUpdates_EachReplacesCompletely()
+    {
+        // Arrange
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(PowerQueryCommandsTests),
+            nameof(Update_MultipleSequentialUpdates_EachReplacesCompletely),
+            _tempDir);
+
+        var queryName = "PQ_MultiUpdate_" + Guid.NewGuid().ToString("N")[..8];
+
+        // Create three different M code versions
+        var version1File = Path.Join(_tempDir, $"v1_{Guid.NewGuid():N}.pq");
+        System.IO.File.WriteAllText(version1File, "let\n    V1 = \"VERSION_1\"\nin\n    V1");
+
+        var version2File = Path.Join(_tempDir, $"v2_{Guid.NewGuid():N}.pq");
+        System.IO.File.WriteAllText(version2File, "let\n    V2 = \"VERSION_2\"\nin\n    V2");
+
+        var version3File = Path.Join(_tempDir, $"v3_{Guid.NewGuid():N}.pq");
+        System.IO.File.WriteAllText(version3File, "let\n    V3 = \"VERSION_3\"\nin\n    V3");
+
+        // Act
+        await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
+
+        // Create with version 1
+        await _powerQueryCommands.CreateAsync(batch, queryName, version1File);
+
+        // Update to version 2
+        await _powerQueryCommands.UpdateAsync(batch, queryName, version2File);
+
+        // Update to version 3
+        await _powerQueryCommands.UpdateAsync(batch, queryName, version3File);
+
+        // View final result
+        var viewResult = await _powerQueryCommands.ViewAsync(batch, queryName);
+        Assert.True(viewResult.Success);
+
+        // Assert - Should only have version 3, no traces of v1 or v2
+        Assert.Contains("VERSION_3", viewResult.MCode);
+        Assert.DoesNotContain("VERSION_1", viewResult.MCode);
+        Assert.DoesNotContain("VERSION_2", viewResult.MCode);
+
+        // Verify no compound merging (should still have exactly 1 let/in)
+        int letCount = System.Text.RegularExpressions.Regex.Matches(viewResult.MCode, @"\blet\b").Count;
+        int inCount = System.Text.RegularExpressions.Regex.Matches(viewResult.MCode, @"\bin\b").Count;
+        Assert.Equal(1, letCount);
+        Assert.Equal(1, inCount);
+    }
+
+    /// <summary>
     /// Tests deleting an existing query.
     /// LLM use case: "delete this Power Query"
     /// </summary>
