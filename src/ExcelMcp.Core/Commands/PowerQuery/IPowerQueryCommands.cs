@@ -48,11 +48,6 @@ public interface IPowerQueryCommands
     /// </summary>
     Task<WorksheetListResult> ListExcelSourcesAsync(IExcelBatch batch);
 
-    /// <summary>
-    /// Evaluates M code expressions interactively
-    /// </summary>
-    Task<PowerQueryViewResult> EvalAsync(IExcelBatch batch, string mExpression);
-
     // =========================================================================
     // ATOMIC OPERATIONS - Improved Workflows
     // =========================================================================

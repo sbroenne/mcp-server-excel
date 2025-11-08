@@ -61,7 +61,6 @@ internal sealed class Program
                 "pq-view" => powerQuery.View(args),
                 "pq-export" => await powerQuery.Export(args),
                 "pq-sources" => powerQuery.Sources(args),
-                "pq-verify" => powerQuery.Eval(args),
                 "pq-refresh" => powerQuery.Refresh(args),
                 "pq-delete" => powerQuery.Delete(args),
                 "pq-get-load-config" => powerQuery.GetLoadConfig(args),

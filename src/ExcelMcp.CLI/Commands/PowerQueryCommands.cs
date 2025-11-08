@@ -370,49 +370,6 @@ public class PowerQueryCommands : IPowerQueryCommands
         return 1;
     }
 
-    /// <inheritdoc />
-    public int Eval(string[] args)
-    {
-        if (args.Length < 3)
-        {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-eval <file.xlsx> <m-expression>");
-            Console.WriteLine("Example: pq-eval Plan.xlsx \"Excel.CurrentWorkbook(){[Name='Growth']}[Content]\"");
-            AnsiConsole.MarkupLine("[dim]Purpose:[/] Validates Power Query M syntax and checks if expression can evaluate");
-            return 1;
-        }
-
-        string filePath = args[1];
-        string mExpression = args[2];
-
-        AnsiConsole.MarkupLine($"[bold]Evaluating M expression:[/]\n");
-        AnsiConsole.MarkupLine($"[dim]{mExpression.EscapeMarkup()}[/]\n");
-
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.EvalAsync(batch, mExpression);
-        });
-        var result = task.GetAwaiter().GetResult();
-
-        if (!result.Success)
-        {
-            AnsiConsole.MarkupLine($"[red]✗[/] {result.ErrorMessage?.EscapeMarkup()}");
-            return 1;
-        }
-
-        if (result.ErrorMessage != null)
-        {
-            AnsiConsole.MarkupLine($"[yellow]⚠[/] Expression syntax is valid but refresh failed");
-            AnsiConsole.MarkupLine($"[dim]{result.ErrorMessage.EscapeMarkup()}[/]");
-        }
-        else
-        {
-            AnsiConsole.MarkupLine($"[green]✓[/] M expression is valid and can be evaluated");
-        }
-
-        return 0;
-    }
-
     /// <summary>
     /// Gets the current load configuration of a Power Query
     /// </summary>
