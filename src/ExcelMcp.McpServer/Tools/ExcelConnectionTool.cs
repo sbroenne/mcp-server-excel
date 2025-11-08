@@ -24,7 +24,32 @@ public static class ExcelConnectionTool
     /// Manage Excel data connections - OLEDB, ODBC, Text, Web, and other connection types
     /// </summary>
     [McpServerTool(Name = "excel_connection")]
-    [Description("Manage Excel data connections. Supports: list, view, create, import, export, update, refresh, delete, loadto, properties, set-properties, test.")]
+    [Description(@"Manage Excel data connections (OLEDB, ODBC, Text, Web).
+
+⚡ PERFORMANCE: For 2+ operations, use begin_excel_batch FIRST (75-90% faster).
+
+CONNECTION TYPES SUPPORTED:
+- OLEDB: SQL Server, Access, Oracle databases
+- ODBC: ODBC data sources
+- Text: CSV/text file imports
+- Web: Web queries and APIs
+- DataFeed: OData and data feeds
+- Model: Data Model connections
+
+POWER QUERY AUTO-REDIRECT:
+- Power Query connections automatically redirect to excel_powerquery tool
+- Use excel_powerquery for M code-based connections
+
+SECURITY:
+- Connection strings may contain credentials/passwords
+- Use 'view' carefully - sanitizes passwords by default
+- Use 'export' carefully - ODC files may contain credentials
+
+RELATED TOOLS:
+- excel_powerquery: For M code and Power Query connections
+- excel_datamodel: For Data Model after loading connections
+
+Optional batchId for batch sessions.")]
     public static async Task<string> ExcelConnection(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]

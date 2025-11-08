@@ -60,18 +60,19 @@ public static class ExcelPowerQueryTool
   2. excel_powerquery(..., batchId: batch.batchId)  // repeat for each operation
   3. commit_excel_batch(batchId: batch.batchId, save: true)
 
-PRIMARY ACTIONS (ATOMIC OPERATIONS):
-- Create: Import Power Query from .pq file + load data in one atomic operation
-- UpdateMCode: Update M code only (no refresh - for staging changes)
-- UpdateAndRefresh: Update M code + refresh data in one atomic operation
-- Unload: Convert query to connection-only (remove data, keep definition)
-- RefreshAll: Refresh all Power Queries in workbook
-
-LOAD DESTINATIONS:
-- 'worksheet': Load to worksheet as table (users can see/validate data)
+LOAD DESTINATIONS (loadDestination parameter):
+- 'worksheet': Load to worksheet as table (DEFAULT - users can see/validate data)
 - 'data-model': Load to Power Pivot Data Model (ready for DAX measures/relationships)
 - 'both': Load to BOTH worksheet AND Data Model
 - 'connection-only': Don't load data (M code imported but not executed)
+
+OPERATIONS GUIDANCE:
+- Create: Import M code from .pq file AND optionally load data in ONE operation
+- UpdateMCode: Update M code ONLY (no refresh) - use when staging changes before refresh
+- UpdateAndRefresh: Update M code AND refresh data in ONE operation
+- LoadTo: Apply load destination to connection-only query (make it load data to a worksheet or Data Model)
+- Unload: Convert query to connection-only (remove data, keep M code definition)
+- RefreshAll: Refresh ALL Power Queries in workbook (batch refresh)
 
 After loading to Data Model, use excel_datamodel tool for DAX measures and relationships.")]
     public static async Task<string> ExcelPowerQuery(

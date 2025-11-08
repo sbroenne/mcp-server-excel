@@ -26,7 +26,21 @@ public static class ExcelVbaTool
     /// Manage Excel VBA scripts - modules, procedures, and macro execution (requires .xlsm files)
     /// </summary>
     [McpServerTool(Name = "excel_vba")]
-    [Description("Manage Excel VBA scripts and macros (requires .xlsm files). Supports: list, view, export, import, update, run, delete. Optional batchId for batch sessions.")]
+    [Description(@"Manage Excel VBA scripts and macros (requires .xlsm files).
+
+⚠️ REQUIREMENTS:
+- File format: .xlsm (macro-enabled) only
+- VBA trust: Must be enabled in Excel settings (one-time setup)
+
+RUN PARAMETERS:
+- Format: 'Module.Procedure' (e.g., 'DataProcessor.ProcessData')
+- Parameters: Comma-separated values passed to VBA procedure
+- Example: moduleName='Module1.Calculate', parameters='Sheet1,A1:C10'
+
+RELATED TOOLS:
+- excel_file: Create .xlsm files for VBA automation
+
+Optional batchId for batch sessions.")]
     public static async Task<string> ExcelVba(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]

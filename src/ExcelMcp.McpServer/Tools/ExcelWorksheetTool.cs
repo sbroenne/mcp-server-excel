@@ -39,7 +39,22 @@ public static class ExcelWorksheetTool
     /// Manage Excel worksheet lifecycle and appearance
     /// </summary>
     [McpServerTool(Name = "excel_worksheet")]
-    [Description("Manage Excel worksheets: lifecycle, tab colors, visibility. Actions available as dropdown. Optional batchId for batch sessions.")]
+    [Description(@"Manage Excel worksheets: lifecycle, tab colors, visibility.
+
+TAB COLORS (set-tab-color):
+- RGB values: 0-255 for red, green, blue components
+- Example: red=255, green=0, blue=0 for red tab
+
+VISIBILITY LEVELS (set-visibility):
+- 'visible': Normal sheet (default)
+- 'hidden': User can unhide via Excel UI (right-click → Unhide)
+- 'veryhidden': Requires code to unhide (cannot unhide via UI)
+
+RELATED TOOLS:
+- excel_range: For ALL data operations (get-values, set-values, formulas, clear, etc.)
+- excel_table: For structured data with AutoFilter
+
+Optional batchId for batch sessions.")]
     public static async Task<string> ExcelWorksheet(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]

@@ -282,6 +282,7 @@ Assert.Contains(result.Items, i => i.Name == "Test");  // ✅ Verify persisted
 | 15. Enum mappings | All enum values mapped in ToActionString() | Always |
 | 16. Test scope | Only run tests for code you changed | Per change |
 | 17. MCP error checks | Check result.Success before JsonSerializer.Serialize | Every method |
+| 18. Tool descriptions | Verify [Description] matches tool behavior | Per tool change |
 
 
 
@@ -408,6 +409,65 @@ if (string.IsNullOrWhiteSpace(tableName))
 ```
 
 **Historical Note:** This rule was corrected on 2025-01-03 after discovering that tests expected JSON responses, not exceptions. The previous pattern (throwing McpException for business errors) was incorrect and caused MCP clients to receive unhandled errors instead of parseable JSON.
+
+---
+
+## Rule 18: Tool Descriptions Must Match Behavior (CRITICAL)
+
+**Tool `[Description]` attributes are part of the MCP schema sent to LLMs. They must be accurate and current.**
+
+**What to verify when changing a tool:**
+
+1. **Purpose and Use Cases Clear**:
+   ```csharp
+   // ❌ WRONG: Vague description
+   [Description("Manage worksheets")]
+   
+   // ✅ CORRECT: Clear purpose and use cases
+   [Description("Manage Excel worksheet lifecycle: create, rename, copy, delete sheets")]
+   ```
+
+2. **Non-Enum Parameter Values Documented**:
+   ```csharp
+   // ❌ WRONG: Parameter values not explained
+   [Description("Import Power Query with loadDestination parameter")]
+   
+   // ✅ CORRECT: Non-enum parameter values explained
+   [Description(@"Import Power Query.
+   
+   LOAD DESTINATIONS:
+   - 'worksheet': Load to worksheet (DEFAULT)
+   - 'data-model': Load to Power Pivot
+   - 'both': Load to BOTH
+   - 'connection-only': Don't load data")]
+   ```
+
+3. **Server-Specific Behavior Documented**:
+   ```csharp
+   // ❌ WRONG: Behavior changed but description outdated
+   [Description("Default: loadDestination='connection-only'")]  // Wrong!
+   
+   // ✅ CORRECT: Description reflects actual default
+   [Description("Default: loadDestination='worksheet'")]
+   ```
+
+**What NOT to include:**
+- ❌ **Enum action lists** - MCP SDK auto-generates these in schema (LLMs see them via dropdown)
+- ❌ **Parameter types** - Schema provides this
+- ❌ **Required/optional flags** - Schema provides this
+
+**Why Critical:** LLMs use tool descriptions for server-specific guidance. Inaccurate descriptions cause:
+- Wrong default parameter values
+- Incorrect workflow assumptions
+- Confused users when behavior doesn't match docs
+
+**When to Update:**
+- Changing default values or server behavior
+- Adding/changing non-enum parameter values (loadDestination, formatCode, etc.)
+- Changing which tools to use for related operations
+- Adding performance guidance (batch mode)
+
+**See:** [mcp-server-guide.instructions.md](mcp-server-guide.instructions.md) for complete Tool Description checklist.
 
 ---
 ---

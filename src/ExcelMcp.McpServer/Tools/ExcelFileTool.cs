@@ -20,7 +20,23 @@ public static class ExcelFileTool
     /// Create new Excel files for automation workflows
     /// </summary>
     [McpServerTool(Name = "excel_file")]
-    [Description("Manage Excel files. Actions available as dropdown: CreateEmpty, CloseWorkbook, Test. Optional batchId for batch sessions.")]
+    [Description(@"Manage Excel files - create, close, test.
+
+FILE FORMATS:
+- .xlsx: Standard Excel workbook (Power Query, ranges, tables, worksheets, Data Model)
+- .xlsm: Macro-enabled workbook (ALL .xlsx features PLUS VBA macros)
+
+USE .xlsm WHEN:
+- VBA macros required (excel_vba tool)
+- Automation needs to import/export/run VBA code
+- User workbook contains existing macros
+
+USE .xlsx WHEN:
+- No VBA macros needed
+- Pure data/Power Query/Data Model workflows
+- Smaller file size preferred
+
+Optional batchId for batch sessions.")]
     public static async Task<string> ExcelFile(
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         FileAction action,

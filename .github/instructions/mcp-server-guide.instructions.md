@@ -274,6 +274,65 @@ Before committing MCP tool changes:
 - [ ] Exception messages include context (action name, parameter values)
 - [ ] Build passes with 0 warnings
 - [ ] No `if (!result.Success) throw McpException` blocks (violates MCP spec)
+- [ ] **Tool `[Description]` attribute documents server-specific behavior**
+- [ ] **Non-enum parameter values explained (loadDestination, formatCode, etc.)**
+- [ ] **Performance guidance (batch mode) is accurate**
+- [ ] **Related tools referenced correctly**
+
+## Tool Description vs Prompt Files
+
+**Two types of LLM guidance:**
+
+1. **Tool Descriptions** (`[Description]` attributes in C# code):
+   - Part of MCP tool schema sent automatically
+   - LLMs see when browsing available tools
+   - Brief, action-oriented reference
+   - **ALWAYS visible** - shown every time tool is considered
+   - Must be kept synchronized with actual tool behavior
+
+2. **Prompt Files** (`.md` files in `Prompts/Content/`):
+   - Exposed as separate MCP Prompts via `[McpServerPrompt]`
+   - LLMs request explicitly when needed
+   - Detailed workflows, checklists, disambiguation
+   - **On-demand** - loaded only when LLM requests the prompt
+
+**Critical:** When changing tool behavior, update BOTH:
+- The `[Description]` attribute on the tool method
+- The corresponding `.md` prompt file (if exists)
+
+### Keeping Descriptions Up-to-Date
+
+**When updating a tool, verify:**
+1. ✅ Tool purpose and use cases are clear
+2. ✅ Server-specific behavior is documented (defaults, quirks, important notes)
+3. ✅ Performance guidance (batch mode) is accurate
+4. ✅ Related tools referenced correctly
+5. ✅ Non-enum parameter guidance is complete (loadDestination options, format codes, etc.)
+
+**What NOT to include in descriptions:**
+- ❌ **Enum action lists** - MCP SDK auto-generates enum values in schema (LLMs see them automatically)
+- ❌ **Parameter types** - Schema provides this
+- ❌ **Required/optional flags** - Schema provides this
+
+**Example - Good tool description:**
+```csharp
+[Description(@"Manage Power Query M code and data loading.
+
+⚡ PERFORMANCE: Use begin_excel_batch for 2+ operations (75-90% faster)
+
+LOAD DESTINATIONS (non-enum parameter):
+- 'worksheet': Load to worksheet as table (DEFAULT - users can see/validate data)
+- 'data-model': Load to Power Pivot Data Model (ready for DAX measures/relationships)
+- 'both': Load to BOTH worksheet AND Data Model
+- 'connection-only': Don't load data (M code imported but not executed)
+
+Use excel_datamodel tool for DAX measures after loading to Data Model.")]
+```
+✅ Describes purpose and use cases
+✅ Documents server-specific defaults
+✅ Explains non-enum parameter values
+✅ References related tools
+❌ Does NOT list enum actions (SDK provides)
 
 ## LLM Guidance Development
 

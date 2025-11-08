@@ -42,7 +42,31 @@ public static class ExcelRangeTool
     /// Optional batchId for batch sessions.
     /// </summary>
     [McpServerTool(Name = "excel_range")]
-    [Description("Excel range operations: get-values, set-values, get-formulas, set-formulas, get-number-formats, set-number-format, set-number-formats, clear-all, clear-contents, clear-formats, copy, copy-values, copy-formulas, insert-cells, delete-cells, insert-rows, delete-rows, insert-columns, delete-columns, find, replace, sort, get-used-range, get-current-region, get-range-info, add-hyperlink, remove-hyperlink, list-hyperlinks, get-hyperlink, set-style, format-range, validate-range. Optional batchId for batch sessions.")]
+    [Description(@"Unified Excel range operations - ALL data manipulation.
+
+⚡ PERFORMANCE: For 2+ operations, use begin_excel_batch FIRST (75-90% faster).
+
+RANGE ADDRESSING:
+- Regular ranges: sheetName='Sheet1', rangeAddress='A1:D10' (or single cell 'A1')
+- Named ranges: sheetName='' (EMPTY), rangeAddress='SalesData' (named range name)
+- Single cell = 1x1 range: 'A1' returns [[value]] (2D array with 1 row, 1 column)
+
+DATA FORMAT:
+- Values/formulas: JSON 2D arrays [[row1col1, row1col2], [row2col1, row2col2]]
+- Example single cell: [[100]] or [['=SUM(A:A)']]
+- Example range: [[1,2,3], [4,5,6], [7,8,9]]
+
+DISCOVERY OPERATIONS:
+- get-used-range: Find all non-empty cells in worksheet (no rangeAddress needed)
+- get-current-region: Find contiguous data block around a cell (expands automatically)
+- get-range-info: Get address, dimensions, format of any range
+
+RELATED TOOLS:
+- excel_table: For structured data with AutoFilter and dynamic expansion
+- excel_namedrange: To define/manage named range definitions (create/delete/update references)
+- excel_worksheet: For sheet lifecycle (create/rename/copy/delete sheets)
+
+Optional batchId for batch sessions.")]
     public static async Task<string> ExcelRange(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]

@@ -38,7 +38,29 @@ public static class TableTool
     /// Manage Excel Tables (ListObjects) - comprehensive table management including Power Pivot integration
     /// </summary>
     [McpServerTool(Name = "excel_table")]
-    [Description("Manage Excel Tables (ListObjects). Tables provide AutoFilter, structured references, dynamic expansion, and visual formatting. Can be used standalone or referenced in Power Query. Use 'add-to-datamodel' action to add existing tables to Power Pivot. For Power Pivot workflows: create table here → use excel_powerquery to load external data to Power Pivot → use excel_datamodel/excel_powerpivot for DAX measures and relationships. Supports: list, create, info, rename, delete, resize, toggle-totals, set-column-total, append, set-style, add-to-datamodel, apply-filter, apply-filter-values, clear-filters, get-filters, add-column, remove-column, rename-column, get-structured-reference, sort, sort-multi, get-column-number-format, set-column-number-format.")]
+    [Description(@"Manage Excel Tables (ListObjects) - structured data with AutoFilter.
+
+FEATURES:
+- AutoFilter: Built-in filtering and sorting
+- Structured references: [@ColumnName] in formulas
+- Dynamic expansion: Automatically grows with data
+- Visual formatting: Professional table styles
+
+POWER QUERY INTEGRATION:
+- Reference in M code: Excel.CurrentWorkbook(){[Name=""TableName""]}[Content]
+- Use standalone or as Power Query source
+
+POWER PIVOT WORKFLOW:
+1. Create table here (excel_table)
+2. Load to Data Model: excel_powerquery with loadDestination='data-model'
+3. Create DAX measures: excel_datamodel tool
+
+RELATED TOOLS:
+- excel_range: For data operations on table ranges
+- excel_powerquery: To load table data to Power Pivot
+- excel_datamodel: For DAX measures and relationships after loading
+
+Optional batchId for batch sessions.")]
     public static async Task<string> Table(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]

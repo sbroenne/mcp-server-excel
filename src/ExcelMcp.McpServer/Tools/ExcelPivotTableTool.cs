@@ -17,8 +17,36 @@ public static partial class ExcelPivotTableTool
     private static readonly JsonSerializerOptions JsonOptions = ExcelToolsBase.JsonOptions;
 
     [McpServerTool]
+    [Description(@"Excel PivotTable operations - interactive data analysis and summarization.
+
+DATA SOURCES:
+- create-from-range: Use worksheet range (must have headers, min 2 rows)
+- create-from-table: Use Excel Table (structured data, recommended)
+- create-from-datamodel: Use Power Pivot Data Model table (large datasets, DAX measures)
+
+FIELD AREAS:
+- Row fields: Group data vertically (left side)
+- Column fields: Group data horizontally (top)
+- Value fields: Aggregate calculations (Sum, Count, Average, Max, Min, etc.)
+- Filter fields: Report-level filters (above PivotTable)
+
+TYPICAL WORKFLOW:
+1. Create PivotTable from source (range/table/datamodel)
+2. Add row/column fields for grouping (add-row-field, add-column-field)
+3. Add value fields for calculations (add-value-field with aggregation function)
+4. Refresh when source data changes (refresh action)
+
+AGGREGATION FUNCTIONS:
+Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP
+
+RELATED TOOLS:
+- excel_table: Create Excel Table before PivotTable (recommended source)
+- excel_datamodel: Use for large datasets with DAX measures
+- excel_range: Prepare source data ranges
+
+Optional batchId for batch sessions.")]
     public static async Task<string> ExcelPivotTable(
-        [Description("Action to perform. Actions: list, get, create-from-range, create-from-table, create-from-datamodel, delete, refresh, list-fields, add-row-field, add-column-field, add-value-field, add-filter-field, remove-field, set-field-function, set-field-name, set-field-format, get-data, set-field-filter, sort-field")]
+        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         PivotTableAction action,
 
         [Description("Path to Excel file (.xlsx or .xlsm)")]
