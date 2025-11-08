@@ -12,44 +12,11 @@ using Sbroenne.ExcelMcp.McpServer.Models;
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
-/// Excel Power Query management tool for MCP server.
-/// Handles M code operations, query management, and data loading configurations.
-///
-/// LLM Usage Patterns:
-/// - Use "list" to see all Power Queries in a workbook
-/// - Use "view" to examine M code for a specific query
-/// - Use "create" to add new queries from .pq files (import + load in one call)
-/// - Use "export" to save M code to files for version control
-/// - Use "update" to modify M code AND refresh data (complete operation)
-/// - Use "refresh" to refresh query data from source
-/// - Use "unload" to convert query to connection-only (inverse of load-to)
-/// - Use "refresh-all" to refresh all queries in workbook
-/// - Use "delete" to remove queries
-/// - Use "get-load-config" to check current loading configuration
-///
-/// OPERATIONS:
-/// - create: Import + load in one operation (replaces import + load-to)
-/// - update: Update M code + refresh data (complete operation, keeps data fresh)
-/// - unload: Convert to connection-only (inverse of load-to)
-/// - refresh-all: Refresh all queries in workbook
-///
-/// IMPORTANT FOR DATA MODEL WORKFLOWS:
-/// - "create" with loadDestination='data-model' loads to Power Pivot Data Model (ready for DAX measures)
-/// - "create" with loadDestination='worksheet' loads to worksheet (users see formatted table)
-/// - "create" with loadDestination='both' loads to BOTH worksheet AND Power Pivot
-/// - For Power Pivot operations beyond loading data (DAX measures, relationships), use excel_datamodel or excel_powerpivot tools
-///
-/// VALIDATION AND EXECUTION:
-/// - Create DEFAULT behavior: Automatically loads to worksheet (validates M code by executing it)
-/// - Validation = Execution: Power Query M code is only validated when data is actually loaded/refreshed
-/// - Connection-only queries are NOT validated until first execution
+/// MCP tool for Power Query M code and data loading operations.
 /// </summary>
 [McpServerToolType]
 public static class ExcelPowerQueryTool
 {
-    /// <summary>
-    /// Manage Power Query operations - M code, data loading, and query lifecycle
-    /// </summary>
     [McpServerTool(Name = "excel_powerquery")]
     [Description(@"Manage Power Query M code and data loading.
 

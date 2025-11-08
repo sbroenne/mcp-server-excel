@@ -11,10 +11,7 @@ using Sbroenne.ExcelMcp.McpServer.Models;
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
-/// Excel Data Model management tool for MCP server.
-/// Provides access to Power Pivot Data Model operations including DAX measures, relationships, and data refresh.
-///
-/// Note: Calculated columns cannot be created via automation and must be added manually through the Power Pivot UI.
+/// MCP tool for Excel Data Model (Power Pivot) operations - DAX measures, relationships, and data refresh.
 /// </summary>
 [McpServerToolType]
 public static class ExcelDataModelTool

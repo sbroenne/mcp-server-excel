@@ -11,24 +11,7 @@ using Sbroenne.ExcelMcp.McpServer.Models;
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
-/// Excel Table (ListObject) management tool for MCP server.
-/// Handles creating, listing, renaming, and deleting Excel Tables.
-///
-/// LLM Usage Patterns:
-/// - Use "list" to see all Excel Tables in a workbook
-/// - Use "create" to convert ranges to Excel Tables (enables AutoFilter, structured references, dynamic expansion)
-/// - Use "info" to get detailed information about a table
-/// - Use "rename" to change table names
-/// - Use "delete" to remove tables (converts back to range, data preserved)
-/// - Use "add-to-datamodel" to add a table to Power Pivot Data Model
-///
-/// IMPORTANT:
-/// - Excel Tables provide AutoFilter, structured references ([@Column]), dynamic expansion, and visual formatting
-/// - Tables can be used standalone OR referenced in Power Query: Excel.CurrentWorkbook(){[Name="TableName"]}[Content]
-/// - Table names must start with a letter/underscore, contain only alphanumeric and underscore characters
-/// - Column names can be any string, including purely numeric values (e.g., "60" for 60 months)
-/// - Deleting a table converts it back to a range but preserves data
-/// - For comprehensive Power Pivot operations (DAX measures, relationships, calculated columns), use excel_datamodel tools
+/// MCP tool for Excel Table (ListObject) operations - structured data with AutoFilter and dynamic expansion.
 /// </summary>
 [McpServerToolType]
 [SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments", Justification = "Simple workflow arrays in sealed static class")]

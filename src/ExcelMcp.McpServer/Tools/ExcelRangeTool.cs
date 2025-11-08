@@ -10,28 +10,7 @@ using Sbroenne.ExcelMcp.McpServer.Models;
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
-/// Excel range operations tool for MCP server - unified API for all range data manipulation.
-/// Handles values, formulas, clearing, copying, inserting, deleting, finding, sorting, and hyperlinks.
-/// Single cell = 1x1 range. Named ranges work transparently via rangeAddress parameter.
-///
-/// LLM Usage Patterns:
-/// - Use "get-values" to read cell/range data (supports named ranges)
-/// - Use "set-values" to write data to cells/ranges
-/// - Use "get-formulas"/"set-formulas" for formula operations
-/// - Use "clear-all"/"clear-contents"/"clear-formats" to empty ranges
-/// - Use "copy"/"copy-values"/"copy-formulas" to duplicate data
-/// - Use "insert-cells"/"delete-cells" to shift cells
-/// - Use "insert-rows"/"delete-rows" for entire row operations
-/// - Use "insert-columns"/"delete-columns" for entire column operations
-/// - Use "find"/"replace" to search and modify content
-/// - Use "sort" to order data
-/// - Use "get-used-range" to discover data boundaries
-/// - Use "get-current-region" to find contiguous data blocks
-/// - Use "get-range-info" to inspect range properties
-/// - Use "add-hyperlink"/"remove-hyperlink"/"list-hyperlinks"/"get-hyperlink" for hyperlink management
-/// - Use "set-style" to apply built-in Excel cell styles (RECOMMENDED for formatting)
-/// - Use "format-range" to apply manual formatting (font, fill, border, alignment) - use only when styles don't meet needs
-/// - Use "validate-range" to add data validation rules
+/// MCP tool for Excel range operations - values, formulas, clearing, copying, inserting, deleting, finding, sorting, and hyperlinks.
 /// </summary>
 [McpServerToolType]
 public static class ExcelRangeTool

@@ -11,22 +11,7 @@ using Sbroenne.ExcelMcp.McpServer.Models;
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
-/// Excel QueryTable management tool for MCP server.
-/// Manages Excel QueryTables for simple data imports with reliable persistence.
-/// Use for legacy workflows or when Power Query complexity is not needed.
-///
-/// LLM Usage Patterns:
-/// - Use "list" to discover existing QueryTables
-/// - Use "get" to view QueryTable details and settings
-/// - Use "create-from-connection" to import data from existing connections
-/// - Use "create-from-query" to load Power Query results to worksheet
-/// - Use "refresh" for single QueryTable synchronous refresh
-/// - Use "refresh-all" to refresh all QueryTables in workbook
-/// - Use "update-properties" to modify QueryTable settings
-/// - Use "delete" to remove QueryTables
-///
-/// Note: QueryTables provide reliable data import with synchronous refresh patterns
-/// essential for Excel automation. They complement Power Query and Connection tools.
+/// MCP tool for Excel QueryTable operations - simple data imports with reliable persistence.
 /// </summary>
 [McpServerToolType]
 public static class ExcelQueryTableTool

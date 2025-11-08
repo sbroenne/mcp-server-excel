@@ -11,19 +11,7 @@ using Sbroenne.ExcelMcp.McpServer.Models;
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
-/// Excel parameter (named range) management tool for MCP server.
-/// Handles named ranges as configuration parameters for Excel automation.
-///
-/// LLM Usage Patterns:
-/// - Use "list" to see all named ranges (parameters) in a workbook
-/// - Use "get" to retrieve Named range values for configuration
-/// - Use "set" to update Named range values for dynamic behavior
-/// - Use "update" to change parameter cell reference
-/// - Use "create" to define new named ranges as parameters
-/// - Use "delete" to remove obsolete parameters
-///
-/// Note: Named ranges are Excel's way of creating reusable parameters that can be
-/// referenced in formulas and Power Query. They're ideal for configuration values.
+/// MCP tool for Excel named range (parameter) operations.
 /// </summary>
 [McpServerToolType]
 public static class ExcelNamedRangeTool

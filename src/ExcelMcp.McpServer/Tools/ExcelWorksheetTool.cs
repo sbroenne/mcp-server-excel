@@ -12,24 +12,7 @@ using Sbroenne.ExcelMcp.McpServer.Models;
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
-/// Excel worksheet lifecycle and appearance management tool for MCP server.
-/// Handles worksheet creation, renaming, copying, deletion, tab colors, and visibility.
-///
-/// Data operations (read, write, clear) have been moved to ExcelRangeTool for unified range API.
-///
-/// LLM Usage Patterns:
-/// - Use "list" to see all worksheets in a workbook
-/// - Use "create" to add new worksheets
-/// - Use "rename" to change worksheet names
-/// - Use "copy" to duplicate worksheets
-/// - Use "delete" to remove worksheets
-/// - Use "set-tab-color" to color-code sheets (RGB 0-255 each)
-/// - Use "get-tab-color" to read tab colors
-/// - Use "clear-tab-color" to remove colors
-/// - Use "set-visibility" to control sheet visibility (visible/hidden/veryhidden)
-/// - Use "get-visibility" to check visibility state
-/// - Use "show", "hide", "very-hide" as convenience methods
-/// - Use excel_range tool for data operations (get-values, set-values, clear-*)
+/// MCP tool for Excel worksheet lifecycle and appearance (create, rename, copy, delete, tab colors, visibility).
 /// </summary>
 [McpServerToolType]
 [SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments", Justification = "Simple workflow arrays in sealed static class")]
