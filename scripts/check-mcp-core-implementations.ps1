@@ -6,7 +6,7 @@
 .DESCRIPTION
     Checks that every action defined in ToolActions.cs enums has a matching method
     in the corresponding Core Commands interface (IPowerQueryCommands, ISheetCommands, etc.)
-    
+
     This prevents situations where MCP tools expose actions that don't exist in Core,
     which would cause runtime exceptions when called.
 
@@ -23,6 +23,12 @@ $rootDir = Split-Path -Parent $PSScriptRoot
 Write-Host "Checking MCP Tool actions have Core implementations..." -ForegroundColor Cyan
 
 $errors = @()
+
+# Known intentional exceptions (documented in CORE-METHOD-RENAMING-SUMMARY.md)
+$knownExceptions = @{
+    "FileAction" = @("CloseWorkbook")  # Handled by MCP server directly
+    "TableAction" = @("ApplyFilterValues", "SortMulti")  # Composite operations
+}
 
 # Define mappings: Enum -> Core Interface File
 $mappings = @{
@@ -43,13 +49,13 @@ $toolActionsContent = Get-Content $toolActionsFile -Raw
 
 foreach ($enumName in $mappings.Keys) {
     $interfaceFile = Join-Path $rootDir $mappings[$enumName]
-    
+
     # Check if Core interface file exists
     if (-not (Test-Path $interfaceFile)) {
         Write-Host "  ⚠️  Warning: Core interface not found: $interfaceFile" -ForegroundColor Yellow
         continue
     }
-    
+
     # Extract enum values using regex
     $enumPattern = "enum $enumName\s*\{([^}]+)\}"
     if ($toolActionsContent -match $enumPattern) {
@@ -57,22 +63,27 @@ foreach ($enumName in $mappings.Keys) {
         $enumValues = $enumBody -split ',' | ForEach-Object {
             $_.Trim() -replace '//.*$', '' | Where-Object { $_ -match '^\w+$' }
         }
-        
+
         # Read Core interface
         $interfaceContent = Get-Content $interfaceFile -Raw
-        
+
         # Check each enum value has a corresponding Async method
         $missingMethods = @()
         foreach ($value in $enumValues) {
+            # Skip known exceptions
+            if ($knownExceptions.ContainsKey($enumName) -and $knownExceptions[$enumName] -contains $value) {
+                continue
+            }
+
             # Convert PascalCase enum to method name (e.g., ListExcelSources -> ListExcelSourcesAsync)
             $methodName = "${value}Async"
-            
+
             # Check if method exists in interface
             if ($interfaceContent -notmatch "\s+Task.*\b$methodName\s*\(") {
                 $missingMethods += $value
             }
         }
-        
+
         if ($missingMethods.Count -gt 0) {
             $errors += "❌ $enumName has actions without Core implementations:"
             foreach ($missing in $missingMethods) {
