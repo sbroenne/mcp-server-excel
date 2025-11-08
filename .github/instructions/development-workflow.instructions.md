@@ -17,7 +17,35 @@ Enforced: PR reviews, CI/CD checks, create a branch first, up-to-date branches, 
 1. **Create feature branch**: `git checkout -b feature/name`
 2. **Standards**: Zero warnings, tests pass, docs updated, security rules followed
 3. **PR Checklist**: Build passes, tests pass, docs updated, patterns followed
-4. **Versions**: Automated via release workflow - don't update manually
+4. **Check PR review comments**: After creating PR, retrieve automated review feedback and fix all issues
+5. **Versions**: Automated via release workflow - don't update manually
+
+## PR Review Comment Workflow
+
+**After creating a PR, ALWAYS check for automated review comments:**
+
+```bash
+# Retrieve inline code review comments using GitHub CLI
+gh api repos/sbroenne/mcp-server-excel/pulls/PULL_NUMBER/comments --paginate
+
+# Or use the mcp_github tool if available
+mcp_github_github_pull_request_read(method="get_review_comments", owner="sbroenne", repo="mcp-server-excel", pullNumber=PULL_NUMBER)
+```
+
+**Common automated reviewers:**
+- **Copilot** (code quality, performance, style)
+- **github-advanced-security** (security scanning, code analysis)
+
+**Common issues to fix:**
+- Improper `/// <inheritdoc/>` on constructors/test methods that don't override
+- `.AsSpan().ToString()` inefficiency - use `[..n]` range operator instead
+- Nullable type access without null checks
+- `foreach` → `.Select()` for functional style
+- Nested if statements that can be combined
+- Generic catch clauses - use specific exceptions or add justification
+- Path.Combine security warnings - suppress with justification for test code
+
+**Fix all automated review comments before requesting human review.**
 
 ## Test Execution
 
