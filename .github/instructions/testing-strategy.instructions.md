@@ -197,6 +197,35 @@ var finalList = await _commands.ListAsync(batch);
 Assert.DoesNotContain(finalList.Items, i => i.Name == "NewName");  // ✅ Proves deletion!
 ```
 
+### Content Replacement Validation (CRITICAL)
+
+**For operations that replace content (Update, Set, etc.), ALWAYS verify content was replaced, not merged/appended:**
+
+```csharp
+// ❌ WRONG: Only checks operation completed
+var updateResult = await _commands.UpdateAsync(batch, queryName, newFile);
+Assert.True(updateResult.Success);  // Doesn't prove content was replaced!
+
+// ✅ CORRECT: Verify content was replaced, not merged
+var updateResult = await _commands.UpdateAsync(batch, queryName, newFile);
+Assert.True(updateResult.Success);
+
+var viewResult = await _commands.ViewAsync(batch, queryName);
+Assert.Equal(expectedContent, viewResult.Content);  // ✅ Content matches expected
+Assert.DoesNotContain("OldContent", viewResult.Content);  // ✅ Old content gone!
+
+// ✅ EVEN BETTER: Test multiple sequential updates (exposes merging bugs)
+await _commands.UpdateAsync(batch, queryName, file1);
+await _commands.UpdateAsync(batch, queryName, file2);
+var viewResult = await _commands.ViewAsync(batch, queryName);
+Assert.Equal(file2Content, viewResult.Content);  // ✅ Only file2 content present
+Assert.DoesNotContain(file1Content, viewResult.Content);  // ✅ file1 content gone!
+```
+
+**Why Critical:** Bug report showed that UpdateAsync was **merging** M code instead of replacing it. Tests passed because they only checked `Success = true`, not actual content. The bug compounded with each update, corrupting queries progressively worse.
+
+**Lesson:** "Operation completed" ≠ "Operation did the right thing". Always verify the actual result.
+
 ## Common Mistakes
 
 | Mistake | Fix |

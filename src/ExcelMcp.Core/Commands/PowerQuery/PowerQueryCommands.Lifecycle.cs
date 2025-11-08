@@ -845,10 +845,20 @@ public partial class PowerQueryCommands
                         return result;
                     }
 
-                    // Update M code formula
-                    query.Formula = mCode;
+                    // Update M code formula - CRITICAL: Must completely replace, not append
+                    // Delete and recreate to ensure clean replacement (avoid merging bug)
+                    string originalName = query.Name;
+
+                    // Delete the old query
+                    query.Delete();
+                    ComUtilities.Release(ref query);
+                    query = null;
+
+                    // Create new query with updated M code
+                    query = queries.Add(originalName, mCode);
 
                     // Auto-refresh to keep data in sync with new M code
+
                     // For UpdateAsync, we need to recreate QueryTables to handle column structure changes
 
                     // Step 1: Recreate QueryTables with new schema (handles column structure changes)
