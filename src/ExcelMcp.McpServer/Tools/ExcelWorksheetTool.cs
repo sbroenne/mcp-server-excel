@@ -332,21 +332,26 @@ Optional batchId for batch sessions.")]
         if (!blue.HasValue)
             throw new ModelContextProtocol.McpException("blue value (0-255) is required for set-tab-color action");
 
+        // Extract values after validation (null checks above guarantee non-null)
+        int redValue = red.Value;
+        int greenValue = green.Value;
+        int blueValue = blue.Value;
+
         var result = await ExcelToolsBase.WithBatchAsync(
             batchId,
             excelPath,
             save: true,
-            async (batch) => await sheetCommands.SetTabColorAsync(batch, sheetName, red.Value, green.Value, blue.Value));
+            async (batch) => await sheetCommands.SetTabColorAsync(batch, sheetName, redValue, greenValue, blueValue));
 
         bool usedBatchMode = !string.IsNullOrEmpty(batchId);
-        string hexColor = $"#{red.Value:X2}{green.Value:X2}{blue.Value:X2}";
+        string hexColor = $"#{redValue:X2}{greenValue:X2}{blueValue:X2}";
 
         return JsonSerializer.Serialize(new
         {
             result.Success,
             result.ErrorMessage,
             workflowHint = result.Success
-                ? $"Tab color set to {hexColor} (RGB: {red.Value}, {green.Value}, {blue.Value}) for sheet '{sheetName}'."
+                ? $"Tab color set to {hexColor} (RGB: {redValue}, {greenValue}, {blueValue}) for sheet '{sheetName}'."
                 : $"Failed to set tab color: {result.ErrorMessage}",
             suggestedNextActions = result.Success
                 ? new[]

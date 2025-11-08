@@ -4,6 +4,9 @@ using Sbroenne.ExcelMcp.Core.Commands;
 using Xunit;
 using Xunit.Abstractions;
 
+// Suppress Path.Combine warnings - test code with controlled temp directory paths
+#pragma warning disable CA3003 // Review code for file path injection vulnerabilities
+
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
 
 /// <summary>
@@ -479,10 +482,12 @@ in
                     usedRange.Clear();
                     _output.WriteLine($"  Worksheet cleared");
                 }
+#pragma warning disable CA1031 // Do not catch general exception types - diagnostic test needs to continue
                 catch
                 {
                     _output.WriteLine($"  No data to clear (empty sheet)");
                 }
+#pragma warning restore CA1031
                 finally
                 {
                     ComUtilities.Release(ref usedRange);
@@ -648,10 +653,12 @@ in
                     _output.WriteLine($"    Query object type: {query.GetType().Name}");
                     _output.WriteLine($"    Cannot set load destination - Query object has no LoadToWorksheet property");
                 }
+#pragma warning disable CA1031 // Do not catch general exception types - diagnostic test exploring COM API behavior
                 catch (Exception ex)
                 {
                     _output.WriteLine($"    Failed: {ex.Message}");
                 }
+#pragma warning restore CA1031
                 _output.WriteLine("");
 
                 // Alternative 2: Check if data appears automatically in worksheet
@@ -678,11 +685,13 @@ in
                     dynamic queryData = query.Data; // This property doesn't exist
                     _output.WriteLine($"    Query data: {queryData}");
                 }
+#pragma warning disable CA1031 // Do not catch general exception types - diagnostic test exploring COM API behavior
                 catch (Exception ex)
                 {
                     _output.WriteLine($"    Failed: {ex.Message}");
                     _output.WriteLine($"    Result: Query object has no 'Data' property - only stores M code formula");
                 }
+#pragma warning restore CA1031
                 _output.WriteLine("");
 
                 // Step 4: Prove QueryTable is necessary by creating one
@@ -921,11 +930,13 @@ in
                     _output.WriteLine($"  Cell A1: {a1After ?? "(null)"}");
                     _output.WriteLine($"  Cell A2: {a2After ?? "(null)"}");
                 }
+#pragma warning disable CA1031 // Do not catch general exception types - diagnostic test needs to continue on COM errors
                 catch (Exception ex)
                 {
                     _output.WriteLine($"  Error reading UsedRange: {ex.Message}");
                     _output.WriteLine($"  This may indicate no data remains");
                 }
+#pragma warning restore CA1031
                 finally
                 {
                     ComUtilities.Release(ref usedRangeAfter);

@@ -128,7 +128,7 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
             nameof(Update_ExistingQuery_ReturnsSuccess),
             _tempDir);
 
-        var queryName = "PQ_Update_" + Guid.NewGuid().ToString("N").AsSpan(0, 8).ToString();
+        var queryName = "PQ_Update_" + Guid.NewGuid().ToString("N")[..8];
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Update_ExistingQuery_ReturnsSuccess));
         var updateFile = Path.Join(_tempDir, $"updated_{Guid.NewGuid():N}.pq");
         System.IO.File.WriteAllText(updateFile, "let\n    UpdatedSource = 1\nin\n    UpdatedSource");
@@ -155,7 +155,7 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
             nameof(Delete_ExistingQuery_ReturnsSuccess),
             _tempDir);
 
-        var queryName = "PQ_Delete_" + Guid.NewGuid().ToString("N").AsSpan(0, 8).ToString();
+        var queryName = "PQ_Delete_" + Guid.NewGuid().ToString("N")[..8];
         var testQueryFile = CreateUniqueTestQueryFile(nameof(Delete_ExistingQuery_ReturnsSuccess));
 
         // Act
@@ -281,7 +281,7 @@ in
             nameof(Update_QueryLoadedToSheet_PreservesLoadConfiguration),
             _tempDir);
 
-        var queryName = "LoadedQuery_" + Guid.NewGuid().ToString("N").AsSpan(0, 8).ToString();
+        var queryName = "LoadedQuery_" + Guid.NewGuid().ToString("N")[..8];
         var sheetName = "DataSheet";
         var initialQueryFile = CreateUniqueTestQueryFile("Initial");
         var updatedQueryFile = Path.Join(_tempDir, $"updated_{Guid.NewGuid():N}.pq");

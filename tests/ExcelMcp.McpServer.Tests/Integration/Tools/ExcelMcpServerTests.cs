@@ -45,7 +45,6 @@ public class ExcelMcpServerTests : IDisposable
         }
         GC.SuppressFinalize(this);
     }
-    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelFile_CreateEmpty_ShouldReturnSuccessJson()

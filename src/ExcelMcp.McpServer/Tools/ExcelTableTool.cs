@@ -385,20 +385,17 @@ Optional batchId for batch sessions.")]
     /// </summary>
     private static List<List<object?>> ParseCsvToRows(string csvData)
     {
-        var rows = new List<List<object?>>();
         var lines = csvData.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
 
-        foreach (var line in lines)
+        var rows = lines.Select(line =>
         {
             var values = line.Split(',');
-            var row = values.Select(value =>
+            return values.Select(value =>
             {
                 var trimmed = value.Trim().Trim('"');
                 return string.IsNullOrEmpty(trimmed) ? null : (object?)trimmed;
             }).ToList();
-
-            rows.Add(row);
-        }
+        }).ToList();
 
         return rows;
     }
@@ -672,12 +669,9 @@ Optional batchId for batch sessions.")]
 
         // Parse region string to enum (default: Data)
         var region = Core.Models.TableRegion.Data; // Default
-        if (!string.IsNullOrWhiteSpace(regionStr))
+        if (!string.IsNullOrWhiteSpace(regionStr) && !Enum.TryParse(regionStr, true, out region))
         {
-            if (!Enum.TryParse(regionStr, true, out region))
-            {
-                throw new ModelContextProtocol.McpException($"Invalid region '{regionStr}'. Valid values: All, Data, Headers, Totals, ThisRow");
-            }
+            throw new ModelContextProtocol.McpException($"Invalid region '{regionStr}'. Valid values: All, Data, Headers, Totals, ThisRow");
         }
 
         var result = await ExcelToolsBase.WithBatchAsync(
