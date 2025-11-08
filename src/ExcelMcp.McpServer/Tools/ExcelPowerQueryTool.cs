@@ -132,7 +132,6 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 PowerQueryAction.Delete => await DeletePowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
                 PowerQueryAction.GetLoadConfig => await GetLoadConfigAsync(powerQueryCommands, excelPath, queryName, batchId),
                 PowerQueryAction.ListExcelSources => await ListExcelSourcesAsync(powerQueryCommands, excelPath, batchId),
-                PowerQueryAction.Eval => await EvalPowerQueryAsync(powerQueryCommands, excelPath, sourcePath, batchId),
 
                 // Atomic Operations
                 PowerQueryAction.Create => await CreatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, targetSheet, batchId),
@@ -372,44 +371,6 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             suggestedNextActions = result.Success
                 ? new[] { "Reference sources in M code transformations", "Use excel_table list to see structured tables", "Use excel_namedrange list to see named ranges" }
                 : ["Create Excel Tables with excel_table create", "Create named ranges with excel_namedrange create", "Verify workbook structure"]
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> EvalPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? sourcePath, string? batchId)
-    {
-        if (string.IsNullOrEmpty(sourcePath))
-            throw new ModelContextProtocol.McpException("sourcePath is required for eval action (M code file to evaluate)");
-
-        // Validate and read M code from file
-        string mExpression;
-        try
-        {
-            sourcePath = PathValidator.ValidateExistingFile(sourcePath, nameof(sourcePath));
-            mExpression = File.ReadAllText(sourcePath);
-        }
-        catch (Exception ex)
-        {
-            throw new ModelContextProtocol.McpException($"Failed to read M code from '{sourcePath}': {ex.Message}");
-        }
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: false,
-            async (batch) => await commands.EvalAsync(batch, mExpression));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.QueryName,
-            result.MCode,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? "M expression evaluated successfully. Use for testing transformations."
-                : "M expression evaluation failed. Review syntax and data source availability.",
-            suggestedNextActions = result.Success
-                ? new[] { "Integrate evaluated M code into queries", "Test with different data sources", "Use 'create' to make permanent query from working code" }
-                : ["Check M syntax for errors", "Verify data sources are accessible", "Test with simpler M expressions first"]
         }, ExcelToolsBase.JsonOptions);
     }
 

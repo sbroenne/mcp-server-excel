@@ -37,7 +37,6 @@ public enum PowerQueryAction
     Delete,
     GetLoadConfig,
     ListExcelSources,
-    Eval,
 
     // Atomic Operations
     Create,

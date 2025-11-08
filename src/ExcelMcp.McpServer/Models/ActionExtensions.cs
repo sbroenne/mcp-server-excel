@@ -23,7 +23,6 @@ public static class ActionExtensions
         PowerQueryAction.GetLoadConfig => "get-load-config",
         PowerQueryAction.LoadTo => "load-to",
         PowerQueryAction.ListExcelSources => "list-excel-sources",
-        PowerQueryAction.Eval => "eval",
 
         // Atomic Operations
         PowerQueryAction.Create => "create",
