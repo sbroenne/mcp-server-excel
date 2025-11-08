@@ -1,11 +1,13 @@
 # BEFORE CREATING/IMPORTING POWER QUERY - GATHER THIS INFO
 
-**✨ RECOMMENDED: Use 'create' action for new queries (atomic import + load)**
+**✨ RECOMMENDED: Use 'create' action for NEW queries (atomic import + load)**
+**⚠️ IMPORTANT: Check if query exists first - use 'update' for existing queries**
 
 REQUIRED:
 ☐ Query name (what to call it in Excel)
 ☐ Source file path (.pq file location)
 ☐ Excel file path (destination workbook)
+☐ Does query already exist? (use 'list' to check, then 'create' for new or 'update' for existing)
 
 RECOMMENDED (avoid second call):
 ☐ Load mode/destination:
@@ -20,8 +22,9 @@ OPTIONAL:
 
 WORKFLOW OPTIMIZATION:
 ☐ Batch mode? (if creating/importing 2+ queries, START with begin_excel_batch)
-☐ Use 'create' action instead of 'import' for atomic operation
-☐ Use 'update-and-refresh' instead of 'update' + 'refresh' for production updates
+☐ Use 'create' action for NEW queries (fails if query exists)
+☐ Use 'update' action for EXISTING queries (fails if query doesn't exist)
+☐ Not sure? Check with 'list' action first
 
 ASK USER FOR MISSING INFO before calling excel_powerquery.
 BATCH MODE: Detect keywords (numbers, plurals, lists) → use begin_excel_batch automatically
