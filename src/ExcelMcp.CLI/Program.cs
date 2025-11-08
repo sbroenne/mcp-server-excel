@@ -67,9 +67,8 @@ internal sealed class Program
 
                 // Power Query commands - Atomic operations
                 "pq-create" => await powerQuery.Create(args),
-                "pq-update-mcode" => await powerQuery.UpdateMCode(args),
+                "pq-update" => await powerQuery.Update(args),
                 "pq-unload" => await powerQuery.Unload(args),
-                "pq-update-and-refresh" => await powerQuery.UpdateAndRefresh(args),
                 "pq-refresh-all" => await powerQuery.RefreshAll(args),
 
                 // Sheet commands (lifecycle only - data operations use range-* commands)
@@ -327,8 +326,7 @@ internal sealed class Program
         AnsiConsole.MarkupLine("[bold yellow]Power Query - Atomic Operations:[/]");
         AnsiConsole.MarkupLine("  [cyan]pq-create[/] file.xlsx query src.pq           Create query + load data (atomic)");
         AnsiConsole.MarkupLine("    Options: [dim]--destination worksheet|data-model|both|connection-only --target-sheet SheetName[/]");
-        AnsiConsole.MarkupLine("  [cyan]pq-update-mcode[/] file.xlsx query code.pq    Update M code only (no refresh)");
-        AnsiConsole.MarkupLine("  [cyan]pq-update-and-refresh[/] file.xlsx query src  Update M code + refresh (atomic)");
+        AnsiConsole.MarkupLine("  [cyan]pq-update[/] file.xlsx query code.pq          Update M code + refresh data (atomic)");
         AnsiConsole.MarkupLine("  [cyan]pq-unload[/] file.xlsx query                  Convert to connection-only");
         AnsiConsole.MarkupLine("  [cyan]pq-refresh-all[/] file.xlsx                   Refresh all queries");
         AnsiConsole.WriteLine();

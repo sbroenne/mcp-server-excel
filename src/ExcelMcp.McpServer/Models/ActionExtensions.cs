@@ -26,9 +26,8 @@ public static class ActionExtensions
 
         // Atomic Operations
         PowerQueryAction.Create => "create",
-        PowerQueryAction.UpdateMCode => "update-mcode",
+        PowerQueryAction.Update => "update",  // Renamed from update-mcode
         PowerQueryAction.Unload => "unload",
-        PowerQueryAction.UpdateAndRefresh => "update-and-refresh",
         PowerQueryAction.RefreshAll => "refresh-all",
 
         _ => throw new ArgumentException($"Unknown PowerQueryAction: {action}")

@@ -136,7 +136,7 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testExcelFile);
         await _powerQueryCommands.CreateAsync(batch, queryName, testQueryFile);
-        var result = await _powerQueryCommands.UpdateMCodeAsync(batch, queryName, updateFile);
+        var result = await _powerQueryCommands.UpdateAsync(batch, queryName, updateFile);
 
         // Assert
         Assert.True(result.Success);
@@ -309,8 +309,8 @@ in
         Assert.Equal(PowerQueryLoadMode.LoadToTable, loadConfigBefore.LoadMode);
         Assert.Equal(sheetName, loadConfigBefore.TargetSheet);
 
-        // STEP 2: Update the query M code
-        var updateResult = await _powerQueryCommands.UpdateMCodeAsync(batch, queryName, updatedQueryFile);
+        // STEP 2: Update the query M code (now auto-refreshes)
+        var updateResult = await _powerQueryCommands.UpdateAsync(batch, queryName, updatedQueryFile);
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
 
         // STEP 3: Verify load configuration is PRESERVED (regression check)
@@ -337,6 +337,7 @@ in
     public async Task UpdateMCodeThenRefresh_QueryLoadedToSheet_PreservesLoadConfiguration()
     {
         // Arrange
+
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PowerQueryCommandsTests),
             nameof(UpdateMCodeThenRefresh_QueryLoadedToSheet_PreservesLoadConfiguration),
@@ -370,24 +371,21 @@ in
         Assert.Equal(PowerQueryLoadMode.LoadToTable, loadConfigBefore.LoadMode);
         Assert.Equal(sheetName, loadConfigBefore.TargetSheet);
 
-        // STEP 3: Update M code (this is what user reported doing)
-        var updateResult = await _powerQueryCommands.UpdateMCodeAsync(batch, queryName, updatedQueryFile);
-        Assert.True(updateResult.Success, $"UpdateMCode failed: {updateResult.ErrorMessage}");
+        // STEP 3: Update M code (now auto-refreshes - this is the simplified API)
+        var updateResult = await _powerQueryCommands.UpdateAsync(batch, queryName, updatedQueryFile);
+        Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
 
-        // STEP 4: Refresh (this is where user reported load config was lost)
-        var refreshResult = await _powerQueryCommands.RefreshAsync(batch, queryName);
-        Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
+        // STEP 4: THE CRITICAL CHECK - Does load config survive Update (which includes refresh)?
+        var loadConfigAfterUpdate = await _powerQueryCommands.GetLoadConfigAsync(batch, queryName);
+        Assert.True(loadConfigAfterUpdate.Success, "GetLoadConfig after update failed");
 
-        // STEP 5: THE CRITICAL CHECK - Does load config survive UpdateMCode + Refresh?
-        var loadConfigAfterRefresh = await _powerQueryCommands.GetLoadConfigAsync(batch, queryName);
-        Assert.True(loadConfigAfterRefresh.Success, "GetLoadConfig after refresh failed");
+        // This assertion verifies load config is preserved through update+refresh
+        Assert.Equal(PowerQueryLoadMode.LoadToTable, loadConfigAfterUpdate.LoadMode);
+        Assert.Equal(sheetName, loadConfigAfterUpdate.TargetSheet);
 
-        // THE BUG REPRODUCTION: This assertion might fail if Refresh loses load configuration
-        Assert.Equal(PowerQueryLoadMode.LoadToTable, loadConfigAfterRefresh.LoadMode);
-        Assert.Equal(sheetName, loadConfigAfterRefresh.TargetSheet);
+        // STEP 5: Verify data is actually on the sheet (not connection-only)
 
-        // STEP 6: Verify data is actually on the sheet (not connection-only)
-        Assert.False(string.IsNullOrEmpty(loadConfigAfterRefresh.TargetSheet),
+        Assert.False(string.IsNullOrEmpty(loadConfigAfterUpdate.TargetSheet),
             "Query should have a target sheet (not be connection-only)");
     }
 
@@ -463,7 +461,8 @@ in
 in
     Source");
 
-        var updateResult1 = await _powerQueryCommands.UpdateAndRefreshAsync(batch, queryName, oneColumnUpdatedFile);
+        // STEP 3: Update query to ONE column (now auto-refreshes)
+        var updateResult1 = await _powerQueryCommands.UpdateAsync(batch, queryName, oneColumnUpdatedFile);
         Assert.True(updateResult1.Success, $"First update failed: {updateResult1.ErrorMessage}");
 
         // STEP 4: Check that there is still only ONE column
@@ -486,7 +485,9 @@ in
 in
     Source");
 
-        var updateResult2 = await _powerQueryCommands.UpdateAndRefreshAsync(batch, queryName, twoColumnQueryFile);
+        // STEP 5: Update query to TWO columns (now auto-refreshes)
+        // This validates the fix: PreserveColumnInfo=false allows column structure updates
+        var updateResult2 = await _powerQueryCommands.UpdateAsync(batch, queryName, twoColumnQueryFile);
         Assert.True(updateResult2.Success, $"Second update failed: {updateResult2.ErrorMessage}");
 
         // STEP 6: Check that there are now TWO columns
@@ -581,7 +582,8 @@ in
 in
     Source");
 
-        var updateResult = await _powerQueryCommands.UpdateMCodeAsync(batch, queryName, twoColumnFile);
+        // STEP 2: Update query to TWO columns (now auto-refreshes)
+        var updateResult = await _powerQueryCommands.UpdateAsync(batch, queryName, twoColumnFile);
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
 
         // STEP 3: Apply the DELETE + RECREATE workflow (historically caused 3-column bug)

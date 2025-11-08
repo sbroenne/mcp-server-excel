@@ -65,14 +65,14 @@ public interface IPowerQueryCommands
     Task<PowerQueryCreateResult> CreateAsync(IExcelBatch batch, string queryName, string mCodeFile, PowerQueryLoadMode loadMode = PowerQueryLoadMode.LoadToTable, string? targetSheet = null);
 
     /// <summary>
-    /// Updates only the M code formula of an existing query (no refresh)
-    /// Explicit separation of update vs refresh for atomic workflows
+    /// Updates M code and refreshes data atomically
+    /// Complete operation: Updates query formula AND reloads fresh data (no stale data footgun)
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query to update</param>
     /// <param name="mCodeFile">Path to M code file</param>
-    /// <returns>OperationResult with update status</returns>
-    Task<OperationResult> UpdateMCodeAsync(IExcelBatch batch, string queryName, string mCodeFile);
+    /// <returns>OperationResult with update and refresh status</returns>
+    Task<OperationResult> UpdateAsync(IExcelBatch batch, string queryName, string mCodeFile);
 
     /// <summary>
     /// Atomically sets load destination and refreshes data
@@ -96,16 +96,6 @@ public interface IPowerQueryCommands
 
     // ValidateSyntaxAsync removed - Excel doesn't validate M code syntax at query creation time.
     // Validation only happens during refresh, making syntax-only validation unreliable.
-
-    /// <summary>
-    /// Convenience method: Updates M code then refreshes data
-    /// Common workflow as single operation (UpdateMCodeAsync + RefreshAsync)
-    /// </summary>
-    /// <param name="batch">Excel batch session</param>
-    /// <param name="queryName">Name of the query</param>
-    /// <param name="mCodeFile">Path to M code file</param>
-    /// <returns>OperationResult with combined update and refresh status</returns>
-    Task<OperationResult> UpdateAndRefreshAsync(IExcelBatch batch, string queryName, string mCodeFile);
 
     /// <summary>
     /// Refreshes all Power Queries in the workbook

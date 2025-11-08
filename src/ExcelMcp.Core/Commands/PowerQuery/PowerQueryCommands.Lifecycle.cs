@@ -793,14 +793,14 @@ public partial class PowerQueryCommands
     }
 
     /// <summary>
-    /// Updates ONLY the M code formula (no refresh)
-    /// Use RefreshAsync() separately if data update needed
+    /// Updates M code and refreshes data atomically
+    /// Complete operation: Updates query formula AND reloads fresh data
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query to update</param>
     /// <param name="mCodeFile">Path to new M code file</param>
     /// <returns>Operation result</returns>
-    public async Task<OperationResult> UpdateMCodeAsync(
+    public async Task<OperationResult> UpdateAsync(
         IExcelBatch batch,
         string queryName,
         string mCodeFile)
@@ -808,7 +808,7 @@ public partial class PowerQueryCommands
         var result = new OperationResult
         {
             FilePath = batch.WorkbookPath,
-            Action = "update-mcode"
+            Action = "update"
         };
 
         try
@@ -847,7 +847,19 @@ public partial class PowerQueryCommands
 
                     // Update M code formula
                     query.Formula = mCode;
-                    result.Success = true;
+
+                    // Auto-refresh to keep data in sync with new M code
+                    // Note: RefreshAsync handles connection-only queries gracefully
+                    ComUtilities.Release(ref query!);
+                    ComUtilities.Release(ref queries!);
+
+                    var refreshResult = RefreshAsync(batch, queryName).GetAwaiter().GetResult();
+
+                    result.Success = refreshResult.Success;
+                    if (!refreshResult.Success)
+                    {
+                        result.ErrorMessage = $"M code updated but refresh failed: {refreshResult.ErrorMessage}";
+                    }
 
                     return result;
                 }

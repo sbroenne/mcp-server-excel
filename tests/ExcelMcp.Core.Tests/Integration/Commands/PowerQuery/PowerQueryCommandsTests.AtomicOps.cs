@@ -6,8 +6,8 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
 
 /// <summary>
-/// Integration tests for PowerQuery atomic operations
-/// Test Coverage: CreateAsync, UpdateMCodeAsync, LoadToAsync, UnloadAsync, ValidateSyntaxAsync, UpdateAndRefreshAsync, RefreshAllAsync
+/// Integration tests for PowerQuery operations
+/// Test Coverage: CreateAsync, UpdateAsync, LoadToAsync, UnloadAsync, ValidateSyntaxAsync, RefreshAllAsync
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
@@ -155,7 +155,7 @@ public partial class PowerQueryCommandsTests
 
     #endregion
 
-    #region UpdateMCodeAsync Tests
+    #region Update Tests
 
     [Fact]
     public async Task UpdateMCode_ExistingQuery_UpdatesSuccessfully()
@@ -187,7 +187,7 @@ in
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var updateResult = await _powerQueryCommands.UpdateMCodeAsync(batch, queryName, updatedFile);
+        var updateResult = await _powerQueryCommands.UpdateAsync(batch, queryName, updatedFile);
 
         // Assert
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
@@ -352,11 +352,11 @@ in
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var updateRefreshResult = await _powerQueryCommands.UpdateAndRefreshAsync(
+        var updateResult = await _powerQueryCommands.UpdateAsync(
             batch, queryName, updatedFile);
 
         // Assert
-        Assert.True(updateRefreshResult.Success, $"UpdateAndRefresh failed: {updateRefreshResult.ErrorMessage}");
+        Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
 
         // Verify M code was updated
         var viewResult = await _powerQueryCommands.ViewAsync(batch, queryName);

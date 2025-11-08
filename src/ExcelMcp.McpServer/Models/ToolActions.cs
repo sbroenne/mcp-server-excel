@@ -23,10 +23,11 @@ public enum FileAction
 /// - UpdateMCode: Update formula only (explicit separation from refresh)
 /// - LoadTo: Atomic configure + refresh (replaces SetLoadTo* + Refresh)
 /// - Unload: Convert to connection-only (inverse of LoadTo)
-/// - UpdateAndRefresh: Convenience wrapper (UpdateMCode + Refresh)
 /// - RefreshAll: Batch refresh all queries
 ///
 /// NOTE: ValidateSyntax removed - Excel validation timing differs from test expectations
+/// NOTE: UpdateMCode renamed to Update (auto-refreshes)
+/// NOTE: UpdateAndRefresh removed (redundant - Update now auto-refreshes)
 /// </remarks>
 public enum PowerQueryAction
 {
@@ -40,9 +41,8 @@ public enum PowerQueryAction
 
     // Atomic Operations
     Create,
-    UpdateMCode,
+    Update,       // Renamed from UpdateMCode, now auto-refreshes
     Unload,
-    UpdateAndRefresh,
     RefreshAll,
     LoadTo
 }

@@ -523,13 +523,13 @@ public class PowerQueryCommands : IPowerQueryCommands
     }
 
     /// <summary>
-    /// Updates only the M code of a Power Query (no refresh)
+    /// Updates M code of a Power Query and refreshes data atomically
     /// </summary>
-    public async Task<int> UpdateMCode(string[] args)
+    public async Task<int> Update(string[] args)
     {
         if (args.Length < 4)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-update-mcode <file.xlsx> <query-name> <mcode-file>");
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-update <file.xlsx> <query-name> <mcode-file>");
             return 1;
         }
 
@@ -537,13 +537,13 @@ public class PowerQueryCommands : IPowerQueryCommands
         string queryName = args[2];
         string mCodeFile = args[3];
 
-        AnsiConsole.MarkupLine($"[bold]Updating M code for '[cyan]{queryName}[/]' (no refresh)...[/]");
+        AnsiConsole.MarkupLine($"[bold]Updating M code and refreshing data for '[cyan]{queryName}[/]'...[/]");
 
         OperationResult result;
         try
         {
             await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            result = await _coreCommands.UpdateMCodeAsync(batch, queryName, mCodeFile);
+            result = await _coreCommands.UpdateAsync(batch, queryName, mCodeFile);
             await batch.SaveAsync();
         }
         catch (Exception ex)
@@ -558,8 +558,8 @@ public class PowerQueryCommands : IPowerQueryCommands
             return 1;
         }
 
-        AnsiConsole.MarkupLine($"[green]✓[/] Updated M code for '[cyan]{queryName}[/]'");
-        AnsiConsole.MarkupLine("[yellow]Note:[/] Query data not refreshed. Use [cyan]pq-refresh[/] to refresh data.");
+        AnsiConsole.MarkupLine($"[green]✓[/] Updated M code and refreshed data for '[cyan]{queryName}[/]'");
+        AnsiConsole.MarkupLine("Query is now current with latest M code and fresh data.");
 
         return 0;
     }
@@ -601,48 +601,6 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         AnsiConsole.MarkupLine($"[green]✓[/] Converted '[cyan]{queryName}[/]' to connection-only");
         AnsiConsole.MarkupLine("[dim]Query is now connection-only (data removed from worksheet/data model)[/]");
-
-        return 0;
-    }
-
-    /// <summary>
-    /// Updates M code AND refreshes data in one atomic operation
-    /// </summary>
-    public async Task<int> UpdateAndRefresh(string[] args)
-    {
-        if (args.Length < 4)
-        {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-update-and-refresh <file.xlsx> <query-name> <mcode-file>");
-            return 1;
-        }
-
-        string filePath = args[1];
-        string queryName = args[2];
-        string mCodeFile = args[3];
-
-        AnsiConsole.MarkupLine($"[bold]Updating and refreshing '[cyan]{queryName}[/]'...[/]");
-
-        OperationResult result;
-        try
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            result = await _coreCommands.UpdateAndRefreshAsync(batch, queryName, mCodeFile);
-            await batch.SaveAsync();
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
-            return 1;
-        }
-
-        if (!result.Success)
-        {
-            AnsiConsole.MarkupLine($"[red]✗[/] {result.ErrorMessage?.EscapeMarkup()}");
-            return 1;
-        }
-
-        AnsiConsole.MarkupLine($"[green]✓[/] Updated and refreshed '[cyan]{queryName}[/]'");
-        AnsiConsole.MarkupLine("[dim]M code updated and data refreshed in one operation[/]");
 
         return 0;
     }

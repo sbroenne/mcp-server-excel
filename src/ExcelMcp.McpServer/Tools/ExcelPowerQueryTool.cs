@@ -18,20 +18,18 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// LLM Usage Patterns:
 /// - Use "list" to see all Power Queries in a workbook
 /// - Use "view" to examine M code for a specific query
-/// - Use "create" to add new queries from .pq files (atomic: import + load in one call)
+/// - Use "create" to add new queries from .pq files (import + load in one call)
 /// - Use "export" to save M code to files for version control
-/// - Use "update-mcode" to modify M code only (no refresh)
-/// - Use "update-and-refresh" to update M code and refresh data atomically
+/// - Use "update" to modify M code AND refresh data (complete operation)
 /// - Use "refresh" to refresh query data from source
 /// - Use "unload" to convert query to connection-only (inverse of load-to)
 /// - Use "refresh-all" to refresh all queries in workbook
 /// - Use "delete" to remove queries
 /// - Use "get-load-config" to check current loading configuration
 ///
-/// ATOMIC OPERATIONS:
-/// - create: Import + load in one atomic operation (replaces import + load-to)
-/// - update-mcode: Update M code without refresh (for staging changes)
-/// - update-and-refresh: Update M code + refresh in one atomic operation
+/// OPERATIONS:
+/// - create: Import + load in one operation (replaces import + load-to)
+/// - update: Update M code + refresh data (complete operation, keeps data fresh)
 /// - unload: Convert to connection-only (inverse of load-to)
 /// - refresh-all: Refresh all queries in workbook
 ///
@@ -68,8 +66,7 @@ LOAD DESTINATIONS (loadDestination parameter):
 
 OPERATIONS GUIDANCE:
 - Create: Import M code from .pq file AND optionally load data in ONE operation
-- UpdateMCode: Update M code ONLY (no refresh) - use when staging changes before refresh
-- UpdateAndRefresh: Update M code AND refresh data in ONE operation
+- Update: Update M code AND refresh data in ONE operation (complete operation, keeps data fresh)
 - LoadTo: Apply load destination to connection-only query (make it load data to a worksheet or Data Model)
 - Unload: Convert query to connection-only (remove data, keep M code definition)
 - RefreshAll: Refresh ALL Power Queries in workbook (batch refresh)
@@ -135,10 +132,9 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
 
                 // Atomic Operations
                 PowerQueryAction.Create => await CreatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, targetSheet, batchId),
-                PowerQueryAction.UpdateMCode => await UpdateMCodePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, batchId),
+                PowerQueryAction.Update => await UpdatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, batchId),
                 PowerQueryAction.LoadTo => await LoadToPowerQueryAsync(powerQueryCommands, excelPath, queryName, loadDestination, targetSheet, batchId),
                 PowerQueryAction.Unload => await UnloadPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
-                PowerQueryAction.UpdateAndRefresh => await UpdateAndRefreshPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, batchId),
                 PowerQueryAction.RefreshAll => await RefreshAllPowerQueriesAsync(powerQueryCommands, excelPath, batchId),
 
                 _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
@@ -424,7 +420,7 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> UpdateMCodePowerQueryAsync(
+    private static async Task<string> UpdatePowerQueryAsync(
         PowerQueryCommands commands,
         string excelPath,
         string? queryName,
@@ -432,9 +428,9 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
         string? batchId)
     {
         if (string.IsNullOrEmpty(queryName))
-            throw new ModelContextProtocol.McpException("queryName is required for update-mcode action");
+            throw new ModelContextProtocol.McpException("queryName is required for update action");
         if (string.IsNullOrEmpty(sourcePath))
-            throw new ModelContextProtocol.McpException("sourcePath is required for update-mcode action (.pq file)");
+            throw new ModelContextProtocol.McpException("sourcePath is required for update action (.pq file)");
 
         sourcePath = PathValidator.ValidateExistingFile(sourcePath, nameof(sourcePath));
 
@@ -442,18 +438,18 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             batchId,
             excelPath,
             save: true,
-            async (batch) => await commands.UpdateMCodeAsync(batch, queryName, sourcePath));
+            async (batch) => await commands.UpdateAsync(batch, queryName, sourcePath));
 
         return JsonSerializer.Serialize(new
         {
             result.Success,
             result.ErrorMessage,
             workflowHint = result.Success
-                ? $"M code updated for '{queryName}'. Data NOT refreshed - use 'refresh' or 'update-and-refresh' to reload."
-                : $"Failed to update M code for '{queryName}'. Verify query exists and M syntax is valid.",
+                ? $"M code updated and data refreshed for '{queryName}' atomically. Query is current."
+                : $"Failed to update '{queryName}'. {result.ErrorMessage}",
             suggestedNextActions = result.Success
-                ? new[] { "Use 'refresh' to reload data with new M code", "Use 'update-and-refresh' to update and refresh atomically next time", "Use 'view' to verify M code changes" }
-                : ["Use 'list' to verify query name", "Check M syntax in .pq file", "Use 'eval' to test M code before updating"]
+                ? new[] { "Use 'view' to verify M code changes", "Use excel_range to inspect refreshed data", "Use 'get-load-config' to see loading configuration" }
+                : ["Use 'list' to verify query name", "Check M syntax in .pq file", "Verify data source connectivity"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -550,39 +546,6 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             suggestedNextActions = result.Success
                 ? new[] { "Use 'get-load-config' to verify connection-only status", "Use 'load-to' to reload data to worksheet/data-model", "Use 'list' to see updated query status" }
                 : ["Use 'get-load-config' to check current load status", "Verify query is not already connection-only", "Use 'list' to verify query name"]
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> UpdateAndRefreshPowerQueryAsync(
-        PowerQueryCommands commands,
-        string excelPath,
-        string? queryName,
-        string? sourcePath,
-        string? batchId)
-    {
-        if (string.IsNullOrEmpty(queryName))
-            throw new ModelContextProtocol.McpException("queryName is required for update-and-refresh action");
-        if (string.IsNullOrEmpty(sourcePath))
-            throw new ModelContextProtocol.McpException("sourcePath is required for update-and-refresh action (.pq file)");
-
-        sourcePath = PathValidator.ValidateExistingFile(sourcePath, nameof(sourcePath));
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await commands.UpdateAndRefreshAsync(batch, queryName, sourcePath));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"M code updated and data refreshed for '{queryName}' atomically. Changes applied and loaded."
-                : $"Failed atomic update for '{queryName}'. M code may be partially updated - verify with 'view'.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use 'view' to verify M code changes", "Use excel_range to inspect loaded data", "Use 'get-load-config' to see loading configuration" }
-                : ["Use 'view' to check if M code was updated", "Use 'update-mcode' then 'refresh' separately if atomic fails", "Check M syntax and data source connectivity"]
         }, ExcelToolsBase.JsonOptions);
     }
 

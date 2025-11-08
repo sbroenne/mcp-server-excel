@@ -1,11 +1,10 @@
 # excel_powerquery - Server Quirks
 
 **Action disambiguation**:
-- create vs import: create = atomic (import + load), import = M code only first
-- load-to: Applies destination + refreshes atomically (not just config change)
-- update-mcode vs update: update-mcode never refreshes, update may refresh
-- update-and-refresh: Atomic code update + data refresh
-- unload: Removes data but keeps query definition
+- create: Import M code + load data in one operation (default: loads to worksheet)
+- load-to: Applies destination + refreshes (not just config change)
+- update: Updates M code + refreshes data (complete operation, keeps data fresh)
+- unload: Removes data but keeps query definition (inverse of load-to)
 
 **Server-specific quirks**:
 - Validation = execution: M code only validated when data loads/refreshes
