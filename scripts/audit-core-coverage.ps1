@@ -347,7 +347,7 @@ if ($CheckNaming) {
     # Known intentional exceptions (documented in CORE-METHOD-RENAMING-SUMMARY.md)
     $knownExceptions = @{
         "TableAction" = @("ApplyFilterValues", "SortMulti")  # Method overloads
-        "FileAction" = @("CloseWorkbook")  # MCP-specific session management
+        "FileAction" = @("CloseWorkbook", "CheckIfOpen")  # MCP-specific actions
     }
 
     $namingIssues = @()

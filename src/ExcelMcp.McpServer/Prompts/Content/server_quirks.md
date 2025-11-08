@@ -1,5 +1,24 @@
 # Server Quirks & Gotchas - Things I Need to Remember
 
+## CRITICAL: File Access Requirements
+
+**NEVER work on files that are already open in Excel**
+- ExcelMcp requires EXCLUSIVE access to workbooks
+- If file is open in Excel UI or another process → operations WILL FAIL
+- Error: "The file is already open in Excel or another process is using it"
+- **USER ACTION REQUIRED**: Tell user to close the file first!
+- This is NOT optional - Excel COM automation requires exclusive access
+
+**Why this matters:**
+- Excel uses file locking to prevent corruption
+- Multiple processes accessing same file = data loss risk
+- Automation needs predictable state (no user edits during operation)
+
+**How to detect:**
+- User says "the file is open" or "I have Excel running"
+- Error message mentions "already open" or "locked by another process"
+- ALWAYS tell user: "Please close the file in Excel before running automation"
+
 ## Data Type Surprises
 
 **Single cells return 2D arrays, not scalars**

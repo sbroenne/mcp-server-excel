@@ -69,8 +69,22 @@ internal sealed class ExcelBatch : IExcelBatch
                 // See: https://learn.microsoft.com/en-us/office/vba/api/word.application.automationsecurity
                 tempExcel.AutomationSecurity = 3; // msoAutomationSecurityForceDisable
 
-                // Open workbook
-                dynamic tempWorkbook = tempExcel.Workbooks.Open(_workbookPath);
+                // CRITICAL: Check if file is locked at OS level BEFORE attempting Excel COM open
+                // This fails fast without the overhead of Excel COM initialization
+                FileAccessValidator.ValidateFileNotLocked(_workbookPath);
+
+                // Open workbook with Excel COM
+                dynamic tempWorkbook;
+                try
+                {
+                    tempWorkbook = tempExcel.Workbooks.Open(_workbookPath);
+                }
+                catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
+                {
+                    // Excel Error 1004 - File is already open or locked
+                    // This is a backup catch in case OS-level check missed something
+                    throw FileAccessValidator.CreateFileLockedError(_workbookPath, ex);
+                }
 
                 _excel = tempExcel;
                 _workbook = tempWorkbook;

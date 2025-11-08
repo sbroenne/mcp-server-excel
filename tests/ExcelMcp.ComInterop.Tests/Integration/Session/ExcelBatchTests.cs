@@ -408,5 +408,63 @@ public class ExcelBatchTests
             }
         }
     }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("RunType", "OnDemand")]
+    [Trait("Feature", "FileLocking")]
+    public async Task Constructor_FileLockedByAnotherProcess_ThrowsInvalidOperationException()
+    {
+        // Arrange - Create test file and lock it
+        var testFile = await CreateTempTestFileAsync();
+
+        try
+        {
+            // Lock the file by opening with exclusive access (simulating Excel or another process)
+            using var fileLock = new FileStream(
+                testFile,
+                FileMode.Open,
+                FileAccess.ReadWrite,
+                FileShare.None);
+
+            // Act & Assert - Attempting to create ExcelBatch should fail immediately
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            {
+                await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+            });
+
+            // Verify error message is clear and actionable
+            Assert.Contains("already open", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("close the file", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("exclusive access", ex.Message, StringComparison.OrdinalIgnoreCase);
+
+            _output.WriteLine($"✓ File locking detected successfully");
+            _output.WriteLine($"Error message: {ex.Message}");
+        }
+        finally
+        {
+            // Cleanup
+            if (File.Exists(testFile))
+            {
+                try { File.Delete(testFile); } catch { }
+            }
+        }
+    }
+
+    // Note: Testing file-already-open scenario is complex because:
+    // 1. Excel's behavior when opening an already-open file can vary (hang, prompt, or succeed)
+    // 2. The error detection code in ExcelBatch.cs catches COM Error 0x800A03EC
+    // 3. This test would require simulating Excel having the file open externally
+    //
+    // The error handling code is verified through:
+    // - Manual testing: Open file in Excel UI, then try automation
+    // - Real-world usage: Users will encounter this if they forget to close files
+    // - Code review: Error message is clear and actionable
+    //
+    // UPDATE: We now have a test (Constructor_FileLockedByAnotherProcess_ThrowsInvalidOperationException)
+    // that verifies the OS-level file locking check without requiring Excel to be running.
+    //
+    // Keeping this comment as documentation that the scenario is handled in production code.
 }
+
 

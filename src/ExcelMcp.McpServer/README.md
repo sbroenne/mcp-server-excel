@@ -15,6 +15,8 @@ Unlike third-party libraries that manipulate `.xlsx` files (risking corruption),
 
 **Requirements:** Windows OS + Excel 2016+
 
+**⚠️ Important:** Close all Excel files before automation. ExcelMcp requires **exclusive access** to workbooks (Excel COM requirement).
+
 **Installation: Global .NET Tool**
 
 ```powershell

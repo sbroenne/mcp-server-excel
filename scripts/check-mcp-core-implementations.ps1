@@ -26,12 +26,13 @@ $errors = @()
 
 # Known intentional exceptions (documented in CORE-METHOD-RENAMING-SUMMARY.md)
 $knownExceptions = @{
-    "FileAction" = @("CloseWorkbook")  # Handled by MCP server directly
+    "FileAction" = @("CloseWorkbook", "CheckIfOpen")  # Handled by MCP server directly
     "TableAction" = @("ApplyFilterValues", "SortMulti")  # Composite operations
 }
 
 # Define mappings: Enum -> Core Interface File
 $mappings = @{
+    "FileAction" = "src/ExcelMcp.Core/Commands/File/IFileCommands.cs"
     "PowerQueryAction" = "src/ExcelMcp.Core/Commands/PowerQuery/IPowerQueryCommands.cs"
     "WorksheetAction" = "src/ExcelMcp.Core/Commands/Sheet/ISheetCommands.cs"
     "TableAction" = "src/ExcelMcp.Core/Commands/Table/ITableCommands.cs"

@@ -28,6 +28,29 @@ Suggested Next Actions:
 
 Complete reference for all ExcelMcp.CLI commands.
 
+## 🚨 Important: File Access Requirements
+
+**ExcelMcp requires EXCLUSIVE access to workbooks during automation.**
+
+Before running any commands:
+- ✅ Close the Excel file in Excel application
+- ✅ Close all Excel windows showing the file
+- ✅ Ensure no other processes have the file open
+
+**Why this matters:**
+- Excel uses file locking to prevent data corruption
+- COM automation needs predictable state (no concurrent user edits)
+- Multiple processes accessing the same file = data loss risk
+
+**If you see errors like:**
+- "The file is already open in Excel or another process is using it"
+- "Cannot open the file" or "File is locked"
+- "Value does not fall within expected range" (COM Error 1004)
+
+**Solution:** Close the file in Excel and retry the command.
+
+---
+
 ## File Commands
 
 Create and manage Excel workbooks.
