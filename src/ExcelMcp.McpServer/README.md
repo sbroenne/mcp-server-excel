@@ -11,9 +11,11 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 
 **🛡️ 100% Safe - Uses Excel's Native COM API**
 
-Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time. Currently supports 166 operations across 11 specialized tools with active development expanding capabilities.
+Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time. Currently supports **165 operations across 11 specialized tools** with active development expanding capabilities.
 
 **Requirements:** Windows OS + Excel 2016+
+
+**⚠️ Important:** Close all Excel files before automation. ExcelMcp requires **exclusive access** to workbooks (Excel COM requirement).
 
 **Installation: Global .NET Tool**
 
@@ -42,19 +44,19 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 **11 specialized MCP tools** for comprehensive Excel automation:
 
-1. **Power Query & M Code** (16 actions) - Create, edit, optimize Power Query transformations with AI assistance
+1. **Power Query & M Code** (14 actions) - Create, edit, optimize Power Query transformations with AI assistance
 2. **Power Pivot / Data Model** (15 actions) - Build DAX measures, manage relationships, discover model structure, export to .dax files for Git workflows
-3. **Excel Tables** (26 actions) - Automate table creation, filtering, sorting, column management, structured references, number formatting
-4. **PivotTables** (20 actions) - Create and configure PivotTables for interactive data analysis
+3. **Excel Tables** (23 actions) - Automate table creation, filtering, sorting, column management, structured references, number formatting
+4. **PivotTables** (18 actions) - Create and configure PivotTables for interactive data analysis
 5. **Ranges & Data** (45 actions) - Get/set values/formulas, number formatting, visual formatting (font, fill, border, alignment), data validation, find/replace, sort, insert/delete, hyperlinks, merge, conditional formatting, cell protection
 6. **VBA Macros** (7 actions) - Export, import, run VBA code with version control integration
-7. **Data Connections** (11 actions) - Manage OLEDB, ODBC, Text, Web connections and properties
+7. **Data Connections** (12 actions) - Manage OLEDB, ODBC, Text, Web connections and properties
 8. **Worksheets** (13 actions) - Lifecycle management, tab colors, visibility controls
 9. **Named Ranges** (7 actions) - Manage parameters and configuration through named ranges
 10. **File Operations** (3 actions) - Create Excel workbooks (.xlsx/.xlsm), close workbook, test
-11. **Batch Sessions** (3 actions) - Group multiple operations for better performance
+11. **QueryTables** (8 actions) - Manage data refresh connections for reliable persistence
 
-**Total: 11 tools with 166 actions**
+**Total: 11 tools with 165 actions**
 
 **AI-Powered Workflows:**
 - 💬 Natural language Excel commands through GitHub Copilot or Claude

@@ -15,7 +15,6 @@ public static class ExcelSession
     /// without incurring Excel startup/shutdown overhead.
     /// </summary>
     /// <param name="filePath">Path to the Excel file</param>
-    /// <param name="cancellationToken">Optional cancellation token</param>
     /// <returns>IExcelBatch for executing multiple operations</returns>
     /// <remarks>
     /// All CLI and MCP operations use this batch-based approach for optimal performance.
@@ -44,7 +43,7 @@ public static class ExcelSession
     [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
     public static async Task<IExcelBatch> BeginBatchAsync(
         string filePath,
-        CancellationToken cancellationToken = default)
+        CancellationToken _ = default)
     {
         string fullPath = Path.GetFullPath(filePath);
 
@@ -73,7 +72,6 @@ public static class ExcelSession
     /// <param name="filePath">Path where to save the new Excel file</param>
     /// <param name="isMacroEnabled">Whether to create a macro-enabled workbook (.xlsm)</param>
     /// <param name="operation">Synchronous COM operation to execute with ExcelContext</param>
-    /// <param name="timeout">Optional timeout for the operation (ignored for now, reserved for future use)</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Result of the operation</returns>
     [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
@@ -81,7 +79,7 @@ public static class ExcelSession
         string filePath,
         bool isMacroEnabled,
         Func<ExcelContext, CancellationToken, T> operation,
-        TimeSpan? timeout = null,
+        TimeSpan? _ = null,
         CancellationToken cancellationToken = default)
     {
         string fullPath = Path.GetFullPath(filePath);
@@ -146,12 +144,12 @@ public static class ExcelSession
                 GC.WaitForPendingFinalizers();
                 GC.Collect();
             }
-        });
+        }, cancellationToken);
 
         // Now use batch API to execute the operation
         await using var batch = await BeginBatchAsync(fullPath, cancellationToken);
-        var result = await batch.Execute(operation);
-        await batch.SaveAsync();
+        var result = await batch.Execute(operation, timeout: null, cancellationToken);
+        await batch.SaveAsync(timeout: null, cancellationToken);
 
         return result;
     }
@@ -165,7 +163,6 @@ public static class ExcelSession
     /// <param name="filePath">Path where to save the new Excel file</param>
     /// <param name="isMacroEnabled">Whether to create a macro-enabled workbook (.xlsm)</param>
     /// <param name="operation">Async operation to execute with ExcelContext</param>
-    /// <param name="timeout">Optional timeout for the operation (ignored for now, reserved for future use)</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Result of the operation</returns>
     [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
@@ -173,7 +170,7 @@ public static class ExcelSession
         string filePath,
         bool isMacroEnabled,
         Func<ExcelContext, CancellationToken, Task<T>> operation,
-        TimeSpan? timeout = null,
+        TimeSpan? _ = null,
         CancellationToken cancellationToken = default)
     {
         string fullPath = Path.GetFullPath(filePath);
@@ -238,12 +235,12 @@ public static class ExcelSession
                 GC.WaitForPendingFinalizers();
                 GC.Collect();
             }
-        });
+        }, cancellationToken);
 
         // Now use batch API to execute the operation
         await using var batch = await BeginBatchAsync(fullPath, cancellationToken);
-        var result = await batch.ExecuteAsync(operation);
-        await batch.SaveAsync();
+        var result = await batch.ExecuteAsync(operation, timeout: null, cancellationToken);
+        await batch.SaveAsync(timeout: null, cancellationToken);
 
         return result;
     }

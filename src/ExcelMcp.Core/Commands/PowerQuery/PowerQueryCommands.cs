@@ -1,10 +1,5 @@
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
-using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Connections;
-using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Core.PowerQuery;
-using Sbroenne.ExcelMcp.Core.Security;
 
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -141,12 +136,21 @@ public partial class PowerQueryCommands : IPowerQueryCommands
     /// </summary>
     private static string CategorizeError(COMException comEx)
     {
-        var message = comEx.Message.ToLower();
-        if (message.Contains("authentication")) return "Authentication";
-        if (message.Contains("connection") || message.Contains("reach") || message.Contains("connect")) return "Connectivity";
-        if (message.Contains("privacy") || message.Contains("combine data")) return "Privacy";
-        if (message.Contains("syntax")) return "Syntax";
-        if (message.Contains("permission") || message.Contains("access")) return "Permissions";
+        var message = comEx.Message.ToLower(System.Globalization.CultureInfo.InvariantCulture);
+        if (message.Contains("authentication", StringComparison.OrdinalIgnoreCase))
+            return "Authentication";
+        if (message.Contains("connection", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("reach", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("connect", StringComparison.OrdinalIgnoreCase))
+            return "Connectivity";
+        if (message.Contains("privacy", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("combine data", StringComparison.OrdinalIgnoreCase))
+            return "Privacy";
+        if (message.Contains("syntax", StringComparison.OrdinalIgnoreCase))
+            return "Syntax";
+        if (message.Contains("permission", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("access", StringComparison.OrdinalIgnoreCase))
+            return "Permissions";
         return "Unknown";
     }
 

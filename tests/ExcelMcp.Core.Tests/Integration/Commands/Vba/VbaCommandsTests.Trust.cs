@@ -1,8 +1,6 @@
-using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Tests.Helpers;
-using Xunit;
-
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Vba;
+
+using System.Runtime.Versioning; // Added for platform-specific registry access attribute
 
 /// <summary>
 /// Integration tests for VBA Trust Detection functionality.
@@ -15,6 +13,7 @@ public partial class VbaCommandsTests
     /// <summary>
     /// Helper method to check VBA trust status via registry
     /// </summary>
+    [SupportedOSPlatform("windows")] // Registry APIs are Windows-only; attribute silences CA1416 analyzer warnings
     protected static bool IsVbaTrustEnabled()
     {
         try

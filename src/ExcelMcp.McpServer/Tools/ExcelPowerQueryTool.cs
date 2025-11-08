@@ -7,49 +7,16 @@ using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Security;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
+#pragma warning disable CA1861 // Avoid constant arrays as arguments - workflow hints are contextual per-call
+
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
-/// Excel Power Query management tool for MCP server.
-/// Handles M code operations, query management, and data loading configurations.
-///
-/// LLM Usage Patterns:
-/// - Use "list" to see all Power Queries in a workbook
-/// - Use "view" to examine M code for a specific query
-/// - Use "create" to add new queries from .pq files (atomic: import + load in one call)
-/// - Use "export" to save M code to files for version control
-/// - Use "update-mcode" to modify M code only (no refresh)
-/// - Use "update-and-refresh" to update M code and refresh data atomically
-/// - Use "refresh" to refresh query data from source
-/// - Use "unload" to convert query to connection-only (inverse of load-to)
-/// - Use "refresh-all" to refresh all queries in workbook
-/// - Use "delete" to remove queries
-/// - Use "get-load-config" to check current loading configuration
-///
-/// PHASE 1 ATOMIC OPERATIONS:
-/// - create: Import + load in one atomic operation (replaces import + load-to)
-/// - update-mcode: Update M code without refresh (for staging changes)
-/// - update-and-refresh: Update M code + refresh in one atomic operation
-/// - unload: Convert to connection-only (inverse of load-to)
-/// - refresh-all: Refresh all queries in workbook
-///
-/// IMPORTANT FOR DATA MODEL WORKFLOWS:
-/// - "create" with loadDestination='data-model' loads to Power Pivot Data Model (ready for DAX measures)
-/// - "create" with loadDestination='worksheet' loads to worksheet (users see formatted table)
-/// - "create" with loadDestination='both' loads to BOTH worksheet AND Power Pivot
-/// - For Power Pivot operations beyond loading data (DAX measures, relationships), use excel_datamodel or excel_powerpivot tools
-///
-/// VALIDATION & EXECUTION:
-/// - Create DEFAULT behavior: Automatically loads to worksheet (validates M code by executing it)
-/// - Validation = Execution: Power Query M code is only validated when data is actually loaded/refreshed
-/// - Connection-only queries are NOT validated until first execution
+/// MCP tool for Power Query M code and data loading operations.
 /// </summary>
 [McpServerToolType]
 public static class ExcelPowerQueryTool
 {
-    /// <summary>
-    /// Manage Power Query operations - M code, data loading, and query lifecycle
-    /// </summary>
     [McpServerTool(Name = "excel_powerquery")]
     [Description(@"Manage Power Query M code and data loading.
 
@@ -58,18 +25,18 @@ public static class ExcelPowerQueryTool
   2. excel_powerquery(..., batchId: batch.batchId)  // repeat for each operation
   3. commit_excel_batch(batchId: batch.batchId, save: true)
 
-PRIMARY ACTIONS (PHASE 1 ATOMIC OPERATIONS):
-- Create: Import Power Query from .pq file + load data in one atomic operation
-- UpdateMCode: Update M code only (no refresh - for staging changes)
-- UpdateAndRefresh: Update M code + refresh data in one atomic operation
-- Unload: Convert query to connection-only (remove data, keep definition)
-- RefreshAll: Refresh all Power Queries in workbook
-
-LOAD DESTINATIONS:
-- 'worksheet': Load to worksheet as table (users can see/validate data)
+LOAD DESTINATIONS (loadDestination parameter):
+- 'worksheet': Load to worksheet as table (DEFAULT - users can see/validate data)
 - 'data-model': Load to Power Pivot Data Model (ready for DAX measures/relationships)
 - 'both': Load to BOTH worksheet AND Data Model
 - 'connection-only': Don't load data (M code imported but not executed)
+
+OPERATIONS GUIDANCE:
+- Create: Import M code from .pq file AND optionally load data in ONE operation
+- Update: Update M code AND refresh data in ONE operation (complete operation, keeps data fresh)
+- LoadTo: Apply load destination to connection-only query (make it load data to a worksheet or Data Model)
+- Unload: Convert query to connection-only (remove data, keep M code definition)
+- RefreshAll: Refresh ALL Power Queries in workbook (batch refresh)
 
 After loading to Data Model, use excel_datamodel tool for DAX measures and relationships.")]
     public static async Task<string> ExcelPowerQuery(
@@ -129,13 +96,12 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                 PowerQueryAction.Delete => await DeletePowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
                 PowerQueryAction.GetLoadConfig => await GetLoadConfigAsync(powerQueryCommands, excelPath, queryName, batchId),
                 PowerQueryAction.ListExcelSources => await ListExcelSourcesAsync(powerQueryCommands, excelPath, batchId),
-                PowerQueryAction.Eval => await EvalPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, batchId),
 
-                // Phase 1: Atomic Operations
+                // Atomic Operations
                 PowerQueryAction.Create => await CreatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, targetSheet, batchId),
-                PowerQueryAction.UpdateMCode => await UpdateMCodePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, batchId),
+                PowerQueryAction.Update => await UpdatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, batchId),
+                PowerQueryAction.LoadTo => await LoadToPowerQueryAsync(powerQueryCommands, excelPath, queryName, loadDestination, targetSheet, batchId),
                 PowerQueryAction.Unload => await UnloadPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
-                PowerQueryAction.UpdateAndRefresh => await UpdateAndRefreshPowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, batchId),
                 PowerQueryAction.RefreshAll => await RefreshAllPowerQueriesAsync(powerQueryCommands, excelPath, batchId),
 
                 _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
@@ -159,8 +125,19 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             excelPath,
             save: false,
             async (batch) => await commands.ListAsync(batch));
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.Queries,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Found {result.Queries.Count} Power Queries. Review M code and refresh configurations."
+                : "Failed to list queries. Verify workbook has Power Query data connections.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'view' to examine M code for specific queries", "Use 'get-load-config' to check data loading settings", "Use 'refresh' to reload data from sources" }
+                : ["Verify workbook has Power Query connections", "Check if workbook is macro-enabled if needed", "Use excel_connection list to see all connections"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ViewPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
@@ -174,8 +151,19 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             save: false,
             async (batch) => await commands.ViewAsync(batch, queryName));
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.QueryName,
+            result.MCode,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"M code retrieved for '{queryName}'. Review transformations and data source connections."
+                : $"Failed to view '{queryName}'. Verify query name is correct.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'export' to save M code for version control", "Use 'update-mcode' to modify transformations", "Use 'refresh' to reload with current M code" }
+                : ["Use 'list' to see all available query names", "Check for typos in query name", "Verify query exists in workbook"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ExportPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? targetPath, string? batchId)
@@ -189,8 +177,18 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             save: false,
             async (batch) => await commands.ExportAsync(batch, queryName, targetPath));
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.FilePath,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"M code exported to '{targetPath}'. Store in version control for change tracking."
+                : $"Failed to export '{queryName}'. Verify query exists and target path is writable.",
+            suggestedNextActions = result.Success
+                ? new[] { "Commit .pq file to version control system", "Use 'update-mcode' to import modified M code", "Share .pq file with team for reuse" }
+                : ["Use 'list' to verify query name", "Check directory permissions for target path", "Ensure parent directory exists"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> RefreshPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, double? timeoutMinutes, string? batchId)
@@ -276,8 +274,17 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             save: true,
             async (batch) => await commands.DeleteAsync(batch, queryName));
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Query '{queryName}' deleted successfully. QueryTables referencing it may need cleanup."
+                : $"Failed to delete '{queryName}'. Verify query exists and is not actively refreshing.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'list' to verify deletion", "Check for orphaned QueryTables with excel_querytable list", "Export backup before deletion (if not already done)" }
+                : ["Use 'list' to verify query name", "Stop any active refresh operations", "Check if query is in use by PivotTables"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> GetLoadConfigAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
@@ -291,8 +298,20 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             save: false,
             async (batch) => await commands.GetLoadConfigAsync(batch, queryName));
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.QueryName,
+            result.LoadMode,
+            result.TargetSheet,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Load configuration: {result.LoadMode}. Data is {(result.LoadMode == PowerQueryLoadMode.ConnectionOnly ? "not loaded" : $"loaded to {result.TargetSheet ?? "worksheet/data-model"}")}."
+                : $"Failed to get load config for '{queryName}'. Verify query exists.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'load-to' to change data loading destination", "Use 'unload' to convert to connection-only", "Use 'refresh' to reload with current configuration" }
+                : ["Use 'list' to verify query name", "Check query exists in workbook", "Verify query is not corrupted"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ListExcelSourcesAsync(PowerQueryCommands commands, string excelPath, string? batchId)
@@ -303,38 +322,23 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             excelPath,
             save: false,
             async (batch) => await commands.ListExcelSourcesAsync(batch));
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
 
-    private static async Task<string> EvalPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? sourcePath, string? batchId)
-    {
-        if (string.IsNullOrEmpty(sourcePath))
-            throw new ModelContextProtocol.McpException("sourcePath is required for eval action (M code file to evaluate)");
-
-        // Validate and read M code from file
-        string mExpression;
-        try
+        return JsonSerializer.Serialize(new
         {
-            sourcePath = PathValidator.ValidateExistingFile(sourcePath, nameof(sourcePath));
-            mExpression = File.ReadAllText(sourcePath);
-        }
-        catch (Exception ex)
-        {
-            throw new ModelContextProtocol.McpException($"Failed to read M code from '{sourcePath}': {ex.Message}");
-        }
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: false,
-            async (batch) => await commands.EvalAsync(batch, mExpression));
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+            result.Success,
+            result.Worksheets,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Found {result.Worksheets.Count} available Excel sources. Use in M code: Excel.CurrentWorkbook(){{[Name=\"SourceName\"]}}[Content]."
+                : "Failed to list Excel sources. Verify workbook has tables or named ranges.",
+            suggestedNextActions = result.Success
+                ? new[] { "Reference sources in M code transformations", "Use excel_table list to see structured tables", "Use excel_namedrange list to see named ranges" }
+                : ["Create Excel Tables with excel_table create", "Create named ranges with excel_namedrange create", "Verify workbook structure"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     // =========================================================================
-    // PHASE 1 HANDLERS - Atomic Operations
+    // ATOMIC OPERATIONS HANDLERS
     // =========================================================================
 
     private static async Task<string> CreatePowerQueryAsync(
@@ -346,10 +350,15 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
         string? targetSheet,
         string? batchId)
     {
-        if (string.IsNullOrEmpty(queryName))
-            throw new ModelContextProtocol.McpException("queryName is required for create action");
-        if (string.IsNullOrEmpty(sourcePath))
-            throw new ModelContextProtocol.McpException("sourcePath is required for create action (.pq file)");
+        // Validate ALL required parameters first so error message lists every missing one
+        if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(sourcePath))
+        {
+            var missing = new List<string>();
+            if (string.IsNullOrEmpty(queryName)) missing.Add("queryName");
+            if (string.IsNullOrEmpty(sourcePath)) missing.Add("sourcePath");
+            var plural = missing.Count > 1 ? "are" : "is";
+            throw new ModelContextProtocol.McpException($"{string.Join(" and ", missing)} {plural} required for create action (.pq file required)");
+        }
 
         sourcePath = PathValidator.ValidateExistingFile(sourcePath, nameof(sourcePath));
 
@@ -362,11 +371,23 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             save: true,
             async (batch) => await commands.CreateAsync(batch, queryName, sourcePath, loadMode, targetSheet));
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.QueryName,
+            result.LoadDestination,
+            result.WorksheetName,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Query '{queryName}' created and data loaded to {loadMode}. M code imported from .pq file."
+                : $"Failed to create '{queryName}'. Check M code syntax and data source connectivity.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'refresh' to reload data from source", "Use 'view' to inspect M code", "Use 'get-load-config' to verify loading settings" }
+                : ["Verify M code syntax in .pq file", "Check data source connectivity", "Use 'eval' to test M code before creating query"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> UpdateMCodePowerQueryAsync(
+    private static async Task<string> UpdatePowerQueryAsync(
         PowerQueryCommands commands,
         string excelPath,
         string? queryName,
@@ -374,9 +395,9 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
         string? batchId)
     {
         if (string.IsNullOrEmpty(queryName))
-            throw new ModelContextProtocol.McpException("queryName is required for update-mcode action");
+            throw new ModelContextProtocol.McpException("queryName is required for update action");
         if (string.IsNullOrEmpty(sourcePath))
-            throw new ModelContextProtocol.McpException("sourcePath is required for update-mcode action (.pq file)");
+            throw new ModelContextProtocol.McpException("sourcePath is required for update action (.pq file)");
 
         sourcePath = PathValidator.ValidateExistingFile(sourcePath, nameof(sourcePath));
 
@@ -384,10 +405,87 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             batchId,
             excelPath,
             save: true,
-            async (batch) => await commands.UpdateMCodeAsync(batch, queryName, sourcePath));
+            async (batch) => await commands.UpdateAsync(batch, queryName, sourcePath));
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"M code updated and data refreshed for '{queryName}' atomically. Query is current."
+                : $"Failed to update '{queryName}'. {result.ErrorMessage}",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'view' to verify M code changes", "Use excel_range to inspect refreshed data", "Use 'get-load-config' to see loading configuration" }
+                : ["Use 'list' to verify query name", "Check M syntax in .pq file", "Verify data source connectivity"]
+        }, ExcelToolsBase.JsonOptions);
+    }
+
+    private static async Task<string> LoadToPowerQueryAsync(
+        PowerQueryCommands commands,
+        string excelPath,
+        string? queryName,
+        string? loadDestination,
+        string? targetSheet,
+        string? batchId)
+    {
+        if (string.IsNullOrEmpty(queryName))
+            throw new ModelContextProtocol.McpException("queryName is required for load-to action");
+
+        // Parse loadDestination to PowerQueryLoadMode enum
+        var loadMode = ParseLoadMode(loadDestination ?? "worksheet");
+
+        var result = await ExcelToolsBase.WithBatchAsync(
+            batchId,
+            excelPath,
+            save: true,
+            async (batch) => await commands.LoadToAsync(batch, queryName, loadMode, targetSheet));
+
+        // Add workflow hints
+        var inBatch = !string.IsNullOrEmpty(batchId);
+        var destinationName = loadMode switch
+        {
+            PowerQueryLoadMode.LoadToTable => "worksheet",
+            PowerQueryLoadMode.LoadToDataModel => "Data Model",
+            PowerQueryLoadMode.LoadToBoth => "worksheet and Data Model",
+            _ => "connection-only"
+        };
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            result.QueryName,
+            result.LoadDestination,
+            result.WorksheetName,
+            result.ConfigurationApplied,
+            result.DataRefreshed,
+            result.RowsLoaded,
+            workflowHint = result.Success
+                ? $"Query '{queryName}' now loaded to {destinationName}. Data refreshed with {result.RowsLoaded} rows."
+                : $"Failed to load query '{queryName}': {result.ErrorMessage}",
+            suggestedNextActions = result.Success
+                ? (loadMode == PowerQueryLoadMode.LoadToDataModel || loadMode == PowerQueryLoadMode.LoadToBoth
+                    ? new[]
+                    {
+                        "Use excel_datamodel 'list-tables' to verify query appears in Data Model",
+                        "Use excel_datamodel 'create-measure' to add DAX calculations",
+                        "Use excel_datamodel 'list-relationships' to check table relationships",
+                        inBatch ? "Load more queries in this batch" : "Loading multiple queries? Use excel_batch for efficiency"
+                    }
+                    :
+                    [
+                        $"Use excel_range 'get-values' to read data from worksheet '{targetSheet ?? queryName}'",
+                        "Use excel_powerquery 'refresh' to update data from source",
+                        "Use excel_table 'create' to convert range to Excel Table for filtering/sorting",
+                        inBatch ? "Load more queries in this batch" : "Loading multiple queries? Use excel_batch for efficiency"
+                    ])
+                :
+                [
+                    "Check if query name is correct with excel_powerquery 'list'",
+                    "Verify query is connection-only with excel_powerquery 'get-load-config'",
+                    "Review error message for specific issue"
+                ]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> UnloadPowerQueryAsync(
@@ -405,32 +503,17 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             save: true,
             async (batch) => await commands.UnloadAsync(batch, queryName));
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> UpdateAndRefreshPowerQueryAsync(
-        PowerQueryCommands commands,
-        string excelPath,
-        string? queryName,
-        string? sourcePath,
-        string? batchId)
-    {
-        if (string.IsNullOrEmpty(queryName))
-            throw new ModelContextProtocol.McpException("queryName is required for update-and-refresh action");
-        if (string.IsNullOrEmpty(sourcePath))
-            throw new ModelContextProtocol.McpException("sourcePath is required for update-and-refresh action (.pq file)");
-
-        sourcePath = PathValidator.ValidateExistingFile(sourcePath, nameof(sourcePath));
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await commands.UpdateAndRefreshAsync(batch, queryName, sourcePath));
-
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Query '{queryName}' converted to connection-only. Data removed from worksheet/data-model."
+                : $"Failed to unload '{queryName}'. Verify query exists and is currently loaded.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'get-load-config' to verify connection-only status", "Use 'load-to' to reload data to worksheet/data-model", "Use 'list' to see updated query status" }
+                : ["Use 'get-load-config' to check current load status", "Verify query is not already connection-only", "Use 'list' to verify query name"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> RefreshAllPowerQueriesAsync(
@@ -444,8 +527,17 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             save: true,
             async (batch) => await commands.RefreshAllAsync(batch));
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? "All Power Queries refreshed successfully. All data reloaded from sources."
+                : "Failed to refresh all queries. Some queries may have connectivity issues.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use 'list' to verify all queries refreshed", "Use excel_range to inspect updated data", "Check refresh timestamps with 'list' action" }
+                : ["Use 'refresh' on individual queries to isolate failures", "Check data source connectivity for failed queries", "Review error messages for specific query issues"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static PowerQueryLoadMode ParseLoadMode(string loadDestination)

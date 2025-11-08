@@ -17,10 +17,13 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 [Trait("Speed", "Slow")]
 public class PivotTableDataModelTests : IClassFixture<DataModelTestsFixture>
 {
-    private readonly IPivotTableCommands _pivotCommands;
+    private readonly PivotTableCommands _pivotCommands;
     private readonly string _dataModelFile;
     private readonly DataModelCreationResult _creationResult;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PivotTableDataModelTests"/> class.
+    /// </summary>
     public PivotTableDataModelTests(DataModelTestsFixture fixture)
     {
         _pivotCommands = new PivotTableCommands();
@@ -28,6 +31,9 @@ public class PivotTableDataModelTests : IClassFixture<DataModelTestsFixture>
         _creationResult = fixture.CreationResult;
     }
 
+    /// <summary>
+    /// Tests creating PivotTable from Data Model table.
+    /// </summary>
     [Fact]
     public async Task CreateFromDataModel_WithValidTable_CreatesCorrectPivotStructure()
     {
@@ -51,13 +57,16 @@ public class PivotTableDataModelTests : IClassFixture<DataModelTestsFixture>
         Assert.Contains("ThisWorkbookDataModel", result.SourceData);
         Assert.True(result.SourceRowCount > 0, "Should have rows in source Data Model table");
         Assert.NotEmpty(result.AvailableFields);
-        
+
         // Verify expected fields from SalesTable in Data Model
         Assert.Contains("SalesID", result.AvailableFields);
         Assert.Contains("CustomerID", result.AvailableFields);
         Assert.Contains("Amount", result.AvailableFields);
     }
 
+    /// <summary>
+    /// Tests error handling for non-existent Data Model table.
+    /// </summary>
     [Fact]
     public async Task CreateFromDataModel_NonExistentTable_ReturnsError()
     {
@@ -78,6 +87,9 @@ public class PivotTableDataModelTests : IClassFixture<DataModelTestsFixture>
         Assert.Contains("not found in Data Model", result.ErrorMessage);
     }
 
+    /// <summary>
+    /// Tests that all fields from Data Model table are discovered.
+    /// </summary>
     [Fact]
     public async Task CreateFromDataModel_MultipleFieldsAvailable_ReturnsAllColumns()
     {

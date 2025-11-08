@@ -19,7 +19,7 @@ Suggested Next Actions:
 ```
 
 ### New Features
-- Phase 1 atomic operations: `pq-create`, `pq-update-mcode`, `pq-update-and-refresh`, `pq-unload`, `pq-refresh-all`
+- Phase 1 operations: `pq-create`, `pq-update`, `pq-unload`, `pq-refresh-all`
 - All commands display workflow hints and suggested actions after success
 
 ---
@@ -27,6 +27,29 @@ Suggested Next Actions:
 # Command Reference
 
 Complete reference for all ExcelMcp.CLI commands.
+
+## 🚨 Important: File Access Requirements
+
+**ExcelMcp requires EXCLUSIVE access to workbooks during automation.**
+
+Before running any commands:
+- ✅ Close the Excel file in Excel application
+- ✅ Close all Excel windows showing the file
+- ✅ Ensure no other processes have the file open
+
+**Why this matters:**
+- Excel uses file locking to prevent data corruption
+- COM automation needs predictable state (no concurrent user edits)
+- Multiple processes accessing the same file = data loss risk
+
+**If you see errors like:**
+- "The file is already open in Excel or another process is using it"
+- "Cannot open the file" or "File is locked"
+- "Value does not fall within expected range" (COM Error 1004)
+
+**Solution:** Close the file in Excel and retry the command.
+
+---
 
 ## File Commands
 
@@ -108,18 +131,18 @@ excelcli pq-create "Sales.xlsx" "Connection" "query.pq" --destination connection
 excelcli pq-create "Sales.xlsx" "Custom" "query.pq" --target-sheet "MySheet"        # Custom worksheet
 ```
 
-Creates a new Power Query with M code and loads data in a single atomic operation. Replaces the two-step workflow of `pq-import` + `pq-loadto`.
+Creates a new Power Query with M code and loads data in a single operation. Replaces the two-step workflow of `pq-import` + `pq-loadto`.
 
-**pq-update-mcode** - Update M code only (no refresh)
+**pq-update** - Update M code and refresh data
 
 ```powershell
-excelcli pq-update-mcode <file.xlsx> <query-name> <mcode-file>
+excelcli pq-update <file.xlsx> <query-name> <mcode-file>
 
 # Example
-excelcli pq-update-mcode "Sales.xlsx" "ImportData" "updated-query.pq"
+excelcli pq-update "Sales.xlsx" "ImportData" "updated-query.pq"
 ```
 
-Updates only the M code without refreshing data. Use when you want to stage code changes before refreshing.
+Updates M code and refreshes data in one operation. Keeps query data fresh with the new M code.
 
 **pq-unload** - Convert query to connection-only
 
@@ -131,17 +154,6 @@ excelcli pq-unload "Sales.xlsx" "TempQuery"
 ```
 
 Removes data from worksheet/data model while keeping the query definition. Inverse of `pq-loadto`.
-
-**pq-update-and-refresh** - Update M code and refresh in one operation
-
-```powershell
-excelcli pq-update-and-refresh <file.xlsx> <query-name> <mcode-file>
-
-# Example
-excelcli pq-update-and-refresh "Sales.xlsx" "ImportData" "new-query.pq"
-```
-
-Updates M code and immediately refreshes data. Replaces the two-step workflow of `pq-update` + `pq-refresh`.
 
 **pq-refresh-all** - Refresh all Power Queries
 
@@ -177,15 +189,12 @@ excelcli pq-create "DataPipeline.xlsx" "Products" "queries/products.pq" --destin
 Developing and testing Power Query transformations:
 
 ```powershell
-# Stage M code changes without waiting for refresh (fast iteration)
-excelcli pq-update-mcode "DataPipeline.xlsx" "Sales" "queries/sales-v2.pq"
-excelcli pq-update-mcode "DataPipeline.xlsx" "Customers" "queries/customers-v2.pq"
+# Update M code and refresh data together
+excelcli pq-update "DataPipeline.xlsx" "Sales" "queries/sales-v2.pq"
+excelcli pq-update "DataPipeline.xlsx" "Customers" "queries/customers-v2.pq"
 
-# Test changes manually in Excel UI, then refresh when ready
-excelcli pq-refresh "DataPipeline.xlsx" "Sales"
-
-# Or update and refresh together when code is finalized
-excelcli pq-update-and-refresh "DataPipeline.xlsx" "Products" "queries/products-final.pq"
+# Test results in Excel UI, iterate as needed
+excelcli pq-update "DataPipeline.xlsx" "Products" "queries/products-final.pq"
 ```
 
 **Scenario 3: Production Data Refresh**
@@ -193,14 +202,14 @@ excelcli pq-update-and-refresh "DataPipeline.xlsx" "Products" "queries/products-
 Deploying updates to production workbooks:
 
 ```powershell
-# Atomic update + refresh for production (ensures code and data are in sync)
-excelcli pq-update-and-refresh "Production.xlsx" "Sales" "prod/sales.pq"
-excelcli pq-update-and-refresh "Production.xlsx" "Inventory" "prod/inventory.pq"
+# Update M code + refresh for production (ensures code and data are in sync)
+excelcli pq-update "Production.xlsx" "Sales" "prod/sales.pq"
+excelcli pq-update "Production.xlsx" "Inventory" "prod/inventory.pq"
 
 # Or batch refresh all queries without code changes
 excelcli pq-refresh-all "Production.xlsx"
 
-# Result: Production data current in single atomic operation per query
+# Result: Production data current in single operation per query
 ```
 
 **Scenario 4: Cleanup and Optimization**
@@ -221,13 +230,13 @@ excelcli pq-list "Analytics.xlsx"  # Verify queries still exist
 ```powershell
 # OLD WORKFLOW: Phase 3 commands (REMOVED)
 # pq-import was removed - use pq-create instead
-# pq-update was removed - use pq-update-mcode or pq-update-and-refresh instead
+# pq-update was removed - use pq-update instead
 
-# NEW WORKFLOW (Phase 1 - atomic operations):
+# NEW WORKFLOW (Phase 1 operations):
 excelcli pq-create "file.xlsx" "Sales" "sales.pq"  # Create + load in one step
-excelcli pq-update-and-refresh "file.xlsx" "Sales" "sales.pq"  # Update + refresh in one step
+excelcli pq-update "file.xlsx" "Sales" "sales.pq"  # Update + refresh in one step
 
-# Time savings: Atomic operations prevent intermediate states and reduce command count
+# Time savings: Complete operations prevent intermediate states and reduce command count
 ```
 
 ## Sheet Commands (`sheet-*`)

@@ -292,7 +292,7 @@ public static class ComUtilities
                 {
                     worksheet = worksheets.Item(ws);
                     queryTables = worksheet.QueryTables;
-                    
+
                     for (int qt = 1; qt <= queryTables.Count; qt++)
                     {
                         dynamic? queryTable = null;
@@ -300,7 +300,7 @@ public static class ComUtilities
                         {
                             queryTable = queryTables.Item(qt);
                             string currentName = queryTable.Name?.ToString() ?? "";
-                            
+
                             if (currentName.Equals(queryTableName, StringComparison.OrdinalIgnoreCase))
                             {
                                 // Found match - return it (caller owns it now)
@@ -311,7 +311,10 @@ public static class ComUtilities
                         }
                         finally
                         {
-                            if (queryTable != null) Release(ref queryTable);
+                            if (queryTable != null)
+                            {
+                                Release(ref queryTable);
+                            }
                         }
                     }
                 }
@@ -332,6 +335,7 @@ public static class ComUtilities
             Release(ref worksheets);
         }
     }
+
 
     /// <summary>
     /// Safely iterates through all columns in a model table with automatic COM cleanup

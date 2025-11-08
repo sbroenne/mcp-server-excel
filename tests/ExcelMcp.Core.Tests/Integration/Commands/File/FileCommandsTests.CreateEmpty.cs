@@ -12,7 +12,7 @@ public partial class FileCommandsTests
     /// <summary>
     /// Helper method to verify a file is a valid Excel workbook by trying to open it
     /// </summary>
-    private async Task<bool> IsValidExcelFileAsync(string filePath)
+    private static async Task<bool> IsValidExcelFileAsync(string filePath)
     {
         try
         {
@@ -30,6 +30,7 @@ public partial class FileCommandsTests
             return false;
         }
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task CreateEmpty_ValidXlsx_ReturnsSuccess()
@@ -51,6 +52,7 @@ public partial class FileCommandsTests
         bool isValidExcel = await IsValidExcelFileAsync(testFile);
         Assert.True(isValidExcel, "Created file should be a valid Excel workbook with at least one worksheet");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task CreateEmpty_ValidXlsm_ReturnsSuccess()
@@ -70,6 +72,7 @@ public partial class FileCommandsTests
         bool isValidExcel = await IsValidExcelFileAsync(testFile);
         Assert.True(isValidExcel, "Created file should be a valid Excel workbook");
     }
+    /// <inheritdoc/>
 
     [Theory]
     [InlineData("TestFile.xls")]
@@ -89,6 +92,7 @@ public partial class FileCommandsTests
         Assert.Contains("extension", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         Assert.False(System.IO.File.Exists(testFile));
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task CreateEmpty_FileExists_WithoutOverwrite_ReturnsError()
@@ -105,6 +109,7 @@ public partial class FileCommandsTests
         Assert.NotNull(result.ErrorMessage);
         Assert.Contains("already exists", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task CreateEmpty_FileExists_WithOverwrite_ReturnsSuccess()

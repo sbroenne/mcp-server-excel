@@ -1,6 +1,8 @@
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using ModelContextProtocol.Server;
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
@@ -8,20 +10,41 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
 /// Excel file management tool for MCP server.
-/// Handles Excel file creation for automation workflows.
-///
-/// LLM Usage Pattern:
-/// - Use "create-empty" for new Excel files in automation workflows
-/// - File validation and existence checks can be done with standard file system operations
+/// Manages Excel file creation for automation workflows.
+/// Supports .xlsx (standard) and .xlsm (macro-enabled) formats.
 /// </summary>
 [McpServerToolType]
+[SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments", Justification = "Simple workflow arrays in sealed static class")]
 public static class ExcelFileTool
 {
     /// <summary>
     /// Create new Excel files for automation workflows
     /// </summary>
     [McpServerTool(Name = "excel_file")]
-    [Description("Manage Excel files. Actions available as dropdown: CreateEmpty, CloseWorkbook, Test. Optional batchId for batch sessions.")]
+    [Description(@"Manage Excel files - create, test, check if open.
+
+⚠️ IMPORTANT: Files must be CLOSED before automation!
+
+check-if-open action:
+- Use BEFORE automation to verify file is not open
+- Returns isOpen status with clear user guidance
+- Prevents 'file already open' errors
+
+FILE FORMATS:
+- .xlsx: Standard Excel workbook (Power Query, ranges, tables, worksheets, Data Model)
+- .xlsm: Macro-enabled workbook (ALL .xlsx features PLUS VBA macros)
+
+USE .xlsm WHEN:
+- VBA macros required (excel_vba tool)
+- Automation needs to import/export/run VBA code
+- User workbook contains existing macros
+
+USE .xlsx WHEN:
+- No VBA macros needed
+- Pure data/Power Query/Data Model workflows
+- Smaller file size preferred
+
+Optional batchId for batch sessions.")]
     public static async Task<string> ExcelFile(
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         FileAction action,
@@ -30,10 +53,7 @@ public static class ExcelFileTool
         string excelPath,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
-        string? batchId = null,
-
-        [Description("Timeout in minutes for file operations. Default: 2 minutes")]
-        double? timeout = null)
+        string? batchId = null)
     {
         try
         {
@@ -46,6 +66,7 @@ public static class ExcelFileTool
                     excelPath.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase), batchId),
                 FileAction.CloseWorkbook => CloseWorkbook(excelPath),
                 FileAction.Test => await TestFileAsync(fileCommands, excelPath),
+                FileAction.CheckIfOpen => CheckIfOpen(excelPath),
                 _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
             };
         }
@@ -179,6 +200,86 @@ public static class ExcelFileTool
                 lastModified = result.LastModified,
                 errorMessage = result.ErrorMessage,
                 message = result.ErrorMessage
+            }, ExcelToolsBase.JsonOptions);
+        }
+    }
+
+    /// <summary>
+    /// Checks if an Excel file is currently open by attempting to open it with exclusive access.
+    /// LLM Pattern: Use this BEFORE automation to verify user has closed the file.
+    /// Returns isOpen status with clear guidance for users.
+    /// Uses FileAccessValidator.ValidateFileNotLocked() to avoid code duplication.
+    /// </summary>
+    private static string CheckIfOpen(string excelPath)
+    {
+        // Validate file exists first
+        if (!File.Exists(excelPath))
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                filePath = excelPath,
+                isOpen = false,
+                fileExists = false,
+                errorMessage = $"File does not exist: {excelPath}",
+                message = "Cannot check if file is open - file does not exist"
+            }, ExcelToolsBase.JsonOptions);
+        }
+
+        // Use FileAccessValidator.ValidateFileNotLocked() - throws InvalidOperationException if locked
+        try
+        {
+            FileAccessValidator.ValidateFileNotLocked(excelPath);
+
+            // If we got here, file is NOT open
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                filePath = excelPath,
+                isOpen = false,
+                fileExists = true,
+                message = "File is not currently open - safe to proceed with automation",
+                suggestedNextActions = new[]
+                {
+                    "Use begin_excel_batch to start a batch session",
+                    "Use excel_worksheet, excel_powerquery, or other tools to automate the file"
+                },
+                workflowHint = "File is closed and ready for automation."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (InvalidOperationException)
+        {
+            // File is locked - either open in Excel or another process
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                filePath = excelPath,
+                isOpen = true,
+                fileExists = true,
+                message = "⚠️ File is currently open - please close it before automation",
+                userAction = "REQUIRED: Close the file in Excel and any other applications",
+                reason = "ExcelMcp requires exclusive access to prevent data corruption",
+                suggestedNextActions = new[]
+                {
+                    "Close the file in Excel",
+                    "Close any other applications that might have the file open",
+                    "Run check-if-open again to verify file is closed",
+                    "Then proceed with automation"
+                },
+                workflowHint = "File must be closed before automation can proceed. This is a safety requirement."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            // Other error (permissions, etc.)
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                filePath = excelPath,
+                isOpen = false,
+                fileExists = true,
+                errorMessage = $"Error checking file status: {ex.Message}",
+                message = $"Cannot determine if file is open: {ex.Message}"
             }, ExcelToolsBase.JsonOptions);
         }
     }

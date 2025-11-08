@@ -8,6 +8,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.File;
 /// </summary>
 public partial class FileCommandsTests
 {
+    /// <inheritdoc/>
     [Fact]
     public async Task Test_ExistingValidFile_ReturnsSuccess()
     {
@@ -26,6 +27,7 @@ public partial class FileCommandsTests
         Assert.Equal(".xlsx", result.Extension);
         Assert.True(result.Size > 0);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Test_NonExistent_ReturnsFailure()
@@ -43,6 +45,7 @@ public partial class FileCommandsTests
         Assert.False(result.Exists);
         Assert.False(result.IsValid);
     }
+    /// <inheritdoc/>
 
     [Theory]
     [InlineData("TestFile.xls", ".xls")]

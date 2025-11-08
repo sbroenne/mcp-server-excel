@@ -21,7 +21,7 @@ public partial class VbaCommands
         {
             // For LLM-friendly behavior: .xlsx files don't support VBA, return empty list instead of error
             result.Success = true;
-            result.Scripts = new List<ScriptInfo>();
+            result.Scripts = [];
             return result;
         }
 
@@ -73,12 +73,13 @@ public partial class VbaCommands
                             for (int line = 1; line <= moduleLineCount; line++)
                             {
                                 string codeLine = codeModule.Lines[line, 1];
-                                if (codeLine.TrimStart().StartsWith("Sub ") ||
-                                    codeLine.TrimStart().StartsWith("Function ") ||
-                                    codeLine.TrimStart().StartsWith("Public Sub ") ||
-                                    codeLine.TrimStart().StartsWith("Public Function ") ||
-                                    codeLine.TrimStart().StartsWith("Private Sub ") ||
-                                    codeLine.TrimStart().StartsWith("Private Function "))
+                                string trimmedLine = codeLine.TrimStart();
+                                if (trimmedLine.StartsWith("Sub ", StringComparison.Ordinal) ||
+                                    trimmedLine.StartsWith("Function ", StringComparison.Ordinal) ||
+                                    trimmedLine.StartsWith("Public Sub ", StringComparison.Ordinal) ||
+                                    trimmedLine.StartsWith("Public Function ", StringComparison.Ordinal) ||
+                                    trimmedLine.StartsWith("Private Sub ", StringComparison.Ordinal) ||
+                                    trimmedLine.StartsWith("Private Function ", StringComparison.Ordinal))
                                 {
                                     string procName = ExtractProcedureName(codeLine);
                                     if (!string.IsNullOrEmpty(procName))
@@ -203,12 +204,13 @@ public partial class VbaCommands
                         for (int line = 1; line <= result.LineCount; line++)
                         {
                             string codeLine = codeModule.Lines[line, 1];
-                            if (codeLine.TrimStart().StartsWith("Sub ") ||
-                                codeLine.TrimStart().StartsWith("Function ") ||
-                                codeLine.TrimStart().StartsWith("Public Sub ") ||
-                                codeLine.TrimStart().StartsWith("Public Function ") ||
-                                codeLine.TrimStart().StartsWith("Private Sub ") ||
-                                codeLine.TrimStart().StartsWith("Private Function "))
+                            string trimmedLine = codeLine.TrimStart();
+                            if (trimmedLine.StartsWith("Sub ", StringComparison.Ordinal) ||
+                                trimmedLine.StartsWith("Function ", StringComparison.Ordinal) ||
+                                trimmedLine.StartsWith("Public Sub ", StringComparison.Ordinal) ||
+                                trimmedLine.StartsWith("Public Function ", StringComparison.Ordinal) ||
+                                trimmedLine.StartsWith("Private Sub ", StringComparison.Ordinal) ||
+                                trimmedLine.StartsWith("Private Function ", StringComparison.Ordinal))
                             {
                                 string procName = ExtractProcedureName(codeLine);
                                 if (!string.IsNullOrEmpty(procName))

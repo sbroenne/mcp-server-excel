@@ -10,7 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class PowerQueryCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> LoadToAsync(IExcelBatch batch, string queryName, string sheetName)
+    public static async Task<OperationResult> LoadToAsync(IExcelBatch batch, string queryName, string sheetName)
     {
         var result = new OperationResult
         {
@@ -26,7 +26,7 @@ public partial class PowerQueryCommands
             return result;
         }
 
-        return await batch.Execute<OperationResult>((ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -154,6 +154,18 @@ public partial class PowerQueryCommands
                         string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
                         string commandText = $"SELECT * FROM [{queryName}]";
 
+                        // Clear worksheet to prevent column accumulation (regression test requirement)
+                        dynamic? usedRange = null;
+                        try
+                        {
+                            usedRange = targetSheet.UsedRange;
+                            usedRange.Clear();
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref usedRange);
+                        }
+
                         rangeObj = targetSheet.Range["A1"];
                         queryTable = queryTables.Add(connectionString, rangeObj, commandText);
                         queryTable.Name = queryName.Replace(" ", "_");
@@ -161,7 +173,7 @@ public partial class PowerQueryCommands
 
                         // Set additional properties for better data loading
                         queryTable.BackgroundQuery = false; // Don't run in background
-                        queryTable.PreserveColumnInfo = true;
+                        queryTable.PreserveColumnInfo = false; // Allow column structure to update
                         queryTable.PreserveFormatting = true;
                         queryTable.AdjustColumnWidth = true;
 
@@ -213,12 +225,24 @@ public partial class PowerQueryCommands
                         string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
                         string commandText = $"SELECT * FROM [{queryName}]";
 
+                        // Clear worksheet to prevent column accumulation (regression test requirement)
+                        dynamic? usedRange = null;
+                        try
+                        {
+                            usedRange = targetSheet.UsedRange;
+                            usedRange.Clear();
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref usedRange);
+                        }
+
                         rangeObj = targetSheet.Range["A1"];
                         queryTable = queryTables.Add(connectionString, rangeObj, commandText);
                         queryTable.Name = queryName.Replace(" ", "_");
                         queryTable.RefreshStyle = 1; // xlInsertDeleteCells
                         queryTable.BackgroundQuery = false;
-                        queryTable.PreserveColumnInfo = true;
+                        queryTable.PreserveColumnInfo = false; // Allow column structure to update
                         queryTable.PreserveFormatting = true;
                         queryTable.AdjustColumnWidth = true;
 
@@ -253,7 +277,7 @@ public partial class PowerQueryCommands
     {
         var result = new WorksheetListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.Execute<WorksheetListResult>((ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? worksheets = null;
             dynamic? names = null;
@@ -307,7 +331,7 @@ public partial class PowerQueryCommands
                     {
                         name = names.Item(i);
                         string nameValue = name.Name;
-                        if (!nameValue.StartsWith("_"))
+                        if (!nameValue.StartsWith('_'))
                         {
                             result.Worksheets.Add(new WorksheetInfo
                             {
@@ -336,66 +360,6 @@ public partial class PowerQueryCommands
             {
                 ComUtilities.Release(ref names);
                 ComUtilities.Release(ref worksheets);
-            }
-        });
-    }
-
-    /// <inheritdoc />
-    public async Task<PowerQueryViewResult> EvalAsync(IExcelBatch batch, string mExpression)
-    {
-        var result = new PowerQueryViewResult
-        {
-            FilePath = batch.WorkbookPath,
-            QueryName = "_EvalExpression"
-        };
-
-        return await batch.Execute<PowerQueryViewResult>((ctx, ct) =>
-        {
-            dynamic? queriesCollection = null;
-            dynamic? tempQuery = null;
-            try
-            {
-                // Create a temporary query with the expression
-                string evalQuery = $@"
-let
-    Result = {mExpression}
-in
-    Result";
-
-                queriesCollection = ctx.Book.Queries;
-                tempQuery = queriesCollection.Add("_EvalQuery", evalQuery);
-
-                result.MCode = evalQuery;
-                result.CharacterCount = evalQuery.Length;
-
-                // Try to refresh
-                try
-                {
-                    tempQuery.Refresh();
-                    result.Success = true;
-                    result.ErrorMessage = null;
-                }
-                catch (Exception refreshEx)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Expression syntax is valid but refresh failed: {refreshEx.Message}";
-                }
-
-                // Clean up
-                tempQuery.Delete();
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Expression evaluation failed: {ex.Message}";
-                return result;
-            }
-            finally
-            {
-                ComUtilities.Release(ref tempQuery);
-                ComUtilities.Release(ref queriesCollection);
             }
         });
     }

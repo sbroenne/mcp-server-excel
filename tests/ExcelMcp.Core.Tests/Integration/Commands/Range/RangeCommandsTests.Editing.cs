@@ -9,6 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 /// </summary>
 public partial class RangeCommandsTests
 {
+    /// <inheritdoc/>
     // === CLEAR OPERATIONS TESTS ===
 
     [Fact]
@@ -18,7 +19,7 @@ public partial class RangeCommandsTests
         string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(ClearAll_FormattedRange_RemovesEverything), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { "Test" }]);
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [["Test"]]);
 
         // Act
         var result = await _commands.ClearAllAsync(batch, "Sheet1", "A1");
@@ -28,6 +29,7 @@ public partial class RangeCommandsTests
         var readResult = await _commands.GetValuesAsync(batch, "Sheet1", "A1");
         Assert.Null(readResult.Values[0][0]);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ClearContents_FormattedRange_PreservesFormatting()
@@ -38,8 +40,8 @@ public partial class RangeCommandsTests
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:B2",
         [
-            new() { 1, 2 },
-            new() { 3, 4 }
+            [1, 2],
+            [3, 4]
         ]);
 
         // Act
@@ -50,6 +52,7 @@ public partial class RangeCommandsTests
         var readResult = await _commands.GetValuesAsync(batch, "Sheet1", "A1:B2");
         Assert.All(readResult.Values, row => Assert.All(row, cell => Assert.Null(cell)));
     }
+    /// <inheritdoc/>
 
     // === COPY OPERATIONS TESTS ===
 
@@ -75,8 +78,9 @@ public partial class RangeCommandsTests
 
         var readResult = await _commands.GetValuesAsync(batch, "Sheet1", "D1:E2");
         Assert.Equal("A", readResult.Values[0][0]);
-        Assert.Equal(2.0, Convert.ToDouble(readResult.Values[1][1]));
+        Assert.Equal(2.0, Convert.ToDouble(readResult.Values[1][1], System.Globalization.CultureInfo.InvariantCulture));
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task CopyValues_CopiesOnlyValues()
@@ -85,8 +89,8 @@ public partial class RangeCommandsTests
         string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(CopyValues_CopiesOnlyValues), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { 10 }]);
-        await _commands.SetFormulasAsync(batch, "Sheet1", "B1", [new() { "=A1*2" }]);
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [[10]]);
+        await _commands.SetFormulasAsync(batch, "Sheet1", "B1", [["=A1*2"]]);
 
         // Act
         var result = await _commands.CopyValuesAsync(batch, "Sheet1", "B1", "Sheet1", "C1");
@@ -95,7 +99,7 @@ public partial class RangeCommandsTests
 
         // C1 should have value 20 but no formula
         var formulaResult = await _commands.GetFormulasAsync(batch, "Sheet1", "C1");
-        Assert.Equal(20.0, Convert.ToDouble(formulaResult.Values[0][0]));
+        Assert.Equal(20.0, Convert.ToDouble(formulaResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
         Assert.Empty(formulaResult.Formulas[0][0]); // No formula
     }
 

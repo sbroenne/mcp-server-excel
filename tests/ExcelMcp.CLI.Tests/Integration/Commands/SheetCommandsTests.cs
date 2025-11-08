@@ -21,17 +21,19 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 public class SheetCommandsTests
 {
     private readonly SheetCommands _cliCommands;
+    /// <inheritdoc/>
 
     public SheetCommandsTests()
     {
         _cliCommands = new SheetCommands();
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void List_WithMissingFileArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "sheet-list" }; // Missing file path
+        string[] args = ["sheet-list"]; // Missing file path
 
         // Act
         int exitCode = _cliCommands.List(args);
@@ -39,12 +41,13 @@ public class SheetCommandsTests
         // Assert - CLI returns 1 for error (missing arguments)
         Assert.Equal(1, exitCode);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void Create_WithMissingArgs_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "sheet-create", "file.xlsx" }; // Missing sheet name
+        string[] args = ["sheet-create", "file.xlsx"]; // Missing sheet name
 
         // Act
         int exitCode = _cliCommands.Create(args);
@@ -52,12 +55,13 @@ public class SheetCommandsTests
         // Assert - CLI returns 1 for error (missing arguments)
         Assert.Equal(1, exitCode);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void Rename_WithMissingNewNameArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "sheet-rename", "file.xlsx", "OldName" }; // Missing new name
+        string[] args = ["sheet-rename", "file.xlsx", "OldName"]; // Missing new name
 
         // Act
         int exitCode = _cliCommands.Rename(args);
@@ -65,12 +69,13 @@ public class SheetCommandsTests
         // Assert - CLI returns 1 for error (missing arguments)
         Assert.Equal(1, exitCode);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public void Copy_WithInvalidFileExtension_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = { "sheet-copy", "invalid.txt", "Source", "Target" };
+        string[] args = ["sheet-copy", "invalid.txt", "Source", "Target"];
 
         // Act
         int exitCode = _cliCommands.Copy(args);

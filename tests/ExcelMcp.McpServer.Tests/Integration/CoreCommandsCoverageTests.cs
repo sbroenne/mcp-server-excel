@@ -1,8 +1,13 @@
+// Suppress IDE0005 (unnecessary using) – explicit usings kept for clarity in test reflection code
+#pragma warning disable IDE0005
+using System;
+using System.Linq;
 using System.Reflection;
+#pragma warning restore IDE0005
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
-using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.McpServer.Models;
 using Xunit;
 
@@ -229,9 +234,14 @@ public class CoreCommandsCoverageTests
     /// </summary>
     private static int GetAsyncMethodCount(Type interfaceType)
     {
+        // Count DISTINCT async method base names (treat overloads as single logical operation).
+        // Reason: Enum actions represent semantic operations, not overload variants.
+        // Example: RefreshAsync(...) and RefreshAsync(..., TimeSpan?) map to single "refresh" action.
         return interfaceType
             .GetMethods(BindingFlags.Public | BindingFlags.Instance)
-            .Where(m => m.Name.EndsWith("Async"))
+            .Where(m => m.Name.EndsWith("Async", StringComparison.Ordinal))
+            .Select(m => m.Name) // includes overload name twice
+            .Distinct(StringComparer.Ordinal) // collapse overloads
             .Count();
     }
 }

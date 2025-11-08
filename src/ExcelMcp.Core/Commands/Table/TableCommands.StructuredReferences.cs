@@ -91,7 +91,7 @@ public partial class TableCommands
     /// <summary>
     /// Builds a structured reference formula string for a table region
     /// </summary>
-    private string BuildStructuredReference(string tableName, TableRegion region, string? columnName)
+    private static string BuildStructuredReference(string tableName, TableRegion region, string? columnName)
     {
         if (!string.IsNullOrEmpty(columnName))
         {
@@ -124,7 +124,7 @@ public partial class TableCommands
     /// <summary>
     /// Gets the Excel Range object for a specific table region
     /// </summary>
-    private dynamic GetRegionRange(dynamic table, TableRegion region, string? columnName)
+    private static dynamic GetRegionRange(dynamic table, TableRegion region, string? columnName)
     {
         dynamic regionRange = region switch
         {

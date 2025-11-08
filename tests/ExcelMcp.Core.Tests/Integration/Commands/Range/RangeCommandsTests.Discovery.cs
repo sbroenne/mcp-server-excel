@@ -9,6 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 /// </summary>
 public partial class RangeCommandsTests
 {
+    /// <inheritdoc/>
     // === NATIVE EXCEL COM OPERATIONS TESTS ===
 
     [Fact]
@@ -18,8 +19,8 @@ public partial class RangeCommandsTests
         string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetUsedRange_SheetWithSparseData_ReturnsNonEmptyCells), _tempDir);
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { "Start" }]);
-        await _commands.SetValuesAsync(batch, "Sheet1", "D10", [new() { "End" }]);
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [["Start"]]);
+        await _commands.SetValuesAsync(batch, "Sheet1", "D10", [["End"]]);
 
         // Act
         var result = await _commands.GetUsedRangeAsync(batch, "Sheet1");
@@ -30,6 +31,7 @@ public partial class RangeCommandsTests
         Assert.True(result.ColumnCount >= 4);
         Assert.Equal("Start", result.Values[0][0]);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task GetCurrentRegion_CellInPopulated3x3Range_ReturnsContiguousBlock()
@@ -40,9 +42,9 @@ public partial class RangeCommandsTests
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:C3",
         [
-            new() { 1, 2, 3 },
-            new() { 4, 5, 6 },
-            new() { 7, 8, 9 }
+            [1, 2, 3],
+            [4, 5, 6],
+            [7, 8, 9]
         ]);
 
         // Act - Get region from middle cell
@@ -52,9 +54,14 @@ public partial class RangeCommandsTests
         Assert.True(result.Success);
         Assert.Equal(3, result.RowCount);
         Assert.Equal(3, result.ColumnCount);
-        Assert.Equal(1.0, Convert.ToDouble(result.Values[0][0]));
-        Assert.Equal(9.0, Convert.ToDouble(result.Values[2][2]));
+        Assert.Equal(
+            1.0,
+            Convert.ToDouble(result.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(
+            9.0,
+            Convert.ToDouble(result.Values[2][2], System.Globalization.CultureInfo.InvariantCulture));
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task GetInfo_ValidAddress_ReturnsMetadata()
@@ -65,7 +72,7 @@ public partial class RangeCommandsTests
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:D10",
         [
-            new() { 1, 2, 3, 4 }
+            [1, 2, 3, 4]
         ]);
 
         // Act

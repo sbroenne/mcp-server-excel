@@ -85,7 +85,7 @@ public partial class RangeCommands
                     validation.IgnoreBlank = ignoreBlank.Value;
                 }
 
-                if (showDropdown != null && validationType.ToLowerInvariant() == "list")
+                if (showDropdown != null && validationType.Equals("list", StringComparison.OrdinalIgnoreCase))
                 {
                     validation.InCellDropdown = showDropdown.Value;
                 }

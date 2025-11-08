@@ -41,7 +41,7 @@ public class DataModelCommands : IDataModelCommands
                 {
                     table.AddRow(
                         dmTable.Name.EscapeMarkup(),
-                        dmTable.RecordCount.ToString(),
+                        dmTable.RecordCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
                         dmTable.SourceName?.EscapeMarkup() ?? "[dim]N/A[/]"
                     );
                 }
@@ -264,7 +264,7 @@ public class DataModelCommands : IDataModelCommands
                 ctx.SpinnerStyle(Style.Parse("cyan"));
 
                 // Small delay to show spinner
-                System.Threading.Thread.Sleep(100);
+                Thread.Sleep(100);
             });
 
         var task = Task.Run(async () =>
@@ -441,9 +441,9 @@ public class DataModelCommands : IDataModelCommands
 
             infoTable.AddRow("Table Name", result.TableName.EscapeMarkup());
             infoTable.AddRow("Source", result.SourceName?.EscapeMarkup() ?? "[dim]N/A[/]");
-            infoTable.AddRow("Record Count", result.RecordCount.ToString());
-            infoTable.AddRow("Column Count", result.Columns?.Count.ToString() ?? "0");
-            infoTable.AddRow("Measure Count", result.MeasureCount.ToString());
+            infoTable.AddRow("Record Count", result.RecordCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            infoTable.AddRow("Column Count", result.Columns?.Count.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0");
+            infoTable.AddRow("Measure Count", result.MeasureCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
             AnsiConsole.Write(infoTable);
 
@@ -499,10 +499,10 @@ public class DataModelCommands : IDataModelCommands
             table.AddColumn("[bold]Statistic[/]");
             table.AddColumn("[bold]Count[/]", column => column.RightAligned());
 
-            table.AddRow("Tables", result.TableCount.ToString());
-            table.AddRow("Measures", result.MeasureCount.ToString());
-            table.AddRow("Relationships", result.RelationshipCount.ToString());
-            table.AddRow("Total Rows", result.TotalRows.ToString("N0"));
+            table.AddRow("Tables", result.TableCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            table.AddRow("Measures", result.MeasureCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            table.AddRow("Relationships", result.RelationshipCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            table.AddRow("Total Rows", result.TotalRows.ToString("N0", System.Globalization.CultureInfo.InvariantCulture));
 
             AnsiConsole.Write(table);
 

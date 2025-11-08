@@ -1,5 +1,23 @@
 # Common User Request Patterns - How to Interpret
 
+## 🚨 PRE-FLIGHT: File Access Check
+
+**BEFORE processing ANY request, check if file is accessible:**
+
+**User signals file might be open:**
+- "I have the file open" → STOP, tell them to close it
+- "The file is currently open in Excel" → STOP
+- "Can I run this while viewing the file?" → NO, tell them to close first
+- "Error says file is locked" → File is open, tell them to close it
+
+**Always ask if unsure:**
+- "Is the Excel file currently open?"
+- "Please close the file before we proceed with automation"
+
+**This is mandatory - Excel COM automation requires exclusive file access!**
+
+---
+
 ## 🚨 CRITICAL FIRST STEP: Batch Mode Detection
 
 **ALWAYS SCAN THE REQUEST FOR THESE KEYWORDS FIRST:**

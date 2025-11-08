@@ -15,11 +15,13 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 public class ExcelFileMcpErrorReproTests
 {
     private readonly ITestOutputHelper _output;
+    /// <inheritdoc/>
 
     public ExcelFileMcpErrorReproTests(ITestOutputHelper output)
     {
         _output = output;
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelFile_ExactMcpTestScenario_ShouldWork()

@@ -1,6 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
-using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
@@ -10,6 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 /// </summary>
 public partial class PivotTableCommandsTests
 {
+    /// <inheritdoc/>
     [Fact]
     public async Task CreateFromRange_PopulatedRangeWithHeaders_CreatesCorrectPivotStructure()
     {
@@ -30,6 +30,7 @@ public partial class PivotTableCommandsTests
         Assert.Equal("SalesData", result.SheetName);
         Assert.Equal(4, result.AvailableFields.Count);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task CreateFromTable_WithValidTable_CreatesCorrectPivotStructure()
@@ -39,7 +40,7 @@ public partial class PivotTableCommandsTests
 
         // Act - Use single batch for table creation and pivot creation
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         // Create table first
         var tableCommands = new TableCommands();
         var tableResult = await tableCommands.CreateAsync(batch, "SalesData", "SalesTable", "A1:D6", true, "TableStyleMedium2");
@@ -58,6 +59,7 @@ public partial class PivotTableCommandsTests
         Assert.Equal("SalesData", result.SheetName);
         Assert.Equal(4, result.AvailableFields.Count);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task CreateFromDataModel_NoDataModel_ReturnsError()
@@ -78,6 +80,7 @@ public partial class PivotTableCommandsTests
         Assert.False(result.Success);
         Assert.Contains("Workbook does not contain a Power Pivot Data Model", result.ErrorMessage);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task AddRowField_WithValidField_AddsFieldToRows()
@@ -87,7 +90,7 @@ public partial class PivotTableCommandsTests
 
         // Act - Use single batch for create and add field
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         // Create pivot
         var createResult = await _pivotCommands.CreateFromRangeAsync(
             batch, "SalesData", "A1:D6", "SalesData", "F1", "TestPivot");
@@ -100,6 +103,7 @@ public partial class PivotTableCommandsTests
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
         Assert.Equal("Region", result.FieldName);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ListFields_AfterCreate_ReturnsAvailableFields()
@@ -109,7 +113,7 @@ public partial class PivotTableCommandsTests
 
         // Act - Use single batch for create and list fields
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         // Create pivot
         var createResult = await _pivotCommands.CreateFromRangeAsync(
             batch, "SalesData", "A1:D6", "SalesData", "F1", "TestPivot");

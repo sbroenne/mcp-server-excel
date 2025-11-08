@@ -42,7 +42,7 @@ public partial class RangeCommands
                 // - Multiple cells, all same format: returns string
                 // - Multiple cells, mixed formats: returns DBNull (must read cell-by-cell)
                 object numberFormats = range.NumberFormat;
-                
+
                 // Get dimensions
                 int rowCount = Convert.ToInt32(range.Rows.Count);
                 int columnCount = Convert.ToInt32(range.Columns.Count);
@@ -51,7 +51,7 @@ public partial class RangeCommands
                 result.ColumnCount = columnCount;
 
                 // Check if we have mixed formats (DBNull or null)
-                if (numberFormats == null || numberFormats is System.DBNull)
+                if (numberFormats is null or DBNull)
                 {
                     // Mixed formats - must read cell-by-cell
                     dynamic? cells = null;

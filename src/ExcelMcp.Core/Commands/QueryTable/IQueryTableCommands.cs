@@ -22,8 +22,8 @@ public interface IQueryTableCommands
     /// <summary>
     /// Creates a QueryTable from an existing connection
     /// </summary>
-    Task<OperationResult> CreateFromConnectionAsync(IExcelBatch batch, string sheetName, 
-        string queryTableName, string connectionName, string range = "A1", 
+    Task<OperationResult> CreateFromConnectionAsync(IExcelBatch batch, string sheetName,
+        string queryTableName, string connectionName, string range = "A1",
         QueryTableCreateOptions? options = null);
 
     /// <summary>

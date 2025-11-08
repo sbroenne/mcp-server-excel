@@ -1,10 +1,26 @@
 # Power Query Future State Specification
 
-> **Comprehensive API redesign integrating diagnostic discoveries with LLM-optimized workflows**
+> **LLM-optimized API: Simplified, intuitive operations without artificial distinctions**
 
-**Date**: 2025-01-29  
+**Date**: 2025-01-29 (Updated: 2025-11-08)  
 **Status**: PROPOSED FUTURE STATE  
-**Based On**: Diagnostic test findings (SPLIT-TEST-RESULTS.md) + Current LLM usage analysis + Excel COM API validation
+**Based On**: LLM usage analysis + User feedback (2025-01-28: UpdateMCode footgun) + Excel COM API validation
+
+## 🎯 Core Design Philosophy: No Artificial Distinctions for LLMs
+
+**Problem**: The current API has artificial "atomic vs granular" distinctions that confuse LLMs:
+- "Should I use `update-mcode` or `update-and-refresh`?"
+- "Does update include refreshing data?"
+- "Why are some operations atomic and others granular?"
+
+**Solution**: Each operation does the **complete, intuitive thing**:
+- ✅ `create` → Create query + load data (ONE complete operation)
+- ✅ `update` → Update M code + refresh data (ONE complete operation)
+- ✅ `load-to` → Change load destination + refresh (ONE complete operation)
+- ✅ `refresh` → Refresh data only (when you only want to reload)
+- ✅ `unload` → Remove data (make connection-only)
+
+**Removed**: `update-and-refresh` (redundant), `update-mcode` (confusing name, incomplete operation)
 
 ---
 
@@ -42,62 +58,51 @@ After validating the proposed API against Excel's COM API capabilities, two meth
 
 ## 🚀 Quick Start for LLMs
 
-> **New to this API? Start here!** Three essential patterns cover 90% of use cases.
+> **Three essential patterns cover 95% of use cases**
 
-### Pattern 1: Import and Load Data (Most Common)
+### Pattern 1: Create Query with Data (Most Common)
 
 ```typescript
-// OLD WAY (18 methods): Import, then manually configure load destination
-excel_powerquery({ action: "import", queryName: "Sales", sourcePath: "sales.pq" })
-excel_powerquery({ action: "set-load-to-table", queryName: "Sales", targetSheet: "Data" })
-excel_powerquery({ action: "refresh", queryName: "Sales" })
-
-// NEW WAY (14 methods): One atomic operation
+// Create query + load data in ONE operation
 excel_powerquery({ 
   action: "create", 
   queryName: "Sales", 
   mCodePath: "sales.pq",
-  loadTo: "Worksheet",  // Enum: Worksheet | DataModel | Both | ConnectionOnly
+  loadDestination: "worksheet",  // Options: worksheet | data-model | both | connection-only
   targetSheet: "Data"
 })
 ```
 
-**Why Better**: Single call, explicit intent, no double-refresh problem.
+**Complete operation**: Imports M code, creates query, configures load destination, and loads data.
 
 ### Pattern 2: Update Existing Query
 
 ```typescript
-// OLD WAY: Update M code, but where does data go? (confusion!)
-excel_powerquery({ action: "update", queryName: "Sales", sourcePath: "new-sales.pq" })
-// Does this refresh? Did loadTo change? Unclear!
-
-// NEW WAY: Separate concerns - update vs refresh
-excel_powerquery({ action: "update", queryName: "Sales", mCodePath: "new-sales.pq" })  // Just updates M code
-excel_powerquery({ action: "refresh", queryName: "Sales" })  // Explicit refresh when ready
+// Update M code + refresh data automatically
+excel_powerquery({ 
+  action: "update", 
+  queryName: "Sales", 
+  mCodePath: "new-sales.pq" 
+})
 ```
 
-**Why Better**: Update doesn't auto-refresh (no surprise long operations), explicit control.
+**Complete operation**: Updates M code AND refreshes data automatically. No separate refresh needed!
 
-### Pattern 3: Development Workflow (Create-Validate-Load)
+**Rationale**: When you update query logic, you want fresh data. The old "update without refresh" left stale data (footgun).
+
+### Pattern 3: Change Where Data Loads
 
 ```typescript
-// Step 1: Validate syntax before creating permanent query
+// Change load destination + refresh
 excel_powerquery({ 
-  action: "validate-syntax",  // NEW: Pre-flight syntax check (was "eval")
-  mCodePath: "complex-query.pq" 
+  action: "load-to", 
+  queryName: "Sales",
+  loadDestination: "data-model",  // Switch from worksheet to data model
+  targetSheet: null
 })
-// Returns: { success: true, isValid: true } or syntax error
+```
 
-// Step 2: Create as connection-only (no data load yet)
-excel_powerquery({ 
-  action: "create", 
-  queryName: "ComplexQuery", 
-  mCodePath: "complex-query.pq",
-  loadTo: "ConnectionOnly"  // Just the definition, no data
-})
-
-// Step 3: When ready, apply load destination and refresh
-excel_powerquery({ 
+**Complete operation**: Reconfigures where data loads AND refreshes to apply the change. 
   action: "set-load-destination",  // NEW: Apply load config without refreshing
   queryName: "ComplexQuery",
   loadTo: "DataModel"

@@ -1,9 +1,5 @@
-using System.Runtime.InteropServices;
 using Microsoft.Win32;
-using Sbroenne.ExcelMcp.ComInterop;
-using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Core.Security;
 
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -13,6 +9,17 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 public partial class VbaCommands : IVbaCommands
 {
+    // CA1861: Use static readonly for constant array arguments to avoid repeated allocations
+    private static readonly string[] RegistryPaths =
+    [
+        @"Software\Microsoft\Office\16.0\Excel\Security",  // Office 2019/2021/365
+        @"Software\Microsoft\Office\15.0\Excel\Security",  // Office 2013
+        @"Software\Microsoft\Office\14.0\Excel\Security"   // Office 2010
+    ];
+
+    // CA1861: Use static readonly for constant array arguments to avoid repeated allocations
+    private static readonly char[] ProcedureSeparators = [' ', '('];
+
     /// <summary>
     /// Check if VBA trust is enabled by reading registry
     /// </summary>
@@ -21,13 +28,7 @@ public partial class VbaCommands : IVbaCommands
         try
         {
             // Try different Office versions
-            string[] registryPaths = {
-                @"Software\Microsoft\Office\16.0\Excel\Security",  // Office 2019/2021/365
-                @"Software\Microsoft\Office\15.0\Excel\Security",  // Office 2013
-                @"Software\Microsoft\Office\14.0\Excel\Security"   // Office 2010
-            };
-
-            foreach (string path in registryPaths)
+            foreach (string path in RegistryPaths)
             {
                 try
                 {
@@ -78,15 +79,12 @@ public partial class VbaCommands : IVbaCommands
 
     private static string ExtractProcedureName(string codeLine)
     {
-        var parts = codeLine.Trim().Split(new[] { ' ', '(' }, StringSplitOptions.RemoveEmptyEntries);
+        var parts = codeLine.Trim().Split(ProcedureSeparators, StringSplitOptions.RemoveEmptyEntries);
         for (int i = 0; i < parts.Length; i++)
         {
-            if (parts[i] == "Sub" || parts[i] == "Function")
+            if ((parts[i] is "Sub" or "Function") && i + 1 < parts.Length)
             {
-                if (i + 1 < parts.Length)
-                {
-                    return parts[i + 1];
-                }
+                return parts[i + 1];
             }
         }
         return string.Empty;

@@ -48,6 +48,7 @@
 - **Modify session/batch code** → MUST run OnDemand tests (see [CRITICAL-RULES.md](instructions/critical-rules.instructions.md))
 - **Add MCP tool** → Follow [MCP Server Guide](instructions/mcp-server-guide.instructions.md)
 - **Create PR** → Follow [Development Workflow](instructions/development-workflow.instructions.md)
+- **After creating PR** → Check PR review comments immediately using `gh api repos/sbroenne/mcp-server-excel/pulls/<PR#>/comments` or GitHub CLI
 - **Fix bug** → Use [Bug Fixing Checklist](instructions/bug-fixing-checklist.instructions.md) (6-step process)
 - **Add documentation** → Use [Documentation Structure](instructions/documentation-structure.instructions.md) (avoid temporary files)
 - **Migrate tests to batch API** → See BATCH-API-MIGRATION-PLAN.md for comprehensive guide
@@ -162,6 +163,8 @@ After completing significant tasks, update these instructions with lessons learn
 **Pre-Commit:** Search for TODO/FIXME/HACK markers, resolve all, delete commented-out code, verify tests pass, update docs if behavior changed.
 
 **Timeout Protection:** Excel batch operations have 2-minute default timeout, 5-minute maximum. Heavy operations (refresh, data model) request extended timeout via `timeout: TimeSpan.FromMinutes(5)` parameter. MCP tools catch TimeoutException and enrich with operation-specific guidance (SuggestedNextActions, IsRetryable, RetryGuidance). Test timeout behavior with `[Trait("Feature", "Timeout")]` tests.
+
+**PR Review Comments:** After creating a PR, ALWAYS check for automated review comments from Copilot and GitHub Advanced Security. Use `gh api repos/sbroenne/mcp-server-excel/pulls/<PR#>/comments` to retrieve inline review comments. Fix all code quality issues (documentation, performance, null safety, code style, error handling) before requesting human review. Common issues: improper `/// <inheritdoc/>`, `.AsSpan().ToString()` inefficiency, nullable type access, foreach → Select, nested if statements, generic catch clauses, Path.Combine warnings.
 
 ---
 

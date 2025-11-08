@@ -19,7 +19,7 @@ public class FileCommands : IFileCommands
 
             // Validate file extension
             string extension = Path.GetExtension(filePath).ToLowerInvariant();
-            if (extension != ".xlsx" && extension != ".xlsm")
+            if (extension is not ".xlsx" and not ".xlsm")
             {
                 return new OperationResult
                 {
@@ -65,7 +65,7 @@ public class FileCommands : IFileCommands
             // Create Excel workbook using proper resource management
             bool isMacroEnabled = extension == ".xlsm";
 
-            return await ExcelSession.CreateNew<OperationResult>(filePath, isMacroEnabled, (ctx, ct) =>
+            return await ExcelSession.CreateNew(filePath, isMacroEnabled, (ctx, ct) =>
             {
                 // Set up a basic structure with proper COM cleanup
                 dynamic? sheet = null;
@@ -123,7 +123,7 @@ public class FileCommands : IFileCommands
             string extension = exists ? Path.GetExtension(filePath).ToLowerInvariant() : "";
 
             // Validate extension
-            bool isValidExtension = extension == ".xlsx" || extension == ".xlsm";
+            bool isValidExtension = extension is ".xlsx" or ".xlsm";
 
             // Get file info if exists
             long size = 0;

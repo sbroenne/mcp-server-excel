@@ -4,9 +4,9 @@ using Spectre.Console;
 
 namespace Sbroenne.ExcelMcp.CLI;
 
-class Program
+internal sealed class Program
 {
-    static async Task<int> Main(string[] args)
+    private static async Task<int> Main(string[] args)
     {
         // Set console encoding for better international character support
         Console.OutputEncoding = System.Text.Encoding.UTF8;
@@ -47,8 +47,9 @@ class Program
             var dataModel = new DataModelCommands();  // Used for dm-* commands
             var table = new CliTableCommands();
             var pivot = new PivotTableCommands();
+            var queryTable = new QueryTableCommands();
 
-            return args[0].ToLower() switch
+            return args[0].ToLowerInvariant() switch
             {
                 // Version and help commands
                 "--version" or "-v" or "version" => ShowVersion(),
@@ -60,19 +61,17 @@ class Program
                 "pq-view" => powerQuery.View(args),
                 "pq-export" => await powerQuery.Export(args),
                 "pq-sources" => powerQuery.Sources(args),
-                "pq-verify" => powerQuery.Eval(args),
                 "pq-refresh" => powerQuery.Refresh(args),
                 "pq-delete" => powerQuery.Delete(args),
                 "pq-get-load-config" => powerQuery.GetLoadConfig(args),
 
-                // Power Query Phase 1 commands - Atomic operations
+                // Power Query commands - Atomic operations
                 "pq-create" => await powerQuery.Create(args),
-                "pq-update-mcode" => await powerQuery.UpdateMCode(args),
+                "pq-update" => await powerQuery.Update(args),
                 "pq-unload" => await powerQuery.Unload(args),
-                "pq-update-and-refresh" => await powerQuery.UpdateAndRefresh(args),
                 "pq-refresh-all" => await powerQuery.RefreshAll(args),
 
-                // Sheet commands (lifecycle only - data operations moved to range-* commands in Phase 1A)
+                // Sheet commands (lifecycle only - data operations use range-* commands)
                 "sheet-list" => sheet.List(args),
                 "sheet-copy" => sheet.Copy(args),
                 "sheet-delete" => sheet.Delete(args),
@@ -91,7 +90,7 @@ class Program
                 "sheet-hide" => sheet.Hide(args),
                 "sheet-very-hide" => sheet.VeryHide(args),
 
-                // Range commands (data operations - replaces sheet-read/write/clear/append from Phase 1A)
+                // Range commands (data operations)
                 "range-get-values" => range.GetValues(args),
                 "range-set-values" => range.SetValues(args),
                 "range-get-formulas" => range.GetFormulas(args),
@@ -110,8 +109,8 @@ class Program
 
                 // Parameter commands
                 "namedrange-list" => param.List(args),
-                "namedrange-set" => param.Set(args),
-                "namedrange-get" => param.Get(args),
+                "namedrange-set" => param.SetValue(args),
+                "namedrange-get" => param.GetValue(args),
                 "namedrange-update" => param.Update(args),
                 "namedrange-create" => param.Create(args),
                 "namedrange-delete" => param.Delete(args),
@@ -143,9 +142,22 @@ class Program
                 "pivot-list" => pivot.List(args),
                 "pivot-create-from-range" => pivot.CreateFromRange(args),
                 "pivot-create-from-datamodel" => pivot.CreateFromDataModel(args),
+                "pivot-get" => pivot.Get(args),
+                "pivot-delete" => pivot.Delete(args),
+                "pivot-list-fields" => pivot.ListFields(args),
                 "pivot-add-row-field" => pivot.AddRowField(args),
+                "pivot-add-column-field" => pivot.AddColumnField(args),
                 "pivot-add-value-field" => pivot.AddValueField(args),
+                "pivot-add-filter-field" => pivot.AddFilterField(args),
+                "pivot-remove-field" => pivot.RemoveField(args),
                 "pivot-refresh" => pivot.Refresh(args),
+
+                // QueryTable commands
+                "querytable-list" => queryTable.List(args),
+                "querytable-get" => queryTable.Get(args),
+                "querytable-refresh" => queryTable.Refresh(args),
+                "querytable-refresh-all" => queryTable.RefreshAll(args),
+                "querytable-delete" => queryTable.Delete(args),
 
                 // Connection commands
                 "conn-list" => connection.List(args),
@@ -269,11 +281,11 @@ class Program
         }
     }
 
-    static int ShowVersion()
+    private static int ShowVersion()
     {
-        var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-        var informationalVersion = System.Reflection.Assembly.GetExecutingAssembly()
-            .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? version?.ToString() ?? "Unknown";
+        var version = Assembly.GetExecutingAssembly().GetName().Version;
+        var informationalVersion = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? version?.ToString() ?? "Unknown";
 
         AnsiConsole.MarkupLine($"[bold cyan]ExcelMcp.CLI[/] [green]v{informationalVersion}[/]");
         AnsiConsole.MarkupLine("[dim]Excel Command Line Interface for Coding Agents[/]");
@@ -286,7 +298,7 @@ class Program
         return 0;
     }
 
-    static int ShowHelp()
+    private static int ShowHelp()
     {
         AnsiConsole.Write(new Rule("[bold cyan]ExcelMcp.CLI - Excel Command Line Interface for Coding Agents[/]").RuleStyle("grey"));
         AnsiConsole.WriteLine();
@@ -311,11 +323,10 @@ class Program
         AnsiConsole.MarkupLine("  [cyan]pq-errors[/] file.xlsx query-name             View Power Query errors");
         AnsiConsole.WriteLine();
 
-        AnsiConsole.MarkupLine("[bold yellow]Power Query Phase 1 - Atomic Operations:[/]");
+        AnsiConsole.MarkupLine("[bold yellow]Power Query - Atomic Operations:[/]");
         AnsiConsole.MarkupLine("  [cyan]pq-create[/] file.xlsx query src.pq           Create query + load data (atomic)");
         AnsiConsole.MarkupLine("    Options: [dim]--destination worksheet|data-model|both|connection-only --target-sheet SheetName[/]");
-        AnsiConsole.MarkupLine("  [cyan]pq-update-mcode[/] file.xlsx query code.pq    Update M code only (no refresh)");
-        AnsiConsole.MarkupLine("  [cyan]pq-update-and-refresh[/] file.xlsx query src  Update M code + refresh (atomic)");
+        AnsiConsole.MarkupLine("  [cyan]pq-update[/] file.xlsx query code.pq          Update M code + refresh data (atomic)");
         AnsiConsole.MarkupLine("  [cyan]pq-unload[/] file.xlsx query                  Convert to connection-only");
         AnsiConsole.MarkupLine("  [cyan]pq-refresh-all[/] file.xlsx                   Refresh all queries");
         AnsiConsole.WriteLine();
@@ -400,14 +411,28 @@ class Program
 
         AnsiConsole.MarkupLine("[bold yellow]PivotTable Commands:[/]");
         AnsiConsole.MarkupLine("  [cyan]pivot-list[/] file.xlsx                          List all PivotTables");
+        AnsiConsole.MarkupLine("  [cyan]pivot-get[/] file.xlsx pivot-name                Get PivotTable information");
         AnsiConsole.MarkupLine("  [cyan]pivot-create-from-range[/] file.xlsx src-sheet src-range dest-sheet dest-cell name");
         AnsiConsole.MarkupLine("    [dim]Example: pivot-create-from-range sales.xlsx Data A1:D100 Analysis A1 SalesPivot[/]");
         AnsiConsole.MarkupLine("  [cyan]pivot-create-from-datamodel[/] file.xlsx table-name dest-sheet dest-cell name");
         AnsiConsole.MarkupLine("    [dim]Example: pivot-create-from-datamodel sales.xlsx ConsumptionMilestones Analysis A1 MilestonesPivot[/]");
+        AnsiConsole.MarkupLine("  [cyan]pivot-list-fields[/] file.xlsx pivot-name        List all fields in PivotTable");
         AnsiConsole.MarkupLine("  [cyan]pivot-add-row-field[/] file.xlsx pivot-name field [[position]]");
+        AnsiConsole.MarkupLine("  [cyan]pivot-add-column-field[/] file.xlsx pivot-name field [[position]]");
         AnsiConsole.MarkupLine("  [cyan]pivot-add-value-field[/] file.xlsx pivot-name field [[function]] [[custom-name]]");
         AnsiConsole.MarkupLine("    [dim]Functions: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, VarP[/]");
+        AnsiConsole.MarkupLine("  [cyan]pivot-add-filter-field[/] file.xlsx pivot-name field");
+        AnsiConsole.MarkupLine("  [cyan]pivot-remove-field[/] file.xlsx pivot-name field");
         AnsiConsole.MarkupLine("  [cyan]pivot-refresh[/] file.xlsx pivot-name           Refresh PivotTable data");
+        AnsiConsole.MarkupLine("  [cyan]pivot-delete[/] file.xlsx pivot-name            Delete PivotTable");
+        AnsiConsole.WriteLine();
+
+        AnsiConsole.MarkupLine("[bold yellow]QueryTable Commands:[/]");
+        AnsiConsole.MarkupLine("  [cyan]querytable-list[/] file.xlsx                    List all QueryTables");
+        AnsiConsole.MarkupLine("  [cyan]querytable-get[/] file.xlsx querytable-name    Get QueryTable information");
+        AnsiConsole.MarkupLine("  [cyan]querytable-refresh[/] file.xlsx querytable-name  Refresh specific QueryTable");
+        AnsiConsole.MarkupLine("  [cyan]querytable-refresh-all[/] file.xlsx            Refresh all QueryTables");
+        AnsiConsole.MarkupLine("  [cyan]querytable-delete[/] file.xlsx querytable-name Delete QueryTable");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Connection Commands:[/]");

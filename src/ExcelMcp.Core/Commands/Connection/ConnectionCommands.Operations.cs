@@ -85,7 +85,7 @@ public partial class ConnectionCommands
                     RefreshImmediately = true
                 };
 
-                CreateQueryTableForConnection(targetSheet, connectionName, conn, options);
+                CreateQueryTableForConnection(targetSheet, conn, options);
 
                 result.Success = true;
                 return result;
@@ -136,7 +136,7 @@ public partial class ConnectionCommands
 
                 // For Text (4) and Web (5) connections, connection string might not be accessible
                 // until a QueryTable is created. Just verify the connection object exists.
-                if (connType == 4 || connType == 5)
+                if (connType is 4 or 5)
                 {
                     result.Success = true;
                     return result;

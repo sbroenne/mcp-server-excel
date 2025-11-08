@@ -34,7 +34,7 @@ public partial class PowerQueryCommands
             return result;
         }
 
-        return await batch.Execute<PowerQueryRefreshResult>((ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -55,74 +55,36 @@ public partial class PowerQueryCommands
                 }
 
                 // Check if query has a connection to refresh
-                dynamic? targetConnection = null;
-                dynamic? connections = null;
                 try
                 {
-                    connections = ctx.Book.Connections;
-                    for (int i = 1; i <= connections.Count; i++)
-                    {
-                        dynamic? conn = null;
-                        try
-                        {
-                            conn = connections.Item(i);
-                            string connName = conn.Name?.ToString() ?? "";
-                            if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
-                                connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
-                            {
-                                targetConnection = conn;
-                                conn = null; // Don't release - we're using it
-                                break;
-                            }
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref conn);
-                        }
-                    }
+                    // Use RefreshConnectionByQueryName helper to avoid code duplication
+                    RefreshConnectionByQueryName(ctx.Book, queryName);
+
+                    // Check for errors after refresh
+                    result.HasErrors = false;
+                    result.Success = true;
+                    result.LoadedToSheet = DetermineLoadedSheet(ctx.Book, queryName);
+
+                    // Determine if connection-only based on whether it's loaded to a sheet OR Data Model
+                    bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
+                    result.IsConnectionOnly = string.IsNullOrEmpty(result.LoadedToSheet) && !isLoadedToDataModel;
+
+                    // Add workflow guidance
                 }
-                catch { }
-                finally
+                catch (COMException comEx)
                 {
-                    ComUtilities.Release(ref connections);
+                    // Capture detailed error information
+                    result.Success = false;
+                    result.HasErrors = true;
+                    result.ErrorMessages.Add(ParsePowerQueryError(comEx));
+                    result.ErrorMessage = string.Join("; ", result.ErrorMessages);
+
+                    var errorCategory = CategorizeError(comEx);
                 }
 
-                if (targetConnection != null)
+                // If no connection found, check if query is loaded to worksheet or data model
+                if (!result.Success && result.ErrorMessages.Count == 0)
                 {
-                    try
-                    {
-                        // Attempt refresh and capture any errors
-                        targetConnection.Refresh();
-
-                        // Check for errors after refresh
-                        result.HasErrors = false;
-                        result.Success = true;
-                        result.LoadedToSheet = DetermineLoadedSheet(ctx.Book, queryName);
-
-                        // Determine if connection-only based on whether it's loaded to a sheet OR Data Model
-                        bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
-                        result.IsConnectionOnly = string.IsNullOrEmpty(result.LoadedToSheet) && !isLoadedToDataModel;
-
-                        // Add workflow guidance
-                    }
-                    catch (COMException comEx)
-                    {
-                        // Capture detailed error information
-                        result.Success = false;
-                        result.HasErrors = true;
-                        result.ErrorMessages.Add(ParsePowerQueryError(comEx));
-                        result.ErrorMessage = string.Join("; ", result.ErrorMessages);
-
-                        var errorCategory = CategorizeError(comEx);
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref targetConnection);
-                    }
-                }
-                else
-                {
-                    // No connection found - but check if query has QueryTables (may have been configured to load)
                     ComUtilities.Release(ref query);
 
                     // Check if there are QueryTables that reference this query OR if it's in Data Model
@@ -153,57 +115,6 @@ public partial class PowerQueryCommands
                 return result;
             }
         }, timeout: timeout ?? TimeSpan.FromMinutes(5));  // Default 5 minutes for Power Query refresh, LLM can override
-    }
-
-    /// <summary>
-    /// Updates M code and refreshes data in one atomic operation (convenience method)
-    /// </summary>
-    /// <param name="batch">Excel batch session</param>
-    /// <param name="queryName">Name of the query</param>
-    /// <param name="mCodeFile">Path to new M code file</param>
-    /// <returns>Operation result</returns>
-    public async Task<OperationResult> UpdateAndRefreshAsync(
-        IExcelBatch batch,
-        string queryName,
-        string mCodeFile)
-    {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "update-and-refresh"
-        };
-
-        try
-        {
-            // Update M code
-            var updateResult = await UpdateMCodeAsync(batch, queryName, mCodeFile);
-            if (!updateResult.Success)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Failed to update M code: {updateResult.ErrorMessage}";
-                return result;
-            }
-
-            // Refresh data
-            var refreshResult = await RefreshAsync(batch, queryName);
-            if (!refreshResult.Success)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"M code updated but refresh failed: {refreshResult.ErrorMessage}";
-                return result;
-            }
-
-            result.Success = true;
-
-            return result;
-        }
-        catch (Exception ex)
-        {
-            result.Success = false;
-            result.ErrorMessage = $"Error updating and refreshing: {ex.Message}";
-            result.IsRetryable = false;
-            return result;
-        }
     }
 
     /// <summary>
@@ -259,7 +170,7 @@ public partial class PowerQueryCommands
                 }
 
                 // ✅ Rule 0: Success = false when errors exist
-                if (errors.Any())
+                if (errors.Count > 0)
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Some queries failed to refresh: {string.Join(", ", errors)}";
@@ -288,7 +199,7 @@ public partial class PowerQueryCommands
     /// <summary>
     /// Helper method to find connection for a query
     /// </summary>
-    private dynamic? FindConnectionForQuery(dynamic workbook, string queryName)
+    private static dynamic? FindConnectionForQuery(dynamic workbook, string queryName)
     {
         dynamic? connections = null;
         try

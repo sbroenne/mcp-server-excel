@@ -21,6 +21,7 @@ public partial class PowerQueryCommandsTimeoutTests : IDisposable
     private readonly PowerQueryCommands _commands;
     private readonly ITestOutputHelper _output;
     private readonly string _tempDir;
+    /// <inheritdoc/>
 
     public PowerQueryCommandsTimeoutTests(ITestOutputHelper output)
     {
@@ -37,6 +38,7 @@ public partial class PowerQueryCommandsTimeoutTests : IDisposable
         await ExcelSession.CreateNew(testFile, isMacroEnabled: false, (ctx, ct) => 0);
         return testFile;
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task RefreshAsync_RequestsExtendedTimeout()
@@ -75,6 +77,7 @@ public partial class PowerQueryCommandsTimeoutTests : IDisposable
             if (File.Exists(mFile)) File.Delete(mFile);
         }
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task RefreshAsync_SlowQuery_DoesNotTimeoutWithExtendedTimeout()
@@ -113,6 +116,7 @@ public partial class PowerQueryCommandsTimeoutTests : IDisposable
             if (File.Exists(mFile)) File.Delete(mFile);
         }
     }
+    /// <inheritdoc/>
 
     public void Dispose()
     {

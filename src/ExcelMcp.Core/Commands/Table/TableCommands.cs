@@ -55,7 +55,7 @@ public partial class TableCommands : ITableCommands
         // Check for reserved names
         string upperName = tableName.ToUpperInvariant();
         if (upperName == "PRINT_AREA" || upperName == "PRINT_TITLES" ||
-            upperName == "_XLNM" || upperName.StartsWith("_XLNM."))
+            upperName == "_XLNM" || upperName.StartsWith("_XLNM.", StringComparison.Ordinal))
         {
             throw new ArgumentException(
                 $"Table name '{tableName}' is reserved by Excel",

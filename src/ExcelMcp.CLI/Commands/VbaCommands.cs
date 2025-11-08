@@ -9,7 +9,7 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 /// </summary>
 public class VbaCommands : IVbaCommands
 {
-    private readonly Core.Commands.IVbaCommands _coreCommands;
+    private readonly Core.Commands.VbaCommands _coreCommands;
 
     public VbaCommands()
     {
@@ -183,7 +183,7 @@ public class VbaCommands : IVbaCommands
         };
         AnsiConsole.Write(panel);
 
-        if (result.Procedures.Any())
+        if ((result.Procedures.Count > 0))
         {
             AnsiConsole.MarkupLine("\n[bold]Procedures Found:[/]");
             foreach (var proc in result.Procedures)

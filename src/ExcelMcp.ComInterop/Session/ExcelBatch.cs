@@ -69,8 +69,22 @@ internal sealed class ExcelBatch : IExcelBatch
                 // See: https://learn.microsoft.com/en-us/office/vba/api/word.application.automationsecurity
                 tempExcel.AutomationSecurity = 3; // msoAutomationSecurityForceDisable
 
-                // Open workbook
-                dynamic tempWorkbook = tempExcel.Workbooks.Open(_workbookPath);
+                // CRITICAL: Check if file is locked at OS level BEFORE attempting Excel COM open
+                // This fails fast without the overhead of Excel COM initialization
+                FileAccessValidator.ValidateFileNotLocked(_workbookPath);
+
+                // Open workbook with Excel COM
+                dynamic tempWorkbook;
+                try
+                {
+                    tempWorkbook = tempExcel.Workbooks.Open(_workbookPath);
+                }
+                catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
+                {
+                    // Excel Error 1004 - File is already open or locked
+                    // This is a backup catch in case OS-level check missed something
+                    throw FileAccessValidator.CreateFileLockedError(_workbookPath, ex);
+                }
 
                 _excel = tempExcel;
                 _workbook = tempWorkbook;
@@ -151,8 +165,8 @@ internal sealed class ExcelBatch : IExcelBatch
     // Synchronous COM operations
     public async Task<T> Execute<T>(
         Func<ExcelContext, CancellationToken, T> operation,
-        CancellationToken cancellationToken = default,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(ExcelBatch));
 
@@ -190,7 +204,6 @@ internal sealed class ExcelBatch : IExcelBatch
 
         try
         {
-            Console.Error.WriteLine($"[EXCEL-BATCH] Starting operation (timeout: {effectiveTimeout.TotalMinutes:F1}min)");
             return await tcs.Task.WaitAsync(linkedCts.Token);
         }
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
@@ -209,21 +222,13 @@ internal sealed class ExcelBatch : IExcelBatch
 
             throw new TimeoutException(message);
         }
-        finally
-        {
-            var duration = DateTime.UtcNow - startTime;
-            if (tcs.Task.IsCompletedSuccessfully)
-            {
-                Console.Error.WriteLine($"[EXCEL-BATCH] Completed in {duration.TotalSeconds:F1}s");
-            }
-        }
     }
 
     // Genuinely async operations (file I/O, etc.)
     public async Task<T> ExecuteAsync<T>(
         Func<ExcelContext, CancellationToken, Task<T>> operation,
-        CancellationToken cancellationToken = default,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(ExcelBatch));
 
@@ -260,7 +265,6 @@ internal sealed class ExcelBatch : IExcelBatch
 
         try
         {
-            Console.Error.WriteLine($"[EXCEL-BATCH] Starting async operation (timeout: {effectiveTimeout.TotalMinutes:F1}min)");
             return await tcs.Task.WaitAsync(linkedCts.Token);
         }
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
@@ -279,17 +283,9 @@ internal sealed class ExcelBatch : IExcelBatch
 
             throw new TimeoutException(message);
         }
-        finally
-        {
-            var duration = DateTime.UtcNow - startTime;
-            if (tcs.Task.IsCompletedSuccessfully)
-            {
-                Console.Error.WriteLine($"[EXCEL-BATCH] Async operation completed in {duration.TotalSeconds:F1}s");
-            }
-        }
     }
 
-    public async Task SaveAsync(CancellationToken cancellationToken = default, TimeSpan? timeout = null)
+    public async Task SaveAsync(TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(ExcelBatch));
 

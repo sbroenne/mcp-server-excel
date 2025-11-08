@@ -1,5 +1,29 @@
 # Tool Selection Guide - Which Excel Tool to Use?
 
+## 🚨 STEP 0: PRE-FLIGHT CHECK - IS THE FILE ACCESSIBLE?
+
+**CRITICAL: Files must be closed before automation!**
+
+**ALWAYS ASK FIRST if unsure:**
+- "Is the Excel file currently open?"
+- "Do you have the file open in Excel right now?"
+- "Can you close the file before we run this automation?"
+
+**If file is open → STOP and tell user:**
+- "Please close the file in Excel before running automation"
+- "ExcelMcp requires exclusive access - close all Excel windows with this file"
+- "File locking prevents corruption - automation can't work on open files"
+
+**Error signals file is open:**
+- "already open in Excel or another process"
+- "locked by another process"
+- "cannot access the file"
+- COM Error 1004 (0x800A03EC)
+
+**This is NOT negotiable - Excel COM automation requires exclusive file access!**
+
+---
+
 ## ⚡ STEP 1: CHECK FOR BATCH MODE FIRST (75-90% faster!)
 
 **ALWAYS DETECT THESE KEYWORDS BEFORE CHOOSING TOOLS:**

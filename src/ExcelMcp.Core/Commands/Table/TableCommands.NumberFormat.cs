@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 /// </summary>
 public partial class TableCommands
 {
-    private readonly IRangeCommands _rangeCommands = new RangeCommands();
+    private readonly RangeCommands _rangeCommands = new RangeCommands();
 
     // === NUMBER FORMATTING OPERATIONS ===
 
@@ -20,7 +20,7 @@ public partial class TableCommands
     {
         // First, get the table's sheet name and column range
         var columnRange = await GetColumnRangeAsync(batch, tableName, columnName);
-        
+
         if (!columnRange.Success)
         {
             return new RangeNumberFormatResult
@@ -40,7 +40,7 @@ public partial class TableCommands
     {
         // First, get the table's sheet name and column data range (excludes header)
         var columnRange = await GetColumnDataRangeAsync(batch, tableName, columnName);
-        
+
         if (!columnRange.Success)
         {
             return new OperationResult
@@ -54,7 +54,7 @@ public partial class TableCommands
 
         // Delegate to RangeCommands to set number format
         var result = await _rangeCommands.SetNumberFormatAsync(batch, columnRange.SheetName, columnRange.RangeAddress, formatCode);
-        
+
         result.Action = "set-column-number-format";
         return result;
     }
@@ -97,7 +97,7 @@ public partial class TableCommands
 
                 // Get the entire column range (including header)
                 columnRange = column.Range;
-                
+
                 result.SheetName = columnRange.Worksheet.Name;
                 result.RangeAddress = columnRange.Address;
                 result.Success = true;
@@ -155,7 +155,7 @@ public partial class TableCommands
 
                 // Get the data body range (excludes header and totals)
                 dataBodyRange = column.DataBodyRange;
-                
+
                 if (dataBodyRange == null)
                 {
                     result.Success = false;
@@ -202,7 +202,7 @@ public partial class TableCommands
                 {
                     col = columns.Item(i);
                     string name = col.Name?.ToString() ?? "";
-                    
+
                     if (name.Equals(columnName, StringComparison.OrdinalIgnoreCase))
                     {
                         // Return without releasing - caller will release
@@ -229,7 +229,7 @@ public partial class TableCommands
 /// <summary>
 /// Helper result for internal table column range resolution
 /// </summary>
-internal class TableColumnRangeResult : ResultBase
+internal sealed class TableColumnRangeResult : ResultBase
 {
     public string SheetName { get; set; } = string.Empty;
     public string RangeAddress { get; set; } = string.Empty;

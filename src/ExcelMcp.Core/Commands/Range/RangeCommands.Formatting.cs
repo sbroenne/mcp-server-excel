@@ -9,6 +9,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// </summary>
 public partial class RangeCommands
 {
+    private static readonly int[] BorderEdges = [7, 8, 9, 10];
+
     /// <inheritdoc />
     public async Task<OperationResult> SetStyleAsync(
         IExcelBatch batch,
@@ -210,8 +212,7 @@ public partial class RangeCommands
                 if (borderStyle != null || borderColor != null || borderWeight != null)
                 {
                     // Apply to all edges (7 = xlEdgeLeft, 8 = xlEdgeTop, 9 = xlEdgeBottom, 10 = xlEdgeRight)
-                    int[] edges = { 7, 8, 9, 10 };
-                    foreach (var edge in edges)
+                    foreach (var edge in BorderEdges)
                     {
                         dynamic? border = null;
                         try
@@ -279,7 +280,7 @@ public partial class RangeCommands
     private static int ParseColor(string color)
     {
         // Support #RRGGBB format or color index
-        if (color.StartsWith("#") && color.Length == 7)
+        if (color.StartsWith('#') && color.Length == 7)
         {
             var r = Convert.ToInt32(color.Substring(1, 2), 16);
             var g = Convert.ToInt32(color.Substring(3, 2), 16);

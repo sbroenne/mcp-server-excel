@@ -1,7 +1,4 @@
-using System;
 using System.Diagnostics;
-using System.IO;
-using System.Threading.Tasks;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
@@ -21,16 +18,17 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 public class DataModelTestsFixture : IAsyncLifetime
 {
     private readonly string _tempDir;
-    
+
     /// <summary>
     /// Path to the test Data Model file
     /// </summary>
     public string TestFilePath { get; private set; } = null!;
-    
+
     /// <summary>
     /// Results of Data Model creation (exposed for validation)
     /// </summary>
     public DataModelCreationResult CreationResult { get; private set; } = null!;
+    /// <inheritdoc/>
 
     public DataModelTestsFixture()
     {
@@ -46,10 +44,10 @@ public class DataModelTestsFixture : IAsyncLifetime
     public async Task InitializeAsync()
     {
         var sw = Stopwatch.StartNew();
-        
+
         TestFilePath = Path.Join(_tempDir, "DataModel.xlsx");
         CreationResult = new DataModelCreationResult();
-        
+
         try
         {
             var fileCommands = new FileCommands();
@@ -57,87 +55,87 @@ public class DataModelTestsFixture : IAsyncLifetime
             if (!createFileResult.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: File creation failed: {createFileResult.ErrorMessage}");
-            
+
             CreationResult.FileCreated = true;
-            
+
             await using var batch = await ExcelSession.BeginBatchAsync(TestFilePath);
-            
+
             await CreateSalesTableAsync(batch);
             await CreateCustomersTableAsync(batch);
             await CreateProductsTableAsync(batch);
             CreationResult.TablesCreated = 3;
-            
+
             var tableCommands = new TableCommands();
             var dataModelCommands = new DataModelCommands();
-            
+
             var addSales = await tableCommands.AddToDataModelAsync(batch, "SalesTable");
             if (!addSales.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: AddToDataModel(SalesTable) failed: {addSales.ErrorMessage}");
-                
+
             var addCustomers = await tableCommands.AddToDataModelAsync(batch, "CustomersTable");
             if (!addCustomers.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: AddToDataModel(CustomersTable) failed: {addCustomers.ErrorMessage}");
-                
+
             var addProducts = await tableCommands.AddToDataModelAsync(batch, "ProductsTable");
             if (!addProducts.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: AddToDataModel(ProductsTable) failed: {addProducts.ErrorMessage}");
-                
+
             CreationResult.TablesLoadedToModel = 3;
-            
+
             var rel1 = await dataModelCommands.CreateRelationshipAsync(batch,
                 "SalesTable", "CustomerID", "CustomersTable", "CustomerID", active: true);
             if (!rel1.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: CreateRelationship(Sales→Customers) failed: {rel1.ErrorMessage}");
-                
+
             var rel2 = await dataModelCommands.CreateRelationshipAsync(batch,
                 "SalesTable", "ProductID", "ProductsTable", "ProductID", active: true);
             if (!rel2.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: CreateRelationship(Sales→Products) failed: {rel2.ErrorMessage}");
-                
+
             CreationResult.RelationshipsCreated = 2;
-            
+
             var m1 = await dataModelCommands.CreateMeasureAsync(batch, "SalesTable", "Total Sales",
                 "SUM(SalesTable[Amount])", "Currency", "Total sales revenue");
             if (!m1.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: CreateMeasure(Total Sales) failed: {m1.ErrorMessage}");
-                
+
             var m2 = await dataModelCommands.CreateMeasureAsync(batch, "SalesTable", "Average Sale",
                 "AVERAGE(SalesTable[Amount])", "Currency", "Average sale amount");
             if (!m2.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: CreateMeasure(Average Sale) failed: {m2.ErrorMessage}");
-                
+
             var m3 = await dataModelCommands.CreateMeasureAsync(batch, "SalesTable", "Total Customers",
                 "DISTINCTCOUNT(SalesTable[CustomerID])", "WholeNumber", "Unique customer count");
             if (!m3.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: CreateMeasure(Total Customers) failed: {m3.ErrorMessage}");
-                
+
             CreationResult.MeasuresCreated = 3;
-                        
+
             // ═══════════════════════════════════════════════════════
             // TEST 6: Persistence (Save)
             // ═══════════════════════════════════════════════════════
             await batch.SaveAsync();
-                        
+
             sw.Stop();
             CreationResult.Success = true;
             CreationResult.CreationTimeSeconds = sw.Elapsed.TotalSeconds;
-            
-                                                                                                                    }
+
+        }
         catch (Exception ex)
         {
             CreationResult.Success = false;
             CreationResult.ErrorMessage = ex.Message;
-            
+
             sw.Stop();
-                                                                                    
+
             throw; // Fail all tests in class (correct behavior - no point testing if creation failed)
         }
     }
@@ -164,9 +162,9 @@ public class DataModelTestsFixture : IAsyncLifetime
     /// <summary>
     /// Creates Sales worksheet with sample data and formats as Excel Table
     /// </summary>
-    private async Task CreateSalesTableAsync(IExcelBatch batch)
+    private static async Task CreateSalesTableAsync(IExcelBatch batch)
     {
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -226,9 +224,9 @@ public class DataModelTestsFixture : IAsyncLifetime
     /// <summary>
     /// Creates Customers worksheet with sample data and formats as Excel Table
     /// </summary>
-    private async Task CreateCustomersTableAsync(IExcelBatch batch)
+    private static async Task CreateCustomersTableAsync(IExcelBatch batch)
     {
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -281,9 +279,9 @@ public class DataModelTestsFixture : IAsyncLifetime
     /// <summary>
     /// Creates Products worksheet with sample data and formats as Excel Table
     /// </summary>
-    private async Task CreateProductsTableAsync(IExcelBatch batch)
+    private static async Task CreateProductsTableAsync(IExcelBatch batch)
     {
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -339,12 +337,20 @@ public class DataModelTestsFixture : IAsyncLifetime
 /// </summary>
 public class DataModelCreationResult
 {
+    /// <inheritdoc/>
     public bool Success { get; set; }
+    /// <inheritdoc/>
     public bool FileCreated { get; set; }
+    /// <inheritdoc/>
     public int TablesCreated { get; set; }
+    /// <inheritdoc/>
     public int TablesLoadedToModel { get; set; }
+    /// <inheritdoc/>
     public int RelationshipsCreated { get; set; }
+    /// <inheritdoc/>
     public int MeasuresCreated { get; set; }
+    /// <inheritdoc/>
     public double CreationTimeSeconds { get; set; }
+    /// <inheritdoc/>
     public string? ErrorMessage { get; set; }
 }

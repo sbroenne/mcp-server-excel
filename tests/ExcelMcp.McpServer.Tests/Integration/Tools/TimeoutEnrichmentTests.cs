@@ -1,5 +1,11 @@
+// Suppress IDE0005 for explicit framework usings retained for clarity
+#pragma warning disable IDE0005
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.ComInterop.Session;
+using System.Threading.Tasks;
+#pragma warning restore IDE0005
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Models;
@@ -22,7 +28,17 @@ public class TimeoutEnrichmentTests : IDisposable
 {
     private readonly ITestOutputHelper _output;
     private readonly string _tempDir;
+    // Reuse a single JsonSerializerOptions instance to satisfy CA1869 and improve performance
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = true
+    };
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TimeoutEnrichmentTests"/> class.
+    /// </summary>
     public TimeoutEnrichmentTests(ITestOutputHelper output)
     {
         _output = output;
@@ -40,12 +56,15 @@ public class TimeoutEnrichmentTests : IDisposable
 
         if (!result.Success)
         {
-            throw new Exception($"Failed to create test file: {result.ErrorMessage}");
+            throw new InvalidOperationException($"Failed to create test file: {result.ErrorMessage}");
         }
 
         return testFile;
     }
 
+    /// <summary>
+    /// Tests that PowerQuery tool handles timeout exceptions with enriched guidance.
+    /// </summary>
     [Fact]
     public async Task PowerQueryTool_TimeoutException_EnrichesWithGuidance()
     {
@@ -70,8 +89,7 @@ public class TimeoutEnrichmentTests : IDisposable
             Assert.NotEmpty(result);
 
             // Verify it's valid JSON by deserializing
-            var opResult = JsonSerializer.Deserialize<OperationResult>(result,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var opResult = JsonSerializer.Deserialize<OperationResult>(result, JsonOptions);
             Assert.NotNull(opResult);
 
             // Assert - Verify error structure is present
@@ -89,6 +107,9 @@ public class TimeoutEnrichmentTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Tests that Connection tool handles timeout exceptions with enriched guidance.
+    /// </summary>
     [Fact]
     public async Task ConnectionTool_TimeoutException_EnrichesWithGuidance()
     {
@@ -124,6 +145,9 @@ public class TimeoutEnrichmentTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Tests that DataModel tool handles timeout exceptions with enriched guidance.
+    /// </summary>
     [Fact]
     public async Task DataModelTool_TimeoutException_EnrichesWithGuidance()
     {
@@ -154,6 +178,9 @@ public class TimeoutEnrichmentTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Tests that OperationResult has timeout metadata fields.
+    /// </summary>
     [Fact]
     public void OperationResult_HasTimeoutGuidanceFields()
     {
@@ -186,6 +213,9 @@ public class TimeoutEnrichmentTests : IDisposable
         _output.WriteLine("  Note: SuggestedNextActions is MCP/CLI layer responsibility");
     }
 
+    /// <summary>
+    /// Tests that timeout metadata serializes correctly to JSON.
+    /// </summary>
     [Fact]
     public void OperationResult_SerializesTimeoutGuidance()
     {
@@ -204,11 +234,7 @@ public class TimeoutEnrichmentTests : IDisposable
         };
 
         // Act - Serialize to JSON (what MCP tools return)
-        var json = JsonSerializer.Serialize(result, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = true
-        });
+        var json = JsonSerializer.Serialize(result, JsonOptions);
 
         // Assert - Verify JSON contains timeout metadata (not workflow guidance)
         Assert.Contains("operationContext", json);
@@ -221,6 +247,7 @@ public class TimeoutEnrichmentTests : IDisposable
         _output.WriteLine(json);
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
         if (Directory.Exists(_tempDir))

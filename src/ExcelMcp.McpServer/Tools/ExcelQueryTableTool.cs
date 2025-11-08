@@ -6,25 +6,12 @@ using Sbroenne.ExcelMcp.Core.Commands.QueryTable;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
+#pragma warning disable CA1861 // Avoid constant arrays as arguments - Workflow hints are contextual per-call
+
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
-/// Excel QueryTable management tool for MCP server.
-/// Manages Excel QueryTables for simple data imports with reliable persistence.
-/// Use for legacy workflows or when Power Query complexity is not needed.
-///
-/// LLM Usage Patterns:
-/// - Use "list" to discover existing QueryTables
-/// - Use "get" to view QueryTable details and settings
-/// - Use "create-from-connection" to import data from existing connections
-/// - Use "create-from-query" to load Power Query results to worksheet
-/// - Use "refresh" for single QueryTable synchronous refresh
-/// - Use "refresh-all" to refresh all QueryTables in workbook
-/// - Use "update-properties" to modify QueryTable settings
-/// - Use "delete" to remove QueryTables
-///
-/// Note: QueryTables provide reliable data import with synchronous refresh patterns
-/// essential for Excel automation. They complement Power Query and Connection tools.
+/// MCP tool for Excel QueryTable operations - simple data imports with reliable persistence.
 /// </summary>
 [McpServerToolType]
 public static class ExcelQueryTableTool
@@ -94,10 +81,7 @@ Actions available as dropdown in MCP clients.")]
         bool? refreshImmediately = null,
 
         [Description("Optional batch ID for grouping operations")]
-        string? batchId = null,
-
-        [Description("Timeout in minutes for QueryTable operations. Default: 2 minutes (refresh may need more)")]
-        double? timeout = null)
+        string? batchId = null)
     {
         try
         {
@@ -135,7 +119,22 @@ Actions available as dropdown in MCP clients.")]
             save: false,
             async (batch) => await commands.ListAsync(batch));
 
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.QueryTables,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? result.QueryTables?.Count > 0
+                    ? "QueryTables listed successfully. Use 'get' to inspect details, 'refresh' to reload data, or 'update-properties' to modify settings."
+                    : "No QueryTables found. Use 'create-from-connection' or 'create-from-query' to import data."
+                : "Failed to list QueryTables. Check file path and ensure workbook contains valid data connections.",
+            suggestedNextActions = result.Success
+                ? result.QueryTables?.Count > 0
+                    ? new[] { "Use get action to view QueryTable details", "Use refresh action to reload data", "Use update-properties to modify refresh settings" }
+                    : ["Use create-from-connection to import from data connection", "Use create-from-query to import from Power Query"]
+                : ["Verify file path is correct", "Check if workbook has data connections", "Review error message for details"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> GetQueryTableAsync(QueryTableCommands commands, string excelPath, string? queryTableName, string? batchId)
@@ -149,12 +148,18 @@ Actions available as dropdown in MCP clients.")]
             save: false,
             async (batch) => await commands.GetAsync(batch, queryTableName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        return JsonSerializer.Serialize(new
         {
-            throw new ModelContextProtocol.McpException($"get action failed: {result.ErrorMessage}");
-        }
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+            result.Success,
+            result.QueryTable,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"QueryTable '{queryTableName}' details retrieved. Review properties to understand data source and refresh behavior."
+                : $"Failed to get QueryTable '{queryTableName}'. Verify name is correct and QueryTable exists in workbook.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use refresh action to reload data", "Use update-properties to modify settings", "Use delete to remove QueryTable" }
+                : ["Use list action to see all available QueryTables", "Check QueryTable name spelling", "Review error message for details"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> CreateFromConnectionAsync(
@@ -199,12 +204,17 @@ Actions available as dropdown in MCP clients.")]
             save: true,
             async (batch) => await commands.CreateFromConnectionAsync(batch, sheetName, queryTableName, connectionName, range ?? "A1", options));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        return JsonSerializer.Serialize(new
         {
-            throw new ModelContextProtocol.McpException($"create-from-connection action failed: {result.ErrorMessage}");
-        }
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"QueryTable '{queryTableName}' created successfully from connection '{connectionName}'. Data loaded to '{sheetName}!{range ?? "A1"}'."
+                : $"Failed to create QueryTable from connection. Check connection name '{connectionName}' exists and destination sheet '{sheetName}' is valid.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use get action to view QueryTable properties", "Use refresh to reload data", "Use update-properties to modify settings" }
+                : ["Use excel_connection list to verify connection exists", "Check sheet name is valid", "Review error message for details"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> CreateFromQueryAsync(
@@ -249,12 +259,17 @@ Actions available as dropdown in MCP clients.")]
             save: true,
             async (batch) => await commands.CreateFromQueryAsync(batch, sheetName, queryTableName, queryName, range ?? "A1", options));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        return JsonSerializer.Serialize(new
         {
-            throw new ModelContextProtocol.McpException($"create-from-query action failed: {result.ErrorMessage}");
-        }
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"QueryTable '{queryTableName}' created successfully from Power Query '{queryName}'. Data loaded to '{sheetName}!{range ?? "A1"}'."
+                : $"Failed to create QueryTable from Power Query. Check query name '{queryName}' exists and destination sheet '{sheetName}' is valid.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use get action to view QueryTable properties", "Use refresh to reload data", "Use update-properties to modify settings" }
+                : ["Use excel_powerquery list to verify query exists", "Check sheet name is valid", "Review error message for details"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> RefreshQueryTableAsync(QueryTableCommands commands, string excelPath, string? queryTableName, string? batchId)
@@ -268,12 +283,17 @@ Actions available as dropdown in MCP clients.")]
             save: true,
             async (batch) => await commands.RefreshAsync(batch, queryTableName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        return JsonSerializer.Serialize(new
         {
-            throw new ModelContextProtocol.McpException($"refresh action failed: {result.ErrorMessage}");
-        }
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"QueryTable '{queryTableName}' refreshed successfully. Data reloaded from source."
+                : $"Failed to refresh QueryTable '{queryTableName}'. Check data source connectivity and query validity.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use get action to verify updated data", "Use update-properties to modify refresh settings", "Review refreshed worksheet" }
+                : ["Verify data source is accessible", "Check connection credentials", "Review error message for connectivity issues"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> RefreshAllQueryTablesAsync(QueryTableCommands commands, string excelPath, string? batchId)
@@ -284,12 +304,17 @@ Actions available as dropdown in MCP clients.")]
             save: true,
             async (batch) => await commands.RefreshAllAsync(batch));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        return JsonSerializer.Serialize(new
         {
-            throw new ModelContextProtocol.McpException($"refresh-all action failed: {result.ErrorMessage}");
-        }
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? "All QueryTables refreshed successfully. All data reloaded from sources."
+                : "Failed to refresh all QueryTables. One or more data sources may be inaccessible.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use list to see all QueryTables", "Use get to inspect individual QueryTables", "Review workbook for updated data" }
+                : ["Use refresh action to refresh individual QueryTables", "Check data source connectivity", "Review error message for specific failures"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> UpdatePropertiesAsync(
@@ -323,12 +348,17 @@ Actions available as dropdown in MCP clients.")]
             save: true,
             async (batch) => await commands.UpdatePropertiesAsync(batch, queryTableName, options));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        return JsonSerializer.Serialize(new
         {
-            throw new ModelContextProtocol.McpException($"update-properties action failed: {result.ErrorMessage}");
-        }
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"QueryTable '{queryTableName}' properties updated successfully. New settings will apply on next refresh."
+                : $"Failed to update QueryTable '{queryTableName}' properties. Verify QueryTable exists and property values are valid.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use get action to verify updated properties", "Use refresh to test new settings", "Review QueryTable behavior" }
+                : ["Use list to verify QueryTable exists", "Check property values are valid", "Review error message for details"]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> DeleteQueryTableAsync(QueryTableCommands commands, string excelPath, string? queryTableName, string? batchId)
@@ -342,11 +372,16 @@ Actions available as dropdown in MCP clients.")]
             save: true,
             async (batch) => await commands.DeleteAsync(batch, queryTableName));
 
-        if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+        return JsonSerializer.Serialize(new
         {
-            throw new ModelContextProtocol.McpException($"delete action failed: {result.ErrorMessage}");
-        }
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"QueryTable '{queryTableName}' deleted successfully. QueryTable removed from workbook."
+                : $"Failed to delete QueryTable '{queryTableName}'. Verify QueryTable exists and is not protected.",
+            suggestedNextActions = result.Success
+                ? new[] { "Use list to verify deletion", "Review workbook structure", "Clean up unused connections if needed" }
+                : ["Use list to verify QueryTable exists", "Check if worksheet is protected", "Review error message for details"]
+        }, ExcelToolsBase.JsonOptions);
     }
 }

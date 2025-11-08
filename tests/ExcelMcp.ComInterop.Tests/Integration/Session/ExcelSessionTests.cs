@@ -149,7 +149,7 @@ public class ExcelSessionTests : IAsyncLifetime
             // Act - Create and dispose batch
             await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
             {
-                await batch.Execute<int>((ctx, ct) =>
+                await batch.Execute((ctx, ct) =>
                 {
                     dynamic sheet = ctx.Book.Worksheets.Item(1);
                     var value = sheet.Range["A1"].Value2;
@@ -198,7 +198,7 @@ public class ExcelSessionTests : IAsyncLifetime
             // Verify we can open it with batch API
             await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
             {
-                await batch.Execute<int>((ctx, ct) =>
+                await batch.Execute((ctx, ct) =>
                 {
                     Assert.NotNull(ctx.Book);
                     _output.WriteLine("✓ Can open created workbook with batch API");
@@ -308,7 +308,7 @@ public class ExcelSessionTests : IAsyncLifetime
     }
 
     // Helper method
-    private async Task CreateTempTestFileAsync(string filePath)
+    private static async Task CreateTempTestFileAsync(string filePath)
     {
         await ExcelSession.CreateNew(filePath, isMacroEnabled: false, (ctx, ct) =>
         {

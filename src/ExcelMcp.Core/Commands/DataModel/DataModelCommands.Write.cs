@@ -121,10 +121,10 @@ public partial class DataModelCommands
                             dynamic? fkTable = fkColumn.Parent;
                             dynamic? pkTable = pkColumn.Parent;
 
-                            string currentFromTable = ComInterop.ComUtilities.SafeGetString(fkTable, "Name");
-                            string currentFromColumn = ComInterop.ComUtilities.SafeGetString(fkColumn, "Name");
-                            string currentToTable = ComInterop.ComUtilities.SafeGetString(pkTable, "Name");
-                            string currentToColumn = ComInterop.ComUtilities.SafeGetString(pkColumn, "Name");
+                            string currentFromTable = ComUtilities.SafeGetString(fkTable, "Name");
+                            string currentFromColumn = ComUtilities.SafeGetString(fkColumn, "Name");
+                            string currentToTable = ComUtilities.SafeGetString(pkTable, "Name");
+                            string currentToColumn = ComUtilities.SafeGetString(pkColumn, "Name");
 
                             ComUtilities.Release(ref fkTable);
                             ComUtilities.Release(ref pkTable);
@@ -336,7 +336,7 @@ public partial class DataModelCommands
                     updates.Add("Description updated");
                 }
 
-                if (!updates.Any())
+                if (updates.Count == 0)
                 {
                     result.Success = false;
                     result.ErrorMessage = "No updates provided. Specify at least one of: daxFormula, formatType, or description";

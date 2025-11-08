@@ -162,24 +162,24 @@ public static class PowerQueryHelpers
         /// <summary>
         /// Whether to refresh data in background
         /// </summary>
-        public bool BackgroundQuery { get; init; } = false;
+        public bool BackgroundQuery { get; init; }
 
         /// <summary>
         /// Whether to refresh data when file opens
         /// </summary>
-        public bool RefreshOnFileOpen { get; init; } = false;
+        public bool RefreshOnFileOpen { get; init; }
 
         /// <summary>
         /// Whether to save password in connection
         /// </summary>
-        public bool SavePassword { get; init; } = false;
+        public bool SavePassword { get; init; }
 
         /// <summary>
         /// Whether to preserve column information
         /// IMPORTANT: Set to FALSE to allow column structure changes when query is updated
         /// If TRUE, column structure is locked at QueryTable creation time
         /// </summary>
-        public bool PreserveColumnInfo { get; init; } = false;
+        public bool PreserveColumnInfo { get; init; }
 
         /// <summary>
         /// Whether to preserve formatting
@@ -194,7 +194,7 @@ public static class PowerQueryHelpers
         /// <summary>
         /// Whether to refresh immediately after creation
         /// </summary>
-        public bool RefreshImmediately { get; init; } = false;
+        public bool RefreshImmediately { get; init; }
     }
 
     /// <summary>

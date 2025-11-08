@@ -1,5 +1,11 @@
 # excel_worksheet Tool
 
+**Related tools**:
+- excel_batch - Use for 2+ worksheet operations (75-90% faster)
+- excel_range - For data operations on worksheet cells
+- excel_table - For structured tables on worksheets
+- excel_powerquery - For loading external data to worksheets
+
 **Actions**: list, create, rename, copy, delete, set-tab-color, get-tab-color, clear-tab-color, hide, very-hide, show, get-visibility, set-visibility
 
 **When to use excel_worksheet**:

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -9,6 +10,7 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 /// Table management commands implementation for CLI
 /// Wraps Core commands and provides console formatting
 /// </summary>
+[SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments", Justification = "Simple workflow arrays in CLI formatting")]
 public class CliTableCommands : ITableCommands
 {
     private readonly TableCommands _coreCommands = new();
@@ -36,7 +38,7 @@ public class CliTableCommands : ITableCommands
         // Format and display result
         if (result.Success)
         {
-            if (result.Tables == null || !result.Tables.Any())
+            if (result.Tables == null || (result.Tables.Count == 0))
             {
                 AnsiConsole.MarkupLine("[yellow]No tables found in workbook[/]");
                 return 0;
@@ -57,8 +59,8 @@ public class CliTableCommands : ITableCommands
                     t.Name,
                     t.SheetName,
                     t.Range,
-                    t.RowCount.ToString(),
-                    t.ColumnCount.ToString(),
+                    t.RowCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    t.ColumnCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     t.HasHeaders ? "Yes" : "No",
                     t.ShowTotals ? "Yes" : "No"
                 );
@@ -233,7 +235,7 @@ public class CliTableCommands : ITableCommands
 
             AnsiConsole.Write(panel);
 
-            if (result.Table.Columns.Any())
+            if ((result.Table.Columns.Count > 0))
             {
                 AnsiConsole.MarkupLine("\n[bold]Columns:[/]");
                 var columnTable = new Table();
@@ -242,7 +244,7 @@ public class CliTableCommands : ITableCommands
 
                 for (int i = 0; i < result.Table.Columns.Count; i++)
                 {
-                    columnTable.AddRow((i + 1).ToString(), result.Table.Columns[i]);
+                    columnTable.AddRow((i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), result.Table.Columns[i]);
                 }
 
                 AnsiConsole.Write(columnTable);
@@ -398,7 +400,7 @@ public class CliTableCommands : ITableCommands
     private static List<List<object?>> ParseCsvToRows(string csvData)
     {
         var rows = new List<List<object?>>();
-        var lines = csvData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = csvData.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
 
         foreach (var line in lines)
         {
@@ -612,7 +614,7 @@ public class CliTableCommands : ITableCommands
             AnsiConsole.MarkupLine($"[cyan]Table:[/] {result.TableName}");
             AnsiConsole.MarkupLine($"[cyan]Has Active Filters:[/] {(result.HasActiveFilters ? "Yes" : "No")}");
 
-            if (result.ColumnFilters != null && result.ColumnFilters.Any())
+            if (result.ColumnFilters != null && (result.ColumnFilters.Count > 0))
             {
                 var table = new Table();
                 table.AddColumn("Column");
@@ -626,7 +628,7 @@ public class CliTableCommands : ITableCommands
                         filter.ColumnName,
                         filter.IsFiltered ? "Yes" : "No",
                         filter.Criteria ?? "-",
-                        filter.FilterValues != null && filter.FilterValues.Any()
+                        filter.FilterValues != null && (filter.FilterValues.Count > 0)
                             ? string.Join(", ", filter.FilterValues)
                             : "-"
                     );
@@ -804,8 +806,8 @@ public class CliTableCommands : ITableCommands
             }
             table.AddRow("Structured Reference", $"[cyan]{result.StructuredReference}[/]");
             table.AddRow("Range Address", $"[dim]{result.RangeAddress}[/]");
-            table.AddRow("Row Count", result.RowCount.ToString());
-            table.AddRow("Column Count", result.ColumnCount.ToString());
+            table.AddRow("Row Count", result.RowCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            table.AddRow("Column Count", result.ColumnCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
             AnsiConsole.Write(table);
 

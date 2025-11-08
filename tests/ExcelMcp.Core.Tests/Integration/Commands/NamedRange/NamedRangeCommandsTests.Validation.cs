@@ -15,6 +15,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.NamedRange;
 [Trait("RequiresExcel", "true")]
 public partial class NamedRangeCommandsTests
 {
+    /// <inheritdoc/>
     [Fact]
     public async Task Create_EmptyParameterName_ReturnsError()
     {
@@ -30,6 +31,7 @@ public partial class NamedRangeCommandsTests
         Assert.False(result.Success);
         Assert.Contains("cannot be empty", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Create_WhitespaceParameterName_ReturnsError()
@@ -46,6 +48,7 @@ public partial class NamedRangeCommandsTests
         Assert.False(result.Success);
         Assert.Contains("cannot be empty", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Create_ParameterNameExactly255Characters_ReturnsSuccess()
@@ -66,6 +69,7 @@ public partial class NamedRangeCommandsTests
         var listResult = await _parameterCommands.ListAsync(batch);
         Assert.Contains(listResult.NamedRanges, p => p.Name == paramName);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Create_ParameterName256Characters_ReturnsError()
@@ -84,6 +88,7 @@ public partial class NamedRangeCommandsTests
         Assert.Contains("255-character limit", result.ErrorMessage);
         Assert.Contains("256", result.ErrorMessage); // Should show actual length
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Update_ParameterNameExceeds255Characters_ReturnsError()
@@ -102,6 +107,7 @@ public partial class NamedRangeCommandsTests
         Assert.Contains("255-character limit", result.ErrorMessage);
         Assert.Contains("300", result.ErrorMessage);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task CreateBulk_ParameterNameExceeds255Characters_SkipsWithError()
@@ -124,13 +130,14 @@ public partial class NamedRangeCommandsTests
 
         // Assert - Should succeed for valid params but skip the long one
         Assert.True(result.Success, $"Expected partial success but got error: {result.ErrorMessage}");
-        
+
         // Verify valid parameters were created
         var listResult = await _parameterCommands.ListAsync(batch);
         Assert.Contains(listResult.NamedRanges, p => p.Name == "ValidParam1");
         Assert.Contains(listResult.NamedRanges, p => p.Name == "ValidParam2");
         Assert.DoesNotContain(listResult.NamedRanges, p => p.Name == longParamName);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task CreateBulk_AllParametersExceedLimit_ReturnsError()

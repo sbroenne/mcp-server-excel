@@ -1,4 +1,3 @@
-using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -19,6 +18,7 @@ public partial class RangeCommandsTests : IClassFixture<TempDirectoryFixture>
     private readonly ITestOutputHelper _output;
     private readonly RangeCommands _commands;
     private readonly string _tempDir;
+    /// <inheritdoc/>
 
     public RangeCommandsTests(ITestOutputHelper output, TempDirectoryFixture fixture)
     {

@@ -57,3 +57,92 @@ dotnet_diagnostic.CA1816.severity = warning      # Dispose methods should call S
 dotnet_diagnostic.CA1821.severity = warning      # Remove empty Finalizers
 dotnet_diagnostic.CA1822.severity = suggestion   # Mark members as static
 dotnet_diagnostic.CA1825.severity = warning      # Avoid zero-length array allocations
+
+# Code style enforcement (IDE rules)
+dotnet_diagnostic.IDE0001.severity = warning     # Simplify names
+dotnet_diagnostic.IDE0002.severity = warning     # Simplify member access
+dotnet_diagnostic.IDE0005.severity = warning     # Remove unnecessary usings
+dotnet_diagnostic.IDE0040.severity = warning     # Add accessibility modifiers
+dotnet_diagnostic.IDE0055.severity = warning     # Fix formatting
+dotnet_diagnostic.IDE0051.severity = warning     # Remove unused private members
+dotnet_diagnostic.IDE0052.severity = warning     # Remove unread private members
+dotnet_diagnostic.IDE0058.severity = silent      # Expression value is never used
+dotnet_diagnostic.IDE0059.severity = warning     # Unnecessary assignment of a value
+dotnet_diagnostic.IDE0060.severity = warning     # Remove unused parameter
+dotnet_diagnostic.IDE0080.severity = warning     # Remove unnecessary suppression operator
+dotnet_diagnostic.IDE0100.severity = warning     # Remove unnecessary equality operator
+dotnet_diagnostic.IDE0110.severity = warning     # Remove unnecessary discard
+
+# Suppress CA1068 for batch API - timeout parameter is intentionally after CancellationToken
+# This allows optional timeout while keeping cancellationToken with default value
+dotnet_diagnostic.CA1068.severity = suggestion
+
+# Suppress SYSLIB1096 - GeneratedComInterface incompatible with legacy COM interop (IOleMessageFilter)
+# GeneratedComInterface causes COM marshalling issues with CoRegisterMessageFilter P/Invoke
+dotnet_diagnostic.SYSLIB1096.severity = none
+
+# Suppress SYSLIB1054 - LibraryImport incompatible with COM interface parameters
+# LibraryImport source generation fails with IOleMessageFilter COM interface marshalling
+dotnet_diagnostic.SYSLIB1054.severity = none
+
+# Suppress CA2016 for STA thread operations - CancellationToken cannot be used with Task.Run in STA context
+# COM operations require STA thread apartment and use timeout-based cancellation instead
+dotnet_diagnostic.CA2016.severity = suggestion
+
+# Suppress CS1573 for discard parameters - discard parameters intentionally have no XML documentation
+dotnet_diagnostic.CS1573.severity = none
+
+# Suppress CA1707 for test projects - test method names use underscores for readability
+# Pattern: MethodName_StateUnderTest_ExpectedBehavior (standard xUnit convention)
+dotnet_diagnostic.CA1707.severity = suggestion
+
+# ===========================
+# CODE ANALYSIS RULES
+# ===========================
+
+# Core layer: treat warnings as errors (all warnings fixed)
+[src/ExcelMcp.Core/**/*.cs]
+dotnet_analyzer_diagnostic.category-CodeQuality.severity = error
+dotnet_analyzer_diagnostic.category-Design.severity = warning  # API design changes require careful planning
+dotnet_analyzer_diagnostic.category-Performance.severity = error
+dotnet_analyzer_diagnostic.category-Globalization.severity = error
+dotnet_analyzer_diagnostic.category-Security.severity = error
+# IDE style warnings (cosmetic) - informational only
+dotnet_diagnostic.IDE0008.severity = none  # Use explicit type vs var (disabled - prefer var)
+dotnet_diagnostic.IDE0022.severity = suggestion  # Use block body
+dotnet_diagnostic.IDE0028.severity = suggestion  # Collection initialization
+dotnet_diagnostic.IDE0031.severity = suggestion  # Null check simplification
+dotnet_diagnostic.IDE0037.severity = suggestion  # Member name simplification
+dotnet_diagnostic.IDE0045.severity = suggestion  # if simplification
+dotnet_diagnostic.IDE0046.severity = suggestion  # if simplification
+dotnet_diagnostic.IDE0078.severity = suggestion  # Pattern matching
+dotnet_diagnostic.IDE0090.severity = suggestion  # 'new' expression
+dotnet_diagnostic.IDE0130.severity = suggestion  # Namespace mismatch (intentional for partial classes)
+dotnet_diagnostic.IDE0270.severity = suggestion  # Null check simplification
+dotnet_diagnostic.IDE0290.severity = suggestion  # Primary constructor
+dotnet_diagnostic.IDE0300.severity = suggestion  # Collection initialization
+dotnet_diagnostic.IDE0305.severity = suggestion  # Collection initialization
+dotnet_diagnostic.IDE0010.severity = suggestion  # Populate switch
+dotnet_diagnostic.IDE0072.severity = suggestion  # Populate switch
+dotnet_diagnostic.IDE0018.severity = suggestion  # Variable declaration inlining
+
+# CLI layer: Some ToString warnings remain - treat most as errors
+[src/ExcelMcp.CLI/**/*.cs]
+dotnet_analyzer_diagnostic.category-Globalization.severity = error
+dotnet_analyzer_diagnostic.category-Performance.severity = error
+dotnet_diagnostic.CA1305.severity = warning  # ToString culture warnings in display layer (acceptable for CLI)
+dotnet_diagnostic.CA1311.severity = warning  # ToLower warnings in display layer (acceptable for CLI)
+dotnet_diagnostic.CA1304.severity = warning  # Culture warnings in display layer (acceptable for CLI)
+
+# MCP Server layer: Additional warnings to fix in follow-up
+[src/ExcelMcp.McpServer/**/*.cs]
+dotnet_diagnostic.CA1861.severity = warning  # Static readonly arrays - low risk, fix in follow-up
+dotnet_diagnostic.CA1866.severity = warning  # String.StartsWith(char) - performance optimization
+dotnet_diagnostic.CA1310.severity = warning  # StartsWith StringComparison - low risk in prompts
+dotnet_diagnostic.CA1869.severity = warning  # JsonSerializerOptions caching - fix in follow-up
+
+# ComInterop layer: Windows-only, platform warnings expected
+[src/ExcelMcp.ComInterop/**/*.cs]
+dotnet_diagnostic.CA1416.severity = suggestion  # Platform-specific APIs expected (Windows-only library)
+
+

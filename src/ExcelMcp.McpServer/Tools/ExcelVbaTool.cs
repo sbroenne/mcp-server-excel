@@ -1,37 +1,46 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
+#pragma warning disable CA1861 // Avoid constant arrays as arguments - workflow hints are contextual per-call
+
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
 /// Excel VBA script management tool for MCP server.
-/// Handles VBA macro operations, code management, and script execution.
+/// Manages VBA macro operations, code import/export, and script execution in macro-enabled workbooks.
 ///
 /// ⚠️ IMPORTANT: Requires .xlsm files! VBA operations only work with macro-enabled Excel files.
 ///
-/// LLM Usage Patterns:
-/// - Use "list" to see all VBA modules and procedures
-/// - Use "view" to inspect VBA code without exporting
-/// - Use "export" to backup VBA code to .vba files
-/// - Use "import" to load VBA modules from files
-/// - Use "update" to modify existing VBA modules
-/// - Use "run" to execute VBA macros with parameters
-/// - Use "delete" to remove VBA modules
-///
-/// Setup Required: Run setup-vba-trust command once before using VBA operations.
+/// Prerequisites: VBA trust must be enabled for automation. Use setup-vba-trust command to configure.
 /// </summary>
 [McpServerToolType]
+[SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments", Justification = "Simple workflow arrays in sealed static class")]
 public static class ExcelVbaTool
 {
     /// <summary>
     /// Manage Excel VBA scripts - modules, procedures, and macro execution (requires .xlsm files)
     /// </summary>
     [McpServerTool(Name = "excel_vba")]
-    [Description("Manage Excel VBA scripts and macros (requires .xlsm files). Supports: list, view, export, import, update, run, delete. Optional batchId for batch sessions.")]
+    [Description(@"Manage Excel VBA scripts and macros (requires .xlsm files).
+
+⚠️ REQUIREMENTS:
+- File format: .xlsm (macro-enabled) only
+- VBA trust: Must be enabled in Excel settings (one-time setup)
+
+RUN PARAMETERS:
+- Format: 'Module.Procedure' (e.g., 'DataProcessor.ProcessData')
+- Parameters: Comma-separated values passed to VBA procedure
+- Example: moduleName='Module1.Calculate', parameters='Sheet1,A1:C10'
+
+RELATED TOOLS:
+- excel_file: Create .xlsm files for VBA automation
+
+Optional batchId for batch sessions.")]
     public static async Task<string> ExcelVba(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
@@ -58,10 +67,7 @@ public static class ExcelVbaTool
         string? parameters = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
-        string? batchId = null,
-
-        [Description("Timeout in minutes for VBA operations. Default: 2 minutes (VBA run may need more)")]
-        double? timeout = null)
+        string? batchId = null)
     {
         try
         {
@@ -112,7 +118,7 @@ public static class ExcelVbaTool
                 : $"Found {moduleCount} VBA module(s). Use 'view' to inspect or 'run' to execute.",
             suggestedNextActions = moduleCount == 0
                 ? new[] { "Use 'import' to add VBA modules from .vba files", "Use excel_file to create .xlsm files for VBA" }
-                : new[] { "Use 'run' to execute macros", "Use 'export' to backup VBA code", "Use 'view' to inspect module code" }
+                : ["Use 'run' to execute macros", "Use 'export' to backup VBA code", "Use 'view' to inspect module code"]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -127,9 +133,27 @@ public static class ExcelVbaTool
             save: false,
             async (batch) => await commands.ViewAsync(batch, moduleName));
 
-        // If view failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        var inBatch = !string.IsNullOrEmpty(batchId);
+        var lineCount = result.Code?.Split('\n').Length ?? 0;
+        var procedureCount = result.Procedures?.Count ?? 0;
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ModuleName,
+            result.ModuleType,
+            result.Code,
+            result.LineCount,
+            result.Procedures,
+            workflowHint = $"Module '{moduleName}' has {lineCount} lines and {procedureCount} procedure(s).",
+            suggestedNextActions = new[]
+            {
+                "Use 'run' to execute procedures from this module",
+                "Use 'export' to save VBA code to file for version control",
+                "Use 'update' to modify the module code",
+                inBatch ? "View more modules in this batch" : "Viewing multiple modules? Use excel_batch for efficiency"
+            }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ExportVbaScriptAsync(VbaCommands commands, string filePath, string? moduleName, string? targetPath, string? batchId)
@@ -143,9 +167,23 @@ public static class ExcelVbaTool
             save: false,
             async (batch) => await commands.ExportAsync(batch, moduleName, targetPath));
 
-        // If export failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        var inBatch = !string.IsNullOrEmpty(batchId);
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            ModuleName = moduleName,
+            FilePath = targetPath,
+            workflowHint = $"VBA module '{moduleName}' exported to {targetPath}.",
+            suggestedNextActions = new[]
+            {
+                "Commit exported VBA file to version control",
+                "Use 'import' or 'update' to restore VBA code from backup",
+                "Review exported code for documentation or code review",
+                inBatch ? "Export more modules in this batch" : "Exporting multiple modules? Use excel_batch for efficiency"
+            }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ImportVbaScriptAsync(VbaCommands commands, string filePath, string? moduleName, string? sourcePath, string? batchId)
@@ -161,7 +199,23 @@ public static class ExcelVbaTool
             save: true,
             async (batch) => await commands.ImportAsync(batch, moduleName, sourcePath));
 
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        var inBatch = !string.IsNullOrEmpty(batchId);
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            ModuleName = moduleName,
+            SourcePath = sourcePath,
+            workflowHint = $"VBA module '{moduleName}' imported from {sourcePath}. Ready to run.",
+            suggestedNextActions = new[]
+            {
+                "Use 'view' to inspect the imported VBA code",
+                "Use 'run' to execute procedures from this module",
+                "Use 'list' to see all VBA modules including the new one",
+                inBatch ? "Import more modules in this batch" : "Importing multiple modules? Use excel_batch for efficiency"
+            }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> UpdateVbaScriptAsync(VbaCommands commands, string filePath, string? moduleName, string? sourcePath, string? batchId)
@@ -175,9 +229,23 @@ public static class ExcelVbaTool
             save: true,
             async (batch) => await commands.UpdateAsync(batch, moduleName, sourcePath));
 
-        // If update failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        var inBatch = !string.IsNullOrEmpty(batchId);
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            ModuleName = moduleName,
+            SourcePath = sourcePath,
+            workflowHint = $"VBA module '{moduleName}' updated from {sourcePath}. Changes saved.",
+            suggestedNextActions = new[]
+            {
+                "Use 'view' to verify the updated VBA code",
+                "Use 'run' to test the updated procedures",
+                "Use 'export' to backup the updated module",
+                inBatch ? "Update more modules in this batch" : "Updating multiple modules? Use excel_batch for efficiency"
+            }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> RunVbaScriptAsync(VbaCommands commands, string filePath, string? moduleName, string? parameters, string? batchId)
@@ -204,7 +272,24 @@ public static class ExcelVbaTool
             save: false, // VBA execution doesn't save unless VBA code does
             async (batch) => await commands.RunAsync(batch, moduleName, null, paramArray));
 
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        var inBatch = !string.IsNullOrEmpty(batchId);
+        var paramCount = paramArray.Length;
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            ProcedureName = moduleName,
+            ParameterCount = paramCount,
+            workflowHint = $"VBA procedure '{moduleName}' executed with {paramCount} parameter(s).",
+            suggestedNextActions = new[]
+            {
+                "Check Excel workbook for procedure output (worksheets, cells, etc.)",
+                "Use excel_range or excel_worksheet to verify VBA changes",
+                "Use 'view' to inspect VBA code if unexpected results",
+                inBatch ? "Run more procedures in this batch" : "Running multiple procedures? Use excel_batch for efficiency"
+            }
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> DeleteVbaScriptAsync(VbaCommands commands, string filePath, string? moduleName, string? batchId)
@@ -218,8 +303,21 @@ public static class ExcelVbaTool
             save: true,
             async (batch) => await commands.DeleteAsync(batch, moduleName));
 
-        // If delete failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        var inBatch = !string.IsNullOrEmpty(batchId);
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            ModuleName = moduleName,
+            workflowHint = $"VBA module '{moduleName}' deleted permanently. Changes saved.",
+            suggestedNextActions = new[]
+            {
+                "Use 'list' to verify module was removed",
+                "Use 'import' to restore module from backup if needed",
+                "Export remaining modules for backup before further deletions",
+                inBatch ? "Delete more modules in this batch" : "Deleting multiple modules? Use excel_batch for efficiency"
+            }
+        }, ExcelToolsBase.JsonOptions);
     }
 }

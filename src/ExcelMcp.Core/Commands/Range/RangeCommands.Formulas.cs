@@ -55,7 +55,7 @@ public partial class RangeCommands
                         {
                             string formula = formulas[r, c]?.ToString() ?? string.Empty;
                             // Only return actual formulas (starting with =), not values
-                            formulaRow.Add(formula.StartsWith("=") ? formula : string.Empty);
+                            formulaRow.Add(formula.StartsWith('=') ? formula : string.Empty);
                             valueRow.Add(values[r, c]);
                         }
 
@@ -70,7 +70,7 @@ public partial class RangeCommands
                     result.ColumnCount = 1;
                     string formula = formulaOrArray?.ToString() ?? string.Empty;
                     // Only return actual formulas (starting with =), not values
-                    result.Formulas.Add([formula.StartsWith("=") ? formula : string.Empty]);
+                    result.Formulas.Add([formula.StartsWith('=') ? formula : string.Empty]);
                     result.Values.Add([valueOrArray]);
                 }
 

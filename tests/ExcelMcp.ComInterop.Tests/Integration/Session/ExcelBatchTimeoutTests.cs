@@ -22,7 +22,7 @@ public class ExcelBatchTimeoutTests
         _output = output;
     }
 
-    private async Task<string> CreateTempTestFileAsync()
+    private static async Task<string> CreateTempTestFileAsync()
     {
         string testFile = Path.Join(Path.GetTempPath(), $"timeout-test-{Guid.NewGuid():N}.xlsx");
         await ExcelSession.CreateNew(testFile, isMacroEnabled: false, (ctx, ct) => 0);
@@ -42,7 +42,7 @@ public class ExcelBatchTimeoutTests
             // Act & Assert
             var exception = await Assert.ThrowsAsync<TimeoutException>(async () =>
             {
-                await batch.Execute<int>((ctx, ct) =>
+                await batch.Execute((ctx, ct) =>
                 {
                     // Simulate slow operation (sleep longer than timeout)
                     Thread.Sleep(300); // 300ms
@@ -75,7 +75,7 @@ public class ExcelBatchTimeoutTests
             // Act & Assert
             var exception = await Assert.ThrowsAsync<TimeoutException>(async () =>
             {
-                await batch.ExecuteAsync<int>(async (ctx, ct) =>
+                await batch.ExecuteAsync(async (ctx, ct) =>
                 {
                     // Simulate slow async operation
                     await Task.Delay(300, ct); // 300ms
@@ -107,7 +107,7 @@ public class ExcelBatchTimeoutTests
 
             // Act - Request 10 minutes timeout, verify operation completes with clamped timeout
             // The clamping happens internally, we verify by seeing stderr log shows 5.0min not 10.0min
-            var result = await batch.Execute<int>((ctx, ct) =>
+            var result = await batch.Execute((ctx, ct) =>
             {
                 Thread.Sleep(100); // Fast operation
                 return 42;
@@ -134,7 +134,7 @@ public class ExcelBatchTimeoutTests
             await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
             // Act - Operation completes quickly, default timeout not reached
-            var result = await batch.Execute<int>((ctx, ct) =>
+            var result = await batch.Execute((ctx, ct) =>
             {
                 return 42;
             }); // No timeout specified, uses default 2 minutes
@@ -160,7 +160,7 @@ public class ExcelBatchTimeoutTests
             await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
             // Act - Fast operation with timeout
-            var result = await batch.Execute<int>((ctx, ct) =>
+            var result = await batch.Execute((ctx, ct) =>
             {
                 Thread.Sleep(50); // 50ms - well within timeout
                 return 99;
@@ -193,7 +193,7 @@ public class ExcelBatchTimeoutTests
             // Assert - Should throw OperationCanceledException or TaskCanceledException 
             var exception = await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             {
-                await batch.Execute<int>((ctx, ct) =>
+                await batch.Execute((ctx, ct) =>
                 {
                     // Check cancellation token multiple times during slow operation
                     for (int i = 0; i < 10; i++)
@@ -226,7 +226,7 @@ public class ExcelBatchTimeoutTests
             // Act & Assert
             var exception = await Assert.ThrowsAsync<TimeoutException>(async () =>
             {
-                await batch.Execute<int>((ctx, ct) =>
+                await batch.Execute((ctx, ct) =>
                 {
                     Thread.Sleep(500);
                     return 1;
@@ -261,7 +261,7 @@ public class ExcelBatchTimeoutTests
 
             var exception = await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             {
-                await batch.ExecuteAsync<int>(async (ctx, ct) =>
+                await batch.ExecuteAsync(async (ctx, ct) =>
                 {
                     // Operation that respects cancellation token
                     for (int i = 0; i < 10; i++)

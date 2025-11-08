@@ -10,6 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.QueryTable;
 /// </summary>
 public partial class QueryTableCommandsTests
 {
+    /// <inheritdoc/>
     [Fact]
     public async Task Get_ExistingQueryTable_ReturnsDetails()
     {
@@ -20,14 +21,14 @@ public partial class QueryTableCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create QueryTable
-        var dataModelCommands = new Sbroenne.ExcelMcp.Core.Commands.DataModelCommands();
-        var pqCommands = new Sbroenne.ExcelMcp.Core.Commands.PowerQueryCommands(dataModelCommands);
+        var dataModelCommands = new Core.Commands.DataModelCommands();
+        var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"Column1\"}, {{\"Data1\"}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "MyQuery.pq");
         await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
         await pqCommands.CreateAsync(batch, "MyQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
-        var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
+        var sheetCommands = new Core.Commands.SheetCommands();
         await sheetCommands.CreateAsync(batch, "Sheet1");
 
         await _commands.CreateFromQueryAsync(batch, "Sheet1", "MyQT", "MyQuery");
@@ -42,6 +43,7 @@ public partial class QueryTableCommandsTests
         Assert.Equal("Sheet1", result.QueryTable.WorksheetName);
         Assert.NotEmpty(result.QueryTable.Range);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Get_NonExistentQueryTable_ReturnsFalse()
@@ -59,6 +61,7 @@ public partial class QueryTableCommandsTests
         Assert.False(result.Success);
         Assert.Contains("not found", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Refresh_ExistingQueryTable_RefreshesSuccessfully()
@@ -70,14 +73,14 @@ public partial class QueryTableCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create QueryTable
-        var dataModelCommands = new Sbroenne.ExcelMcp.Core.Commands.DataModelCommands();
-        var pqCommands = new Sbroenne.ExcelMcp.Core.Commands.PowerQueryCommands(dataModelCommands);
+        var dataModelCommands = new Core.Commands.DataModelCommands();
+        var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"Name\"}, {{\"Test\"}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "RefreshQuery.pq");
         await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
         await pqCommands.CreateAsync(batch, "RefreshQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
-        var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
+        var sheetCommands = new Core.Commands.SheetCommands();
         await sheetCommands.CreateAsync(batch, "RefreshSheet");
 
         await _commands.CreateFromQueryAsync(batch, "RefreshSheet", "RefreshQT", "RefreshQuery");
@@ -88,6 +91,7 @@ public partial class QueryTableCommandsTests
         // Assert
         Assert.True(result.Success, $"Refresh failed: {result.ErrorMessage}");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Refresh_NonExistentQueryTable_ReturnsFalse()
@@ -105,6 +109,7 @@ public partial class QueryTableCommandsTests
         Assert.False(result.Success);
         Assert.Contains("not found", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task RefreshAll_MultipleQueryTables_RefreshesAll()
@@ -116,8 +121,8 @@ public partial class QueryTableCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create multiple QueryTables
-        var dataModelCommands = new Sbroenne.ExcelMcp.Core.Commands.DataModelCommands();
-        var pqCommands = new Sbroenne.ExcelMcp.Core.Commands.PowerQueryCommands(dataModelCommands);
+        var dataModelCommands = new Core.Commands.DataModelCommands();
+        var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode1 = "let Source = #table({\"A\"}, {{1}}) in Source";
         var mCode2 = "let Source = #table({\"B\"}, {{2}}) in Source";
         var mCodeFile1 = Path.Combine(_tempDir, "Q1.pq");
@@ -127,7 +132,7 @@ public partial class QueryTableCommandsTests
         await pqCommands.CreateAsync(batch, "Q1", mCodeFile1, PowerQueryLoadMode.ConnectionOnly);
         await pqCommands.CreateAsync(batch, "Q2", mCodeFile2, PowerQueryLoadMode.ConnectionOnly);
 
-        var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
+        var sheetCommands = new Core.Commands.SheetCommands();
         await sheetCommands.CreateAsync(batch, "S1");
         await sheetCommands.CreateAsync(batch, "S2");
 
@@ -140,6 +145,7 @@ public partial class QueryTableCommandsTests
         // Assert
         Assert.True(result.Success, $"RefreshAll failed: {result.ErrorMessage}");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task RefreshAll_EmptyWorkbook_ReturnsSuccess()
@@ -156,6 +162,7 @@ public partial class QueryTableCommandsTests
         // Assert
         Assert.True(result.Success, $"RefreshAll failed: {result.ErrorMessage}");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task UpdateProperties_ExistingQueryTable_UpdatesSuccessfully()
@@ -167,14 +174,14 @@ public partial class QueryTableCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create QueryTable with default options
-        var dataModelCommands = new Sbroenne.ExcelMcp.Core.Commands.DataModelCommands();
-        var pqCommands = new Sbroenne.ExcelMcp.Core.Commands.PowerQueryCommands(dataModelCommands);
+        var dataModelCommands = new Core.Commands.DataModelCommands();
+        var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"X\"}, {{\"Y\"}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "UpdateQuery.pq");
         await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
         await pqCommands.CreateAsync(batch, "UpdateQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
-        var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
+        var sheetCommands = new Core.Commands.SheetCommands();
         await sheetCommands.CreateAsync(batch, "UpdateSheet");
 
         await _commands.CreateFromQueryAsync(batch, "UpdateSheet", "UpdateQT", "UpdateQuery");
@@ -197,6 +204,7 @@ public partial class QueryTableCommandsTests
         Assert.True(getResult.QueryTable.BackgroundQuery);
         Assert.True(getResult.QueryTable.RefreshOnFileOpen);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task UpdateProperties_NonExistentQueryTable_ReturnsFalse()

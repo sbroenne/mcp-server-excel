@@ -61,7 +61,7 @@ public class NamedRangeCommands : INamedRangeCommands
         }
     }
 
-    public int Set(string[] args)
+    public int SetValue(string[] args)
     {
         if (args.Length < 4)
         {
@@ -103,7 +103,7 @@ public class NamedRangeCommands : INamedRangeCommands
         }
     }
 
-    public int Get(string[] args)
+    public int GetValue(string[] args)
     {
         if (args.Length < 3)
         {

@@ -1,6 +1,4 @@
 using Sbroenne.ExcelMcp.ComInterop;
-using System;
-using System.Collections.Generic;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 

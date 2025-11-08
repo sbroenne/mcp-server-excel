@@ -282,6 +282,8 @@ Assert.Contains(result.Items, i => i.Name == "Test");  // ✅ Verify persisted
 | 15. Enum mappings | All enum values mapped in ToActionString() | Always |
 | 16. Test scope | Only run tests for code you changed | Per change |
 | 17. MCP error checks | Check result.Success before JsonSerializer.Serialize | Every method |
+| 18. Tool descriptions | Verify [Description] matches tool behavior | Per tool change |
+| 19. PR review comments | Check and fix all automated review comments after creating PR | 5-10 min |
 
 
 
@@ -408,6 +410,109 @@ if (string.IsNullOrWhiteSpace(tableName))
 ```
 
 **Historical Note:** This rule was corrected on 2025-01-03 after discovering that tests expected JSON responses, not exceptions. The previous pattern (throwing McpException for business errors) was incorrect and caused MCP clients to receive unhandled errors instead of parseable JSON.
+
+---
+
+## Rule 18: Tool Descriptions Must Match Behavior (CRITICAL)
+
+**Tool `[Description]` attributes are part of the MCP schema sent to LLMs. They must be accurate and current.**
+
+**What to verify when changing a tool:**
+
+1. **Purpose and Use Cases Clear**:
+   ```csharp
+   // ❌ WRONG: Vague description
+   [Description("Manage worksheets")]
+   
+   // ✅ CORRECT: Clear purpose and use cases
+   [Description("Manage Excel worksheet lifecycle: create, rename, copy, delete sheets")]
+   ```
+
+2. **Non-Enum Parameter Values Documented**:
+   ```csharp
+   // ❌ WRONG: Parameter values not explained
+   [Description("Import Power Query with loadDestination parameter")]
+   
+   // ✅ CORRECT: Non-enum parameter values explained
+   [Description(@"Import Power Query.
+   
+   LOAD DESTINATIONS:
+   - 'worksheet': Load to worksheet (DEFAULT)
+   - 'data-model': Load to Power Pivot
+   - 'both': Load to BOTH
+   - 'connection-only': Don't load data")]
+   ```
+
+3. **Server-Specific Behavior Documented**:
+   ```csharp
+   // ❌ WRONG: Behavior changed but description outdated
+   [Description("Default: loadDestination='connection-only'")]  // Wrong!
+   
+   // ✅ CORRECT: Description reflects actual default
+   [Description("Default: loadDestination='worksheet'")]
+   ```
+
+**What NOT to include:**
+- ❌ **Enum action lists** - MCP SDK auto-generates these in schema (LLMs see them via dropdown)
+- ❌ **Parameter types** - Schema provides this
+- ❌ **Required/optional flags** - Schema provides this
+
+**Why Critical:** LLMs use tool descriptions for server-specific guidance. Inaccurate descriptions cause:
+- Wrong default parameter values
+- Incorrect workflow assumptions
+- Confused users when behavior doesn't match docs
+
+**When to Update:**
+- Changing default values or server behavior
+- Adding/changing non-enum parameter values (loadDestination, formatCode, etc.)
+- Changing which tools to use for related operations
+- Adding performance guidance (batch mode)
+
+**See:** [mcp-server-guide.instructions.md](mcp-server-guide.instructions.md) for complete Tool Description checklist.
+
+---
+
+## Rule 19: Check PR Review Comments After Creating PR (CRITICAL)
+
+**After creating a PR, ALWAYS check for automated review comments from Copilot and GitHub Advanced Security.**
+
+```bash
+# Retrieve inline code review comments using GitHub CLI
+gh api repos/sbroenne/mcp-server-excel/pulls/PULL_NUMBER/comments --paginate
+
+# Or use the mcp_github tool if available
+mcp_github_github_pull_request_read(method="get_review_comments", owner="sbroenne", repo="mcp-server-excel", pullNumber=PULL_NUMBER)
+```
+
+**Common automated reviewers:**
+- **Copilot** (code quality, performance, style)
+- **github-advanced-security** (security scanning, code analysis)
+
+**Common issues to fix:**
+- Improper `/// <inheritdoc/>` on constructors/test methods that don't override
+- `.AsSpan().ToString()` inefficiency - use `[..n]` range operator instead
+- Nullable type access without null checks
+- `foreach` → `.Select()` for functional style
+- Nested if statements that can be combined
+- Generic catch clauses - use specific exceptions or add justification
+- Path.Combine security warnings - suppress with justification for test code
+
+**Fix all automated review comments before requesting human review.**
+
+**Why Critical:** Automated reviewers catch common code quality issues early. Fixing them promptly:
+- Improves code quality and maintainability
+- Reduces human reviewer workload
+- Speeds up PR approval process
+- Prevents accumulation of technical debt
+
+**Process:**
+1. Create PR
+2. Immediately check for review comments (within 1-2 minutes)
+3. Fix all automated issues in a single follow-up commit
+4. Push fixes to PR branch
+5. Request human review only after all automated issues resolved
+
+**Example:** PR #139 had 17 automated review comments - all fixed in one commit before human review.
 
 ---
 ---

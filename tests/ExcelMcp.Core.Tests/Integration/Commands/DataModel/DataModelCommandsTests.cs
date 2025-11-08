@@ -17,10 +17,13 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.DataModel;
 [Trait("Speed", "Slow")]
 public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
 {
-    private readonly IDataModelCommands _dataModelCommands;
+    private readonly DataModelCommands _dataModelCommands;
     private readonly string _dataModelFile;
     private readonly DataModelCreationResult _creationResult;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DataModelCommandsTests"/> class.
+    /// </summary>
     public DataModelCommandsTests(DataModelTestsFixture fixture)
     {
         _dataModelCommands = new DataModelCommands();
@@ -37,7 +40,7 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
     [Fact]
     public void Create_CompleteDataModel_SuccessfullyCreatesAllComponents()
     {
-        Assert.True(_creationResult.Success, 
+        Assert.True(_creationResult.Success,
             $"Data Model creation failed: {_creationResult.ErrorMessage}");
         Assert.True(_creationResult.FileCreated);
         Assert.Equal(3, _creationResult.TablesCreated);
@@ -153,7 +156,7 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
 
         await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
         var result = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, daxFormula);
-        
+
         Assert.True(result.Success, $"CreateMeasure failed: {result.ErrorMessage}");
 
         // Verify measure created
@@ -173,7 +176,7 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
         var updatedFormula = "AVERAGE(SalesTable[Amount])";
 
         await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
-        
+
         // Create measure
         var createResult = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, originalFormula);
         Assert.True(createResult.Success);
@@ -201,7 +204,7 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
         // Create measure
         var createResult = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, "SUM(SalesTable[Amount])");
         Assert.True(createResult.Success);
-        
+
         // Delete measure
         var result = await _dataModelCommands.DeleteMeasureAsync(batch, measureName);
         Assert.True(result.Success);
@@ -267,7 +270,7 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
         // Create relationship
         var createResult = await _dataModelCommands.CreateRelationshipAsync(
             batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");
-        
+
         Assert.True(createResult.Success, $"CreateRelationship failed: {createResult.ErrorMessage}");
 
         // Verify creation
@@ -289,7 +292,7 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
         // Delete relationship
         var deleteResult = await _dataModelCommands.DeleteRelationshipAsync(
             batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");
-        
+
         Assert.True(deleteResult.Success, $"DeleteRelationship failed: {deleteResult.ErrorMessage}");
 
         // Verify deletion
@@ -297,7 +300,7 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
         Assert.DoesNotContain(verifyResult.Relationships, r =>
             r.FromTable == "SalesTable" && r.ToTable == "CustomersTable" &&
             r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID");
-        
+
         // Recreate for other tests (shared file)
         await _dataModelCommands.CreateRelationshipAsync(batch,
             "SalesTable", "CustomerID", "CustomersTable", "CustomerID", active: true);

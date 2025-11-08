@@ -25,6 +25,7 @@ public class DetailedErrorMessageTests : IDisposable
     private readonly ITestOutputHelper _output;
     private readonly string _tempDir;
     private readonly string _testExcelFile;
+    /// <inheritdoc/>
 
     public DetailedErrorMessageTests(ITestOutputHelper output)
     {
@@ -33,6 +34,7 @@ public class DetailedErrorMessageTests : IDisposable
         Directory.CreateDirectory(_tempDir);
         _testExcelFile = Path.Join(_tempDir, "test-errors.xlsx");
     }
+    /// <inheritdoc/>
 
     public void Dispose()
     {
@@ -47,6 +49,7 @@ public class DetailedErrorMessageTests : IDisposable
 
         GC.SuppressFinalize(this);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelWorksheet_WithNonExistentFile_ShouldThrowDetailedError()
@@ -72,6 +75,7 @@ public class DetailedErrorMessageTests : IDisposable
 
         _output.WriteLine("✅ Verified: Action, file path, and error details included");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelParameter_WithNonExistentFile_ShouldThrowDetailedError()
@@ -92,6 +96,7 @@ public class DetailedErrorMessageTests : IDisposable
 
         _output.WriteLine("✅ Verified: Parameter operation includes detailed context");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelPowerQuery_WithNonExistentFile_ShouldThrowDetailedError()
@@ -112,6 +117,7 @@ public class DetailedErrorMessageTests : IDisposable
 
         _output.WriteLine("✅ Verified: PowerQuery operation includes detailed context");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelVba_WithNonMacroEnabledFile_ReturnsEmptyList()
@@ -139,6 +145,7 @@ public class DetailedErrorMessageTests : IDisposable
 
         _output.WriteLine("✅ Verified: VBA list on .xlsx returns success with empty list and helpful hints");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelVba_WithMissingModuleName_ShouldThrowDetailedError()
@@ -160,6 +167,7 @@ public class DetailedErrorMessageTests : IDisposable
 
         _output.WriteLine("✅ Verified: Missing parameter error includes parameter name and action");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelPowerQuery_Import_WithMissingParameters_ShouldThrowDetailedError()
@@ -181,6 +189,7 @@ public class DetailedErrorMessageTests : IDisposable
 
         _output.WriteLine("✅ Verified: Missing parameters error lists all required parameters");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelParameter_Create_WithMissingParameters_ShouldThrowDetailedError()

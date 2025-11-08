@@ -23,13 +23,11 @@ public static class ActionExtensions
         PowerQueryAction.GetLoadConfig => "get-load-config",
         PowerQueryAction.LoadTo => "load-to",
         PowerQueryAction.ListExcelSources => "list-excel-sources",
-        PowerQueryAction.Eval => "eval",
 
-        // Phase 1: Atomic Operations
+        // Atomic Operations
         PowerQueryAction.Create => "create",
-        PowerQueryAction.UpdateMCode => "update-mcode",
+        PowerQueryAction.Update => "update",  // Renamed from update-mcode
         PowerQueryAction.Unload => "unload",
-        PowerQueryAction.UpdateAndRefresh => "update-and-refresh",
         PowerQueryAction.RefreshAll => "refresh-all",
 
         _ => throw new ArgumentException($"Unknown PowerQueryAction: {action}")

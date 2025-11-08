@@ -67,6 +67,29 @@ catch {
 }
 
 Write-Host ""
+Write-Host "🔍 Checking MCP actions have Core implementations..." -ForegroundColor Cyan
+
+try {
+    $mcpCoreScript = Join-Path $rootDir "scripts\check-mcp-core-implementations.ps1"
+    & $mcpCoreScript
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "❌ MCP actions without Core implementations detected!" -ForegroundColor Red
+        Write-Host "   All enum actions must have matching Core Command methods." -ForegroundColor Red
+        Write-Host "   Fix the issues before committing (remove enum or implement method)." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "✅ MCP-Core implementation check passed" -ForegroundColor Green
+}
+catch {
+    Write-Host ""
+    Write-Host "❌ Error running MCP-Core implementation check: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host ""
 Write-Host "🔍 Checking Success flag violations (Rule 0)..." -ForegroundColor Cyan
 
 try {

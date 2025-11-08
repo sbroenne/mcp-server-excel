@@ -9,6 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
 /// </summary>
 public partial class ConnectionCommandsTests
 {
+    /// <inheritdoc/>
     [Fact]
     public async Task View_ExistingConnection_ReturnsDetails()
     {
@@ -31,6 +32,7 @@ public partial class ConnectionCommandsTests
         Assert.NotNull(result.ConnectionString);
         Assert.NotNull(result.Type);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task View_NonExistentConnection_ReturnsError()

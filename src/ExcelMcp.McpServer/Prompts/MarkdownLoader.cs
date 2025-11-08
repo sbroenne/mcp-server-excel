@@ -42,7 +42,7 @@ public static class MarkdownLoader
         return content
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Select(line => line.Trim())
-            .Where(line => !string.IsNullOrWhiteSpace(line) && !line.StartsWith("#"))
+            .Where(line => !string.IsNullOrWhiteSpace(line) && !line.StartsWith('#'))
             .ToList();
     }
 

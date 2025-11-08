@@ -187,6 +187,8 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 
 **Requirements:** Windows OS + Microsoft Excel 2016+
 
+**⚠️ Important:** Close all Excel files before using ExcelMcp. The server requires **exclusive access** to workbooks during automation (Excel COM limitation).
+
 ### ⭐ Recommended: VS Code Extension (One-Click Setup)
 
 **Fastest way to get started - everything configured automatically:**

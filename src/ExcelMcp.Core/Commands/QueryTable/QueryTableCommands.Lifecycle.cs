@@ -85,7 +85,7 @@ public partial class QueryTableCommands
                         ComUtilities.Release(ref odbc);
                     }
                 }
-                else if (connType == 3 || connType == 4) // TEXT (3) or WEB (4)
+                else if (connType is 3 or 4) // TEXT (3) or WEB (4)
                 {
                     // Try TextConnection first, fall back to WebConnection
                     try

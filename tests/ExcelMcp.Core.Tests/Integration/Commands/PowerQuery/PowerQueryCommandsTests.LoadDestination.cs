@@ -1,6 +1,3 @@
-using System;
-using System.IO;
-using System.Threading.Tasks;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -9,8 +6,8 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
 
 /// <summary>
-/// Integration tests for Phase 1 PowerQuery API methods
-/// Test Coverage: CreateAsync, UpdateMCodeAsync, LoadToAsync, UnloadAsync, ValidateSyntaxAsync, UpdateAndRefreshAsync, RefreshAllAsync
+/// Integration tests for PowerQuery operations
+/// Test Coverage: CreateAsync, UpdateAsync, LoadToAsync, UnloadAsync, ValidateSyntaxAsync, RefreshAllAsync
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
@@ -19,6 +16,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
 [Trait("RequiresExcel", "true")]
 public partial class PowerQueryCommandsTests
 {
+    /// <inheritdoc/>
     #region CreateAsync Tests
 
     [Fact]
@@ -48,6 +46,7 @@ public partial class PowerQueryCommandsTests
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Queries, q => q.Name == queryName);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Create_LoadToTable_CreatesAndLoadsData()
@@ -85,6 +84,7 @@ public partial class PowerQueryCommandsTests
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Queries, q => q.Name == queryName);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Create_LoadToDataModel_CreatesAndLoadsToModel()
@@ -113,6 +113,7 @@ public partial class PowerQueryCommandsTests
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Queries, q => q.Name == queryName);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Create_LoadToBoth_CreatesAndLoadsToTableAndModel()
@@ -150,10 +151,11 @@ public partial class PowerQueryCommandsTests
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Queries, q => q.Name == queryName);
     }
+    /// <inheritdoc/>
 
     #endregion
 
-    #region UpdateMCodeAsync Tests
+    #region Update Tests
 
     [Fact]
     public async Task UpdateMCode_ExistingQuery_UpdatesSuccessfully()
@@ -185,7 +187,7 @@ in
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var updateResult = await _powerQueryCommands.UpdateMCodeAsync(batch, queryName, updatedFile);
+        var updateResult = await _powerQueryCommands.UpdateAsync(batch, queryName, updatedFile);
 
         // Assert
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
@@ -195,6 +197,7 @@ in
         Assert.True(viewResult.Success);
         Assert.Contains("UpdatedColumn", viewResult.MCode);
     }
+    /// <inheritdoc/>
 
     #endregion
 
@@ -233,6 +236,7 @@ in
         Assert.True(loadResult.DataRefreshed);
         Assert.Equal(targetSheet, loadResult.WorksheetName);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task LoadTo_ToDataModel_LoadsToModelSuccessfully()
@@ -264,6 +268,7 @@ in
         Assert.Equal(PowerQueryLoadMode.LoadToDataModel, loadResult.LoadDestination);
         Assert.True(loadResult.DataRefreshed);
     }
+    /// <inheritdoc/>
 
     #endregion
 
@@ -302,6 +307,7 @@ in
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Queries, q => q.Name == queryName);
     }
+    /// <inheritdoc/>
 
     #endregion
 
@@ -346,17 +352,18 @@ in
 
         // Act
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var updateRefreshResult = await _powerQueryCommands.UpdateAndRefreshAsync(
+        var updateResult = await _powerQueryCommands.UpdateAsync(
             batch, queryName, updatedFile);
 
         // Assert
-        Assert.True(updateRefreshResult.Success, $"UpdateAndRefresh failed: {updateRefreshResult.ErrorMessage}");
+        Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
 
         // Verify M code was updated
         var viewResult = await _powerQueryCommands.ViewAsync(batch, queryName);
         Assert.True(viewResult.Success);
         Assert.Contains("RefreshedColumn", viewResult.MCode);
     }
+    /// <inheritdoc/>
 
     #endregion
 
@@ -394,6 +401,7 @@ in
         // Assert
         Assert.True(refreshResult.Success, $"RefreshAll failed: {refreshResult.ErrorMessage}");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task RefreshAll_EmptyWorkbook_Succeeds()

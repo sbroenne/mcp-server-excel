@@ -31,7 +31,7 @@ public static class RangeHelpers
             catch
             {
                 // List available named ranges for helpful error
-                List<string> availableRanges = new();
+                List<string> availableRanges = [];
                 dynamic? names = null;
                 try
                 {
@@ -68,7 +68,7 @@ public static class RangeHelpers
                 {
                     specificError = $"Named range '{rangeAddress}' not found. No named ranges exist in this workbook.";
                 }
-                
+
                 specificError += " Use excel_namedrange(action: 'list') to see all, or excel_namedrange(action: 'create') to create one.";
                 return null;
             }
@@ -83,7 +83,7 @@ public static class RangeHelpers
             if (sheet == null)
             {
                 // List available sheets for helpful error
-                List<string> availableSheets = new();
+                List<string> availableSheets = [];
                 dynamic? sheets = null;
                 try
                 {
@@ -120,7 +120,7 @@ public static class RangeHelpers
                 {
                     specificError = $"Sheet '{sheetName}' not found. Workbook has no worksheets.";
                 }
-                
+
                 specificError += " Use excel_worksheet(action: 'list') to see all sheets.";
                 return null;
             }
@@ -209,7 +209,7 @@ public partial class RangeCommands
     /// <summary>
     /// Helper for clear operations
     /// </summary>
-    private async Task<OperationResult> ClearRangeAsync(
+    private static async Task<OperationResult> ClearRangeAsync(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,

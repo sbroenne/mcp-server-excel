@@ -1,5 +1,4 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -11,6 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Sheet;
 /// </summary>
 public partial class SheetCommandsTests
 {
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetVisibility_ToHidden_WorksCorrectly()
@@ -38,6 +38,7 @@ public partial class SheetCommandsTests
 
         // Save changes
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetVisibility_ToVeryHidden_WorksCorrectly()
@@ -64,6 +65,7 @@ public partial class SheetCommandsTests
 
         // Save changes
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Show_HiddenSheet_MakesVisible()
@@ -93,6 +95,7 @@ public partial class SheetCommandsTests
 
         // Save changes
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Show_VeryHiddenSheet_MakesVisible()
@@ -122,6 +125,7 @@ public partial class SheetCommandsTests
 
         // Save changes
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Hide_VisibleSheet_MakesHidden()
@@ -146,6 +150,7 @@ public partial class SheetCommandsTests
 
         // Save changes
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task VeryHide_VeryHidesVisibleSheet()
@@ -170,6 +175,7 @@ public partial class SheetCommandsTests
 
         // Save changes
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task GetVisibility_ForVisibleSheet_ReturnsVisible()
@@ -191,6 +197,7 @@ public partial class SheetCommandsTests
         Assert.Equal(SheetVisibility.Visible, result.Visibility);
         Assert.Equal("Visible", result.VisibilityName);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetVisibility_WithNonExistentSheet_ReturnsError()
@@ -210,6 +217,7 @@ public partial class SheetCommandsTests
         Assert.False(result.Success);
         Assert.Contains("not found", result.ErrorMessage);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Visibility_CompleteWorkflow_AllLevelsWork()
@@ -224,7 +232,7 @@ public partial class SheetCommandsTests
         await _sheetCommands.CreateAsync(batch, "Workflow");
 
         // Act & Assert - Test complete visibility workflow
-        
+
         // Start visible
         var check1 = await _sheetCommands.GetVisibilityAsync(batch, "Workflow");
         Assert.Equal(SheetVisibility.Visible, check1.Visibility);

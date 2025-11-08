@@ -6,31 +6,44 @@ using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
+#pragma warning disable CA1861 // Avoid constant arrays as arguments - Workflow hints are contextual per-call
+
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
-/// Excel parameter (named range) management tool for MCP server.
-/// Handles named ranges as configuration parameters for Excel automation.
-///
-/// LLM Usage Patterns:
-/// - Use "list" to see all named ranges (parameters) in a workbook
-/// - Use "get" to retrieve Named range values for configuration
-/// - Use "set" to update Named range values for dynamic behavior
-/// - Use "update" to change parameter cell reference
-/// - Use "create" to define new named ranges as parameters
-/// - Use "delete" to remove obsolete parameters
-///
-/// Note: Named ranges are Excel's way of creating reusable parameters that can be
-/// referenced in formulas and Power Query. They're ideal for configuration values.
+/// MCP tool for Excel named range (parameter) operations.
 /// </summary>
 [McpServerToolType]
 public static class ExcelNamedRangeTool
 {
+    // Cache JsonSerializerOptions to satisfy CA1869
+    private static readonly JsonSerializerOptions s_jsonOptions = new() { PropertyNameCaseInsensitive = true };
+
+    // Cache suggestedNextActions arrays to satisfy CA1861
+    private static readonly string[] s_getNextActions =
+    [
+        "Use 'set' to update this parameter value",
+        "Use this value in excel_range or excel_powerquery operations",
+        "Use 'update' to change the cell reference"
+    ];
+
+    private static readonly string[] s_createBulkNextActions =
+    [
+        "Use 'list' to verify all created named ranges",
+        "Use 'set' to assign initial values",
+        "Use excel_range to populate data in named range regions"
+    ];
+
     /// <summary>
     /// Manage Excel parameters (named ranges) - configuration values and reusable references
     /// </summary>
     [McpServerTool(Name = "excel_namedrange")]
     [Description(@"Manage Excel named ranges as parameters (configuration values).
+
+USE CASES:
+- Configuration values: StartDate, ReportYear, Threshold
+- Reusable parameters: Formula inputs, dynamic ranges
+- Power Query parameters: Reference in M code via Excel.CurrentWorkbook()
 
 ⚡ PERFORMANCE: For creating 2+ parameters, use begin_excel_batch FIRST (90% faster):
   1. batch = begin_excel_batch(excelPath: 'file.xlsx')
@@ -39,7 +52,11 @@ public static class ExcelNamedRangeTool
 
 ⭐ NEW: Use 'create-bulk' action for even better efficiency (one call for multiple parameters).
 
-Actions available as dropdown in MCP clients.")]
+RELATED TOOLS:
+- excel_range: For bulk data operations on named range contents
+- excel_powerquery: To reference named ranges in M code
+
+Optional batchId for batch sessions.")]
     public static async Task<string> ExcelParameter(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
@@ -61,10 +78,7 @@ Actions available as dropdown in MCP clients.")]
         string? namedRangesJson = null,
 
         [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
-        string? batchId = null,
-
-        [Description("Timeout in minutes for named range operations. Default: 2 minutes")]
-        double? timeout = null)
+        string? batchId = null)
     {
         try
         {
@@ -107,7 +121,7 @@ Actions available as dropdown in MCP clients.")]
         // Add workflow hints
         var count = result.NamedRanges?.Count ?? 0;
         var inBatch = !string.IsNullOrEmpty(batchId);
-        
+
         return JsonSerializer.Serialize(new
         {
             result.Success,
@@ -121,13 +135,13 @@ Actions available as dropdown in MCP clients.")]
                     "Use 'create' to define new named ranges as parameters",
                     inBatch ? "Add more operations in this batch session" : "Use excel_batch for creating multiple parameters (90% faster)"
                 }
-                : new[]
-                {
+                :
+                [
                     "Use 'get' to retrieve named range values",
                     "Use 'set' to update parameter values",
                     "Use excel_range with sheetName='' to reference named ranges in formulas",
                     inBatch ? "Continue batch operations" : count > 3 ? "Use excel_batch for bulk updates (90% faster)" : "Use 'update' to change cell references"
-                }
+                ]
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -151,12 +165,7 @@ Actions available as dropdown in MCP clients.")]
             result.NamedRangeName,
             result.Value,
             workflowHint = $"Retrieved value: {result.Value}",
-            suggestedNextActions = new[]
-            {
-                "Use 'set' to update this parameter value",
-                "Use this value in excel_range or excel_powerquery operations",
-                "Use 'update' to change the cell reference"
-            }
+            suggestedNextActions = s_getNextActions
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -175,7 +184,7 @@ Actions available as dropdown in MCP clients.")]
         // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints
         var inBatch = !string.IsNullOrEmpty(batchId);
-        
+
         return JsonSerializer.Serialize(new
         {
             result.Success,
@@ -200,9 +209,30 @@ Actions available as dropdown in MCP clients.")]
             save: true,
             async (batch) => await commands.UpdateAsync(batch, namedRangeName, value));
 
-        // If operation failed, throw exception with detailed error message
         // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        var inBatch = !string.IsNullOrEmpty(batchId);
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Named range '{namedRangeName}' now points to {value}. Formulas referencing it will use new location."
+                : $"Failed to update '{namedRangeName}'. Verify the named range exists and cell reference is valid.",
+            suggestedNextActions = result.Success
+                ? new[]
+                {
+                    "Use 'get' to retrieve value from new location",
+                    "Use excel_range to read data from new cell reference",
+                    inBatch ? "Continue batch operations" : "Update more references? Use excel_batch for efficiency"
+                }
+                :
+                [
+                    "Use 'list' to verify named range exists",
+                    "Check cell reference format (e.g., 'Sheet1!A1' or 'Sheet1!A1:B10')",
+                    "Ensure target sheet exists in workbook"
+                ]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> CreateNamedRangeAsync(NamedRangeCommands commands, string filePath, string? namedRangeName, string? value, string? batchId)
@@ -220,7 +250,7 @@ Actions available as dropdown in MCP clients.")]
         // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints
         var inBatch = !string.IsNullOrEmpty(batchId);
-        
+
         return JsonSerializer.Serialize(new
         {
             result.Success,
@@ -245,9 +275,30 @@ Actions available as dropdown in MCP clients.")]
             save: true,
             async (batch) => await commands.DeleteAsync(batch, namedRangeName));
 
-        // If operation failed, throw exception with detailed error message
         // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        var inBatch = !string.IsNullOrEmpty(batchId);
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            workflowHint = result.Success
+                ? $"Named range '{namedRangeName}' deleted successfully. Formulas referencing it will show #NAME? error."
+                : $"Failed to delete '{namedRangeName}'. Verify the named range exists and is not protected.",
+            suggestedNextActions = result.Success
+                ? new[]
+                {
+                    "Use 'list' to verify deletion",
+                    "Check formulas that referenced this parameter (will show #NAME? errors)",
+                    inBatch ? "Continue batch operations" : "Delete more named ranges? Use excel_batch for efficiency"
+                }
+                :
+                [
+                    "Use 'list' to verify named range exists",
+                    "Check if workbook or sheet is protected",
+                    "Verify named range name spelling is correct"
+                ]
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> CreateBulkNamedRangesAsync(NamedRangeCommands commands, string excelPath, string? namedRangesJson, string? batchId)
@@ -261,7 +312,7 @@ Actions available as dropdown in MCP clients.")]
         {
             parameters = JsonSerializer.Deserialize<List<NamedRangeDefinition>>(
                 namedRangesJson,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                s_jsonOptions);
 
             if (parameters == null || parameters.Count == 0)
                 throw new ModelContextProtocol.McpException("namedRangesJson must contain at least one named range definition");
@@ -277,22 +328,12 @@ Actions available as dropdown in MCP clients.")]
             save: true,
             async (batch) => await commands.CreateBulkAsync(batch, parameters));
 
-        if (!result.Success)
-        {
-            throw new ModelContextProtocol.McpException($"create-bulk failed: {result.ErrorMessage}");
-        }
-
         // Add workflow hints (CreateBulk returns OperationResult, not specialized type)
         return JsonSerializer.Serialize(new
         {
             result.Success,
             workflowHint = "Bulk named range creation completed.",
-            suggestedNextActions = new[]
-            {
-                "Use 'list' to verify all created named ranges",
-                "Use 'set' to assign initial values",
-                "Use excel_powerquery or excel_range to reference these parameters"
-            }
+            suggestedNextActions = s_createBulkNextActions
         }, ExcelToolsBase.JsonOptions);
     }
 }

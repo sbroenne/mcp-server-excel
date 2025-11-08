@@ -1,7 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
-using Xunit;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
@@ -10,6 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 /// </summary>
 public partial class RangeCommandsTests
 {
+    /// <inheritdoc/>
     // === FIND/REPLACE OPERATIONS TESTS ===
 
     [Fact]
@@ -21,8 +22,8 @@ public partial class RangeCommandsTests
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:C2",
         [
-            new() { "Apple", "Banana", "Apple" },
-            new() { "Cherry", "Apple", "Banana" }
+            ["Apple", "Banana", "Apple"],
+            ["Cherry", "Apple", "Banana"]
         ]);
 
         // Act
@@ -36,6 +37,7 @@ public partial class RangeCommandsTests
         Assert.True(result.Success);
         Assert.Equal(3, result.MatchingCells.Count); // Should find 3 "Apple" cells
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Replace_ReplacesAllOccurrences()
@@ -46,9 +48,9 @@ public partial class RangeCommandsTests
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3",
         [
-            new() { "cat" },
-            new() { "dog" },
-            new() { "cat" }
+            ["cat"],
+            ["dog"],
+            ["cat"]
         ]);
 
         // Act
@@ -64,6 +66,7 @@ public partial class RangeCommandsTests
         Assert.Equal("dog", readResult.Values[1][0]);
         Assert.Equal("bird", readResult.Values[2][0]);
     }
+    /// <inheritdoc/>
 
     // === SORT OPERATIONS TESTS ===
 
@@ -76,10 +79,10 @@ public partial class RangeCommandsTests
 
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:B4",
         [
-            new() { "Name", "Age" },
-            new() { "Charlie", 30 },
-            new() { "Alice", 25 },
-            new() { "Bob", 35 }
+            ["Name", "Age"],
+            ["Charlie", 30],
+            ["Alice", 25],
+            ["Bob", 35]
         ]);
 
         // Act - Sort by first column (Name) ascending

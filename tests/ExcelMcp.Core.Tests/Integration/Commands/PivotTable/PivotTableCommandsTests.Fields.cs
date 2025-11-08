@@ -10,6 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 /// </summary>
 public partial class PivotTableCommandsTests
 {
+    /// <inheritdoc/>
     [Fact]
     [Trait("Speed", "Medium")]
     public async Task AddColumnField_WithValidField_AddsFieldToColumns()
@@ -30,6 +31,7 @@ public partial class PivotTableCommandsTests
         Assert.Equal("Product", result.FieldName);
         Assert.Equal(PivotFieldArea.Column, result.Area);
     }
+    /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
@@ -51,6 +53,7 @@ public partial class PivotTableCommandsTests
         Assert.Equal("Sales", result.FieldName);
         Assert.Equal(PivotFieldArea.Value, result.Area);
     }
+    /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
@@ -72,6 +75,7 @@ public partial class PivotTableCommandsTests
         Assert.Equal("Region", result.FieldName);
         Assert.Equal(PivotFieldArea.Filter, result.Area);
     }
+    /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
@@ -84,7 +88,7 @@ public partial class PivotTableCommandsTests
         var createResult = await _pivotCommands.CreateFromRangeAsync(
             batch, "SalesData", "A1:D6", "SalesData", "F1", "TestPivot");
         Assert.True(createResult.Success);
-        
+
         // Add a field first
         var addResult = await _pivotCommands.AddRowFieldAsync(batch, "TestPivot", "Region");
         Assert.True(addResult.Success);
@@ -94,7 +98,7 @@ public partial class PivotTableCommandsTests
 
         // Assert
         Assert.True(result.Success, $"RemoveField failed: {result.ErrorMessage}");
-        
+
         // Verify field removed
         var infoResult = await _pivotCommands.GetAsync(batch, "TestPivot");
         Assert.True(infoResult.Success);
@@ -102,6 +106,7 @@ public partial class PivotTableCommandsTests
         Assert.NotNull(regionField);
         Assert.Equal(PivotFieldArea.Hidden, regionField.Area);
     }
+    /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
@@ -114,7 +119,7 @@ public partial class PivotTableCommandsTests
         var createResult = await _pivotCommands.CreateFromRangeAsync(
             batch, "SalesData", "A1:D6", "SalesData", "F1", "TestPivot");
         Assert.True(createResult.Success);
-        
+
         // Add Sales as value field (default sum)
         var addResult = await _pivotCommands.AddValueFieldAsync(batch, "TestPivot", "Sales");
         Assert.True(addResult.Success);
@@ -127,6 +132,7 @@ public partial class PivotTableCommandsTests
         Assert.Equal("Sales", result.FieldName);
         Assert.Equal(AggregationFunction.Average, result.Function);
     }
+    /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
@@ -139,7 +145,7 @@ public partial class PivotTableCommandsTests
         var createResult = await _pivotCommands.CreateFromRangeAsync(
             batch, "SalesData", "A1:D6", "SalesData", "F1", "TestPivot");
         Assert.True(createResult.Success);
-        
+
         // Add Sales as value field
         var addResult = await _pivotCommands.AddValueFieldAsync(batch, "TestPivot", "Sales");
         Assert.True(addResult.Success);
@@ -151,6 +157,7 @@ public partial class PivotTableCommandsTests
         Assert.True(result.Success, $"SetFieldName failed: {result.ErrorMessage}");
         Assert.Equal("Total Revenue", result.CustomName);
     }
+    /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
@@ -163,7 +170,7 @@ public partial class PivotTableCommandsTests
         var createResult = await _pivotCommands.CreateFromRangeAsync(
             batch, "SalesData", "A1:D6", "SalesData", "F1", "TestPivot");
         Assert.True(createResult.Success);
-        
+
         // Add Sales as value field
         var addResult = await _pivotCommands.AddValueFieldAsync(batch, "TestPivot", "Sales");
         Assert.True(addResult.Success);
@@ -175,6 +182,7 @@ public partial class PivotTableCommandsTests
         Assert.True(result.Success, $"SetFieldFormat failed: {result.ErrorMessage}");
         Assert.Equal("$#,##0.00", result.NumberFormat);
     }
+    /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
@@ -187,19 +195,20 @@ public partial class PivotTableCommandsTests
         var createResult = await _pivotCommands.CreateFromRangeAsync(
             batch, "SalesData", "A1:D6", "SalesData", "F1", "TestPivot");
         Assert.True(createResult.Success);
-        
+
         // Add Region as row field
         var addResult = await _pivotCommands.AddRowFieldAsync(batch, "TestPivot", "Region");
         Assert.True(addResult.Success);
 
         // Act
-        var result = await _pivotCommands.SetFieldFilterAsync(batch, "TestPivot", "Region", new List<string> { "North" });
+        var result = await _pivotCommands.SetFieldFilterAsync(batch, "TestPivot", "Region", ["North"]);
 
         // Assert
         Assert.True(result.Success, $"SetFieldFilter failed: {result.ErrorMessage}");
         Assert.Equal("Region", result.FieldName);
         Assert.NotEmpty(result.SelectedItems);
     }
+    /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
@@ -212,7 +221,7 @@ public partial class PivotTableCommandsTests
         var createResult = await _pivotCommands.CreateFromRangeAsync(
             batch, "SalesData", "A1:D6", "SalesData", "F1", "TestPivot");
         Assert.True(createResult.Success);
-        
+
         // Add Region as row field
         var addResult = await _pivotCommands.AddRowFieldAsync(batch, "TestPivot", "Region");
         Assert.True(addResult.Success);

@@ -9,6 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.NamedRange;
 /// </summary>
 public partial class NamedRangeCommandsTests
 {
+    /// <inheritdoc/>
     [Fact]
     public async Task List_EmptyWorkbook_ReturnsEmptyList()
     {
@@ -24,6 +25,7 @@ public partial class NamedRangeCommandsTests
         Assert.True(result.Success, $"List failed: {result.ErrorMessage}");
         Assert.NotNull(result.NamedRanges);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Create_ValidNameAndReference_ReturnsSuccess()
@@ -44,6 +46,7 @@ public partial class NamedRangeCommandsTests
         Assert.True(listResult.Success, $"Failed to list parameters: {listResult.ErrorMessage}");
         Assert.Contains(listResult.NamedRanges, p => p.Name == "TestParam");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Delete_ExistingParameter_ReturnsSuccess()
@@ -54,11 +57,11 @@ public partial class NamedRangeCommandsTests
 
         // Act - Use single batch for create, delete, and verify
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         // Create parameter first
         var createResult = await _parameterCommands.CreateAsync(batch, "DeleteTestParam", "Sheet1!A1");
         Assert.True(createResult.Success, $"Failed to create parameter: {createResult.ErrorMessage}");
-        
+
         // Delete the parameter
         var result = await _parameterCommands.DeleteAsync(batch, "DeleteTestParam");
         Assert.True(result.Success, $"Delete failed: {result.ErrorMessage}");
@@ -68,6 +71,7 @@ public partial class NamedRangeCommandsTests
         Assert.True(listResult.Success, $"Failed to list parameters: {listResult.ErrorMessage}");
         Assert.DoesNotContain(listResult.NamedRanges, p => p.Name == "DeleteTestParam");
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task List_WithNonExistentFile_ReturnsError()

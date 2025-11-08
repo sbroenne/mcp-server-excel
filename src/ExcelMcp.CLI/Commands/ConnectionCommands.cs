@@ -42,7 +42,7 @@ public class ConnectionCommands : IConnectionCommands
                 foreach (var conn in result.Connections.OrderBy(c => c.Name))
                 {
                     string description = conn.Description?.Length > 30 ? conn.Description[..27] + "..." : conn.Description ?? "";
-                    string lastRefresh = conn.LastRefresh?.ToString("yyyy-MM-dd HH:mm") ?? "-";
+                    string lastRefresh = conn.LastRefresh?.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture) ?? "-";
                     string isPQ = conn.IsPowerQuery ? "[green]✓[/]" : "";
 
                     table.AddRow(
@@ -376,7 +376,7 @@ public class ConnectionCommands : IConnectionCommands
             table.AddRow("Background Query", result.BackgroundQuery ? "[green]Yes[/]" : "[dim]No[/]");
             table.AddRow("Refresh on File Open", result.RefreshOnFileOpen ? "[green]Yes[/]" : "[dim]No[/]");
             table.AddRow("Save Password", result.SavePassword ? "[yellow]Yes[/]" : "[dim]No[/]");
-            table.AddRow("Refresh Period (minutes)", result.RefreshPeriod.ToString());
+            table.AddRow("Refresh Period (minutes)", result.RefreshPeriod.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
             AnsiConsole.Write(table);
             return 0;
@@ -410,7 +410,7 @@ public class ConnectionCommands : IConnectionCommands
         {
             if (i + 1 >= args.Length) break;
 
-            string flag = args[i].ToLower();
+            string flag = args[i].ToLowerInvariant();
             string value = args[i + 1];
 
             switch (flag)

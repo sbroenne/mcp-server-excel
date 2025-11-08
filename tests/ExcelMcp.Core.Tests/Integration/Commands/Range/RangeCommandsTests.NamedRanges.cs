@@ -1,7 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Xunit;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
+using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
@@ -10,6 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 /// </summary>
 public partial class RangeCommandsTests
 {
+    /// <inheritdoc/>
     // === NAMED RANGE TRANSPARENCY TESTS ===
 
     [Fact]
@@ -26,8 +27,8 @@ public partial class RangeCommandsTests
         // Set data in the range
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:B2",
         [
-            new() { 1, 2 },
-            new() { 3, 4 }
+            [1, 2],
+            [3, 4]
         ]);
 
         // Act - Read using named range (empty sheetName)
@@ -37,9 +38,14 @@ public partial class RangeCommandsTests
         Assert.True(result.Success);
         Assert.Equal(2, result.RowCount);
         Assert.Equal(2, result.ColumnCount);
-        Assert.Equal(1.0, Convert.ToDouble(result.Values[0][0]));
-        Assert.Equal(4.0, Convert.ToDouble(result.Values[1][1]));
+        Assert.Equal(
+            1.0,
+            Convert.ToDouble(result.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(
+            4.0,
+            Convert.ToDouble(result.Values[1][1], System.Globalization.CultureInfo.InvariantCulture));
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetValues_WithNamedRange_WritesProperly()
@@ -55,8 +61,8 @@ public partial class RangeCommandsTests
         // Act - Write using named range
         var result = await _commands.SetValuesAsync(batch, "", "SalesData",
         [
-            new() { "Product", "Qty", "Price" },
-            new() { "Widget", 10, 29.99 }
+            ["Product", "Qty", "Price"],
+            ["Widget", 10, 29.99]
         ]);
         // Assert
         Assert.True(result.Success);
@@ -64,8 +70,11 @@ public partial class RangeCommandsTests
         // Verify by reading with regular range address
         var readResult = await _commands.GetValuesAsync(batch, "Sheet1", "A1:C2");
         Assert.Equal("Product", readResult.Values[0][0]);
-        Assert.Equal(29.99, Convert.ToDouble(readResult.Values[1][2]));
+        Assert.Equal(
+            29.99,
+            Convert.ToDouble(readResult.Values[1][2], System.Globalization.CultureInfo.InvariantCulture));
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task GetFormulas_WithNamedRange_ReturnsFormulas()
@@ -78,8 +87,8 @@ public partial class RangeCommandsTests
         var paramCommands = new NamedRangeCommands();
         await paramCommands.CreateAsync(batch, "CalcRange", "Sheet1!$A$1:$B$2");
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [new() { 10 }]);
-        await _commands.SetFormulasAsync(batch, "Sheet1", "B1", [new() { "=A1*2" }]);
+        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [[10]]);
+        await _commands.SetFormulasAsync(batch, "Sheet1", "B1", [["=A1*2"]]);
 
         // Act - Read formulas using named range
         var result = await _commands.GetFormulasAsync(batch, "", "CalcRange");
@@ -88,8 +97,11 @@ public partial class RangeCommandsTests
         Assert.True(result.Success);
         Assert.Empty(result.Formulas[0][0]); // A1 has no formula
         Assert.Equal("=A1*2", result.Formulas[0][1]);
-        Assert.Equal(20.0, Convert.ToDouble(result.Values[0][1]));
+        Assert.Equal(
+            20.0,
+            Convert.ToDouble(result.Values[0][1], System.Globalization.CultureInfo.InvariantCulture));
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ClearContents_WithNamedRange_ClearsData()
@@ -104,8 +116,8 @@ public partial class RangeCommandsTests
 
         await _commands.SetValuesAsync(batch, "", "TempData",
         [
-            new() { 1, 2 },
-            new() { 3, 4 }
+            [1, 2],
+            [3, 4]
         ]);
 
         // Act - Clear using named range

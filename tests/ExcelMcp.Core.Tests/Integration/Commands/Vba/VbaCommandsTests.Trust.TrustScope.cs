@@ -8,6 +8,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Vba;
 /// </summary>
 public partial class VbaCommandsTests
 {
+    /// <inheritdoc/>
     [Fact]
     public void VbaTrustRequiredResult_HasAllRequiredProperties()
     {

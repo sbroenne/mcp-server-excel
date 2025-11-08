@@ -2,7 +2,6 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
@@ -11,6 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 /// </summary>
 public partial class RangeCommandsTests
 {
+    /// <inheritdoc/>
     [Fact]
     public async Task GetNumberFormats_SingleCell_ReturnsFormat()
     {
@@ -22,7 +22,7 @@ public partial class RangeCommandsTests
             ".xlsx");
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         // Set up test data with a number format
         await _commands.SetValuesAsync(batch, "Sheet1", "A1", [[100]]);
         await _commands.SetNumberFormatAsync(batch, "Sheet1", "A1", NumberFormatPresets.Currency);
@@ -40,6 +40,7 @@ public partial class RangeCommandsTests
         // Excel might normalize format codes slightly
         Assert.Contains("$", result.Formats[0][0]); // Currency format present
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task GetNumberFormats_MultipleFormats_ReturnsArray()
@@ -52,10 +53,10 @@ public partial class RangeCommandsTests
             ".xlsx");
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         // Set up test data FIRST
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:B2", [[100, 0.5], [200, 0.75]]);
-        
+
         // THEN set different formats for each cell
         var formats = new List<List<string>>
         {
@@ -77,6 +78,7 @@ public partial class RangeCommandsTests
         Assert.Contains("%", result.Formats[0][1]);
         Assert.Contains("%", result.Formats[1][1]);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetNumberFormat_Currency_AppliesFormatToRange()
@@ -89,7 +91,7 @@ public partial class RangeCommandsTests
             ".xlsx");
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         // Set up test data
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3", [[100], [200], [300]]);
 
@@ -106,6 +108,7 @@ public partial class RangeCommandsTests
         Assert.Equal(3, verifyResult.Formats.Count);
         Assert.All(verifyResult.Formats, row => Assert.Contains("$", row[0])); // Currency symbol present
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetNumberFormat_Percentage_AppliesFormatCorrectly()
@@ -118,7 +121,7 @@ public partial class RangeCommandsTests
             ".xlsx");
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         await _commands.SetValuesAsync(batch, "Sheet1", "B1:B2", [[0.25], [0.75]]);
 
         // Act
@@ -132,6 +135,7 @@ public partial class RangeCommandsTests
         Assert.True(verifyResult.Success);
         Assert.All(verifyResult.Formats, row => Assert.Contains("%", row[0])); // Percentage symbol present
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetNumberFormat_DateFormat_AppliesCorrectly()
@@ -144,7 +148,7 @@ public partial class RangeCommandsTests
             ".xlsx");
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         // Excel serial date: 45000 = April 17, 2023
         await _commands.SetValuesAsync(batch, "Sheet1", "C1", [[45000]]);
 
@@ -158,8 +162,11 @@ public partial class RangeCommandsTests
         var verifyResult = await _commands.GetNumberFormatsAsync(batch, "Sheet1", "C1");
         Assert.True(verifyResult.Success);
         // Date formats contain d, m, or y characters
-        Assert.Matches(@"[dmy]", verifyResult.Formats[0][0].ToLower());
+        Assert.Matches(
+            @"[dmy]",
+            verifyResult.Formats[0][0].ToLowerInvariant());
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetNumberFormats_MixedFormats_AppliesDifferentFormatsPerCell()
@@ -172,7 +179,7 @@ public partial class RangeCommandsTests
             ".xlsx");
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         // Set up test data
         await _commands.SetValuesAsync(batch, "Sheet1", "A1:C2", [[100, 0.5, 45000], [200, 0.75, 45100]]);
 
@@ -192,11 +199,16 @@ public partial class RangeCommandsTests
         Assert.True(verifyResult.Success);
         Assert.Contains("$", verifyResult.Formats[0][0]); // Currency
         Assert.Contains("%", verifyResult.Formats[0][1]); // Percentage
-        Assert.Matches(@"[dmy]", verifyResult.Formats[0][2].ToLower()); // Date format
+        Assert.Matches(
+            @"[dmy]",
+            verifyResult.Formats[0][2].ToLowerInvariant()); // Date format
         Assert.Contains("$", verifyResult.Formats[1][0]); // Currency
         Assert.Contains("%", verifyResult.Formats[1][1]); // Percentage
-        Assert.Matches(@"[dmy]", verifyResult.Formats[1][2].ToLower()); // Date format
+        Assert.Matches(
+            @"[dmy]",
+            verifyResult.Formats[1][2].ToLowerInvariant()); // Date format
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetNumberFormats_DimensionMismatch_ReturnsError()
@@ -209,7 +221,7 @@ public partial class RangeCommandsTests
             ".xlsx");
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         // Act - Try to apply 2x2 formats to 3x3 range
         var formats = new List<List<string>>
         {
@@ -222,6 +234,7 @@ public partial class RangeCommandsTests
         Assert.False(result.Success);
         Assert.Contains("row count", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task SetNumberFormat_TextFormat_PreservesLeadingZeros()
@@ -234,7 +247,7 @@ public partial class RangeCommandsTests
             ".xlsx");
 
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        
+
         // First set text format, then set value (to preserve leading zeros)
         await _commands.SetNumberFormatAsync(batch, "Sheet1", "D1", NumberFormatPresets.Text);
         await _commands.SetValuesAsync(batch, "Sheet1", "D1", [["00123"]]);

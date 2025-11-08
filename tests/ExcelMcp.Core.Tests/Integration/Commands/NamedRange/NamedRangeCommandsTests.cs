@@ -16,9 +16,12 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.NamedRange;
 [Trait("RequiresExcel", "true")]
 public partial class NamedRangeCommandsTests : IClassFixture<TempDirectoryFixture>
 {
-    private readonly INamedRangeCommands _parameterCommands;
+    private readonly NamedRangeCommands _parameterCommands;
     private readonly string _tempDir;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="NamedRangeCommandsTests"/> class.
+    /// </summary>
     public NamedRangeCommandsTests(TempDirectoryFixture fixture)
     {
         _parameterCommands = new NamedRangeCommands();

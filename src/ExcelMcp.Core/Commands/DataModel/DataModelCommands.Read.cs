@@ -24,7 +24,7 @@ public partial class DataModelCommands
             {
                 // Empty Data Model is valid - return empty list (LLM-friendly)
                 result.Success = true;
-                result.Tables = new List<DataModelTableInfo>();
+                result.Tables = [];
                 return result;
             }
 
@@ -37,9 +37,9 @@ public partial class DataModelCommands
                 {
                     var tableInfo = new DataModelTableInfo
                     {
-                        Name = ComInterop.ComUtilities.SafeGetString(table, "Name"),
-                        SourceName = ComInterop.ComUtilities.SafeGetString(table, "SourceName"),
-                        RecordCount = ComInterop.ComUtilities.SafeGetInt(table, "RecordCount")
+                        Name = ComUtilities.SafeGetString(table, "Name"),
+                        SourceName = ComUtilities.SafeGetString(table, "SourceName"),
+                        RecordCount = ComUtilities.SafeGetInt(table, "RecordCount")
                     };
 
                     result.Tables.Add(tableInfo);
@@ -103,15 +103,15 @@ public partial class DataModelCommands
                         return;
                     }
 
-                    string formula = ComInterop.ComUtilities.SafeGetString(measure, "Formula");
+                    string formula = ComUtilities.SafeGetString(measure, "Formula");
                     string preview = formula.Length > 80 ? formula[..77] + "..." : formula;
 
                     var measureInfo = new DataModelMeasureInfo
                     {
-                        Name = ComInterop.ComUtilities.SafeGetString(measure, "Name"),
+                        Name = ComUtilities.SafeGetString(measure, "Name"),
                         Table = measureTableName,
                         FormulaPreview = preview,
-                        Description = ComInterop.ComUtilities.SafeGetString(measure, "Description")
+                        Description = ComUtilities.SafeGetString(measure, "Description")
                     };
 
                     result.Measures.Add(measureInfo);
@@ -189,8 +189,8 @@ public partial class DataModelCommands
                 }
 
                 // Get measure details using safe helpers
-                result.DaxFormula = ComInterop.ComUtilities.SafeGetString(measure, "Formula");
-                result.Description = ComInterop.ComUtilities.SafeGetString(measure, "Description");
+                result.DaxFormula = ComUtilities.SafeGetString(measure, "Formula");
+                result.Description = ComUtilities.SafeGetString(measure, "Description");
                 result.CharacterCount = result.DaxFormula.Length;
                 result.TableName = GetMeasureTableName(model, measureName) ?? "";
 
@@ -277,8 +277,8 @@ public partial class DataModelCommands
                 }
 
                 // Get measure details using safe helpers
-                string daxFormula = ComInterop.ComUtilities.SafeGetString(measure, "Formula");
-                string description = ComInterop.ComUtilities.SafeGetString(measure, "Description");
+                string daxFormula = ComUtilities.SafeGetString(measure, "Formula");
+                string description = ComUtilities.SafeGetString(measure, "Description");
                 string tableName = GetMeasureTableName(model, measureName) ?? "";
                 string? formatString = null;
 
@@ -302,18 +302,18 @@ public partial class DataModelCommands
 
                 // Build DAX file content with metadata
                 var daxContent = new System.Text.StringBuilder();
-                daxContent.AppendLine($"-- Measure: {measureName}");
-                daxContent.AppendLine($"-- Table: {tableName}");
+                daxContent.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"-- Measure: {measureName}");
+                daxContent.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"-- Table: {tableName}");
                 if (!string.IsNullOrEmpty(description))
                 {
-                    daxContent.AppendLine($"-- Description: {description}");
+                    daxContent.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"-- Description: {description}");
                 }
                 if (!string.IsNullOrEmpty(formatString))
                 {
-                    daxContent.AppendLine($"-- Format: {formatString}");
+                    daxContent.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"-- Format: {formatString}");
                 }
                 daxContent.AppendLine();
-                daxContent.AppendLine($"{measureName} :=");
+                daxContent.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"{measureName} :=");
                 daxContent.AppendLine(daxFormula);
 
                 // Write to file
@@ -360,10 +360,10 @@ public partial class DataModelCommands
                 {
                     var relInfo = new DataModelRelationshipInfo
                     {
-                        FromTable = ComInterop.ComUtilities.SafeGetString(relationship.ForeignKeyColumn?.Parent, "Name"),
-                        FromColumn = ComInterop.ComUtilities.SafeGetString(relationship.ForeignKeyColumn, "Name"),
-                        ToTable = ComInterop.ComUtilities.SafeGetString(relationship.PrimaryKeyColumn?.Parent, "Name"),
-                        ToColumn = ComInterop.ComUtilities.SafeGetString(relationship.PrimaryKeyColumn, "Name"),
+                        FromTable = ComUtilities.SafeGetString(relationship.ForeignKeyColumn?.Parent, "Name"),
+                        FromColumn = ComUtilities.SafeGetString(relationship.ForeignKeyColumn, "Name"),
+                        ToTable = ComUtilities.SafeGetString(relationship.PrimaryKeyColumn?.Parent, "Name"),
+                        ToColumn = ComUtilities.SafeGetString(relationship.PrimaryKeyColumn, "Name"),
                         IsActive = relationship.Active ?? false
                     };
 
@@ -421,7 +421,7 @@ public partial class DataModelCommands
                 }
 
                 // Iterate through columns
-                ComInterop.ComUtilities.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>
+                ComUtilities.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>
                 {
                     bool isCalculated = false;
                     try
@@ -430,7 +430,7 @@ public partial class DataModelCommands
                         isCalculated = column.IsCalculatedColumn ?? false;
                     }
                     catch (Exception ex) when (ex is Microsoft.CSharp.RuntimeBinder.RuntimeBinderException
-                                            || ex is System.Runtime.InteropServices.COMException)
+                                            or System.Runtime.InteropServices.COMException)
                     {
                         // Ignore - property not available in this Excel version
                         isCalculated = false;
@@ -438,8 +438,8 @@ public partial class DataModelCommands
 
                     var columnInfo = new DataModelColumnInfo
                     {
-                        Name = ComInterop.ComUtilities.SafeGetString(column, "Name"),
-                        DataType = ComInterop.ComUtilities.SafeGetString(column, "DataType"),
+                        Name = ComUtilities.SafeGetString(column, "Name"),
+                        DataType = ComUtilities.SafeGetString(column, "DataType"),
                         IsCalculated = isCalculated
                     };
 
@@ -498,11 +498,11 @@ public partial class DataModelCommands
                 }
 
                 // Get table properties
-                result.SourceName = ComInterop.ComUtilities.SafeGetString(table, "SourceName");
-                result.RecordCount = ComInterop.ComUtilities.SafeGetInt(table, "RecordCount");
+                result.SourceName = ComUtilities.SafeGetString(table, "SourceName");
+                result.RecordCount = ComUtilities.SafeGetInt(table, "RecordCount");
 
                 // Get columns
-                ComInterop.ComUtilities.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>
+                ComUtilities.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>
                 {
                     bool isCalculated = false;
                     try
@@ -511,7 +511,7 @@ public partial class DataModelCommands
                         isCalculated = column.IsCalculatedColumn ?? false;
                     }
                     catch (Exception ex) when (ex is Microsoft.CSharp.RuntimeBinder.RuntimeBinderException
-                                            || ex is System.Runtime.InteropServices.COMException)
+                                            or System.Runtime.InteropServices.COMException)
                     {
                         // Ignore - property not available in this Excel version
                         isCalculated = false;
@@ -519,8 +519,8 @@ public partial class DataModelCommands
 
                     var columnInfo = new DataModelColumnInfo
                     {
-                        Name = ComInterop.ComUtilities.SafeGetString(column, "Name"),
-                        DataType = ComInterop.ComUtilities.SafeGetString(column, "DataType"),
+                        Name = ComUtilities.SafeGetString(column, "Name"),
+                        DataType = ComUtilities.SafeGetString(column, "DataType"),
                         IsCalculated = isCalculated
                     };
 
@@ -531,7 +531,7 @@ public partial class DataModelCommands
                 result.MeasureCount = 0;
                 ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
                 {
-                    string measureTableName = ComInterop.ComUtilities.SafeGetString(measure.AssociatedTable, "Name");
+                    string measureTableName = ComUtilities.SafeGetString(measure.AssociatedTable, "Name");
                     if (string.Equals(measureTableName, tableName, StringComparison.OrdinalIgnoreCase))
                     {
                         result.MeasureCount++;
@@ -580,8 +580,8 @@ public partial class DataModelCommands
                 ForEachTable(model, (Action<dynamic, int>)((table, index) =>
                 {
                     result.TableCount++;
-                    totalRows += ComInterop.ComUtilities.SafeGetInt(table, "RecordCount");
-                    result.TableNames.Add(ComInterop.ComUtilities.SafeGetString(table, "Name"));
+                    totalRows += ComUtilities.SafeGetInt(table, "RecordCount");
+                    result.TableNames.Add(ComUtilities.SafeGetString(table, "Name"));
                 }));
                 result.TotalRows = totalRows;
 

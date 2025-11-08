@@ -10,6 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.QueryTable;
 /// </summary>
 public partial class QueryTableCommandsTests
 {
+    /// <inheritdoc/>
     [Fact]
     public async Task CreateFromQuery_ValidQuery_CreatesQueryTable()
     {
@@ -20,8 +21,8 @@ public partial class QueryTableCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create a Power Query
-        var dataModelCommands = new Sbroenne.ExcelMcp.Core.Commands.DataModelCommands();
-        var pqCommands = new Sbroenne.ExcelMcp.Core.Commands.PowerQueryCommands(dataModelCommands);
+        var dataModelCommands = new Core.Commands.DataModelCommands();
+        var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"Name\", \"Value\"}, {{\"A\", 1}, {\"B\", 2}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "DataQuery.pq");
         await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
@@ -29,7 +30,7 @@ public partial class QueryTableCommandsTests
         Assert.True(importResult.Success);
 
         // Create worksheet
-        var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
+        var sheetCommands = new Core.Commands.SheetCommands();
         var createSheetResult = await sheetCommands.CreateAsync(batch, "Data");
         Assert.True(createSheetResult.Success);
 
@@ -46,6 +47,7 @@ public partial class QueryTableCommandsTests
         Assert.Equal("MyQueryTable", qt.Name);
         Assert.Equal("Data", qt.WorksheetName);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task CreateFromQuery_NonExistentQuery_ReturnsFalse()
@@ -57,7 +59,7 @@ public partial class QueryTableCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create worksheet
-        var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
+        var sheetCommands = new Core.Commands.SheetCommands();
         await sheetCommands.CreateAsync(batch, "Data");
 
         // Act
@@ -67,6 +69,7 @@ public partial class QueryTableCommandsTests
         Assert.False(result.Success);
         Assert.Contains("not found", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task CreateFromQuery_WithOptions_AppliesOptions()
@@ -78,14 +81,14 @@ public partial class QueryTableCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create Power Query and worksheet
-        var dataModelCommands = new Sbroenne.ExcelMcp.Core.Commands.DataModelCommands();
-        var pqCommands = new Sbroenne.ExcelMcp.Core.Commands.PowerQueryCommands(dataModelCommands);
+        var dataModelCommands = new Core.Commands.DataModelCommands();
+        var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"Col1\"}, {{\"Val1\"}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "TestQuery.pq");
         await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
         await pqCommands.CreateAsync(batch, "TestQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
-        var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
+        var sheetCommands = new Core.Commands.SheetCommands();
         await sheetCommands.CreateAsync(batch, "Sheet1");
 
         var options = new QueryTableCreateOptions
@@ -108,6 +111,7 @@ public partial class QueryTableCommandsTests
         Assert.True(getResult.QueryTable.BackgroundQuery);
         Assert.True(getResult.QueryTable.RefreshOnFileOpen);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Delete_ExistingQueryTable_DeletesSuccessfully()
@@ -119,14 +123,14 @@ public partial class QueryTableCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Create QueryTable
-        var dataModelCommands = new Sbroenne.ExcelMcp.Core.Commands.DataModelCommands();
-        var pqCommands = new Sbroenne.ExcelMcp.Core.Commands.PowerQueryCommands(dataModelCommands);
+        var dataModelCommands = new Core.Commands.DataModelCommands();
+        var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"A\"}, {{1}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "Q1.pq");
         await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
         await pqCommands.CreateAsync(batch, "Q1", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
-        var sheetCommands = new Sbroenne.ExcelMcp.Core.Commands.SheetCommands();
+        var sheetCommands = new Core.Commands.SheetCommands();
         await sheetCommands.CreateAsync(batch, "S1");
 
         await _commands.CreateFromQueryAsync(batch, "S1", "QT1", "Q1");
@@ -142,6 +146,7 @@ public partial class QueryTableCommandsTests
         Assert.True(listResult.Success);
         Assert.Empty(listResult.QueryTables);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task Delete_NonExistentQueryTable_ReturnsFalse()

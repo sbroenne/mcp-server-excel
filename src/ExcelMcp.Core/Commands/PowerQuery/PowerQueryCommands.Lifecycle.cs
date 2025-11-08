@@ -2,7 +2,6 @@ using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Core.PowerQuery;
 using Sbroenne.ExcelMcp.Core.Security;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -132,7 +131,7 @@ public partial class PowerQueryCommands
             return result;
         }
 
-        return await batch.Execute<PowerQueryViewResult>((ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -234,7 +233,7 @@ public partial class PowerQueryCommands
             return result;
         }
 
-        return await batch.ExecuteAsync<OperationResult>(async (ctx, ct) =>
+        return await batch.ExecuteAsync(async (ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -290,7 +289,7 @@ public partial class PowerQueryCommands
             return result;
         }
 
-        return await batch.Execute<PowerQueryLoadConfigResult>((ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? query = null;
             dynamic? worksheets = null;
@@ -425,7 +424,7 @@ public partial class PowerQueryCommands
                     // Fallback: Check if the query has data model indicators
                     if (!hasDataModelConnection)
                     {
-                        hasDataModelConnection = CheckQueryDataModelConfiguration(query, ctx.Book);
+                        hasDataModelConnection = CheckQueryDataModelConfiguration(query);
                     }
                 }
 
@@ -485,7 +484,7 @@ public partial class PowerQueryCommands
             return result;
         }
 
-        return await batch.Execute<OperationResult>((ctx, ct) =>
+        return await batch.Execute((ctx, ct) =>
         {
             dynamic? query = null;
             dynamic? queriesCollection = null;
@@ -553,27 +552,27 @@ public partial class PowerQueryCommands
 
     /// <summary>
     /// Creates new query from M code file with atomic import + load operation
-    /// DEFAULT: loadTo = PowerQueryLoadMode.LoadToTable (validate by executing)
+    /// DEFAULT: loadMode = PowerQueryLoadMode.LoadToTable (validate by executing)
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name for the new query</param>
     /// <param name="mCodeFile">Path to M code file</param>
-    /// <param name="loadTo">Where to load the data (default: LoadToTable)</param>
-    /// <param name="worksheetName">Target worksheet name (required for LoadToTable/LoadToBoth)</param>
+    /// <param name="loadMode">Where to load the data (default: LoadToTable)</param>
+    /// <param name="targetSheet">Target worksheet name (required for LoadToTable/LoadToBoth)</param>
     /// <returns>Result with query creation and data load status</returns>
     public async Task<PowerQueryCreateResult> CreateAsync(
         IExcelBatch batch,
         string queryName,
         string mCodeFile,
-        PowerQueryLoadMode loadTo = PowerQueryLoadMode.LoadToTable,
-        string? worksheetName = null)
+        PowerQueryLoadMode loadMode = PowerQueryLoadMode.LoadToTable,
+        string? targetSheet = null)
     {
         var result = new PowerQueryCreateResult
         {
             FilePath = batch.WorkbookPath,
             QueryName = queryName,
-            LoadDestination = loadTo,
-            WorksheetName = worksheetName
+            LoadDestination = loadMode,
+            WorksheetName = targetSheet
         };
 
         try
@@ -594,11 +593,11 @@ public partial class PowerQueryCommands
             }
 
             // Default to query name for worksheet name (Excel's default behavior)
-            if ((loadTo == PowerQueryLoadMode.LoadToTable || loadTo == PowerQueryLoadMode.LoadToBoth)
-                && string.IsNullOrWhiteSpace(worksheetName))
+            if ((loadMode == PowerQueryLoadMode.LoadToTable || loadMode == PowerQueryLoadMode.LoadToBoth)
+                && string.IsNullOrWhiteSpace(targetSheet))
             {
-                worksheetName = queryName;
-                result.WorksheetName = worksheetName;
+                targetSheet = queryName;
+                result.WorksheetName = targetSheet;
             }
 
             // Read M code
@@ -634,7 +633,7 @@ public partial class PowerQueryCommands
                     result.QueryCreated = true;
 
                     // Apply load destination based on mode
-                    switch (loadTo)
+                    switch (loadMode)
                     {
                         case PowerQueryLoadMode.ConnectionOnly:
                             // Connection only - no data load
@@ -650,13 +649,13 @@ public partial class PowerQueryCommands
                                 worksheets = ctx.Book.Worksheets;
                                 try
                                 {
-                                    sheet = worksheets.Item(worksheetName!);
+                                    sheet = worksheets.Item(targetSheet!);
                                 }
-                                catch (System.Runtime.InteropServices.COMException)
+                                catch (COMException)
                                 {
                                     // Sheet doesn't exist, create it
                                     sheet = worksheets.Add();
-                                    sheet.Name = worksheetName;
+                                    sheet.Name = targetSheet;
                                 }
                             }
                             finally
@@ -712,13 +711,13 @@ public partial class PowerQueryCommands
                                 worksheetsBoth = ctx.Book.Worksheets;
                                 try
                                 {
-                                    sheet = worksheetsBoth.Item(worksheetName!);
+                                    sheet = worksheetsBoth.Item(targetSheet!);
                                 }
-                                catch (System.Runtime.InteropServices.COMException)
+                                catch (COMException)
                                 {
                                     // Sheet doesn't exist, create it
                                     sheet = worksheetsBoth.Add();
-                                    sheet.Name = worksheetName;
+                                    sheet.Name = targetSheet;
                                 }
                             }
                             finally
@@ -794,14 +793,14 @@ public partial class PowerQueryCommands
     }
 
     /// <summary>
-    /// Updates ONLY the M code formula (no refresh)
-    /// Use RefreshAsync() separately if data update needed
+    /// Updates M code and refreshes data atomically
+    /// Complete operation: Updates query formula AND reloads fresh data
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query to update</param>
     /// <param name="mCodeFile">Path to new M code file</param>
     /// <returns>Operation result</returns>
-    public async Task<OperationResult> UpdateMCodeAsync(
+    public async Task<OperationResult> UpdateAsync(
         IExcelBatch batch,
         string queryName,
         string mCodeFile)
@@ -809,7 +808,7 @@ public partial class PowerQueryCommands
         var result = new OperationResult
         {
             FilePath = batch.WorkbookPath,
-            Action = "update-mcode"
+            Action = "update"
         };
 
         try
@@ -848,7 +847,96 @@ public partial class PowerQueryCommands
 
                     // Update M code formula
                     query.Formula = mCode;
-                    result.Success = true;
+
+                    // Auto-refresh to keep data in sync with new M code
+                    // For UpdateAsync, we need to recreate QueryTables to handle column structure changes
+
+                    // Step 1: Recreate QueryTables with new schema (handles column structure changes)
+                    bool queryTableRecreated = false;
+                    dynamic? sheets = null;
+                    try
+                    {
+                        sheets = ctx.Book.Worksheets;
+                        for (int s = 1; s <= sheets.Count; s++)
+                        {
+                            dynamic? sheet = null;
+                            dynamic? queryTables = null;
+                            try
+                            {
+                                sheet = sheets.Item(s);
+                                queryTables = sheet.QueryTables;
+
+                                // Find QueryTable for this query and recreate it
+                                for (int q = queryTables.Count; q >= 1; q--)
+                                {
+                                    dynamic? qt = null;
+                                    try
+                                    {
+                                        qt = queryTables.Item(q);
+                                        string qtName = qt.Name?.ToString() ?? "";
+                                        // Use Contains like DeleteAsync does (Excel may modify QueryTable names)
+                                        if (qtName.Contains(queryName, StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            // Delete old QueryTable
+                                            qt.Delete();
+                                            ComUtilities.Release(ref qt);
+                                            qt = null; // Prevent double-release in finally block
+
+                                            // Recreate with new schema (query is still valid here)
+                                            dynamic? newQt = CreateQueryTableForQuery(sheet, query);
+                                            try
+                                            {
+                                                newQt.Refresh(false); // Synchronous refresh
+                                                queryTableRecreated = true;
+                                            }
+                                            finally
+                                            {
+                                                ComUtilities.Release(ref newQt!);
+                                            }
+                                            break; // Only one QueryTable per query per sheet
+                                        }
+                                    }
+                                    finally
+                                    {
+                                        ComUtilities.Release(ref qt);
+                                    }
+                                }
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref queryTables);
+                                ComUtilities.Release(ref sheet);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref sheets);
+                    }
+
+                    // Release query and queries now that QueryTable recreation is done
+                    ComUtilities.Release(ref query!);
+                    ComUtilities.Release(ref queries!);
+
+                    // Step 2: Refresh connection ONLY if no QueryTables were recreated
+                    // (QueryTable refresh already happened above; connection refresh would interfere)
+                    if (!queryTableRecreated)
+                    {
+                        try
+                        {
+                            RefreshConnectionByQueryName(ctx.Book, queryName);
+                            result.Success = true;
+                        }
+                        catch (COMException comEx)
+                        {
+                            result.Success = false;
+                            result.ErrorMessage = $"M code updated but refresh failed: {ParsePowerQueryError(comEx)}";
+                        }
+                    }
+                    else
+                    {
+                        result.Success = true;
+                    }
 
                     return result;
                 }
@@ -880,27 +968,27 @@ public partial class PowerQueryCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query</param>
-    /// <param name="loadTo">Where to load the data</param>
-    /// <param name="worksheetName">Target worksheet (required for LoadToTable/LoadToBoth)</param>
+    /// <param name="loadMode">Where to load the data</param>
+    /// <param name="targetSheet">Target worksheet (required for LoadToTable/LoadToBoth)</param>
     /// <returns>Result with load configuration and refresh status</returns>
     public async Task<PowerQueryLoadResult> LoadToAsync(
         IExcelBatch batch,
         string queryName,
-        PowerQueryLoadMode loadTo,
-        string? worksheetName = null)
+        PowerQueryLoadMode loadMode,
+        string? targetSheet = null)
     {
         var result = new PowerQueryLoadResult
         {
             FilePath = batch.WorkbookPath,
             QueryName = queryName,
-            LoadDestination = loadTo,
-            WorksheetName = worksheetName
+            LoadDestination = loadMode,
+            WorksheetName = targetSheet
         };
 
         try
         {
-            if ((loadTo == PowerQueryLoadMode.LoadToTable || loadTo == PowerQueryLoadMode.LoadToBoth)
-                && string.IsNullOrWhiteSpace(worksheetName))
+            if ((loadMode == PowerQueryLoadMode.LoadToTable || loadMode == PowerQueryLoadMode.LoadToBoth)
+                && string.IsNullOrWhiteSpace(targetSheet))
             {
                 result.Success = false;
                 result.ErrorMessage = "Worksheet name required for LoadToTable/LoadToBoth";
@@ -927,10 +1015,10 @@ public partial class PowerQueryCommands
                     }
 
                     // Apply load destination
-                    switch (loadTo)
+                    switch (loadMode)
                     {
                         case PowerQueryLoadMode.LoadToTable:
-                            sheet = ctx.Book.Worksheets.Item(worksheetName!);
+                            sheet = ctx.Book.Worksheets.Item(targetSheet!);
                             queryTable = CreateQueryTableForQuery(sheet, query);
                             queryTable.Refresh(false);
                             result.ConfigurationApplied = true;
@@ -974,7 +1062,7 @@ public partial class PowerQueryCommands
                             break;
 
                         case PowerQueryLoadMode.LoadToBoth:
-                            sheet = ctx.Book.Worksheets.Item(worksheetName!);
+                            sheet = ctx.Book.Worksheets.Item(targetSheet!);
                             queryTable = CreateQueryTableForQuery(sheet, query);
                             queryTable.Refresh(false);
 
@@ -1142,10 +1230,22 @@ public partial class PowerQueryCommands
     /// <summary>
     /// Helper method to create QueryTable for a query
     /// </summary>
-    private dynamic CreateQueryTableForQuery(dynamic sheet, dynamic query)
+    private static dynamic CreateQueryTableForQuery(dynamic sheet, dynamic query)
     {
         string queryName = query.Name;
         string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
+
+        // Clear worksheet to prevent column accumulation (regression test requirement)
+        dynamic? usedRange = null;
+        try
+        {
+            usedRange = sheet.UsedRange;
+            usedRange.Clear();
+        }
+        finally
+        {
+            ComUtilities.Release(ref usedRange);
+        }
 
         dynamic range = sheet.Range["A1"];
         // Use Type.Missing for 3rd parameter (working pattern from diagnostic tests)
@@ -1163,7 +1263,7 @@ public partial class PowerQueryCommands
         queryTable.SaveData = true;
         queryTable.AdjustColumnWidth = true;
         queryTable.RefreshPeriod = 0;
-        queryTable.PreserveColumnInfo = true;
+        queryTable.PreserveColumnInfo = false;  // Allow column structure changes when M code updates
 
         // Note: Caller is responsible for calling Refresh(false) after QueryTable is returned
         return queryTable;

@@ -1,8 +1,4 @@
-using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop;
-using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Connections;
-using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
 
 
@@ -30,7 +26,7 @@ public partial class ConnectionCommands : IConnectionCommands
             {
                 return conn.ODBCConnection?.BackgroundQuery ?? false;
             }
-            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
+            else if (connType is 3 or 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
             {
                 // Try TextConnection first, fall back to WebConnection
                 try
@@ -72,7 +68,7 @@ public partial class ConnectionCommands : IConnectionCommands
             {
                 return conn.ODBCConnection?.RefreshOnFileOpen ?? false;
             }
-            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
+            else if (connType is 3 or 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
             {
                 // Try TextConnection first, fall back to WebConnection
                 try
@@ -114,7 +110,7 @@ public partial class ConnectionCommands : IConnectionCommands
             {
                 return conn.ODBCConnection?.SavePassword ?? false;
             }
-            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
+            else if (connType is 3 or 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
             {
                 // Try TextConnection first, fall back to WebConnection
                 try
@@ -156,7 +152,7 @@ public partial class ConnectionCommands : IConnectionCommands
             {
                 return conn.ODBCConnection?.RefreshPeriod ?? 0;
             }
-            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
+            else if (connType is 3 or 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
             {
                 // Try TextConnection first, fall back to WebConnection
                 try
@@ -319,7 +315,7 @@ public partial class ConnectionCommands : IConnectionCommands
                     3 => "Table",
                     4 => "Default",
                     5 => "List",
-                    _ => cmdType?.ToString()
+                    _ => "Unknown(" + (cmdType.HasValue ? cmdType.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "null") + ")"
                 };
             }
             else if (connType == 2) // ODBC
@@ -332,7 +328,7 @@ public partial class ConnectionCommands : IConnectionCommands
                     3 => "Table",
                     4 => "Default",
                     5 => "List",
-                    _ => cmdType?.ToString()
+                    _ => "Unknown(" + (cmdType.HasValue ? cmdType.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "null") + ")"
                 };
             }
         }
@@ -474,7 +470,7 @@ public partial class ConnectionCommands : IConnectionCommands
                     }
                 }
             }
-            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV files as either
+            else if (connType is 3 or 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV files as either
             {
                 // Excel has type 3/4 confusion: CSV files created with "TEXT;filepath" may be reported as type 4 (WEB)
                 // Try TextConnection first (correct for type 3), fall back to WebConnection if that fails
@@ -580,7 +576,7 @@ public partial class ConnectionCommands : IConnectionCommands
                     SetProperty(odbc, propertyName, value.Value);
                 }
             }
-            else if (connType == 3 || connType == 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV files as either
+            else if (connType is 3 or 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV files as either
             {
                 // Try TextConnection first, fall back to WebConnection
                 dynamic? textOrWeb = null;
@@ -630,8 +626,10 @@ public partial class ConnectionCommands : IConnectionCommands
         }
     }
 
-    private static void CreateQueryTableForConnection(dynamic targetSheet, string connectionName,
-        dynamic conn, PowerQueryHelpers.QueryTableOptions options)
+    private static void CreateQueryTableForConnection(
+        dynamic targetSheet,
+        dynamic conn,
+        PowerQueryHelpers.QueryTableOptions options)
     {
         // For regular connections (not Power Query), we need connection string
         string? connectionString = GetConnectionString(conn);
@@ -687,7 +685,7 @@ public partial class ConnectionCommands : IConnectionCommands
 /// <summary>
 /// Connection definition for JSON import/export
 /// </summary>
-internal class ConnectionDefinition
+internal sealed class ConnectionDefinition
 {
     public string Name { get; set; } = "";
     public string? Description { get; set; }

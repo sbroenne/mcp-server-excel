@@ -16,6 +16,7 @@ public class ExcelFileDirectoryTests : IDisposable
 {
     private readonly ITestOutputHelper _output;
     private readonly string _tempDir;
+    /// <inheritdoc/>
 
     public ExcelFileDirectoryTests(ITestOutputHelper output)
     {
@@ -23,6 +24,7 @@ public class ExcelFileDirectoryTests : IDisposable
         _tempDir = Path.Join(Path.GetTempPath(), $"ExcelFile_Dir_Tests_{Guid.NewGuid():N}");
         // Don't create the directory - let the tool create it
     }
+    /// <inheritdoc/>
 
     public void Dispose()
     {
@@ -39,6 +41,7 @@ public class ExcelFileDirectoryTests : IDisposable
         }
         GC.SuppressFinalize(this);
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelFile_CreateInNonExistentDirectory_ShouldWork()
@@ -70,6 +73,7 @@ public class ExcelFileDirectoryTests : IDisposable
             // This is expected if the directory doesn't get created
         }
     }
+    /// <inheritdoc/>
 
     [Fact]
     public async Task ExcelFile_WithVeryLongPath_ShouldHandleGracefully()

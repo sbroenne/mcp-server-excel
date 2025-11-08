@@ -11,6 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 /// </summary>
 public partial class RangeCommandsTests
 {
+    /// <inheritdoc/>
     [Fact]
     [Trait("Speed", "Medium")]
     public async Task ClearFormats_FormattedRange_RemovesFormattingOnly()
@@ -22,7 +23,7 @@ public partial class RangeCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Set values with formatting
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item(1);
             sheet.Range["A1"].Value2 = "Test";
@@ -41,6 +42,7 @@ public partial class RangeCommandsTests
         var values = await _commands.GetValuesAsync(batch, "Sheet1", "A1");
         Assert.Equal("Test", values.Values[0][0]?.ToString());
     }
+    /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
@@ -53,7 +55,7 @@ public partial class RangeCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Set up source data with formulas
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item(1);
             sheet.Range["A1"].Value2 = 10;
@@ -73,6 +75,7 @@ public partial class RangeCommandsTests
         Assert.NotNull(formulas.Formulas[0][0]);
         Assert.Contains("+", formulas.Formulas[0][0]?.ToString());
     }
+    /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
@@ -85,7 +88,7 @@ public partial class RangeCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Set up initial data
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item(1);
             sheet.Range["A1"].Value2 = "Original";
@@ -102,6 +105,7 @@ public partial class RangeCommandsTests
         var values = await _commands.GetValuesAsync(batch, "Sheet1", "A2");
         Assert.Equal("Original", values.Values[0][0]?.ToString());
     }
+    /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
@@ -114,7 +118,7 @@ public partial class RangeCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Set up data in A1 and A2
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item(1);
             sheet.Range["A1"].Value2 = "Delete Me";
@@ -132,6 +136,7 @@ public partial class RangeCommandsTests
         var values = await _commands.GetValuesAsync(batch, "Sheet1", "A1");
         Assert.Equal("Keep Me", values.Values[0][0]?.ToString());
     }
+    /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
@@ -144,7 +149,7 @@ public partial class RangeCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Set up data in row 1
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item(1);
             sheet.Range["A1"].Value2 = "Row 1";
@@ -161,6 +166,7 @@ public partial class RangeCommandsTests
         var values = await _commands.GetValuesAsync(batch, "Sheet1", "A3");
         Assert.Equal("Row 1", values.Values[0][0]?.ToString());
     }
+    /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
@@ -173,7 +179,7 @@ public partial class RangeCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Set up data in rows 1-3
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item(1);
             sheet.Range["A1"].Value2 = "Row 1";
@@ -192,6 +198,7 @@ public partial class RangeCommandsTests
         var values = await _commands.GetValuesAsync(batch, "Sheet1", "A2");
         Assert.Equal("Row 3", values.Values[0][0]?.ToString());
     }
+    /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
@@ -204,7 +211,7 @@ public partial class RangeCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Set up data in column A
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item(1);
             sheet.Range["A1"].Value2 = "Col A";
@@ -221,6 +228,7 @@ public partial class RangeCommandsTests
         var values = await _commands.GetValuesAsync(batch, "Sheet1", "C1");
         Assert.Equal("Col A", values.Values[0][0]?.ToString());
     }
+    /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
@@ -233,7 +241,7 @@ public partial class RangeCommandsTests
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Set up data in columns A-C
-        await batch.Execute<int>((ctx, ct) =>
+        await batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item(1);
             sheet.Range["A1"].Value2 = "Col A";
@@ -252,6 +260,7 @@ public partial class RangeCommandsTests
         var values = await _commands.GetValuesAsync(batch, "Sheet1", "B1");
         Assert.Equal("Col C", values.Values[0][0]?.ToString());
     }
+    /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]

@@ -1,7 +1,6 @@
-using Spectre.Console;
-using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
+using Sbroenne.ExcelMcp.Core.Models;
+using Spectre.Console;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -33,7 +32,7 @@ public class PivotTableCommands
 
         if (result.Success)
         {
-            if (result.PivotTables == null || !result.PivotTables.Any())
+            if (result.PivotTables == null || (result.PivotTables.Count == 0))
             {
                 AnsiConsole.MarkupLine("[yellow]No PivotTables found in workbook[/]");
                 return 0;
@@ -55,9 +54,9 @@ public class PivotTableCommands
                     pt.SheetName,
                     pt.Range,
                     pt.SourceData,
-                    pt.RowFieldCount.ToString(),
-                    pt.ColumnFieldCount.ToString(),
-                    pt.ValueFieldCount.ToString()
+                    pt.RowFieldCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    pt.ColumnFieldCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    pt.ValueFieldCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 );
             }
 
@@ -105,7 +104,7 @@ public class PivotTableCommands
             AnsiConsole.MarkupLine($"[dim]Location:[/] {result.SheetName}!{result.Range}");
             AnsiConsole.MarkupLine($"[dim]Source:[/] {result.SourceData} ({result.SourceRowCount} rows)");
 
-            if (result.AvailableFields.Any())
+            if ((result.AvailableFields.Count > 0))
             {
                 AnsiConsole.MarkupLine($"\n[yellow]Available Fields:[/]");
                 foreach (var field in result.AvailableFields)
@@ -136,7 +135,7 @@ public class PivotTableCommands
         string filePath = Path.GetFullPath(args[1]);
         string pivotTableName = args[2];
         string fieldName = args[3];
-        int? position = args.Length > 4 ? int.Parse(args[4]) : null;
+        int? position = args.Length > 4 ? int.Parse(args[4], System.Globalization.CultureInfo.InvariantCulture) : null;
 
         var task = Task.Run(async () =>
         {
@@ -178,7 +177,7 @@ public class PivotTableCommands
         AggregationFunction function = AggregationFunction.Sum;
         if (args.Length > 4)
         {
-            if (!Enum.TryParse<AggregationFunction>(args[4], true, out function))
+            if (!Enum.TryParse(args[4], true, out function))
             {
                 AnsiConsole.MarkupLine($"[red]Error:[/] Invalid function '{args[4]}'");
                 AnsiConsole.MarkupLine("[dim]Valid functions:[/] Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP");
@@ -278,11 +277,240 @@ public class PivotTableCommands
             AnsiConsole.MarkupLine($"  Records: {result.SourceRowCount:N0}");
             AnsiConsole.MarkupLine($"  Available fields: {result.AvailableFields.Count}");
 
-            if (result.AvailableFields.Any())
+            if ((result.AvailableFields.Count > 0))
             {
                 AnsiConsole.MarkupLine($"\n[dim]Fields:[/] {string.Join(", ", result.AvailableFields)}");
             }
 
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int Get(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] pivot-get <file.xlsx> <pivotTableName>");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string pivotTableName = args[2];
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.GetAsync(batch, pivotTableName);
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success && result.PivotTable != null)
+        {
+            var info = result.PivotTable;
+            AnsiConsole.MarkupLine($"[bold]PivotTable:[/] [cyan]{info.Name}[/]");
+            AnsiConsole.MarkupLine($"[bold]Sheet:[/] {info.SheetName}");
+            AnsiConsole.MarkupLine($"[bold]Range:[/] {info.Range}");
+            AnsiConsole.MarkupLine($"[bold]Source Data:[/] {info.SourceData}");
+            AnsiConsole.MarkupLine($"[bold]Row Fields:[/] {info.RowFieldCount}");
+            AnsiConsole.MarkupLine($"[bold]Column Fields:[/] {info.ColumnFieldCount}");
+            AnsiConsole.MarkupLine($"[bold]Value Fields:[/] {info.ValueFieldCount}");
+            AnsiConsole.MarkupLine($"[bold]Filter Fields:[/] {info.FilterFieldCount}");
+
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int Delete(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] pivot-delete <file.xlsx> <pivotTableName>");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string pivotTableName = args[2];
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.DeleteAsync(batch, pivotTableName);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Deleted PivotTable: [cyan]{pivotTableName}[/]");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int ListFields(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] pivot-list-fields <file.xlsx> <pivotTableName>");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string pivotTableName = args[2];
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.ListFieldsAsync(batch, pivotTableName);
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            if (result.Fields == null || result.Fields.Count == 0)
+            {
+                AnsiConsole.MarkupLine("[yellow]No fields found[/]");
+                return 0;
+            }
+
+            var table = new Table();
+            table.AddColumn("Field Name");
+            table.AddColumn("Area");
+            table.AddColumn("Position");
+
+            foreach (var field in result.Fields)
+            {
+                table.AddRow(
+                    field.Name,
+                    field.Area.ToString(),
+                    field.Position.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                );
+            }
+
+            AnsiConsole.Write(table);
+            AnsiConsole.MarkupLine($"\n[dim]Found {result.Fields.Count} field(s)[/]");
+
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int AddColumnField(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] pivot-add-column-field <file.xlsx> <pivotTableName> <fieldName> [position]");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string pivotTableName = args[2];
+        string fieldName = args[3];
+        int? position = args.Length > 4 ? int.Parse(args[4], System.Globalization.CultureInfo.InvariantCulture) : null;
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.AddColumnFieldAsync(batch, pivotTableName, fieldName, position);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Added '{result.FieldName}' to Column area");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int AddFilterField(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] pivot-add-filter-field <file.xlsx> <pivotTableName> <fieldName>");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string pivotTableName = args[2];
+        string fieldName = args[3];
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.AddFilterFieldAsync(batch, pivotTableName, fieldName);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Added '{result.FieldName}' to Filter area");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int RemoveField(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] pivot-remove-field <file.xlsx> <pivotTableName> <fieldName>");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string pivotTableName = args[2];
+        string fieldName = args[3];
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.RemoveFieldAsync(batch, pivotTableName, fieldName);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Removed field: [cyan]{fieldName}[/]");
             return 0;
         }
         else

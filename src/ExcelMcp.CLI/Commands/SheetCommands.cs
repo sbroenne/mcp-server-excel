@@ -6,7 +6,7 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 
 /// <summary>
 /// Worksheet lifecycle management commands - wraps Core with CLI formatting
-/// Data operations (read, write, clear, append) moved to RangeCommands in Phase 1A.
+/// Data operations (read, write, clear, append) moved to RangeCommands.
 /// </summary>
 public class SheetCommands : ISheetCommands
 {
@@ -41,7 +41,7 @@ public class SheetCommands : ISheetCommands
 
                 foreach (var sheet in result.Worksheets)
                 {
-                    table.AddRow(sheet.Index.ToString(), sheet.Name.EscapeMarkup());
+                    table.AddRow(sheet.Index.ToString(System.Globalization.CultureInfo.InvariantCulture), sheet.Name.EscapeMarkup());
                 }
 
                 AnsiConsole.Write(table);
@@ -230,7 +230,7 @@ public class SheetCommands : ISheetCommands
 
         var filePath = args[1];
         var sheetName = args[2];
-        
+
         if (!int.TryParse(args[3], out int red) || !int.TryParse(args[4], out int green) || !int.TryParse(args[5], out int blue))
         {
             AnsiConsole.MarkupLine("[red]Error:[/] RGB values must be integers (0-255)");
@@ -298,7 +298,7 @@ public class SheetCommands : ISheetCommands
         if (result.Success)
         {
             AnsiConsole.MarkupLine($"[bold]Sheet:[/] {sheetName.EscapeMarkup()}");
-            
+
             if (result.HasColor)
             {
                 AnsiConsole.MarkupLine($"[bold]Color:[/] {result.HexColor} (Red: {result.Red}, Green: {result.Green}, Blue: {result.Blue})");

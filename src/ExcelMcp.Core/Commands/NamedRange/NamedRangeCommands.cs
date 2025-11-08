@@ -1,4 +1,3 @@
-using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 
@@ -35,7 +34,7 @@ public partial class NamedRangeCommands : INamedRangeCommands
     public async Task<OperationResult> CreateBulkAsync(IExcelBatch batch, IEnumerable<NamedRangeDefinition> parameters)
     {
         var parameterList = parameters?.ToList();
-        
+
         if (parameterList == null || parameterList.Count == 0)
         {
             return new OperationResult
@@ -83,7 +82,7 @@ public partial class NamedRangeCommands : INamedRangeCommands
             // Set value if provided
             if (param.Value != null)
             {
-                var valueStr = Convert.ToString(param.Value) ?? "";
+                var valueStr = Convert.ToString(param.Value, System.Globalization.CultureInfo.InvariantCulture) ?? "";
                 var setResult = await SetAsync(batch, param.Name, valueStr);
                 if (!setResult.Success)
                 {
