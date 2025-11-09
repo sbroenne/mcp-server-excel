@@ -123,11 +123,11 @@ public async Task TestMethod()
 - Copy `docs/excel-powerquery-vba-copilot-instructions.md` to your project's `.github/copilot-instructions.md`
 
 **Project Documentation:**
-- [Commands Reference](../docs/COMMANDS.md)
 - [Installation Guide](../docs/INSTALLATION.md)
 - [Range API Specification](../specs/RANGE-API-SPECIFICATION.md) - Comprehensive design for unified range operations (Phase 1 implementation)
 - [Range Refactoring Analysis](../specs/RANGE-REFACTORING-ANALYSIS.md) - LLM perspective on consolidating fragmented commands
 
+---
 ---
 
 ## 🔄 Continuous Learning

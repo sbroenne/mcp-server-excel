@@ -999,9 +999,8 @@ excelcli conn-set-properties "workbook.xlsx" "SalesDB" --background=false --refr
 ## Documentation Updates Required
 
 1. **README.md** - Add connection commands to capabilities list
-2. **COMMANDS.md** - Document all `conn-*` commands with examples
-3. **copilot-instructions.md** - Add connection management patterns
-4. **MCP Server README** - Document `excel_connection` tool
+2. **copilot-instructions.md** - Add connection management patterns
+3. **MCP Server README** - Document `excel_connection` tool
 
 ## Migration Path
 
@@ -1489,7 +1488,6 @@ Create `docs/connection-templates/` with examples:
 
 - [ ] Update documentation:
   - [ ] `README.md` - Add connection commands to capabilities
-  - [ ] `COMMANDS.md` - Document all `conn-*` commands
   - [ ] `docs/DEVELOPMENT.md` - Add connection development patterns
   - [ ] `.github/copilot-instructions.md` - Connection management patterns
   - [ ] `src/ExcelMcp.McpServer/README.md` - Document `excel_connection` tool

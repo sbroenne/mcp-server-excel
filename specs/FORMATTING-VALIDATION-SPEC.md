@@ -2050,7 +2050,6 @@ All operations return consistent error response:
 - ✅ `table-set-column-number-format`, `table-add-column-validation`, etc.
 
 **Documentation:**
-- ✅ Update COMMANDS.md
 - ✅ Update README.md
 - ✅ Update copilot instructions
 

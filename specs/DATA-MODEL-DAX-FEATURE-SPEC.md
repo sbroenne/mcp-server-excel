@@ -1137,7 +1137,7 @@ public class DataModelRelationshipInfo
    - [ ] Test error handling
 
 4. **Documentation:**
-   - [ ] Update `docs/COMMANDS.md` with model commands
+   - [ ] Update user documentation with model commands
    - [ ] Add usage examples
    - [ ] Document prerequisites (Data Model required)
 
@@ -1605,7 +1605,6 @@ Copilot: [Uses excel_datamodel with action=update-measure]
 
 **Pending:**
 - [ ] README.md update with TOM examples
-- [ ] COMMANDS.md update with dm-* TOM commands
 - [ ] Round-trip workflow documentation
 - [ ] Performance benchmarks
 - [ ] Advanced usage scenarios
@@ -1614,7 +1613,6 @@ Copilot: [Uses excel_datamodel with action=update-measure]
 
 1. **Documentation:**
    - Update README.md with TOM features
-   - Add COMMANDS.md section for TOM operations
    - Create usage examples and tutorials
    
 2. **Testing:**

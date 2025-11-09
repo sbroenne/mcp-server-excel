@@ -133,7 +133,7 @@ public async Task BugFix_EndToEnd_RegressionTest()
 
 **Actions:**
 1. ✅ **Parameter descriptions** - Update tool/method XML comments
-2. ✅ **User documentation** - Update COMMANDS.md or README.md
+2. ✅ **User documentation** - Update README.md or component documentation
 3. ✅ **Workflow hints** - Update SuggestedNextActions in result objects
 4. ✅ **LLM prompts** - Update prompt files to teach LLMs about the fix
 5. ✅ **Error messages** - Add helpful hints in error cases
@@ -153,7 +153,7 @@ string? newParameter = null
 
 **2. User-Facing Documentation:**
 ```markdown
-# docs/COMMANDS.md
+# README.md or component docs
 
 **command-name** - Description
 
@@ -270,9 +270,9 @@ Issue: #[issue-number]
 
 ### Documentation Updates
 **Files Updated:**
-1. `docs/COMMANDS.md` - Added new parameter documentation
-2. `src/ExcelMcp.McpServer/Prompts/Content/excel_tool.md` - Updated action guide
-3. `ToolClass.cs` - Enhanced SuggestedNextActions
+1. `src/ExcelMcp.McpServer/Prompts/Content/excel_tool.md` - Updated action guide
+2. `ToolClass.cs` - Enhanced SuggestedNextActions
+3. Component README or main documentation
 
 ### Backwards Compatibility
 ✅ Fully backwards compatible - new parameters are optional with sensible defaults
@@ -352,7 +352,7 @@ Issue: #[issue-number]
 ### Documentation
 - [ ] Tool/method XML comments updated
 - [ ] Parameter descriptions updated
-- [ ] User documentation updated (COMMANDS.md)
+- [ ] User documentation updated (README or component docs)
 - [ ] SuggestedNextActions enhanced
 - [ ] WorkflowHint messages updated
 - [ ] Error messages include helpful hints
@@ -388,7 +388,7 @@ Issue: #[issue-number]
 - 🐛 1 root cause (parameter ignored)
 - 💻 2 files changed (ExcelPowerQueryTool.cs, prompts)
 - ✅ 13 tests added (7 Core + 6 MCP Server)
-- 📚 5 files documented (tool, COMMANDS.md, prompts)
+- 📚 5 files documented (tool, prompts, README)
 - 📄 Comprehensive PR description (no separate summary files)
 - 🎯 Result: 2 operations → 1 operation (50% workflow improvement)
 

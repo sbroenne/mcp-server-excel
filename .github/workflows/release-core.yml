@@ -147,7 +147,6 @@ jobs:
         $releaseNotes += "### Documentation`n"
         $releaseNotes += "- NuGet Package: https://www.nuget.org/packages/Sbroenne.ExcelMcp.Core`n"
         $releaseNotes += "- GitHub Repository: https://github.com/sbroenne/mcp-server-excel`n"
-        $releaseNotes += "- Commands Reference: https://github.com/sbroenne/mcp-server-excel/blob/main/docs/COMMANDS.md`n"
 
         # Create the release
         gh release create "$tagName" --title "ExcelMcp Core Library $tagName" --notes $releaseNotes

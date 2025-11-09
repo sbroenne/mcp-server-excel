@@ -18,7 +18,7 @@ applyTo: "**/*.md,docs/**,specs/**"
 **Purpose:** How things work, how to use them, architectural decisions
 
 **Categories:**
-- **User Guides:** `COMMANDS.md`, `CLI.md`, `CONTRIBUTING.md`
+- **User Guides:** `CLI.md`, `CONTRIBUTING.md`
 - **Developer Guides:** `DEVELOPMENT.md`, `PRE-COMMIT-SETUP.md`
 - **Process Docs:** `RELEASE-STRATEGY.md`, `MCP_REGISTRY_PUBLISHING.md`, `NUGET-GUIDE.md`
 - **Architecture:** `ADR-*.md` (Architecture Decision Records)
@@ -144,8 +144,7 @@ applyTo: "**/*.md,docs/**,specs/**"
 **Phase 2: Implementation**
 1. Implement feature
 2. Add/update component README if needed
-3. Update `docs/COMMANDS.md` with new commands
-4. Update MCP prompts in `src/ExcelMcp.McpServer/Prompts/Content/`
+3. Update MCP prompts in `src/ExcelMcp.McpServer/Prompts/Content/`
 
 **Phase 3: Post-Merge**
 1. Optionally create `docs/FEATURE-NAME-GUIDE.md` if complex
@@ -166,7 +165,6 @@ applyTo: "**/*.md,docs/**,specs/**"
    - How it's fixed
    - Test coverage added
 2. Update relevant permanent docs:
-   - `docs/COMMANDS.md` if command behavior changed
    - MCP prompts if tool behavior changed
    - Component README if API changed
 
@@ -297,7 +295,6 @@ specs/RANGE-API-SPECIFICATION.md
 **Implementation:**
 ```
 # Update existing docs
-docs/COMMANDS.md (add range commands)
 src/ExcelMcp.McpServer/Prompts/Content/excel_range.md (add LLM guidance)
 ```
 
@@ -318,9 +315,6 @@ docs/RANGE-DOCS-UPDATED.md              # ❌ Temporary
 - Feature overview
 - Tests added
 - Documentation updated
-
-# Update permanent docs:
-docs/COMMANDS.md (add range commands)
 ```
 
 ### ✅ CORRECT: Bug Fix Documentation
@@ -339,7 +333,7 @@ Description: [problem description]
 **Root Cause:** Missing parameter in method signature
 **Fix:** Added parameter, wired through all layers
 **Tests:** 13 new tests added
-**Docs Updated:** COMMANDS.md, excel_powerquery.md
+**Docs Updated:** excel_powerquery.md
 ```
 
 **No separate BUG-FIX-*.md file needed.**

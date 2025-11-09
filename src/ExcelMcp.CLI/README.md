@@ -79,8 +79,6 @@ ExcelMcp.CLI provides **109 commands** across 12 categories:
 | **Named Ranges** | 6 | `namedrange-create`, `namedrange-get`, `namedrange-set` |
 | **VBA** | 5 | `vba-list`, `vba-import`, `vba-run`, `vba-export` |
 
-Full command reference: [COMMANDS.md](../../docs/COMMANDS.md)
-
 > **Note:** Command counts reflect the current implementation. Some categories may have additional commands in development.
 
 ---
@@ -267,7 +265,6 @@ excelcli vba-import macros.xlsm "Module1" code.vba
 
 ## 📖 Complete Documentation
 
-- **[Commands Reference](../../docs/COMMANDS.md)** - Complete list of 89+ commands with examples
 - **[NuGet Package](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)** - .NET Global Tool installation
 - **[GitHub Repository](https://github.com/sbroenne/mcp-server-excel)** - Source code and issues
 - **[Release Notes](https://github.com/sbroenne/mcp-server-excel/releases)** - Latest updates

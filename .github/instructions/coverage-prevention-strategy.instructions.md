@@ -174,7 +174,7 @@ Coverage:           100% ✅
 **Documents to Update**:
 1. **CORE-COMMANDS-AUDIT.md** - Add new method to interface section
 2. **MCP Server Prompts** - Add action to prompt files
-3. **COMMANDS.md** - Document CLI usage (if applicable)
+3. **README or component documentation** - Document usage (if applicable)
 4. **Interface Coverage Table** - Update method count
 
 **Template Comment in Core Interface**:
@@ -273,7 +273,7 @@ This creates **paper trail** linking Core → MCP for future audits.
    Expected: 0 warnings, 0 errors
 
 8. Update documentation
-   Files: CORE-COMMANDS-AUDIT.md, prompts, COMMANDS.md
+   Files: CORE-COMMANDS-AUDIT.md, prompts, README or component docs
 
 9. Create PR with checklist
    Template: `.github/pull_request_template.md`

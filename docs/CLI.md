@@ -116,8 +116,6 @@ ExcelMcp.CLI provides 50+ commands across 7 categories:
 - **Parameters** (5) - Named range configuration
 - **Cells** (4) - Individual cell operations
 
-> 📖 **[Complete Command Reference →](COMMANDS.md)** - Detailed syntax and examples for all commands
-
 ## 🔗 Related Tools
 
 - **[ExcelMcp MCP Server](../README.md)** - Model Context Protocol server for AI assistant integration
@@ -126,7 +124,6 @@ ExcelMcp.CLI provides 50+ commands across 7 categories:
 
 | Document | Description |
 |----------|-------------|
-| **[📋 Command Reference](COMMANDS.md)** | Complete reference for all 40+ ExcelMcp.CLI commands |
 | **[⚙️ Installation Guide](INSTALLATION.md)** | Building from source and installation options |
 | **[🔧 Development Workflow](DEVELOPMENT.md)** | Contributing guidelines and PR requirements |
 

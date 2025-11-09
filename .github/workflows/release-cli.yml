@@ -115,7 +115,6 @@ jobs:
         # Copy documentation
         Copy-Item "docs/CLI.md" "release/ExcelMcp-CLI-$version/README.md"
         Copy-Item "LICENSE" "release/ExcelMcp-CLI-$version/"
-        Copy-Item "docs/COMMANDS.md" "release/ExcelMcp-CLI-$version/"
 
         # Create quick start guide
         $quickStartContent = "# ExcelMcp CLI v$version`n`n"
@@ -142,7 +141,6 @@ jobs:
         $quickStartContent += "``````n`n"
         $quickStartContent += "## Documentation`n`n"
         $quickStartContent += "- **README.md** - Complete CLI documentation`n"
-        $quickStartContent += "- **COMMANDS.md** - All 40+ command reference`n"
         $quickStartContent += "- **GitHub**: https://github.com/sbroenne/mcp-server-excel`n`n"
         $quickStartContent += "## Requirements`n`n"
         $quickStartContent += "- Windows OS with Microsoft Excel installed`n"
@@ -228,7 +226,6 @@ jobs:
         $releaseNotes += "- .NET 8.0 runtime`n"
         $releaseNotes += "- Excel 2016+ (for COM interop)`n`n"
         $releaseNotes += "### Documentation`n"
-        $releaseNotes += "- Complete Command Reference: COMMANDS.md in package`n"
         $releaseNotes += "- GitHub Repository: https://github.com/sbroenne/mcp-server-excel`n"
         $releaseNotes += "- CLI Documentation: docs/CLI.md`n`n"
         $releaseNotes += "### Related Tools`n"
