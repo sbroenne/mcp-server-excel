@@ -6,8 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="google-site-verification" content="7BSNb2Q6rNfwdJCSGEUs9_2o3NOK09tBy4svR9A1bUg" />
     
-    <title>{% if page.title %}{{ page.title }} | {% endif %}Excel MCP Server - AI-Powered Excel Automation</title>
-    <meta name="description" content="Control Microsoft Excel with Natural Language through AI assistants like GitHub Copilot and Claude. Automate Power Query, DAX, VBA, PivotTables, and more.">
+    <!-- Canonical URL -->
+    <link rel="canonical" href="{{ page.canonical_url | default: page.url | absolute_url }}">
+    
+    {% seo %}
+    
+    <title>{{ page.title | default: 'Excel MCP Server - AI-Powered Excel Automation' }}</title>
+    <meta name="description" content="{{ page.description | default: 'Control Microsoft Excel with Natural Language through AI assistants like GitHub Copilot and Claude. Automate Power Query, DAX, VBA, PivotTables, and more.' }}">
+    {% if page.keywords %}<meta name="keywords" content="{{ page.keywords }}">{% endif %}
     
     <!-- Open Graph / Social Media Meta Tags -->
     <meta property="og:type" content="website">
@@ -61,6 +67,15 @@
     </script>
 
 {% seo %}
+    
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Preload critical assets -->
+    <link rel="preload" href="{{ '/assets/css/style.css' | relative_url }}" as="style">
+    <link rel="preload" href="{{ '/assets/images/icon.png' | relative_url }}" as="image">
+    
     <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
     <link rel="icon" type="image/png" sizes="256x256" href="{{ '/assets/images/icon.png' | relative_url }}">
     <link rel="shortcut icon" type="image/png" href="{{ '/assets/images/icon.png' | relative_url }}">

@@ -7,7 +7,9 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 [![NuGet Downloads](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue.svg)](https://github.com/sbroenne/mcp-server-excel)
 
-**Control Excel with Natural Language** through AI assistants like GitHub Copilot, Claude, and ChatGPT. This MCP server enables AI-powered Excel automation for Power Query, DAX measures, VBA macros, PivotTables, and more. 
+**Control Excel with Natural Language** through AI assistants like GitHub Copilot, Claude, and ChatGPT. This MCP server enables AI-powered Excel automation for Power Query, DAX measures, VBA macros, PivotTables, and more.
+
+➡️ **[Learn more and see examples](https://sbroenne.github.io/mcp-server-excel/)** 
 
 Also includes a powerful CLI for RPA (Robotic Process Automation) and scripting workflows.
 

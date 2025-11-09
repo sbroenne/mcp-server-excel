@@ -1,0 +1,37 @@
+# Jekyll configuration for GitHub Pages
+# https://jekyllrb.com/docs/configuration/
+
+# Site settings
+title: "Excel MCP Server"
+description: "AI-powered Excel automation through conversational AI"
+url: "https://sbroenne.github.io"
+baseurl: "/mcp-server-excel"
+
+# Theme
+theme: jekyll-theme-cayman
+
+# Plugins
+plugins:
+  - jekyll-sitemap
+  - jekyll-seo-tag
+
+# SEO settings
+author: "Stefan Broenne"
+twitter:
+  username: sbroenne
+  card: summary_large_image
+
+logo: /assets/images/excel-mcp-icon-256.png
+
+# Build settings
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+# Exclude files from processing
+exclude:
+  - README.md
+  - LICENSE
+  - Gemfile
+  - Gemfile.lock

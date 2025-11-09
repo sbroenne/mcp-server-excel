@@ -1,5 +1,9 @@
 ---
 layout: default
+title: "Excel MCP Server - AI-Powered Excel Automation"
+description: "Control Microsoft Excel with natural language through AI assistants like GitHub Copilot and Claude. Automate Power Query, DAX, VBA, PivotTables, and more - no Excel programming required."
+keywords: "Excel automation, MCP server, AI Excel, Power Query, DAX measures, VBA macros, GitHub Copilot Excel, Claude Excel, Excel CLI"
+canonical_url: "https://sbroenne.github.io/mcp-server-excel/"
 ---
 
 <div class="hero">
@@ -11,6 +15,10 @@ layout: default
 </div>
 
 <div class="container content-section" markdown="1">
+
+## Quick Navigation
+
+[What is This?](#what-is-this-project) · [Key Features](#key-features) · [Use Cases](#use-cases) · [Installation](#installation) · [Examples](#examples) · [Documentation](#documentation)
 
 ## What is This Project?
 
@@ -73,17 +81,23 @@ Think of Excel as an AI-powered REPL - write code (Power Query M, DAX, VBA), exe
 - Build DAX measures with AI guidance
 - Transform and clean data automatically
 
+👉 [See examples](#examples) of Power Query and DAX automation
+
 ### Formatting & Styling (No Programming)
 - Format columns as currency, dates, percentages
 - Apply conditional formatting with color rules
 - Create Excel Tables with auto-filters
 - Add data validation dropdowns
 
+👉 [See examples](#examples) of formatting automation
+
 ### Workflow Automation
 - Find and replace across ranges
 - Sort and filter data programmatically
 - Merge cells and auto-fit columns
 - Manage VBA macros with version control
+
+👉 [View installation options](#installation) to get started
 
 ## Installation
 
