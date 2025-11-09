@@ -14,7 +14,7 @@ layout: default
   </div>
 </div>
 
-<div class="container content-section">
+<div class="container content-section" markdown="1">
 
 ## What is This Project?
 
