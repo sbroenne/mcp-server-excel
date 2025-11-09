@@ -12,11 +12,12 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// <summary>
 /// MCP tool for Excel PivotTable operations
 /// </summary>
+[McpServerToolType]
 public static partial class ExcelPivotTableTool
 {
     private static readonly JsonSerializerOptions JsonOptions = ExcelToolsBase.JsonOptions;
 
-    [McpServerTool]
+    [McpServerTool(Name = "excel_pivottable")]
     [Description(@"Excel PivotTable operations - interactive data analysis and summarization.
 
 DATA SOURCES:
