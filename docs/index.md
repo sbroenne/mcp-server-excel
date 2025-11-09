@@ -1,6 +1,20 @@
-# Excel MCP Server - AI-Powered Excel Automation
+---
+google-site-verification: 7BSNb2Q6rNfwdJCSGEUs9_2o3NOK09tBy4svR9A1bUg
+layout: default
+---
 
-**Control Microsoft Excel with Natural Language through AI assistants like GitHub Copilot and Claude.**
+<link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+<link rel="icon" type="image/png" href="{{ '/assets/images/icon.png' | relative_url }}">
+
+<div class="hero">
+  <div class="container">
+    <img src="{{ '/assets/images/icon.png' | relative_url }}" alt="Excel MCP Server" class="hero-icon">
+    <h1>Excel MCP Server</h1>
+    <p class="subtitle">Control Microsoft Excel with Natural Language through AI assistants like GitHub Copilot and Claude</p>
+  </div>
+</div>
+
+<div class="container">
 
 ## What is This Project?
 
@@ -11,17 +25,49 @@
 
 Both share the same core functionality: automate Power Query, DAX measures, VBA macros, PivotTables, formatting, and data transformations. Choose MCP for AI-powered conversations or CLI for programmatic control - no Excel programming knowledge required.
 
-**💡 Interactive Development:** Unlike file-based tools, ExcelMcp lets you see results instantly in Excel - create → test → refine → iterate in real-time.
+<div class="callout">
+<strong>💡 Interactive Development</strong>
+Unlike file-based tools, ExcelMcp lets you see results instantly in Excel - create → test → refine → iterate in real-time.
+</div>
 
-**💻 For Developers:** Think of Excel as an AI-powered REPL - write code (Power Query M, DAX, VBA), execute instantly, inspect results visually in the live workbook.
+<div class="callout">
+<strong>💻 For Developers</strong>
+Think of Excel as an AI-powered REPL - write code (Power Query M, DAX, VBA), execute instantly, inspect results visually in the live workbook.
+</div>
 
 ## Key Features
 
-- **165 Operations** across 11 specialized tools
-- **100% Safe** - Uses Excel's native COM API (zero corruption risk)
-- **Interactive Development** - See changes in real-time, create → test → refine → iterate instantly
-- **Natural Language Control** - Describe what you want, AI does the rest
-- **Comprehensive Automation**: Power Query, Power Pivot, VBA, Tables, ranges, formatting
+<div class="features-grid">
+<div class="feature-card">
+<h3>165 Operations</h3>
+<p>11 specialized tools covering Power Query, DAX, VBA, PivotTables, ranges, formatting, and more</p>
+</div>
+
+<div class="feature-card">
+<h3>100% Safe</h3>
+<p>Uses Excel's native COM API - zero corruption risk, no file parsing</p>
+</div>
+
+<div class="feature-card">
+<h3>Interactive Development</h3>
+<p>See changes in real-time - create, test, refine, and iterate instantly</p>
+</div>
+
+<div class="feature-card">
+<h3>Natural Language Control</h3>
+<p>Describe what you want, AI does the rest</p>
+</div>
+
+<div class="feature-card">
+<h3>Comprehensive Automation</h3>
+<p>Power Query, Power Pivot, VBA, Tables, ranges, formatting</p>
+</div>
+
+<div class="feature-card">
+<h3>Dual Interface</h3>
+<p>Choose MCP for AI assistants or CLI for scripts and RPA</p>
+</div>
+</div>
 
 ## Use Cases
 
@@ -45,41 +91,29 @@ Both share the same core functionality: automate Power Query, DAX measures, VBA 
 
 ## Installation
 
-### Option 1: VS Code + GitHub Copilot (Recommended for AI Assistants)
-Install the [Excel MCP VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) for one-click setup with natural language control.
+<div class="install-options">
+<div class="install-option">
+<h3>VS Code Extension <span class="badge">Recommended</span></h3>
+<p>One-click setup with GitHub Copilot integration</p>
+<p><a href="https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp" class="button-link">Install from Marketplace</a></p>
+</div>
 
-### Option 2: MCP Server (Any MCP Client - Claude, ChatGPT, etc.)
-```bash
-# Install globally as a .NET tool
-dotnet tool install -g Sbroenne.ExcelMcp.McpServer
+<div class="install-option">
+<h3>MCP Server</h3>
+<p>For Claude, ChatGPT, and other MCP clients</p>
+<pre><code>dotnet tool install -g Sbroenne.ExcelMcp.McpServer</code></pre>
+</div>
 
-# Configure in your MCP client (e.g., Claude Desktop)
-{
-  "mcpServers": {
-    "excel": {
-      "command": "dotnet",
-      "args": ["tool", "run", "excel-mcp"]
-    }
-  }
-}
-```
+<div class="install-option">
+<h3>CLI Tool</h3>
+<p>For scripting, RPA, and CI/CD workflows</p>
+<pre><code>dotnet tool install -g Sbroenne.ExcelMcp.CLI</code></pre>
+</div>
+</div>
 
-### Option 3: CLI for Scripting & RPA (No AI Required)
-```bash
-# Install the CLI for automation scripts, CI/CD, and RPA workflows
-dotnet tool install -g Sbroenne.ExcelMcp.CLI
+**Requirements:** Windows OS, Microsoft Excel 2016+, .NET 8.0 Runtime
 
-# Use directly in scripts
-excel-mcp pq-list --file "workbook.xlsx"
-excel-mcp sheet-create --file "workbook.xlsx" --name "NewSheet"
-excel-mcp range-set-values --file "workbook.xlsx" --sheet "Sheet1" --range "A1:C3" --values "[[1,2,3],[4,5,6],[7,8,9]]"
-```
-
-## Requirements
-
-- **Windows OS** (Excel COM API requires Windows)
-- **Microsoft Excel 2016 or later**
-- **.NET 8.0 Runtime** (automatically installed with NuGet tool)
+📖 **[Complete Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md)**
 
 ## Documentation
 
@@ -92,26 +126,23 @@ excel-mcp range-set-values --file "workbook.xlsx" --sheet "Sheet1" --range "A1:C
 
 ### AI Assistant Examples (MCP Server)
 
-**Example 1: Optimize Power Query**
-```
-You: "This Power Query is taking 5 minutes to refresh. Can you optimize it?"
+<div class="example-section">
+<h4>🔍 Optimize Power Query</h4>
+<p><strong>You:</strong> "This Power Query is taking 5 minutes to refresh. Can you optimize it?"</p>
+<p>AI analyzes your M code, identifies inefficiencies, and applies best practices automatically.</p>
+</div>
 
-AI analyzes your M code, identifies inefficiencies, and applies best practices automatically.
-```
+<div class="example-section">
+<h4>📊 Create PivotTable</h4>
+<p><strong>You:</strong> "Create a PivotTable from SalesData showing top 10 products by region"</p>
+<p>AI creates the PivotTable with proper field configuration in seconds.</p>
+</div>
 
-**Example 2: Create PivotTable**
-```
-You: "Create a PivotTable from SalesData showing top 10 products by region"
-
-AI creates the PivotTable with proper field configuration in seconds.
-```
-
-**Example 3: Format Data**
-```
-You: "Format revenue as currency, make headers bold blue, and add borders"
-
-AI applies all formatting directly to your Excel file.
-```
+<div class="example-section">
+<h4>🎨 Format Data</h4>
+<p><strong>You:</strong> "Format revenue as currency, make headers bold blue, and add borders"</p>
+<p>AI applies all formatting directly to your Excel file.</p>
+</div>
 
 ### CLI Examples (Scripting & RPA)
 
@@ -136,35 +167,36 @@ Get-ChildItem *.xlsx | ForEach-Object {
 excel-mcp vba-export --file "macro-workbook.xlsm" --module "Module1" --output "src/vba/Module1.bas"
 ```
 
-**Data Transformation Pipeline**
-```bash
-# Automated data processing pipeline
-excel-mcp file-create --file "output.xlsx"
-excel-mcp sheet-create --file "output.xlsx" --name "Processed"
-excel-mcp range-set-values --file "output.xlsx" --sheet "Processed" --range "A1:C100" --values-from-json data.json
-excel-mcp table-create --file "output.xlsx" --sheet "Processed" --range "A1:C100" --name "ProcessedData"
-```
-
 ## Why Choose This Project?
 
-### MCP Server (AI-Powered)
-- **Natural Language Control**: Describe tasks in plain English
-- **Safe**: Official COM API - zero corruption risk
-- **Interactive**: See changes in real-time in Excel
-- **Comprehensive**: 165 operations across 11 tools
-- **Works with**: GitHub Copilot, Claude, ChatGPT, and any MCP client
+<div class="features-grid">
+<div class="feature-card">
+<h3>🤖 MCP Server (AI-Powered)</h3>
+<ul>
+<li><strong>Natural Language Control:</strong> Describe tasks in plain English</li>
+<li><strong>Safe:</strong> Official COM API - zero corruption risk</li>
+<li><strong>Interactive:</strong> See changes in real-time in Excel</li>
+<li><strong>Comprehensive:</strong> 165 operations across 11 tools</li>
+<li><strong>Works with:</strong> GitHub Copilot, Claude, ChatGPT, and any MCP client</li>
+</ul>
+</div>
 
-### CLI (Automation & Scripting)
-- **RPA Ready**: Perfect for robotic process automation workflows
-- **CI/CD Integration**: Automate Excel operations in build pipelines
-- **Scripting**: PowerShell, Bash, Python integration
-- **Batch Processing**: Process multiple workbooks programmatically
-- **No AI Required**: Direct command-line control for scripts
+<div class="feature-card">
+<h3>⚙️ CLI (Automation & Scripting)</h3>
+<ul>
+<li><strong>RPA Ready:</strong> Perfect for robotic process automation workflows</li>
+<li><strong>CI/CD Integration:</strong> Automate Excel operations in build pipelines</li>
+<li><strong>Scripting:</strong> PowerShell, Bash, Python integration</li>
+<li><strong>Batch Processing:</strong> Process multiple workbooks programmatically</li>
+<li><strong>No AI Required:</strong> Direct command-line control for scripts</li>
+</ul>
+</div>
+</div>
 
-### Both Share the Same Core
-- Same 165 operations available via CLI and MCP
-- Consistent behavior across interfaces
-- Full .NET library available for custom integrations
+<div class="callout">
+<strong>Both Share the Same Core</strong>
+Same 165 operations available via CLI and MCP. Consistent behavior across interfaces. Full .NET library available for custom integrations.
+</div>
 
 ## Related Projects
 
@@ -175,8 +207,15 @@ excel-mcp table-create --file "output.xlsx" --sheet "Processed" --range "A1:C100
 
 ## Keywords
 
+<div class="keywords">
 Excel automation, MCP server, Model Context Protocol, GitHub Copilot, Claude AI, Power Query, M language, DAX, Power Pivot, VBA macros, Excel Tables, PivotTables, data analysis, spreadsheet automation, RPA, robotic process automation, COM automation, Windows automation, AI Excel assistant, natural language Excel, Excel API, Excel COM interop, Excel CLI, command line Excel, Excel scripting, Excel batch processing, CI/CD Excel, DevOps Excel, Excel PowerShell, Excel automation tool, .NET Excel library, Excel NuGet package
+</div>
 
-## License
+</div>
 
-MIT License - See [LICENSE](https://github.com/sbroenne/mcp-server-excel/blob/main/LICENSE)
+<footer>
+<div class="container">
+<p><strong>Excel MCP Server</strong> - MIT License</p>
+<p><a href="https://github.com/sbroenne/mcp-server-excel">GitHub Repository</a> | <a href="https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md">Installation Guide</a> | <a href="https://github.com/sbroenne/mcp-server-excel/blob/main/docs/CONTRIBUTING.md">Contributing</a></p>
+</div>
+</footer>

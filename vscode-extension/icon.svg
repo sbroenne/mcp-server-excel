@@ -1,12 +1,53 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
-  <!-- Background -->
-  <rect width="128" height="128" fill="#217346" rx="8"/>
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient - Excel green -->
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#217346;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0e5c35;stop-opacity:1" />
+    </linearGradient>
+  </defs>
   
-  <!-- Excel-style "E" letter -->
-  <text x="64" y="90" font-family="Arial, sans-serif" font-size="80" font-weight="bold" fill="white" text-anchor="middle">E</text>
+  <!-- Rounded background -->
+  <rect width="256" height="256" fill="url(#bg)" rx="32"/>
   
-  <!-- MCP indicator -->
-  <circle cx="100" cy="28" r="18" fill="#0078D4"/>
-  <text x="100" y="34" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">M</text>
+  <!-- Excel Table (4 columns x 5 rows) -->
+  <g transform="translate(40, 40)">
+    <!-- Cell dimensions: 44x28 pixels, 4 columns, 5 rows -->
+    
+    <!-- Header row (solid white) -->
+    <rect x="0" y="0" width="44" height="28" fill="#ffffff" opacity="1.0" stroke="#217346" stroke-width="1"/>
+    <rect x="44" y="0" width="44" height="28" fill="#ffffff" opacity="1.0" stroke="#217346" stroke-width="1"/>
+    <rect x="88" y="0" width="44" height="28" fill="#ffffff" opacity="1.0" stroke="#217346" stroke-width="1"/>
+    <rect x="132" y="0" width="44" height="28" fill="#ffffff" opacity="1.0" stroke="#217346" stroke-width="1"/>
+    
+    <!-- Data row 1 (banded - darker) -->
+    <rect x="0" y="28" width="44" height="28" fill="#ffffff" opacity="0.7" stroke="#217346" stroke-width="1"/>
+    <rect x="44" y="28" width="44" height="28" fill="#ffffff" opacity="0.7" stroke="#217346" stroke-width="1"/>
+    <rect x="88" y="28" width="44" height="28" fill="#ffffff" opacity="0.7" stroke="#217346" stroke-width="1"/>
+    <rect x="132" y="28" width="44" height="28" fill="#ffffff" opacity="0.7" stroke="#217346" stroke-width="1"/>
+    
+    <!-- Data row 2 (banded - lighter) -->
+    <rect x="0" y="56" width="44" height="28" fill="#ffffff" opacity="0.5" stroke="#217346" stroke-width="1"/>
+    <rect x="44" y="56" width="44" height="28" fill="#ffffff" opacity="0.5" stroke="#217346" stroke-width="1"/>
+    <rect x="88" y="56" width="44" height="28" fill="#ffffff" opacity="0.5" stroke="#217346" stroke-width="1"/>
+    <rect x="132" y="56" width="44" height="28" fill="#ffffff" opacity="0.5" stroke="#217346" stroke-width="1"/>
+    
+    <!-- Data row 3 (banded - darker) -->
+    <rect x="0" y="84" width="44" height="28" fill="#ffffff" opacity="0.7" stroke="#217346" stroke-width="1"/>
+    <rect x="44" y="84" width="44" height="28" fill="#ffffff" opacity="0.7" stroke="#217346" stroke-width="1"/>
+    <rect x="88" y="84" width="44" height="28" fill="#ffffff" opacity="0.7" stroke="#217346" stroke-width="1"/>
+    <rect x="132" y="84" width="44" height="28" fill="#ffffff" opacity="0.7" stroke="#217346" stroke-width="1"/>
+    
+    <!-- Data row 4 (banded - lighter) -->
+    <rect x="0" y="112" width="44" height="28" fill="#ffffff" opacity="0.5" stroke="#217346" stroke-width="1"/>
+    <rect x="44" y="112" width="44" height="28" fill="#ffffff" opacity="0.5" stroke="#217346" stroke-width="1"/>
+    <rect x="88" y="112" width="44" height="28" fill="#ffffff" opacity="0.5" stroke="#217346" stroke-width="1"/>
+    <rect x="132" y="112" width="44" height="28" fill="#ffffff" opacity="0.5" stroke="#217346" stroke-width="1"/>
+  </g>
+  
+  <!-- "Excel MCP" text at bottom -->
+  <text x="128" y="220" font-family="Segoe UI, Arial, sans-serif" 
+        font-size="24" font-weight="700" fill="#ffffff" 
+        text-anchor="middle" opacity="0.95">Excel MCP</text>
 </svg>
