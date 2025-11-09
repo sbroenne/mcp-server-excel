@@ -4,8 +4,12 @@ This repository includes automated pre-commit checks to prevent code quality iss
 
 ## What Gets Checked
 
-1. **COM Object Leaks** - Ensures all dynamic COM objects are properly released
-2. **Core Commands Coverage** - Verifies 100% of Core methods are exposed via MCP Server
+1. **Branch Protection** - Blocks direct commits to `main` branch (Rule 6)
+2. **COM Object Leaks** - Ensures all dynamic COM objects are properly released
+3. **Core Commands Coverage** - Verifies 100% of Core methods are exposed via MCP Server
+4. **Naming Consistency** - Ensures enum action names match Core method names exactly
+5. **Success Flag Violations** - Ensures Success=true never paired with ErrorMessage (Rule 1)
+6. **MCP Server Smoke Test** - Validates all 11 MCP tools work correctly
 
 ## Setup Instructions
 
@@ -37,6 +41,23 @@ pwsh -ExecutionPolicy Bypass -File "scripts/pre-commit.ps1"
 ```
 
 ## What Happens on Failure
+
+### Branch Protection Violation
+```
+❌ BLOCKED: Cannot commit directly to 'main' branch!
+
+   Rule 6: All Changes Via Pull Requests
+   'Never commit to main. Create feature branch → PR → CI/CD + review → merge.'
+
+   To fix:
+   1. git stash                                    # Save your changes
+   2. git checkout -b feature/your-feature-name    # Create feature branch
+   3. git stash pop                                # Restore changes
+   4. git add <files>                              # Stage changes
+   5. git commit -m 'your message'                 # Commit to feature branch
+```
+
+**Fix:** Follow the 5 steps above to move your work to a feature branch.
 
 ### COM Leak Detected
 ```

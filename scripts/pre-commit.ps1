@@ -24,6 +24,30 @@
 $ErrorActionPreference = "Stop"
 $rootDir = Split-Path -Parent $PSScriptRoot
 
+# CRITICAL: Check branch FIRST - never commit directly to main (Rule 6)
+Write-Host "🔍 Checking current branch..." -ForegroundColor Cyan
+$currentBranch = git branch --show-current
+
+if ($currentBranch -eq "main") {
+    Write-Host ""
+    Write-Host "❌ BLOCKED: Cannot commit directly to 'main' branch!" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "   Rule 6: All Changes Via Pull Requests" -ForegroundColor Yellow
+    Write-Host "   'Never commit to main. Create feature branch → PR → CI/CD + review → merge.'" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "   To fix:" -ForegroundColor Cyan
+    Write-Host "   1. git stash                                    # Save your changes" -ForegroundColor White
+    Write-Host "   2. git checkout -b feature/your-feature-name    # Create feature branch" -ForegroundColor White
+    Write-Host "   3. git stash pop                                # Restore changes" -ForegroundColor White
+    Write-Host "   4. git add <files>                              # Stage changes" -ForegroundColor White
+    Write-Host "   5. git commit -m 'your message'                 # Commit to feature branch" -ForegroundColor White
+    Write-Host ""
+    exit 1
+}
+
+Write-Host "✅ Branch check passed - on '$currentBranch' (not main)" -ForegroundColor Green
+Write-Host ""
+
 Write-Host "🔍 Checking for COM object leaks..." -ForegroundColor Cyan
 
 try {
