@@ -15,7 +15,7 @@ Also includes a powerful CLI for RPA (Robotic Process Automation) and scripting 
 
 **🛡️ 100% Safe - Uses Excel's Native COM API**
 
-Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time. Currently supports **165 operations across 11 specialized tools** with active development expanding capabilities.
+Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time. Currently supports **165 operations across 12 specialized tools** with active development expanding capabilities.
 
 **Requirements:** Windows OS + Excel 2016+
 
@@ -27,7 +27,7 @@ For other MCP clients or manual configuration, see the [Installation Guide](http
 
 ## 🛠️ What You Can Do
 
-**11 specialized MCP tools** for comprehensive Excel automation:
+**12 specialized MCP tools** for comprehensive Excel automation:
 
 1. **Power Query & M Code** (14 actions) - Create, edit, optimize Power Query transformations with AI assistance
 2. **Power Pivot / Data Model** (15 actions) - Build DAX measures, manage relationships, discover model structure, export to .dax files for Git workflows
@@ -41,7 +41,7 @@ For other MCP clients or manual configuration, see the [Installation Guide](http
 10. **File Operations** (3 actions) - Create Excel workbooks (.xlsx/.xlsm), close workbook, test
 11. **QueryTables** (8 actions) - Manage data refresh connections for reliable persistence
 
-**Total: 11 tools with 165 actions**
+**Total: 12 tools with 165 actions**
 
 **AI-Powered Workflows:**
 - 💬 Natural language Excel commands through GitHub Copilot or Claude
