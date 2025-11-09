@@ -11,8 +11,7 @@ public enum FileAction
 {
     CreateEmpty,
     CloseWorkbook,
-    Test,
-    CheckIfOpen
+    Test
 }
 
 /// <summary>

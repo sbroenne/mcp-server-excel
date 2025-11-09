@@ -26,7 +26,7 @@ $errors = @()
 
 # Known intentional exceptions (documented in CORE-METHOD-RENAMING-SUMMARY.md)
 $knownExceptions = @{
-    "FileAction" = @("CloseWorkbook", "CheckIfOpen")  # Handled by MCP server directly
+    "FileAction" = @("CloseWorkbook")  # CloseWorkbook is no-op in single-instance architecture
     "TableAction" = @("ApplyFilterValues", "SortMulti")  # Composite operations
 }
 
