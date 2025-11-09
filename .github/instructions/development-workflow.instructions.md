@@ -49,22 +49,12 @@ mcp_github_github_pull_request_read(method="get_review_comments", owner="sbroenn
 
 ## Test Execution
 
-```bash
-# Development (fast - excludes VBA tests)
-dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+**See testing-strategy.instructions.md for complete test commands.**
 
-# Pre-commit (comprehensive - excludes VBA tests)
-dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
-
-# Session/batch code changes (MANDATORY)
-dotnet test --filter "RunType=OnDemand"
-
-# VBA tests (manual only - requires VBA trust enabled)
-dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
-
-# CI/CD (no Excel, no VBA)
-dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
-```
+Quick reference:
+- Development: `Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust`
+- Session/batch changes: `RunType=OnDemand`
+- VBA tests: `(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand`
 
 ## CI/CD Workflows
 
