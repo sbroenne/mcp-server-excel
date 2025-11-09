@@ -1200,6 +1200,36 @@ await rangeCommands.SetValuesAsync(batch, "Sheet1", "A1:C3", [
 // Returns: { "values": [[1,2,3],[4,5,6],[7,8,9]] }
 ```
 
+### ⚠️ CRITICAL: Range Address Must Match Data Dimensions
+
+**ALWAYS specify the full range address matching your data dimensions.**
+
+```csharp
+// ❌ WRONG: Single cell address with multi-cell data
+await rangeCommands.SetValuesAsync(batch, "Sheet1", "A1", [
+    ["Date", "Region", "Product", "Revenue"]  // 1x4 array
+]);
+// May only write "Date" to A1, losing other columns!
+
+// ✅ CORRECT: Full range address
+await rangeCommands.SetValuesAsync(batch, "Sheet1", "A1:D1", [
+    ["Date", "Region", "Product", "Revenue"]
+]);
+
+// ❌ WRONG: Two separate calls for headers + data
+await rangeCommands.SetValuesAsync(batch, "Sheet1", "A1", [["Date", "Region"]]);
+await rangeCommands.SetValuesAsync(batch, "Sheet1", "A2", [[1, "North"], [2, "South"]]);
+
+// ✅ CORRECT: Single call with full range
+await rangeCommands.SetValuesAsync(batch, "Sheet1", "A1:B3", [
+    ["Date", "Region"],     // Headers
+    [1, "North"],           // Data row 1
+    [2, "South"]            // Data row 2
+]);
+```
+
+**Why:** Excel COM does not reliably auto-expand from single cell addresses. Specifying the exact range ensures all data is written correctly.
+
 ### CLI Examples
 
 ```bash

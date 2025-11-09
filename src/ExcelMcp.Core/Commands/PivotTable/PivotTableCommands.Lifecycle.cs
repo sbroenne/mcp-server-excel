@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -39,37 +40,98 @@ public partial class PivotTableCommands
                             try
                             {
                                 pivot = pivotTablesCol.Item(j);
-                                pivotCache = pivot.PivotCache;
 
-                                // Handle RefreshDate which can be DateTime or double (OLE date)
+                                // Get basic info (should never fail)
+                                string pivotName = pivot.Name;
+
+                                // Get properties with defensive error handling
+                                string? range = null;
+                                string? sourceData = null;
+                                int rowFieldCount = 0;
+                                int columnFieldCount = 0;
+                                int valueFieldCount = 0;
+                                int filterFieldCount = 0;
                                 DateTime? lastRefresh = null;
-                                if (pivotCache.RefreshDate != null)
+
+                                try
                                 {
-                                    var refreshDate = pivotCache.RefreshDate;
-                                    if (refreshDate is DateTime dt)
+                                    range = pivot.TableRange2.Address;
+                                }
+                                catch
+                                {
+                                    // TableRange2 might fail for disconnected PivotTables
+                                    range = "(unavailable)";
+                                }
+
+                                try
+                                {
+                                    pivotCache = pivot.PivotCache;
+                                    sourceData = pivotCache.SourceData?.ToString() ?? string.Empty;
+
+                                    // Handle RefreshDate which can be DateTime or double (OLE date)
+                                    if (pivotCache.RefreshDate != null)
                                     {
-                                        lastRefresh = dt;
-                                    }
-                                    else if (refreshDate is double dbl)
-                                    {
-                                        lastRefresh = DateTime.FromOADate(dbl);
+                                        var refreshDate = pivotCache.RefreshDate;
+                                        if (refreshDate is DateTime dt)
+                                        {
+                                            lastRefresh = dt;
+                                        }
+                                        else if (refreshDate is double dbl)
+                                        {
+                                            lastRefresh = DateTime.FromOADate(dbl);
+                                        }
                                     }
                                 }
+                                catch
+                                {
+                                    // SourceData might fail for Data Model or external sources
+                                    sourceData = "(external or Data Model)";
+                                }
+
+                                try
+                                {
+                                    rowFieldCount = pivot.RowFields.Count;
+                                }
+                                catch { /* Count might fail for certain configurations */ }
+
+                                try
+                                {
+                                    columnFieldCount = pivot.ColumnFields.Count;
+                                }
+                                catch { /* Count might fail for certain configurations */ }
+
+                                try
+                                {
+                                    valueFieldCount = pivot.DataFields.Count;
+                                }
+                                catch { /* Count might fail for certain configurations */ }
+
+                                try
+                                {
+                                    filterFieldCount = pivot.PageFields.Count;
+                                }
+                                catch { /* Count might fail for certain configurations */ }
 
                                 var info = new PivotTableInfo
                                 {
-                                    Name = pivot.Name,
+                                    Name = pivotName,
                                     SheetName = sheetName,
-                                    Range = pivot.TableRange2.Address,
-                                    SourceData = pivotCache.SourceData?.ToString() ?? string.Empty,
-                                    RowFieldCount = pivot.RowFields.Count,
-                                    ColumnFieldCount = pivot.ColumnFields.Count,
-                                    ValueFieldCount = pivot.DataFields.Count,
-                                    FilterFieldCount = pivot.PageFields.Count,
+                                    Range = range ?? "(unavailable)",
+                                    SourceData = sourceData ?? string.Empty,
+                                    RowFieldCount = rowFieldCount,
+                                    ColumnFieldCount = columnFieldCount,
+                                    ValueFieldCount = valueFieldCount,
+                                    FilterFieldCount = filterFieldCount,
                                     LastRefresh = lastRefresh
                                 };
 
                                 pivotTables.Add(info);
+                            }
+                            catch (Exception ex)
+                            {
+                                // Log but don't fail entire list operation for one bad PivotTable
+                                // Continue to next PivotTable
+                                System.Diagnostics.Debug.WriteLine($"Skipping PivotTable {j} on sheet {sheetName}: {ex.Message}");
                             }
                             finally
                             {
@@ -125,19 +187,55 @@ public partial class PivotTableCommands
                 pivotCache = pivot.PivotCache;
                 pivotFields = pivot.PivotFields;
 
-                // Get basic info
+                // Get basic info with defensive error handling (properties can throw on Data Model sources)
                 var info = new PivotTableInfo
                 {
                     Name = pivot.Name,
-                    SheetName = pivot.Parent.Name,
-                    Range = pivot.TableRange2.Address,
-                    SourceData = pivotCache.SourceData?.ToString() ?? string.Empty,
-                    RowFieldCount = pivot.RowFields.Count,
-                    ColumnFieldCount = pivot.ColumnFields.Count,
-                    ValueFieldCount = pivot.DataFields.Count,
-                    FilterFieldCount = pivot.PageFields.Count,
-                    LastRefresh = GetRefreshDateSafe(pivotCache.RefreshDate)
+                    SheetName = pivot.Parent.Name
                 };
+
+                // TableRange2 - can throw on Data Model sources
+                try
+                {
+                    info.Range = pivot.TableRange2.Address;
+                }
+                catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
+                {
+                    info.Range = "[Data Model - Range not available]";
+                }
+
+                // SourceData - can throw on Data Model sources
+                try
+                {
+                    info.SourceData = pivotCache.SourceData?.ToString() ?? string.Empty;
+                }
+                catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
+                {
+                    info.SourceData = "[Data Model Source]";
+                }
+
+                // Field counts - usually safe but wrap defensively
+                try
+                {
+                    info.RowFieldCount = pivot.RowFields.Count;
+                    info.ColumnFieldCount = pivot.ColumnFields.Count;
+                    info.ValueFieldCount = pivot.DataFields.Count;
+                    info.FilterFieldCount = pivot.PageFields.Count;
+                }
+                catch
+                {
+                    // Field counts default to 0 if unavailable
+                }
+
+                // RefreshDate
+                try
+                {
+                    info.LastRefresh = GetRefreshDateSafe(pivotCache.RefreshDate);
+                }
+                catch
+                {
+                    info.LastRefresh = null;
+                }
 
                 // Get field details
                 var fields = new List<PivotFieldInfo>();
