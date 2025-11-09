@@ -28,6 +28,7 @@ on:
   push:
     tags:
       - 'v*'  # Unified version tag (e.g., v1.2.3)
+      - '!vscode-v*'  # Exclude VS Code extension tags
 
 jobs:
   release-mcp-and-cli:
