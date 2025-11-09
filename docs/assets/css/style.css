@@ -32,6 +32,12 @@ body {
   padding: 0 24px;
 }
 
+.content-section {
+  background: var(--background);
+  padding: 48px 24px;
+  min-height: 400px;
+}
+
 /* Hero Section */
 .hero {
   background: var(--hero-gradient);
