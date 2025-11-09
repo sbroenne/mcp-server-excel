@@ -1,14 +1,18 @@
-name: Release MCP Server
+name: Release MCP Server & CLI
 
 # This workflow uses NuGet Trusted Publishing via OIDC (OpenID Connect)
 # The NuGet/login action exchanges GitHub OIDC tokens for short-lived NuGet API keys
 # See: docs/NUGET-GUIDE.md for complete setup instructions
+#
+# Unified Versioning: MCP Server and CLI always release together with the same version
+# Tag pattern: v1.2.3 (removes mcp-v prefix, CLI and MCP Server share version)
 #
 # Required GitHub Secret:
 # - NUGET_USER: Your NuGet.org username (profile name, NOT email)
 #
 # Required NuGet.org Configuration:
 # - Package: Sbroenne.ExcelMcp.McpServer
+# - Package: Sbroenne.ExcelMcp.CLI
 # - Trusted Publisher: GitHub Actions
 # - Owner: sbroenne
 # - Repository: mcp-server-excel
@@ -23,10 +27,10 @@ name: Release MCP Server
 on:
   push:
     tags:
-      - 'mcp-v*'
+      - 'v*'  # Unified version tag (e.g., v1.2.3)
 
 jobs:
-  release-mcp-server:
+  release-mcp-and-cli:
     runs-on: windows-latest
     permissions:
       contents: write
@@ -43,12 +47,12 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
-    - name: Update MCP Server Version
+    - name: Update Versions (MCP Server & CLI)
       run: |
         $tagName = "${{ github.ref_name }}"
-        $version = $tagName -replace '^mcp-v', ''
+        $version = $tagName -replace '^v', ''
 
-        Write-Output "Updating MCP Server to version $version"
+        Write-Output "Updating MCP Server and CLI to unified version $version"
 
         # Update MCP Server project version
         $mcpCsprojPath = "src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj"
@@ -57,6 +61,14 @@ jobs:
         $mcpContent = $mcpContent -replace '<AssemblyVersion>[\d\.]+\.[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
         $mcpContent = $mcpContent -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
         Set-Content $mcpCsprojPath $mcpContent
+
+        # Update CLI project version
+        $cliCsprojPath = "src/ExcelMcp.CLI/ExcelMcp.CLI.csproj"
+        $cliContent = Get-Content $cliCsprojPath -Raw
+        $cliContent = $cliContent -replace '<Version>[\d\.]+</Version>', "<Version>$version</Version>"
+        $cliContent = $cliContent -replace '<AssemblyVersion>[\d\.]+\.[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
+        $cliContent = $cliContent -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
+        Set-Content $cliCsprojPath $cliContent
 
         # Update MCP Server configuration
         $serverJsonPath = "src/ExcelMcp.McpServer/.mcp/server.json"
@@ -70,28 +82,34 @@ jobs:
 
         Set-Content $serverJsonPath $serverContent
 
-        Write-Output "Updated MCP Server project version to $version"
-        Write-Output "Updated MCP Server configuration version to $version"
+        Write-Output "✅ Updated MCP Server project and configuration to $version"
+        Write-Output "✅ Updated CLI project to $version"
 
         # Set environment variable for later steps
         echo "PACKAGE_VERSION=$version" >> $env:GITHUB_ENV
       shell: pwsh
 
     - name: Restore dependencies
-      run: dotnet restore src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
-
-    - name: Build MCP Server
-      run: dotnet build src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-restore
-
-    - name: Skip MCP Server Tests (requires Excel)
       run: |
-        Write-Output "ℹ️ Note: MCP Server tests skipped in CI - they require Microsoft Excel"
-        Write-Output "   All MCP Server tests are Integration tests that need Excel COM interop"
-        Write-Output "   Run 'dotnet test tests/ExcelMcp.McpServer.Tests/' locally with Excel installed"
+        dotnet restore src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
+        dotnet restore src/ExcelMcp.CLI/ExcelMcp.CLI.csproj
+
+    - name: Build MCP Server & CLI
+      run: |
+        dotnet build src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-restore
+        dotnet build src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-restore
+
+    - name: Skip Tests (require Excel)
+      run: |
+        Write-Output "ℹ️ Note: Tests skipped in CI - they require Microsoft Excel"
+        Write-Output "   All tests are Integration tests that need Excel COM interop"
+        Write-Output "   Run tests locally with Excel installed or on Azure self-hosted runner"
       shell: pwsh
 
-    - name: Pack NuGet Package
-      run: dotnet pack src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-build --output ./nupkg
+    - name: Pack NuGet Packages
+      run: |
+        dotnet pack src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-build --output ./nupkg
+        dotnet pack src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-build --output ./nupkg
 
     - name: NuGet login (OIDC → temp API key)
       uses: NuGet/login@v1
@@ -99,7 +117,7 @@ jobs:
       with:
         user: ${{ secrets.NUGET_USER }}  # Your nuget.org username (profile name), NOT email
 
-    - name: Publish to NuGet.org (Trusted Publishing)
+    - name: Publish MCP Server to NuGet.org
       run: |
         $version = $env:PACKAGE_VERSION
         $packagePath = "nupkg/Sbroenne.ExcelMcp.McpServer.$version.nupkg"
@@ -112,7 +130,23 @@ jobs:
           --skip-duplicate
 
         Write-Output "🚀 Published Sbroenne.ExcelMcp.McpServer.$version to NuGet.org"
-        Write-Output "🔗 Package will be available at: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer/$version"
+        Write-Output "🔗 Package: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer/$version"
+      shell: pwsh
+
+    - name: Publish CLI to NuGet.org
+      run: |
+        $version = $env:PACKAGE_VERSION
+        $packagePath = "nupkg/Sbroenne.ExcelMcp.CLI.$version.nupkg"
+
+        Write-Output "Publishing $packagePath to NuGet.org using Trusted Publishing (OIDC)..."
+
+        dotnet nuget push $packagePath `
+          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} `
+          --source https://api.nuget.org/v3/index.json `
+          --skip-duplicate
+
+        Write-Output "🚀 Published Sbroenne.ExcelMcp.CLI.$version to NuGet.org"
+        Write-Output "🔗 Package: https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI/$version"
       shell: pwsh
 
     - name: Wait for NuGet Package Propagation
@@ -314,14 +348,66 @@ jobs:
         Write-Output "Created ExcelMcp-MCP-Server-$version-windows.zip"
       shell: pwsh
 
+    - name: Create CLI Release Package
+      run: |
+        $version = $env:PACKAGE_VERSION
+
+        # Create CLI release directory
+        New-Item -ItemType Directory -Path "release/ExcelMcp-CLI-$version" -Force
+
+        # Copy CLI files
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/*" "release/ExcelMcp-CLI-$version/" -Recurse
+
+        # Copy documentation
+        Copy-Item "README.md" "release/ExcelMcp-CLI-$version/"
+        Copy-Item "LICENSE" "release/ExcelMcp-CLI-$version/"
+        Copy-Item "src/ExcelMcp.CLI/README.md" "release/ExcelMcp-CLI-$version/CLI-README.md"
+
+        # Create installation README
+        $cliReadme = "# ExcelMcp CLI v$version`n`n"
+        $cliReadme += "## Quick Start`n`n"
+        $cliReadme += "### Option 1: Install as .NET Tool (Recommended)`n"
+        $cliReadme += "``````powershell`n"
+        $cliReadme += "# Install globally`n"
+        $cliReadme += "dotnet tool install --global Sbroenne.ExcelMcp.CLI --version $version`n`n"
+        $cliReadme += "# Run CLI`n"
+        $cliReadme += "excelcli --help`n`n"
+        $cliReadme += "# Update`n"
+        $cliReadme += "dotnet tool update --global Sbroenne.ExcelMcp.CLI`n"
+        $cliReadme += "``````n`n"
+        $cliReadme += "### Option 2: Run from Binary`n"
+        $cliReadme += "``````powershell`n"
+        $cliReadme += "dotnet ExcelMcp.CLI.dll --help`n"
+        $cliReadme += "``````n`n"
+        $cliReadme += "## Features`n`n"
+        $cliReadme += "- 147 Commands - Comprehensive Excel automation`n"
+        $cliReadme += "- Batch Operations - Multiple operations in single Excel session`n"
+        $cliReadme += "- Scriptable - Perfect for CI/CD and automation`n"
+        $cliReadme += "- Zero Corruption - Safe COM interop with proper cleanup`n`n"
+        $cliReadme += "## Requirements`n`n"
+        $cliReadme += "- Windows OS with Microsoft Excel installed`n"
+        $cliReadme += "- .NET 8.0 runtime`n"
+        $cliReadme += "- Excel 2016+ (for COM interop)`n`n"
+        $cliReadme += "## License`n`n"
+        $cliReadme += "MIT License - see LICENSE file for details.`n"
+
+        Set-Content "release/ExcelMcp-CLI-$version/README.md" $cliReadme
+
+        # Create ZIP
+        Compress-Archive -Path "release/ExcelMcp-CLI-$version/*" -DestinationPath "ExcelMcp-CLI-$version-windows.zip"
+
+        Write-Output "Created ExcelMcp-CLI-$version-windows.zip"
+      shell: pwsh
+
     - name: Create GitHub Release
       run: |
         $tagName = "${{ github.ref_name }}"
         $version = $env:PACKAGE_VERSION
 
         # Create release notes
-        $releaseNotes = "## ExcelMcp MCP Server $tagName`n`n"
-        $releaseNotes += "### MCP Server for AI-Powered Excel Development`n`n"
+        $releaseNotes = "## ExcelMcp v$version - MCP Server & CLI`n`n"
+        $releaseNotes += "Unified release: MCP Server and CLI share the same version for consistency.`n`n"
+        $releaseNotes += "### MCP Server - AI-Powered Excel Development`n`n"
         $releaseNotes += "The Model Context Protocol (MCP) Server enables AI assistants like GitHub Copilot, Claude, and ChatGPT to perform Excel development tasks through conversational interfaces.`n`n"
         $releaseNotes += "### Key Features`n"
         $releaseNotes += "- Native AI Integration - Built for GitHub Copilot and AI assistants`n"
@@ -347,21 +433,35 @@ jobs:
         $releaseNotes += "- excel_parameter - Named range management (list, get, set, create, delete, update)`n"
         $releaseNotes += "- excel_cell - Cell operations (get-value, set-value, get-formula, set-formula)`n"
         $releaseNotes += "- excel_connection - Connection management (list, view, import, export, update, refresh, delete, loadto, properties, set-properties, test)`n"
-        $releaseNotes += "- excel_datamodel - Data Model operations (list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, list-columns, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship, create-column, update-column, delete-column, view-column)`n"
+        $releaseNotes += "- excel_datamodel - Data Model operations (list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship)`n"
         $releaseNotes += "- excel_vba - VBA script management (list, export, import, view, update, run, delete)`n"
-        $releaseNotes += "- excel_version - Version information`n"
-        $releaseNotes += "- batch_session - Batch operation management (begin, save, discard, status)`n`n"
+        $releaseNotes += "- excel_batch - Batch operation management (begin, commit, list)`n`n"
+        $releaseNotes += "### CLI - Scriptable Excel Automation`n`n"
+        $releaseNotes += "Command-line interface with 147 commands for Excel automation, perfect for CI/CD pipelines and scripting.`n`n"
+        $releaseNotes += "### CLI Installation`n`n"
+        $releaseNotes += "**Option 1: .NET Tool (Recommended)**`n"
+        $releaseNotes += "``````powershell`n"
+        $releaseNotes += "dotnet tool install --global Sbroenne.ExcelMcp.CLI --version $version`n"
+        $releaseNotes += "excelcli --help`n"
+        $releaseNotes += "``````n`n"
+        $releaseNotes += "**Option 2: Download Binary**`n"
+        $releaseNotes += "1. Download ExcelMcp-CLI-$version-windows.zip`n"
+        $releaseNotes += "2. Extract and run: dotnet ExcelMcp.CLI.dll --help`n`n"
         $releaseNotes += "### Requirements`n"
         $releaseNotes += "- Windows OS with Microsoft Excel installed`n"
         $releaseNotes += "- .NET 8.0 runtime`n"
         $releaseNotes += "- Excel 2016+ (for COM interop)`n`n"
         $releaseNotes += "### Documentation`n"
-        $releaseNotes += "- Configuration Guide: See README.md in package`n"
         $releaseNotes += "- GitHub Repository: https://github.com/sbroenne/mcp-server-excel`n"
-        $releaseNotes += "- MCP Server Details: src/ExcelMcp.McpServer/README.md`n"
+        $releaseNotes += "- MCP Server: src/ExcelMcp.McpServer/README.md`n"
+        $releaseNotes += "- CLI: src/ExcelMcp.CLI/README.md`n"
 
-        # Create the release
-        gh release create "$tagName" "ExcelMcp-MCP-Server-$version-windows.zip" --title "ExcelMcp MCP Server $tagName" --notes $releaseNotes
+        # Create the release with both packages
+        gh release create "$tagName" `
+          "ExcelMcp-MCP-Server-$version-windows.zip" `
+          "ExcelMcp-CLI-$version-windows.zip" `
+          --title "ExcelMcp v$version - MCP Server & CLI" `
+          --notes $releaseNotes
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}

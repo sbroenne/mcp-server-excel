@@ -6,6 +6,54 @@ applyTo: "**"
 
 > **⚠️ NON-NEGOTIABLE rules for all ExcelMcp development**
 
+## Quick Reference (Ordered by Daily Usage Frequency)
+
+**Every Edit:**
+| Rule | Action | Why Critical |
+|------|--------|--------------|
+| 0. Success flag | NEVER `Success=true` with `ErrorMessage` | Confuses LLMs, causes silent failures |
+| 16. Test scope | Only run tests for code you changed | Saves 10+ minutes per test run |
+| 8. TODO markers | Must resolve before commit | Pre-commit hook blocks |
+
+**When Writing Code:**
+| Rule | Action | Why Critical |
+|------|--------|--------------|
+| 7. COM API | Use Excel COM first, validate docs | Prevents wrong dependencies |
+| 9. GitHub search | Search OTHER repos for VBA/COM examples FIRST | Learn from working code |
+| 2. NotImplementedException | Never use, full implementation only | No placeholders allowed |
+| 15. Enum mappings | All enum values mapped in ToActionString() | Runtime errors otherwise |
+| 17. MCP error checks | Always return JSON, check result.Success | MCP protocol requirement |
+
+**When Writing Tests:**
+| Rule | Action | Why Critical |
+|------|--------|--------------|
+| 1. Tests | Fail loudly, never silent | Silent failures waste hours |
+| 14. No SaveAsync | Remove unless testing persistence | Makes tests 50% faster |
+| 10. Test debugging | Run tests one by one | Isolates actual failure |
+| 12. Test compliance | Pass checklist before PR submission | Prevents test pollution |
+
+**Before Commit:**
+| Rule | Action | Time |
+|------|--------|------|
+| 3. Session code | Run `dotnet test --filter "RunType=OnDemand"` | 3-5 min |
+| 5. COM leaks | Pre-commit hook auto-checks | 1 min |
+| 6. PRs | Always use PRs, never direct commit | Always |
+
+**During PR Process:**
+| Rule | Action | Time |
+|------|--------|------|
+| 19. PR review comments | Check/fix automated comments immediately | 5-10 min |
+| 13. Bug fixes | Complete 6-step process | 30-60 min |
+| 18. Tool descriptions | Verify [Description] matches behavior | Per change |
+
+**Rare/Specialized:**
+| Rule | Action | When |
+|------|--------|------|
+| 11. No test refs | Production NEVER references tests | Architecture review |
+| 4. Instructions | Update after significant work | After major features |
+
+---
+
 ## Rule 0: Success Flag Must Match Reality (CRITICAL)
 
 **NEVER set `Success = true` when `ErrorMessage` is set. This is EXTREMELY serious!**
