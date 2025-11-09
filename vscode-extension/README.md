@@ -1,6 +1,5 @@
 # Excel MCP Server - AI-Powered Excel Automation
 
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/sbroenne.excel-mcp?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/sbroenne.excel-mcp)](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)
 [![GitHub](https://img.shields.io/badge/GitHub-sbroenne%2Fmcp--server--excel-blue)](https://github.com/sbroenne/mcp-server-excel)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
