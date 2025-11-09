@@ -22,7 +22,7 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         if (args.Length < 2)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-list <file.xlsx>");
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-list <file.xlsx> [--batch-id <id>]");
             return 1;
         }
 
@@ -32,12 +32,8 @@ public class PowerQueryCommands : IPowerQueryCommands
         PowerQueryListResult result;
         try
         {
-            var task = Task.Run(async () =>
-            {
-                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-                return await _coreCommands.ListAsync(batch);
-            });
-            result = task.GetAwaiter().GetResult();
+            result = CommandHelper.WithBatchAsync(args, filePath, save: false,
+                async (batch) => await _coreCommands.ListAsync(batch));
         }
         catch (Exception ex)
         {

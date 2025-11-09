@@ -16,46 +16,50 @@ public class SheetCommands : ISheetCommands
     {
         if (args.Length < 2)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] sheet-list <file.xlsx>");
+            AnsiConsole.MarkupLine("[red]Usage:[/] sheet-list <file.xlsx> [--batch-id <id>]");
             return 1;
         }
 
         var filePath = args[1];
         AnsiConsole.MarkupLine($"[bold]Worksheets in:[/] {Path.GetFileName(filePath)}\n");
 
-        // Use batch-of-one pattern for Core async API
-        var task = Task.Run(async () =>
+        // Use CommandHelper to support both batch and non-batch mode
+        try
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ListAsync(batch);
-        });
-        var result = task.GetAwaiter().GetResult();
+            var result = CommandHelper.WithBatchAsync(args, filePath, save: false,
+                async (batch) => await _coreCommands.ListAsync(batch));
 
-        if (result.Success)
-        {
-            if (result.Worksheets.Count > 0)
+            if (result.Success)
             {
-                var table = new Table();
-                table.AddColumn("[bold]Index[/]");
-                table.AddColumn("[bold]Worksheet Name[/]");
-
-                foreach (var sheet in result.Worksheets)
+                if (result.Worksheets.Count > 0)
                 {
-                    table.AddRow(sheet.Index.ToString(System.Globalization.CultureInfo.InvariantCulture), sheet.Name.EscapeMarkup());
-                }
+                    var table = new Table();
+                    table.AddColumn("[bold]Index[/]");
+                    table.AddColumn("[bold]Worksheet Name[/]");
 
-                AnsiConsole.Write(table);
-                AnsiConsole.MarkupLine($"\n[dim]Found {result.Worksheets.Count} worksheet(s)[/]");
+                    foreach (var sheet in result.Worksheets)
+                    {
+                        table.AddRow(sheet.Index.ToString(System.Globalization.CultureInfo.InvariantCulture), sheet.Name.EscapeMarkup());
+                    }
+
+                    AnsiConsole.Write(table);
+                    AnsiConsole.MarkupLine($"\n[dim]Found {result.Worksheets.Count} worksheet(s)[/]");
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine("[yellow]No worksheets found[/]");
+                }
+                return 0;
             }
             else
             {
-                AnsiConsole.MarkupLine("[yellow]No worksheets found[/]");
+                AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+                return 1;
             }
-            return 0;
         }
-        else
+        catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
             return 1;
         }
     }
@@ -64,30 +68,32 @@ public class SheetCommands : ISheetCommands
     {
         if (args.Length < 3)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] sheet-create <file.xlsx> <sheet-name>");
+            AnsiConsole.MarkupLine("[red]Usage:[/] sheet-create <file.xlsx> <sheet-name> [--batch-id <id>]");
             return 1;
         }
 
         var filePath = args[1];
         var sheetName = args[2];
 
-        var task = Task.Run(async () =>
+        try
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var createResult = await _coreCommands.CreateAsync(batch, sheetName);
-            await batch.SaveAsync();
-            return createResult;
-        });
-        var result = task.GetAwaiter().GetResult();
+            var result = CommandHelper.WithBatchAsync(args, filePath, save: true,
+                async (batch) => await _coreCommands.CreateAsync(batch, sheetName));
 
-        if (result.Success)
-        {
-            AnsiConsole.MarkupLine($"[green]✓[/] Created worksheet '{sheetName.EscapeMarkup()}'");
-            return 0;
+            if (result.Success)
+            {
+                AnsiConsole.MarkupLine($"[green]✓[/] Created worksheet '{sheetName.EscapeMarkup()}'");
+                return 0;
+            }
+            else
+            {
+                AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+                return 1;
+            }
         }
-        else
+        catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
             return 1;
         }
     }
