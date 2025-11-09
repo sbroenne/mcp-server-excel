@@ -179,13 +179,13 @@ public partial class PivotTableCommands
         {
             dynamic? pivot = null;
             dynamic? pivotCache = null;
+            dynamic? cubeFields = null;
             dynamic? pivotFields = null;
 
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
                 pivotCache = pivot.PivotCache;
-                pivotFields = pivot.PivotFields;
 
                 // Get basic info with defensive error handling (properties can throw on Data Model sources)
                 var info = new PivotTableInfo
@@ -237,45 +237,29 @@ public partial class PivotTableCommands
                     info.LastRefresh = null;
                 }
 
-                // Get field details
-                var fields = new List<PivotFieldInfo>();
-                for (int i = 1; i <= pivotFields.Count; i++)
+                // Get field details - use OLAP detection
+                List<PivotFieldInfo> fields;
+                bool isOlap = false;
+                try
                 {
-                    dynamic? field = null;
-                    try
-                    {
-                        field = pivotFields.Item(i);
-                        int orientation = Convert.ToInt32(field.Orientation);
+                    cubeFields = pivot.CubeFields;
+                    isOlap = cubeFields != null && cubeFields.Count > 0;
+                }
+                catch
+                {
+                    isOlap = false;
+                }
 
-                        var fieldInfo = new PivotFieldInfo
-                        {
-                            Name = field.SourceName?.ToString() ?? field.Name?.ToString() ?? $"Field{i}",
-                            CustomName = field.Caption?.ToString() ?? string.Empty,
-                            Area = orientation switch
-                            {
-                                XlPivotFieldOrientation.xlRowField => PivotFieldArea.Row,
-                                XlPivotFieldOrientation.xlColumnField => PivotFieldArea.Column,
-                                XlPivotFieldOrientation.xlPageField => PivotFieldArea.Filter,
-                                XlPivotFieldOrientation.xlDataField => PivotFieldArea.Value,
-                                _ => PivotFieldArea.Hidden
-                            },
-                            Position = orientation != XlPivotFieldOrientation.xlHidden ? Convert.ToInt32(field.Position) : 0,
-                            DataType = DetectFieldDataType(field)
-                        };
-
-                        // Get function for value fields
-                        if (orientation == XlPivotFieldOrientation.xlDataField)
-                        {
-                            int comFunction = Convert.ToInt32(field.Function);
-                            fieldInfo.Function = GetAggregationFunctionFromCom(comFunction);
-                        }
-
-                        fields.Add(fieldInfo);
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref field);
-                    }
+                if (isOlap)
+                {
+                    // OLAP/Data Model PivotTable - use CubeFields
+                    fields = GetCubeFieldsInfo(cubeFields);
+                }
+                else
+                {
+                    // Regular PivotTable - use PivotFields
+                    pivotFields = pivot.PivotFields;
+                    fields = GetRegularFieldsInfo(pivotFields);
                 }
 
                 return new PivotTableInfoResult
@@ -297,11 +281,154 @@ public partial class PivotTableCommands
             }
             finally
             {
+                ComUtilities.Release(ref cubeFields);
                 ComUtilities.Release(ref pivotFields);
                 ComUtilities.Release(ref pivotCache);
                 ComUtilities.Release(ref pivot);
             }
         });
+    }
+
+    /// <summary>
+    /// Gets field info from CubeFields (OLAP/Data Model PivotTables)
+    /// </summary>
+    private static List<PivotFieldInfo> GetCubeFieldsInfo(dynamic cubeFields)
+    {
+        var fields = new List<PivotFieldInfo>();
+
+        try
+        {
+            int fieldCount = cubeFields.Count;
+
+            for (int i = 1; i <= fieldCount; i++)
+            {
+                dynamic? cubeField = null;
+                try
+                {
+                    cubeField = cubeFields.Item(i);
+
+                    string fieldName;
+                    try
+                    {
+                        fieldName = cubeField.Name?.ToString() ?? $"CubeField{i}";
+                    }
+                    catch
+                    {
+                        fieldName = $"CubeField{i}";
+                    }
+
+                    // Get orientation from PivotField if it exists
+                    int orientation = XlPivotFieldOrientation.xlHidden;
+                    try
+                    {
+                        dynamic? pivotField = cubeField.PivotFields?.Item(1);
+                        if (pivotField != null)
+                        {
+                            orientation = Convert.ToInt32(pivotField.Orientation);
+                            ComUtilities.Release(ref pivotField);
+                        }
+                    }
+                    catch
+                    {
+                        orientation = XlPivotFieldOrientation.xlHidden;
+                    }
+
+                    var fieldInfo = new PivotFieldInfo
+                    {
+                        Name = fieldName,
+                        Area = orientation switch
+                        {
+                            XlPivotFieldOrientation.xlRowField => PivotFieldArea.Row,
+                            XlPivotFieldOrientation.xlColumnField => PivotFieldArea.Column,
+                            XlPivotFieldOrientation.xlPageField => PivotFieldArea.Filter,
+                            XlPivotFieldOrientation.xlDataField => PivotFieldArea.Value,
+                            _ => PivotFieldArea.Hidden
+                        },
+                        CustomName = string.Empty,
+                        Position = 0,
+                        DataType = "Cube"
+                    };
+
+                    fields.Add(fieldInfo);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Warning: Failed to read cube field {i}: {ex.Message}");
+                }
+                finally
+                {
+                    ComUtilities.Release(ref cubeField);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Warning: Failed to enumerate cube fields: {ex.Message}");
+        }
+
+        return fields;
+    }
+
+    /// <summary>
+    /// Gets field info from PivotFields (regular PivotTables)
+    /// </summary>
+    private static List<PivotFieldInfo> GetRegularFieldsInfo(dynamic pivotFields)
+    {
+        var fields = new List<PivotFieldInfo>();
+
+        try
+        {
+            int fieldCount = pivotFields.Count;
+
+            for (int i = 1; i <= fieldCount; i++)
+            {
+                dynamic? field = null;
+                try
+                {
+                    field = pivotFields.Item(i);
+                    int orientation = Convert.ToInt32(field.Orientation);
+
+                    var fieldInfo = new PivotFieldInfo
+                    {
+                        Name = field.SourceName?.ToString() ?? field.Name?.ToString() ?? $"Field{i}",
+                        CustomName = field.Caption?.ToString() ?? string.Empty,
+                        Area = orientation switch
+                        {
+                            XlPivotFieldOrientation.xlRowField => PivotFieldArea.Row,
+                            XlPivotFieldOrientation.xlColumnField => PivotFieldArea.Column,
+                            XlPivotFieldOrientation.xlPageField => PivotFieldArea.Filter,
+                            XlPivotFieldOrientation.xlDataField => PivotFieldArea.Value,
+                            _ => PivotFieldArea.Hidden
+                        },
+                        Position = orientation != XlPivotFieldOrientation.xlHidden ? Convert.ToInt32(field.Position) : 0,
+                        DataType = DetectFieldDataType(field)
+                    };
+
+                    // Get function for value fields
+                    if (orientation == XlPivotFieldOrientation.xlDataField)
+                    {
+                        int comFunction = Convert.ToInt32(field.Function);
+                        fieldInfo.Function = GetAggregationFunctionFromCom(comFunction);
+                    }
+
+                    fields.Add(fieldInfo);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Warning: Failed to read field {i}: {ex.Message}");
+                }
+                finally
+                {
+                    ComUtilities.Release(ref field);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Warning: Failed to enumerate pivot fields: {ex.Message}");
+        }
+
+        return fields;
     }
 
     /// <summary>

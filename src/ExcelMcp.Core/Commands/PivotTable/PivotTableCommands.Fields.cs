@@ -313,15 +313,16 @@ public partial class PivotTableCommands
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Validate field exists
+                // Get field using OLAP-aware helper
+                bool isOlap;
                 try
                 {
-                    field = pivot.PivotFields.Item(fieldName);
+                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     var availableFields = GetFieldNames(pivot);
-                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}");
+                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}", ex);
                 }
 
                 // Check if field is already placed
@@ -355,8 +356,8 @@ public partial class PivotTableCommands
                     CustomName = field.Caption?.ToString() ?? fieldName,
                     Area = PivotFieldArea.Row,
                     Position = Convert.ToInt32(field.Position),
-                    DataType = DetectFieldDataType(field),
-                    AvailableValues = GetFieldUniqueValues(field),
+                    DataType = isOlap ? "Cube" : DetectFieldDataType(field),
+                    AvailableValues = isOlap ? new List<string>() : GetFieldUniqueValues(field),
                     FilePath = batch.WorkbookPath
                 };
             }
@@ -392,15 +393,16 @@ public partial class PivotTableCommands
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Validate field exists
+                // Get field using OLAP-aware helper
+                bool isOlap;
                 try
                 {
-                    field = pivot.PivotFields.Item(fieldName);
+                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     var availableFields = GetFieldNames(pivot);
-                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}");
+                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}", ex);
                 }
 
                 // Check if field is already placed
@@ -434,8 +436,8 @@ public partial class PivotTableCommands
                     CustomName = field.Caption?.ToString() ?? fieldName,
                     Area = PivotFieldArea.Column,
                     Position = Convert.ToInt32(field.Position),
-                    DataType = DetectFieldDataType(field),
-                    AvailableValues = GetFieldUniqueValues(field),
+                    DataType = isOlap ? "Cube" : DetectFieldDataType(field),
+                    AvailableValues = isOlap ? new List<string>() : GetFieldUniqueValues(field),
                     FilePath = batch.WorkbookPath
                 };
             }
@@ -472,20 +474,21 @@ public partial class PivotTableCommands
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Validate field exists
+                // Get field using OLAP-aware helper
+                bool isOlap;
                 try
                 {
-                    field = pivot.PivotFields.Item(fieldName);
+                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     var availableFields = GetFieldNames(pivot);
-                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}");
+                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}", ex);
                 }
 
-                // Validate aggregation function for field data type
-                string dataType = DetectFieldDataType(field);
-                if (!IsValidAggregationForDataType(aggregationFunction, dataType))
+                // Validate aggregation function for field data type (skip for OLAP - harder to detect)
+                string dataType = isOlap ? "Cube" : DetectFieldDataType(field);
+                if (!isOlap && !IsValidAggregationForDataType(aggregationFunction, dataType))
                 {
                     var validFunctions = GetValidAggregationsForDataType(dataType);
                     throw new InvalidOperationException($"Aggregation function '{aggregationFunction}' is not valid for {dataType} field '{fieldName}'. Valid functions: {string.Join(", ", validFunctions)}");
@@ -551,15 +554,16 @@ public partial class PivotTableCommands
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Validate field exists
+                // Get field using OLAP-aware helper
+                bool isOlap;
                 try
                 {
-                    field = pivot.PivotFields.Item(fieldName);
+                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     var availableFields = GetFieldNames(pivot);
-                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}");
+                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}", ex);
                 }
 
                 // Check if field is already placed
@@ -589,8 +593,8 @@ public partial class PivotTableCommands
                     CustomName = field.Caption?.ToString() ?? fieldName,
                     Area = PivotFieldArea.Filter,
                     Position = Convert.ToInt32(field.Position),
-                    DataType = DetectFieldDataType(field),
-                    AvailableValues = GetFieldUniqueValues(field),
+                    DataType = isOlap ? "Cube" : DetectFieldDataType(field),
+                    AvailableValues = isOlap ? new List<string>() : GetFieldUniqueValues(field),
                     FilePath = batch.WorkbookPath
                 };
             }
@@ -626,15 +630,16 @@ public partial class PivotTableCommands
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Validate field exists
+                // Get field using OLAP-aware helper
+                bool isOlap;
                 try
                 {
-                    field = pivot.PivotFields.Item(fieldName);
+                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     var availableFields = GetFieldNames(pivot);
-                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}");
+                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}", ex);
                 }
 
                 // Check if field is currently placed
@@ -775,7 +780,10 @@ public partial class PivotTableCommands
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
-                field = pivot.PivotFields.Item(fieldName);
+
+                // Get field using OLAP-aware helper
+                bool isOlap;
+                field = GetFieldForManipulation(pivot, fieldName, out isOlap);
 
                 // Set custom name
                 field.Caption = customName;
