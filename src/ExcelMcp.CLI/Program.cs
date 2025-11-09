@@ -48,11 +48,17 @@ internal sealed class Program
             var table = new CliTableCommands();
             var pivot = new PivotTableCommands();
             var queryTable = new QueryTableCommands();
+            var batch = new BatchCommands();
 
             return args[0].ToLowerInvariant() switch
             {
                 // Version and help commands
                 "--version" or "-v" or "version" => ShowVersion(),
+
+                // Batch commands
+                "batch-begin" => batch.Begin(args),
+                "batch-commit" => batch.Commit(args),
+                "batch-list" => batch.List(args),
 
                 // File commands
                 "create-empty" => file.CreateEmpty(args),
@@ -358,6 +364,13 @@ internal sealed class Program
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold]Usage:[/] excelcli command args");
+        AnsiConsole.WriteLine();
+
+        AnsiConsole.MarkupLine("[bold yellow]Batch Commands (75-90% faster for multi-operation workflows):[/]");
+        AnsiConsole.MarkupLine("  [cyan]batch-begin[/] file.xlsx                       Start batch session, returns batch-id");
+        AnsiConsole.MarkupLine("  [cyan]batch-commit[/] batch-id [[--no-save]]          Commit batch session (saves by default)");
+        AnsiConsole.MarkupLine("  [cyan]batch-list[/]                                  List active batch sessions");
+        AnsiConsole.MarkupLine("  [dim]Use --batch-id with any command for multi-operation workflows[/]");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]File Commands:[/]");
