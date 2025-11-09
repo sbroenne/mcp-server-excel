@@ -90,4 +90,60 @@ public class ToolDiscoveryTests
         // Assert
         Assert.NotNull(attribute);
     }
+
+    /// <summary>
+    /// Tests that all expected tools are discoverable via assembly scanning,
+    /// simulating what the MCP SDK's WithToolsFromAssembly() does.
+    /// This catches issues like partial classes that prevent runtime discovery.
+    /// </summary>
+    [Fact]
+    public void AssemblyScan_DiscoversAllExpectedTools()
+    {
+        // Arrange - Expected tool names that should be discoverable
+        var expectedToolNames = new HashSet<string>
+        {
+            "excel_batch",
+            "excel_connection",
+            "excel_datamodel",
+            "excel_file",
+            "excel_namedrange",
+            "excel_pivottable",  // This is the critical one that was failing
+            "excel_powerquery",
+            "excel_querytable",
+            "excel_range",
+            "excel_table",
+            "excel_vba",
+            "excel_worksheet"
+        };
+
+        // Act - Scan assembly for tool types (simulating MCP SDK behavior)
+        var assembly = typeof(ExcelPivotTableTool).Assembly;
+        var toolTypes = assembly.GetTypes()
+            .Where(t => t.GetCustomAttribute<McpServerToolTypeAttribute>() != null)
+            .ToList();
+
+        // Extract tool names from discovered types
+        var discoveredToolNames = new HashSet<string>();
+        foreach (var toolType in toolTypes)
+        {
+            var methods = toolType.GetMethods(BindingFlags.Public | BindingFlags.Static);
+            foreach (var method in methods)
+            {
+                var toolAttr = method.GetCustomAttribute<McpServerToolAttribute>();
+                if (toolAttr?.Name != null)
+                {
+                    discoveredToolNames.Add(toolAttr.Name);
+                }
+            }
+        }
+
+        // Assert - All expected tools must be discovered
+        Assert.Equal(expectedToolNames.Count, discoveredToolNames.Count);
+
+        var missingTools = expectedToolNames.Except(discoveredToolNames).ToList();
+        Assert.Empty(missingTools); // This would have failed before the fix!
+
+        var unexpectedTools = discoveredToolNames.Except(expectedToolNames).ToList();
+        Assert.Empty(unexpectedTools);
+    }
 }
