@@ -4,7 +4,7 @@ layout: default
 
 <div class="hero">
   <div class="container">
-    <img src="{{ '/assets/images/icon.png' | relative_url }}" alt="Excel MCP Server" class="hero-icon">
+    <img src="{{ '/assets/images/icon.png' | relative_url }}" alt="Excel MCP Server - AI-powered Excel automation showing a table with green gradient background" class="hero-icon">
     <h1>Excel MCP Server</h1>
     <p class="subtitle">Control Microsoft Excel with Natural Language through AI assistants like GitHub Copilot and Claude</p>
   </div>
@@ -113,10 +113,10 @@ Think of Excel as an AI-powered REPL - write code (Power Query M, DAX, VBA), exe
 
 ## Documentation
 
-- [GitHub Repository](https://github.com/sbroenne/mcp-server-excel)
-- [Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md)
-- [Contributing Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/CONTRIBUTING.md)
-- [API Reference](https://github.com/sbroenne/mcp-server-excel/tree/main/docs)
+- [Excel MCP Server source code on GitHub](https://github.com/sbroenne/mcp-server-excel)
+- [Step-by-step installation instructions for VS Code, CLI, and MCP Server](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md)
+- [How to contribute to Excel MCP Server development](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/CONTRIBUTING.md)
+- [Complete API documentation and developer guides](https://github.com/sbroenne/mcp-server-excel/tree/main/docs)
 
 ## Examples
 
@@ -196,10 +196,10 @@ Same 165 operations available via CLI and MCP. Consistent behavior across interf
 
 ## Related Projects
 
-- [Model Context Protocol](https://modelcontextprotocol.io/) - The protocol specification
-- [MCP Servers](https://github.com/modelcontextprotocol/servers) - Official MCP server examples
-- [Claude Desktop](https://claude.ai/download) - AI assistant with MCP support
-- [GitHub Copilot](https://github.com/features/copilot) - AI coding assistant
+- [Model Context Protocol specification and documentation](https://modelcontextprotocol.io/)
+- [Official MCP server examples and implementations](https://github.com/modelcontextprotocol/servers)
+- [Download Claude Desktop AI assistant with MCP support](https://claude.ai/download)
+- [GitHub Copilot AI coding assistant](https://github.com/features/copilot)
 
 ## Keywords
 
@@ -212,6 +212,6 @@ Excel automation, MCP server, Model Context Protocol, GitHub Copilot, Claude AI,
 <footer>
 <div class="container">
 <p><strong>Excel MCP Server</strong> - MIT License</p>
-<p><a href="https://github.com/sbroenne/mcp-server-excel">GitHub Repository</a> | <a href="https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md">Installation Guide</a> | <a href="https://github.com/sbroenne/mcp-server-excel/blob/main/docs/CONTRIBUTING.md">Contributing</a></p>
+<p><a href="https://github.com/sbroenne/mcp-server-excel" title="View Excel MCP Server source code and documentation">GitHub Repository</a> | <a href="https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md" title="Installation instructions for Windows, VS Code, and CLI">Installation Guide</a> | <a href="https://github.com/sbroenne/mcp-server-excel/blob/main/docs/CONTRIBUTING.md" title="Learn how to contribute to Excel MCP Server">Contributing</a></p>
 </div>
 </footer>
