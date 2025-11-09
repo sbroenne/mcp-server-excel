@@ -95,7 +95,7 @@ public class BatchCommands
     {
         if (args.Length < 2)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] batch-commit <batch-id> [--no-save]");
+            AnsiConsole.MarkupLine("[red]Usage:[/] batch-commit <batch-id> [[--no-save]]");
             return 1;
         }
 
