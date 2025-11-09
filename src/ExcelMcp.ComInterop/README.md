@@ -4,7 +4,7 @@
 
 ## Overview
 
-`Sbroenne.ExcelMcp.ComInterop` is a reusable library providing robust COM object lifecycle management and OLE message filtering for Excel automation. It's the foundation layer for ExcelMcp projects but can be used independently in any .NET application that automates Excel via COM interop.
+This is a reusable library providing robust COM object lifecycle management and OLE message filtering for Excel automation. It's the foundation layer for ExcelMcp projects but can be used independently in any .NET application that automates Excel via COM interop.
 
 ## Features
 
@@ -13,12 +13,6 @@
 - **OLE Message Filtering** - Handles busy/rejected COM calls with retry logic using Polly
 - **Excel Session Management** - Manages Excel.Application lifecycle safely
 - **Batch Operations** - Efficient handling of multiple Excel operations in a single session
-
-## Installation
-
-```bash
-dotnet add package Sbroenne.ExcelMcp.ComInterop
-```
 
 ## Usage Example
 
@@ -64,16 +58,3 @@ await batch.SaveAsync();
 - ❌ Linux (Excel COM not available)
 - ❌ macOS (Excel COM not available)
 
-## Related Packages
-
-- **Sbroenne.ExcelMcp.Core** - High-level Excel automation commands
-- **Sbroenne.ExcelMcp.McpServer** - MCP server for AI assistant integration
-- **Sbroenne.ExcelMcp.CLI** - Command-line tool for Excel automation
-
-## License
-
-MIT License - see LICENSE file for details.
-
-## Repository
-
-https://github.com/sbroenne/mcp-server-excel
