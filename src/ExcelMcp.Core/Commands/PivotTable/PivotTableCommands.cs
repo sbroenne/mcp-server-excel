@@ -362,18 +362,25 @@ public partial class PivotTableCommands : IPivotTableCommands
                         // We can still return a reference that will work for adding the field
                         // The field operations will create the PivotField when setting orientation
                         ComUtilities.Release(ref pivotFields);
+                        // DON'T release cubeField - caller needs it to stay alive!
                         return cubeField; // Return CubeField, operations will adapt
                     }
 
                     // Return the first PivotField (there's typically only one per CubeField)
+                    // CRITICAL: Don't release cubeField! The pivotField depends on cubeField staying alive.
+                    // Releasing cubeField here causes "COM object separated from RCW" errors.
                     dynamic pivotField = pivotFields.Item(1);
                     ComUtilities.Release(ref pivotFields);
+                    // Don't release cubeField - the returned pivotField needs it!
                     return pivotField;
                 }
                 finally
                 {
-                    if (cubeField != null)
-                        ComUtilities.Release(ref cubeField);
+                    // Only release cubeField if we didn't return it or a child object
+                    // Since we return either cubeField or pivotField (which depends on cubeField),
+                    // we should NOT release cubeField here
+                    // if (cubeField != null)
+                    //     ComUtilities.Release(ref cubeField);
                 }
             }
             else

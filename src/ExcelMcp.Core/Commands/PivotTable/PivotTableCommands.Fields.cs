@@ -642,15 +642,79 @@ public partial class PivotTableCommands
                     throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}", ex);
                 }
 
-                // Check if field is currently placed
-                int currentOrientation = Convert.ToInt32(field.Orientation);
-                if (currentOrientation == XlPivotFieldOrientation.xlHidden)
+                if (isOlap)
                 {
-                    throw new InvalidOperationException($"Field '{fieldName}' is not currently placed in any area");
-                }
+                    // For OLAP, GetFieldForManipulation returns either CubeField or PivotField
+                    // We need to determine which and handle appropriately
 
-                // Remove from area
-                field.Orientation = XlPivotFieldOrientation.xlHidden;
+                    // Try to access CubeField property - if it exists, this is a PivotField
+                    bool isPivotField = false;
+                    try
+                    {
+                        var _ = field.CubeField; // If this succeeds, it's a PivotField
+                        isPivotField = true;
+                    }
+                    catch
+                    {
+                        isPivotField = false;
+                    }
+
+                    if (isPivotField)
+                    {
+                        // This is a PivotField from CubeField.PivotFields - set orientation
+                        int currentOrientation = Convert.ToInt32(field.Orientation);
+                        if (currentOrientation == XlPivotFieldOrientation.xlHidden)
+                        {
+                            throw new InvalidOperationException($"Field '{fieldName}' is not currently placed in any area");
+                        }
+                        field.Orientation = XlPivotFieldOrientation.xlHidden;
+                    }
+                    else
+                    {
+                        // This is a CubeField - remove it from the PivotTable
+                        // For OLAP, removing means clearing all associated PivotFields
+                        dynamic? pivotFields = null;
+                        try
+                        {
+                            pivotFields = field.PivotFields;
+                            if (pivotFields != null && pivotFields.Count > 0)
+                            {
+                                // Clear orientation on all PivotFields
+                                for (int i = 1; i <= pivotFields.Count; i++)
+                                {
+                                    dynamic? pf = null;
+                                    try
+                                    {
+                                        pf = pivotFields.Item(i);
+                                        int currentOrientation = Convert.ToInt32(pf.Orientation);
+                                        if (currentOrientation != XlPivotFieldOrientation.xlHidden)
+                                        {
+                                            pf.Orientation = XlPivotFieldOrientation.xlHidden;
+                                        }
+                                    }
+                                    finally
+                                    {
+                                        ComUtilities.Release(ref pf);
+                                    }
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref pivotFields);
+                        }
+                    }
+                }
+                else
+                {
+                    // Regular PivotTable - set orientation to hidden
+                    int currentOrientation = Convert.ToInt32(field.Orientation);
+                    if (currentOrientation == XlPivotFieldOrientation.xlHidden)
+                    {
+                        throw new InvalidOperationException($"Field '{fieldName}' is not currently placed in any area");
+                    }
+                    field.Orientation = XlPivotFieldOrientation.xlHidden;
+                }
 
                 // Refresh
                 pivot.RefreshTable();
