@@ -6,6 +6,18 @@ applyTo: "**"
 
 > **⚠️ NON-NEGOTIABLE rules for all ExcelMcp development**
 
+## Rule 20: Never Commit Automatically (CRITICAL)
+
+**NEVER commit or push code automatically. All commits, pushes, and merges must require explicit user approval.**
+
+**Why Critical:** Prevents accidental changes, enforces review, and ensures user control over all repository modifications.
+
+**Enforcement:**
+- All automated tools, scripts, and agents must prompt for user approval before any commit, push, or merge.
+- No background or silent commits allowed.
+- Document this rule in all agent and automation instructions.
+
+
 ## Quick Reference (Grouped by Context)
 
 **Note:** Rules below are grouped by when you need them, not by number. Detailed rules follow in numeric order (0-19).

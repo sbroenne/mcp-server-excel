@@ -17,11 +17,18 @@
 
 **Automate Excel with AI - A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.**
 
-Talk to Excel using GitHub Copilot or Claude to automate Power Query M code, Power Pivot DAX measures, PivotTables, Excel Tables, formatting, data transformations, and complex analysis - all through natural language commands. No programming required. Built on Excel's native COM API for zero risk of file corruption.
+**ExcelMcp** is a comprehensive Excel automation toolkit with two interfaces:
+
+1. **MCP Server**: Enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands
+2. **CLI Tool**: Provides direct command-line control for scripting, RPA, and CI/CD workflows
+
+Both share the same core functionality: automate Power Query, DAX measures, VBA macros, PivotTables, formatting, and data transformations. Choose MCP for AI-powered conversations or CLI for programmatic control - no Excel programming knowledge required. Built on Excel's native COM API for zero risk of file corruption.
+
+**💡 Interactive Development:** Unlike file-based tools, ExcelMcp lets you see results instantly in Excel - create a query, run it, inspect the output, refine and repeat. Excel becomes your interactive workspace for rapid development and testing.
 
 ## 🤔 What is This?
 
-**ExcelMcp connects AI assistants (GitHub Copilot, Claude) to Microsoft Excel for hands-free automation of complex Excel tasks.**
+**Use natural language OR command-line to automate complex Excel tasks - your choice.**
 
 Stop manually clicking through Excel menus for repetitive tasks. Instead, describe what you want in plain English:
 
@@ -61,9 +68,11 @@ Result: A professionally optimized Power Query with documented improvements
 
 Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), ExcelMcp uses **Excel's official COM API**. This ensures:
 - ✅ **Zero risk of document corruption** - Excel handles all file operations safely
-- ✅ **Interactive development** - See changes in real-time as you work with live Excel files
+- ✅ **Interactive development** - See changes in real-time, create → test → refine → iterate instantly
 - ✅ **Timeout protection** - Built-in safeguards prevent indefinite hangs (2-min default, 5-min max)
 - ✅ **Comprehensive automation** - Currently supports 166 operations across 11 specialized tools covering Power Query, Data Model/DAX, VBA, PivotTables, Excel Tables, ranges, and more
+
+**💻 For Developers:** Think of Excel as an AI-powered REPL - write code (Power Query M, DAX, VBA), execute instantly, inspect results visually in the live workbook. No more blind editing of .xlsx files.
 
 **🔧 Advanced Features:**
 - **Batch Operations** - Group multiple operations in a single Excel session for 75-90% faster execution

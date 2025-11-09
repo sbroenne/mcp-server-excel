@@ -19,7 +19,7 @@ Unlike third-party libraries that manipulate `.xlsx` files (risking corruption),
 
 ## 🚀 Installation
 
-Install the [ExcelMcp VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excelmcp) for one-click setup with GitHub Copilot.
+Install the [ExcelMcp VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) for one-click setup with GitHub Copilot.
 
 For other MCP clients or manual configuration, see the [Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md).
 
@@ -74,7 +74,7 @@ For other MCP clients or manual configuration, see the [Installation Guide](http
 
 - **[GitHub Repository](https://github.com/sbroenne/mcp-server-excel)** - Source code, issues, discussions
 - **[Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md)** - Detailed setup for all platforms
-- **[VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excelmcp)** - One-click installation
+- **[VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)** - One-click installation
 - **[CLI Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)** - Comprehensive commands for RPA and CI/CD automation
 
 **License:** MIT  

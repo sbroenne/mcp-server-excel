@@ -23,8 +23,8 @@
     <!-- Package-specific properties -->
     <PackageId>Sbroenne.ExcelMcp.CLI</PackageId>
     <Title>Sbroenne ExcelMcp Command-Line Interface</Title>
-    <Description>A command-line interface tool for automating Microsoft Excel operations using COM interop by Sbroenne. Designed for coding agents like GitHub Copilot to programmatically manage Excel workbooks, Power Query queries, worksheets, and named ranges. Supports Windows x64 and ARM64. Includes 89+ commands for Excel automation.</Description>
-    <PackageTags>excel;cli;powerquery;automation;com;coding-agent;github-copilot;mcp;arm64;windows;dotnet-tool;sbroenne</PackageTags>
+    <Description>Command-line interface tool for automating Microsoft Excel operations using COM interop by Sbroenne. 165 operations across Power Query M code, Power Pivot DAX measures, VBA macros, PivotTables, Excel Tables, ranges, formatting, data validation, and connections. Perfect for RPA, CI/CD pipelines, scripting (PowerShell/Bash), and batch processing. Windows x64 and ARM64 support.</Description>
+    <PackageTags>excel;cli;powerquery;dax;power-pivot;automation;com;rpa;ci-cd;scripting;github-copilot;mcp;windows;dotnet-tool;sbroenne;excel-automation;vba;pivottables;excel-tables;batch-processing;devops</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>See https://github.com/sbroenne/mcp-server-excel/releases for release notes</PackageReleaseNotes>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
