@@ -8,6 +8,8 @@
 
 Control Microsoft Excel from your terminal - manage worksheets, Power Query M code, DAX measures, PivotTables, Excel Tables, VBA macros, and more. Perfect for CI/CD pipelines, automated testing, and reproducible Excel workflows.
 
+➡️ **[Learn more and see examples](https://sbroenne.github.io/mcp-server-excel/)**
+
 ---
 
 ## 🚀 Quick Start

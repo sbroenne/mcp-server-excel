@@ -66,6 +66,8 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 
 **That's it!** The extension automatically installs .NET 8 runtime and includes a bundled MCP server.
 
+➡️ **[Learn more and see examples](https://sbroenne.github.io/mcp-server-excel/)**
+
 ## Requirements
 
 - **Windows OS** - Excel COM automation requires Windows
