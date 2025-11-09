@@ -18,7 +18,7 @@ applyTo: "**/*.md,docs/**,specs/**"
 **Purpose:** How things work, how to use them, architectural decisions
 
 **Categories:**
-- **User Guides:** `CLI.md`, `CONTRIBUTING.md`
+- **User Guides:** `CONTRIBUTING.md`
 - **Developer Guides:** `DEVELOPMENT.md`, `PRE-COMMIT-SETUP.md`
 - **Process Docs:** `RELEASE-STRATEGY.md`, `MCP_REGISTRY_PUBLISHING.md`, `NUGET-GUIDE.md`
 - **Architecture:** `ADR-*.md` (Architecture Decision Records)

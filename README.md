@@ -323,7 +323,7 @@ This means you get:
 
 ### CLI for Direct Automation
 
-ExcelMcp also provides a command-line interface for vba-based Excel automation (no AI required). See **[CLI Guide](docs/CLI.md)** for complete documentation.
+ExcelMcp also provides a command-line interface for Excel automation (no AI required). See **[CLI Guide](src/ExcelMcp.CLI/README.md)** for complete documentation.
 
 ### Project Information
 

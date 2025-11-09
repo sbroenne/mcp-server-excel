@@ -113,7 +113,7 @@ jobs:
         Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/*.dll" "release/ExcelMcp-CLI-$version/" -Exclude "excelcli.dll", "Sbroenne.ExcelMcp.Core.dll", "Sbroenne.ExcelMcp.ComInterop.dll"
 
         # Copy documentation
-        Copy-Item "docs/CLI.md" "release/ExcelMcp-CLI-$version/README.md"
+        Copy-Item "src/ExcelMcp.CLI/README.md" "release/ExcelMcp-CLI-$version/README.md"
         Copy-Item "LICENSE" "release/ExcelMcp-CLI-$version/"
 
         # Create quick start guide
@@ -227,7 +227,7 @@ jobs:
         $releaseNotes += "- Excel 2016+ (for COM interop)`n`n"
         $releaseNotes += "### Documentation`n"
         $releaseNotes += "- GitHub Repository: https://github.com/sbroenne/mcp-server-excel`n"
-        $releaseNotes += "- CLI Documentation: docs/CLI.md`n`n"
+        $releaseNotes += "- CLI Documentation: src/ExcelMcp.CLI/README.md`n`n"
         $releaseNotes += "### Related Tools`n"
         $releaseNotes += "- ExcelMcp MCP Server: For AI assistant integration`n"
         $releaseNotes += "- GitHub Copilot Integration: AI-assisted development workflows`n"

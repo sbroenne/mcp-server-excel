@@ -11,7 +11,7 @@
     <!-- Assembly and Namespace Configuration -->
     <AssemblyName>excelcli</AssemblyName>
     <RootNamespace>Sbroenne.ExcelMcp.CLI</RootNamespace>
-    
+
     <!-- CLI doesn't need XML documentation warnings - command usage is shown in console output -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
 
@@ -25,7 +25,7 @@
     <Title>Sbroenne ExcelMcp Command-Line Interface</Title>
     <Description>A command-line interface tool for automating Microsoft Excel operations using COM interop by Sbroenne. Designed for coding agents like GitHub Copilot to programmatically manage Excel workbooks, Power Query queries, worksheets, and named ranges. Supports Windows x64 and ARM64. Includes 89+ commands for Excel automation.</Description>
     <PackageTags>excel;cli;powerquery;automation;com;coding-agent;github-copilot;mcp;arm64;windows;dotnet-tool;sbroenne</PackageTags>
-    <PackageReadmeFile>CLI.md</PackageReadmeFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>See https://github.com/sbroenne/mcp-server-excel/releases for release notes</PackageReleaseNotes>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
@@ -49,7 +49,7 @@
 
   <ItemGroup>
     <None Include="..\..\LICENSE" Pack="true" PackagePath="" />
-    <None Include="..\..\docs\CLI.md" Pack="true" PackagePath="\" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>

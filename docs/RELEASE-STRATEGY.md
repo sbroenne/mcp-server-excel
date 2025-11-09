@@ -247,7 +247,7 @@ git push origin vscode-v1.0.5
 - **Main README.md**: MCP Server focused (AI assistant integration)
 - **src/ExcelMcp.ComInterop/README.md**: ComInterop library (low-level COM automation)
 - **src/ExcelMcp.Core/README.md**: Core library (high-level Excel commands)
-- **docs/CLI.md**: CLI focused (direct automation)
+- **src/ExcelMcp.CLI/README.md**: CLI focused (direct automation)
 - **vscode-extension/README.md**: VS Code Extension focused (developer experience)
 - **Release Notes**: Tailored to the specific component being released
 
