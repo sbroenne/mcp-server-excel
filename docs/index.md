@@ -1,8 +1,8 @@
 ---
-google-site-verification: 7BSNb2Q6rNfwdJCSGEUs9_2o3NOK09tBy4svR9A1bUg
 layout: default
 ---
 
+<meta name="google-site-verification" content="7BSNb2Q6rNfwdJCSGEUs9_2o3NOK09tBy4svR9A1bUg" />
 <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
 <link rel="icon" type="image/png" href="{{ '/assets/images/icon.png' | relative_url }}">
 
