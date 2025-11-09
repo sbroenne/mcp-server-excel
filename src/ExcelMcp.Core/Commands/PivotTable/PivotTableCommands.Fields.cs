@@ -713,7 +713,9 @@ public partial class PivotTableCommands
                 // If not found in DataFields, check PivotFields (for error reporting)
                 if (!foundInDataFields)
                 {
-                    field = pivot.PivotFields.Item(fieldName);
+                    // Use OLAP-aware helper for field access
+                    bool isOlap;
+                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
                     int orientation = Convert.ToInt32(field.Orientation);
                     if (orientation != XlPivotFieldOrientation.xlDataField)
                     {
@@ -722,8 +724,9 @@ public partial class PivotTableCommands
                 }
 
                 // Get source field for data type detection (DataFields don't have PivotItems)
-                dynamic? sourceField = pivot.PivotFields.Item(fieldName);
-                string dataType = DetectFieldDataType(sourceField);
+                bool dataTypeIsOlap;
+                dynamic? sourceField = GetFieldForManipulation(pivot, fieldName, out dataTypeIsOlap);
+                string dataType = dataTypeIsOlap ? "Cube" : DetectFieldDataType(sourceField);
                 ComUtilities.Release(ref sourceField);
                 if (!IsValidAggregationForDataType(aggregationFunction, dataType))
                 {
@@ -849,7 +852,9 @@ public partial class PivotTableCommands
                 // If not found in DataFields, check PivotFields (for error reporting)
                 if (!foundInDataFields)
                 {
-                    field = pivot.PivotFields.Item(fieldName);
+                    // Use OLAP-aware helper for field access
+                    bool isOlap;
+                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
                     int orientation = Convert.ToInt32(field.Orientation);
                     if (orientation != XlPivotFieldOrientation.xlDataField)
                     {
