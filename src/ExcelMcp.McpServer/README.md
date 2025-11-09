@@ -88,7 +88,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 - **[GitHub Repository](https://github.com/sbroenne/mcp-server-excel)** - Source code, issues, discussions
 - **[Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md)** - Detailed setup for all platforms
 - **[VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excelmcp)** - One-click installation
-- **[CLI Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)** - 109+ commands for scripting
+- **[CLI Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)** - 147 commands for scripting
 
 **License:** MIT  
 **Platform:** Windows only (requires Excel 2016+)  

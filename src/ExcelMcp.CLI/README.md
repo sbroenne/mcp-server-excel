@@ -63,23 +63,23 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **109 commands** across 12 categories:
+ExcelMcp.CLI provides **147 commands** across 12 categories:
 
 | Category | Commands | Examples |
 |----------|----------|----------|
 | **File Operations** | 1 | `create-empty` |
 | **Worksheets** | 13 | `sheet-list`, `sheet-create`, `sheet-rename`, `sheet-set-tab-color` |
 | **Power Query** | 9 | `pq-list`, `pq-create`, `pq-export`, `pq-refresh`, `pq-update-mcode` |
-| **Ranges** | 11 | `range-get-values`, `range-set-values`, `range-copy`, `range-find` |
-| **Excel Tables** | 21 | `table-create`, `table-filter`, `table-sort`, `table-add-column` |
+| **Ranges** | 44 | `range-get-values`, `range-set-values`, `range-copy`, `range-find`, `range-merge-cells`, `range-add-hyperlink` |
+| **Excel Tables** | 23 | `table-create`, `table-filter`, `table-sort`, `table-add-column`, `table-get-column-format` |
 | **PivotTables** | 12 | `pivot-create-from-range`, `pivot-add-row-field`, `pivot-refresh`, `pivot-delete` |
-| **QueryTables** | 5 | `querytable-list`, `querytable-get`, `querytable-refresh`, `querytable-delete` |
+| **QueryTables** | 8 | `querytable-list`, `querytable-get`, `querytable-refresh`, `querytable-create-from-connection` |
 | **Data Model** | 15 | `dm-create-measure`, `dm-create-relationship`, `dm-refresh` |
 | **Connections** | 11 | `conn-list`, `conn-import`, `conn-refresh`, `conn-test` |
 | **Named Ranges** | 6 | `namedrange-create`, `namedrange-get`, `namedrange-set` |
 | **VBA** | 5 | `vba-list`, `vba-import`, `vba-run`, `vba-export` |
 
-> **Note:** Command counts reflect the current implementation. Some categories may have additional commands in development.
+> **Note:** Recent expansion added 38 new commands (33 Range operations, 3 QueryTable methods, 2 Table methods). 7 PivotTable operations are planned for future releases.
 
 ---
 

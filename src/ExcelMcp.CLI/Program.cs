@@ -99,13 +99,62 @@ internal sealed class Program
                 "range-clear-contents" => range.ClearContents(args),
                 "range-clear-formats" => range.ClearFormats(args),
 
+                // Range copy operations
+                "range-copy-values" => range.CopyValues(args),
+                "range-copy-formulas" => range.CopyFormulas(args),
+
+                // Range insert/delete operations
+                "range-insert-cells" => range.InsertCells(args),
+                "range-delete-cells" => range.DeleteCells(args),
+                "range-insert-rows" => range.InsertRows(args),
+                "range-delete-rows" => range.DeleteRows(args),
+                "range-insert-columns" => range.InsertColumns(args),
+                "range-delete-columns" => range.DeleteColumns(args),
+
+                // Range find/replace/sort operations
+                "range-find" => range.Find(args),
+                "range-replace" => range.Replace(args),
+                "range-sort" => range.Sort(args),
+
+                // Range discovery operations
+                "range-get-used" => range.GetUsedRange(args),
+                "range-get-current-region" => range.GetCurrentRegion(args),
+                "range-get-info" => range.GetInfo(args),
+
+                // Range hyperlink operations
+                "range-add-hyperlink" => range.AddHyperlink(args),
+                "range-remove-hyperlink" => range.RemoveHyperlink(args),
+                "range-list-hyperlinks" => range.ListHyperlinks(args),
+                "range-get-hyperlink" => range.GetHyperlink(args),
+
                 // Range number formatting commands
                 "range-get-number-formats" => range.GetNumberFormats(args),
                 "range-set-number-format" => range.SetNumberFormat(args),
 
+                // Range style operations
+                "range-get-style" => range.GetStyle(args),
+                "range-set-style" => range.SetStyle(args),
+
                 // Range visual formatting and validation commands
                 "range-format" => range.FormatRange(args),
                 "range-validate" => range.ValidateRange(args),
+                "range-get-validation" => range.GetValidation(args),
+                "range-remove-validation" => range.RemoveValidation(args),
+
+                // Range autofit operations
+                "range-autofit-columns" => range.AutoFitColumns(args),
+                "range-autofit-rows" => range.AutoFitRows(args),
+
+                // Range merge operations
+                "range-merge-cells" => range.MergeCells(args),
+                "range-unmerge-cells" => range.UnmergeCells(args),
+                "range-get-merge-info" => range.GetMergeInfo(args),
+
+                // Range advanced operations
+                "range-set-cell-lock" => range.SetCellLock(args),
+                "range-get-cell-lock" => range.GetCellLock(args),
+                "range-add-conditional-formatting" => range.AddConditionalFormatting(args),
+                "range-clear-conditional-formatting" => range.ClearConditionalFormatting(args),
 
                 // Parameter commands
                 "namedrange-list" => param.List(args),
@@ -137,6 +186,8 @@ internal sealed class Program
                 "table-get-structured-reference" => table.GetStructuredReference(args),
                 "table-sort" => table.Sort(args),
                 "table-sort-multi" => table.SortMulti(args),
+                "table-get-column-format" => table.GetColumnNumberFormat(args),
+                "table-set-column-format" => table.SetColumnNumberFormat(args),
 
                 // PivotTable commands
                 "pivot-list" => pivot.List(args),
@@ -158,6 +209,9 @@ internal sealed class Program
                 "querytable-refresh" => queryTable.Refresh(args),
                 "querytable-refresh-all" => queryTable.RefreshAll(args),
                 "querytable-delete" => queryTable.Delete(args),
+                "querytable-create-from-connection" => queryTable.CreateFromConnection(args),
+                "querytable-create-from-query" => queryTable.CreateFromQuery(args),
+                "querytable-update-properties" => queryTable.UpdateProperties(args),
 
                 // Connection commands
                 "conn-list" => connection.List(args),
@@ -354,13 +408,62 @@ internal sealed class Program
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Range Commands (Data Operations):[/]");
+        AnsiConsole.MarkupLine("  [bold]Values & Formulas:[/]");
         AnsiConsole.MarkupLine("  [cyan]range-get-values[/] file.xlsx sheet range           Read values from range (output: CSV)");
         AnsiConsole.MarkupLine("  [cyan]range-set-values[/] file.xlsx sheet range csv       Write CSV data to range");
         AnsiConsole.MarkupLine("  [cyan]range-get-formulas[/] file.xlsx sheet range         Read formulas from range");
         AnsiConsole.MarkupLine("  [cyan]range-set-formulas[/] file.xlsx sheet range csv     Set formulas from CSV");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [bold]Clear & Copy:[/]");
         AnsiConsole.MarkupLine("  [cyan]range-clear-all[/] file.xlsx sheet range            Clear all (values, formulas, formats)");
         AnsiConsole.MarkupLine("  [cyan]range-clear-contents[/] file.xlsx sheet range       Clear contents (preserve formats)");
         AnsiConsole.MarkupLine("  [cyan]range-clear-formats[/] file.xlsx sheet range        Clear formats (preserve values)");
+        AnsiConsole.MarkupLine("  [cyan]range-copy-values[/] file.xlsx src-sheet src-range tgt-sheet tgt-range");
+        AnsiConsole.MarkupLine("  [cyan]range-copy-formulas[/] file.xlsx src-sheet src-range tgt-sheet tgt-range");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [bold]Insert & Delete:[/]");
+        AnsiConsole.MarkupLine("  [cyan]range-insert-cells[/] file.xlsx sheet range shift   Insert cells (Down|Right)");
+        AnsiConsole.MarkupLine("  [cyan]range-delete-cells[/] file.xlsx sheet range shift   Delete cells (Up|Left)");
+        AnsiConsole.MarkupLine("  [cyan]range-insert-rows[/] file.xlsx sheet range          Insert entire rows");
+        AnsiConsole.MarkupLine("  [cyan]range-delete-rows[/] file.xlsx sheet range          Delete entire rows");
+        AnsiConsole.MarkupLine("  [cyan]range-insert-columns[/] file.xlsx sheet range       Insert entire columns");
+        AnsiConsole.MarkupLine("  [cyan]range-delete-columns[/] file.xlsx sheet range       Delete entire columns");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [bold]Find, Replace & Sort:[/]");
+        AnsiConsole.MarkupLine("  [cyan]range-find[/] file.xlsx sheet range text [[--match-case]] [[--match-entire-cell]]");
+        AnsiConsole.MarkupLine("  [cyan]range-replace[/] file.xlsx sheet range find replace [[--match-case]]");
+        AnsiConsole.MarkupLine("  [cyan]range-sort[/] file.xlsx sheet range sort-spec [[--has-headers]]");
+        AnsiConsole.MarkupLine("    [dim]Example: range-sort data.xlsx Sheet1 A1:D100 \"1:asc,3:desc\"[/]");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [bold]Discovery & Info:[/]");
+        AnsiConsole.MarkupLine("  [cyan]range-get-used[/] file.xlsx sheet                   Get used range (all non-empty cells)");
+        AnsiConsole.MarkupLine("  [cyan]range-get-current-region[/] file.xlsx sheet cell    Get contiguous data block");
+        AnsiConsole.MarkupLine("  [cyan]range-get-info[/] file.xlsx sheet range             Get range metadata");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [bold]Hyperlinks:[/]");
+        AnsiConsole.MarkupLine("  [cyan]range-add-hyperlink[/] file.xlsx sheet cell url [[display]] [[tooltip]]");
+        AnsiConsole.MarkupLine("  [cyan]range-remove-hyperlink[/] file.xlsx sheet range");
+        AnsiConsole.MarkupLine("  [cyan]range-list-hyperlinks[/] file.xlsx sheet");
+        AnsiConsole.MarkupLine("  [cyan]range-get-hyperlink[/] file.xlsx sheet cell");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [bold]Styles & Validation:[/]");
+        AnsiConsole.MarkupLine("  [cyan]range-get-style[/] file.xlsx sheet range");
+        AnsiConsole.MarkupLine("  [cyan]range-set-style[/] file.xlsx sheet range style     Apply built-in style");
+        AnsiConsole.MarkupLine("  [cyan]range-get-validation[/] file.xlsx sheet range");
+        AnsiConsole.MarkupLine("  [cyan]range-remove-validation[/] file.xlsx sheet range");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [bold]Merge & AutoFit:[/]");
+        AnsiConsole.MarkupLine("  [cyan]range-merge-cells[/] file.xlsx sheet range");
+        AnsiConsole.MarkupLine("  [cyan]range-unmerge-cells[/] file.xlsx sheet range");
+        AnsiConsole.MarkupLine("  [cyan]range-get-merge-info[/] file.xlsx sheet range");
+        AnsiConsole.MarkupLine("  [cyan]range-autofit-columns[/] file.xlsx sheet range");
+        AnsiConsole.MarkupLine("  [cyan]range-autofit-rows[/] file.xlsx sheet range");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("  [bold]Advanced:[/]");
+        AnsiConsole.MarkupLine("  [cyan]range-set-cell-lock[/] file.xlsx sheet range locked  Lock/unlock cells");
+        AnsiConsole.MarkupLine("  [cyan]range-get-cell-lock[/] file.xlsx sheet range");
+        AnsiConsole.MarkupLine("  [cyan]range-add-conditional-formatting[/] file.xlsx sheet range type formula1 [[formula2]]");
+        AnsiConsole.MarkupLine("  [cyan]range-clear-conditional-formatting[/] file.xlsx sheet range");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Range Formatting Commands:[/]");
@@ -407,6 +510,8 @@ internal sealed class Program
         AnsiConsole.MarkupLine("  [cyan]table-get-structured-reference[/] file.xlsx table region [[col]]  Get ref");
         AnsiConsole.MarkupLine("  [cyan]table-sort[/] file.xlsx table col [[asc|desc]]  Sort by column");
         AnsiConsole.MarkupLine("  [cyan]table-sort-multi[/] file.xlsx table col1:asc col2:desc...  Multi-sort");
+        AnsiConsole.MarkupLine("  [cyan]table-get-column-format[/] file.xlsx table-name column  Get column number format");
+        AnsiConsole.MarkupLine("  [cyan]table-set-column-format[/] file.xlsx table-name column format  Set column format");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]PivotTable Commands:[/]");
@@ -433,6 +538,9 @@ internal sealed class Program
         AnsiConsole.MarkupLine("  [cyan]querytable-refresh[/] file.xlsx querytable-name  Refresh specific QueryTable");
         AnsiConsole.MarkupLine("  [cyan]querytable-refresh-all[/] file.xlsx            Refresh all QueryTables");
         AnsiConsole.MarkupLine("  [cyan]querytable-delete[/] file.xlsx querytable-name Delete QueryTable");
+        AnsiConsole.MarkupLine("  [cyan]querytable-create-from-connection[/] file.xlsx sheet conn dest-cell name  Create from connection");
+        AnsiConsole.MarkupLine("  [cyan]querytable-create-from-query[/] file.xlsx sheet sql dest-cell name  Create from SQL query");
+        AnsiConsole.MarkupLine("  [cyan]querytable-update-properties[/] file.xlsx querytable-name [[options]]  Update properties");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Connection Commands:[/]");
