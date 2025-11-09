@@ -669,7 +669,7 @@ excelcli sheet-very-hide "Report.xlsx" "Calculations"
 - [ ] Add tab color commands to `Program.cs` routing
 - [ ] Add visibility commands to `Program.cs` routing
 - [ ] Add CLI tests for new commands
-- [ ] Update `COMMANDS.md` documentation
+- [ ] Update user documentation
 
 ### Phase 3: MCP Server Implementation
 - [ ] Add tab color actions to `ExcelWorksheetTool`

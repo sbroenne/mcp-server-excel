@@ -1,21 +1,24 @@
 # GitHub Copilot Instructions - ExcelMcp
 
-> **🎯 Optimized for AI Coding Agents** - Modular, path-specific instructions following GitHub Copilot best practices
+> **🎯 Optimized for AI Coding Agents** - Modular, path-specific instructions
 
-## 📋 Quick Navigation
+## 📋 Critical Files (Read These First)
 
-**Start here** → Read [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) first (14 mandatory rules)
+**ALWAYS read when working on code:**
+- [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) - 19 mandatory rules (Success flag, COM cleanup, tests, etc.)
+- [Architecture Patterns](instructions/architecture-patterns.instructions.md) - Batch API, command pattern, resource management
 
-**Path-Specific Instructions** (auto-applied based on file context):
-- 🧪 [Testing Strategy](instructions/testing-strategy.instructions.md) - Test templates, essential patterns
-- 📊 [Excel COM Interop](instructions/excel-com-interop.instructions.md) - COM patterns, cleanup
-- 🔌 [Excel Connection Types](instructions/excel-connection-types-guide.instructions.md) - Connection types, COM API
-- 🏗️ [Architecture Patterns](instructions/architecture-patterns.instructions.md) - Command pattern, batch management
-- 🧠 [MCP Server Guide](instructions/mcp-server-guide.instructions.md) - MCP tools, protocol
-- 🔄 [Development Workflow](instructions/development-workflow.instructions.md) - PR process, CI/CD
-- 🐛 [Bug Fixing Checklist](instructions/bug-fixing-checklist.instructions.md) - 6-step bug fix process
-- 📚 [README Management](instructions/readme-management.instructions.md) - Documentation quick reference
-- 📁 [Documentation Structure](instructions/documentation-structure.instructions.md) - Where to put docs, avoid temporary files
+**Read based on task type:**
+- Adding/fixing commands → [Excel COM Interop](instructions/excel-com-interop.instructions.md)
+- Writing tests → [Testing Strategy](instructions/testing-strategy.instructions.md)
+- MCP Server work → [MCP Server Guide](instructions/mcp-server-guide.instructions.md)
+- Creating PR → [Development Workflow](instructions/development-workflow.instructions.md)
+- Fixing bugs → [Bug Fixing Checklist](instructions/bug-fixing-checklist.instructions.md)
+
+**Less frequently needed:**
+- [Excel Connection Types](instructions/excel-connection-types-guide.instructions.md) - Only for connection-specific work
+- [README Management](instructions/readme-management.instructions.md) - Only when updating READMEs
+- [Documentation Structure](instructions/documentation-structure.instructions.md) - Only when creating docs
 
 ---
 
@@ -40,144 +43,89 @@
 
 ---
 
-## 🎯 Development Quick Start
+## 🎯 Quick Reference
 
-### Common Tasks
-- **Add new command** → Follow patterns in [Architecture Patterns](instructions/architecture-patterns.instructions.md)
-- **Excel COM work** → Reference [Excel COM Interop](instructions/excel-com-interop.instructions.md)
-- **Modify session/batch code** → MUST run OnDemand tests (see [CRITICAL-RULES.md](instructions/critical-rules.instructions.md))
-- **Add MCP tool** → Follow [MCP Server Guide](instructions/mcp-server-guide.instructions.md)
-- **Create PR** → Follow [Development Workflow](instructions/development-workflow.instructions.md)
-- **After creating PR** → Check PR review comments immediately using `gh api repos/sbroenne/mcp-server-excel/pulls/<PR#>/comments` or GitHub CLI
-- **Fix bug** → Use [Bug Fixing Checklist](instructions/bug-fixing-checklist.instructions.md) (6-step process)
-- **Add documentation** → Use [Documentation Structure](instructions/documentation-structure.instructions.md) (avoid temporary files)
-- **Migrate tests to batch API** → See BATCH-API-MIGRATION-PLAN.md for comprehensive guide
-- **Create simple tests** → Use ConnectionCommandsSimpleTests.cs or SetupCommandsSimpleTests.cs as template
-- **Range API implementation** → See [Range API Specification](../specs/RANGE-API-SPECIFICATION.md) for complete design (38 methods, MCP-first, breaking changes acceptable)
-
-### Test Execution
+### Test Commands
 ```bash
-# Development (fast feedback - excludes VBA)
+# Fast feedback (excludes VBA)
 dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
-# Pre-commit (requires Excel - excludes VBA)
-dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
-
-# Session/batch cleanup (MANDATORY when modifying session/batch code)
+# Session/batch changes (MANDATORY)
 dotnet test --filter "RunType=OnDemand"
-
-# VBA tests (manual only - requires VBA trust enabled)
-dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
 ```
 
-### Batch API Pattern (Current Standard)
+### Code Patterns
 ```csharp
-// Core Commands - Always use batch parameter
-public async Task<OperationResult> MethodAsync(ExcelBatch batch, string arg1)
+// Core: Always use batch parameter
+public async Task<OperationResult> MethodAsync(IExcelBatch batch, string arg1)
 {
-    // batch.Book gives access to workbook
-    // batch.FilePath has the file path
-    return new OperationResult { Success = true };
+    return await batch.ExecuteAsync((ctx, ct) => {
+        // Use ctx.Book for workbook access
+        return new OperationResult { Success = true };
+    });
 }
 
-// CLI Commands - Wrap in try-catch
+// CLI: Wrap Core calls
 public int Method(string[] args)
 {
-    ResultType result;
-    try
-    {
-        var task = Task.Run(async () =>
-        {
+    try {
+        var task = Task.Run(async () => {
             await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var opResult = await _coreCommands.MethodAsync(batch, arg1);
-            await batch.SaveAsync(); // if changes made
-            return opResult;
+            return await _coreCommands.MethodAsync(batch, arg1);
         });
-        result = task.GetAwaiter().GetResult();
-    }
-    catch (Exception ex)
-    {
+        var result = task.GetAwaiter().GetResult();
+        return result.Success ? 0 : 1;
+    } catch (Exception ex) {
         AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
         return 1;
     }
-    
-    if (result.Success) { /* format output */ return 0; }
-    else { /* show error */ return 1; }
 }
 
-// Tests - Use batch API
+// Tests: Use batch API
 [Fact]
 public async Task TestMethod()
 {
     await using var batch = await ExcelSession.BeginBatchAsync(_testFile);
     var result = await _commands.MethodAsync(batch, args);
-    Assert.True(result.Success);
+    Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
 }
 ```
 
----
-
-## 📎 Related Resources
-
-**For Excel automation in other projects:**
-- Copy `docs/excel-powerquery-vba-copilot-instructions.md` to your project's `.github/copilot-instructions.md`
-
-**Project Documentation:**
-- [Commands Reference](../docs/COMMANDS.md)
-- [Installation Guide](../docs/INSTALLATION.md)
-- [Range API Specification](../specs/RANGE-API-SPECIFICATION.md) - Comprehensive design for unified range operations (Phase 1 implementation)
-- [Range Refactoring Analysis](../specs/RANGE-REFACTORING-ANALYSIS.md) - LLM perspective on consolidating fragmented commands
+### Tool Selection
+- Code changes → `replace_string_in_file` (3-5 lines context)
+- Find code → `grep_search` or `semantic_search`
+- Check errors → `get_errors`
+- Build/test/git → `run_in_terminal`
 
 ---
 
-## 🔄 Continuous Learning
+## 🔄 Key Lessons (Update After Major Work)
 
-After completing significant tasks, update these instructions with lessons learned. See [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) Rule 4.
+**Success Flag:** NEVER `Success = true` with `ErrorMessage`. Set Success in try block, always false in catch.
 
-### Key Lessons Learned
+**Batch API:** Create NEW simple tests. CLI needs try-catch wrapping.
 
-**COM Interop Extraction:** ExcelMcp.ComInterop is separate reusable library. Tests with Excel process side effects use `[Trait("RunType", "OnDemand")]`.
+**Excel Quirks:** Type 3/4 both handle TEXT. `RefreshAll()` unreliable. Use `queryTable.Refresh(false)`.
 
-**Batch API Migration:** Create NEW simple tests instead of converting complex old tests. CLI commands using `BeginBatchAsync` need try-catch wrapping.
+**MCP Design:** Prompts are shortcuts, not tutorials. LLMs know Excel/programming.
 
-**Excel Type 3/4 Handling:** Excel returns type 4 (WEB) for TEXT connections. Handle BOTH types 3 and 4 in all connection property methods.
+**Tool Priority:** `replace_string_in_file` > `grep_search` > `run_in_terminal`. Avoid PowerShell for code.
 
-**MCP Prompt Design:** Prompts should be SHORT user shortcuts, not tutorials. Domain knowledge only - LLMs already know programming languages.
+**Pre-Commit:** Search TODO/FIXME/HACK, delete commented code, verify tests, check docs.
 
-**Range API Design:** Single cell = 1x1 range. COM-backed only. MCP-first implementation. Breaking changes acceptable during active development.
-
-**Refactoring Strategy:** File recreation > incremental edits when removing 50%+ content. Use partial classes for 500+ line Core commands, single file OK for MCP tools up to 1400 lines.
-
-**CLI Testing:** Don't duplicate integration tests - CLI only tests argument parsing, exit codes, CSV conversion.
-
-**Spec Validation:** Always search Microsoft official docs FIRST using mcp_microsoft_doc tools. Never trust secondary sources or assumptions.
-
-**QueryTable Persistence:** `RefreshAll()` is async - doesn't persist QueryTables. Use individual `queryTable.Refresh(false)` synchronously.
-
-**VS Code Extensions:** Use kebab-case IDs, validate security compliance, test installation readiness, maintain consistent IDs across package.json and TypeScript.
-
-**Bulk Refactoring:** Use `replace_string_in_file` with 3-5 lines context. Use VS Code built-in tools: grep_search, semantic_search, file_search, get_errors. Avoid PowerShell for code changes.
-
-**Tool Selection Priority:** Code changes → `replace_string_in_file` | File creation → `create_file` | Find code → `grep_search`/`semantic_search` | Check errors → `get_errors` | Build/test/git → `run_in_terminal`
-
-**Pre-Commit:** Search for TODO/FIXME/HACK markers, resolve all, delete commented-out code, verify tests pass, update docs if behavior changed.
-
-**Timeout Protection:** Excel batch operations have 2-minute default timeout, 5-minute maximum. Heavy operations (refresh, data model) request extended timeout via `timeout: TimeSpan.FromMinutes(5)` parameter. MCP tools catch TimeoutException and enrich with operation-specific guidance (SuggestedNextActions, IsRetryable, RetryGuidance). Test timeout behavior with `[Trait("Feature", "Timeout")]` tests.
-
-**PR Review Comments:** After creating a PR, ALWAYS check for automated review comments from Copilot and GitHub Advanced Security. Use `gh api repos/sbroenne/mcp-server-excel/pulls/<PR#>/comments` to retrieve inline review comments. Fix all code quality issues (documentation, performance, null safety, code style, error handling) before requesting human review. Common issues: improper `/// <inheritdoc/>`, `.AsSpan().ToString()` inefficiency, nullable type access, foreach → Select, nested if statements, generic catch clauses, Path.Combine warnings.
+**PR Review:** Check automated comments immediately (Copilot, GitHub Security). Fix before human review.
 
 ---
 
 ## 📚 How Path-Specific Instructions Work
 
-GitHub Copilot automatically loads instructions based on the files you're working with:
+GitHub Copilot auto-loads instructions based on files you're editing:
 
-- Working in `tests/**/*.cs`? → [Testing Strategy](instructions/testing-strategy.instructions.md) auto-applies
-- Working in `src/ExcelMcp.Core/**/*.cs`? → [Excel COM Interop](instructions/excel-com-interop.instructions.md) auto-applies
-- Working in `src/ExcelMcp.ComInterop/**/*.cs`? → Low-level COM utilities (minimal dependencies)
-- Working in `src/ExcelMcp.McpServer/**/*.cs`? → [MCP Server Guide](instructions/mcp-server-guide.instructions.md) auto-applies
-- Working in `.github/workflows/**/*.yml`? → [Development Workflow](instructions/development-workflow.instructions.md) auto-applies
-- **All files** → [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) always applies
+- `tests/**/*.cs` → [Testing Strategy](instructions/testing-strategy.instructions.md)
+- `src/ExcelMcp.Core/**/*.cs` → [Excel COM Interop](instructions/excel-com-interop.instructions.md)
+- `src/ExcelMcp.McpServer/**/*.cs` → [MCP Server Guide](instructions/mcp-server-guide.instructions.md)
+- `.github/workflows/**/*.yml` → [Development Workflow](instructions/development-workflow.instructions.md)
+- `**` (all files) → [CRITICAL-RULES.md](instructions/critical-rules.instructions.md)
 
-This modular approach ensures you get relevant context without overwhelming the AI with unnecessary information.
+Modular approach = relevant context without overload.
 

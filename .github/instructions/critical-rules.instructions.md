@@ -6,6 +6,68 @@ applyTo: "**"
 
 > **⚠️ NON-NEGOTIABLE rules for all ExcelMcp development**
 
+## Rule 20: Never Commit Automatically (CRITICAL)
+
+**NEVER commit or push code automatically. All commits, pushes, and merges must require explicit user approval.**
+
+**Why Critical:** Prevents accidental changes, enforces review, and ensures user control over all repository modifications.
+
+**Enforcement:**
+- All automated tools, scripts, and agents must prompt for user approval before any commit, push, or merge.
+- No background or silent commits allowed.
+- Document this rule in all agent and automation instructions.
+
+
+## Quick Reference (Grouped by Context)
+
+**Note:** Rules below are grouped by when you need them, not by number. Detailed rules follow in numeric order (0-19).
+
+**Every Edit:**
+| Rule | Action | Why Critical |
+|------|--------|--------------|
+| 0. Success flag | NEVER `Success=true` with `ErrorMessage` | Confuses LLMs, causes silent failures |
+| 16. Test scope | Only run tests for code you changed | Saves 10+ minutes per test run |
+| 8. TODO markers | Must resolve before commit | Pre-commit hook blocks |
+
+**When Writing Code:**
+| Rule | Action | Why Critical |
+|------|--------|--------------|
+| 7. COM API | Use Excel COM first, validate docs | Prevents wrong dependencies |
+| 9. GitHub search | Search OTHER repos for VBA/COM examples FIRST | Learn from working code |
+| 2. NotImplementedException | Never use, full implementation only | No placeholders allowed |
+| 15. Enum mappings | All enum values mapped in ToActionString() | Runtime errors otherwise |
+| 17. MCP error checks | Always return JSON, check result.Success | MCP protocol requirement |
+
+**When Writing Tests:**
+| Rule | Action | Why Critical |
+|------|--------|--------------|
+| 1. Tests | Fail loudly, never silent | Silent failures waste hours |
+| 14. No SaveAsync | Remove unless testing persistence | Makes tests 50% faster |
+| 10. Test debugging | Run tests one by one | Isolates actual failure |
+| 12. Test compliance | Pass checklist before PR submission | Prevents test pollution |
+
+**Before Commit:**
+| Rule | Action | Time |
+|------|--------|------|
+| 3. Session code | See testing-strategy for test commands | 3-5 min |
+| 5. COM leaks | Pre-commit hook auto-checks | 1 min |
+| 6. PRs | Always use PRs, never direct commit | Always |
+
+**During PR Process:**
+| Rule | Action | Time |
+|------|--------|------|
+| 19. PR review comments | Check/fix automated comments immediately | 5-10 min |
+| 13. Bug fixes | Complete 6-step process | 30-60 min |
+| 18. Tool descriptions | Verify [Description] matches behavior | Per change |
+
+**Rare/Specialized:**
+| Rule | Action | When |
+|------|--------|------|
+| 11. No test refs | Production NEVER references tests | Architecture review |
+| 4. Instructions | Update after significant work | After major features |
+
+---
+
 ## Rule 0: Success Flag Must Match Reality (CRITICAL)
 
 **NEVER set `Success = true` when `ErrorMessage` is set. This is EXTREMELY serious!**
@@ -89,8 +151,7 @@ Every feature must be fully implemented with real Excel COM operations and passi
 
 ## Rule 3: Session Cleanup Tests
 
-When modifying session/batch code (`ExcelSession.cs`, `ExcelBatch.cs`, `ExcelHelper.cs`), run: `dotnet test --filter "RunType=OnDemand"`
-All tests must pass before commit. Requires Excel installed, takes 3-5 minutes.
+When modifying session/batch code, run OnDemand tests (see testing-strategy.instructions.md). Must pass before commit.
 
 
 
@@ -220,44 +281,12 @@ When debugging test failures, **ALWAYS run tests individually** - never run all 
 
 **Tests must NOT call `batch.SaveAsync()` unless explicitly testing persistence.**
 
-**When SaveAsync is FORBIDDEN:**
-- ❌ Test only verifies operation returns success/error
-- ❌ Test only checks in-memory state (lists, views, metadata)
-- ❌ Test doesn't re-open the file to verify changes persisted
-- ❌ SaveAsync called before assertions (breaks subsequent operations)
-- ❌ SaveAsync called multiple times in same test
+**Quick Rules:**
+- ❌ FORBIDDEN: Tests only verifying operation success or in-memory state
+- ✅ REQUIRED: Round-trip tests verifying data persists after workbook close/reopen
+- ⚡ REASON: SaveAsync is slow (~2-5s). Removing unnecessary saves makes tests 50%+ faster
 
-**When SaveAsync is REQUIRED:**
-- ✅ Round-trip test: Create/Update → Save → Re-open → Verify persistence
-- ✅ Integration test explicitly validating save behavior
-- ✅ Test verifying data survives workbook close/reopen
-
-**Correct Pattern:**
-```csharp
-// ❌ WRONG: Unnecessary save, slows down test
-await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-var result = await _commands.CreateAsync(batch, "Test");
-await batch.SaveAsync();  // ❌ Not needed!
-Assert.True(result.Success);
-
-// ✅ CORRECT: No save, batch auto-disposes
-await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-var result = await _commands.CreateAsync(batch, "Test");
-Assert.True(result.Success);  // ✅ Batch disposes without saving
-
-// ✅ CORRECT: Persistence test with round-trip
-await using var batch1 = await ExcelSession.BeginBatchAsync(testFile);
-await _commands.CreateAsync(batch1, "Test");
-await batch1.SaveAsync();  // ✅ Save for persistence
-
-await using var batch2 = await ExcelSession.BeginBatchAsync(testFile);  
-var result = await _commands.ListAsync(batch2);
-Assert.Contains(result.Items, i => i.Name == "Test");  // ✅ Verify persisted
-```
-
-**Why:** SaveAsync is slow (~2-5s per call) and unnecessary for most tests. Tests should verify business logic, not save behavior. Removing unnecessary saves makes test suite 50%+ faster.
-
-**Audit Command:** `git grep "await batch.SaveAsync()" -- tests/ | wc -l` should trend toward zero.
+**See:** [testing-strategy.instructions.md](testing-strategy.instructions.md) for complete SaveAsync patterns, when to use, and detailed examples.
 
 ---
 
@@ -267,7 +296,7 @@ Assert.Contains(result.Items, i => i.Name == "Test");  // ✅ Verify persisted
 |------|--------|------|
 | 1. Tests | Fail loudly, never silent | Always |
 | 2. NotImplementedException | Never use, full implementation only | Always |
-| 3. Session code | Run `dotnet test --filter "RunType=OnDemand"` | 3-5 min |
+| 3. Session code | See testing-strategy for test commands | 3-5 min |
 | 4. Instructions | Update after significant work | 5-10 min |
 | 5. COM leaks | Run `scripts\check-com-leaks.ps1` | 1 min |
 | 6. PRs | Always use PRs, never direct commit | Always |
@@ -278,7 +307,7 @@ Assert.Contains(result.Items, i => i.Name == "Test");  // ✅ Verify persisted
 | 11. No test refs | Production NEVER references tests | Always |
 | 12. Test compliance | Pass checklist before PR submission | 2-3 min |
 | 13. Bug fixes | Complete 6-step process (fix, test, doc, hints, verify, summarize) | 30-60 min |
-| 14. No SaveAsync | Remove unless testing persistence | Per test |
+| 14. No SaveAsync | See testing-strategy for complete patterns | Per test |
 | 15. Enum mappings | All enum values mapped in ToActionString() | Always |
 | 16. Test scope | Only run tests for code you changed | Per change |
 | 17. MCP error checks | Check result.Success before JsonSerializer.Serialize | Every method |

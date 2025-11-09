@@ -17,42 +17,25 @@ Complete guide for publishing and managing all ExcelMcp NuGet packages using OID
 
 ## Published Packages
 
-ExcelMcp consists of four NuGet packages:
+ExcelMcp publishes two NuGet packages (unified release):
 
-### 1. Sbroenne.ExcelMcp.ComInterop (Library)
-- **Package Type**: Library (.dll)
-- **Purpose**: Low-level COM interop utilities for Excel automation
-- **Tag Pattern**: `cominterop-v*` (e.g., `cominterop-v1.0.0`)
-- **Workflow**: `.github/workflows/release-cominterop.yml`
-- **NuGet Page**: https://www.nuget.org/packages/Sbroenne.ExcelMcp.ComInterop
-- **Installation**: `dotnet add package Sbroenne.ExcelMcp.ComInterop`
-
-### 2. Sbroenne.ExcelMcp.Core (Library)
-- **Package Type**: Library (.dll)
-- **Purpose**: High-level Excel automation commands
-- **Dependencies**: Sbroenne.ExcelMcp.ComInterop
-- **Tag Pattern**: `core-v*` (e.g., `core-v1.0.0`)
-- **Workflow**: `.github/workflows/release-core.yml`
-- **NuGet Page**: https://www.nuget.org/packages/Sbroenne.ExcelMcp.Core
-- **Installation**: `dotnet add package Sbroenne.ExcelMcp.Core`
-
-### 3. Sbroenne.ExcelMcp.McpServer (.NET Tool)
+### 1. Sbroenne.ExcelMcp.McpServer (.NET Tool)
 - **Package Type**: .NET Global Tool (executable)
 - **Purpose**: MCP server for AI assistant integration
-- **Dependencies**: Sbroenne.ExcelMcp.Core
-- **Tag Pattern**: `mcp-v*` (e.g., `mcp-v1.2.0`)
-- **Workflow**: `.github/workflows/release-mcp-server.yml`
+- **Tag Pattern**: `v*` (e.g., `v1.2.0`) - **unified with CLI**
+- **Workflow**: `.github/workflows/release-mcp-server.yml` (handles both packages)
 - **NuGet Page**: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer
 - **Installation**: `dotnet tool install --global Sbroenne.ExcelMcp.McpServer`
 
-### 4. Sbroenne.ExcelMcp.CLI (.NET Tool)
+### 2. Sbroenne.ExcelMcp.CLI (.NET Tool)
 - **Package Type**: .NET Global Tool (executable)
 - **Purpose**: Command-line interface for Excel automation
-- **Dependencies**: Sbroenne.ExcelMcp.Core
-- **Tag Pattern**: `cli-v*` (e.g., `cli-v2.1.0`)
-- **Workflow**: `.github/workflows/release-cli.yml`
+- **Tag Pattern**: `v*` (e.g., `v1.2.0`) - **unified with MCP Server**
+- **Workflow**: `.github/workflows/release-mcp-server.yml` (handles both packages)
 - **NuGet Page**: https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI
 - **Installation**: `dotnet tool install --global Sbroenne.ExcelMcp.CLI`
+
+**Note**: MCP Server and CLI are always released together with the same version number. Core and ComInterop libraries are internal dependencies and not separately published to NuGet.
 
 ---
 
@@ -74,9 +57,9 @@ Trusted Publishing uses short-lived OIDC tokens instead of long-lived API keys f
 ### How It Works
 
 ```
-1. Git Tag Pushed (e.g., mcp-v1.2.2)
+1. Git Tag Pushed (e.g., v1.2.2)
    ↓
-2. GitHub Actions Workflow Triggered
+2. GitHub Actions Workflow Triggered (release-mcp-server.yml)
    └─> Generates OIDC token with claims:
        • Repository: sbroenne/mcp-server-excel
        • Workflow: release-mcp-server.yml
@@ -85,13 +68,15 @@ Trusted Publishing uses short-lived OIDC tokens instead of long-lived API keys f
 3. NuGet Login Action Exchanges OIDC Token
    └─> Receives short-lived API key
    ↓
-4. .NET CLI Publishes Package
+4. .NET CLI Publishes Both Packages
    └─> Uses short-lived API key
+   └─> Publishes MCP Server
+   └─> Publishes CLI
    ↓
 5. NuGet.org Validates Token
    └─> Checks against trusted publisher configuration
    ↓
-6. Package Published ✅
+6. Packages Published ✅
    └─> Available at nuget.org/packages/[PackageId]
 ```
 

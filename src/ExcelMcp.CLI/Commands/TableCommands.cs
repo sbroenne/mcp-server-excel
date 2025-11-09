@@ -930,5 +930,94 @@ public class CliTableCommands : ITableCommands
         }
     }
 
+    // === NUMBER FORMAT OPERATIONS ===
+
+    public int GetColumnNumberFormat(string[] args)
+    {
+        if (args.Length < 4)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-get-column-format <file.xlsx> <tableName> <columnName>");
+            AnsiConsole.MarkupLine("[dim]Example:[/] table-get-column-format sales.xlsx SalesTable Amount");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+        string columnName = args[3];
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return await _coreCommands.GetColumnNumberFormatAsync(batch, tableName, columnName);
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[cyan]Table:[/] {tableName}");
+            AnsiConsole.MarkupLine($"[cyan]Column:[/] {columnName}");
+
+            // Display the first format (table columns typically have consistent formatting)
+            string format = result.Formats != null && result.Formats.Count > 0 && result.Formats[0].Count > 0
+                ? result.Formats[0][0]
+                : "(none)";
+
+            AnsiConsole.MarkupLine($"[cyan]Number Format:[/] {format.EscapeMarkup()}");
+
+            if (result.RowCount > 1)
+            {
+                AnsiConsole.MarkupLine($"[dim]Note: Format applies to {result.RowCount} rows[/]");
+            }
+
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int SetColumnNumberFormat(string[] args)
+    {
+        if (args.Length < 5)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] table-set-column-format <file.xlsx> <tableName> <columnName> <formatCode>");
+            AnsiConsole.MarkupLine("[dim]Examples:[/]");
+            AnsiConsole.MarkupLine("  table-set-column-format sales.xlsx SalesTable Amount \"$#,##0.00\"");
+            AnsiConsole.MarkupLine("  table-set-column-format sales.xlsx SalesTable Percent \"0.00%\"");
+            AnsiConsole.MarkupLine("  table-set-column-format sales.xlsx SalesTable Date \"m/d/yyyy\"");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string tableName = args[2];
+        string columnName = args[3];
+        string formatCode = args[4];
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.SetColumnNumberFormatAsync(batch, tableName, columnName, formatCode);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Set number format for column [cyan]{columnName}[/] in table [cyan]{tableName}[/]");
+            AnsiConsole.MarkupLine($"[dim]Format: {formatCode}[/]");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
     #endregion
 }

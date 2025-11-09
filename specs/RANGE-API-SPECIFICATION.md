@@ -923,10 +923,9 @@ Commands/
 **Phase 1B** - CLI Implementation (After MCP Server Complete):
 1. ⬜ Create CLI RangeCommands wrapper (ExcelMcp.CLI/Commands/RangeCommands.cs)
 2. ⬜ Add range-* commands to Program.cs routing
-3. ⬜ Update COMMANDS.md documentation
-4. ⬜ Add CLI tests for range commands
-5. ⬜ Remove old CLI commands (cell-*, hyperlink-*, sheet data operations)
-6. ⬜ Update README.md and installation guides
+3. ⬜ Add CLI tests for range commands
+4. ⬜ Remove old CLI commands (cell-*, hyperlink-*, sheet data operations)
+5. ⬜ Update README.md and installation guides
 
 **Phase 2-4** - Future PRs (Number/Visual/Advanced Formatting):
 - MCP Server first (add actions to excel_range tool)
@@ -973,7 +972,7 @@ Commands/
 - ⬜ Add range-* commands to Program.cs
 - ⬜ Remove old CLI command implementations (cell-*, hyperlink-*)
 - ⬜ Update CLI tests
-- ⬜ Update COMMANDS.md, README.md, INSTALLATION.md
+- ⬜ Update README.md, INSTALLATION.md
 - ⬜ Update CLI-specific copilot instructions
 
 **Phase 2** (Future PR) - Number Formatting:
@@ -1668,7 +1667,6 @@ This demonstrates how both APIs work together seamlessly!
 - [ ] CLI tests updated and passing
 
 **Documentation**:
-- [ ] COMMANDS.md updated (range-* commands documented)
 - [ ] README.md updated (breaking changes, migration guide)
 - [ ] INSTALLATION.md updated if needed
 - [ ] CLI-specific copilot instructions updated
@@ -1814,7 +1812,7 @@ These operations are **NOT included** because they're rarely automated or better
   - ✅ Add range-* commands to Program.cs
   - ✅ Remove old CLI commands (cell-*, hyperlink-*)
   - ✅ CLI tests
-  - ✅ Update COMMANDS.md, README.md, INSTALLATION.md
+  - ✅ Update README.md, INSTALLATION.md
 
 ### Phase 1.5: AutoFilter Commands (Separate PR)
 - **Create**: `IFilterCommands` interface and implementation

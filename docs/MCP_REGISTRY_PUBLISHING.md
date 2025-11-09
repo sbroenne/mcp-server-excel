@@ -4,7 +4,9 @@ This document describes how the ExcelMcp server is published to the [Model Conte
 
 ## Overview
 
-The ExcelMcp server is automatically published to the MCP Registry whenever a new release is tagged with the format `mcp-v*` (e.g., `mcp-v1.0.10`). This is handled by the GitHub Actions workflow `.github/workflows/release-mcp-server.yml`.
+The ExcelMcp server is automatically published to the MCP Registry whenever a new release is tagged with the format `v*` (e.g., `v1.0.10`). This is handled by the GitHub Actions workflow `.github/workflows/release-mcp-server.yml`.
+
+**Note**: The same tag also triggers CLI release - both MCP Server and CLI are released together with unified versioning.
 
 ## Configuration Files
 
@@ -198,7 +200,7 @@ The workflow has `id-token: write` permission enabled for OIDC authentication.
 **Issue**: Tag pushed but workflow doesn't run
 
 **Solution**:
-- Verify tag format is `mcp-v*` (prefix is required)
+- Verify tag format is `v*` (e.g., `v1.2.3`)
 - Check that the workflow file is on the main branch
 - Look for workflow errors in GitHub Actions
 

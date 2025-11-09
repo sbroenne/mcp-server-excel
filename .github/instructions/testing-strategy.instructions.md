@@ -147,27 +147,49 @@ Assert.Contains(list.Items, i => i.Name == "Sheet1");  // ✅ Verify persisted
 
 **⚠️ CRITICAL: Always specify the test project explicitly to avoid running all test projects!**
 
+### Core.Tests (Business Logic)
 ```bash
-# Development (fast feedback - excludes VBA tests)
+# Development (fast - excludes VBA)
 dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
-# Pre-commit (comprehensive - excludes VBA tests)
-dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
-
-# Session/batch changes (MANDATORY - see CRITICAL-RULES.md Rule 3)
-dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --filter "RunType=OnDemand"
-
-# Diagnostic tests (validate production patterns, slow ~20s each)
+# Diagnostic tests (validate patterns, slow ~20s each)
 dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "RunType=OnDemand&Layer=Diagnostics"
 
-# VBA tests (run manually when needed - requires VBA trust enabled)
+# VBA tests (manual only - requires VBA trust)
 dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
 
-# Run specific test by name (use full project path)
-dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "FullyQualifiedName~TestMethodName"
-
-# Run tests for specific feature (use project path)
+# Specific feature
 dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Feature=PowerQuery"
+```
+
+### ComInterop.Tests (Session/Batch Infrastructure)
+```bash
+# Session/batch changes (MANDATORY - see CRITICAL-RULES.md Rule 3)
+dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --filter "RunType=OnDemand"
+```
+
+### McpServer.Tests (End-to-End Tool Tests)
+```bash
+# All MCP tool tests
+dotnet test tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj
+
+# Specific tool
+dotnet test tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj --filter "FullyQualifiedName~PowerQueryTool"
+```
+
+### CLI.Tests (Command-Line Interface)
+```bash
+# All CLI tests
+dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj
+
+# Specific command
+dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj --filter "FullyQualifiedName~PowerQuery"
+```
+
+### Run Specific Test by Name
+```bash
+# Use full project path + filter
+dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "FullyQualifiedName~TestMethodName"
 ```
 
 ## Round-Trip Validation Pattern

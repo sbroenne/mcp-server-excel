@@ -315,7 +315,7 @@ When creating a PR, verify:
 - [ ] **Code builds** with zero warnings
 - [ ] **All tests pass** (unit tests minimum)
 - [ ] **New features have tests**
-- [ ] **Documentation updated** (README, COMMANDS.md, etc.)
+- [ ] **Documentation updated** (README, etc.)
 - [ ] **MCP server.json updated** (if MCP Server changes) ← **NEW**
 - [ ] **Breaking changes documented**
 - [ ] **Follows existing code patterns**
@@ -374,7 +374,6 @@ dotnet build -c Release
 ## 📞 **Need Help?**
 
 - **Read the docs**: [Contributing Guide](CONTRIBUTING.md)
-- **Check command reference**: [Commands Documentation](COMMANDS.md)  
 - **Ask questions**: Create a GitHub Issue with the `question` label
 - **Report bugs**: Use the bug report template
 

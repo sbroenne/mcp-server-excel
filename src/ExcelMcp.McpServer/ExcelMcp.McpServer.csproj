@@ -10,7 +10,7 @@
     <!-- Assembly and Namespace Configuration -->
     <AssemblyName>Sbroenne.ExcelMcp.McpServer</AssemblyName>
     <RootNamespace>Sbroenne.ExcelMcp.McpServer</RootNamespace>
-    
+
     <!-- MCP Server doesn't need XML documentation warnings - API docs are in MCP schema -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
 
@@ -23,8 +23,8 @@
     <PackageId>Sbroenne.ExcelMcp.McpServer</PackageId>
     <PackageType>DotnetTool;McpServer</PackageType>
     <Title>Sbroenne ExcelMcp Model Context Protocol Server</Title>
-    <Description>Model Context Protocol (MCP) server for ExcelMcp by Sbroenne. Enables AI assistants like GitHub Copilot, Claude, and ChatGPT to automate Excel development workflows - Power Query refactoring, VBA enhancement, and Excel automation through structured JSON API. Uses portable .NET 8 deployment supporting Windows x64 and ARM64.</Description>
-    <PackageTags>excel;mcp;model-context-protocol;ai;automation;github-copilot;claude;chatgpt;power-query;vba;excel-automation;dotnet-tool;arm64;windows;sbroenne</PackageTags>
+    <Description>Model Context Protocol (MCP) server for ExcelMcp by Sbroenne. Enables AI assistants like GitHub Copilot, Claude, and ChatGPT to automate Excel workflows - Power Query M code, Power Pivot DAX measures, VBA macros, PivotTables, Excel Tables, ranges, formatting, data validation, and connections. 165 operations across 11 specialized tools. Uses Excel's native COM API for zero corruption risk. Windows x64 and ARM64 support.</Description>
+    <PackageTags>excel;mcp;model-context-protocol;ai;automation;github-copilot;claude;chatgpt;power-query;dax;power-pivot;vba;pivottables;excel-automation;rpa;dotnet-tool;windows;sbroenne;excel-tables;excel-com;data-analysis</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>See https://github.com/sbroenne/mcp-server-excel/releases for release notes</PackageReleaseNotes>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>

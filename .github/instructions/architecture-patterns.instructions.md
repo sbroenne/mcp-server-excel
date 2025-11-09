@@ -59,28 +59,7 @@ return args[0] switch
 
 ## Resource Management Pattern
 
-### ExcelHelper.WithExcel()
-
-**✅ ALWAYS use - never manage Excel lifecycle manually**
-
-```csharp
-public int MyCommand(string[] args)
-{
-    return ExcelHelper.WithExcel(filePath, save: false, (excel, workbook) =>
-    {
-        dynamic? queries = null;
-        try {
-            queries = workbook.Queries;
-            // Use queries...
-            return 0;
-        } finally {
-            ExcelHelper.ReleaseComObject(ref queries);  // Release!
-        }
-    });
-}
-```
-
-**Handles:** Excel.Application creation/destruction, Workbook open/close, COM cleanup, GC collection
+**See excel-com-interop.instructions.md** for complete WithExcel() pattern and COM object lifecycle management.
 
 ---
 
@@ -137,33 +116,17 @@ SavePassword = false  // Never export credentials by default
 
 ## Performance Patterns
 
-### Minimize Workbook Opens
-```csharp
-// ✅ GOOD - Single session
-ExcelHelper.WithExcel(filePath, save, (e, wb) => {
-    Operation1(wb); Operation2(wb); Operation3(wb);
-    return 0;
-});
-
-// ❌ AVOID - Multiple sessions (slow)
-```
-
-### Bulk Operations
-```csharp
-// ✅ GOOD - Bulk read
-object[,] values = range.Value2;
-
-// ❌ AVOID - Cell-by-cell (slow COM calls)
-```
+**Minimize workbook opens** - Use single session for multiple operations
+**Bulk operations** - Use `range.Value2` for 2D arrays, not cell-by-cell access
 
 ---
 
 ## Key Principles
 
-1. **WithExcel() for everything** - Never manual lifecycle
+1. **WithExcel() for everything** - See excel-com-interop.instructions.md
 2. **Release intermediate objects** - Prevents Excel hanging
 3. **Batch/Session for MCP** - Multiple operations in single session
-4. **Resource-based tools** - 6 tools, not 33+ operations
+4. **Resource-based tools** - 11 tools, not 33+ operations
 5. **DRY utilities** - Share common patterns
 6. **Security defaults** - Never expose credentials
 7. **Bulk operations** - Minimize COM round-trips

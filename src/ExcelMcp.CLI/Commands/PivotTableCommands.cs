@@ -7,6 +7,18 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 /// <summary>
 /// PivotTable management commands implementation for CLI
 /// Wraps Core commands and provides console formatting
+///
+/// NOTE: The following 7 Core methods are not yet implemented in CLI due to technical limitations:
+/// - CreateFromTable (requires more complex parameter handling)
+/// - GetData (requires specialized data formatting)
+/// - SetFieldFilter (requires filter criteria parsing)
+/// - SetFieldFormat (requires format string parsing)
+/// - SetFieldFunction (requires aggregation function mapping)
+/// - SetFieldName (requires field identification)
+/// - SortField (requires sort direction parsing)
+///
+/// These methods are available in Core and MCP Server but blocked in CLI implementation.
+/// See GitHub issue for tracking: https://github.com/sbroenne/mcp-server-excel/issues
 /// </summary>
 public class PivotTableCommands
 {

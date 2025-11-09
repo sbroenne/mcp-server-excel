@@ -210,4 +210,155 @@ public class QueryTableCommands
             return 1;
         }
     }
+
+    public int CreateFromConnection(string[] args)
+    {
+        if (args.Length < 5)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] querytable-create-from-connection <file.xlsx> <sheetName> <queryTableName> <connectionName> [range] [--background] [--refresh-on-open] [--preserve-formatting]");
+            AnsiConsole.MarkupLine("[dim]Example:[/] querytable-create-from-connection data.xlsx Sheet1 MyQT MyConnection A1 --background");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string sheetName = args[2];
+        string queryTableName = args[3];
+        string connectionName = args[4];
+        string range = args.Length > 5 && !args[5].StartsWith("--", StringComparison.Ordinal) ? args[5] : "A1";
+
+        var options = new Core.Models.QueryTableCreateOptions
+        {
+            BackgroundQuery = args.Contains("--background", StringComparer.OrdinalIgnoreCase),
+            RefreshOnFileOpen = args.Contains("--refresh-on-open", StringComparer.OrdinalIgnoreCase),
+            PreserveFormatting = args.Contains("--preserve-formatting", StringComparer.OrdinalIgnoreCase) || !args.Contains("--no-preserve-formatting", StringComparer.OrdinalIgnoreCase),
+            RefreshImmediately = !args.Contains("--no-refresh", StringComparer.OrdinalIgnoreCase)
+        };
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.CreateFromConnectionAsync(batch, sheetName, queryTableName, connectionName, range, options);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Created QueryTable [cyan]{queryTableName}[/] from connection [cyan]{connectionName}[/] on sheet [cyan]{sheetName}[/] at range [cyan]{range}[/]");
+            if (options.RefreshImmediately)
+            {
+                AnsiConsole.MarkupLine("[dim]QueryTable refreshed immediately[/]");
+            }
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int CreateFromQuery(string[] args)
+    {
+        if (args.Length < 5)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] querytable-create-from-query <file.xlsx> <sheetName> <queryTableName> <queryName> [range] [--background] [--refresh-on-open] [--preserve-formatting]");
+            AnsiConsole.MarkupLine("[dim]Example:[/] querytable-create-from-query data.xlsx Sheet1 MyQT MyQuery A1 --background");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string sheetName = args[2];
+        string queryTableName = args[3];
+        string queryName = args[4];
+        string range = args.Length > 5 && !args[5].StartsWith("--", StringComparison.Ordinal) ? args[5] : "A1";
+
+        var options = new Core.Models.QueryTableCreateOptions
+        {
+            BackgroundQuery = args.Contains("--background", StringComparer.OrdinalIgnoreCase),
+            RefreshOnFileOpen = args.Contains("--refresh-on-open", StringComparer.OrdinalIgnoreCase),
+            PreserveFormatting = args.Contains("--preserve-formatting", StringComparer.OrdinalIgnoreCase) || !args.Contains("--no-preserve-formatting", StringComparer.OrdinalIgnoreCase),
+            RefreshImmediately = !args.Contains("--no-refresh", StringComparer.OrdinalIgnoreCase)
+        };
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.CreateFromQueryAsync(batch, sheetName, queryTableName, queryName, range, options);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Created QueryTable [cyan]{queryTableName}[/] from Power Query [cyan]{queryName}[/] on sheet [cyan]{sheetName}[/] at range [cyan]{range}[/]");
+            if (options.RefreshImmediately)
+            {
+                AnsiConsole.MarkupLine("[dim]QueryTable refreshed immediately[/]");
+            }
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    public int UpdateProperties(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] Missing required arguments");
+            AnsiConsole.MarkupLine("[yellow]Usage:[/] querytable-update-properties <file.xlsx> <queryTableName> [--background=true|false] [--refresh-on-open=true|false] [--preserve-formatting=true|false]");
+            AnsiConsole.MarkupLine("[dim]Example:[/] querytable-update-properties data.xlsx MyQT --background=true --refresh-on-open=false");
+            return 1;
+        }
+
+        string filePath = Path.GetFullPath(args[1]);
+        string queryTableName = args[2];
+
+        var options = new Core.Models.QueryTableUpdateOptions
+        {
+            BackgroundQuery = GetBoolOption(args, "--background"),
+            RefreshOnFileOpen = GetBoolOption(args, "--refresh-on-open"),
+            SavePassword = GetBoolOption(args, "--save-password"),
+            PreserveColumnInfo = GetBoolOption(args, "--preserve-column-info"),
+            PreserveFormatting = GetBoolOption(args, "--preserve-formatting"),
+            AdjustColumnWidth = GetBoolOption(args, "--adjust-column-width")
+        };
+
+        var task = Task.Run(async () =>
+        {
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var result = await _coreCommands.UpdatePropertiesAsync(batch, queryTableName, options);
+            await batch.SaveAsync();
+            return result;
+        });
+        var result = task.GetAwaiter().GetResult();
+
+        if (result.Success)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Updated properties for QueryTable: [cyan]{queryTableName}[/]");
+            return 0;
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    private static bool? GetBoolOption(string[] args, string optionName)
+    {
+        var option = args.FirstOrDefault(a => a.StartsWith($"{optionName}=", StringComparison.OrdinalIgnoreCase));
+        if (option == null) return null;
+
+        var value = option.Split('=')[1];
+        return bool.TryParse(value, out var result) ? result : null;
+    }
 }

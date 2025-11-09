@@ -7,7 +7,9 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 [![NuGet Downloads](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue.svg)](https://github.com/sbroenne/mcp-server-excel)
 
-**Control Excel with Natural Language** through AI assistants like GitHub Copilot, Claude, and ChatGPT. This MCP server enables AI-powered Excel automation for Power Query, DAX measures, VBA macros, PivotTables, and more.
+**Control Excel with Natural Language** through AI assistants like GitHub Copilot, Claude, and ChatGPT. This MCP server enables AI-powered Excel automation for Power Query, DAX measures, VBA macros, PivotTables, and more. 
+
+Also includes a powerful CLI for RPA (Robotic Process Automation) and scripting workflows.
 
 **🛡️ 100% Safe - Uses Excel's Native COM API**
 
@@ -15,30 +17,11 @@ Unlike third-party libraries that manipulate `.xlsx` files (risking corruption),
 
 **Requirements:** Windows OS + Excel 2016+
 
-**⚠️ Important:** Close all Excel files before automation. ExcelMcp requires **exclusive access** to workbooks (Excel COM requirement).
+## 🚀 Installation
 
-**Installation: Global .NET Tool**
+Install the [ExcelMcp VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) for one-click setup with GitHub Copilot.
 
-```powershell
-# Install .NET 8 SDK
-winget install Microsoft.DotNet.SDK.8
-
-# Install ExcelMcp MCP server
-dotnet tool install --global Sbroenne.ExcelMcp.McpServer
-```
-
-**Configure AI Assistant** - Add to your MCP configuration:
-
-```json
-{
-  "servers": {
-    "excel": {
-      "command": "dotnet",
-      "args": ["tool", "run", "mcp-excel"]
-    }
-  }
-}
-```
+For other MCP clients or manual configuration, see the [Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md).
 
 ## 🛠️ What You Can Do
 
@@ -63,6 +46,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 - 🔄 Optimize Power Query M code for performance and readability  
 - 📊 Build complex DAX measures with AI guidance
 - 📋 Automate repetitive data transformations and formatting
+- 🤖 **RPA:** Comprehensive CLI for robotic process automation, CI/CD, and batch processing
 
 
 ---
@@ -81,14 +65,17 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 **"Build a DAX measure for year-over-year growth"**  
 → AI writes DAX formula, sets currency format, adds to Data Model
 
+**"Export all Power Query M code to Git for version control"**  
+→ CLI batch exports all queries to .pq files for source control workflows
+
 ---
 
 ## 📋 Additional Resources
 
 - **[GitHub Repository](https://github.com/sbroenne/mcp-server-excel)** - Source code, issues, discussions
 - **[Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md)** - Detailed setup for all platforms
-- **[VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excelmcp)** - One-click installation
-- **[CLI Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/CLI.md)** - 50+ commands for scripting
+- **[VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)** - One-click installation
+- **[CLI Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)** - Comprehensive commands for RPA and CI/CD automation
 
 **License:** MIT  
 **Platform:** Windows only (requires Excel 2016+)  

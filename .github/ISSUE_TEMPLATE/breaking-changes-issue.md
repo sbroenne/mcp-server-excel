@@ -162,7 +162,6 @@ Since ExcelMcp MCP Server hasn't been released yet, we can make breaking changes
 - [ ] All prompt content files
 - [ ] MCP-IMPLEMENTATION-SUMMARY.md
 - [ ] Architecture diagrams (if any)
-- [ ] COMMANDS.md (if exists)
 
 #### 5.2 Testing
 - [ ] Build solution (0 warnings, 0 errors)
