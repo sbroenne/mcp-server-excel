@@ -15,7 +15,7 @@ applyTo: "**/*.md,README.md,**/README.md"
 ## Critical Rules
 
 ### Tool Counts Must Match
-- All READMEs: **11 specialized tools**
+- All READMEs: **12 specialized tools**
 - Action counts per tool MUST match across all 3 files
 - Verify against code: `git grep "case.*:" src/ExcelMcp.McpServer/Tools/`
 
@@ -35,7 +35,7 @@ applyTo: "**/*.md,README.md,**/README.md"
 git grep -A 100 "switch.*action" src/ExcelMcp.McpServer/Tools/*.cs | grep "case" | wc -l
 
 # Check all 3 READMEs have same tool count
-git grep "11 specialized tools" README.md src/ExcelMcp.McpServer/README.md vscode-extension/README.md
+git grep "12 specialized tools" README.md src/ExcelMcp.McpServer/README.md vscode-extension/README.md
 ```
 
 ## Common Mistakes

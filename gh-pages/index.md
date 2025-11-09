@@ -44,7 +44,7 @@ Think of Excel as an AI-powered REPL - write code (Power Query M, DAX, VBA), exe
 <div class="features-grid">
 <div class="feature-card">
 <h3>165 Operations</h3>
-<p>11 specialized tools covering Power Query, DAX, VBA, PivotTables, ranges, formatting, and more</p>
+<p>12 specialized tools covering Power Query, DAX, VBA, PivotTables, ranges, formatting, and more</p>
 </div>
 
 <div class="feature-card">
@@ -186,7 +186,7 @@ excel-mcp vba-export --file "macro-workbook.xlsm" --module "Module1" --output "s
 <li><strong>Natural Language Control:</strong> Describe tasks in plain English</li>
 <li><strong>Safe:</strong> Official COM API - zero corruption risk</li>
 <li><strong>Interactive:</strong> See changes in real-time in Excel</li>
-<li><strong>Comprehensive:</strong> 165 operations across 11 tools</li>
+<li><strong>Comprehensive:</strong> 165 operations across 12 tools</li>
 <li><strong>Works with:</strong> GitHub Copilot, Claude, ChatGPT, and any MCP client</li>
 </ul>
 </div>

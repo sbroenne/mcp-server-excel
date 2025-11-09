@@ -10,7 +10,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 /// Smoke test for MCP Server - Quick validation of core functionality from an LLM perspective.
 ///
 /// PURPOSE: Fast, on-demand test to verify major functionality isn't broken.
-/// SCOPE: Exercises the 11 main MCP tools with typical LLM workflows.
+/// SCOPE: Exercises the 12 main MCP tools with typical LLM workflows.
 /// RUNTIME: ~30-60 seconds (fast enough for pre-commit checks).
 ///
 /// Run this test before commits to catch breaking changes:
@@ -63,14 +63,14 @@ public class McpServerSmokeTests : IDisposable
     }
 
     /// <summary>
-    /// Comprehensive smoke test that exercises all 11 MCP tools in a realistic LLM workflow using batch mode.
+    /// Comprehensive smoke test that exercises all 12 MCP tools in a realistic LLM workflow using batch mode.
     /// This test validates the complete tool chain and demonstrates proper batch mode usage for multiple operations.
     /// </summary>
     [Fact]
     public async Task SmokeTest_AllTools_LlmWorkflow()
     {
         _output.WriteLine("=== MCP SERVER SMOKE TEST (BATCH MODE) ===");
-        _output.WriteLine("Testing all 11 tools in optimized batch workflow...\n");
+        _output.WriteLine("Testing all 12 tools in optimized batch workflow...\n");
 
         // =====================================================================
         // STEP 1: FILE CREATION (outside batch)
@@ -316,7 +316,7 @@ in
         // FINAL VERIFICATION
         // =====================================================================
         _output.WriteLine("\n=== BATCH MODE SMOKE TEST COMPLETE ===");
-        _output.WriteLine("✅ All 11 MCP tools tested successfully in BATCH MODE");
+        _output.WriteLine("✅ All 12 MCP tools tested successfully in BATCH MODE");
         _output.WriteLine("✅ Batch workflow: BEGIN → 15+ operations → COMMIT");
         _output.WriteLine("✅ Performance optimized: 75-90% faster than individual operations");
         _output.WriteLine("✅ Data persistence verified after batch commit");
