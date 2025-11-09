@@ -18,59 +18,35 @@ public partial class PivotTableCommands
         {
             dynamic? pivot = null;
             dynamic? pivotFields = null;
+            dynamic? cubeFields = null;
 
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
-                pivotFields = pivot.PivotFields;
 
-                var fields = new List<PivotFieldInfo>();
-
-                for (int i = 1; i <= pivotFields.Count; i++)
+                // Check if this is an OLAP/Data Model PivotTable
+                bool isOlap = false;
+                try
                 {
-                    dynamic? field = null;
-                    try
-                    {
-                        field = pivotFields.Item(i);
-                        int orientation = Convert.ToInt32(field.Orientation);
-
-                        var fieldInfo = new PivotFieldInfo
-                        {
-                            Name = field.SourceName?.ToString() ?? field.Name?.ToString() ?? $"Field{i}",
-                            CustomName = field.Caption?.ToString() ?? string.Empty,
-                            Area = orientation switch
-                            {
-                                XlPivotFieldOrientation.xlRowField => PivotFieldArea.Row,
-                                XlPivotFieldOrientation.xlColumnField => PivotFieldArea.Column,
-                                XlPivotFieldOrientation.xlPageField => PivotFieldArea.Filter,
-                                XlPivotFieldOrientation.xlDataField => PivotFieldArea.Value,
-                                _ => PivotFieldArea.Hidden
-                            },
-                            Position = orientation != XlPivotFieldOrientation.xlHidden ? Convert.ToInt32(field.Position) : 0,
-                            DataType = DetectFieldDataType(field)
-                        };
-
-                        // Get function for value fields
-                        if (orientation == XlPivotFieldOrientation.xlDataField)
-                        {
-                            int comFunction = Convert.ToInt32(field.Function);
-                            fieldInfo.Function = GetAggregationFunctionFromCom(comFunction);
-                        }
-
-                        fields.Add(fieldInfo);
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref field);
-                    }
+                    cubeFields = pivot.CubeFields;
+                    isOlap = cubeFields != null && cubeFields.Count > 0;
+                }
+                catch
+                {
+                    isOlap = false;
                 }
 
-                return new PivotFieldListResult
+                // For OLAP PivotTables, use CubeFields instead of PivotFields
+                if (isOlap)
                 {
-                    Success = true,
-                    Fields = fields,
-                    FilePath = batch.WorkbookPath
-                };
+                    return ListCubeFieldsAsync(cubeFields, batch.WorkbookPath);
+                }
+                else
+                {
+                    // Regular PivotTable - use PivotFields
+                    pivotFields = pivot.PivotFields;
+                    return ListRegularFieldsAsync(pivotFields, batch.WorkbookPath);
+                }
             }
             catch (Exception ex)
             {
@@ -83,10 +59,243 @@ public partial class PivotTableCommands
             }
             finally
             {
+                ComUtilities.Release(ref cubeFields);
                 ComUtilities.Release(ref pivotFields);
                 ComUtilities.Release(ref pivot);
             }
         });
+    }
+
+    /// <summary>
+    /// Lists fields from OLAP/Data Model PivotTable using CubeFields
+    /// </summary>
+    private static PivotFieldListResult ListCubeFieldsAsync(dynamic cubeFields, string filePath)
+    {
+        var fields = new List<PivotFieldInfo>();
+
+        try
+        {
+            int fieldCount = cubeFields.Count;
+
+            for (int i = 1; i <= fieldCount; i++)
+            {
+                dynamic? cubeField = null;
+                try
+                {
+                    cubeField = cubeFields.Item(i);
+
+                    // Get field name
+                    string fieldName;
+                    try
+                    {
+                        fieldName = cubeField.Name?.ToString() ?? $"CubeField{i}";
+                    }
+                    catch
+                    {
+                        fieldName = $"CubeField{i}";
+                    }
+
+                    // Get orientation - for CubeFields, check if it has a corresponding PivotField
+                    int orientation = XlPivotFieldOrientation.xlHidden;
+                    try
+                    {
+                        dynamic? pivotField = cubeField.PivotFields?.Item(1);
+                        if (pivotField != null)
+                        {
+                            orientation = Convert.ToInt32(pivotField.Orientation);
+                            ComUtilities.Release(ref pivotField);
+                        }
+                    }
+                    catch
+                    {
+                        orientation = XlPivotFieldOrientation.xlHidden;
+                    }
+
+                    var fieldInfo = new PivotFieldInfo
+                    {
+                        Name = fieldName,
+                        Area = orientation switch
+                        {
+                            XlPivotFieldOrientation.xlRowField => PivotFieldArea.Row,
+                            XlPivotFieldOrientation.xlColumnField => PivotFieldArea.Column,
+                            XlPivotFieldOrientation.xlPageField => PivotFieldArea.Filter,
+                            XlPivotFieldOrientation.xlDataField => PivotFieldArea.Value,
+                            _ => PivotFieldArea.Hidden
+                        },
+                        CustomName = string.Empty,
+                        Position = 0,
+                        DataType = "Cube"
+                    };
+
+                    fields.Add(fieldInfo);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Warning: Failed to read cube field {i}: {ex.Message}");
+                }
+                finally
+                {
+                    ComUtilities.Release(ref cubeField);
+                }
+            }
+
+            return new PivotFieldListResult
+            {
+                Success = true,
+                Fields = fields,
+                FilePath = filePath
+            };
+        }
+        catch (Exception ex)
+        {
+            return new PivotFieldListResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to list cube fields: {ex.Message}",
+                FilePath = filePath
+            };
+        }
+    }
+
+    /// <summary>
+    /// Lists fields from regular PivotTable using PivotFields
+    /// </summary>
+    private static PivotFieldListResult ListRegularFieldsAsync(dynamic pivotFields, string filePath)
+    {
+        var fields = new List<PivotFieldInfo>();
+
+        try
+        {
+            int fieldCount;
+            try
+            {
+                fieldCount = pivotFields.Count;
+            }
+            catch (Exception ex)
+            {
+                return new PivotFieldListResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to access PivotFields.Count: {ex.Message} (0x{ex.HResult:X})",
+                    FilePath = filePath
+                };
+            }
+
+            for (int i = 1; i <= fieldCount; i++)
+            {
+                dynamic? field = null;
+                try
+                {
+                    field = pivotFields.Item(i);
+
+                    // Get field name with defensive handling (can throw on Data Model fields)
+                    string fieldName;
+                    try
+                    {
+                        fieldName = field.SourceName?.ToString() ?? field.Name?.ToString() ?? $"Field{i}";
+                    }
+                    catch
+                    {
+                        fieldName = $"Field{i}";
+                    }
+
+                    // Get orientation with defensive handling
+                    int orientation;
+                    try
+                    {
+                        orientation = Convert.ToInt32(field.Orientation);
+                    }
+                    catch
+                    {
+                        orientation = XlPivotFieldOrientation.xlHidden;
+                    }
+
+                    var fieldInfo = new PivotFieldInfo
+                    {
+                        Name = fieldName,
+                        Area = orientation switch
+                        {
+                            XlPivotFieldOrientation.xlRowField => PivotFieldArea.Row,
+                            XlPivotFieldOrientation.xlColumnField => PivotFieldArea.Column,
+                            XlPivotFieldOrientation.xlPageField => PivotFieldArea.Filter,
+                            XlPivotFieldOrientation.xlDataField => PivotFieldArea.Value,
+                            _ => PivotFieldArea.Hidden
+                        }
+                    };
+
+                    // CustomName - defensive
+                    try
+                    {
+                        fieldInfo.CustomName = field.Caption?.ToString() ?? string.Empty;
+                    }
+                    catch
+                    {
+                        fieldInfo.CustomName = string.Empty;
+                    }
+
+                    // Position - defensive
+                    try
+                    {
+                        fieldInfo.Position = orientation != XlPivotFieldOrientation.xlHidden ? Convert.ToInt32(field.Position) : 0;
+                    }
+                    catch
+                    {
+                        fieldInfo.Position = 0;
+                    }
+
+                    // DataType - defensive
+                    try
+                    {
+                        fieldInfo.DataType = DetectFieldDataType(field);
+                    }
+                    catch
+                    {
+                        fieldInfo.DataType = "Unknown";
+                    }
+
+                    // Get function for value fields - defensive
+                    if (orientation == XlPivotFieldOrientation.xlDataField)
+                    {
+                        try
+                        {
+                            int comFunction = Convert.ToInt32(field.Function);
+                            fieldInfo.Function = GetAggregationFunctionFromCom(comFunction);
+                        }
+                        catch
+                        {
+                            fieldInfo.Function = AggregationFunction.Sum; // Default
+                        }
+                    }
+
+                    fields.Add(fieldInfo);
+                }
+                catch (Exception ex)
+                {
+                    // Log but continue - don't let one bad field break the entire list
+                    Console.WriteLine($"Warning: Failed to read field {i}: {ex.Message}");
+                }
+                finally
+                {
+                    ComUtilities.Release(ref field);
+                }
+            }
+
+            return new PivotFieldListResult
+            {
+                Success = true,
+                Fields = fields,
+                FilePath = filePath
+            };
+        }
+        catch (Exception ex)
+        {
+            return new PivotFieldListResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to list regular fields: {ex.Message}",
+                FilePath = filePath
+            };
+        }
     }
 
     /// <summary>
@@ -104,15 +313,16 @@ public partial class PivotTableCommands
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Validate field exists
+                // Get field using OLAP-aware helper
+                bool isOlap;
                 try
                 {
-                    field = pivot.PivotFields.Item(fieldName);
+                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     var availableFields = GetFieldNames(pivot);
-                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}");
+                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}", ex);
                 }
 
                 // Check if field is already placed
@@ -146,8 +356,8 @@ public partial class PivotTableCommands
                     CustomName = field.Caption?.ToString() ?? fieldName,
                     Area = PivotFieldArea.Row,
                     Position = Convert.ToInt32(field.Position),
-                    DataType = DetectFieldDataType(field),
-                    AvailableValues = GetFieldUniqueValues(field),
+                    DataType = isOlap ? "Cube" : DetectFieldDataType(field),
+                    AvailableValues = isOlap ? new List<string>() : GetFieldUniqueValues(field),
                     FilePath = batch.WorkbookPath
                 };
             }
@@ -183,15 +393,16 @@ public partial class PivotTableCommands
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Validate field exists
+                // Get field using OLAP-aware helper
+                bool isOlap;
                 try
                 {
-                    field = pivot.PivotFields.Item(fieldName);
+                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     var availableFields = GetFieldNames(pivot);
-                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}");
+                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}", ex);
                 }
 
                 // Check if field is already placed
@@ -225,8 +436,8 @@ public partial class PivotTableCommands
                     CustomName = field.Caption?.ToString() ?? fieldName,
                     Area = PivotFieldArea.Column,
                     Position = Convert.ToInt32(field.Position),
-                    DataType = DetectFieldDataType(field),
-                    AvailableValues = GetFieldUniqueValues(field),
+                    DataType = isOlap ? "Cube" : DetectFieldDataType(field),
+                    AvailableValues = isOlap ? new List<string>() : GetFieldUniqueValues(field),
                     FilePath = batch.WorkbookPath
                 };
             }
@@ -263,20 +474,21 @@ public partial class PivotTableCommands
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Validate field exists
+                // Get field using OLAP-aware helper
+                bool isOlap;
                 try
                 {
-                    field = pivot.PivotFields.Item(fieldName);
+                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     var availableFields = GetFieldNames(pivot);
-                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}");
+                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}", ex);
                 }
 
-                // Validate aggregation function for field data type
-                string dataType = DetectFieldDataType(field);
-                if (!IsValidAggregationForDataType(aggregationFunction, dataType))
+                // Validate aggregation function for field data type (skip for OLAP - harder to detect)
+                string dataType = isOlap ? "Cube" : DetectFieldDataType(field);
+                if (!isOlap && !IsValidAggregationForDataType(aggregationFunction, dataType))
                 {
                     var validFunctions = GetValidAggregationsForDataType(dataType);
                     throw new InvalidOperationException($"Aggregation function '{aggregationFunction}' is not valid for {dataType} field '{fieldName}'. Valid functions: {string.Join(", ", validFunctions)}");
@@ -342,15 +554,16 @@ public partial class PivotTableCommands
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Validate field exists
+                // Get field using OLAP-aware helper
+                bool isOlap;
                 try
                 {
-                    field = pivot.PivotFields.Item(fieldName);
+                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     var availableFields = GetFieldNames(pivot);
-                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}");
+                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}", ex);
                 }
 
                 // Check if field is already placed
@@ -380,8 +593,8 @@ public partial class PivotTableCommands
                     CustomName = field.Caption?.ToString() ?? fieldName,
                     Area = PivotFieldArea.Filter,
                     Position = Convert.ToInt32(field.Position),
-                    DataType = DetectFieldDataType(field),
-                    AvailableValues = GetFieldUniqueValues(field),
+                    DataType = isOlap ? "Cube" : DetectFieldDataType(field),
+                    AvailableValues = isOlap ? new List<string>() : GetFieldUniqueValues(field),
                     FilePath = batch.WorkbookPath
                 };
             }
@@ -417,26 +630,91 @@ public partial class PivotTableCommands
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Validate field exists
+                // Get field using OLAP-aware helper
+                bool isOlap;
                 try
                 {
-                    field = pivot.PivotFields.Item(fieldName);
+                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     var availableFields = GetFieldNames(pivot);
-                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}");
+                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}", ex);
                 }
 
-                // Check if field is currently placed
-                int currentOrientation = Convert.ToInt32(field.Orientation);
-                if (currentOrientation == XlPivotFieldOrientation.xlHidden)
+                if (isOlap)
                 {
-                    throw new InvalidOperationException($"Field '{fieldName}' is not currently placed in any area");
-                }
+                    // For OLAP, GetFieldForManipulation returns either CubeField or PivotField
+                    // We need to determine which and handle appropriately
 
-                // Remove from area
-                field.Orientation = XlPivotFieldOrientation.xlHidden;
+                    // Try to access CubeField property - if it exists, this is a PivotField
+                    bool isPivotField = false;
+                    try
+                    {
+                        var _ = field.CubeField; // If this succeeds, it's a PivotField
+                        isPivotField = true;
+                    }
+                    catch
+                    {
+                        isPivotField = false;
+                    }
+
+                    if (isPivotField)
+                    {
+                        // This is a PivotField from CubeField.PivotFields - set orientation
+                        int currentOrientation = Convert.ToInt32(field.Orientation);
+                        if (currentOrientation == XlPivotFieldOrientation.xlHidden)
+                        {
+                            throw new InvalidOperationException($"Field '{fieldName}' is not currently placed in any area");
+                        }
+                        field.Orientation = XlPivotFieldOrientation.xlHidden;
+                    }
+                    else
+                    {
+                        // This is a CubeField - remove it from the PivotTable
+                        // For OLAP, removing means clearing all associated PivotFields
+                        dynamic? pivotFields = null;
+                        try
+                        {
+                            pivotFields = field.PivotFields;
+                            if (pivotFields != null && pivotFields.Count > 0)
+                            {
+                                // Clear orientation on all PivotFields
+                                for (int i = 1; i <= pivotFields.Count; i++)
+                                {
+                                    dynamic? pf = null;
+                                    try
+                                    {
+                                        pf = pivotFields.Item(i);
+                                        int currentOrientation = Convert.ToInt32(pf.Orientation);
+                                        if (currentOrientation != XlPivotFieldOrientation.xlHidden)
+                                        {
+                                            pf.Orientation = XlPivotFieldOrientation.xlHidden;
+                                        }
+                                    }
+                                    finally
+                                    {
+                                        ComUtilities.Release(ref pf);
+                                    }
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref pivotFields);
+                        }
+                    }
+                }
+                else
+                {
+                    // Regular PivotTable - set orientation to hidden
+                    int currentOrientation = Convert.ToInt32(field.Orientation);
+                    if (currentOrientation == XlPivotFieldOrientation.xlHidden)
+                    {
+                        throw new InvalidOperationException($"Field '{fieldName}' is not currently placed in any area");
+                    }
+                    field.Orientation = XlPivotFieldOrientation.xlHidden;
+                }
 
                 // Refresh
                 pivot.RefreshTable();
@@ -499,7 +777,9 @@ public partial class PivotTableCommands
                 // If not found in DataFields, check PivotFields (for error reporting)
                 if (!foundInDataFields)
                 {
-                    field = pivot.PivotFields.Item(fieldName);
+                    // Use OLAP-aware helper for field access
+                    bool isOlap;
+                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
                     int orientation = Convert.ToInt32(field.Orientation);
                     if (orientation != XlPivotFieldOrientation.xlDataField)
                     {
@@ -508,8 +788,9 @@ public partial class PivotTableCommands
                 }
 
                 // Get source field for data type detection (DataFields don't have PivotItems)
-                dynamic? sourceField = pivot.PivotFields.Item(fieldName);
-                string dataType = DetectFieldDataType(sourceField);
+                bool dataTypeIsOlap;
+                dynamic? sourceField = GetFieldForManipulation(pivot, fieldName, out dataTypeIsOlap);
+                string dataType = dataTypeIsOlap ? "Cube" : DetectFieldDataType(sourceField);
                 ComUtilities.Release(ref sourceField);
                 if (!IsValidAggregationForDataType(aggregationFunction, dataType))
                 {
@@ -566,7 +847,10 @@ public partial class PivotTableCommands
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
-                field = pivot.PivotFields.Item(fieldName);
+
+                // Get field using OLAP-aware helper
+                bool isOlap;
+                field = GetFieldForManipulation(pivot, fieldName, out isOlap);
 
                 // Set custom name
                 field.Caption = customName;
@@ -632,7 +916,9 @@ public partial class PivotTableCommands
                 // If not found in DataFields, check PivotFields (for error reporting)
                 if (!foundInDataFields)
                 {
-                    field = pivot.PivotFields.Item(fieldName);
+                    // Use OLAP-aware helper for field access
+                    bool isOlap;
+                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
                     int orientation = Convert.ToInt32(field.Orientation);
                     if (orientation != XlPivotFieldOrientation.xlDataField)
                     {

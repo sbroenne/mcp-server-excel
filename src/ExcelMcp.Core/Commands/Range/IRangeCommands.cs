@@ -21,8 +21,15 @@ public interface IRangeCommands
 
     /// <summary>
     /// Sets values in a range from 2D array
-    /// Single cell "A1" accepts [[value]], range "A1:B2" accepts [[v1,v2],[v3,v4]]
     /// </summary>
+    /// <param name="rangeAddress">
+    /// MUST specify full range matching data dimensions:
+    /// - Single cell: "A1" for [[value]]
+    /// - Multi-cell: "A1:B2" for [[v1,v2],[v3,v4]]
+    /// - Headers + data: "A1:D11" for 11 rows x 4 columns
+    /// IMPORTANT: Passing "A1" with multi-cell array may not auto-expand reliably.
+    /// Always specify the exact range address.
+    /// </param>
     Task<OperationResult> SetValuesAsync(IExcelBatch batch, string sheetName, string rangeAddress, List<List<object?>> values);
 
     // === FORMULA OPERATIONS ===

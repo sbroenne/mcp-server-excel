@@ -279,5 +279,134 @@ public partial class PivotTableCommands : IPivotTableCommands
         return values;
     }
 
+    /// <summary>
+    /// Gets a field for manipulation, handling both OLAP and regular PivotTables.
+    /// For OLAP PivotTables, accesses via CubeFields and returns the corresponding PivotField.
+    /// For regular PivotTables, accesses via PivotFields directly.
+    /// </summary>
+    /// <param name="pivot">The PivotTable object</param>
+    /// <param name="fieldName">Name of the field to retrieve</param>
+    /// <param name="isOlap">Output parameter indicating if this is an OLAP PivotTable</param>
+    /// <returns>The field object that can be manipulated (PivotField)</returns>
+    /// <exception cref="InvalidOperationException">Thrown if field is not found</exception>
+    /// <remarks>
+    /// Microsoft docs: "In OLAP PivotTables, PivotFields do not exist until the corresponding 
+    /// CubeField is added to the PivotTable." This method handles both architectures.
+    /// </remarks>
+    private static dynamic GetFieldForManipulation(dynamic pivot, string fieldName, out bool isOlap)
+    {
+        isOlap = false;
+        dynamic? cubeFields = null;
+
+        try
+        {
+            // Check if this is an OLAP/Data Model PivotTable
+            try
+            {
+                cubeFields = pivot.CubeFields;
+                isOlap = cubeFields != null && cubeFields.Count > 0;
+            }
+            catch
+            {
+                isOlap = false;
+            }
+
+            if (isOlap)
+            {
+                // OLAP PivotTable - access via CubeFields
+                // CubeField names may be hierarchical like "[TableName].[FieldName]"
+                dynamic? cubeField = null;
+                try
+                {
+                    // Try exact match first
+                    try
+                    {
+                        cubeField = cubeFields.Item(fieldName);
+                    }
+                    catch
+                    {
+                        // Try partial match for hierarchical names
+                        for (int i = 1; i <= cubeFields.Count; i++)
+                        {
+                            dynamic? cf = null;
+                            try
+                            {
+                                cf = cubeFields.Item(i);
+                                string cfName = cf.Name?.ToString() ?? "";
+                                if (cfName.Contains(fieldName, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    cubeField = cf;
+                                    cf = null; // Don't release, we're returning it
+                                    break;
+                                }
+                            }
+                            finally
+                            {
+                                if (cf != null)
+                                    ComUtilities.Release(ref cf);
+                            }
+                        }
+                    }
+
+                    if (cubeField == null)
+                    {
+                        throw new InvalidOperationException($"CubeField '{fieldName}' not found in Data Model PivotTable");
+                    }
+
+                    // Get or create the PivotField from the CubeField
+                    // Per Microsoft docs: CubeField.PivotFields returns collection of PivotFields for this CubeField
+                    dynamic? pivotFields = cubeField.PivotFields;
+                    if (pivotFields == null || pivotFields.Count == 0)
+                    {
+                        // No PivotField exists yet - field hasn't been added to PivotTable
+                        // We can still return a reference that will work for adding the field
+                        // The field operations will create the PivotField when setting orientation
+                        ComUtilities.Release(ref pivotFields);
+                        // DON'T release cubeField - caller needs it to stay alive!
+                        return cubeField; // Return CubeField, operations will adapt
+                    }
+
+                    // Return the first PivotField (there's typically only one per CubeField)
+                    // CRITICAL: Don't release cubeField! The pivotField depends on cubeField staying alive.
+                    // Releasing cubeField here causes "COM object separated from RCW" errors.
+                    dynamic pivotField = pivotFields.Item(1);
+                    ComUtilities.Release(ref pivotFields);
+                    // Don't release cubeField - the returned pivotField needs it!
+                    return pivotField;
+                }
+                finally
+                {
+                    // Only release cubeField if we didn't return it or a child object
+                    // Since we return either cubeField or pivotField (which depends on cubeField),
+                    // we should NOT release cubeField here
+                    // if (cubeField != null)
+                    //     ComUtilities.Release(ref cubeField);
+                }
+            }
+            else
+            {
+                // Regular PivotTable - access via PivotFields directly
+                dynamic? pivotFields = null;
+                try
+                {
+                    pivotFields = pivot.PivotFields;
+                    return pivotFields.Item(fieldName); // COM will throw if not found
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable", ex);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref pivotFields);
+                }
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref cubeFields);
+        }
+    }
+
     #endregion
 }

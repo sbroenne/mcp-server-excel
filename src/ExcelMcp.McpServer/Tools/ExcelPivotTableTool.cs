@@ -152,12 +152,12 @@ Optional batchId for batch sessions.")]
             result.ErrorMessage,
             workflowHint = result.Success
                 ? $"Found {result.PivotTables.Count} PivotTable(s) - ready for analysis or field management"
-                : "Failed to list PivotTables - check workbook contains PivotTables",
+                : "Failed to list PivotTables - some PivotTables may have properties that cannot be read",
             suggestedNextActions = result.Success
                 ? result.PivotTables.Count == 0
                     ? new[] { "Create PivotTable with create-from-range, create-from-table, or create-from-datamodel", "Load data into workbook first", "Check if PivotTables exist in different sheets" }
                     : [$"Use get to view {result.PivotTables[0].Name} details", "Use list-fields to see available fields", "Use refresh to update data from source"]
-                : ["Verify file path is correct", "Check workbook opens in Excel", "Ensure workbook permissions allow access"]
+                : ["Try opening and saving the workbook in Excel first", "Check if PivotTables are disconnected from data sources", "Some PivotTables may use Data Model or external sources"]
         }, JsonOptions);
     }
 
