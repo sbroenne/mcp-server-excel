@@ -13,7 +13,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// MCP tool for Excel PivotTable operations
 /// </summary>
 [McpServerToolType]
-public static partial class ExcelPivotTableTool
+public static class ExcelPivotTableTool
 {
     private static readonly JsonSerializerOptions JsonOptions = ExcelToolsBase.JsonOptions;
 
