@@ -9,7 +9,6 @@ canonical_url: "https://sbroenne.github.io/mcp-server-excel/"
 <div class="hero">
   <div class="container">
     <img src="{{ '/assets/images/icon.png' | relative_url }}" alt="Excel MCP Server - AI-powered Excel automation showing a table with green gradient background" class="hero-icon">
-    <h1>Excel MCP Server</h1>
     <p class="subtitle">Control Microsoft Excel with Natural Language through AI assistants like GitHub Copilot and Claude</p>
   </div>
 </div>
