@@ -8,6 +8,57 @@
     
     <title>{% if page.title %}{{ page.title }} | {% endif %}Excel MCP Server - AI-Powered Excel Automation</title>
     <meta name="description" content="Control Microsoft Excel with Natural Language through AI assistants like GitHub Copilot and Claude. Automate Power Query, DAX, VBA, PivotTables, and more.">
+    
+    <!-- Open Graph / Social Media Meta Tags -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ page.url | absolute_url }}">
+    <meta property="og:title" content="{% if page.title %}{{ page.title }} | {% endif %}Excel MCP Server - AI-Powered Excel Automation">
+    <meta property="og:description" content="Control Microsoft Excel with Natural Language through AI assistants like GitHub Copilot and Claude. Automate Power Query, DAX, VBA, PivotTables, and more.">
+    <meta property="og:image" content="{{ '/assets/images/icon.png' | absolute_url }}">
+    <meta property="og:image:width" content="256">
+    <meta property="og:image:height" content="256">
+    <meta property="og:site_name" content="Excel MCP Server">
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{% if page.title %}{{ page.title }} | {% endif %}Excel MCP Server - AI-Powered Excel Automation">
+    <meta name="twitter:description" content="Control Microsoft Excel with Natural Language through AI assistants like GitHub Copilot and Claude. Automate Power Query, DAX, VBA, PivotTables, and more.">
+    <meta name="twitter:image" content="{{ '/assets/images/icon.png' | absolute_url }}">
+    
+    <!-- Structured Data (JSON-LD) for Software Application -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Excel MCP Server",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Windows",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "description": "Control Microsoft Excel with Natural Language through AI assistants like GitHub Copilot and Claude. Automate Power Query, DAX, VBA, PivotTables, and more.",
+      "url": "https://sbroenne.github.io/mcp-server-excel/",
+      "softwareVersion": "1.0",
+      "programmingLanguage": "C#",
+      "downloadUrl": "https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer/",
+      "codeRepository": "https://github.com/sbroenne/mcp-server-excel",
+      "keywords": "Excel, automation, MCP, AI, Power Query, DAX, VBA, PivotTables, GitHub Copilot, Claude",
+      "author": {
+        "@type": "Person",
+        "name": "Stefan Broenne"
+      },
+      "featureList": [
+        "Power Query automation",
+        "DAX measures management",
+        "VBA macro control",
+        "PivotTable creation",
+        "Data formatting",
+        "Natural language control"
+      ]
+    }
+    </script>
 
 {% seo %}
     <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
