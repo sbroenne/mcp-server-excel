@@ -94,8 +94,7 @@ dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Featur
 ## Release Process (Maintainers)
 
 **Tag Patterns:**
-- MCP Server: `mcp-v1.2.3`
-- CLI: `cli-v1.2.3`
+- MCP Server & CLI (unified): `v1.2.3`
 - VS Code Extension: `vscode-v1.1.3`
 
 Push tag → Workflow auto-builds → GitHub release created
