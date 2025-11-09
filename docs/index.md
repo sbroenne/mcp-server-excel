@@ -14,7 +14,7 @@ layout: default
   </div>
 </div>
 
-<div class="container">
+<div class="container content-section">
 
 ## What is This Project?
 
@@ -26,12 +26,12 @@ layout: default
 Both share the same core functionality: automate Power Query, DAX measures, VBA macros, PivotTables, formatting, and data transformations. Choose MCP for AI-powered conversations or CLI for programmatic control - no Excel programming knowledge required.
 
 <div class="callout">
-<strong>💡 Interactive Development</strong>
+💡 <strong>Interactive Development</strong><br>
 Unlike file-based tools, ExcelMcp lets you see results instantly in Excel - create → test → refine → iterate in real-time.
 </div>
 
 <div class="callout">
-<strong>💻 For Developers</strong>
+💻 <strong>For Developers</strong><br>
 Think of Excel as an AI-powered REPL - write code (Power Query M, DAX, VBA), execute instantly, inspect results visually in the live workbook.
 </div>
 
