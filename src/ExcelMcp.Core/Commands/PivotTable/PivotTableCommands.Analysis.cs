@@ -81,7 +81,10 @@ public partial class PivotTableCommands
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
-                field = pivot.PivotFields.Item(fieldName);
+
+                // Use OLAP-aware helper for field access
+                bool isOlap;
+                field = GetFieldForManipulation(pivot, fieldName, out isOlap);
                 pivotItems = field.PivotItems;
 
                 // First, show selected items (must do this before hiding others to avoid Excel error)
@@ -184,7 +187,10 @@ public partial class PivotTableCommands
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
-                field = pivot.PivotFields.Item(fieldName);
+
+                // Use OLAP-aware helper for field access
+                bool isOlap;
+                field = GetFieldForManipulation(pivot, fieldName, out isOlap);
 
                 // Excel sort order: xlAscending = 1, xlDescending = 2
                 int sortOrder = direction == SortDirection.Ascending ? 1 : 2;
