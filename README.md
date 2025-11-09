@@ -70,7 +70,7 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 - ✅ **Zero risk of document corruption** - Excel handles all file operations safely
 - ✅ **Interactive development** - See changes in real-time, create → test → refine → iterate instantly
 - ✅ **Timeout protection** - Built-in safeguards prevent indefinite hangs (2-min default, 5-min max)
-- ✅ **Comprehensive automation** - Currently supports 166 operations across 11 specialized tools covering Power Query, Data Model/DAX, VBA, PivotTables, Excel Tables, ranges, and more
+- ✅ **Comprehensive automation** - Currently supports 166 operations across 12 specialized tools covering Power Query, Data Model/DAX, VBA, PivotTables, Excel Tables, ranges, and more
 
 **💻 For Developers:** Think of Excel as an AI-powered REPL - write code (Power Query M, DAX, VBA), execute instantly, inspect results visually in the live workbook. No more blind editing of .xlsx files.
 
@@ -304,7 +304,7 @@ This means you get:
 
 ## 🔟 MCP Tools Overview
 
-**11 specialized tools for comprehensive Excel automation:**
+**12 specialized tools for comprehensive Excel automation:**
 
 1. **excel_powerquery** (16 actions) - Power Query M code: create, view, import, export, update, delete, manage load destinations, privacy levels, errors, eval, list Excel sources
 2. **excel_datamodel** (15 actions) - Power Pivot (Data Model): CRUD DAX measures/relationships, discover structure (tables, columns), export to .dax files
@@ -318,7 +318,7 @@ This means you get:
 10. **excel_file** (3 actions) - File operations: create empty .xlsx/.xlsm workbooks, close workbook, test
 11. **excel_batch** (3 actions) - Multi-operation performance: begin, commit, list
 
-**Total: 11 tools with 166 actions**
+**Total: 12 tools with 166 actions**
 
 > 📚 **[Complete MCP Server Guide →](src/ExcelMcp.McpServer/README.md)** - Detailed tool documentation and examples
 

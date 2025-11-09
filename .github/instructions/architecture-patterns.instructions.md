@@ -65,7 +65,7 @@ return args[0] switch
 
 ## MCP Server Resource-Based Tools
 
-**11 Focused Tools:**
+**12 Focused Tools:**
 1. `excel_batch` - Batch session management (start, commit, discard)
 2. `excel_connection` - Data connections (OLEDB, ODBC, Text, Web)
 3. `excel_datamodel` - Power Pivot / Data Model / DAX measures
@@ -77,6 +77,7 @@ return args[0] switch
 9. `excel_table` - Excel Tables (ListObjects)
 10. `excel_vba` - VBA macros
 11. `excel_worksheet` - Worksheet lifecycle management
+12. `excel_querytable` - QueryTable operations
 
 ### Action-Based Routing
 ```csharp
@@ -126,7 +127,7 @@ SavePassword = false  // Never export credentials by default
 1. **WithExcel() for everything** - See excel-com-interop.instructions.md
 2. **Release intermediate objects** - Prevents Excel hanging
 3. **Batch/Session for MCP** - Multiple operations in single session
-4. **Resource-based tools** - 11 tools, not 33+ operations
+4. **Resource-based tools** - 12 tools, not 33+ operations
 5. **DRY utilities** - Share common patterns
 6. **Security defaults** - Never expose credentials
 7. **Bulk operations** - Minimize COM round-trips
