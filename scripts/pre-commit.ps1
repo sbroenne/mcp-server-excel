@@ -4,13 +4,14 @@
     Git pre-commit hook to check for COM object leaks, Core Commands coverage, naming consistency, Success flag violations, and MCP Server functionality
 
 .DESCRIPTION
-    Runs five checks before allowing commits:
+    Runs five checks before allowing commits (only for .cs and .csproj file changes):
     1. COM leak checker - ensures no Excel COM objects are leaked
     2. Coverage audit - ensures 100% Core Commands are exposed via MCP Server
     3. Naming consistency - ensures enum names match Core method names exactly
     4. Success flag validation - ensures Success=true never paired with ErrorMessage (Rule 0)
     5. Smoke test - validates all 11 MCP tools work correctly
 
+    If no .cs or .csproj files are staged, the checks are skipped to allow documentation-only commits.
     Ensures code quality and prevents regression.
 
 .EXAMPLE
@@ -46,6 +47,20 @@ if ($currentBranch -eq "main") {
 }
 
 Write-Host "✅ Branch check passed - on '$currentBranch' (not main)" -ForegroundColor Green
+Write-Host ""
+
+# Check if any .cs or .csproj files are being committed
+Write-Host "🔍 Checking staged files..." -ForegroundColor Cyan
+$stagedFiles = git diff --cached --name-only --diff-filter=ACM
+$csharpFiles = $stagedFiles | Where-Object { $_ -match '\.(cs|csproj)$' }
+
+if (-not $csharpFiles) {
+    Write-Host "ℹ️  No .cs or .csproj files staged - skipping code quality checks" -ForegroundColor Yellow
+    Write-Host "✅ Pre-commit checks passed (no code changes)" -ForegroundColor Green
+    exit 0
+}
+
+Write-Host "✅ Found $($csharpFiles.Count) C# file(s) - running quality checks..." -ForegroundColor Green
 Write-Host ""
 
 Write-Host "🔍 Checking for COM object leaks..." -ForegroundColor Cyan
