@@ -32,7 +32,7 @@ $knownExceptions = @{
 
 # Define mappings: Enum -> Core Interface File
 $mappings = @{
-    "FileAction" = "src/ExcelMcp.Core/Commands/File/IFileCommands.cs"
+    "FileAction" = "src/ExcelMcp.Core/Commands/IFileCommands.cs"
     "PowerQueryAction" = "src/ExcelMcp.Core/Commands/PowerQuery/IPowerQueryCommands.cs"
     "WorksheetAction" = "src/ExcelMcp.Core/Commands/Sheet/ISheetCommands.cs"
     "TableAction" = "src/ExcelMcp.Core/Commands/Table/ITableCommands.cs"

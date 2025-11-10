@@ -1028,7 +1028,46 @@ public partial class PowerQueryCommands
                     switch (loadMode)
                     {
                         case PowerQueryLoadMode.LoadToTable:
-                            sheet = ctx.Book.Worksheets.Item(targetSheet!);
+                            // Check if sheet already exists - require explicit deletion by user
+                            // Bug fix for Issue #170: Prevent silent failures when sheet exists
+                            dynamic? worksheetsCheck = null;
+                            try
+                            {
+                                worksheetsCheck = ctx.Book.Worksheets;
+                                try
+                                {
+                                    dynamic? existingSheet = worksheetsCheck.Item(targetSheet!);
+                                    if (existingSheet != null)
+                                    {
+                                        ComUtilities.Release(ref existingSheet!);
+                                        result.Success = false;
+                                        result.ErrorMessage = $"Cannot load query to sheet '{targetSheet}': worksheet already exists.";
+                                        return result;
+                                    }
+                                }
+                                catch (COMException)
+                                {
+                                    // Sheet doesn't exist - this is expected, continue
+                                }
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref worksheetsCheck!);
+                            }
+
+                            // Create new sheet for query data
+                            dynamic? worksheetsLoadToTable = null;
+                            try
+                            {
+                                worksheetsLoadToTable = ctx.Book.Worksheets;
+                                sheet = worksheetsLoadToTable.Add();
+                                sheet.Name = targetSheet;
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref worksheetsLoadToTable!);
+                            }
+
                             queryTable = CreateQueryTableForQuery(sheet, query);
                             queryTable.Refresh(false);
                             result.ConfigurationApplied = true;
@@ -1072,7 +1111,46 @@ public partial class PowerQueryCommands
                             break;
 
                         case PowerQueryLoadMode.LoadToBoth:
-                            sheet = ctx.Book.Worksheets.Item(targetSheet!);
+                            // Check if sheet already exists - require explicit deletion by user
+                            // Bug fix for Issue #170: Prevent silent failures when sheet exists
+                            dynamic? worksheetsCheckBoth = null;
+                            try
+                            {
+                                worksheetsCheckBoth = ctx.Book.Worksheets;
+                                try
+                                {
+                                    dynamic? existingSheet = worksheetsCheckBoth.Item(targetSheet!);
+                                    if (existingSheet != null)
+                                    {
+                                        ComUtilities.Release(ref existingSheet!);
+                                        result.Success = false;
+                                        result.ErrorMessage = $"Cannot load query to sheet '{targetSheet}': worksheet already exists.";
+                                        return result;
+                                    }
+                                }
+                                catch (COMException)
+                                {
+                                    // Sheet doesn't exist - this is expected, continue
+                                }
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref worksheetsCheckBoth!);
+                            }
+
+                            // Create new sheet for query data
+                            dynamic? worksheetsLoadToBoth = null;
+                            try
+                            {
+                                worksheetsLoadToBoth = ctx.Book.Worksheets;
+                                sheet = worksheetsLoadToBoth.Add();
+                                sheet.Name = targetSheet;
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref worksheetsLoadToBoth!);
+                            }
+
                             queryTable = CreateQueryTableForQuery(sheet, query);
                             queryTable.Refresh(false);
 
