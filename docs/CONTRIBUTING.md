@@ -21,13 +21,19 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
    - .NET 8 SDK
    - Microsoft Excel installed
 
-2. **Setup**:
+2. **Clone & Setup**:
    ```powershell
    git clone https://github.com/sbroenne/mcp-server-excel.git
-   cd ExcelMcp
+   cd mcp-server-excel
    dotnet restore
    dotnet build
    ```
+
+3. **Read Essential Documentation**:
+   - [Constitution](.specify/memory/constitution.md) - Project governance (21 critical rules)
+   - [CRITICAL-RULES.md](.github/instructions/critical-rules.instructions.md) - Mandatory rules for all development
+   - [Spec Kit Guide](.specify/README.md) - Structured spec-driven development workflow
+   - Review feature specs in `specs/001-014/` directories
 
 ## 🚨 **CRITICAL: Pull Request Workflow Required**
 
@@ -37,10 +43,11 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 
 1. **Create feature branch**: `git checkout -b feature/your-feature`
 2. **Make changes**: Code, tests, documentation
-3. **Push branch**: `git push origin feature/your-feature`
-4. **Create PR**: Use GitHub's PR template
-5. **Address review**: Make requested changes
-6. **Merge**: After approval and CI checks pass
+3. **Run tests**: `dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"`
+4. **Push branch**: `git push origin feature/your-feature`
+5. **Create PR**: Use GitHub's PR template
+6. **Address review**: Make requested changes (including automated review comments)
+7. **Merge**: After approval and CI checks pass
 
 📋 **Detailed workflow**: See [DEVELOPMENT.md](DEVELOPMENT.md) for complete instructions.
 
@@ -61,42 +68,44 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 
 ### Architecture Patterns
 
-#### Command Pattern
-All commands follow this structure:
+**📚 See [Architecture Patterns](.github/instructions/architecture-patterns.instructions.md) for complete patterns**
+
+#### Batch API Pattern (CURRENT)
+All commands must use the Batch API:
 
 ```csharp
-// Interface
-public interface IMyCommands
+// Core Commands
+public async Task<OperationResult> MethodAsync(IExcelBatch batch, string arg1)
 {
-    int MyOperation(string[] args);
+    return await batch.ExecuteAsync((ctx, ct) => {
+        // Use ctx.Book for workbook access
+        return new OperationResult { Success = true };
+    });
 }
 
-// Implementation  
-public class MyCommands : IMyCommands
+// Tests
+[Fact]
+public async Task TestMethod()
 {
-    public int MyOperation(string[] args)
-    {
-        // Validation
-        if (!ValidateArgs(args, expectedCount, "usage string"))
-            return 1;
-            
-        // Excel automation using helper
-        return ExcelHelper.WithExcel(filePath, save, (excel, workbook) =>
-        {
-            // Your implementation
-            return 0; // Success
-        });
-    }
+    await using var batch = await ExcelSession.BeginBatchAsync(_testFile);
+    var result = await _commands.MethodAsync(batch, args);
+    Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
 }
 ```
 
+**Benefits:** 75-90% faster, guaranteed COM cleanup, exclusive file access
+
 #### Critical Rules
 
-1. **Always use `ExcelHelper.WithExcel()`** - Never manage Excel lifecycle manually
-2. **Excel uses 1-based indexing** - `collection.Item(1)` is the first element
-3. **Use `QueryTables.Add()` not `ListObjects.Add()`** - For loading Power Query data
-4. **Escape user input** - Always use `.EscapeMarkup()` with Spectre.Console
-5. **Return 0 for success, 1+ for errors** - Consistent exit codes
+**⚠️ MANDATORY - Read [CRITICAL-RULES.md](.github/instructions/critical-rules.instructions.md)**
+
+1. **Rule 0: NEVER commit without running tests** - Run `dotnet test --filter "Feature=<feature>&RunType!=OnDemand"` before commit
+2. **Rule 1: Success flag must match reality** - NEVER `Success = true` with `ErrorMessage` set
+3. **Rule 21: Never commit automatically** - All commits require explicit user approval
+4. **Excel uses 1-based indexing** - `collection.Item(1)` is the first element
+5. **Use Batch API** - Never manage Excel lifecycle manually
+6. **QueryTable.Refresh(false) for persistence** - NOT `RefreshAll()`
+7. **Release COM objects** - Use `ComUtilities.Release(ref obj!)` in try/finally
 
 ### Excel COM Best Practices
 

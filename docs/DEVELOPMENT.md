@@ -89,13 +89,17 @@ git push origin --delete feature/your-feature-name
 
 ```powershell
 # Create version tag (semantic versioning)
-git tag v1.1.0
+git tag v1.3.2
 
 # Push the tag (triggers release workflow)
-git push origin v1.1.0
+git push origin v1.3.2
 ```
 
-1. **Automated Release Workflow**:
+**Tag Patterns:**
+- MCP Server & CLI (unified): `v1.2.3`
+- VS Code Extension: `vscode-v1.1.3`
+
+3. **Automated Release Workflow**:
    - ✅ Updates version numbers in project files
    - ✅ Builds the release binaries  
    - ✅ Creates GitHub release with ZIP file
@@ -118,26 +122,61 @@ The `main` branch is protected with:
 - **Require up-to-date branches** - Must be current with main
 - **No direct pushes** - All changes via PR only
 
-## 🧪 **Testing Requirements & Organization**
+## 📋 **Spec-Driven Development (Spec Kit)**
 
-### **Three-Tier Test Architecture**
+### **Using Spec Kit for Feature Development**
 
-ExcelMcp uses a **production-ready three-tier testing approach** with organized directory structure:
+ExcelMcp uses [GitHub Spec Kit](https://github.com/github/spec-kit) for structured feature development.
 
+**Spec Kit Commands (in GitHub Copilot):**
 ```
-tests/
-├── ExcelMcp.Core.Tests/
-│   ├── Unit/           # Fast tests, no Excel required (~2-5 sec)
-│   ├── Integration/    # Medium speed, requires Excel (~1-15 min)
-│   └── RoundTrip/      # Slow, comprehensive workflows (~3-10 min each)
-├── ExcelMcp.McpServer.Tests/
-│   ├── Unit/           # Fast tests, no server required  
-│   ├── Integration/    # Medium speed, requires MCP server
-│   └── RoundTrip/      # Slow, end-to-end protocol testing
-└── ExcelMcp.CLI.Tests/
-    ├── Unit/           # Fast tests, no Excel required
-    └── Integration/    # Medium speed, requires Excel & CLI
+/speckit.specify    # Generate feature specification (WHAT to build)
+/speckit.plan       # Create implementation plan (HOW to build)
+/speckit.tasks      # Break down into actionable tasks
+/speckit.implement  # Generate code with full context
 ```
+
+**Spec Structure:**
+```
+specs/###-feature-name/
+├── spec.md    # WHAT: User stories, requirements, acceptance criteria
+└── plan.md    # HOW: Architecture, tech stack, design decisions
+```
+
+**Current Specs:**
+- 14 feature specifications in `specs/001-014/` directories
+- Constitution in `.specify/memory/constitution.md`
+- Templates in `.specify/templates/`
+
+**Workflow:**
+1. Review existing specs before starting work: `specs/001-014/`
+2. Check constitution for governance rules: `.specify/memory/constitution.md`
+3. Use `/speckit.specify` to create new feature specs
+4. Follow spec → plan → tasks → implement workflow
+5. Update specs as implementation evolves
+
+**See:** [Spec Kit Integration Guide](.specify/README.md) for complete workflow
+
+## 🧪 **Testing Requirements**
+
+### **Test Architecture**
+
+**⚠️ No Unit Tests** - See `docs/ADR-001-NO-UNIT-TESTS.md` for architectural rationale
+
+ExcelMcp uses **integration tests as unit tests** because Excel COM cannot be meaningfully mocked.
+
+**Test Traits:**
+```csharp
+[Trait("Category", "Integration")]  // All tests are integration tests
+[Trait("Speed", "Medium")]           // Medium (most) or Slow (heavy operations)
+[Trait("Layer", "Core")]             // Core, CLI, McpServer, or ComInterop
+[Trait("Feature", "PowerQuery")]     // Feature name for targeted testing
+[Trait("RequiresExcel", "true")]     // All integration tests require Excel
+[Trait("RunType", "OnDemand")]       // For slow session/diagnostic tests only
+```
+
+**Valid Feature Values:**
+- PowerQuery, DataModel, Tables, PivotTables, Ranges, Connections, Parameters, Worksheets, VBA, VBATrust
 
 ### **Development Workflow Commands**
 
@@ -148,86 +187,36 @@ dotnet test --filter "Feature=PowerQuery&RunType!=OnDemand"
 dotnet test --filter "Feature=DataModel&RunType!=OnDemand"
 ```
 
-**Before Commit (Comprehensive):**
+**Before Commit (Comprehensive - MANDATORY per Rule 0):**
 ```powershell
-# Full local validation - runs in 10-20 minutes (excludes VBA)
+# Full validation (10-15 minutes, excludes VBA which requires manual trust setup)
 dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 ```
 
 **Session/Batch Code Changes (MANDATORY):**
 ```powershell
 # When modifying ExcelSession.cs or ExcelBatch.cs
-dotnet test --filter "RunType=OnDemand"
+dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --filter "RunType=OnDemand"
 ```
 
-### **Test Categories & Guidelines**
+### **Test Guidelines**
 
-**⚠️ No Unit Tests** - See `docs/ADR-001-NO-UNIT-TESTS.md` for architectural rationale
+**File Isolation (CRITICAL):**
+- ✅ Each test creates unique file via `CoreTestHelper.CreateUniqueTestFileAsync()`
+- ❌ NEVER share test files between tests
+- ✅ Use `.xlsm` for VBA tests, `.xlsx` otherwise
 
-**Integration Tests (`Category=Integration`)**
-- ✅ Test business logic with real Excel COM interaction
-- ✅ Medium speed (10-20 minutes for full suite)
-- ✅ Requires Excel installation
-- ✅ These ARE our unit tests (Excel COM cannot be mocked)
-- ✅ Run specific features during development
-- ✅ Slow execution (3-10 minutes each)
-- ✅ Verifies actual Excel state changes
-- ✅ Comprehensive scenario coverage
+**Assertions:**
+- ✅ Binary: `Assert.True(result.Success, $"Reason: {result.ErrorMessage}")`
+- ❌ NEVER "accept both" patterns
+- ✅ ALWAYS verify actual Excel state after operations
 
-### **Adding New Tests**
+**SaveAsync Rules:**
+- ❌ FORBIDDEN unless explicitly testing persistence
+- ✅ ONLY for round-trip tests: Create → Save → Re-open → Verify
+- ❌ NEVER call in middle of test (breaks subsequent operations)
 
-When creating tests, follow these placement guidelines:
-
-```csharp
-// Unit Test Example
-[Trait("Category", "Unit")]
-[Trait("Speed", "Fast")]
-[Trait("Layer", "Core")]
-public class CommandLogicTests 
-{
-    // Tests business logic without Excel
-}
-
-// Integration Test Example  
-[Trait("Category", "Integration")]
-[Trait("Speed", "Medium")]
-[Trait("Feature", "PowerQuery")]
-[Trait("RequiresExcel", "true")]
-public class PowerQueryCommandsTests
-{
-    // Tests single Excel operations
-}
-
-// Round Trip Test Example
-[Trait("Category", "RoundTrip")]
-[Trait("Speed", "Slow")]
-[Trait("Feature", "EndToEnd")]
-[Trait("RequiresExcel", "true")]
-public class VbaWorkflowTests
-{
-    // Tests complete workflows: import → run → verify → export
-}
-```
-
-### **PR Testing Requirements**
-
-Before creating a PR, ensure:
-
-```powershell
-# Required - Integration tests pass (excludes VBA)
-dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
-
-# Code builds without warnings
-dotnet build -c Release
-
-# Code follows style guidelines (automatic via EditorConfig)
-```
-
-**For Complex Features:**
-- ✅ Add integration tests for all Excel operations
-- ✅ Test round-trip persistence (create → save → reload → verify)
-- ✅ Update documentation
-- ✅ No unit tests needed (see ADR-001-NO-UNIT-TESTS.md)
+**See:** [Testing Strategy](.github/instructions/testing-strategy.instructions.md) for complete patterns
 
 ## 📋 **MCP Server Configuration Management**
 
