@@ -27,6 +27,28 @@
     <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
   </PropertyGroup>
 
+  <!-- Release Build Optimizations -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!-- Disable debug symbols in Release builds -->
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+
+    <!-- Additional optimization flags -->
+    <Optimize>true</Optimize>
+    <TieredCompilation>true</TieredCompilation>
+    <TieredCompilationQuickJit>true</TieredCompilationQuickJit>
+  </PropertyGroup>
+
+  <!-- Remove XML docs and PDB files from Release output -->
+  <Target Name="RemoveDebugFilesFromRelease" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <ItemGroup>
+      <XmlDocsToDelete Include="$(OutputPath)**\*.xml" />
+      <PdbFilesToDelete Include="$(OutputPath)**\*.pdb" />
+    </ItemGroup>
+    <Delete Files="@(XmlDocsToDelete)" />
+    <Delete Files="@(PdbFilesToDelete)" />
+  </Target>
+
   <ItemGroup>
     <!-- Include README and LICENSE in package -->
     <None Include="README.md" Pack="true" PackagePath="\" />

@@ -307,59 +307,14 @@ public partial class PivotTableCommands
         return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
-            dynamic? field = null;
 
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Get field using OLAP-aware helper
-                bool isOlap;
-                try
-                {
-                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
-                }
-                catch (Exception ex)
-                {
-                    var availableFields = GetFieldNames(pivot);
-                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}", ex);
-                }
-
-                // Check if field is already placed
-                int currentOrientation = Convert.ToInt32(field.Orientation);
-                if (currentOrientation != XlPivotFieldOrientation.xlHidden)
-                {
-                    throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
-                }
-
-                // Add to Row area
-                field.Orientation = XlPivotFieldOrientation.xlRowField;
-                if (position.HasValue)
-                {
-                    field.Position = (double)position.Value;
-                }
-
-                // Refresh and validate placement
-                pivot.RefreshTable();
-
-                // Verify field was added successfully
-                if (field.Orientation != XlPivotFieldOrientation.xlRowField)
-                {
-                    throw new InvalidOperationException($"Field '{fieldName}' was not successfully added to Row area. Current orientation: {GetAreaName(field.Orientation)}");
-                }
-
-                // Return detailed result
-                return new PivotFieldResult
-                {
-                    Success = true,
-                    FieldName = fieldName,
-                    CustomName = field.Caption?.ToString() ?? fieldName,
-                    Area = PivotFieldArea.Row,
-                    Position = Convert.ToInt32(field.Position),
-                    DataType = isOlap ? "Cube" : DetectFieldDataType(field),
-                    AvailableValues = isOlap ? new List<string>() : GetFieldUniqueValues(field),
-                    FilePath = batch.WorkbookPath
-                };
+                // Use Strategy Pattern to delegate to appropriate implementation
+                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
+                return strategy.AddRowField(pivot, fieldName, position, batch.WorkbookPath);
             }
             catch (Exception ex)
             {
@@ -372,7 +327,6 @@ public partial class PivotTableCommands
             }
             finally
             {
-                ComUtilities.Release(ref field);
                 ComUtilities.Release(ref pivot);
             }
         });
@@ -387,59 +341,14 @@ public partial class PivotTableCommands
         return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
-            dynamic? field = null;
 
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Get field using OLAP-aware helper
-                bool isOlap;
-                try
-                {
-                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
-                }
-                catch (Exception ex)
-                {
-                    var availableFields = GetFieldNames(pivot);
-                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}", ex);
-                }
-
-                // Check if field is already placed
-                int currentOrientation = Convert.ToInt32(field.Orientation);
-                if (currentOrientation != XlPivotFieldOrientation.xlHidden)
-                {
-                    throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
-                }
-
-                // Add to Column area
-                field.Orientation = XlPivotFieldOrientation.xlColumnField;
-                if (position.HasValue)
-                {
-                    field.Position = (double)position.Value;
-                }
-
-                // Refresh and validate placement
-                pivot.RefreshTable();
-
-                // Verify field was added successfully
-                if (field.Orientation != XlPivotFieldOrientation.xlColumnField)
-                {
-                    throw new InvalidOperationException($"Field '{fieldName}' was not successfully added to Column area. Current orientation: {GetAreaName(field.Orientation)}");
-                }
-
-                // Return detailed result
-                return new PivotFieldResult
-                {
-                    Success = true,
-                    FieldName = fieldName,
-                    CustomName = field.Caption?.ToString() ?? fieldName,
-                    Area = PivotFieldArea.Column,
-                    Position = Convert.ToInt32(field.Position),
-                    DataType = isOlap ? "Cube" : DetectFieldDataType(field),
-                    AvailableValues = isOlap ? new List<string>() : GetFieldUniqueValues(field),
-                    FilePath = batch.WorkbookPath
-                };
+                // Use Strategy Pattern to delegate to appropriate implementation
+                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
+                return strategy.AddColumnField(pivot, fieldName, position, batch.WorkbookPath);
             }
             catch (Exception ex)
             {
@@ -452,7 +361,6 @@ public partial class PivotTableCommands
             }
             finally
             {
-                ComUtilities.Release(ref field);
                 ComUtilities.Release(ref pivot);
             }
         });
@@ -468,59 +376,14 @@ public partial class PivotTableCommands
         return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
-            dynamic? field = null;
 
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Get field using OLAP-aware helper
-                bool isOlap;
-                try
-                {
-                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
-                }
-                catch (Exception ex)
-                {
-                    var availableFields = GetFieldNames(pivot);
-                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}", ex);
-                }
-
-                // Validate aggregation function for field data type (skip for OLAP - harder to detect)
-                string dataType = isOlap ? "Cube" : DetectFieldDataType(field);
-                if (!isOlap && !IsValidAggregationForDataType(aggregationFunction, dataType))
-                {
-                    var validFunctions = GetValidAggregationsForDataType(dataType);
-                    throw new InvalidOperationException($"Aggregation function '{aggregationFunction}' is not valid for {dataType} field '{fieldName}'. Valid functions: {string.Join(", ", validFunctions)}");
-                }
-
-                // Add to Values area
-                field.Orientation = XlPivotFieldOrientation.xlDataField;
-
-                // Set aggregation function with COM constant
-                int comFunction = GetComAggregationFunction(aggregationFunction);
-                field.Function = comFunction;
-
-                // Set custom name if provided
-                if (!string.IsNullOrEmpty(customName))
-                {
-                    field.Caption = customName;
-                }
-
-                // Refresh and validate
-                pivot.RefreshTable();
-
-                // Return detailed result
-                return new PivotFieldResult
-                {
-                    Success = true,
-                    FieldName = fieldName,
-                    CustomName = field.Caption?.ToString() ?? fieldName,
-                    Area = PivotFieldArea.Value,
-                    Function = aggregationFunction,
-                    DataType = dataType,
-                    FilePath = batch.WorkbookPath
-                };
+                // Use Strategy Pattern to delegate to appropriate implementation
+                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
+                return strategy.AddValueField(pivot, fieldName, aggregationFunction, customName, batch.WorkbookPath);
             }
             catch (Exception ex)
             {
@@ -533,7 +396,6 @@ public partial class PivotTableCommands
             }
             finally
             {
-                ComUtilities.Release(ref field);
                 ComUtilities.Release(ref pivot);
             }
         });
@@ -548,55 +410,14 @@ public partial class PivotTableCommands
         return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
-            dynamic? field = null;
 
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Get field using OLAP-aware helper
-                bool isOlap;
-                try
-                {
-                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
-                }
-                catch (Exception ex)
-                {
-                    var availableFields = GetFieldNames(pivot);
-                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}", ex);
-                }
-
-                // Check if field is already placed
-                int currentOrientation = Convert.ToInt32(field.Orientation);
-                if (currentOrientation != XlPivotFieldOrientation.xlHidden)
-                {
-                    throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
-                }
-
-                // Add to Filter area
-                field.Orientation = XlPivotFieldOrientation.xlPageField;
-
-                // Refresh and validate placement
-                pivot.RefreshTable();
-
-                // Verify field was added successfully
-                if (field.Orientation != XlPivotFieldOrientation.xlPageField)
-                {
-                    throw new InvalidOperationException($"Field '{fieldName}' was not successfully added to Filter area. Current orientation: {GetAreaName(field.Orientation)}");
-                }
-
-                // Return detailed result
-                return new PivotFieldResult
-                {
-                    Success = true,
-                    FieldName = fieldName,
-                    CustomName = field.Caption?.ToString() ?? fieldName,
-                    Area = PivotFieldArea.Filter,
-                    Position = Convert.ToInt32(field.Position),
-                    DataType = isOlap ? "Cube" : DetectFieldDataType(field),
-                    AvailableValues = isOlap ? new List<string>() : GetFieldUniqueValues(field),
-                    FilePath = batch.WorkbookPath
-                };
+                // Use Strategy Pattern to delegate to appropriate implementation
+                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
+                return strategy.AddFilterField(pivot, fieldName, batch.WorkbookPath);
             }
             catch (Exception ex)
             {
@@ -609,7 +430,6 @@ public partial class PivotTableCommands
             }
             finally
             {
-                ComUtilities.Release(ref field);
                 ComUtilities.Release(ref pivot);
             }
         });
@@ -624,109 +444,14 @@ public partial class PivotTableCommands
         return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
-            dynamic? field = null;
 
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Get field using OLAP-aware helper
-                bool isOlap;
-                try
-                {
-                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
-                }
-                catch (Exception ex)
-                {
-                    var availableFields = GetFieldNames(pivot);
-                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable '{pivotTableName}'. Available fields: {string.Join(", ", availableFields)}", ex);
-                }
-
-                if (isOlap)
-                {
-                    // For OLAP, GetFieldForManipulation returns either CubeField or PivotField
-                    // We need to determine which and handle appropriately
-
-                    // Try to access CubeField property - if it exists, this is a PivotField
-                    bool isPivotField = false;
-                    try
-                    {
-                        var _ = field.CubeField; // If this succeeds, it's a PivotField
-                        isPivotField = true;
-                    }
-                    catch
-                    {
-                        isPivotField = false;
-                    }
-
-                    if (isPivotField)
-                    {
-                        // This is a PivotField from CubeField.PivotFields - set orientation
-                        int currentOrientation = Convert.ToInt32(field.Orientation);
-                        if (currentOrientation == XlPivotFieldOrientation.xlHidden)
-                        {
-                            throw new InvalidOperationException($"Field '{fieldName}' is not currently placed in any area");
-                        }
-                        field.Orientation = XlPivotFieldOrientation.xlHidden;
-                    }
-                    else
-                    {
-                        // This is a CubeField - remove it from the PivotTable
-                        // For OLAP, removing means clearing all associated PivotFields
-                        dynamic? pivotFields = null;
-                        try
-                        {
-                            pivotFields = field.PivotFields;
-                            if (pivotFields != null && pivotFields.Count > 0)
-                            {
-                                // Clear orientation on all PivotFields
-                                for (int i = 1; i <= pivotFields.Count; i++)
-                                {
-                                    dynamic? pf = null;
-                                    try
-                                    {
-                                        pf = pivotFields.Item(i);
-                                        int currentOrientation = Convert.ToInt32(pf.Orientation);
-                                        if (currentOrientation != XlPivotFieldOrientation.xlHidden)
-                                        {
-                                            pf.Orientation = XlPivotFieldOrientation.xlHidden;
-                                        }
-                                    }
-                                    finally
-                                    {
-                                        ComUtilities.Release(ref pf);
-                                    }
-                                }
-                            }
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref pivotFields);
-                        }
-                    }
-                }
-                else
-                {
-                    // Regular PivotTable - set orientation to hidden
-                    int currentOrientation = Convert.ToInt32(field.Orientation);
-                    if (currentOrientation == XlPivotFieldOrientation.xlHidden)
-                    {
-                        throw new InvalidOperationException($"Field '{fieldName}' is not currently placed in any area");
-                    }
-                    field.Orientation = XlPivotFieldOrientation.xlHidden;
-                }
-
-                // Refresh
-                pivot.RefreshTable();
-
-                // Return result
-                return new PivotFieldResult
-                {
-                    Success = true,
-                    FieldName = fieldName,
-                    Area = PivotFieldArea.Hidden,
-                    FilePath = batch.WorkbookPath
-                };
+                // Use Strategy Pattern to delegate to appropriate implementation
+                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
+                return strategy.RemoveField(pivot, fieldName, batch.WorkbookPath);
             }
             catch (Exception ex)
             {
@@ -739,7 +464,6 @@ public partial class PivotTableCommands
             }
             finally
             {
-                ComUtilities.Release(ref field);
                 ComUtilities.Release(ref pivot);
             }
         });
@@ -754,67 +478,14 @@ public partial class PivotTableCommands
         return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
-            dynamic? field = null;
 
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Try to find field in DataFields collection first (value fields)
-                bool foundInDataFields = false;
-                for (int i = 1; i <= pivot.DataFields.Count; i++)
-                {
-                    dynamic dataField = pivot.DataFields.Item(i);
-                    string sourceName = dataField.SourceName?.ToString() ?? "";
-                    if (sourceName == fieldName)
-                    {
-                        field = dataField;
-                        foundInDataFields = true;
-                        break;
-                    }
-                }
-
-                // If not found in DataFields, check PivotFields (for error reporting)
-                if (!foundInDataFields)
-                {
-                    // Use OLAP-aware helper for field access
-                    bool isOlap;
-                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
-                    int orientation = Convert.ToInt32(field.Orientation);
-                    if (orientation != XlPivotFieldOrientation.xlDataField)
-                    {
-                        throw new InvalidOperationException($"Field '{fieldName}' is not in the Values area. It is in {GetAreaName(orientation)} area.");
-                    }
-                }
-
-                // Get source field for data type detection (DataFields don't have PivotItems)
-                bool dataTypeIsOlap;
-                dynamic? sourceField = GetFieldForManipulation(pivot, fieldName, out dataTypeIsOlap);
-                string dataType = dataTypeIsOlap ? "Cube" : DetectFieldDataType(sourceField);
-                ComUtilities.Release(ref sourceField);
-                if (!IsValidAggregationForDataType(aggregationFunction, dataType))
-                {
-                    var validFunctions = GetValidAggregationsForDataType(dataType);
-                    throw new InvalidOperationException($"Aggregation function '{aggregationFunction}' is not valid for {dataType} field '{fieldName}'. Valid functions: {string.Join(", ", validFunctions)}");
-                }
-
-                // Set function
-                int comFunction = GetComAggregationFunction(aggregationFunction);
-                field.Function = comFunction;
-
-                // Refresh
-                pivot.RefreshTable();
-
-                return new PivotFieldResult
-                {
-                    Success = true,
-                    FieldName = fieldName,
-                    CustomName = field.Caption?.ToString() ?? fieldName,
-                    Area = PivotFieldArea.Value,
-                    Function = aggregationFunction,
-                    DataType = dataType,
-                    FilePath = batch.WorkbookPath
-                };
+                // Use Strategy Pattern to delegate to appropriate implementation
+                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
+                return strategy.SetFieldFunction(pivot, fieldName, aggregationFunction, batch.WorkbookPath);
             }
             catch (Exception ex)
             {
@@ -827,7 +498,6 @@ public partial class PivotTableCommands
             }
             finally
             {
-                ComUtilities.Release(ref field);
                 ComUtilities.Release(ref pivot);
             }
         });
@@ -842,30 +512,14 @@ public partial class PivotTableCommands
         return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
-            dynamic? field = null;
 
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Get field using OLAP-aware helper
-                bool isOlap;
-                field = GetFieldForManipulation(pivot, fieldName, out isOlap);
-
-                // Set custom name
-                field.Caption = customName;
-
-                // Refresh
-                pivot.RefreshTable();
-
-                return new PivotFieldResult
-                {
-                    Success = true,
-                    FieldName = fieldName,
-                    CustomName = customName,
-                    Area = (PivotFieldArea)field.Orientation,
-                    FilePath = batch.WorkbookPath
-                };
+                // Use Strategy Pattern to delegate to appropriate implementation
+                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
+                return strategy.SetFieldName(pivot, fieldName, customName, batch.WorkbookPath);
             }
             catch (Exception ex)
             {
@@ -878,7 +532,6 @@ public partial class PivotTableCommands
             }
             finally
             {
-                ComUtilities.Release(ref field);
                 ComUtilities.Release(ref pivot);
             }
         });
@@ -893,54 +546,14 @@ public partial class PivotTableCommands
         return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
-            dynamic? field = null;
 
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Try to find field in DataFields collection first (value fields)
-                bool foundInDataFields = false;
-                for (int i = 1; i <= pivot.DataFields.Count; i++)
-                {
-                    dynamic dataField = pivot.DataFields.Item(i);
-                    string sourceName = dataField.SourceName?.ToString() ?? "";
-                    if (sourceName == fieldName)
-                    {
-                        field = dataField;
-                        foundInDataFields = true;
-                        break;
-                    }
-                }
-
-                // If not found in DataFields, check PivotFields (for error reporting)
-                if (!foundInDataFields)
-                {
-                    // Use OLAP-aware helper for field access
-                    bool isOlap;
-                    field = GetFieldForManipulation(pivot, fieldName, out isOlap);
-                    int orientation = Convert.ToInt32(field.Orientation);
-                    if (orientation != XlPivotFieldOrientation.xlDataField)
-                    {
-                        throw new InvalidOperationException($"Field '{fieldName}' is not in the Values area. Only value fields can have number formats.");
-                    }
-                }
-
-                // Set number format
-                field.NumberFormat = numberFormat;
-
-                // Refresh
-                pivot.RefreshTable();
-
-                return new PivotFieldResult
-                {
-                    Success = true,
-                    FieldName = fieldName,
-                    CustomName = field.Caption?.ToString() ?? fieldName,
-                    Area = PivotFieldArea.Value,
-                    NumberFormat = numberFormat,
-                    FilePath = batch.WorkbookPath
-                };
+                // Use Strategy Pattern to delegate to appropriate implementation
+                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
+                return strategy.SetFieldFormat(pivot, fieldName, numberFormat, batch.WorkbookPath);
             }
             catch (Exception ex)
             {
@@ -953,7 +566,6 @@ public partial class PivotTableCommands
             }
             finally
             {
-                ComUtilities.Release(ref field);
                 ComUtilities.Release(ref pivot);
             }
         });

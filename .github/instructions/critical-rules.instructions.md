@@ -219,8 +219,13 @@ Delete commented-out code (use git history). Exception: Documentation files only
 
 - **ALWAYS** search OTHER open source GitHub repositories for working examples
 - **NEVER** search your own repository - only search external projects
+- **NetOffice is THE BEST source for ALL COM Interop work**: https://github.com/NetOfficeFw/NetOffice
+  - Strongly-typed C# wrappers for ALL Office COM APIs (Excel, Word, PowerPoint, Outlook, etc.)
+  - Search for ANY Excel COM operation: ranges, worksheets, PivotTables, Power Query, charts, VBA, connections, formatting, etc.
+  - Study their patterns for dynamic interop conversion and proper COM object handling
+  - NetOffice source code is essentially a comprehensive reference for every Excel COM API
 - Look for repositories with Excel automation, VBA code, or Office interop projects
-- Search for the specific COM object/method you need (e.g., "PivotTable CreatePivotTable VBA", "QueryTable Refresh VBA", "ModelMeasures.Add VBA")
+- Search for the specific COM object/method you need (e.g., "PivotTable CreatePivotTable VBA", "QueryTable Refresh VBA", "Range.Value2 NetOffice")
 - Study proven patterns from other projects before writing new code
 - Avoid reinventing solutions - learn from working implementations in the wild
 

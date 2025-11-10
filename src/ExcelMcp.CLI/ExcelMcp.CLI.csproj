@@ -39,6 +39,32 @@
     <EnablePackageValidation>true</EnablePackageValidation>
   </PropertyGroup>
 
+  <!-- Release Build Optimizations -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!-- Disable debug symbols in Release builds -->
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+
+    <!-- Generate XML docs for analyzers but exclude from output -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- Additional optimization flags -->
+    <Optimize>true</Optimize>
+    <TieredCompilation>true</TieredCompilation>
+    <TieredCompilationQuickJit>true</TieredCompilationQuickJit>
+  </PropertyGroup>
+
+  <!-- Remove XML docs and PDB files from Release output -->
+  <Target Name="RemoveDebugFilesFromRelease" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <ItemGroup>
+      <XmlDocsToDelete Include="$(OutputPath)**\*.xml" />
+      <PdbFilesToDelete Include="$(OutputPath)**\*.pdb" />
+    </ItemGroup>
+    <Delete Files="@(XmlDocsToDelete)" />
+    <Delete Files="@(PdbFilesToDelete)" />
+    <Message Text="Removed XML documentation and PDB files from Release build" Importance="high" />
+  </Target>
+
   <ItemGroup>
     <PackageReference Include="Spectre.Console" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers">

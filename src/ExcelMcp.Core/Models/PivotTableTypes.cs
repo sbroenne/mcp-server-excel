@@ -201,6 +201,22 @@ public static class XlConsolidationFunction
 }
 
 /// <summary>
+/// Excel COM constants for sort order
+/// </summary>
+public static class XlSortOrder
+{
+    /// <summary>
+    /// Sort ascending
+    /// </summary>
+    public const int xlAscending = 1;
+
+    /// <summary>
+    /// Sort descending
+    /// </summary>
+    public const int xlDescending = 2;
+}
+
+/// <summary>
 /// Result for PivotTable creation operations
 /// </summary>
 public class PivotTableCreateResult : ResultBase

@@ -15,6 +15,15 @@ applyTo: "src/ExcelMcp.Core/**/*.cs"
 5. **NEVER use RefreshAll()** - Async/unreliable; use individual `connection.Refresh()` or `queryTable.Refresh(false)`
 6. **Timeout Protection** - All batch operations have 2-minute default timeout; heavy operations request 5-minute timeout
 
+## Reference Resources
+
+**NetOffice Library** - THE BEST source for ALL Excel COM Interop patterns:
+- GitHub: https://github.com/NetOfficeFw/NetOffice
+- **Use for ALL COM Interop work** - ranges, worksheets, workbooks, charts, PivotTables, Power Query, VBA, connections, everything
+- NetOffice wraps Office COM APIs in strongly-typed C# - study their patterns for dynamic interop conversion
+- Search NetOffice repository BEFORE implementing any Excel COM automation
+- Particularly valuable for: PivotTables, OLAP CubeFields, Data Model operations, QueryTables, complex COM scenarios
+
 ## Timeout Handling
 
 ### Request Extended Timeout for Heavy Operations

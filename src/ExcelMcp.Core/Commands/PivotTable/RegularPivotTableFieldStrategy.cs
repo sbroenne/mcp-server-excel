@@ -1,0 +1,832 @@
+using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.Core.Models;
+
+namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
+
+/// <summary>
+/// Strategy for Regular (non-OLAP) PivotTable field operations.
+/// Uses PivotFields API for range-based and table-based PivotTables.
+/// </summary>
+public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
+{
+    /// <inheritdoc/>
+    public bool CanHandle(dynamic pivot)
+    {
+        try
+        {
+            // Regular PivotTables have PivotFields and no CubeFields (or empty CubeFields)
+            // Note: Don't release COM objects here - PivotTable keeps them alive
+            dynamic cubeFields = pivot.CubeFields;
+            if (cubeFields != null && cubeFields.Count > 0)
+                return false; // This is OLAP
+
+            dynamic pivotFields = pivot.PivotFields;
+            return pivotFields != null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <inheritdoc/>
+    public dynamic GetFieldForManipulation(dynamic pivot, string fieldName)
+    {
+        dynamic? pivotFields = null;
+        try
+        {
+            pivotFields = pivot.PivotFields;
+            return pivotFields.Item(fieldName); // COM will throw if not found
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable", ex);
+        }
+        finally
+        {
+            ComUtilities.Release(ref pivotFields);
+        }
+    }
+
+    /// <inheritdoc/>
+    public PivotFieldListResult ListFields(dynamic pivot, string workbookPath)
+    {
+        var fields = new List<PivotFieldInfo>();
+        dynamic? pivotFields = null;
+
+        try
+        {
+            pivotFields = pivot.PivotFields;
+            int fieldCount = pivotFields.Count;
+
+            for (int i = 1; i <= fieldCount; i++)
+            {
+                dynamic? field = null;
+                try
+                {
+                    field = pivotFields.Item(i);
+                    int orientation = Convert.ToInt32(field.Orientation);
+
+                    var fieldInfo = new PivotFieldInfo
+                    {
+                        Name = field.SourceName?.ToString() ?? field.Name?.ToString() ?? $"Field{i}",
+                        CustomName = field.Caption?.ToString() ?? "",
+                        Area = (PivotFieldArea)orientation,
+                        DataType = DetectFieldDataType(field)
+                    };
+
+                    // For value fields, get function from DataFields
+                    if (orientation == XlPivotFieldOrientation.xlDataField)
+                    {
+                        int comFunction = Convert.ToInt32(field.Function);
+                        fieldInfo.Function = GetAggregationFunctionFromCom(comFunction);
+                    }
+
+                    fields.Add(fieldInfo);
+                }
+                catch (Exception ex)
+                {
+                    // Log but continue with other fields
+                    Console.WriteLine($"Error reading field {i}: {ex.Message}");
+                }
+                finally
+                {
+                    ComUtilities.Release(ref field);
+                }
+            }
+
+            return new PivotFieldListResult
+            {
+                Success = true,
+                Fields = fields,
+                FilePath = workbookPath
+            };
+        }
+        catch (Exception ex)
+        {
+            return new PivotFieldListResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to list fields: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref pivotFields);
+        }
+    }
+
+    /// <inheritdoc/>
+    public PivotFieldResult AddRowField(dynamic pivot, string fieldName, int? position, string workbookPath)
+    {
+        dynamic? field = null;
+        try
+        {
+            field = GetFieldForManipulation(pivot, fieldName);
+
+            // Check if field is already placed
+            int currentOrientation = Convert.ToInt32(field.Orientation);
+            if (currentOrientation != XlPivotFieldOrientation.xlHidden)
+            {
+                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
+            }
+
+            // Add to Row area
+            field.Orientation = XlPivotFieldOrientation.xlRowField;
+            if (position.HasValue)
+            {
+                field.Position = (double)position.Value;
+            }
+
+            // Refresh and validate
+            pivot.RefreshTable();
+
+            if (field.Orientation != XlPivotFieldOrientation.xlRowField)
+            {
+                throw new InvalidOperationException($"Field '{fieldName}' was not successfully added to Row area.");
+            }
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                CustomName = field.Caption?.ToString() ?? fieldName,
+                Area = PivotFieldArea.Row,
+                Position = Convert.ToInt32(field.Position),
+                DataType = DetectFieldDataType(field),
+                AvailableValues = GetFieldUniqueValues(field),
+                FilePath = workbookPath
+            };
+        }
+        catch (Exception ex)
+        {
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to add row field: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref field);
+        }
+    }
+
+    /// <inheritdoc/>
+    public PivotFieldResult AddColumnField(dynamic pivot, string fieldName, int? position, string workbookPath)
+    {
+        dynamic? field = null;
+        try
+        {
+            field = GetFieldForManipulation(pivot, fieldName);
+
+            int currentOrientation = Convert.ToInt32(field.Orientation);
+            if (currentOrientation != XlPivotFieldOrientation.xlHidden)
+            {
+                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
+            }
+
+            field.Orientation = XlPivotFieldOrientation.xlColumnField;
+            if (position.HasValue)
+            {
+                field.Position = (double)position.Value;
+            }
+
+            pivot.RefreshTable();
+
+            if (field.Orientation != XlPivotFieldOrientation.xlColumnField)
+            {
+                throw new InvalidOperationException($"Field '{fieldName}' was not successfully added to Column area.");
+            }
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                CustomName = field.Caption?.ToString() ?? fieldName,
+                Area = PivotFieldArea.Column,
+                Position = Convert.ToInt32(field.Position),
+                DataType = DetectFieldDataType(field),
+                AvailableValues = GetFieldUniqueValues(field),
+                FilePath = workbookPath
+            };
+        }
+        catch (Exception ex)
+        {
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to add column field: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref field);
+        }
+    }
+
+    /// <inheritdoc/>
+    public PivotFieldResult AddValueField(dynamic pivot, string fieldName, AggregationFunction aggregationFunction, string? customName, string workbookPath)
+    {
+        dynamic? field = null;
+        try
+        {
+            field = GetFieldForManipulation(pivot, fieldName);
+
+            // Validate aggregation function for field data type
+            string dataType = DetectFieldDataType(field);
+            if (!IsValidAggregationForDataType(aggregationFunction, dataType))
+            {
+                var validFunctions = GetValidAggregationsForDataType(dataType);
+                throw new InvalidOperationException($"Aggregation function '{aggregationFunction}' is not valid for {dataType} field '{fieldName}'. Valid functions: {string.Join(", ", validFunctions)}");
+            }
+
+            int currentOrientation = Convert.ToInt32(field.Orientation);
+            if (currentOrientation != XlPivotFieldOrientation.xlHidden)
+            {
+                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
+            }
+
+            field.Orientation = XlPivotFieldOrientation.xlDataField;
+            int comFunction = GetComAggregationFunction(aggregationFunction);
+            field.Function = comFunction;
+
+            if (!string.IsNullOrEmpty(customName))
+            {
+                field.Caption = customName;
+            }
+
+            pivot.RefreshTable();
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                CustomName = field.Caption?.ToString() ?? fieldName,
+                Area = PivotFieldArea.Value,
+                Function = aggregationFunction,
+                DataType = dataType,
+                FilePath = workbookPath
+            };
+        }
+        catch (Exception ex)
+        {
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to add value field: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref field);
+        }
+    }
+
+    /// <inheritdoc/>
+    public PivotFieldResult AddFilterField(dynamic pivot, string fieldName, string workbookPath)
+    {
+        dynamic? field = null;
+        try
+        {
+            field = GetFieldForManipulation(pivot, fieldName);
+
+            int currentOrientation = Convert.ToInt32(field.Orientation);
+            if (currentOrientation != XlPivotFieldOrientation.xlHidden)
+            {
+                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
+            }
+
+            field.Orientation = XlPivotFieldOrientation.xlPageField;
+            pivot.RefreshTable();
+
+            if (field.Orientation != XlPivotFieldOrientation.xlPageField)
+            {
+                throw new InvalidOperationException($"Field '{fieldName}' was not successfully added to Filter area.");
+            }
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                CustomName = field.Caption?.ToString() ?? fieldName,
+                Area = PivotFieldArea.Filter,
+                Position = Convert.ToInt32(field.Position),
+                DataType = DetectFieldDataType(field),
+                AvailableValues = GetFieldUniqueValues(field),
+                FilePath = workbookPath
+            };
+        }
+        catch (Exception ex)
+        {
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to add filter field: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref field);
+        }
+    }
+
+    /// <inheritdoc/>
+    public PivotFieldResult RemoveField(dynamic pivot, string fieldName, string workbookPath)
+    {
+        dynamic? field = null;
+        try
+        {
+            field = GetFieldForManipulation(pivot, fieldName);
+
+            int currentOrientation = Convert.ToInt32(field.Orientation);
+            if (currentOrientation == XlPivotFieldOrientation.xlHidden)
+            {
+                throw new InvalidOperationException($"Field '{fieldName}' is not currently placed in any area");
+            }
+
+            field.Orientation = XlPivotFieldOrientation.xlHidden;
+            pivot.RefreshTable();
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                Area = PivotFieldArea.Hidden,
+                FilePath = workbookPath
+            };
+        }
+        catch (Exception ex)
+        {
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to remove field: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref field);
+        }
+    }
+
+    /// <inheritdoc/>
+    public PivotFieldResult SetFieldName(dynamic pivot, string fieldName, string customName, string workbookPath)
+    {
+        dynamic? field = null;
+        try
+        {
+            field = GetFieldForManipulation(pivot, fieldName);
+            field.Caption = customName;
+            pivot.RefreshTable();
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                CustomName = customName,
+                Area = (PivotFieldArea)field.Orientation,
+                FilePath = workbookPath
+            };
+        }
+        catch (Exception ex)
+        {
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to set field name: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref field);
+        }
+    }
+
+    /// <inheritdoc/>
+    public PivotFieldResult SetFieldFunction(dynamic pivot, string fieldName, AggregationFunction aggregationFunction, string workbookPath)
+    {
+        dynamic? field = null;
+        try
+        {
+            // Find field in DataFields collection (value fields)
+            bool foundInDataFields = false;
+            for (int i = 1; i <= pivot.DataFields.Count; i++)
+            {
+                dynamic? dataField = null;
+                try
+                {
+                    dataField = pivot.DataFields.Item(i);
+                    string sourceName = dataField.SourceName?.ToString() ?? "";
+                    if (sourceName == fieldName)
+                    {
+                        field = dataField;
+                        foundInDataFields = true;
+                        break;
+                    }
+                }
+                finally
+                {
+                    if (!foundInDataFields && dataField != null)
+                        ComUtilities.Release(ref dataField);
+                }
+            }
+
+            if (!foundInDataFields)
+            {
+                field = GetFieldForManipulation(pivot, fieldName);
+                int orientation = Convert.ToInt32(field.Orientation);
+                if (orientation != XlPivotFieldOrientation.xlDataField)
+                {
+                    throw new InvalidOperationException($"Field '{fieldName}' is not in the Values area. It is in {GetAreaName(orientation)} area.");
+                }
+            }
+
+            // Get source field for data type detection
+            dynamic? sourceField = GetFieldForManipulation(pivot, fieldName);
+            string dataType = DetectFieldDataType(sourceField);
+            ComUtilities.Release(ref sourceField);
+
+            if (!IsValidAggregationForDataType(aggregationFunction, dataType))
+            {
+                var validFunctions = GetValidAggregationsForDataType(dataType);
+                throw new InvalidOperationException($"Aggregation function '{aggregationFunction}' is not valid for {dataType} field '{fieldName}'. Valid functions: {string.Join(", ", validFunctions)}");
+            }
+
+            int comFunction = GetComAggregationFunction(aggregationFunction);
+            field.Function = comFunction;
+            pivot.RefreshTable();
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                CustomName = field.Caption?.ToString() ?? fieldName,
+                Area = PivotFieldArea.Value,
+                Function = aggregationFunction,
+                DataType = dataType,
+                FilePath = workbookPath
+            };
+        }
+        catch (Exception ex)
+        {
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to set field function: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref field);
+        }
+    }
+
+    /// <inheritdoc/>
+    public PivotFieldResult SetFieldFormat(dynamic pivot, string fieldName, string numberFormat, string workbookPath)
+    {
+        dynamic? field = null;
+        try
+        {
+            // Find field in DataFields collection
+            bool foundInDataFields = false;
+            for (int i = 1; i <= pivot.DataFields.Count; i++)
+            {
+                dynamic? dataField = null;
+                try
+                {
+                    dataField = pivot.DataFields.Item(i);
+                    string sourceName = dataField.SourceName?.ToString() ?? "";
+                    if (sourceName == fieldName)
+                    {
+                        field = dataField;
+                        foundInDataFields = true;
+                        break;
+                    }
+                }
+                finally
+                {
+                    if (!foundInDataFields && dataField != null)
+                        ComUtilities.Release(ref dataField);
+                }
+            }
+
+            if (!foundInDataFields)
+            {
+                field = GetFieldForManipulation(pivot, fieldName);
+                int orientation = Convert.ToInt32(field.Orientation);
+                if (orientation != XlPivotFieldOrientation.xlDataField)
+                {
+                    throw new InvalidOperationException($"Field '{fieldName}' is not in the Values area. Only value fields can have number formats.");
+                }
+            }
+
+            field.NumberFormat = numberFormat;
+            pivot.RefreshTable();
+
+            // Read back the format to verify it was set
+            string? appliedFormat = null;
+            try
+            {
+                appliedFormat = field.NumberFormat?.ToString();
+            }
+            catch
+            {
+                // If we can't read it back, use what we set
+                appliedFormat = numberFormat;
+            }
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                CustomName = field.Caption?.ToString() ?? fieldName,
+                Area = PivotFieldArea.Value,
+                NumberFormat = appliedFormat,
+                FilePath = workbookPath
+            };
+        }
+        catch (Exception ex)
+        {
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to set field format: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref field);
+        }
+    }
+
+    /// <inheritdoc/>
+    public PivotFieldFilterResult SetFieldFilter(dynamic pivot, string fieldName, List<string> filterValues, string workbookPath)
+    {
+        dynamic? field = null;
+        dynamic? pivotItems = null;
+        try
+        {
+            field = GetFieldForManipulation(pivot, fieldName);
+
+            // Clear all existing filters first
+            field.ClearAllFilters();
+
+            // Set visibility based on filter values
+            pivotItems = field.PivotItems;
+            var availableItems = new List<string>();
+
+            for (int i = 1; i <= pivotItems.Count; i++)
+            {
+                dynamic? item = null;
+                try
+                {
+                    item = pivotItems.Item(i);
+                    string itemName = item.Name?.ToString() ?? "";
+                    availableItems.Add(itemName);
+                    item.Visible = filterValues.Contains(itemName);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref item);
+                }
+            }
+
+            pivot.RefreshTable();
+
+            return new PivotFieldFilterResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                SelectedItems = filterValues,
+                AvailableItems = availableItems,
+                ShowAll = false,
+                FilePath = workbookPath
+            };
+        }
+        catch (Exception ex)
+        {
+            return new PivotFieldFilterResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to set field filter: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref pivotItems);
+            ComUtilities.Release(ref field);
+        }
+    }
+
+    /// <inheritdoc/>
+    public PivotFieldResult SortField(dynamic pivot, string fieldName, SortDirection direction, string workbookPath)
+    {
+        dynamic? field = null;
+        try
+        {
+            field = GetFieldForManipulation(pivot, fieldName);
+
+            int sortOrder = direction == SortDirection.Ascending
+                ? XlSortOrder.xlAscending
+                : XlSortOrder.xlDescending;
+
+            field.AutoSort(sortOrder, fieldName);
+            pivot.RefreshTable();
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                CustomName = field.Caption?.ToString() ?? fieldName,
+                Area = (PivotFieldArea)field.Orientation,
+                FilePath = workbookPath
+            };
+        }
+        catch (Exception ex)
+        {
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to sort field: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref field);
+        }
+    }
+
+    #region Helper Methods
+
+    private static string DetectFieldDataType(dynamic field)
+    {
+        dynamic? pivotItems = null;
+        try
+        {
+            pivotItems = field.PivotItems;
+            var sampleValues = new List<object?>();
+
+            int sampleCount = Math.Min(10, pivotItems.Count);
+            for (int i = 1; i <= sampleCount; i++)
+            {
+                dynamic? item = null;
+                try
+                {
+                    item = pivotItems.Item(i);
+                    var value = item.Value;
+                    if (value != null)
+                        sampleValues.Add(value);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref item);
+                }
+            }
+
+            if (sampleValues.Count == 0)
+                return "Unknown";
+
+            if (sampleValues.All(v => DateTime.TryParse(v?.ToString(), out _)))
+                return "Date";
+            if (sampleValues.All(v => double.TryParse(v?.ToString(), out _)))
+                return "Number";
+            if (sampleValues.All(v => bool.TryParse(v?.ToString(), out _)))
+                return "Boolean";
+
+            return "Text";
+        }
+        catch
+        {
+            return "Unknown";
+        }
+        finally
+        {
+            ComUtilities.Release(ref pivotItems);
+        }
+    }
+
+    private static List<string> GetFieldUniqueValues(dynamic field)
+    {
+        var values = new List<string>();
+        dynamic? pivotItems = null;
+        try
+        {
+            pivotItems = field.PivotItems;
+            for (int i = 1; i <= pivotItems.Count; i++)
+            {
+                dynamic? item = null;
+                try
+                {
+                    item = pivotItems.Item(i);
+                    string itemName = item.Name?.ToString() ?? string.Empty;
+                    if (!string.IsNullOrEmpty(itemName))
+                        values.Add(itemName);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref item);
+                }
+            }
+        }
+        catch
+        {
+            // Ignore errors
+        }
+        finally
+        {
+            ComUtilities.Release(ref pivotItems);
+        }
+        return values;
+    }
+
+    private static bool IsValidAggregationForDataType(AggregationFunction function, string dataType)
+    {
+        return dataType switch
+        {
+            "Number" => true,
+            "Date" => function is AggregationFunction.Count or AggregationFunction.CountNumbers or
+                      AggregationFunction.Max or AggregationFunction.Min,
+            "Text" => function == AggregationFunction.Count,
+            "Boolean" => function is AggregationFunction.Count or AggregationFunction.Sum,
+            _ => function == AggregationFunction.Count
+        };
+    }
+
+    private static List<string> GetValidAggregationsForDataType(string dataType)
+    {
+        return dataType switch
+        {
+            "Number" => ["Sum", "Count", "Average", "Max", "Min", "Product", "CountNumbers", "StdDev", "StdDevP", "Var", "VarP"],
+            "Date" => ["Count", "CountNumbers", "Max", "Min"],
+            "Text" => ["Count"],
+            "Boolean" => ["Count", "Sum"],
+            _ => ["Count"]
+        };
+    }
+
+    private static int GetComAggregationFunction(AggregationFunction function)
+    {
+        return function switch
+        {
+            AggregationFunction.Sum => XlConsolidationFunction.xlSum,
+            AggregationFunction.Count => XlConsolidationFunction.xlCount,
+            AggregationFunction.Average => XlConsolidationFunction.xlAverage,
+            AggregationFunction.Max => XlConsolidationFunction.xlMax,
+            AggregationFunction.Min => XlConsolidationFunction.xlMin,
+            AggregationFunction.Product => XlConsolidationFunction.xlProduct,
+            AggregationFunction.CountNumbers => XlConsolidationFunction.xlCountNums,
+            AggregationFunction.StdDev => XlConsolidationFunction.xlStdDev,
+            AggregationFunction.StdDevP => XlConsolidationFunction.xlStdDevP,
+            AggregationFunction.Var => XlConsolidationFunction.xlVar,
+            AggregationFunction.VarP => XlConsolidationFunction.xlVarP,
+            _ => throw new InvalidOperationException($"Unsupported aggregation function: {function}")
+        };
+    }
+
+    private static AggregationFunction GetAggregationFunctionFromCom(int comFunction)
+    {
+        return comFunction switch
+        {
+            XlConsolidationFunction.xlSum => AggregationFunction.Sum,
+            XlConsolidationFunction.xlCount => AggregationFunction.Count,
+            XlConsolidationFunction.xlAverage => AggregationFunction.Average,
+            XlConsolidationFunction.xlMax => AggregationFunction.Max,
+            XlConsolidationFunction.xlMin => AggregationFunction.Min,
+            XlConsolidationFunction.xlProduct => AggregationFunction.Product,
+            XlConsolidationFunction.xlCountNums => AggregationFunction.CountNumbers,
+            XlConsolidationFunction.xlStdDev => AggregationFunction.StdDev,
+            XlConsolidationFunction.xlStdDevP => AggregationFunction.StdDevP,
+            XlConsolidationFunction.xlVar => AggregationFunction.Var,
+            XlConsolidationFunction.xlVarP => AggregationFunction.VarP,
+            _ => throw new InvalidOperationException($"Unknown COM aggregation function: {comFunction}")
+        };
+    }
+
+    private static string GetAreaName(dynamic orientation)
+    {
+        int orientationValue = Convert.ToInt32(orientation);
+        return orientationValue switch
+        {
+            XlPivotFieldOrientation.xlHidden => "Hidden",
+            XlPivotFieldOrientation.xlRowField => "Row",
+            XlPivotFieldOrientation.xlColumnField => "Column",
+            XlPivotFieldOrientation.xlPageField => "Filter",
+            XlPivotFieldOrientation.xlDataField => "Value",
+            _ => $"Unknown({orientationValue})"
+        };
+    }
+
+    #endregion
+}
