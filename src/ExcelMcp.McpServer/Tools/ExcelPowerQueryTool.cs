@@ -31,6 +31,11 @@ LOAD DESTINATIONS (loadDestination parameter):
 - 'both': Load to BOTH worksheet AND Data Model
 - 'connection-only': Don't load data (M code imported but not executed)
 
+⚠️ SHEET NAME CONFLICTS (LoadTo action):
+- If a worksheet with the target name already exists, LoadTo returns an error
+- User must delete the existing sheet first using excel_worksheet action='Delete'
+- Then retry LoadTo - this ensures explicit user control over data deletion
+
 WHEN TO USE CREATE vs UPDATE:
 - Create: For NEW queries only (FAILS with 'already exists' error if query exists)
 - Update: For EXISTING queries (updates M code + refreshes data)
@@ -445,6 +450,10 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             save: true,
             async (batch) => await commands.LoadToAsync(batch, queryName, loadMode, targetSheet));
 
+        // Detect sheet conflict error and provide specific guidance
+        var isSheetConflict = !result.Success &&
+                             result.ErrorMessage?.Contains("worksheet already exists", StringComparison.OrdinalIgnoreCase) == true;
+
         // Add workflow hints
         var inBatch = !string.IsNullOrEmpty(batchId);
         var destinationName = loadMode switch
@@ -467,7 +476,9 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
             result.RowsLoaded,
             workflowHint = result.Success
                 ? $"Query '{queryName}' now loaded to {destinationName}. Data refreshed with {result.RowsLoaded} rows."
-                : $"Failed to load query '{queryName}': {result.ErrorMessage}",
+                : isSheetConflict
+                    ? $"Cannot load query '{queryName}': sheet '{targetSheet ?? queryName}' already exists. Delete it first, then retry LoadTo."
+                    : $"Failed to load query '{queryName}': {result.ErrorMessage}",
             suggestedNextActions = result.Success
                 ? (loadMode == PowerQueryLoadMode.LoadToDataModel || loadMode == PowerQueryLoadMode.LoadToBoth
                     ? new[]
@@ -484,12 +495,19 @@ After loading to Data Model, use excel_datamodel tool for DAX measures and relat
                         "Use excel_table 'create' to convert range to Excel Table for filtering/sorting",
                         inBatch ? "Load more queries in this batch" : "Loading multiple queries? Use excel_batch for efficiency"
                     ])
-                :
-                [
-                    "Check if query name is correct with excel_powerquery 'list'",
-                    "Verify query is connection-only with excel_powerquery 'get-load-config'",
-                    "Review error message for specific issue"
-                ]
+                : isSheetConflict
+                    ?
+                    [
+                        $"Use excel_worksheet action='Delete' sheetName='{targetSheet ?? queryName}' to delete the existing sheet",
+                        $"Then retry: excel_powerquery action='LoadTo' queryName='{queryName}' loadDestination='{loadDestination ?? "worksheet"}' targetSheet='{targetSheet ?? queryName}'",
+                        "Or rename the target sheet if you want to keep existing data"
+                    ]
+                    :
+                    [
+                        "Check if query name is correct with excel_powerquery 'list'",
+                        "Verify query is connection-only with excel_powerquery 'get-load-config'",
+                        "Review error message for specific issue"
+                    ]
         }, ExcelToolsBase.JsonOptions);
     }
 

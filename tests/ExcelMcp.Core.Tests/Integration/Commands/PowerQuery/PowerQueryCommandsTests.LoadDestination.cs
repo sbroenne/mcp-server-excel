@@ -215,17 +215,14 @@ in
         var mCodeFile = CreateUniqueTestQueryFile(nameof(LoadTo_ConnectionOnlyToTable_LoadsDataSuccessfully));
         var targetSheet = "LoadSheet";
 
-        // Create connection-only query first
-        await using (var setupBatch = await ExcelSession.BeginBatchAsync(testFile))
-        {
-            await _powerQueryCommands.CreateAsync(
-                setupBatch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
-            await _sheetCommands.CreateAsync(setupBatch, targetSheet);
-            await setupBatch.SaveAsync();
-        }
-
-        // Act
+        // Act - Create connection-only query and LoadTo (all in one batch)
         await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+
+        // Create connection-only query first
+        await _powerQueryCommands.CreateAsync(
+            batch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+
+        // LoadTo should create sheet and load data
         var loadResult = await _powerQueryCommands.LoadToAsync(
             batch, queryName, PowerQueryLoadMode.LoadToTable, targetSheet);
 
