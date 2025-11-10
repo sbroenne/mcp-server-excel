@@ -11,7 +11,7 @@ Connection Management provides full CRUD operations for Excel data connections (
 
 ### Tech Stack
 
-- **.NET 9.0** - Target framework
+- **.NET 8.0** - Target framework
 - **Excel COM Interop** - Late binding via `dynamic`
 - **System.Text.Json** - Connection definition serialization
 - **Spectre.Console** - CLI table formatting

@@ -100,6 +100,46 @@ As a developer, I need to refresh PivotTables after source data changes.
 - Batch API for exclusive access
 - Field auto-detection (numeric vs text)
 
+## Future Enhancements
+
+### Refactoring: Strategy Pattern for Field Operations
+
+**Status**: 🔜 **PLANNED** (Not Yet Implemented)
+
+**Current State**: PivotTable operations implemented with procedural approach in partial classes.
+
+**Proposed**: Refactor to Strategy Pattern for better extensibility and testability.
+
+**Why Deferred**: Current implementation works well. This is a code quality improvement, not a functional gap.
+
+**Benefits**:
+- Easier testing and mocking without Excel COM dependencies
+- Better separation of concerns for field operations
+- Improved maintainability for future field types
+
+**Proposed Architecture**:
+```csharp
+public interface IFieldStrategy {
+    Task<OperationResult> AddFieldAsync(PivotTable pt, string fieldName, int position);
+}
+
+public class RowFieldStrategy : IFieldStrategy { ... }
+public class ColumnFieldStrategy : IFieldStrategy { ... }
+public class ValueFieldStrategy : IFieldStrategy { ... }
+```
+
+**Design Patterns**:
+- **Strategy Pattern**: Different field placement strategies
+- **Factory Pattern**: Create appropriate strategy for field type
+- **Dependency Injection**: Inject strategies into commands
+
+**Requirements for Implementation**:
+- **FR-001**: Refactor field operations to strategy pattern
+- **FR-002**: Maintain backward compatibility (no API changes)
+- **FR-003**: Improve test coverage via mockable strategies
+- **NFR-001**: No performance degradation
+- **NFR-002**: Zero breaking changes to public API
+
 ## Related Documentation
 - **Original Spec**: `PIVOTTABLE-API-SPECIFICATION.md`
 - **Testing**: `testing-strategy.instructions.md`

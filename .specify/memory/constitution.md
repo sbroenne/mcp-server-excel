@@ -1,4 +1,60 @@
 <!--
+SYNC IMPACT REPORT - Constitution v2.1.0
+========================================
+
+VERSION CHANGE: 2.0.0 → 2.1.0 (MINOR - Material Expansion)
+DATE: 2025-11-10
+RATIONALE: Expanded Principle XXI from bug-fix-specific documentation to comprehensive documentation synchronization requirement for ALL changes
+
+KEY CHANGES:
+- Principle XXI renamed: "Comprehensive Bug Fixing Process" → "Documentation Synchronization"
+- Expanded scope: Now applies to ALL changes (features, bug fixes, API changes), not just bug fixes
+- Added explicit file list: README.md, McpServer/README.md, server.json, vscode-extension/README.md, gh-pages/index.md
+- Clarified rationale: Documentation is first-class artifact, inconsistency causes user confusion
+- Updated cross-references in Appendix A
+
+PRINCIPLE XXI - BEFORE (v2.0.0):
+- Name: "Comprehensive Bug Fixing Process"
+- Scope: Bug fixes only
+- Docs requirement: "Update 3+ files: tool/method docs, user docs, LLM prompts"
+
+PRINCIPLE XXI - AFTER (v2.1.0):
+- Name: "Documentation Synchronization"  
+- Scope: ALL changes (features, bugs, API changes)
+- Docs requirement: Minimum 4 files across 6 categories:
+  1. Component Documentation (XML docs, [Description] attributes)
+  2. User Documentation (5 specific files listed: READMEs, server.json, gh-pages)
+  3. LLM Prompts (Prompts/Content/)
+  4. Workflow Hints (SuggestedNextActions, error messages)
+  5. Verification (consistency check)
+  6. PR Description (document updates)
+
+TEMPLATES UPDATED:
+✅ Appendix A - Updated cross-reference for Principle XXI
+⚠️  bug-fixing-checklist.instructions.md - Should reference new principle name
+⚠️  readme-management.instructions.md - Should reference Principle XXI
+
+FILES REQUIRING UPDATES:
+⚠️  .github/instructions/bug-fixing-checklist.instructions.md - Update references to "Comprehensive Bug Fixes" → "Documentation Synchronization"
+⚠️  .github/instructions/readme-management.instructions.md - Add reference to Principle XXI
+
+FOLLOW-UP TODOS:
+- Update bug-fixing-checklist to reference Documentation Synchronization principle
+- Update readme-management to reference Principle XXI as authoritative source
+- Consider adding documentation sync check to pre-commit hooks
+
+RATIONALE FOR EXPANSION:
+Documentation inconsistency is a persistent issue. Users access information from multiple entry points:
+- Developers: Main README, NuGet README, source code docs
+- LLMs: MCP server.json, prompt files, tool descriptions
+- VS Code users: Extension README, marketplace listing
+- Web visitors: gh-pages/index.md
+
+All must tell the same story. Scoping documentation requirements to "bug fixes only" was too narrow.
+Making this a universal requirement for ALL changes ensures documentation debt never accumulates.
+-->
+
+<!--
 SYNC IMPACT REPORT - Constitution v2.0.0
 ========================================
 
@@ -59,7 +115,7 @@ Creates optimal learning path: Foundation → Implementation → Supporting Deta
 
 # ExcelMcp Constitution
 
-**Version**: 2.0.0 | **Ratified**: 2025-11-10
+**Version**: 2.1.0 | **Ratified**: 2025-11-10
 
 ## Preamble
 
@@ -429,21 +485,27 @@ By extracting shared logic to helper classes/utilities:
 
 ---
 
-### XXI. Comprehensive Bug Fixing Process
+### XXI. Documentation Synchronization
 
-**Description**: Every bug fix MUST include all 6 components before PR approval: (1) Code Fix, (2) 5-8 Tests, (3) 3+ Docs, (4) Workflow Hints, (5) Quality Verification, (6) PR Description.
+**Description**: ALL changes (features, bug fixes, API changes) MUST synchronize documentation across ALL user-facing artifacts before PR approval. Minimum 4 files: component docs, user docs, LLM prompts, and deployment artifacts.
 
-**Rationale**: Incomplete bug fixes lead to regressions, user confusion, and accumulated technical debt. This principle ensures bugs stay fixed. Comprehensive fixes prevent future issues and maintain system health through systematic improvement.
+**Rationale**: Inconsistent documentation causes user confusion, incorrect LLM workflows, and wasted support time. Documentation is a first-class artifact, not an afterthought. Users consume information from multiple entry points (READMEs, MCP schema, VS Code extension, web docs) - all must tell the same story. Outdated documentation is worse than no documentation.
 
 **Implementation Requirements**:
-1. **Code Fix** - Minimal surgical changes at correct layer, maintain backwards compatibility
-2. **Tests** - Minimum 5-8 tests: regression + edge cases + backwards compat + MCP end-to-end
-3. **Documentation** - Update 3+ files: tool/method docs, user docs, LLM prompts
-4. **Workflow Hints** - Update SuggestedNextActions, error messages, WorkflowHint in responses
-5. **Quality Verification** - Build passes (0 warnings), all tests green, no TODOs
-6. **PR Description** - Comprehensive summary: bug report, root cause, fix explanation, test coverage, docs updated
+1. **Component Documentation** - Update XML docs, [Description] attributes, inline comments at implementation site
+2. **User Documentation** - Update ALL relevant files:
+   - `/README.md` - Main project documentation
+   - `/src/ExcelMcp.McpServer/README.md` - NuGet package docs
+   - `/src/ExcelMcp.McpServer/server.json` - MCP server manifest (tools, prompts)
+   - `/vscode-extension/README.md` - VS Code extension docs
+   - `/gh-pages/index.md` - Website landing page
+   - Component-specific docs in relevant directories
+3. **LLM Prompts** - Update prompt files in `src/ExcelMcp.McpServer/Prompts/Content/` for tool/workflow changes
+4. **Workflow Hints** - Update SuggestedNextActions, error messages, WorkflowHint in operation results
+5. **Verification** - All documentation files list matching capabilities, no contradictions, examples work
+6. **PR Description** - Document which files updated and why
 
-**Cross-Reference**: Rule 13 (critical-rules), bug-fixing-checklist
+**Cross-Reference**: Rule 13 (critical-rules), readme-management, mcp-llm-guidance, bug-fixing-checklist
 
 ---
 
@@ -542,7 +604,7 @@ By extracting shared logic to helper classes/utilities:
 | XVIII. MCP JSON Response Pattern | Rule 17 | critical-rules, mcp-server-guide |
 | XIX. Tool Description Accuracy | Rule 18 | critical-rules, mcp-server-guide, mcp-llm-guidance |
 | XX. Complete Enum Mappings | Rule 15 | critical-rules, RangeAction enum |
-| XXI. Comprehensive Bug Fixes | Rule 13 | bug-fixing-checklist, critical-rules |
+| XXI. Documentation Synchronization | Rule 13 | readme-management, mcp-llm-guidance, bug-fixing-checklist, critical-rules |
 | XXII. PR Review Automation | Rule 19 | critical-rules, development-workflow, PR #139 |
 | XXIII. COM API Transparency | N/A | excel-connection-types-guide, architecture-patterns, specs/001 |
 | XXIV. No Automatic Commits | Rule 21 | critical-rules, agent instructions |
