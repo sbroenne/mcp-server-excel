@@ -15,9 +15,14 @@ REQUIRED:
 
 TYPE-SPECIFIC INFO:
 
-FOR LIST VALIDATION:
-☐ List values (comma-separated, e.g., 'Active,Inactive,Pending')
+FOR LIST VALIDATION (creates dropdown):
+☐ List values (e.g., ['Active', 'Inactive', 'Pending'])
 ☐ Show dropdown? (true recommended)
+⚠️ WORKFLOW: 
+  1. First write values to a worksheet range (e.g., Sheet1!$Z$1:$Z$10)
+  2. Then set formula1 to reference that range (e.g., '=$Z$1:$Z$10')
+  3. This creates a proper dropdown that users can select from
+☐ Note: Comma-separated strings do NOT create dropdowns - only range references do!
 
 FOR NUMBER VALIDATION (decimal/whole):
 ☐ Operator (between, greaterThan, lessThan, greaterThanOrEqual, lessThanOrEqual, equal, notEqual)

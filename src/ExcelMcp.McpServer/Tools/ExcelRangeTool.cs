@@ -183,7 +183,7 @@ Optional batchId for batch sessions.")]
         [Description("Data validation operator (for validate-range: between, notBetween, equal, notEqual, greaterThan, lessThan, greaterThanOrEqual, lessThanOrEqual)")]
         string? validationOperator = null,
 
-        [Description("Validation formula1 (for validate-range, first value/formula)")]
+        [Description("Validation formula1 (for validate-range). For 'list' type: MUST be worksheet range reference like '=$A$1:$A$10' to create dropdown. For other types: value/formula for comparison.")]
         string? validationFormula1 = null,
 
         [Description("Validation formula2 (for validate-range, second value/formula for between/notBetween)")]

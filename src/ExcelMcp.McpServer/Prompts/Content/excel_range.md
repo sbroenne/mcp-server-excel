@@ -43,6 +43,7 @@
 - Using sheetName for named ranges → Use sheetName="" for named ranges
 - Not using batch mode for multiple operations → 75-90% slower
 - Setting number format per cell → Use set-number-format for entire range instead
+- **List validation with comma-separated values → Only range references create dropdowns! Write values to range first, then reference it.**
 
 **Workflow optimization**:
 - Multiple range operations? Use begin_excel_batch first
