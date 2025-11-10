@@ -5,17 +5,10 @@
 ## 📋 Critical Files (Read These First)
 
 **ALWAYS read when working on code:**
-- [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) - 21 mandatory rules (Rule 0: test before commit, Rule 1: Success flag, Rule 21: never auto-commit)
+- [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) - 25 principles enforced (Success flag, COM cleanup, tests, etc.)
 - [Architecture Patterns](instructions/architecture-patterns.instructions.md) - Batch API, command pattern, resource management
-- [Constitution](../.specify/memory/constitution.md) - Project governance and principles
-
-**Spec Kit (for feature planning):**
-- [Spec Kit Guide](../.specify/README.md) - Structured spec-driven development workflow
-- Use `/speckit.specify`, `/speckit.plan`, `/speckit.tasks`, `/speckit.implement` commands
-- 14 feature specs in `specs/001-014/` directories
 
 **Read based on task type:**
-- Planning new feature → [Spec Kit Guide](../.specify/README.md) + use `/speckit.specify`
 - Adding/fixing commands → [Excel COM Interop](instructions/excel-com-interop.instructions.md)
 - Writing tests → [Testing Strategy](instructions/testing-strategy.instructions.md)
 - MCP Server work → [MCP Server Guide](instructions/mcp-server-guide.instructions.md)
@@ -40,7 +33,7 @@
 4. **MCP Server** (`src/ExcelMcp.McpServer`) - Model Context Protocol for AI assistants
 
 **Key Capabilities:**
-- **Range Operations** (Phase 1 complete, 40+ methods) - Unified API for all range data operations (get/set values/formulas, clear variants, find/replace, sort, insert/delete, copy/paste, UsedRange, CurrentRegion, hyperlinks)
+- **Range Operations** (Phase 1 implementation in progress) - Unified API for all range data operations (get/set values/formulas, clear variants, find/replace, sort, insert/delete, copy/paste, UsedRange, CurrentRegion, hyperlinks)
 - Power Query M code management (import, export, update, refresh)
 - VBA macro management (list, import, export, run)
 - Worksheet lifecycle management (list, create, rename, copy, delete)

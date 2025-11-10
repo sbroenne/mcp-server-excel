@@ -103,25 +103,7 @@ if (connType == 3 || connType == 4) {
 - ✅ Handles both cases gracefully
 - ✅ Documented in `excel-connection-types-guide.instructions.md`
 
-### 3. Security-First JSON Schema
-
-**Decision**: Exclude passwords from export, default `SavePassword = false`
-
-**Implementation**:
-```csharp
-// Always exclude from export
-oledb.SavePassword = false;
-
-// Sanitize before display
-string safe = ConnectionHelpers.SanitizeConnectionString(rawString);
-```
-
-**Rationale**:
-- ✅ Prevents accidental credential leaks in version control
-- ✅ Masks passwords in logs and console output
-- ✅ `SanitizeConnectionString()` regex-based masking
-
-### 4. Timeout Configuration
+### 3. Timeout Configuration
 
 **Decision**: 2-minute default, 5-minute max for heavy operations
 

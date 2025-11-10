@@ -118,7 +118,6 @@ public partial class PowerQueryCommands
             queryTable.PreserveFormatting = true;
             queryTable.AdjustColumnWidth = true;
             queryTable.RefreshOnFileOpen = false;
-            queryTable.SavePassword = false;
 
             // Refresh to load data immediately
             queryTable.Refresh(false);

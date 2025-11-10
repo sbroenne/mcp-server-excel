@@ -163,9 +163,7 @@ As a developer, I need to create QueryTables from connections to load data into 
    - ✅ **ACHIEVED**: TEXT connection tests implemented, others documented
 3. **Performance**: Connection operations complete within timeout (95th percentile < 2 min)
    - ✅ **ACHIEVED**: Default 2-min timeout, 5-min for heavy operations
-4. **Security**: Zero password leaks in logs or exports (100% compliance)
-   - ✅ **ACHIEVED**: ConnectionHelpers.SanitizeConnectionString() masks passwords
-5. **Reliability**: Batch API ensures exclusive access, zero COM leaks
+4. **Reliability**: Batch API ensures exclusive access, zero COM leaks
    - ✅ **ACHIEVED**: Batch API pattern used, COM cleanup verified by pre-commit hook
 
 ### Qualitative Outcomes
@@ -191,9 +189,8 @@ As a developer, I need to create QueryTables from connections to load data into 
 
 - **Batch API**: All operations use `IExcelBatch` for exclusive access
 - **Timeout Support**: Heavy operations (refresh, test) accept timeout parameter
-- **Security Defaults**: `SavePassword = false`, passwords excluded from export
 - **Type Handling**: Defensive handling of Type 3/4 ambiguity (Text vs Web)
-- **Helper Methods**: `ConnectionHelpers.SanitizeConnectionString()` for password masking
+- **Helper Methods**: `ConnectionHelpers` provides `GetConnectionTypeName()`, `RemoveConnections()`
 
 ### Known Limitations
 

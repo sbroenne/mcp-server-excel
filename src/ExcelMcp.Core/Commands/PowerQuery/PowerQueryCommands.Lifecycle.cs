@@ -1347,7 +1347,6 @@ public partial class PowerQueryCommands
         queryTable.PreserveFormatting = true;
         queryTable.RefreshOnFileOpen = false;
         queryTable.BackgroundQuery = false;  // Synchronous refresh
-        queryTable.SavePassword = false;
         queryTable.SaveData = true;
         queryTable.AdjustColumnWidth = true;
         queryTable.RefreshPeriod = 0;

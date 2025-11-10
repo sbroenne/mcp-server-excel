@@ -39,7 +39,6 @@ public static class ConnectionTestHelper
                     {
                         oledb.BackgroundQuery = true;
                         oledb.RefreshOnFileOpen = false;
-                        oledb.SavePassword = false;
                     }
                 }
 

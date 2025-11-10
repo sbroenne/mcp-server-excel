@@ -97,21 +97,9 @@ public async Task<string> ExcelPowerQuery(string action, ...)
 
 ## DRY Shared Utilities
 
-**ExcelHelper Methods:** `FindConnection()`, `FindQuery()`, `GetConnectionTypeName()`, `IsPowerQueryConnection()`, `CreateQueryTable()`, `SanitizeConnectionString()`
+**ExcelHelper Methods:** `FindConnection()`, `FindQuery()`, `GetConnectionTypeName()`, `IsPowerQueryConnection()`, `CreateQueryTable()`
 
 **Why:** Prevents 60+ lines of duplicate code per feature
-
----
-
-## Security-First Patterns
-
-```csharp
-// Always sanitize before output
-string safe = SanitizeConnectionString(connectionString);
-
-// Defaults
-SavePassword = false  // Never export credentials by default
-```
 
 ---
 

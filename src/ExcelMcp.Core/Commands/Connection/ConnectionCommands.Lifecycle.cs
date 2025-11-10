@@ -161,8 +161,7 @@ public partial class ConnectionCommands
                     Name = connectionName,
                     Description = description ?? "",
                     ConnectionString = connectionString,
-                    CommandText = commandText ?? "",
-                    SavePassword = false // Default to secure setting
+                    CommandText = commandText ?? ""
                 };
 
                 // Create the connection using existing helper method
@@ -295,7 +294,6 @@ public partial class ConnectionCommands
                     CommandType = GetCommandType(conn),
                     BackgroundQuery = GetBackgroundQuerySetting(conn),
                     RefreshOnFileOpen = GetRefreshOnFileOpenSetting(conn),
-                    SavePassword = false, // Never export with SavePassword = true (security)
                     RefreshPeriod = GetRefreshPeriod(conn)
                 };
 

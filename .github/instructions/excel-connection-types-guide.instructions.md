@@ -107,14 +107,9 @@ public static async Task CreateTextFileConnectionAsync(
 
 ## Security
 
-```csharp
-// ALWAYS sanitize before displaying
-string safe = ConnectionHelpers.SanitizeConnectionString(rawConnectionString);
-Console.WriteLine(safe);  // Passwords masked
+**ExcelMcp does not add security layers on top of COM API. Security is the caller's responsibility.**
 
-// NEVER save passwords by default
-oledb.SavePassword = false;
-```
+Connection string handling and password storage are controlled by Excel's native COM API properties. ExcelMcp exposes these properties as-is without enforcing security policies.
 
 ## Type-Specific APIs
 

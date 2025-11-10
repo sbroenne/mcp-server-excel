@@ -5,6 +5,9 @@ applyTo: "**"
 # CRITICAL RULES - MUST FOLLOW
 
 > **⚠️ NON-NEGOTIABLE rules for all ExcelMcp development**
+> 
+> **Note**: These rules enforce the 25 principles defined in `.specify/memory/constitution.md`.
+> See Appendix A in the constitution for principle-to-rule mappings.
 
 ## Rule 0: NEVER Commit Without Running Tests (CRITICAL)
 

@@ -30,7 +30,7 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
    ```
 
 3. **Read Essential Documentation**:
-   - [Constitution](.specify/memory/constitution.md) - Project governance (21 critical rules)
+   - [Constitution](.specify/memory/constitution.md) - Project governance (25 principles)
    - [CRITICAL-RULES.md](.github/instructions/critical-rules.instructions.md) - Mandatory rules for all development
    - [Spec Kit Guide](.specify/README.md) - Structured spec-driven development workflow
    - Review feature specs in `specs/001-014/` directories
