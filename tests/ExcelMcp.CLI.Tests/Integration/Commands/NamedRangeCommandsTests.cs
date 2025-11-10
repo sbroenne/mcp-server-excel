@@ -18,12 +18,12 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 [Trait("Speed", "Fast")]
 [Trait("Feature", "Parameters")]
 [Trait("Layer", "CLI")]
-public class CliParameterCommandsTests
+public class CliNamedRangeCommandsTests
 {
     private readonly NamedRangeCommands _cliCommands;
     /// <inheritdoc/>
 
-    public CliParameterCommandsTests()
+    public CliNamedRangeCommandsTests()
     {
         _cliCommands = new NamedRangeCommands();
     }
