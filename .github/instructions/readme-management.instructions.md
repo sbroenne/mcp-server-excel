@@ -4,6 +4,10 @@ applyTo: "**/*.md,README.md,**/README.md"
 
 # README Management - Quick Reference
 
+> **See:** Constitution Principle XXI (Documentation Synchronization) for authoritative requirements
+> 
+> This file provides README-specific guidance for the documentation synchronization principle.
+
 ## Three READMEs
 
 | File | Lines | Audience | Purpose |
@@ -12,7 +16,13 @@ applyTo: "**/*.md,README.md,**/README.md"
 | `/src/ExcelMcp.McpServer/README.md` | 80-100 | .NET devs | Concise NuGet gateway |
 | `/vscode-extension/README.md` | 100-120 | VS Code users | User benefits focus |
 
+**Also Required** (per Principle XXI):
+- `/gh-pages/index.md` - Website landing page
+- `/src/ExcelMcp.McpServer/server.json` - MCP server manifest
+
 ## Critical Rules
+
+**Principle XXI (Documentation Synchronization)**: ALL changes must update relevant READMEs + gh-pages + server.json
 
 ### Tool Counts Must Match
 - All READMEs: **12 specialized tools**

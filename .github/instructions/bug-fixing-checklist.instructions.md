@@ -5,13 +5,15 @@ applyTo: "**/*.cs,**/*.md"
 # Bug Fixing Checklist
 
 > **6-step process for comprehensive bug fixes**
+> 
+> **See:** Constitution Principle XXI (Documentation Synchronization) for complete documentation requirements
 
 ## Process
 
 1. **Root Cause** - Trace flow from entry point to bug, identify what's missing/wrong/ignored
 2. **Fix Code** - Minimal changes at correct layer, maintain backwards compatibility
 3. **Add Tests** - Minimum 5-8 tests: regression + edge cases + backwards compat + MCP end-to-end
-4. **Update Docs** - Minimum 3 files: tool/method docs, user docs, SuggestedNextActions, LLM prompts
+4. **Update Docs** - Follow Principle XXI: component docs, user docs (4+ files), LLM prompts, workflow hints
 5. **Verify Quality** - Build passes (0 warnings), all tests pass, no TODOs left
 6. **PR Description** - Bug summary, root cause, fix explanation, test coverage, docs updated
 
@@ -30,15 +32,23 @@ applyTo: "**/*.cs,**/*.md"
 
 ## Documentation Requirements
 
-**Required files (minimum 3)**:
-1. Tool/method XML comments and [Description] attributes
-2. User-facing docs (README or component docs)
-3. LLM prompts in `src/ExcelMcp.McpServer/Prompts/Content/`
+**Principle XXI (Documentation Synchronization) applies to ALL bug fixes.**
 
-**Update workflow hints**:
-- `SuggestedNextActions` - reflect new capability
-- Error messages - include helpful hints
-- `WorkflowHint` - guide next steps
+**Required files (minimum 4)**:
+1. **Component Documentation** - XML docs, [Description] attributes, inline comments
+2. **User Documentation** - Update ALL relevant:
+   - `/README.md` - Main project docs (if bug affects main features)
+   - `/src/ExcelMcp.McpServer/README.md` - NuGet docs (if bug affects MCP usage)
+   - `/src/ExcelMcp.McpServer/server.json` - MCP manifest (if tool behavior changed)
+   - `/vscode-extension/README.md` - VS Code docs (if extension affected)
+   - `/gh-pages/index.md` - Website (if public-facing feature changed)
+3. **LLM Prompts** - Update prompt files in `src/ExcelMcp.McpServer/Prompts/Content/`
+4. **Workflow Hints** - Update in operation results:
+   - `SuggestedNextActions` - reflect new capability
+   - Error messages - include helpful hints  
+   - `WorkflowHint` - guide next steps
+
+**See:** `.specify/memory/constitution.md` Principle XXI for complete requirements
 
 ## Quality Checklist
 
@@ -47,7 +57,12 @@ applyTo: "**/*.cs,**/*.md"
 - [ ] Minimal code changes (surgical fix)
 - [ ] Parameters wired through all layers
 - [ ] 5-8 new tests added (Core + MCP)
-- [ ] 3+ doc files updated
+- [ ] 4+ doc files updated (Principle XXI)
+- [ ] Build passes (0 warnings, 0 errors)
+- [ ] All tests pass (including existing)
+- [ ] No TODO/FIXME markers
+- [ ] Backwards compatible
+- [ ] PR description comprehensive
 - [ ] Build passes (0 warnings, 0 errors)
 - [ ] All tests pass (including existing)
 - [ ] No TODO/FIXME markers
