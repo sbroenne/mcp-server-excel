@@ -6,7 +6,28 @@ applyTo: "**"
 
 > **⚠️ NON-NEGOTIABLE rules for all ExcelMcp development**
 
-## Rule 20: Never Commit Automatically (CRITICAL)
+## Rule 0: NEVER Commit Without Running Tests (CRITICAL)
+
+**NEVER commit, push, or create PRs without first running tests for the code you changed.**
+
+**Why Critical:** Prevents breaking changes from reaching main, wastes team time debugging failures, violates CI/CD principles.
+
+**Enforcement:**
+- ALWAYS run relevant tests BEFORE committing
+- Use `--filter "Feature=<feature-name>&RunType!=OnDemand"` for feature-specific tests
+- Build must pass (0 warnings, 0 errors)
+- Pre-commit hooks must pass (COM leaks, success flag, coverage)
+- Document test results in commit message
+
+**Process:**
+1. Make code changes
+2. Build: `dotnet build` (must succeed with 0 warnings)
+3. Run tests: `dotnet test --filter "Feature=<feature>&RunType!=OnDemand"`
+4. Verify all tests pass
+5. Run pre-commit checks
+6. THEN commit
+
+## Rule 21: Never Commit Automatically (CRITICAL)
 
 **NEVER commit or push code automatically. All commits, pushes, and merges must require explicit user approval.**
 
@@ -20,12 +41,13 @@ applyTo: "**"
 
 ## Quick Reference (Grouped by Context)
 
-**Note:** Rules below are grouped by when you need them, not by number. Detailed rules follow in numeric order (0-19).
+**Note:** Rules below are grouped by when you need them, not by number. Detailed rules follow in numeric order (1-21).
 
 **Every Edit:**
 | Rule | Action | Why Critical |
 |------|--------|--------------|
-| 0. Success flag | NEVER `Success=true` with `ErrorMessage` | Confuses LLMs, causes silent failures |
+| 0. Test before commit | ALWAYS run tests before committing | Prevents breaking changes |
+| 1. Success flag | NEVER `Success=true` with `ErrorMessage` | Confuses LLMs, causes silent failures |
 | 16. Test scope | Only run tests for code you changed | Saves 10+ minutes per test run |
 | 8. TODO markers | Must resolve before commit | Pre-commit hook blocks |
 
@@ -41,34 +63,35 @@ applyTo: "**"
 **When Writing Tests:**
 | Rule | Action | Why Critical |
 |------|--------|--------------|
-| 1. Tests | Fail loudly, never silent | Silent failures waste hours |
-| 14. No SaveAsync | Remove unless testing persistence | Makes tests 50% faster |
-| 10. Test debugging | Run tests one by one | Isolates actual failure |
-| 12. Test compliance | Pass checklist before PR submission | Prevents test pollution |
+| 2. Tests | Fail loudly, never silent | Silent failures waste hours |
+| 15. No SaveAsync | Remove unless testing persistence | Makes tests 50% faster |
+| 11. Test debugging | Run tests one by one | Isolates actual failure |
+| 13. Test compliance | Pass checklist before PR submission | Prevents test pollution |
 
 **Before Commit:**
 | Rule | Action | Time |
 |------|--------|------|
-| 3. Session code | See testing-strategy for test commands | 3-5 min |
-| 5. COM leaks | Pre-commit hook auto-checks | 1 min |
-| 6. PRs | Always use PRs, never direct commit | Always |
+| 0. Test before commit | ALWAYS run tests before committing | 3-5 min |
+| 4. Session code | See testing-strategy for test commands | 3-5 min |
+| 6. COM leaks | Pre-commit hook auto-checks | 1 min |
+| 7. PRs | Always use PRs, never direct commit | Always |
 
 **During PR Process:**
 | Rule | Action | Time |
 |------|--------|------|
-| 19. PR review comments | Check/fix automated comments immediately | 5-10 min |
-| 13. Bug fixes | Complete 6-step process | 30-60 min |
-| 18. Tool descriptions | Verify [Description] matches behavior | Per change |
+| 20. PR review comments | Check/fix automated comments immediately | 5-10 min |
+| 14. Bug fixes | Complete 6-step process | 30-60 min |
+| 19. Tool descriptions | Verify [Description] matches behavior | Per change |
 
 **Rare/Specialized:**
 | Rule | Action | When |
 |------|--------|------|
-| 11. No test refs | Production NEVER references tests | Architecture review |
-| 4. Instructions | Update after significant work | After major features |
+| 12. No test refs | Production NEVER references tests | Architecture review |
+| 5. Instructions | Update after significant work | After major features |
 
 ---
 
-## Rule 0: Success Flag Must Match Reality (CRITICAL)
+## Rule 1: Success Flag Must Match Reality (CRITICAL)
 
 **NEVER set `Success = true` when `ErrorMessage` is set. This is EXTREMELY serious!**
 
@@ -127,85 +150,92 @@ try {
 - 43 violations across Connection, PowerQuery, DataModel, VBA, Range, Table commands
 - All followed pattern: `Success = true` at start, `ErrorMessage` set in catch without `Success = false`
 
- rules for all ExcelMcp development**
-
-## Rule 1: No Silent Test Failures
-
-Tests must fail loudly. Never catch exceptions without re-throwing or use conditional assertions that always pass.
-
-```csharp
-// ❌ WRONG: Silent failure
-catch (Exception) { _output.WriteLine("Skipping"); }
-
-// ✅ CORRECT: Fail loudly
-Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
-```
-
-
+---
 
 ## Rule 2: No NotImplementedException
 
-Every feature must be fully implemented with real Excel COM operations and passing tests. No placeholders.
+**Every feature must be fully implemented with real Excel COM operations and passing tests. No placeholders.**
 
-
+---
 
 ## Rule 3: Session Cleanup Tests
 
-When modifying session/batch code, run OnDemand tests (see testing-strategy.instructions.md). Must pass before commit.
+**When modifying session/batch code, run OnDemand tests (see testing-strategy.instructions.md). Must pass before commit.**
 
-
+---
 
 ## Rule 4: Update Instructions
 
-After significant work, update `.github/copilot-instructions.md` with lessons learned, architecture changes, and testing insights.
+**After significant work, update `.github/copilot-instructions.md` with lessons learned, architecture changes, and testing insights.**
 
-
+---
 
 ## Rule 5: COM Object Leak Detection
 
-Before commit: `& "scripts\check-com-leaks.ps1"` must report 0 leaks.
+**Before commit: `& "scripts\check-com-leaks.ps1"` must report 0 leaks.**
+
 All `dynamic` COM objects must be released in `finally` blocks using `ComUtilities.Release(ref obj!)`.
+
 Exception: Session management files (ExcelBatch.cs, ExcelSession.cs).
 
-
+---
 
 ## Rule 6: All Changes Via Pull Requests
 
-Never commit to `main`. Create feature branch → PR → CI/CD + review → merge.
+**Never commit to `main`. Create feature branch → PR → CI/CD + review → merge.**
 
+**Enforcement:** Pre-commit hook blocks commits to main. If you're on main:
+```bash
+git stash                                    # Save changes
+git checkout -b feature/your-feature-name    # Create feature branch
+git stash pop                                # Restore changes
+git add <files>                              # Stage changes
+git commit -m "your message"                 # Commit to feature branch
+```
 
+**Why Critical:** Direct commits to main bypass CI/CD, skip code review, and violate branch protection.
+
+---
 
 ## Rule 7: COM API First
 
-Use Excel COM API for everything it supports. Only use external libraries (TOM) for features Excel COM doesn't provide.
+**Use Excel COM API for everything it supports. Only use external libraries (TOM) for features Excel COM doesn't provide.**
+
 Validate against [Microsoft docs](https://learn.microsoft.com/office/vba/api/overview/excel) before adding dependencies.
 
-
+---
 
 ## Rule 8: No TODO/FIXME Markers
 
-Code must be complete before commit. No TODO, FIXME, HACK, or XXX markers in source code.
+**Code must be complete before commit. No TODO, FIXME, HACK, or XXX markers in source code.**
+
 Delete commented-out code (use git history). Exception: Documentation files only.
 
-
+---
 
 ## Rule 9: Search External GitHub Repositories for Working Examples First
 
-**BEFORE** creating new Excel COM Interop code or troubleshooting COM issues:
+**BEFORE creating new Excel COM Interop code or troubleshooting COM issues:**
+
 - **ALWAYS** search OTHER open source GitHub repositories for working examples
 - **NEVER** search your own repository - only search external projects
+- **NetOffice is THE BEST source for ALL COM Interop work**: https://github.com/NetOfficeFw/NetOffice
+  - Strongly-typed C# wrappers for ALL Office COM APIs (Excel, Word, PowerPoint, Outlook, etc.)
+  - Search for ANY Excel COM operation: ranges, worksheets, PivotTables, Power Query, charts, VBA, connections, formatting, etc.
+  - Study their patterns for dynamic interop conversion and proper COM object handling
+  - NetOffice source code is essentially a comprehensive reference for every Excel COM API
 - Look for repositories with Excel automation, VBA code, or Office interop projects
-- Search for the specific COM object/method you need (e.g., "PivotTable CreatePivotTable VBA", "QueryTable Refresh VBA", "ModelMeasures.Add VBA")
+- Search for the specific COM object/method you need (e.g., "PivotTable CreatePivotTable VBA", "QueryTable Refresh VBA", "Range.Value2 NetOffice")
 - Study proven patterns from other projects before writing new code
 - Avoid reinventing solutions - learn from working implementations in the wild
 
 **Why:** Excel COM is quirky. Real-world VBA examples from other projects prevent common pitfalls (1-based indexing, object cleanup, async issues, variant types, etc.)
 
-
+---
 
 ## Rule 10: Debug Tests One by One
 
-When debugging test failures, **ALWAYS run tests individually** - never run all tests at once.
+**When debugging test failures, ALWAYS run tests individually - never run all tests at once.**
 
 **Process:**
 1. List all test methods in the file
@@ -215,7 +245,7 @@ When debugging test failures, **ALWAYS run tests individually** - never run all 
 
 **Why:** Running all tests together masks which specific test fails and why. Individual execution provides clear, isolated diagnostics.
 
-
+---
 
 ## Rule 11: Production Code NEVER References Tests
 
@@ -235,7 +265,7 @@ When debugging test failures, **ALWAYS run tests individually** - never run all 
 
 **Why:** Tests depend on production code, not the reverse. Production code with test dependencies is broken architecture.
 
-
+---
 
 ## Rule 12: Test Class Compliance Checklist
 
@@ -294,6 +324,7 @@ When debugging test failures, **ALWAYS run tests individually** - never run all 
 
 | Rule | Action | Time |
 |------|--------|------|
+| 0. Test before commit | ALWAYS run tests before committing | 3-5 min |
 | 1. Tests | Fail loudly, never silent | Always |
 | 2. NotImplementedException | Never use, full implementation only | Always |
 | 3. Session code | See testing-strategy for test commands | 3-5 min |

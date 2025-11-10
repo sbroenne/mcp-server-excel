@@ -290,7 +290,7 @@ public partial class PivotTableCommands : IPivotTableCommands
     /// <returns>The field object that can be manipulated (PivotField)</returns>
     /// <exception cref="InvalidOperationException">Thrown if field is not found</exception>
     /// <remarks>
-    /// Microsoft docs: "In OLAP PivotTables, PivotFields do not exist until the corresponding 
+    /// Microsoft docs: "In OLAP PivotTables, PivotFields do not exist until the corresponding
     /// CubeField is added to the PivotTable." This method handles both architectures.
     /// </remarks>
     private static dynamic GetFieldForManipulation(dynamic pivot, string fieldName, out bool isOlap)
@@ -359,26 +359,37 @@ public partial class PivotTableCommands : IPivotTableCommands
                     if (pivotFields == null || pivotFields.Count == 0)
                     {
                         // No PivotField exists yet - field hasn't been added to PivotTable
-                        // We can still return a reference that will work for adding the field
-                        // The field operations will create the PivotField when setting orientation
+                        // Call CreatePivotFields() to create the PivotFields collection
+                        // Per Microsoft docs: "In OLAP PivotTables, PivotFields do not exist until 
+                        // the corresponding CubeField is added to the PivotTable. The CreatePivotFields() 
+                        // method enables users to create all PivotFields of a CubeField."
                         ComUtilities.Release(ref pivotFields);
-                        // DON'T release cubeField - caller needs it to stay alive!
-                        return cubeField; // Return CubeField, operations will adapt
+                        cubeField.CreatePivotFields(); // Create PivotFields before manipulation
+
+                        // Now get the newly created PivotFields collection
+                        pivotFields = cubeField.PivotFields;
+                        if (pivotFields == null || pivotFields.Count == 0)
+                        {
+                            // Still no PivotFields - this shouldn't happen after CreatePivotFields()
+                            ComUtilities.Release(ref pivotFields);
+                            throw new InvalidOperationException($"Failed to create PivotFields for CubeField '{fieldName}'");
+                        }
                     }
 
-                    // Return the first PivotField (there's typically only one per CubeField)
-                    // CRITICAL: Don't release cubeField! The pivotField depends on cubeField staying alive.
-                    // Releasing cubeField here causes "COM object separated from RCW" errors.
-                    dynamic pivotField = pivotFields.Item(1);
+                    // Release PivotFields collection - we don't need it
                     ComUtilities.Release(ref pivotFields);
-                    // Don't release cubeField - the returned pivotField needs it!
-                    return pivotField;
+
+                    // CRITICAL: Return the CubeField, not the PivotField!
+                    // For OLAP, we must set Orientation on the CubeField, not on the PivotField.
+                    // Microsoft docs: "CubeField.Orientation returns or sets... the location of the field"
+                    // Setting PivotField.Orientation fails with "Unable to set the Orientation property"
+                    // DON'T release cubeField - caller needs it!
+                    return cubeField;
                 }
                 finally
                 {
                     // Only release cubeField if we didn't return it or a child object
-                    // Since we return either cubeField or pivotField (which depends on cubeField),
-                    // we should NOT release cubeField here
+                    // Since we return cubeField, we should NOT release it here
                     // if (cubeField != null)
                     //     ComUtilities.Release(ref cubeField);
                 }

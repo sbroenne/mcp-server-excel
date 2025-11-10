@@ -75,85 +75,14 @@ public partial class PivotTableCommands
         return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
-            dynamic? field = null;
-            dynamic? pivotItems = null;
 
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Use OLAP-aware helper for field access
-                bool isOlap;
-                field = GetFieldForManipulation(pivot, fieldName, out isOlap);
-                pivotItems = field.PivotItems;
-
-                // First, show selected items (must do this before hiding others to avoid Excel error)
-                var selectedSet = new HashSet<string>(selectedValues);
-                foreach (string value in selectedValues)
-                {
-                    dynamic? item = null;
-                    try
-                    {
-                        item = pivotItems.Item(value);
-                        item.Visible = true;
-                    }
-                    catch
-                    {
-                        // Item not found, skip
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref item);
-                    }
-                }
-
-                // Then, hide unselected items (never hides the last item because we showed selected ones first)
-                for (int i = 1; i <= pivotItems.Count; i++)
-                {
-                    dynamic? item = null;
-                    try
-                    {
-                        item = pivotItems.Item(i);
-                        string itemName = item.Name?.ToString() ?? string.Empty;
-                        if (!selectedSet.Contains(itemName))
-                        {
-                            item.Visible = false;
-                        }
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref item);
-                    }
-                }
-
-                // Refresh
-                pivot.RefreshTable();
-
-                // Get all available items
-                var availableItems = new List<string>();
-                for (int i = 1; i <= pivotItems.Count; i++)
-                {
-                    dynamic? item = null;
-                    try
-                    {
-                        item = pivotItems.Item(i);
-                        availableItems.Add(item.Name?.ToString() ?? string.Empty);
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref item);
-                    }
-                }
-
-                return new PivotFieldFilterResult
-                {
-                    Success = true,
-                    FieldName = fieldName,
-                    SelectedItems = selectedValues,
-                    AvailableItems = availableItems,
-                    ShowAll = false,
-                    FilePath = batch.WorkbookPath
-                };
+                // Use Strategy Pattern to delegate to appropriate implementation
+                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
+                return strategy.SetFieldFilter(pivot, fieldName, selectedValues, batch.WorkbookPath);
             }
             catch (Exception ex)
             {
@@ -166,8 +95,6 @@ public partial class PivotTableCommands
             }
             finally
             {
-                ComUtilities.Release(ref pivotItems);
-                ComUtilities.Release(ref field);
                 ComUtilities.Release(ref pivot);
             }
         });
@@ -182,33 +109,14 @@ public partial class PivotTableCommands
         return await batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
-            dynamic? field = null;
 
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
-                // Use OLAP-aware helper for field access
-                bool isOlap;
-                field = GetFieldForManipulation(pivot, fieldName, out isOlap);
-
-                // Excel sort order: xlAscending = 1, xlDescending = 2
-                int sortOrder = direction == SortDirection.Ascending ? 1 : 2;
-
-                // AutoSort method: xlManual = -4135, xlAscending = 1, xlDescending = 2
-                field.AutoSort(sortOrder, fieldName);
-
-                // Refresh
-                pivot.RefreshTable();
-
-                return new PivotFieldResult
-                {
-                    Success = true,
-                    FieldName = fieldName,
-                    CustomName = field.Caption?.ToString() ?? fieldName,
-                    Area = (PivotFieldArea)field.Orientation,
-                    FilePath = batch.WorkbookPath
-                };
+                // Use Strategy Pattern to delegate to appropriate implementation
+                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
+                return strategy.SortField(pivot, fieldName, direction, batch.WorkbookPath);
             }
             catch (Exception ex)
             {
@@ -221,7 +129,6 @@ public partial class PivotTableCommands
             }
             finally
             {
-                ComUtilities.Release(ref field);
                 ComUtilities.Release(ref pivot);
             }
         });
