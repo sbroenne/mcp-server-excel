@@ -12,7 +12,7 @@ public static class CoreTestHelper
     /// Creates a unique test file for isolated testing.
     /// Supports Excel files (.xlsx, .xlsm) and data files (.csv, .txt, etc.).
     /// </summary>
-    /// <param name="testClassName">Name of the test class (e.g., "ParameterCommandsTests")</param>
+    /// <param name="testClassName">Name of the test class (e.g., "NamedRangeCommandsTests")</param>
     /// <param name="testName">Name of the test method (e.g., "Create_WithValidParameter_ReturnsSuccess")</param>
     /// <param name="tempDir">Temporary directory where the file will be created</param>
     /// <param name="extension">File extension including dot (e.g., ".xlsx", ".csv", ".txt")</param>
