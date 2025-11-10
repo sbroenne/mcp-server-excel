@@ -48,7 +48,7 @@
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
 
-    <!-- Generate XML docs for analyzers but exclude from output -->
+    <!-- Generate XML docs for analyzers but exclude from publish -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
     <!-- Additional optimization flags -->
@@ -57,20 +57,15 @@
     <TieredCompilationQuickJit>true</TieredCompilationQuickJit>
   </PropertyGroup>
 
-  <!-- Exclude XML documentation files from Release output -->
-  <ItemGroup Condition="'$(Configuration)' == 'Release'">
-    <Content Remove="$(OutputPath)**\*.xml" />
-    <None Remove="$(OutputPath)**\*.xml" />
-  </ItemGroup>
-
-  <Target Name="RemoveXmlDocsFromRelease" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+  <!-- Exclude XML and PDB files from publish output -->
+  <Target Name="RemoveXmlAndPdbFromPublish" AfterTargets="Publish" Condition="'$(Configuration)' == 'Release'">
     <ItemGroup>
-      <XmlDocsToDelete Include="$(OutputPath)**\*.xml" />
-      <PdbFilesToDelete Include="$(OutputPath)**\*.pdb" />
+      <XmlFilesToDelete Include="$(PublishDir)**\*.xml" />
+      <PdbFilesToDelete Include="$(PublishDir)**\*.pdb" />
     </ItemGroup>
-    <Delete Files="@(XmlDocsToDelete)" />
+    <Delete Files="@(XmlFilesToDelete)" />
     <Delete Files="@(PdbFilesToDelete)" />
-    <Message Text="Removed XML documentation and PDB files from Release build" Importance="high" />
+    <Message Text="Removed XML documentation and PDB files from publish output" Importance="high" />
   </Target>
 
   <ItemGroup>
