@@ -1,0 +1,141 @@
+// Copyright (c) Stefan Broenne. All rights reserved.
+
+using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
+using Xunit;
+
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
+
+public partial class RangeCommandsTests
+{
+    [Fact]
+    public async Task ValidateRange_WithInputMessage_ReturnsSuccess()
+    {
+        // Arrange
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(RangeCommandsTests),
+            nameof(ValidateRange_WithInputMessage_ReturnsSuccess),
+            _tempDir);
+
+        // Act - First write list values to worksheet (required for dropdown)
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+
+        await _commands.SetValuesAsync(
+            batch,
+            "Sheet1",
+            "B1:B3",
+            new List<List<object?>>
+            {
+                new() { "Option1" },
+                new() { "Option2" },
+                new() { "Option3" }
+            });
+
+        // Apply validation referencing the range (creates dropdown)
+        var applyResult = await _commands.ValidateRangeAsync(
+            batch,
+            "Sheet1",
+            "A1",
+            validationType: "list",
+            validationOperator: null,
+            formula1: "=$B$1:$B$3",  // Reference to worksheet range creates dropdown
+            formula2: null,
+            showInputMessage: true,
+            inputTitle: "My Input Title",
+            inputMessage: "My helpful input message",
+            showErrorAlert: true,
+            errorStyle: "stop",
+            errorTitle: "My Error Title",
+            errorMessage: "My error message",
+            ignoreBlank: true,
+            showDropdown: true);
+
+        // Assert - Validation applied successfully
+        Assert.True(applyResult.Success, $"Apply validation failed: {applyResult.ErrorMessage}");
+
+        // Verify validation is retrieved correctly (same batch)
+        var getResult = await _commands.GetValidationAsync(batch, "Sheet1", "A1");
+
+        // Assert - Validation retrieved successfully
+        Assert.True(getResult.Success, $"Get validation failed: {getResult.ErrorMessage}");
+        Assert.True(getResult.HasValidation, "Range should have validation");
+
+        // Assert - Validation type and formula are correct
+        Assert.Equal("list", getResult.ValidationType);
+        Assert.Equal("=$B$1:$B$3", getResult.Formula1);
+
+        // Assert - Input message properties are returned
+        Assert.Equal("My Input Title", getResult.InputTitle);
+        Assert.Equal("My helpful input message", getResult.InputMessage);
+
+        // Assert - Error message properties are returned (these work according to the bug report)
+        Assert.Equal("My Error Title", getResult.ErrorTitle);
+        Assert.Equal("My error message", getResult.ValidationErrorMessage);
+    }
+
+    [Fact]
+    public async Task GetValidation_WithInputMessage_ReturnsInputTitleAndMessage()
+    {
+        // Arrange
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+            nameof(RangeCommandsTests),
+            nameof(GetValidation_WithInputMessage_ReturnsInputTitleAndMessage),
+            _tempDir);
+
+        // Act - First write list values to worksheet (required for dropdown)
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+
+        await _commands.SetValuesAsync(
+            batch,
+            "Sheet1",
+            "B1:B3",
+            new List<List<object?>>
+            {
+                new() { "Option1" },
+                new() { "Option2" },
+                new() { "Option3" }
+            });
+
+        // Apply validation using the ValidateRangeAsync API
+        var validateResult = await _commands.ValidateRangeAsync(
+            batch,
+            "Sheet1",
+            "A1",
+            validationType: "list",
+            validationOperator: null,  // Not used for list type
+            formula1: "=$B$1:$B$3",  // Reference to worksheet range creates dropdown
+            formula2: null,
+            showInputMessage: true,
+            inputTitle: "My Input Title",
+            inputMessage: "My helpful input message",
+            showErrorAlert: true,
+            errorStyle: "stop",
+            errorTitle: "My Error Title",
+            errorMessage: "My error message",
+            ignoreBlank: true,
+            showDropdown: true);
+
+        Assert.True(validateResult.Success, $"Validate failed: {validateResult.ErrorMessage}");
+
+        // Act - Get validation to verify InputTitle/InputMessage are returned
+        var result = await _commands.GetValidationAsync(batch, "Sheet1", "A1");
+
+        // Assert
+        Assert.True(result.Success, $"Get validation failed: {result.ErrorMessage}");
+        Assert.True(result.HasValidation, "Range should have validation");
+
+        // Assert - Validation type and formula create dropdown with 3 values
+        Assert.Equal("list", result.ValidationType);
+        Assert.Equal("=$B$1:$B$3", result.Formula1);
+
+        // CRITICAL: These assertions test the bug fix
+        Assert.NotEmpty(result.InputTitle ?? string.Empty);
+        Assert.Equal("My Input Title", result.InputTitle);
+        Assert.NotEmpty(result.InputMessage ?? string.Empty);
+        Assert.Equal("My helpful input message", result.InputMessage);
+
+        // These should work (error properties worked before the fix)
+        Assert.Equal("My Error Title", result.ErrorTitle);
+        Assert.Equal("My error message", result.ValidationErrorMessage);
+    }
+}

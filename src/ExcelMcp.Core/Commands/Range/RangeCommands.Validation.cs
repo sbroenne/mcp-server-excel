@@ -66,9 +66,9 @@ public partial class RangeCommands
                 // Configure input message
                 if (showInputMessage == true)
                 {
+                    validation.ShowInput = true;  // MUST set ShowInput=true BEFORE setting title/message
                     validation.InputTitle = inputTitle ?? "";
                     validation.InputMessage = inputMessage ?? "";
-                    validation.ShowInput = true;
                 }
 
                 // Configure error alert
@@ -205,6 +205,21 @@ public partial class RangeCommands
                     };
                 }
 
+                // Read all validation properties into local variables first
+                // This ensures we're not affected by any COM state changes during object initialization
+                var validationType = GetValidationTypeName(validation.Type);
+                var validationOperator = GetValidationOperatorName(validation.Operator);
+                var formula1 = validation.Formula1?.ToString() ?? string.Empty;
+                var formula2 = validation.Formula2?.ToString() ?? string.Empty;
+                var ignoreBlank = validation.IgnoreBlank ?? true;
+                var showInputMessage = validation.ShowInput ?? false;
+                var inputTitle = validation.InputTitle?.ToString() ?? string.Empty;
+                var inputMessage = validation.InputMessage?.ToString() ?? string.Empty;
+                var showErrorAlert = validation.ShowError ?? true;
+                var errorStyle = GetErrorStyleName(validation.AlertStyle);
+                var errorTitle = validation.ErrorTitle?.ToString() ?? string.Empty;
+                var validationErrorMessage = validation.ErrorMessage?.ToString() ?? string.Empty;
+
                 return new RangeValidationResult
                 {
                     Success = true,
@@ -212,18 +227,18 @@ public partial class RangeCommands
                     SheetName = sheetName,
                     RangeAddress = rangeAddress,
                     HasValidation = true,
-                    ValidationType = GetValidationTypeName(validation.Type),
-                    ValidationOperator = GetValidationOperatorName(validation.Operator),
-                    Formula1 = validation.Formula1?.ToString() ?? string.Empty,
-                    Formula2 = validation.Formula2?.ToString() ?? string.Empty,
-                    IgnoreBlank = validation.IgnoreBlank ?? true,
-                    ShowInputMessage = validation.ShowInput ?? false,
-                    InputTitle = validation.InputTitle?.ToString() ?? string.Empty,
-                    InputMessage = validation.InputMessage?.ToString() ?? string.Empty,
-                    ShowErrorAlert = validation.ShowError ?? true,
-                    ErrorStyle = GetErrorStyleName(validation.AlertStyle),
-                    ErrorTitle = validation.ErrorTitle?.ToString() ?? string.Empty,
-                    ValidationErrorMessage = validation.ErrorMessage?.ToString() ?? string.Empty
+                    ValidationType = validationType,
+                    ValidationOperator = validationOperator,
+                    Formula1 = formula1,
+                    Formula2 = formula2,
+                    IgnoreBlank = ignoreBlank,
+                    ShowInputMessage = showInputMessage,
+                    InputTitle = inputTitle,
+                    InputMessage = inputMessage,
+                    ShowErrorAlert = showErrorAlert,
+                    ErrorStyle = errorStyle,
+                    ErrorTitle = errorTitle,
+                    ValidationErrorMessage = validationErrorMessage
                 };
             }
             catch (Exception ex)
