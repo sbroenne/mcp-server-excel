@@ -45,9 +45,6 @@
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
 
-    <!-- Generate XML docs for analyzers but exclude from output -->
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-
     <!-- Additional optimization flags -->
     <Optimize>true</Optimize>
     <TieredCompilation>true</TieredCompilation>
@@ -63,6 +60,14 @@
     <Delete Files="@(XmlDocsToDelete)" />
     <Delete Files="@(PdbFilesToDelete)" />
     <Message Text="Removed XML documentation and PDB files from Release build" Importance="high" />
+  </Target>
+
+  <!-- Prevent dotnet pack/publish from expecting XML docs after they're deleted -->
+  <Target Name="RemoveDocumentationFileFromPublish" BeforeTargets="ComputeFilesToPublish">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.xml'" />
+      <_IntermediateAssembly Remove="@(_IntermediateAssembly)" Condition="'%(Extension)' == '.xml'" />
+    </ItemGroup>
   </Target>
 
   <ItemGroup>
