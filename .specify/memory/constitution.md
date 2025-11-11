@@ -1,127 +1,63 @@
 <!--
-SYNC IMPACT REPORT - Constitution v2.1.0
-========================================
+CONSTITUTION v1.0.0 - Pre-Release Development
+==============================================
+DATE: 2025-11-10 (Ratification) | 2025-11-11 (TDD + Deliverables Enhancement)
 
-VERSION CHANGE: 2.0.0 → 2.1.0 (MINOR - Material Expansion)
-DATE: 2025-11-10
-RATIONALE: Expanded Principle XXI from bug-fix-specific documentation to comprehensive documentation synchronization requirement for ALL changes
+RECENT CHANGES:
+- Added Development Environment section (Windows 10+, .NET 8, VS Code, XUnit, MIT license)
+- Added CI/CD: GitHub Actions for automated builds, tests, and releases
+- Clarified deliverables priority: PRIMARY = VS Code Extension (Visual Studio Marketplace), SECONDARY = NuGet packages
+- Enhanced Principle IX: Added explicit TDD requirement (write tests BEFORE code)
+- Enhanced Principle XXII: Corrected implementation order to test-first at each layer
+- Clarified: NEVER mock Excel COM API - integration tests only
 
-KEY CHANGES:
-- Principle XXI renamed: "Comprehensive Bug Fixing Process" → "Documentation Synchronization"
-- Expanded scope: Now applies to ALL changes (features, bug fixes, API changes), not just bug fixes
-- Added explicit file list: README.md, McpServer/README.md, server.json, vscode-extension/README.md, gh-pages/index.md
-- Clarified rationale: Documentation is first-class artifact, inconsistency causes user confusion
-- Updated cross-references in Appendix A
+TDD WORKFLOW NOW MANDATORY:
+Write test → Run test (fails) → Implement code → Run test (passes) → Refactor
 
-PRINCIPLE XXI - BEFORE (v2.0.0):
-- Name: "Comprehensive Bug Fixing Process"
-- Scope: Bug fixes only
-- Docs requirement: "Update 3+ files: tool/method docs, user docs, LLM prompts"
-
-PRINCIPLE XXI - AFTER (v2.1.0):
-- Name: "Documentation Synchronization"  
-- Scope: ALL changes (features, bugs, API changes)
-- Docs requirement: Minimum 4 files across 6 categories:
-  1. Component Documentation (XML docs, [Description] attributes)
-  2. User Documentation (5 specific files listed: READMEs, server.json, gh-pages)
-  3. LLM Prompts (Prompts/Content/)
-  4. Workflow Hints (SuggestedNextActions, error messages)
-  5. Verification (consistency check)
-  6. PR Description (document updates)
-
-TEMPLATES UPDATED:
-✅ Appendix A - Updated cross-reference for Principle XXI
-⚠️  bug-fixing-checklist.instructions.md - Should reference new principle name
-⚠️  readme-management.instructions.md - Should reference Principle XXI
-
-FILES REQUIRING UPDATES:
-⚠️  .github/instructions/bug-fixing-checklist.instructions.md - Update references to "Comprehensive Bug Fixes" → "Documentation Synchronization"
-⚠️  .github/instructions/readme-management.instructions.md - Add reference to Principle XXI
-
-FOLLOW-UP TODOS:
-- Update bug-fixing-checklist to reference Documentation Synchronization principle
-- Update readme-management to reference Principle XXI as authoritative source
-- Consider adding documentation sync check to pre-commit hooks
-
-RATIONALE FOR EXPANSION:
-Documentation inconsistency is a persistent issue. Users access information from multiple entry points:
-- Developers: Main README, NuGet README, source code docs
-- LLMs: MCP server.json, prompt files, tool descriptions
-- VS Code users: Extension README, marketplace listing
-- Web visitors: gh-pages/index.md
-
-All must tell the same story. Scoping documentation requirements to "bug fixes only" was too narrow.
-Making this a universal requirement for ALL changes ensures documentation debt never accumulates.
--->
-
-<!--
-SYNC IMPACT REPORT - Constitution v2.0.0
-========================================
-
-VERSION CHANGE: 1.4.0 → 2.0.0 (MAJOR - Breaking Change)
-DATE: 2025-11-10
-RATIONALE: Reordered all 25 principles by importance hierarchy to create optimal learning path
-
-KEY CHANGES:
-- All 25 principles renumbered based on expert importance assessment
-- Principles now organized in 6 tiers: Foundation → Architecture → Quality → Testing → Implementation → Workflow
-- Tier headers added throughout principles section
-- Preamble updated to explain importance-based ordering
-- Appendix A completely updated with new cross-references
-- Appendix C reference updated (Principle VIII → Principle X)
-
-TIER STRUCTURE:
-- TIER 1 (I-V): Foundation - Catastrophic if violated (Success Flag, COM Management, Test-Before-Commit, NetOffice, MS Docs)
-- TIER 2 (VI-VIII): Architecture - System design foundation (Four-Layer, Batch API, Operation Independence)
-- TIER 3 (IX-XI): Quality & Process - Discipline enforcement (Integration Testing, PRs, No Placeholders)
-- TIER 4 (XII-XVII): Testing Discipline - Test quality and isolation
-- TIER 5 (XVIII-XXI): Implementation Standards - Code quality (MCP JSON, Tool Descriptions, Enums, Bug Fixes)
-- TIER 6 (XXII-XXV): Workflow & Policy - Process optimization
-
-BREAKING CHANGE: All principle numbers changed
-- III. Test-Before-Commit (was VI)
-- IV. NetOffice Reference First (was XXV)
-- V. Modern .NET/MS Docs (was XXIV)
-- VI. Four-Layer Architecture (was III)
-- VII. Batch API (was IV)
-- VIII. Operation Independence (was V)
-- IX. Integration-First Testing (was VII)
-- X. Pull Request Discipline (was VIII)
-- XI. No Placeholders (was IX)
-- XVIII. MCP JSON (was XII)
-- XXI. Comprehensive Bug Fixes (was XI)
-
-TEMPLATES UPDATED:
-✅ Appendix A - All 25 principle cross-references updated
-✅ Appendix C - Principle VIII → Principle X reference updated
-✅ .github/copilot-instructions.md - "25 principles enforced" reference verified
-✅ All instruction files validated - No specific principle number references found
-
-FILES REQUIRING NO UPDATES:
-✅ .github/instructions/*.instructions.md - No principle number references found
-✅ Source code (*.cs) - No principle number references found
-✅ specs/**/*.md - No principle number references found
-✅ docs/**/*.md - No principle number references found
-
-FOLLOW-UP TODOS:
-- None required - All cross-references and templates already updated
-
-RATIONALE FOR REORDERING:
-New developers need foundational concepts first (Success Flag, COM Management, Test-Before-Commit).
-Expert priority assessment: catastrophic-if-violated principles must be understood before supporting details.
-Testing minutiae (naming standards) can come later as implementation details.
-Creates optimal learning path: Foundation → Implementation → Supporting Details
+NOTE: Constitution is PRE-RELEASE and safe to modify. Version 1.0.0 will be locked upon first release.
 -->
 
 # ExcelMcp Constitution
 
-**Version**: 2.1.0 | **Ratified**: 2025-11-10
+**Version**: 1.0.0 | **Ratified**: 2025-11-10
 
 ## Preamble
 
 This Constitution establishes the foundational principles and governance framework for ExcelMcp, a Windows-only toolset for programmatic Excel automation via COM interop designed for coding agents and automation scripts.
 
 These principles are ordered by importance from FOUNDATION → ARCHITECTURE → QUALITY → TESTING → IMPLEMENTATION → WORKFLOW. All principles are NON-NEGOTIABLE and apply to all contributions, modifications, and deployments.
+
+---
+
+## Development Environment
+
+**Platform**: Windows 10+ with Excel 2016 or later  
+**SDK**: .NET 8 SDK  
+**IDE**: Visual Studio Code  
+**Testing**: XUnit integration tests against real Excel COM API  
+**CI/CD**: GitHub Actions for automated builds, tests, and releases  
+**Primary Deliverable**: VS Code Extension published to Visual Studio Marketplace  
+**Secondary Deliverables**: NuGet packages (ExcelMcp.McpServer, ExcelMcp.Core)  
+**Build**: Release builds are optimized without PDB/XML files  
+**Repository**: Open source on GitHub (https://github.com/sbroenne/mcp-server-excel)  
+**License**: MIT
+
+---
+
+## Core Principles
+
+---
+
+## Development Environment
+
+**Platform**: Windows 10+ with Excel 2016 or later  
+**SDK**: .NET 8 SDK  
+**IDE**: Visual Studio Code  
+**Testing**: XUnit integration tests against real Excel COM API  
+**Deliverables**: Windows console applications (CLI) and NuGet packages (MCP Server, Core, ComInterop)  
+**Build**: Release builds are optimized without PDB/XML files  
+**Repository**: Open source on GitHub (https://github.com/sbroenne/mcp-server-excel)  
+**License**: MIT
 
 ---
 
@@ -280,19 +216,22 @@ By extracting shared logic to helper classes/utilities:
 
 ### IX. Integration-First Testing Philosophy
 
-**Description**: No traditional unit tests. Integration tests against real Excel ARE our unit tests.
+**Description**: Test-Driven Development (TDD) is mandatory. Write integration tests BEFORE implementing code. No traditional unit tests. Integration tests against real Excel ARE our unit tests. NEVER mock - test against real Excel COM API.
 
-**Rationale**: Excel COM API cannot be meaningfully mocked. Integration tests provide real-world validation with executable documentation. This is an accepted Architecture Decision (ADR-001). This principle defines the entire testing philosophy and must be understood early.
+**Rationale**: Excel COM API cannot be meaningfully mocked - mocking would test mock behavior, not Excel behavior. Integration tests provide real-world validation with executable documentation. TDD ensures tests define requirements, prevent over-engineering, and guarantee test coverage. Writing tests first forces clear thinking about interfaces and behavior before implementation. This is an accepted Architecture Decision (ADR-001). This principle defines the entire testing philosophy and must be understood early.
 
 **Implementation Requirements**:
+- **TDD Workflow**: Write test → Run test (fails) → Implement code → Run test (passes) → Refactor
+- Write minimum 5-8 integration tests BEFORE implementing Core commands
 - Each test creates unique file via `CoreTestHelper.CreateUniqueTestFileAsync()`
 - NEVER share test files between tests
 - Binary assertions only (NO "accept both" patterns)
 - ALWAYS verify actual Excel state after operations (round-trip validation)
 - SaveAsync ONLY for persistence tests
 - Session/batch modifications require OnDemand tests
+- NEVER mock Excel COM objects - tests must validate against real Excel behavior
 
-**Cross-Reference**: ADR-001-NO-UNIT-TESTS.md, Rule 12 (critical-rules), testing-strategy
+**Cross-Reference**: ADR-001-NO-UNIT-TESTS.md, Rule 12 (critical-rules), testing-strategy, Principle XXII (Layered Implementation Order)
 
 ---
 
@@ -509,9 +448,40 @@ By extracting shared logic to helper classes/utilities:
 
 ---
 
+### XXII. Layered Implementation Order
+
+**Description**: When implementing new features, MUST follow this TDD-driven sequence: (1) Core tests, (2) Core implementation, (3) MCP Server tests, (4) MCP Server tool, (5) CLI tests, (6) CLI command, (7) Documentation updates. Tests MUST be written BEFORE implementation at each layer.
+
+**Rationale**: Test-Driven Development (TDD) ensures tests define requirements before code is written, preventing over-engineering and guaranteeing test coverage. Writing tests first forces clear thinking about interfaces and expected behavior. Layered implementation ensures each layer is validated before dependent layers are built. Random implementation order causes incomplete testing, documentation drift, and unnecessary rework. This principle operationalizes both the Four-Layer Architecture (Principle VI) and Integration-First Testing Philosophy (Principle IX).
+
+**Implementation Requirements**:
+1. **Core Tests** - Write integration tests in `tests/ExcelMcp.Core.Tests/` FIRST with minimum 5-8 tests (regression, edge cases, round-trip validation). Tests define the interface and expected behavior.
+2. **Core Implementation** - Implement business logic in `src/ExcelMcp.Core/Commands/` to make tests pass
+3. **MCP Server Tests** - Write end-to-end tests in `tests/ExcelMcp.McpServer.Tests/` FIRST verifying JSON serialization and parameter passing
+4. **MCP Server Tool** - Implement MCP tool in `src/ExcelMcp.McpServer/Tools/` with action routing, parameter validation, JSON serialization
+5. **CLI Tests** - Write CLI tests in `tests/ExcelMcp.CLI.Tests/` FIRST verifying command-line interface behavior
+6. **CLI Command** - Implement CLI wrapper in `src/ExcelMcp.CLI/Commands/` with async handling and error formatting
+7. **Documentation Updates** - Update ALL documentation per Principle XXI (READMEs, server.json, prompts, gh-pages, VS Code extension README)
+
+**TDD Workflow at Each Layer**:
+- Write test → Run test (fails) → Implement code → Run test (passes) → Refactor → Next test
+
+**Benefits**:
+- Tests define requirements before implementation (prevents over-engineering)
+- Guaranteed test coverage (impossible to forget tests)
+- Clear interface design driven by test requirements
+- Each layer validated before building on top of it
+- Reduced rework from discovering Core issues during MCP Server implementation
+- Documentation always reflects final implementation
+- Matches architectural dependencies (CLI/MCP Server depend on Core)
+
+**Cross-Reference**: Principle VI (Four-Layer Architecture), Principle IX (Integration-First Testing Philosophy), Principle XXI (Documentation Synchronization), architecture-patterns, testing-strategy
+
+---
+
 ### Tier 6: Workflow & Policy (Process Optimization)
 
-### XXII. PR Review Automation
+### XXIII. PR Review Automation
 
 **Description**: After creating PR, ALWAYS check automated review comments from Copilot and GitHub Advanced Security within 1-2 minutes. Fix ALL automated issues before requesting human review.
 
@@ -527,7 +497,7 @@ By extracting shared logic to helper classes/utilities:
 
 ---
 
-### XXIII. COM API Transparency
+### XXIV. COM API Transparency
 
 **Description**: ExcelMcp MUST NOT add security layers or policy enforcement on top of Excel's COM API. Security is the caller's responsibility.
 
@@ -544,7 +514,7 @@ By extracting shared logic to helper classes/utilities:
 
 ---
 
-### XXIV. No Automatic Commits
+### XXV. No Automatic Commits
 
 **Description**: NEVER commit or push code automatically. All commits, pushes, and merges MUST require explicit user approval.
 
@@ -560,7 +530,7 @@ By extracting shared logic to helper classes/utilities:
 
 ---
 
-### XXV. VS Code Tools First
+### XXVI. VS Code Tools First
 
 **Description**: Coding agents MUST use VS Code tools (replace_string_in_file, read_file, grep_search, file_search, etc.) before resorting to shell commands (run_in_terminal with PowerShell/cmd).
 
@@ -605,10 +575,11 @@ By extracting shared logic to helper classes/utilities:
 | XIX. Tool Description Accuracy | Rule 18 | critical-rules, mcp-server-guide, mcp-llm-guidance |
 | XX. Complete Enum Mappings | Rule 15 | critical-rules, RangeAction enum |
 | XXI. Documentation Synchronization | Rule 13 | readme-management, mcp-llm-guidance, bug-fixing-checklist, critical-rules |
-| XXII. PR Review Automation | Rule 19 | critical-rules, development-workflow, PR #139 |
-| XXIII. COM API Transparency | N/A | excel-connection-types-guide, architecture-patterns, specs/001 |
-| XXIV. No Automatic Commits | Rule 21 | critical-rules, agent instructions |
-| XXV. VS Code Tools First | N/A | Agent instructions, VS Code documentation, MCP tool guidelines |
+| XXII. Layered Implementation Order | N/A | Principle VI, Principle XXI, architecture-patterns, testing-strategy, user requirement 2025-11-10 |
+| XXIII. PR Review Automation | Rule 19 | critical-rules, development-workflow, PR #139 |
+| XXIV. COM API Transparency | N/A | excel-connection-types-guide, architecture-patterns, specs/001 |
+| XXV. No Automatic Commits | Rule 21 | critical-rules, agent instructions |
+| XXVI. VS Code Tools First | N/A | Agent instructions, VS Code documentation, MCP tool guidelines |
 
 ### Appendix C: Governance Process
 
