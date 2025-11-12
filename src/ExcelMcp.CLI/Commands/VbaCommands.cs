@@ -144,11 +144,7 @@ public class VbaCommands : IVbaCommands
         string filePath = args[1];
         string moduleName = args[2];
 
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ViewAsync(batch, moduleName);
-        });
+        var task = Task.Run(async () => await _coreCommands.ViewAsync(filePath, moduleName));
         var result = task.GetAwaiter().GetResult();
 
         if (!result.Success)
@@ -212,12 +208,7 @@ public class VbaCommands : IVbaCommands
         ResultBase result;
         try
         {
-            var task = Task.Run(async () =>
-            {
-                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-                return await _coreCommands.ExportAsync(batch, moduleName, outputFile);
-            });
-            result = task.GetAwaiter().GetResult();
+            result = Task.Run(async () => await _coreCommands.ExportAsync(filePath, moduleName, outputFile)).GetAwaiter().GetResult();
         }
         catch (Exception ex)
         {
@@ -268,9 +259,8 @@ public class VbaCommands : IVbaCommands
         string moduleName = args[2];
         string vbaFile = args[3];
 
-        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        var result = await _coreCommands.ImportAsync(batch, moduleName, vbaFile);
-        await batch.SaveAsync();
+        var result = await _coreCommands.ImportAsync(filePath, moduleName, vbaFile);
+        await FileHandleManager.Instance.SaveAsync(filePath);
 
         // Handle VBA trust guidance
         if (result is VbaTrustRequiredResult trustError)
@@ -311,9 +301,8 @@ public class VbaCommands : IVbaCommands
         ResultBase result;
         try
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            result = await _coreCommands.UpdateAsync(batch, moduleName, vbaFile);
-            await batch.SaveAsync();
+            result = await _coreCommands.UpdateAsync(filePath, moduleName, vbaFile);
+            await FileHandleManager.Instance.SaveAsync(filePath);
         }
         catch (Exception ex)
         {
@@ -367,9 +356,8 @@ public class VbaCommands : IVbaCommands
 
         var task = Task.Run(async () =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var runResult = await _coreCommands.RunAsync(batch, procedureName, null, parameters);
-            await batch.SaveAsync();
+            var runResult = await _coreCommands.RunAsync(filePath, procedureName, null, parameters);
+            await FileHandleManager.Instance.SaveAsync(filePath);
             return runResult;
         });
         var result = task.GetAwaiter().GetResult();
@@ -411,9 +399,8 @@ public class VbaCommands : IVbaCommands
 
         var task = Task.Run(async () =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var deleteResult = await _coreCommands.DeleteAsync(batch, moduleName);
-            await batch.SaveAsync();
+            var deleteResult = await _coreCommands.DeleteAsync(filePath, moduleName);
+            await FileHandleManager.Instance.SaveAsync(filePath);
             return deleteResult;
         });
         var result = task.GetAwaiter().GetResult();
