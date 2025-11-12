@@ -252,6 +252,29 @@ jobs:
         }
 
         Write-Output ""
+        
+        # Check if version already exists in MCP Registry
+        Write-Output "Checking if version $version already exists in MCP Registry..."
+        $registryCheckUrl = "https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel"
+        try {
+          $registryData = Invoke-RestMethod -Uri $registryCheckUrl -ErrorAction SilentlyContinue
+          $existingVersions = $registryData.versions | Select-Object -ExpandProperty version
+          if ($existingVersions -contains $version) {
+            Write-Output "⚠️ WARNING: Version $version already exists in MCP Registry"
+            Write-Output "   Existing versions: $($existingVersions -join ', ')"
+            Write-Output "   This publish attempt will likely fail with 'duplicate version' error"
+            Write-Output "   If you need to republish, you must either:"
+            Write-Output "   1. Use a new version number (recommended), or"
+            Write-Output "   2. Contact MCP Registry support to remove the existing version"
+            Write-Output ""
+          } else {
+            Write-Output "✅ Version $version not found in registry - proceeding with publish"
+          }
+        } catch {
+          Write-Output "⚠️ Could not check registry for existing version (this is OK - will attempt publish)"
+        }
+        
+        Write-Output ""
         Write-Output "Proceeding with MCP Registry publish..."
 
         # Navigate to MCP Server .mcp directory (where server.json is located)
@@ -272,6 +295,24 @@ jobs:
           Write-Output ""
           Write-Output "❌ MCP Registry publishing failed with exit code $publishExitCode"
           Write-Output "Error details shown above"
+          
+          # Check if this is a duplicate version error
+          if ($publishOutput -match "duplicate version") {
+            Write-Output ""
+            Write-Output "🔍 DUPLICATE VERSION DETECTED"
+            Write-Output "   This version ($version) is already registered in the MCP Registry."
+            Write-Output "   This can happen if:"
+            Write-Output "   1. A previous workflow run partially succeeded"
+            Write-Output "   2. The version was manually published"
+            Write-Output "   3. The MCP Registry is in an inconsistent state"
+            Write-Output ""
+            Write-Output "   RESOLUTION OPTIONS:"
+            Write-Output "   - If this is a re-run: The version is already published, no action needed"
+            Write-Output "   - If this is a new release: Create a new tag with incremented version (e.g., v$($version.Split('.')[0]).$([int]$version.Split('.')[1] + 1).0)"
+            Write-Output "   - If registry is inconsistent: Contact MCP Registry support"
+            Write-Output ""
+            Write-Output "   Verify current registry state: $registryCheckUrl"
+          }
           
           # Exit with error to mark step as failed (continue-on-error will catch it)
           exit $publishExitCode
