@@ -89,14 +89,14 @@ Actions available as dropdown in MCP clients.")]
 
             return action switch
             {
-                QueryTableAction.List => await ListQueryTablesAsync(queryTableCommands, excelPath, batchId),
-                QueryTableAction.Get => await GetQueryTableAsync(queryTableCommands, excelPath, queryTableName, batchId),
+                QueryTableAction.List => await ListQueryTablesAsync(queryTableCommands, excelPath),
+                QueryTableAction.Get => await GetQueryTableAsync(queryTableCommands, excelPath, queryTableName),
                 QueryTableAction.CreateFromConnection => await CreateFromConnectionAsync(queryTableCommands, excelPath, sheetName, queryTableName, connectionName, range, backgroundQuery, refreshOnFileOpen, savePassword, preserveColumnInfo, preserveFormatting, adjustColumnWidth, refreshImmediately, batchId),
                 QueryTableAction.CreateFromQuery => await CreateFromQueryAsync(queryTableCommands, excelPath, sheetName, queryTableName, queryName, range, backgroundQuery, refreshOnFileOpen, savePassword, preserveColumnInfo, preserveFormatting, adjustColumnWidth, refreshImmediately, batchId),
                 QueryTableAction.Refresh => await RefreshQueryTableAsync(queryTableCommands, excelPath, queryTableName, batchId),
                 QueryTableAction.RefreshAll => await RefreshAllQueryTablesAsync(queryTableCommands, excelPath, batchId),
                 QueryTableAction.UpdateProperties => await UpdatePropertiesAsync(queryTableCommands, excelPath, queryTableName, backgroundQuery, refreshOnFileOpen, savePassword, preserveColumnInfo, preserveFormatting, adjustColumnWidth, batchId),
-                QueryTableAction.Delete => await DeleteQueryTableAsync(queryTableCommands, excelPath, queryTableName, batchId),
+                QueryTableAction.Delete => await DeleteQueryTableAsync(queryTableCommands, excelPath, queryTableName),
                 _ => throw new ModelContextProtocol.McpException($"Unknown action: {action}")
             };
         }
@@ -111,13 +111,9 @@ Actions available as dropdown in MCP clients.")]
         }
     }
 
-    private static async Task<string> ListQueryTablesAsync(QueryTableCommands commands, string excelPath, string? batchId)
+    private static async Task<string> ListQueryTablesAsync(QueryTableCommands commands, string excelPath)
     {
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: false,
-            async (batch) => await commands.ListAsync(batch));
+        var result = await commands.ListAsync(excelPath);
 
         return JsonSerializer.Serialize(new
         {
@@ -137,16 +133,12 @@ Actions available as dropdown in MCP clients.")]
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetQueryTableAsync(QueryTableCommands commands, string excelPath, string? queryTableName, string? batchId)
+    private static async Task<string> GetQueryTableAsync(QueryTableCommands commands, string excelPath, string? queryTableName)
     {
         if (string.IsNullOrWhiteSpace(queryTableName))
             throw new ModelContextProtocol.McpException("queryTableName is required for get action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: false,
-            async (batch) => await commands.GetAsync(batch, queryTableName));
+        var result = await commands.GetAsync(excelPath, queryTableName);
 
         return JsonSerializer.Serialize(new
         {
@@ -361,16 +353,12 @@ Actions available as dropdown in MCP clients.")]
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> DeleteQueryTableAsync(QueryTableCommands commands, string excelPath, string? queryTableName, string? batchId)
+    private static async Task<string> DeleteQueryTableAsync(QueryTableCommands commands, string excelPath, string? queryTableName)
     {
         if (string.IsNullOrWhiteSpace(queryTableName))
             throw new ModelContextProtocol.McpException("queryTableName is required for delete action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await commands.DeleteAsync(batch, queryTableName));
+        var result = await commands.DeleteAsync(excelPath, queryTableName);
 
         return JsonSerializer.Serialize(new
         {
