@@ -96,4 +96,72 @@ public interface ISheetCommands
     /// Convenience method equivalent to SetVisibilityAsync(..., SheetVisibility.VeryHidden)
     /// </summary>
     Task<OperationResult> VeryHideAsync(IExcelBatch batch, string sheetName);
+
+    // === FILEPATH-BASED API (NEW) ===
+    // FilePath-based overloads using FileHandleManager for automatic handle caching
+
+    /// <summary>
+    /// Lists all worksheets in the workbook (filePath-based API)
+    /// </summary>
+    Task<WorksheetListResult> ListAsync(string filePath);
+
+    /// <summary>
+    /// Creates a new worksheet (filePath-based API)
+    /// </summary>
+    Task<OperationResult> CreateAsync(string filePath, string sheetName);
+
+    /// <summary>
+    /// Renames a worksheet (filePath-based API)
+    /// </summary>
+    Task<OperationResult> RenameAsync(string filePath, string oldName, string newName);
+
+    /// <summary>
+    /// Copies a worksheet (filePath-based API)
+    /// </summary>
+    Task<OperationResult> CopyAsync(string filePath, string sourceName, string targetName);
+
+    /// <summary>
+    /// Deletes a worksheet (filePath-based API)
+    /// </summary>
+    Task<OperationResult> DeleteAsync(string filePath, string sheetName);
+
+    /// <summary>
+    /// Sets the tab color for a worksheet (filePath-based API)
+    /// </summary>
+    Task<OperationResult> SetTabColorAsync(string filePath, string sheetName, int red, int green, int blue);
+
+    /// <summary>
+    /// Gets the tab color for a worksheet (filePath-based API)
+    /// </summary>
+    Task<TabColorResult> GetTabColorAsync(string filePath, string sheetName);
+
+    /// <summary>
+    /// Clears the tab color for a worksheet (filePath-based API)
+    /// </summary>
+    Task<OperationResult> ClearTabColorAsync(string filePath, string sheetName);
+
+    /// <summary>
+    /// Sets worksheet visibility level (filePath-based API)
+    /// </summary>
+    Task<OperationResult> SetVisibilityAsync(string filePath, string sheetName, SheetVisibility visibility);
+
+    /// <summary>
+    /// Gets worksheet visibility level (filePath-based API)
+    /// </summary>
+    Task<SheetVisibilityResult> GetVisibilityAsync(string filePath, string sheetName);
+
+    /// <summary>
+    /// Shows a hidden or very hidden worksheet (filePath-based API)
+    /// </summary>
+    Task<OperationResult> ShowAsync(string filePath, string sheetName);
+
+    /// <summary>
+    /// Hides a worksheet (filePath-based API)
+    /// </summary>
+    Task<OperationResult> HideAsync(string filePath, string sheetName);
+
+    /// <summary>
+    /// Very hides a worksheet (filePath-based API)
+    /// </summary>
+    Task<OperationResult> VeryHideAsync(string filePath, string sheetName);
 }
