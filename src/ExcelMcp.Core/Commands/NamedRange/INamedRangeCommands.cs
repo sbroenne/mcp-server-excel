@@ -14,9 +14,19 @@ public interface INamedRangeCommands
     Task<NamedRangeListResult> ListAsync(IExcelBatch batch);
 
     /// <summary>
+    /// Lists all named ranges in the workbook (filePath-based API)
+    /// </summary>
+    Task<NamedRangeListResult> ListAsync(string filePath);
+
+    /// <summary>
     /// Sets the value of a named range
     /// </summary>
     Task<OperationResult> SetAsync(IExcelBatch batch, string paramName, string value);
+
+    /// <summary>
+    /// Sets the value of a named range (filePath-based API)
+    /// </summary>
+    Task<OperationResult> SetAsync(string filePath, string paramName, string value);
 
     /// <summary>
     /// Gets the value of a named range
@@ -24,9 +34,19 @@ public interface INamedRangeCommands
     Task<NamedRangeValueResult> GetAsync(IExcelBatch batch, string paramName);
 
     /// <summary>
+    /// Gets the value of a named range (filePath-based API)
+    /// </summary>
+    Task<NamedRangeValueResult> GetAsync(string filePath, string paramName);
+
+    /// <summary>
     /// Updates a named range reference
     /// </summary>
     Task<OperationResult> UpdateAsync(IExcelBatch batch, string paramName, string reference);
+
+    /// <summary>
+    /// Updates a named range reference (filePath-based API)
+    /// </summary>
+    Task<OperationResult> UpdateAsync(string filePath, string paramName, string reference);
 
     /// <summary>
     /// Creates a new named range
@@ -34,12 +54,27 @@ public interface INamedRangeCommands
     Task<OperationResult> CreateAsync(IExcelBatch batch, string paramName, string reference);
 
     /// <summary>
+    /// Creates a new named range (filePath-based API)
+    /// </summary>
+    Task<OperationResult> CreateAsync(string filePath, string paramName, string reference);
+
+    /// <summary>
     /// Deletes a named range
     /// </summary>
     Task<OperationResult> DeleteAsync(IExcelBatch batch, string paramName);
 
     /// <summary>
+    /// Deletes a named range (filePath-based API)
+    /// </summary>
+    Task<OperationResult> DeleteAsync(string filePath, string paramName);
+
+    /// <summary>
     /// Creates multiple named ranges with optional initial values in a single operation
     /// </summary>
     Task<OperationResult> CreateBulkAsync(IExcelBatch batch, IEnumerable<NamedRangeDefinition> parameters);
+
+    /// <summary>
+    /// Creates multiple named ranges with optional initial values in a single operation (filePath-based API)
+    /// </summary>
+    Task<OperationResult> CreateBulkAsync(string filePath, IEnumerable<NamedRangeDefinition> parameters);
 }

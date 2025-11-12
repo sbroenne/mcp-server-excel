@@ -7,6 +7,7 @@ using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
 #pragma warning disable CA1861 // Avoid constant arrays as arguments - Workflow hints are contextual per-call
+#pragma warning disable IDE0060 // batchId parameter kept for compatibility, will be removed in final cleanup phase
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -45,12 +46,9 @@ USE CASES:
 - Reusable parameters: Formula inputs, dynamic ranges
 - Power Query parameters: Reference in M code via Excel.CurrentWorkbook()
 
-⚡ PERFORMANCE: For creating 2+ parameters, use begin_excel_batch FIRST (90% faster):
-  1. batch = begin_excel_batch(excelPath: 'file.xlsx')
-  2. excel_namedrange(action: 'create', ..., batchId: batch.batchId)  // repeat for each parameter
-  3. commit_excel_batch(batchId: batch.batchId, save: true)
+⚡ PERFORMANCE: File handle caching automatically optimizes sequential operations.
 
-⭐ NEW: Use 'create-bulk' action for even better efficiency (one call for multiple parameters).
+⭐ BULK OPERATIONS: Use 'create-bulk' action for even better efficiency (one call for multiple parameters).
 
 RELATED TOOLS:
 - excel_range: For bulk data operations on named range contents
@@ -110,11 +108,7 @@ Optional batchId for batch sessions.")]
 
     private static async Task<string> ListNamedRangesAsync(NamedRangeCommands commands, string filePath, string? batchId)
     {
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: false,
-            async (batch) => await commands.ListAsync(batch));
+        var result = await commands.ListAsync(filePath);
 
         // If operation failed, throw exception with detailed error message
         // Always return JSON (success or failure) - MCP clients handle the success flag
@@ -133,14 +127,14 @@ Optional batchId for batch sessions.")]
                 ? new[]
                 {
                     "Use 'create' to define new named ranges as parameters",
-                    inBatch ? "Add more operations in this batch session" : "Use excel_batch for creating multiple parameters (90% faster)"
+                    inBatch ? "Create additional named ranges as needed" : "File handle caching provides automatic performance optimization"
                 }
                 :
                 [
                     "Use 'get' to retrieve named range values",
                     "Use 'set' to update parameter values",
                     "Use excel_range with sheetName='' to reference named ranges in formulas",
-                    inBatch ? "Continue batch operations" : count > 3 ? "Use excel_batch for bulk updates (90% faster)" : "Use 'update' to change cell references"
+                    inBatch ? "Continue with additional operations" : count > 3 ? "File handle caching provides automatic performance optimization" : "Use 'update' to change cell references"
                 ]
         }, ExcelToolsBase.JsonOptions);
     }
@@ -150,11 +144,7 @@ Optional batchId for batch sessions.")]
         if (string.IsNullOrEmpty(namedRangeName))
             throw new ModelContextProtocol.McpException("namedRangeName is required for get action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: false,
-            async (batch) => await commands.GetAsync(batch, namedRangeName));
+        var result = await commands.GetAsync(filePath, namedRangeName);
 
         // If operation failed, throw exception with detailed error message
         // Always return JSON (success or failure) - MCP clients handle the success flag
@@ -174,11 +164,8 @@ Optional batchId for batch sessions.")]
         if (string.IsNullOrEmpty(namedRangeName) || value == null)
             throw new ModelContextProtocol.McpException("namedRangeName and value are required for set action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: true,
-            async (batch) => await commands.SetAsync(batch, namedRangeName, value));
+        var result = await commands.SetAsync(filePath, namedRangeName, value);
+        await ComInterop.Session.FileHandleManager.Instance.SaveAsync(filePath);
 
         // If operation failed, throw exception with detailed error message
         // Always return JSON (success or failure) - MCP clients handle the success flag
@@ -193,7 +180,7 @@ Optional batchId for batch sessions.")]
             {
                 "Use 'get' to verify the new value",
                 "Use excel_range to see how formulas using this parameter changed",
-                inBatch ? "Continue batch operations" : "Set more parameters? Use excel_batch (90% faster)"
+                inBatch ? "Continue with additional operations" : "Set more parameters? Use excel_batch (90% faster)"
             }
         }, ExcelToolsBase.JsonOptions);
     }
@@ -203,11 +190,8 @@ Optional batchId for batch sessions.")]
         if (string.IsNullOrEmpty(namedRangeName) || string.IsNullOrEmpty(value))
             throw new ModelContextProtocol.McpException("namedRangeName and value (cell reference) are required for update action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: true,
-            async (batch) => await commands.UpdateAsync(batch, namedRangeName, value));
+        var result = await commands.UpdateAsync(filePath, namedRangeName, value);
+        await ComInterop.Session.FileHandleManager.Instance.SaveAsync(filePath);
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         var inBatch = !string.IsNullOrEmpty(batchId);
@@ -224,7 +208,7 @@ Optional batchId for batch sessions.")]
                 {
                     "Use 'get' to retrieve value from new location",
                     "Use excel_range to read data from new cell reference",
-                    inBatch ? "Continue batch operations" : "Update more references? Use excel_batch for efficiency"
+                    inBatch ? "Continue with additional operations" : "Update more references? Use excel_batch for efficiency"
                 }
                 :
                 [
@@ -240,11 +224,8 @@ Optional batchId for batch sessions.")]
         if (string.IsNullOrEmpty(namedRangeName) || string.IsNullOrEmpty(value))
             throw new ModelContextProtocol.McpException("namedRangeName and value (cell reference) are required for create action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: true,
-            async (batch) => await commands.CreateAsync(batch, namedRangeName, value));
+        var result = await commands.CreateAsync(filePath, namedRangeName, value);
+        await ComInterop.Session.FileHandleManager.Instance.SaveAsync(filePath);
 
         // If operation failed, throw exception with detailed error message
         // Always return JSON (success or failure) - MCP clients handle the success flag
@@ -269,11 +250,8 @@ Optional batchId for batch sessions.")]
         if (string.IsNullOrEmpty(namedRangeName))
             throw new ModelContextProtocol.McpException("namedRangeName is required for delete action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: true,
-            async (batch) => await commands.DeleteAsync(batch, namedRangeName));
+        var result = await commands.DeleteAsync(filePath, namedRangeName);
+        await ComInterop.Session.FileHandleManager.Instance.SaveAsync(filePath);
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         var inBatch = !string.IsNullOrEmpty(batchId);
@@ -290,7 +268,7 @@ Optional batchId for batch sessions.")]
                 {
                     "Use 'list' to verify deletion",
                     "Check formulas that referenced this parameter (will show #NAME? errors)",
-                    inBatch ? "Continue batch operations" : "Delete more named ranges? Use excel_batch for efficiency"
+                    inBatch ? "Continue with additional operations" : "Delete more named ranges? Use excel_batch for efficiency"
                 }
                 :
                 [
