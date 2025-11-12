@@ -21,9 +21,33 @@ Unlike third-party libraries that manipulate `.xlsx` files (risking corruption),
 
 ## 🚀 Installation
 
-Install the [ExcelMcp VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) for one-click setup with GitHub Copilot.
+**Quick Setup Options:**
 
-For other MCP clients or manual configuration, see the [Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md).
+1. **VS Code Extension** - [One-click install](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) for GitHub Copilot
+2. **Manual Install** - Works with Claude Desktop, Cursor, Cline, Windsurf, and other MCP clients
+3. **MCP Registry** - Find us at [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel)
+
+**Manual Installation (All MCP Clients):**
+
+```powershell
+# Install MCP Server
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+
+# Configure your AI assistant
+# See examples/mcp-configs/ for ready-to-use configs
+```
+
+**Supported AI Assistants:**
+- ✅ GitHub Copilot (VS Code, Visual Studio)
+- ✅ Claude Desktop
+- ✅ Cursor
+- ✅ Cline (VS Code Extension)
+- ✅ Windsurf
+- ✅ Any MCP-compatible client
+
+📖 **Detailed setup instructions:** [Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md)
+
+🎯 **Quick config examples:** [examples/mcp-configs/](https://github.com/sbroenne/mcp-server-excel/tree/main/examples/mcp-configs)
 
 ## 🛠️ What You Can Do
 

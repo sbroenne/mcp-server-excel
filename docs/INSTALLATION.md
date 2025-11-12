@@ -108,8 +108,49 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 
 **For Claude Desktop:**
 
-1. Open Claude Desktop settings
-2. Navigate to MCP configuration
+1. Locate config file: `%APPDATA%\Claude\claude_desktop_config.json`
+2. If file doesn't exist, create it with the content below
+3. If file exists, merge the `excel` entry into your existing `mcpServers` section
+
+```json
+{
+  "mcpServers": {
+    "excel": {
+      "command": "dotnet",
+      "args": ["tool", "run", "mcp-excel"],
+      "env": {}
+    }
+  }
+}
+```
+
+4. Save and restart Claude Desktop
+
+**For Cursor:**
+
+1. Open Cursor Settings (Ctrl+,)
+2. Search for "MCP" in settings
+3. Click "Edit in settings.json" or create config at: `%APPDATA%\Cursor\User\globalStorage\mcp\mcp.json`
+4. Add this configuration:
+
+```json
+{
+  "mcpServers": {
+    "excel": {
+      "command": "dotnet",
+      "args": ["tool", "run", "mcp-excel"],
+      "env": {}
+    }
+  }
+}
+```
+
+5. Save and restart Cursor
+
+**For Cline (VS Code Extension):**
+
+1. Install Cline extension in VS Code
+2. Open Cline panel and click the MCP settings gear icon
 3. Add this configuration:
 
 ```json
@@ -117,14 +158,36 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
   "mcpServers": {
     "excel": {
       "command": "dotnet",
-      "args": ["tool", "run", "mcp-excel"]
+      "args": ["tool", "run", "mcp-excel"],
+      "env": {}
     }
   }
 }
 ```
 
-**Configuration file location:**
-- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+4. Save and restart VS Code
+
+**For Windsurf:**
+
+1. Open Windsurf Settings
+2. Navigate to MCP Servers configuration  
+3. Add this configuration:
+
+```json
+{
+  "mcpServers": {
+    "excel": {
+      "command": "dotnet",
+      "args": ["tool", "run", "mcp-excel"],
+      "env": {}
+    }
+  }
+}
+```
+
+4. Save and restart Windsurf
+
+**Quick Copy:** Ready-to-use config files for all clients are available in [`examples/mcp-configs/`](../examples/mcp-configs/)
 
 #### Step 4: Test the Installation
 
