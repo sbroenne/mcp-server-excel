@@ -384,11 +384,20 @@ public class RangeCommands : IRangeCommands
 
 **Pattern**: Every command method takes `filePath` as first parameter, uses FileHandleManager to get/reuse handle.
 
-## Migration Strategy
+## Migration Strategy: Sequential End-to-End Conversion
 
-### Phase 1: Add FilePath-Based API (Parallel to Batch)
+**Approach:** Convert each command interface end-to-end (Core → Tests → MCP → CLI) before moving to the next. This ensures each command is fully validated and working before starting the next one.
 
-**Goal:** Introduce filePath-based pattern without breaking existing code
+**Why Sequential End-to-End:**
+- ✅ Smaller, focused changes per PR (easier to review)
+- ✅ Each command is fully tested before moving on
+- ✅ Incremental progress (can pause/resume at any command boundary)
+- ✅ Batch API remains functional for unconverted commands
+- ✅ Reduces risk (smaller blast radius per change)
+
+### Phase 0: Foundation (One-Time Setup)
+
+**Goal:** Create shared infrastructure used by all commands
 
 1. Add `ExcelWorkbookHandle` class to `ExcelMcp.ComInterop/Session/` (wraps COM objects)
 2. Add `FileHandleManager` to `ExcelMcp.ComInterop/Session/` (singleton cache)
@@ -398,37 +407,84 @@ public class RangeCommands : IRangeCommands
    - `Task SaveAsync(string filePath)`
    - `Task CloseAsync(string filePath)`
 4. **Create NEW class** `WorkbookCommands` implementing `IWorkbookCommands`
-5. Update all `I*Commands` interfaces to add filePath parameter:
+5. Write unit tests for `FileHandleManager` (handle caching, reuse, cleanup)
+6. Add background cleanup task (timeout-based disposal)
+
+**Why NEW interface `IWorkbookCommands`:**
+- Clean separation (workbook lifecycle vs feature operations)
+- `IFileCommands` deleted entirely in final cleanup (no gradual migration)
+
+**Deliverable:** Infrastructure PR with FileHandleManager + IWorkbookCommands + tests
+
+---
+
+### Per-Command Migration Pattern
+
+For each command interface (IRangeCommands, IPowerQueryCommands, ISheetCommands, etc.):
+
+#### Step 1: Core Commands (Add FilePath-Based Methods)
+
+1. Add filePath-based methods to interface:
    ```csharp
    // NEW: FilePath-based API (filePath is first parameter!)
    Task<OperationResult> GetValuesAsync(string filePath, string sheetName, string rangeAddress);
    
-   // OLD: Batch API (keep during development, remove in Phase 5)
+   // OLD: Batch API (keep for now - deleted in final cleanup)
    Task<OperationResult> GetValuesAsync(IExcelBatch batch, string sheetName, string rangeAddress);
    ```
-6. Implement new filePath-based methods in all Commands classes:
+
+2. Implement filePath-based methods in Commands class:
    ```csharp
    public async Task<OperationResult> GetValuesAsync(string filePath, string sheetName, string rangeAddress)
    {
        var handle = await FileHandleManager.Instance.OpenOrGetAsync(filePath);
-       // ... work with handle.Workbook ...
+       
+       return await Task.Run(() =>
+       {
+           dynamic? sheet = null;
+           dynamic? range = null;
+           try
+           {
+               sheet = handle.Workbook.Worksheets[sheetName];
+               range = sheet.Range[rangeAddress];
+               // ... work with range ...
+           }
+           finally
+           {
+               ComUtilities.Release(ref range!);
+               ComUtilities.Release(ref sheet!);
+           }
+       });
    }
    ```
-7. Keep old batch-based methods for backward compatibility (NO obsolete attribute)
 
-**Why NEW interface `IWorkbookCommands` instead of modifying `IFileCommands`:**
-- No build breakage (existing `IFileCommands` unchanged during migration)
-- Clean separation (old file operations vs new workbook lifecycle)
-- `IFileCommands` deleted entirely in Phase 5 (no gradual migration needed)
+3. Build passes (0 warnings)
 
-### Phase 2: Update MCP Server
+**Deliverable:** Core Commands updated for ONE command interface
 
-**Goal:** Replace batch session usage with filePath-based commands
+#### Step 2: Tests (Convert to FilePath-Based)
 
-**External API:** No change - tools still accept `excelPath` parameter
-**Internal Implementation:** Pass filePath directly to Core Commands (no batch session)
+1. Update test class to inject `IWorkbookCommands` (for explicit close)
+2. Convert all tests for this command interface:
+   ```csharp
+   // OLD (batch-based)
+   await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+   var result = await _commands.GetValuesAsync(batch, "Sheet1", "A1:D10");
+   
+   // NEW (filePath-based)
+   var result = await _commands.GetValuesAsync(testFile, "Sheet1", "A1:D10");
+   await _workbookCommands.SaveAsync(testFile);  // Explicit save if needed
+   await _workbookCommands.CloseAsync(testFile);  // Explicit close
+   ```
 
-1. Update tool implementations:
+3. Run tests for this command interface - all pass
+4. Verify handle reuse works (multiple operations on same file)
+
+**Deliverable:** Tests updated and passing for ONE command interface
+
+#### Step 3: MCP Server (Update Tool)
+
+1. Update MCP tool for this command:
    ```csharp
    // OLD (batch-based)
    await using var batch = await ExcelSession.BeginBatchAsync(excelPath);
@@ -440,44 +496,14 @@ public class RangeCommands : IRangeCommands
    await workbookCommands.SaveAsync(excelPath);  // Explicit save
    ```
 
-2. Remove `excel_batch` tool (no longer needed - handle reuse automatic!)
-3. Update all 12 tool implementations to use new pattern
-4. **No changes to tool signatures** - users still pass `excelPath` parameter
+2. Update tool `[Description]` if needed (usually no changes - tools already accept excelPath)
+3. Run MCP Server tests for this tool - all pass
 
-### Phase 3: Update CLI
+**Deliverable:** MCP tool updated and tested for ONE command interface
 
-**Goal:** Replace batch session usage with filePath-based commands
+#### Step 4: CLI (Update Commands)
 
-**External API:** No change - commands still accept `--file` parameter
-**Internal Implementation:** Replace batch session with active workbook management
-
-1. Update all command handlers:
-   ```csharp
-   // OLD (batch-based)
-   await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-   var result = await _commands.GetValuesAsync(batch, sheet, range);
-   await batch.SaveAsync();
-   
-   // NEW (active workbook pattern)  
-   await _workbookCommands.OpenAsync(filePath);  // Sets as active
-   try {
-       var result = await _commands.GetValuesAsync(sheet, range);  // No handle parameter!
-       await _workbookCommands.SaveAsync();
-   } finally {
-       await _workbookCommands.CloseAsync();
-   }
-   ```
-
-2. Remove batch CLI commands (`batch-begin`, `batch-commit`, etc.)
-3. **No changes to command signatures** - users still pass `--file` flag
-
-**CLI auto-manages active workbook:**
-```bash
-# CLI opens, sets as active, executes, saves, closes automatically
-excelmcp range get-values --file report.xlsx --sheet Sheet1 --range A1:D10
-```
-
-1. Update CLI command handlers:
+1. Update CLI command handlers for this command:
    ```csharp
    // OLD (batch-based)
    await using var batch = await ExcelSession.BeginBatchAsync(filePath);
@@ -490,39 +516,36 @@ excelmcp range get-values --file report.xlsx --sheet Sheet1 --range A1:D10
    ```
 
 2. No changes to CLI command signatures - users still pass file paths
-3. Update all CLI command classes to use new pattern
+3. Run CLI tests for this command - all pass
 
-### Phase 4: Update Tests
+**Deliverable:** CLI commands updated and tested for ONE command interface
 
-**Goal:** Migrate all tests to filePath-based API
+---
 
-1. Replace batch test pattern:
-   ```csharp
-   // OLD (batch-based)
-   await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-   var result = await _commands.GetValuesAsync(batch, "Sheet1", "A1:D10");
-   
-   // NEW (filePath-based)
-   var result = await _commands.GetValuesAsync(testFile, "Sheet1", "A1:D10");  // Pass testFile!
-   await _workbookCommands.SaveAsync(testFile);  // Explicit save if needed
-   await _workbookCommands.CloseAsync(testFile);  // Explicit close
-   ```
+### Command Migration Order (Suggested)
 
-2. Update all test classes to inject `IWorkbookCommands` (for explicit close)
-3. Replace `ExcelSession.BeginBatchAsync()` with direct command calls
-4. No more `await using var batch` - just pass filePath
-5. Benefits:
-   - Tests exercise actual production code paths
-   - Handle reuse automatic (FileHandleManager caches by path)
-   - Faster disposal (explicit close, not 2-17 second delay)
-   - Clearer test intent (direct command calls with filePath)
-   - Simpler API (filePath parameter replaces handle parameter)
+**Start simple, build confidence:**
 
-### Phase 5: Remove Batch Infrastructure
+1. **IWorksheetCommands** (simple, no complex COM interactions)
+2. **INamedRangeCommands** (simple, good for testing handle caching)
+3. **IRangeCommands** (most used, validates performance)
+4. **ITableCommands** (moderate complexity)
+5. **IPowerQueryCommands** (heavy operations, validates timeout handling)
+6. **IConnectionCommands** (validates multi-file scenarios)
+7. **IDataModelCommands** (complex COM, good stress test)
+8. **IPivotTableCommands** (complex COM)
+9. **IQueryTableCommands** (moderate complexity)
+10. **IVbaCommands** (special handling for .xlsm)
 
-**Goal:** Clean removal of obsolete batch code
+**Each command = One PR with 4 steps complete**
 
-1. Verify all consumers migrated (Phases 1-4: Core APIs, MCP Server, CLI, tests all use filePath-based API)
+---
+
+### Final Cleanup Phase (After All Commands Converted)
+
+**Goal:** Remove batch infrastructure completely
+
+1. Verify all commands migrated (all interfaces use filePath-based API)
 2. Delete batch infrastructure in one clean commit:
    - `ExcelSession.cs`
    - `ExcelBatch.cs`
@@ -531,15 +554,17 @@ excelmcp range get-values --file report.xlsx --sheet Sheet1 --range A1:D10
    - `FileCommands.cs` implementation (replaced by `WorkbookCommands`)
    - Batch-based method overloads from all `I*Commands` interfaces
    - `excel_batch` MCP tool (no longer needed)
-   - Batch CLI commands (no longer needed)
+   - Batch CLI commands (`batch-begin`, `batch-commit`, `batch-discard`)
 3. Remove batch-related documentation
 4. Update CHANGELOG
 
-**Why clean removal works:**
+**Why this works:**
+- All consumers already migrated (one command at a time)
 - No external consumers (Core is internal library)
-- All internal consumers migrated in Phases 2-4 (MCP Server, CLI, tests)
 - No `[Obsolete]` warnings to clean up
-- Single atomic change (easy to review)
+- Single atomic cleanup commit (easy to review)
+
+**Deliverable:** Clean codebase with zero batch references
 
 ## Benefits
 
@@ -732,63 +757,82 @@ public async Task FullWorkflow_PassFilePathEverywhere_Succeeds()
 ```
 
 **Migration Strategy:**
-- Phase 4: Migrate all tests to filePath-based API
-- Delete batch-based tests after migration complete
+- Sequential end-to-end conversion (Core → Tests → MCP → CLI)
+- One command interface at a time
 - No dual test maintenance needed
 
 ## Implementation Checklist
 
-### Phase 1: Core Infrastructure (Week 1)
+### Phase 0: Foundation (One-Time Setup)
 - [ ] Create `ExcelWorkbookHandle` class in `ExcelMcp.ComInterop/Session/`
 - [ ] Create `FileHandleManager` singleton in `ExcelMcp.ComInterop/Session/`
 - [ ] Create `IWorkbookCommands` interface in `ExcelMcp.Core/Commands/`
 - [ ] Implement `WorkbookCommands` class
-- [ ] Add filePath parameter to all `I*Commands` interfaces (keep batch overloads)
-- [ ] Update all Commands classes with filePath-based implementations
 - [ ] Write unit tests for `FileHandleManager` (handle caching, reuse, cleanup)
-- [ ] Write integration tests for filePath-based lifecycle
 - [ ] Add background cleanup task (timeout-based disposal)
+- [ ] **PR:** Infrastructure foundation
 
-### Phase 2: MCP Server (Week 2)
-- [ ] Create `FileHandleTool.cs` (create, open, save, close)
-- [ ] Add `handle` parameter to all existing tools
-- [ ] Update tool descriptions to show file handle API (no workflow guidance needed)
-- [ ] Write MCP Server tests (file handle workflow)
-- [ ] Keep batch tool functional (for now)
-- [ ] **Note:** Don't remove `SuggestedNextActions` or prompts yet - Phase 5 cleanup
+### Per-Command Conversion (Repeat for Each Command)
 
-### Phase 2: MCP Server (Week 2)
-- [ ] Remove `excel_batch` tool (no longer needed!)
-- [ ] Update all tool implementations to pass filePath directly to Core Commands
-- [ ] Remove batch session logic (`ExcelToolsBase.WithBatchAsync()`)
-- [ ] Update tool descriptions (no batch guidance needed - LLMs pass filePaths)
-- [ ] Write MCP Server tests (filePath-based workflow)
-- [ ] Add optional background cleanup task (timeout-based disposal)
+**For each command in migration order:**
 
-### Phase 3: CLI (Week 2)
-- [ ] Update all CLI command handlers to pass filePath directly
-- [ ] Remove batch session logic
-- [ ] Add file commands (`file open`, `file save`, `file close`) for explicit control
-- [ ] Update help text (remove batch references)
-- [ ] Write CLI tests (filePath-based workflow)
-- [ ] Remove batch commands (`batch-begin`, `batch-commit`, `batch-discard`)
+#### Command: [IWorksheetCommands / INamedRangeCommands / IRangeCommands / etc.]
 
-### Phase 4: Tests (Week 3)
-- [ ] Update all test classes to use filePath-based API
-- [ ] Replace `ExcelSession.BeginBatchAsync()` with direct command calls
-- [ ] Add explicit `CloseAsync()` calls where needed
-- [ ] Verify handle reuse works correctly (multiple operations on same file)
-- [ ] Test multi-file scenarios
-- [ ] Test timeout-based cleanup
+- [ ] **Step 1 - Core:**
+  - [ ] Add filePath-based methods to interface (keep batch overloads)
+  - [ ] Implement filePath-based methods in Commands class
+  - [ ] Build passes (0 warnings)
 
-### Phase 5: Cleanup (Week 3-4)
-- [ ] **Core Commands:**
-  - [ ] Remove batch method overloads from all `I*Commands` interfaces
-  - [ ] Delete `ExcelSession.cs`, `ExcelBatch.cs`, `IExcelBatch.cs`
-  - [ ] Delete `IFileCommands.cs` and `FileCommands.cs` (replaced by `IWorkbookCommands`)
-- [ ] **MCP Server:**
-  - [ ] Remove all `SuggestedNextActions` (LLMs pass filePath naturally)
-  - [ ] Update all tool `[Description]` attributes to remove batch mode guidance
+- [ ] **Step 2 - Tests:**
+  - [ ] Update test class to inject `IWorkbookCommands`
+  - [ ] Convert all tests to filePath-based API
+  - [ ] Run tests for this command - all pass
+  - [ ] Verify handle reuse works
+
+- [ ] **Step 3 - MCP Server:**
+  - [ ] Update MCP tool to pass filePath to Core Commands
+  - [ ] Remove batch session logic from tool
+  - [ ] Update tool `[Description]` if needed
+  - [ ] Run MCP Server tests - all pass
+
+- [ ] **Step 4 - CLI:**
+  - [ ] Update CLI command handlers to pass filePath
+  - [ ] Remove batch session logic
+  - [ ] Run CLI tests - all pass
+
+- [ ] **PR:** Complete end-to-end conversion for [CommandName]
+
+### Final Cleanup Phase (After All Commands Converted)
+
+- [ ] **Delete Batch Infrastructure:**
+  - [ ] `ExcelSession.cs`
+  - [ ] `ExcelBatch.cs`
+  - [ ] `IExcelBatch.cs`
+  - [ ] `IFileCommands.cs` and `FileCommands.cs`
+  - [ ] Batch method overloads from all `I*Commands` interfaces
+  - [ ] `excel_batch` MCP tool
+  - [ ] Batch CLI commands
+
+- [ ] **Documentation Cleanup:**
+  - [ ] Remove all `SuggestedNextActions` from MCP Server responses
+  - [ ] Update all tool `[Description]` attributes (no batch guidance)
+  - [ ] Delete ALL prompt files (LLMs pass filePaths naturally)
+  - [ ] Update README.md (remove batch mode, show automatic handle reuse)
+  - [ ] Update MCP Server README
+  - [ ] Update CLI README
+
+- [ ] **CHANGELOG:**
+  - [ ] Document breaking change (batch API removed)
+  - [ ] Document new filePath-based API with automatic handle caching
+
+- [ ] **Final Verification:**
+  - [ ] Run full test suite (all filePath-based)
+  - [ ] Grep search for batch references (except docs/CHANGELOG)
+  - [ ] Build passes (0 warnings)
+
+- [ ] **PR:** Final cleanup - remove all batch infrastructure
+
+## Risk Assessment
   - [ ] Delete ALL prompt files (LLMs already pass file paths)
   - [ ] Clean up elicitations directory
 - [ ] **CLI:**
@@ -803,17 +847,13 @@ public async Task FullWorkflow_PassFilePathEverywhere_Succeeds()
   - [ ] Update architecture documentation
 - [ ] **Testing:**
   - [ ] Run full test suite (all filePath-based)
-  - [ ] Verify no batch-related code remains (grep search)
-- [ ] **CHANGELOG:**
-  - [ ] Document breaking change (batch API removed)
-  - [ ] Document new filePath-based API with automatic handle caching
-
 ## Risk Assessment
 
 ### Low Risk
-- ✅ Backward compatible during development (Phases 1-3)
-- ✅ Incremental rollout (phases)
-- ✅ Tests validate behavior
+- ✅ Sequential end-to-end conversion (one command at a time)
+- ✅ Each command fully tested before moving to next
+- ✅ Incremental progress with pause/resume capability
+- ✅ Batch API functional for unconverted commands
 - ✅ Clean removal (no deprecation warnings)
 - ✅ FilePath-based API is stateless-compatible (HTTP/CLI natural fit)
 
@@ -823,9 +863,10 @@ public async Task FullWorkflow_PassFilePathEverywhere_Succeeds()
 - ⚠️ No external consumer testing (internal library only)
 
 **Mitigation:**
-- Keep batch API functional until Phase 5 (consumers migrate incrementally)
-- Comprehensive test coverage for filePath-based API
-- All tests migrated to filePath-based in Phase 4
+- **Sequential conversion:** One command interface at a time (smaller PRs)
+- **Batch API functional:** Unconverted commands still work during migration
+- **Comprehensive testing:** Each command fully tested before moving on
+- **Can pause/resume:** Stop after any command, resume later
 
 ### High Risk
 - ❌ None identified
@@ -837,7 +878,8 @@ public async Task FullWorkflow_PassFilePathEverywhere_Succeeds()
 3. ✅ All tests use filePath-based API (100% coverage)
 4. ✅ Documentation is clearer (simpler - just pass filePath!)
 5. ✅ Performance equal or better (Excel stays open, handles cached)
-6. ✅ **Phase 5 completeness checks:**
+6. ✅ **Per-command validation:** Each command's 4 steps complete before moving on
+7. ✅ **Final cleanup completeness:**
    - Zero references to "batch" in code (except historical docs/CHANGELOG)
    - Zero `SuggestedNextActions` in MCP Server responses
    - All tool descriptions updated (no batch guidance)
