@@ -22,11 +22,7 @@ public class QueryTableCommands
 
         string filePath = Path.GetFullPath(args[1]);
 
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ListAsync(batch);
-        });
+        var task = Task.Run(async () => await _coreCommands.ListAsync(filePath));
         var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
@@ -81,11 +77,7 @@ public class QueryTableCommands
         string filePath = Path.GetFullPath(args[1]);
         string queryTableName = args[2];
 
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.GetAsync(batch, queryTableName);
-        });
+        var task = Task.Run(async () => await _coreCommands.GetAsync(filePath, queryTableName));
         var result = task.GetAwaiter().GetResult();
 
         if (result.Success && result.QueryTable != null)
@@ -190,13 +182,7 @@ public class QueryTableCommands
         string filePath = Path.GetFullPath(args[1]);
         string queryTableName = args[2];
 
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var result = await _coreCommands.DeleteAsync(batch, queryTableName);
-            await batch.SaveAsync();
-            return result;
-        });
+        var task = Task.Run(async () => await _coreCommands.DeleteAsync(filePath, queryTableName));
         var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
