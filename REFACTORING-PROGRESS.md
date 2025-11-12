@@ -169,9 +169,32 @@ IRangeCommands has complex COM operations that rely heavily on `IExcelBatch.Exec
 
 **Status:** ✅ Complete (Core + MCP Server + CLI, Tests pending)
 
-### Phase 6: IQueryTableCommands
-- Methods: ~8 (List, Create, Delete, Refresh, GetProperties, SetProperties)
+### Phase 6: IQueryTableCommands (PARTIAL - 3/8 methods)
+- Methods: ~8 (List, Get, Create, Delete, Refresh, RefreshAll, Properties)
 - Complexity: Medium (QueryTable COM operations)
+
+**Commits:**
+- 55d7172 - Core (partial 3/8 simple methods)
+- 1dfb124 - MCP Server (partial 3/8 simple methods)
+
+**Conversion:**
+- ✅ Core: 3 filePath-based methods (List, Get, Delete) in `QueryTableCommands.FilePath.cs`
+- ⏸️ Core: 5 complex methods deferred (CreateFromConnection, CreateFromQuery, Refresh, RefreshAll, UpdateProperties)
+- ✅ MCP Server: 3 methods converted to filePath API (List, Get, Delete)
+- ⏸️ MCP Server: 5 complex methods still use batch API with WithBatchAsync
+- ⏳ CLI: Pending
+- ⏳ Tests: Pending
+
+**Methods Converted:** List, Get, Delete (3 total)
+**Methods Deferred:** CreateFromConnection, CreateFromQuery, Refresh, RefreshAll, UpdateProperties (5 total)
+
+**Implementation Notes:**
+- Simple read/delete operations use FileHandleManager.OpenOrGetAsync pattern
+- Complex operations requiring ExecuteAsync pattern deferred
+- Build succeeds with 0 warnings
+- batchId removed from converted MCP tool methods
+
+**Status:** ⏸️ Partial (Core 3/8 + MCP 3/8, CLI and Tests pending, 5 complex methods deferred)
 
 ### Phase 7: IPowerQueryCommands (DEFERRED - Complex)
 - Methods: ~18 (List, View, Import, Update, Export, Delete, Refresh, LoadTo, etc.)
@@ -204,19 +227,21 @@ IRangeCommands has complex COM operations that rely heavily on `IExcelBatch.Exec
 - Phase 2: 7 methods (INamedRangeCommands) ✅
 - Phase 4: 11 methods (ITableCommands - partial, 11/23 simple methods) ✅
 - Phase 5: 7 methods (IVbaCommands) ✅
-- **Total: 43 methods converted** ✅
+- Phase 6: 3 methods (IQueryTableCommands - partial, 3/8 simple methods) ✅
+- **Total: 46 methods converted** ✅
 
 **Deferred:**
 - Phase 3: 44 methods (IRangeCommands - architecture decision required) ⏸️
 - Phase 4 (partial): 12 methods (ITableCommands - complex filters/columns/sort remaining) ⏸️
+- Phase 6 (partial): 5 methods (IQueryTableCommands - complex create/refresh/properties remaining) ⏸️
 - Phase 7-10: ~50 methods (Power Query, Connection, DataModel, PivotTable - complex helpers required) ⏸️
 
 **Remaining (Simplified First):**
-- Phase 5-6: ~15 methods (VBA, QueryTable - simpler interfaces) ⏳
+- None - all simple interfaces complete! Remaining work is complex methods requiring ExecuteAsync pattern.
 
 **Grand Total:** ~167 methods to convert
 
-**Current Progress:** 26% complete (43/167 methods, 106 deferred pending complexity/architecture resolution)
+**Current Progress:** 28% complete (46/167 methods, 121 deferred pending complexity/architecture resolution)
 
 ---
 
