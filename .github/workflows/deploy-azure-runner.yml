@@ -1,8 +1,8 @@
 name: Deploy Azure Self-Hosted Runner
 
-# This workflow deploys the Azure Windows VM for Excel integration testing
+# This workflow deploys the Azure Windows VM with Bastion for Excel integration testing
 # Uses OIDC (OpenID Connect) for secure Azure authentication
-# Requires a manually-generated GitHub runner registration token as input
+# Manual software installation required after deployment (Excel, .NET SDK, GitHub runner)
 # Setup guide: infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md
 
 permissions:
@@ -18,10 +18,6 @@ on:
         default: 'rg-excel-runner'
       admin_password:
         description: 'VM Admin password (secure input)'
-        required: true
-        type: string
-      runner_token:
-        description: 'GitHub Runner registration token (from Settings > Actions > Runners > New runner)'
         required: true
         type: string
 
@@ -54,51 +50,59 @@ jobs:
           --template-file infrastructure/azure/azure-runner.bicep \
           --parameters \
             location=swedencentral \
-            adminPassword='${{ inputs.admin_password }}' \
-            githubRepoUrl=https://github.com/${{ github.repository }} \
-            githubRunnerToken='${{ inputs.runner_token }}'
+            adminPassword='${{ inputs.admin_password }}'
     
     - name: Get Deployment Outputs
       id: outputs
       run: |
-        VM_FQDN=$(az deployment group show \
+        VM_NAME=$(az deployment group show \
           --resource-group ${{ inputs.resource_group }} \
           --name azure-runner \
-          --query 'properties.outputs.vmPublicIP.value' \
+          --query 'properties.outputs.vmName.value' \
           --output tsv)
-        echo "vm_fqdn=$VM_FQDN" >> $GITHUB_OUTPUT
+        VM_PRIVATE_IP=$(az deployment group show \
+          --resource-group ${{ inputs.resource_group }} \
+          --name azure-runner \
+          --query 'properties.outputs.vmPrivateIP.value' \
+          --output tsv)
+        BASTION_NAME=$(az deployment group show \
+          --resource-group ${{ inputs.resource_group }} \
+          --name azure-runner \
+          --query 'properties.outputs.bastionName.value' \
+          --output tsv)
+        echo "vm_name=$VM_NAME" >> $GITHUB_OUTPUT
+        echo "vm_private_ip=$VM_PRIVATE_IP" >> $GITHUB_OUTPUT
+        echo "bastion_name=$BASTION_NAME" >> $GITHUB_OUTPUT
     
     - name: Display Next Steps
       run: |
         echo "✅ Deployment complete!"
         echo ""
         echo "📋 Next Steps:"
-        echo "1. RDP to VM: ${{ steps.outputs.outputs.vm_fqdn }}"
-        echo "2. Username: azureuser"
-        echo "3. Password: (the admin_password you provided)"
+        echo "1. Connect via Azure Bastion:"
+        echo "   - Go to Azure Portal"
+        echo "   - Navigate to VM: ${{ steps.outputs.outputs.vm_name }}"
+        echo "   - Click 'Connect' → 'Bastion'"
+        echo "   - Username: azureuser"
+        echo "   - Password: (the admin_password you provided)"
         echo ""
-        echo "4. Verify runner setup (wait 5-10 min for extension to complete):"
-        echo "   - Check logs via RDP: Get-Content C:\runner-setup.log"
-        echo "   - Verify service: Get-Service actions.runner.*"
+        echo "2. Install software manually (in order):"
+        echo "   a) Office 365 Excel (https://portal.office.com)"
+        echo "   b) .NET 8 SDK (https://dotnet.microsoft.com/download)"
+        echo "   c) GitHub Actions Runner:"
+        echo "      - Go to: https://github.com/${{ github.repository }}/settings/actions/runners"
+        echo "      - Click 'New self-hosted runner' → Windows"
+        echo "      - Follow setup commands on VM"
+        echo "      - Use labels: self-hosted, windows, excel"
         echo ""
-        echo "5. Install Office 365 Excel from https://portal.office.com"
-        echo "6. Activate Excel with your Office 365 account"
-        echo "7. Reboot VM"
+        echo "3. Reboot VM after installation"
         echo ""
-        echo "💰 Monthly Cost: ~$61 in Sweden Central (24/7 operation)"
+        echo "💰 Cost: ~\$200/month (VM \$61 + Bastion Developer \$140)"
         echo ""
-        echo "🔍 Verify runner status:"
-        echo "   https://github.com/${{ github.repository }}/settings/actions/runners"
-        echo "   Expected: azure-excel-runner (Idle, green)"
+        echo "🔗 VM Private IP: ${{ steps.outputs.outputs.vm_private_ip }}"
+        echo "🔗 Bastion: ${{ steps.outputs.outputs.bastion_name }}"
         echo ""
-        echo "⚠️ If runner setup failed:"
-        echo "   - RDP to VM and check C:\runner-setup.log"
-        echo "   - Follow manual installation: docs/AZURE_SELFHOSTED_RUNNER_SETUP.md#manual-installation"
-        echo ""
-        echo "📝 To get a new runner token for future deployments:"
-        echo "   1. Go to Settings > Actions > Runners"
-        echo "   2. Click 'New self-hosted runner'"
-        echo "   3. Copy the token from the configuration command"
-        echo "   4. Token expires after 1 hour"
+        echo "📚 Full setup guide: infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md"
+
 
 
