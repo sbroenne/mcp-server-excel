@@ -14,40 +14,22 @@ param adminUsername string = 'azureuser'
 @secure()
 param adminPassword string
 
-@description('GitHub repository URL (e.g., https://github.com/sbroenne/mcp-server-excel)')
-param githubRepoUrl string
-
-@description('GitHub runner registration token (generate from Settings > Actions > Runners > New self-hosted runner)')
-@secure()
-param githubRunnerToken string
-
 var vmName = 'vm-excel-runner'
 var nicName = '${vmName}-nic'
 var nsgName = '${vmName}-nsg'
-var publicIpName = '${vmName}-ip'
+var bastionPublicIpName = 'bastion-ip'
+var bastionName = 'bastion-excel-runner'
 var vnetName = 'vnet-excel-runner'
 var subnetName = 'subnet-default'
+var bastionSubnetName = 'AzureBastionSubnet' // Required name for Bastion
 var osDiskName = '${vmName}-osdisk'
 
-// Network Security Group - Restrict RDP access
+// Network Security Group - Allow outbound HTTPS for GitHub runner
 resource nsg 'Microsoft.Network/networkSecurityGroups@2023-05-01' = {
   name: nsgName
   location: location
   properties: {
     securityRules: [
-      {
-        name: 'AllowRDP'
-        properties: {
-          priority: 1000
-          protocol: 'Tcp'
-          access: 'Allow'
-          direction: 'Inbound'
-          sourceAddressPrefix: '*' // Configure to your IP after deployment
-          sourcePortRange: '*'
-          destinationAddressPrefix: '*'
-          destinationPortRange: '3389'
-        }
-      }
       {
         name: 'AllowHTTPS'
         properties: {
@@ -65,7 +47,7 @@ resource nsg 'Microsoft.Network/networkSecurityGroups@2023-05-01' = {
   }
 }
 
-// Virtual Network
+// Virtual Network with Bastion subnet
 resource vnet 'Microsoft.Network/virtualNetworks@2023-05-01' = {
   name: vnetName
   location: location
@@ -85,26 +67,29 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-05-01' = {
           }
         }
       }
+      {
+        name: bastionSubnetName // Must be named 'AzureBastionSubnet'
+        properties: {
+          addressPrefix: '10.0.1.0/26' // Minimum /26 required for Bastion
+        }
+      }
     ]
   }
 }
 
-// Public IP Address
-resource publicIp 'Microsoft.Network/publicIPAddresses@2023-05-01' = {
-  name: publicIpName
+// Public IP Address for Bastion (Standard SKU required)
+resource bastionPublicIp 'Microsoft.Network/publicIPAddresses@2023-05-01' = {
+  name: bastionPublicIpName
   location: location
   sku: {
-    name: 'Basic'
+    name: 'Standard'
   }
   properties: {
-    publicIPAllocationMethod: 'Dynamic'
-    dnsSettings: {
-      domainNameLabel: toLower(vmName)
-    }
+    publicIPAllocationMethod: 'Static'
   }
 }
 
-// Network Interface
+// Network Interface - No public IP (using Bastion)
 resource nic 'Microsoft.Network/networkInterfaces@2023-05-01' = {
   name: nicName
   location: location
@@ -114,9 +99,6 @@ resource nic 'Microsoft.Network/networkInterfaces@2023-05-01' = {
         name: 'ipconfig1'
         properties: {
           privateIPAllocationMethod: 'Dynamic'
-          publicIPAddress: {
-            id: publicIp.id
-          }
           subnet: {
             id: vnet.properties.subnets[0].id
           }
@@ -170,31 +152,35 @@ resource vm 'Microsoft.Compute/virtualMachines@2023-07-01' = {
   }
 }
 
-// VM Extension - Install .NET SDK and GitHub runner using external script
-resource vmExtension 'Microsoft.Compute/virtualMachines/extensions@2023-07-01' = {
-  parent: vm
-  name: 'SetupGitHubRunner'
+// Azure Bastion (Developer SKU)
+resource bastion 'Microsoft.Network/bastionHosts@2023-05-01' = {
+  name: bastionName
   location: location
+  sku: {
+    name: 'Developer'
+  }
   properties: {
-    publisher: 'Microsoft.Compute'
-    type: 'CustomScriptExtension'
-    typeHandlerVersion: '1.10'
-    autoUpgradeMinorVersion: true
-    settings: {
-      fileUris: [
-        'https://raw.githubusercontent.com/sbroenne/mcp-server-excel/main/infrastructure/azure/setup-runner.ps1'
-      ]
-    }
-    protectedSettings: {
-      commandToExecute: 'powershell -ExecutionPolicy Unrestricted -File setup-runner.ps1 -GithubRepoUrl "${githubRepoUrl}" -GithubRunnerToken "${githubRunnerToken}"'
-    }
+    ipConfigurations: [
+      {
+        name: 'bastionIpConfig'
+        properties: {
+          subnet: {
+            id: '${vnet.id}/subnets/${bastionSubnetName}'
+          }
+          publicIPAddress: {
+            id: bastionPublicIp.id
+          }
+        }
+      }
+    ]
   }
 }
 
 // Outputs
-output vmPublicIP string = publicIp.properties.dnsSettings.fqdn
+output vmPrivateIP string = nic.properties.ipConfigurations[0].properties.privateIPAddress
+output bastionName string = bastionName
 output vmResourceId string = vm.id
 output vmName string = vmName
-output nextSteps string = 'RDP to VM using output vmPublicIP and install Office 365 Excel manually'
-output monthlyCost string = 'Estimated ~$61/month (24/7) in Sweden Central'
-output githubCodingAgent string = 'YES - GitHub Coding Agents can use this runner in Agent mode with [self-hosted, windows, excel] labels'
+output nextSteps string = 'Connect via Azure Portal → VM → Connect → Bastion. Then install Excel, .NET SDK, and GitHub runner manually'
+output monthlyCost string = 'Estimated ~$200/month (VM $61 + Bastion Developer $140) in Sweden Central'
+output manualSetup string = 'Install: 1) Office 365 Excel, 2) .NET 8 SDK, 3) GitHub Actions Runner from https://github.com/sbroenne/mcp-server-excel/settings/actions/runners'
