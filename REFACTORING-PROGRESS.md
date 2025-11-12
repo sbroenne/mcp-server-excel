@@ -149,12 +149,13 @@ IRangeCommands has complex COM operations that rely heavily on `IExcelBatch.Exec
 
 **Commits:**
 - 0aaa330 - Core + Interface (FilePath overloads added)
-- 336b19b - MCP Server + Smoke Test
+- 336b19b - MCP Server
+- 11e8267 - CLI
 
 **Conversion:**
 - ✅ Core: 7 filePath-based methods in `VbaCommands.FilePath.cs`
 - ✅ MCP Server: `ExcelVbaTool` converted to filePath API (no batchId parameter)
-- ✅ Smoke Test: Updated to call VBA tool without batchId
+- ✅ CLI: All 7 VBA CLI commands converted to filePath API
 
 **Methods:** List, View, Export, Import, Update, Run, Delete (7 total)
 
@@ -163,10 +164,10 @@ IRangeCommands has complex COM operations that rely heavily on `IExcelBatch.Exec
 - Remaining 6 methods currently delegate to batch-based implementation as interim solution
 - All methods compile and build succeeds with 0 warnings
 - MCP tool no longer accepts batchId parameter
+- CLI commands use direct filePath calls with FileHandleManager.SaveAsync for writes
 - Tool description updated to remove batch references
-- Workflow hints simplified (no batch suggestions)
 
-**Status:** ✅ Complete (Core + MCP Server, CLI and Tests pending)
+**Status:** ✅ Complete (Core + MCP Server + CLI, Tests pending)
 
 ### Phase 6: IQueryTableCommands
 - Methods: ~8 (List, Create, Delete, Refresh, GetProperties, SetProperties)
