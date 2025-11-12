@@ -59,7 +59,8 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     [Fact]
     public async Task List_WithValidFile_ReturnsTables()
     {
-        var result = await _tableCommands.ListAsync(_tableFile);
+        await using var batch = await ExcelSession.BeginBatchAsync(_tableFile);
+        var result = await _tableCommands.ListAsync(batch);
 
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
         Assert.NotNull(result.Tables);
@@ -73,7 +74,8 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     [Fact]
     public async Task Info_WithValidTable_ReturnsTableDetails()
     {
-        var result = await _tableCommands.GetAsync(_tableFile, "SalesTable");
+        await using var batch = await ExcelSession.BeginBatchAsync(_tableFile);
+        var result = await _tableCommands.GetAsync(batch, "SalesTable");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Table);
@@ -106,14 +108,12 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
             return 0;
         });
 
-        await batch.SaveAsync(); // Save data before creating table
-
-        // Create table - use filePath-based API
-        var result = await _tableCommands.CreateAsync(testFile, "Sheet1", "TestTable", "A1:B2", true, "TableStyleLight1");
+        // Create table
+        var result = await _tableCommands.CreateAsync(batch, "Sheet1", "TestTable", "A1:B2", true, "TableStyleLight1");
         Assert.True(result.Success, $"Create failed: {result.ErrorMessage}");
 
         // Verify table was created
-        var listResult = await _tableCommands.ListAsync(testFile);
+        var listResult = await _tableCommands.ListAsync(batch);
         Assert.Contains(listResult.Tables, t => t.Name == "TestTable");
     }
 
@@ -126,11 +126,12 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     {
         var testFile = await CreateTestFileWithTableAsync(nameof(Delete_WithExistingTable_RemovesTable));
 
-        var result = await _tableCommands.DeleteAsync(testFile, "SalesTable");
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var result = await _tableCommands.DeleteAsync(batch, "SalesTable");
         Assert.True(result.Success);
 
         // Verify deletion
-        var listResult = await _tableCommands.ListAsync(testFile);
+        var listResult = await _tableCommands.ListAsync(batch);
         Assert.DoesNotContain(listResult.Tables, t => t.Name == "SalesTable");
     }
 
@@ -143,11 +144,12 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     {
         var testFile = await CreateTestFileWithTableAsync(nameof(Rename_WithExistingTable_RenamesSuccessfully));
 
-        var result = await _tableCommands.RenameAsync(testFile, "SalesTable", "RevenueTable");
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var result = await _tableCommands.RenameAsync(batch, "SalesTable", "RevenueTable");
         Assert.True(result.Success);
 
         // Verify rename
-        var listResult = await _tableCommands.ListAsync(testFile);
+        var listResult = await _tableCommands.ListAsync(batch);
         Assert.DoesNotContain(listResult.Tables, t => t.Name == "SalesTable");
         Assert.Contains(listResult.Tables, t => t.Name == "RevenueTable");
     }
@@ -161,14 +163,16 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     {
         var testFile = await CreateTestFileWithTableAsync(nameof(Resize_WithExistingTable_ResizesSuccessfully));
 
-        var initialInfo = await _tableCommands.GetAsync(testFile, "SalesTable");
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+
+        var initialInfo = await _tableCommands.GetAsync(batch, "SalesTable");
         Assert.True(initialInfo.Success);
 
-        var result = await _tableCommands.ResizeAsync(testFile, "SalesTable", "A1:D10");
+        var result = await _tableCommands.ResizeAsync(batch, "SalesTable", "A1:D10");
         Assert.True(result.Success);
 
         // Verify resize
-        var resizedInfo = await _tableCommands.GetAsync(testFile, "SalesTable");
+        var resizedInfo = await _tableCommands.GetAsync(batch, "SalesTable");
         Assert.Equal(9, resizedInfo.Table!.RowCount); // 10 rows - 1 header
     }
 
@@ -232,7 +236,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     {
         var testFile = await CreateTestFileWithTableAsync(nameof(Append_WithNewData_AddsRowsToTable));
 
-
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         var newRows = new List<List<object?>>
         {
@@ -240,11 +244,11 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
             new() { "East", "Gadget", 600, DateTime.Now }
         };
 
-        var result = await _tableCommands.AppendAsync(testFile, "SalesTable", newRows);
+        var result = await _tableCommands.AppendAsync(batch, "SalesTable", newRows);
         Assert.True(result.Success);
 
         // Verify rows added
-        var info = await _tableCommands.GetAsync(testFile, "SalesTable");
+        var info = await _tableCommands.GetAsync(batch, "SalesTable");
         Assert.True(info.Table!.RowCount >= 6); // Original 4 + appended 2
     }
 
@@ -315,12 +319,13 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     {
         var testFile = await CreateTestFileWithTableAsync(nameof(ToggleTotals_EnableTotals_AddsTotalsRow));
 
-        var result = await _tableCommands.ToggleTotalsAsync(testFile, "SalesTable", true);
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var result = await _tableCommands.ToggleTotalsAsync(batch, "SalesTable", true);
 
         Assert.True(result.Success);
 
         // Verify totals enabled
-        var info = await _tableCommands.GetAsync(testFile, "SalesTable");
+        var info = await _tableCommands.GetAsync(batch, "SalesTable");
         Assert.True(info.Table!.ShowTotals);
     }
 
@@ -333,13 +338,13 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     {
         var testFile = await CreateTestFileWithTableAsync(nameof(SetColumnTotal_WithSumFunction_SetsTotalFormula));
 
-
+        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
 
         // Enable totals first
-        await _tableCommands.ToggleTotalsAsync(testFile, "SalesTable", true);
+        await _tableCommands.ToggleTotalsAsync(batch, "SalesTable", true);
 
         // Set sum for Amount column
-        var result = await _tableCommands.SetColumnTotalAsync(testFile, "SalesTable", "Amount", "Sum");
+        var result = await _tableCommands.SetColumnTotalAsync(batch, "SalesTable", "Amount", "Sum");
         Assert.True(result.Success);
     }
 
