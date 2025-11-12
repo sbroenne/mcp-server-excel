@@ -1,4 +1,3 @@
-using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Spectre.Console;
 
@@ -26,8 +25,7 @@ public class SheetCommands : ISheetCommands
         // Use CommandHelper to support both batch and non-batch mode
         try
         {
-            var result = CommandHelper.WithBatchAsync(args, filePath, save: false,
-                async (batch) => await _coreCommands.ListAsync(batch));
+            var result = Task.Run(async () => await _coreCommands.ListAsync(filePath)).GetAwaiter().GetResult();
 
             if (result.Success)
             {
@@ -77,8 +75,13 @@ public class SheetCommands : ISheetCommands
 
         try
         {
-            var result = CommandHelper.WithBatchAsync(args, filePath, save: true,
-                async (batch) => await _coreCommands.CreateAsync(batch, sheetName));
+            var task = Task.Run(async () =>
+            {
+                var result = await _coreCommands.CreateAsync(filePath, sheetName);
+                await ComInterop.Session.FileHandleManager.Instance.SaveAsync(filePath);
+                return result;
+            });
+            var result = task.GetAwaiter().GetResult();
 
             if (result.Success)
             {
@@ -115,9 +118,8 @@ public class SheetCommands : ISheetCommands
         {
             var task = Task.Run(async () =>
             {
-                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-                var renameResult = await _coreCommands.RenameAsync(batch, oldName, newName);
-                await batch.SaveAsync();
+                var renameResult = await _coreCommands.RenameAsync(filePath, oldName, newName);
+                await ComInterop.Session.FileHandleManager.Instance.SaveAsync(filePath);
                 return renameResult;
             });
             result = task.GetAwaiter().GetResult();
@@ -157,9 +159,8 @@ public class SheetCommands : ISheetCommands
         {
             var task = Task.Run(async () =>
             {
-                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-                var copyResult = await _coreCommands.CopyAsync(batch, sourceName, targetName);
-                await batch.SaveAsync();
+                var copyResult = await _coreCommands.CopyAsync(filePath, sourceName, targetName);
+                await ComInterop.Session.FileHandleManager.Instance.SaveAsync(filePath);
                 return copyResult;
             });
             result = task.GetAwaiter().GetResult();
@@ -198,9 +199,8 @@ public class SheetCommands : ISheetCommands
         {
             var task = Task.Run(async () =>
             {
-                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-                var deleteResult = await _coreCommands.DeleteAsync(batch, sheetName);
-                await batch.SaveAsync();
+                var deleteResult = await _coreCommands.DeleteAsync(filePath, sheetName);
+                await ComInterop.Session.FileHandleManager.Instance.SaveAsync(filePath);
                 return deleteResult;
             });
             result = task.GetAwaiter().GetResult();
@@ -248,9 +248,8 @@ public class SheetCommands : ISheetCommands
         {
             var task = Task.Run(async () =>
             {
-                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-                var setResult = await _coreCommands.SetTabColorAsync(batch, sheetName, red, green, blue);
-                await batch.SaveAsync();
+                var setResult = await _coreCommands.SetTabColorAsync(filePath, sheetName, red, green, blue);
+                await ComInterop.Session.FileHandleManager.Instance.SaveAsync(filePath);
                 return setResult;
             });
             result = task.GetAwaiter().GetResult();
@@ -288,11 +287,7 @@ public class SheetCommands : ISheetCommands
         TabColorResult result;
         try
         {
-            var task = Task.Run(async () =>
-            {
-                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-                return await _coreCommands.GetTabColorAsync(batch, sheetName);
-            });
+            var task = Task.Run(async () => await _coreCommands.GetTabColorAsync(filePath, sheetName));
             result = task.GetAwaiter().GetResult();
         }
         catch (Exception ex)
@@ -338,9 +333,8 @@ public class SheetCommands : ISheetCommands
         {
             var task = Task.Run(async () =>
             {
-                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-                var clearResult = await _coreCommands.ClearTabColorAsync(batch, sheetName);
-                await batch.SaveAsync();
+                var clearResult = await _coreCommands.ClearTabColorAsync(filePath, sheetName);
+                await ComInterop.Session.FileHandleManager.Instance.SaveAsync(filePath);
                 return clearResult;
             });
             result = task.GetAwaiter().GetResult();
@@ -396,9 +390,8 @@ public class SheetCommands : ISheetCommands
         {
             var task = Task.Run(async () =>
             {
-                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-                var setResult = await _coreCommands.SetVisibilityAsync(batch, sheetName, visibility);
-                await batch.SaveAsync();
+                var setResult = await _coreCommands.SetVisibilityAsync(filePath, sheetName, visibility);
+                await ComInterop.Session.FileHandleManager.Instance.SaveAsync(filePath);
                 return setResult;
             });
             result = task.GetAwaiter().GetResult();
@@ -435,11 +428,7 @@ public class SheetCommands : ISheetCommands
         SheetVisibilityResult result;
         try
         {
-            var task = Task.Run(async () =>
-            {
-                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-                return await _coreCommands.GetVisibilityAsync(batch, sheetName);
-            });
+            var task = Task.Run(async () => await _coreCommands.GetVisibilityAsync(filePath, sheetName));
             result = task.GetAwaiter().GetResult();
         }
         catch (Exception ex)
@@ -477,9 +466,8 @@ public class SheetCommands : ISheetCommands
         {
             var task = Task.Run(async () =>
             {
-                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-                var showResult = await _coreCommands.ShowAsync(batch, sheetName);
-                await batch.SaveAsync();
+                var showResult = await _coreCommands.ShowAsync(filePath, sheetName);
+                await ComInterop.Session.FileHandleManager.Instance.SaveAsync(filePath);
                 return showResult;
             });
             result = task.GetAwaiter().GetResult();
@@ -518,9 +506,8 @@ public class SheetCommands : ISheetCommands
         {
             var task = Task.Run(async () =>
             {
-                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-                var hideResult = await _coreCommands.HideAsync(batch, sheetName);
-                await batch.SaveAsync();
+                var hideResult = await _coreCommands.HideAsync(filePath, sheetName);
+                await ComInterop.Session.FileHandleManager.Instance.SaveAsync(filePath);
                 return hideResult;
             });
             result = task.GetAwaiter().GetResult();
@@ -559,9 +546,8 @@ public class SheetCommands : ISheetCommands
         {
             var task = Task.Run(async () =>
             {
-                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-                var veryHideResult = await _coreCommands.VeryHideAsync(batch, sheetName);
-                await batch.SaveAsync();
+                var veryHideResult = await _coreCommands.VeryHideAsync(filePath, sheetName);
+                await ComInterop.Session.FileHandleManager.Instance.SaveAsync(filePath);
                 return veryHideResult;
             });
             result = task.GetAwaiter().GetResult();
