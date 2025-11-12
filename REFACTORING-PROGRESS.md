@@ -121,10 +121,20 @@ IRangeCommands has complex COM operations that rely heavily on `IExcelBatch.Exec
 - MCP Server: Update `ExcelTableTool`
 - CLI: Update `TableCommands.cs`
 
-**Expected Methods (~23):**
-List, Create, Delete, Rename, GetHeaders, SetHeaders, AddRow, GetRowCount, GetColumnCount, GetRange, Resize, ConvertToRange, GetAutoFilterRange, ToggleHeaderRow, ToggleTotalRow, SetTotalRowLabel, SetTotalRowFunction, GetTableStyle, SetTableStyle, ClearTableStyle, GetShowAutoFilter, ToggleAutoFilter, RefreshTable
+**Actual Methods (23):**
+- Lifecycle: List, Get, Create, Rename, Delete, Resize
+- Styling & Totals: SetStyle, ToggleTotals, SetColumnTotal
+- Data: Append
+- Data Model: AddToDataModel
+- Filters: ApplyFilter (single), ApplyFilter (multiple), ClearFilters, GetFilters
+- Columns: AddColumn, RemoveColumn, RenameColumn
+- Structured References: GetStructuredReference
+- Sort: Sort (single column), Sort (multiple columns)
+- Number Format: GetColumnNumberFormat, SetColumnNumberFormat
 
-**Status:** 🚧 Starting conversion
+**Status:** 🚧 Starting conversion (Core + MCP Server)
+
+**Note:** Pre-existing build errors in ExcelRangeTool.cs and BatchCommands.cs (IDE0055 formatting) are unrelated to this refactoring work.
 
 ---
 
