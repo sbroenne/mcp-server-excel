@@ -9,6 +9,23 @@ namespace Sbroenne.ExcelMcp.Core.Commands.QueryTable;
 /// </summary>
 public interface IQueryTableCommands
 {
+    // FilePath-based API (new pattern)
+    /// <summary>
+    /// Lists all QueryTables in the workbook with connection and range information
+    /// </summary>
+    Task<QueryTableListResult> ListAsync(string filePath);
+
+    /// <summary>
+    /// Gets detailed information about a specific QueryTable
+    /// </summary>
+    Task<QueryTableInfoResult> GetAsync(string filePath, string queryTableName);
+
+    /// <summary>
+    /// Deletes a QueryTable from the workbook
+    /// </summary>
+    Task<OperationResult> DeleteAsync(string filePath, string queryTableName);
+
+    // Batch-based API (existing - will be removed in final cleanup)
     /// <summary>
     /// Lists all QueryTables in the workbook with connection and range information
     /// </summary>
@@ -19,6 +36,12 @@ public interface IQueryTableCommands
     /// </summary>
     Task<QueryTableInfoResult> GetAsync(IExcelBatch batch, string queryTableName);
 
+    /// <summary>
+    /// Deletes a QueryTable from the workbook
+    /// </summary>
+    Task<OperationResult> DeleteAsync(IExcelBatch batch, string queryTableName);
+
+    // Complex operations still use batch-based API (will be converted later with ExecuteAsync pattern)
     /// <summary>
     /// Creates a QueryTable from an existing connection
     /// </summary>
@@ -43,11 +66,6 @@ public interface IQueryTableCommands
     /// </summary>
     Task<OperationResult> UpdatePropertiesAsync(IExcelBatch batch, string queryTableName,
         QueryTableUpdateOptions options);
-
-    /// <summary>
-    /// Deletes a QueryTable from the workbook
-    /// </summary>
-    Task<OperationResult> DeleteAsync(IExcelBatch batch, string queryTableName);
 
     /// <summary>
     /// Refreshes all QueryTables in the workbook using synchronous pattern
