@@ -386,16 +386,19 @@ public class RangeCommands : IRangeCommands
 
 ## Migration Strategy: Sequential End-to-End Conversion
 
-**Approach:** Convert each command interface end-to-end (Core → Tests → MCP → CLI) before moving to the next. This ensures each command is fully validated and working before starting the next one.
+**Approach:** Convert each command interface end-to-end (Core → Tests → MCP → CLI) in separate commits. All commits stay in ONE pull request for Issue #173.
 
-**Why Sequential End-to-End:**
-- ✅ Smaller, focused changes per PR (easier to review)
-- ✅ Each command is fully tested before moving on
+**Why Sequential End-to-End Commits:**
+- ✅ Logical progression (review one command at a time in commit history)
+- ✅ Each command is fully validated before moving to next commit
 - ✅ Incremental progress (can pause/resume at any command boundary)
 - ✅ Batch API remains functional for unconverted commands
-- ✅ Reduces risk (smaller blast radius per change)
+- ✅ Reduces risk (smaller blast radius per commit)
+- ✅ ONE PR for Issue #173 (all commits together)
 
-### Phase 0: Foundation (One-Time Setup)
+### Phase 0: Foundation (One-Time Setup - First Commit)
+
+### Phase 0: Foundation (One-Time Setup - First Commit)
 
 **Goal:** Create shared infrastructure used by all commands
 
@@ -414,13 +417,13 @@ public class RangeCommands : IRangeCommands
 - Clean separation (workbook lifecycle vs feature operations)
 - `IFileCommands` deleted entirely in final cleanup (no gradual migration)
 
-**Deliverable:** Infrastructure PR with FileHandleManager + IWorkbookCommands + tests
+**Deliverable:** ONE commit with FileHandleManager + IWorkbookCommands + tests
 
 ---
 
-### Per-Command Migration Pattern
+### Per-Command Migration Pattern (One Commit Per Command)
 
-For each command interface (IRangeCommands, IPowerQueryCommands, ISheetCommands, etc.):
+For each command interface (IRangeCommands, IPowerQueryCommands, ISheetCommands, etc.), create **ONE commit** with all 4 steps:
 
 #### Step 1: Core Commands (Add FilePath-Based Methods)
 
@@ -537,13 +540,13 @@ For each command interface (IRangeCommands, IPowerQueryCommands, ISheetCommands,
 9. **IQueryTableCommands** (moderate complexity)
 10. **IVbaCommands** (special handling for .xlsm)
 
-**Each command = One PR with 4 steps complete**
+**Each command = One commit with all 4 steps complete**
 
 ---
 
-### Final Cleanup Phase (After All Commands Converted)
+### Final Cleanup Phase (After All Commands Converted - Final Commit)
 
-**Goal:** Remove batch infrastructure completely
+**Goal:** Remove batch infrastructure completely in ONE final commit
 
 1. Verify all commands migrated (all interfaces use filePath-based API)
 2. Delete batch infrastructure in one clean commit:
@@ -758,12 +761,13 @@ public async Task FullWorkflow_PassFilePathEverywhere_Succeeds()
 
 **Migration Strategy:**
 - Sequential end-to-end conversion (Core → Tests → MCP → CLI)
-- One command interface at a time
+- One commit per command interface
+- All commits in ONE pull request for Issue #173
 - No dual test maintenance needed
 
 ## Implementation Checklist
 
-### Phase 0: Foundation (One-Time Setup)
+### Phase 0: Foundation (First Commit)
 - [ ] Create `ExcelWorkbookHandle` class in `ExcelMcp.ComInterop/Session/`
 - [ ] Create `FileHandleManager` singleton in `ExcelMcp.ComInterop/Session/`
 - [ ] Create `IWorkbookCommands` interface in `ExcelMcp.Core/Commands/`
@@ -772,9 +776,9 @@ public async Task FullWorkflow_PassFilePathEverywhere_Succeeds()
 - [ ] Add background cleanup task (timeout-based disposal)
 - [ ] **PR:** Infrastructure foundation
 
-### Per-Command Conversion (Repeat for Each Command)
+### Per-Command Conversion (One Commit Per Command)
 
-**For each command in migration order:**
+**For each command in migration order, create ONE commit with all 4 steps:**
 
 #### Command: [IWorksheetCommands / INamedRangeCommands / IRangeCommands / etc.]
 
@@ -800,9 +804,9 @@ public async Task FullWorkflow_PassFilePathEverywhere_Succeeds()
   - [ ] Remove batch session logic
   - [ ] Run CLI tests - all pass
 
-- [ ] **PR:** Complete end-to-end conversion for [CommandName]
+- [ ] **COMMIT:** "Convert [CommandName] to filePath-based API (Core+Tests+MCP+CLI)"
 
-### Final Cleanup Phase (After All Commands Converted)
+### Final Cleanup Phase (Final Commit After All Commands)
 
 - [ ] **Delete Batch Infrastructure:**
   - [ ] `ExcelSession.cs`
@@ -847,12 +851,44 @@ public async Task FullWorkflow_PassFilePathEverywhere_Succeeds()
   - [ ] Update architecture documentation
 - [ ] **Testing:**
   - [ ] Run full test suite (all filePath-based)
+  - [ ] Verify no batch infrastructure references remain
+  
+- [ ] **COMMIT:** "Final cleanup: Remove batch infrastructure"
+
+---
+
+## Pull Request Structure
+
+**One PR for Issue #173 with ~12 commits:**
+
+1. **Commit 1:** Phase 0 - Foundation (FileHandleManager + IWorkbookCommands + tests)
+2. **Commit 2:** Convert IWorksheetCommands (Core+Tests+MCP+CLI)
+3. **Commit 3:** Convert INamedRangeCommands (Core+Tests+MCP+CLI)
+4. **Commit 4:** Convert IRangeCommands (Core+Tests+MCP+CLI)
+5. **Commit 5:** Convert ITableCommands (Core+Tests+MCP+CLI)
+6. **Commit 6:** Convert IPowerQueryCommands (Core+Tests+MCP+CLI)
+7. **Commit 7:** Convert IConnectionCommands (Core+Tests+MCP+CLI)
+8. **Commit 8:** Convert IDataModelCommands (Core+Tests+MCP+CLI)
+9. **Commit 9:** Convert IPivotTableCommands (Core+Tests+MCP+CLI)
+10. **Commit 10:** Convert IQueryTableCommands (Core+Tests+MCP+CLI)
+11. **Commit 11:** Convert IVbaCommands (Core+Tests+MCP+CLI)
+12. **Commit 12:** Final cleanup - Remove batch infrastructure
+
+**Benefits:**
+- ✅ Logical progression in commit history (review one command at a time)
+- ✅ Easy to bisect if issues found later
+- ✅ Can cherry-pick specific command conversions if needed
+- ✅ Single PR keeps all related work together
+- ✅ Closes Issue #173 with complete solution
+
+---
+
 ## Risk Assessment
 
 ### Low Risk
-- ✅ Sequential end-to-end conversion (one command at a time)
-- ✅ Each command fully tested before moving to next
-- ✅ Incremental progress with pause/resume capability
+- ✅ Sequential end-to-end conversion (one commit per command)
+- ✅ Each command fully tested before moving to next commit
+- ✅ Incremental progress with pause/resume capability at commit boundaries
 - ✅ Batch API functional for unconverted commands
 - ✅ Clean removal (no deprecation warnings)
 - ✅ FilePath-based API is stateless-compatible (HTTP/CLI natural fit)
@@ -863,10 +899,10 @@ public async Task FullWorkflow_PassFilePathEverywhere_Succeeds()
 - ⚠️ No external consumer testing (internal library only)
 
 **Mitigation:**
-- **Sequential conversion:** One command interface at a time (smaller PRs)
+- **Sequential conversion:** One commit per command interface (logical progression)
 - **Batch API functional:** Unconverted commands still work during migration
 - **Comprehensive testing:** Each command fully tested before moving on
-- **Can pause/resume:** Stop after any command, resume later
+- **Can pause/resume:** Stop after any commit, resume later
 
 ### High Risk
 - ❌ None identified
