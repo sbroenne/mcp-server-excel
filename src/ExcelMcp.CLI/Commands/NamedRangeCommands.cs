@@ -24,8 +24,7 @@ public class NamedRangeCommands : INamedRangeCommands
 
         var task = Task.Run(async () =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ListAsync(batch);
+            return await _coreCommands.ListAsync(filePath);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -78,9 +77,8 @@ public class NamedRangeCommands : INamedRangeCommands
         {
             var task = Task.Run(async () =>
             {
-                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-                var setResult = await _coreCommands.SetAsync(batch, paramName, value);
-                await batch.SaveAsync();
+                var setResult = await _coreCommands.SetAsync(filePath, paramName, value);
+                await FileHandleManager.Instance.SaveAsync(filePath);
                 return setResult;
             });
             result = task.GetAwaiter().GetResult();
@@ -116,8 +114,7 @@ public class NamedRangeCommands : INamedRangeCommands
 
         var task = Task.Run(async () =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.GetAsync(batch, paramName);
+            return await _coreCommands.GetAsync(filePath, paramName);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -152,9 +149,8 @@ public class NamedRangeCommands : INamedRangeCommands
 
         var task = Task.Run(async () =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var updateResult = await _coreCommands.UpdateAsync(batch, paramName, reference);
-            await batch.SaveAsync();
+            var updateResult = await _coreCommands.UpdateAsync(filePath, paramName, reference);
+            await FileHandleManager.Instance.SaveAsync(filePath);
             return updateResult;
         });
         var result = task.GetAwaiter().GetResult();
@@ -186,9 +182,8 @@ public class NamedRangeCommands : INamedRangeCommands
 
         var task = Task.Run(async () =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var createResult = await _coreCommands.CreateAsync(batch, paramName, reference);
-            await batch.SaveAsync();
+            var createResult = await _coreCommands.CreateAsync(filePath, paramName, reference);
+            await FileHandleManager.Instance.SaveAsync(filePath);
             return createResult;
         });
         var result = task.GetAwaiter().GetResult();
@@ -221,9 +216,8 @@ public class NamedRangeCommands : INamedRangeCommands
         {
             var task = Task.Run(async () =>
             {
-                await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-                var deleteResult = await _coreCommands.DeleteAsync(batch, paramName);
-                await batch.SaveAsync();
+                var deleteResult = await _coreCommands.DeleteAsync(filePath, paramName);
+                await FileHandleManager.Instance.SaveAsync(filePath);
                 return deleteResult;
             });
             result = task.GetAwaiter().GetResult();
