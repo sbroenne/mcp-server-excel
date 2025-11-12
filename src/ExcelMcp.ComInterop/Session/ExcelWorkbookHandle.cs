@@ -85,6 +85,54 @@ public sealed class ExcelWorkbookHandle : IAsyncDisposable, IDisposable
     }
 
     /// <summary>
+    /// Executes an operation with access to Application and Workbook COM objects.
+    /// Provides batch-like context for COM operations.
+    /// </summary>
+    /// <typeparam name="T">Return type</typeparam>
+    /// <param name="operation">Operation to execute with ExcelContext</param>
+    /// <param name="timeout">Optional timeout for the operation</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Result of the operation</returns>
+    public async Task<T> ExecuteAsync<T>(
+        Func<ExcelContext, CancellationToken, T> operation,
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, nameof(ExcelWorkbookHandle));
+
+        UpdateLastAccess();
+
+        return await Task.Run(() =>
+        {
+            using var cts = timeout.HasValue
+                ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken)
+                : null;
+
+            if (timeout.HasValue)
+            {
+                cts!.CancelAfter(timeout.Value);
+            }
+
+            var effectiveToken = cts?.Token ?? cancellationToken;
+            var context = new ExcelContext(FilePath, _application!, _workbook!);
+
+            return operation(context, effectiveToken);
+        }, cancellationToken);
+    }
+
+    /// <summary>
+    /// Executes an operation with access to Application and Workbook COM objects (non-generic version).
+    /// Provides batch-like context for COM operations that return ValueTask.
+    /// </summary>
+    public ValueTask<T> Execute<T>(
+        Func<ExcelContext, CancellationToken, T> operation,
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<T>(ExecuteAsync(operation, timeout, cancellationToken));
+    }
+
+    /// <summary>
     /// Closes the workbook and quits Excel
     /// </summary>
     public async ValueTask DisposeAsync()

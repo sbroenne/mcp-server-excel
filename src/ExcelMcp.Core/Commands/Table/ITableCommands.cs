@@ -141,4 +141,61 @@ public interface ITableCommands
     /// <param name="columnName">Column name</param>
     /// <param name="formatCode">Excel format code (e.g., "$#,##0.00", "0.00%")</param>
     Task<OperationResult> SetColumnNumberFormatAsync(IExcelBatch batch, string tableName, string columnName, string formatCode);
+
+    // === FILEPATH-BASED API (File Handle Manager pattern) ===
+
+    /// <summary>
+    /// Lists all Excel Tables in the workbook (filePath-based)
+    /// </summary>
+    Task<TableListResult> ListAsync(string filePath);
+
+    /// <summary>
+    /// Creates a new Excel Table from a range (filePath-based)
+    /// </summary>
+    Task<OperationResult> CreateAsync(string filePath, string sheetName, string tableName, string range, bool hasHeaders = true, string? tableStyle = null);
+
+    /// <summary>
+    /// Renames an Excel Table (filePath-based)
+    /// </summary>
+    Task<OperationResult> RenameAsync(string filePath, string tableName, string newName);
+
+    /// <summary>
+    /// Deletes an Excel Table (filePath-based)
+    /// </summary>
+    Task<OperationResult> DeleteAsync(string filePath, string tableName);
+
+    /// <summary>
+    /// Gets detailed information about an Excel Table (filePath-based)
+    /// </summary>
+    Task<TableInfoResult> GetAsync(string filePath, string tableName);
+
+    /// <summary>
+    /// Resizes an Excel Table to a new range (filePath-based)
+    /// </summary>
+    Task<OperationResult> ResizeAsync(string filePath, string tableName, string newRange);
+
+    /// <summary>
+    /// Toggles the totals row for an Excel Table (filePath-based)
+    /// </summary>
+    Task<OperationResult> ToggleTotalsAsync(string filePath, string tableName, bool showTotals);
+
+    /// <summary>
+    /// Sets the totals function for a specific column (filePath-based)
+    /// </summary>
+    Task<OperationResult> SetColumnTotalAsync(string filePath, string tableName, string columnName, string totalFunction);
+
+    /// <summary>
+    /// Appends rows to an Excel Table (filePath-based)
+    /// </summary>
+    Task<OperationResult> AppendAsync(string filePath, string tableName, List<List<object?>> rows);
+
+    /// <summary>
+    /// Changes the style of an Excel Table (filePath-based)
+    /// </summary>
+    Task<OperationResult> SetStyleAsync(string filePath, string tableName, string tableStyle);
+
+    /// <summary>
+    /// Adds an Excel Table to the Power Pivot Data Model (filePath-based)
+    /// </summary>
+    Task<OperationResult> AddToDataModelAsync(string filePath, string tableName);
 }
