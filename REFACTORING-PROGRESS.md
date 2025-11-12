@@ -176,13 +176,15 @@ IRangeCommands has complex COM operations that rely heavily on `IExcelBatch.Exec
 **Commits:**
 - 55d7172 - Core (partial 3/8 simple methods)
 - 1dfb124 - MCP Server (partial 3/8 simple methods)
+- 417ae92 - CLI (partial 3/8 simple methods)
 
 **Conversion:**
 - ✅ Core: 3 filePath-based methods (List, Get, Delete) in `QueryTableCommands.FilePath.cs`
 - ⏸️ Core: 5 complex methods deferred (CreateFromConnection, CreateFromQuery, Refresh, RefreshAll, UpdateProperties)
 - ✅ MCP Server: 3 methods converted to filePath API (List, Get, Delete)
 - ⏸️ MCP Server: 5 complex methods still use batch API with WithBatchAsync
-- ⏳ CLI: Pending
+- ✅ CLI: 3 methods converted to filePath API (List, Get, Delete)
+- ⏸️ CLI: 5 complex methods still use batch API
 - ⏳ Tests: Pending
 
 **Methods Converted:** List, Get, Delete (3 total)
@@ -194,7 +196,7 @@ IRangeCommands has complex COM operations that rely heavily on `IExcelBatch.Exec
 - Build succeeds with 0 warnings
 - batchId removed from converted MCP tool methods
 
-**Status:** ⏸️ Partial (Core 3/8 + MCP 3/8, CLI and Tests pending, 5 complex methods deferred)
+**Status:** ⏸️ Partial (Core 3/8 + MCP 3/8 + CLI 3/8, Tests pending, 5 complex methods deferred)
 
 ### Phase 7: IPowerQueryCommands (DEFERRED - Complex)
 - Methods: ~18 (List, View, Import, Update, Export, Delete, Refresh, LoadTo, etc.)
