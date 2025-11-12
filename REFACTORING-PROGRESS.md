@@ -140,29 +140,41 @@ ITableCommands has similar architecture dependencies as IRangeCommands:
 
 ## ⏳ Remaining Phases
 
-### Phase 5: IPowerQueryCommands
-- Methods: ~18 (List, View, Import, Update, Export, Delete, Refresh, GetLoadDestination, SetLoadDestination, etc.)
-- Complexity: Medium (Power Query M code management)
+### Simplified Conversion Strategy
 
-### Phase 6: IConnectionCommands
-- Methods: ~15 (List, View, Import, Export, Update, Delete, Refresh, Test, GetProperties, SetProperties, etc.)
-- Complexity: Medium (Connection string management)
+**Discovery:** Complex interfaces (PowerQuery, Connection, DataModel) have intricate helper methods and multi-step operations that require significant refactoring beyond simple FilePath conversion.
 
-### Phase 7: IDataModelCommands
-- Methods: ~12 (ListTables, ListMeasures, ListRelationships, ExportMeasure, Refresh, Delete, etc.)
-- Complexity: High (TOM API dependency)
+**New Approach:** Focus on simplest interfaces first to build momentum, then tackle complex ones with proper architecture.
 
-### Phase 8: IPivotTableCommands
-- Methods: ~15 (List, Create, Delete, Refresh, GetFields, AddField, RemoveField, etc.)
-- Complexity: High (Complex COM PivotTable API)
-
-### Phase 9: IQueryTableCommands
-- Methods: ~8 (List, Create, Delete, Refresh, GetProperties, SetProperties, etc.)
-- Complexity: Medium
-
-### Phase 10: IVbaCommands
+### Phase 5: IVbaCommands (PRIORITY - Simplest)
 - Methods: ~7 (List, Import, Export, Delete, Run, GetTrustStatus, SetTrustStatus)
-- Complexity: Medium (Trust configuration)
+- Complexity: Low-Medium (VBA trust configuration, but straightforward COM)
+- Benefit: Small, self-contained, good learning case
+
+### Phase 6: IQueryTableCommands
+- Methods: ~8 (List, Create, Delete, Refresh, GetProperties, SetProperties)
+- Complexity: Medium (QueryTable COM operations)
+
+### Phase 7: IPowerQueryCommands (DEFERRED - Complex)
+- Methods: ~18 (List, View, Import, Update, Export, Delete, Refresh, LoadTo, etc.)
+- Complexity: High (Power Query M code management, load configurations, data model integration)
+- **Issue:** Requires multiple helper methods (DetermineLoadConfiguration, ConfigureLoadDestinationAsync, RefreshQueryAsync, IsPowerQueryConnection, etc.) that have complex multi-step COM logic
+- **Recommendation:** Defer until simpler interfaces complete
+
+### Phase 8: IConnectionCommands (DEFERRED - Complex)
+- Methods: ~15 (List, View, Import, Export, Update, Delete, Refresh, Test, Properties)
+- Complexity: High (Connection string management, multiple connection types)
+- **Recommendation:** Defer until simpler interfaces complete
+
+### Phase 9: IDataModelCommands (DEFERRED - Complex)
+- Methods: ~12 (ListTables, ListMeasures, ListRelationships, ExportMeasure, Refresh, Delete)
+- Complexity: Very High (TOM API dependency, external assembly)
+- **Recommendation:** Defer until simpler interfaces complete
+
+### Phase 10: IPivotTableCommands (DEFERRED - Complex)
+- Methods: ~15 (List, Create, Delete, Refresh, GetFields, AddField, RemoveField)
+- Complexity: Very High (Complex COM PivotTable API, field management)
+- **Recommendation:** Defer until simpler interfaces complete
 
 ---
 
@@ -177,13 +189,14 @@ ITableCommands has similar architecture dependencies as IRangeCommands:
 **Deferred:**
 - Phase 3: 44 methods (IRangeCommands - architecture decision required) ⏸️
 - Phase 4: 23 methods (ITableCommands - architecture decision required) ⏸️
+- Phase 7-10: ~50 methods (Power Query, Connection, DataModel, PivotTable - complex helpers required) ⏸️
 
-**Remaining:**
-- Phase 5-10: ~75 methods across 6 interfaces ⏳
+**Remaining (Simplified First):**
+- Phase 5-6: ~15 methods (VBA, QueryTable - simpler interfaces) ⏳
 
 **Grand Total:** ~167 methods to convert
 
-**Current Progress:** 15% complete (25/167 methods, 67 deferred pending architecture)
+**Current Progress:** 15% complete (25/167 methods, 117 deferred pending complexity/architecture resolution)
 
 ---
 
