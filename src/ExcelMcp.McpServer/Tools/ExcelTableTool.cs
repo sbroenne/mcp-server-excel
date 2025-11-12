@@ -96,17 +96,17 @@ Optional batchId for batch sessions.")]
             // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
             return action switch
             {
-                TableAction.List => await ListTables(tableCommands, excelPath, batchId),
-                TableAction.Create => await CreateTable(tableCommands, excelPath, sheetName, tableName, range, hasHeaders, tableStyle, batchId),
-                TableAction.Get => await GetTableInfo(tableCommands, excelPath, tableName, batchId),
-                TableAction.Rename => await RenameTable(tableCommands, excelPath, tableName, newName, batchId),
-                TableAction.Delete => await DeleteTable(tableCommands, excelPath, tableName, batchId),
-                TableAction.Resize => await ResizeTable(tableCommands, excelPath, tableName, range, batchId),
-                TableAction.ToggleTotals => await ToggleTotals(tableCommands, excelPath, tableName, hasHeaders, batchId),
-                TableAction.SetColumnTotal => await SetColumnTotal(tableCommands, excelPath, tableName, newName, tableStyle, batchId),
-                TableAction.Append => await AppendRows(tableCommands, excelPath, tableName, tableStyle, batchId),
-                TableAction.SetStyle => await SetTableStyle(tableCommands, excelPath, tableName, tableStyle, batchId),
-                TableAction.AddToDataModel => await AddToDataModel(tableCommands, excelPath, tableName, batchId),
+                TableAction.List => await ListTables(tableCommands, excelPath),
+                TableAction.Create => await CreateTable(tableCommands, excelPath, sheetName, tableName, range, hasHeaders, tableStyle),
+                TableAction.Get => await GetTableInfo(tableCommands, excelPath, tableName),
+                TableAction.Rename => await RenameTable(tableCommands, excelPath, tableName, newName),
+                TableAction.Delete => await DeleteTable(tableCommands, excelPath, tableName),
+                TableAction.Resize => await ResizeTable(tableCommands, excelPath, tableName, range),
+                TableAction.ToggleTotals => await ToggleTotals(tableCommands, excelPath, tableName, hasHeaders),
+                TableAction.SetColumnTotal => await SetColumnTotal(tableCommands, excelPath, tableName, newName, tableStyle),
+                TableAction.Append => await AppendRows(tableCommands, excelPath, tableName, tableStyle),
+                TableAction.SetStyle => await SetTableStyle(tableCommands, excelPath, tableName, tableStyle),
+                TableAction.AddToDataModel => await AddToDataModel(tableCommands, excelPath, tableName),
                 TableAction.ApplyFilter => await ApplyFilter(tableCommands, excelPath, tableName, newName, filterCriteria, batchId),
                 TableAction.ApplyFilterValues => await ApplyFilterValues(tableCommands, excelPath, tableName, newName, filterValues, batchId),
                 TableAction.ClearFilters => await ClearFilters(tableCommands, excelPath, tableName, batchId),
@@ -134,14 +134,10 @@ Optional batchId for batch sessions.")]
         }
     }
 
-    private static async Task<string> ListTables(TableCommands commands, string filePath, string? batchId)
+    private static async Task<string> ListTables(TableCommands commands, string filePath)
     {
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            false, // don't save for list operation
-            async (batch) => await commands.ListAsync(batch)
-        );
+        // Use filePath-based API directly (no batch needed for read operation)
+        var result = await commands.ListAsync(filePath);
 
         return JsonSerializer.Serialize(new
         {
@@ -149,7 +145,7 @@ Optional batchId for batch sessions.")]
             result.Tables,
             result.ErrorMessage,
             workflowHint = result.Success
-                ? $"Found {result.Tables.Count} Excel Tables. Use for structured data with AutoFilter and dynamic expansion."
+                ? $"Found {result.Tables.Count} Excel Tables. File handles automatically cached and reused."
                 : "Failed to list tables. Verify workbook contains Excel Tables (ListObjects).",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'get' to view detailed table information", "Use 'create' to convert ranges to Excel Tables", "Use excel_range to read table data" }
@@ -157,25 +153,21 @@ Optional batchId for batch sessions.")]
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> CreateTable(TableCommands commands, string filePath, string? sheetName, string? tableName, string? range, bool hasHeaders, string? tableStyle, string? batchId)
+    private static async Task<string> CreateTable(TableCommands commands, string filePath, string? sheetName, string? tableName, string? range, bool hasHeaders, string? tableStyle)
     {
         if (string.IsNullOrWhiteSpace(sheetName)) ExcelToolsBase.ThrowMissingParameter(nameof(sheetName), "create");
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "create");
         if (string.IsNullOrWhiteSpace(range)) ExcelToolsBase.ThrowMissingParameter(nameof(range), "create");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            true, // save changes
-            async (batch) => await commands.CreateAsync(batch, sheetName!, tableName!, range!, hasHeaders, tableStyle)
-        );
+        // Use filePath-based API directly with auto-save
+        var result = await commands.CreateAsync(filePath, sheetName!, tableName!, range!, hasHeaders, tableStyle);
 
         return JsonSerializer.Serialize(new
         {
             result.Success,
             result.ErrorMessage,
             workflowHint = result.Success
-                ? $"Table '{tableName}' created successfully. Data now has AutoFilter and structured references enabled."
+                ? $"Table '{tableName}' created successfully. Changes auto-saved via file handle manager."
                 : $"Failed to create table '{tableName}'. Verify range exists and doesn't overlap existing tables.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'get' to view table details", "Use excel_range to populate table data", "Use 'set-style' to apply table formatting" }
@@ -183,16 +175,12 @@ Optional batchId for batch sessions.")]
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetTableInfo(TableCommands commands, string filePath, string? tableName, string? batchId)
+    private static async Task<string> GetTableInfo(TableCommands commands, string filePath, string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "info");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            false, // don't save for info operation
-            async (batch) => await commands.GetAsync(batch, tableName!)
-        );
+        // Use filePath-based API directly (no batch needed for read operation)
+        var result = await commands.GetAsync(filePath, tableName!);
 
         return JsonSerializer.Serialize(new
         {
@@ -200,7 +188,7 @@ Optional batchId for batch sessions.")]
             result.Table,
             result.ErrorMessage,
             workflowHint = result.Success
-                ? $"Table '{tableName}' details retrieved. Review columns, range, and configuration."
+                ? $"Table '{tableName}' details retrieved. File handles automatically cached."
                 : $"Failed to get info for table '{tableName}'. Verify table name is correct.",
             suggestedNextActions = result.Success
                 ? new[] { "Use excel_range to read table data", "Use 'resize' to adjust table range", "Use 'toggle-totals' to enable summary row" }
@@ -208,24 +196,20 @@ Optional batchId for batch sessions.")]
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RenameTable(TableCommands commands, string filePath, string? tableName, string? newName, string? batchId)
+    private static async Task<string> RenameTable(TableCommands commands, string filePath, string? tableName, string? newName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "rename");
         if (string.IsNullOrWhiteSpace(newName)) ExcelToolsBase.ThrowMissingParameter(nameof(newName), "rename");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            true, // save changes
-            async (batch) => await commands.RenameAsync(batch, tableName!, newName!)
-        );
+        // Use filePath-based API directly with auto-save
+        var result = await commands.RenameAsync(filePath, tableName!, newName!);
 
         return JsonSerializer.Serialize(new
         {
             result.Success,
             result.ErrorMessage,
             workflowHint = result.Success
-                ? $"Table renamed from '{tableName}' to '{newName}'. All structured references updated automatically."
+                ? $"Table renamed from '{tableName}' to '{newName}'. All structured references updated automatically. Changes auto-saved."
                 : $"Failed to rename table '{tableName}'. Verify new name doesn't conflict with existing tables.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'list' to verify rename", "Use 'get' to view updated table info", "Update formulas using old name if needed" }
@@ -233,23 +217,19 @@ Optional batchId for batch sessions.")]
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> DeleteTable(TableCommands commands, string filePath, string? tableName, string? batchId)
+    private static async Task<string> DeleteTable(TableCommands commands, string filePath, string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "delete");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            true, // save changes
-            async (batch) => await commands.DeleteAsync(batch, tableName!)
-        );
+        // Use filePath-based API directly with auto-save
+        var result = await commands.DeleteAsync(filePath, tableName!);
 
         return JsonSerializer.Serialize(new
         {
             result.Success,
             result.ErrorMessage,
             workflowHint = result.Success
-                ? $"Table '{tableName}' deleted. Converted back to range - data preserved but AutoFilter and structured references removed."
+                ? $"Table '{tableName}' deleted. Converted back to range - data preserved but AutoFilter and structured references removed. Changes auto-saved."
                 : $"Failed to delete table '{tableName}'. Verify table exists.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'list' to verify deletion", "Use excel_range to access remaining data as range", "Create new table if needed with 'create'" }
@@ -257,17 +237,13 @@ Optional batchId for batch sessions.")]
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ResizeTable(TableCommands commands, string filePath, string? tableName, string? newRange, string? batchId)
+    private static async Task<string> ResizeTable(TableCommands commands, string filePath, string? tableName, string? newRange)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "resize");
         if (string.IsNullOrWhiteSpace(newRange)) ExcelToolsBase.ThrowMissingParameter(nameof(newRange), "resize");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            true, // save changes
-            async (batch) => await commands.ResizeAsync(batch, tableName!, newRange!)
-        );
+        // Use filePath-based API directly with auto-save
+        var result = await commands.ResizeAsync(filePath, tableName!, newRange!);
 
         return JsonSerializer.Serialize(new
         {
@@ -282,23 +258,19 @@ Optional batchId for batch sessions.")]
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ToggleTotals(TableCommands commands, string filePath, string? tableName, bool showTotals, string? batchId)
+    private static async Task<string> ToggleTotals(TableCommands commands, string filePath, string? tableName, bool showTotals)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "toggle-totals");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            true, // save changes
-            async (batch) => await commands.ToggleTotalsAsync(batch, tableName!, showTotals)
-        );
+        // Use filePath-based API directly with auto-save
+        var result = await commands.ToggleTotalsAsync(filePath, tableName!, showTotals);
 
         return JsonSerializer.Serialize(new
         {
             result.Success,
             result.ErrorMessage,
             workflowHint = result.Success
-                ? $"Totals row {(showTotals ? "enabled" : "disabled")} for table '{tableName}'."
+                ? $"Totals row {(showTotals ? "enabled" : "disabled")} for table '{tableName}'. Changes auto-saved."
                 : $"Failed to toggle totals for table '{tableName}'. Verify table exists.",
             suggestedNextActions = result.Success
                 ? (showTotals
@@ -308,25 +280,21 @@ Optional batchId for batch sessions.")]
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetColumnTotal(TableCommands commands, string filePath, string? tableName, string? columnName, string? totalFunction, string? batchId)
+    private static async Task<string> SetColumnTotal(TableCommands commands, string filePath, string? tableName, string? columnName, string? totalFunction)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "set-column-total");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "set-column-total");
         if (string.IsNullOrWhiteSpace(totalFunction)) ExcelToolsBase.ThrowMissingParameter(nameof(totalFunction), "set-column-total");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            true, // save changes
-            async (batch) => await commands.SetColumnTotalAsync(batch, tableName!, columnName!, totalFunction!)
-        );
+        // Use filePath-based API directly with auto-save
+        var result = await commands.SetColumnTotalAsync(filePath, tableName!, columnName!, totalFunction!);
 
         return JsonSerializer.Serialize(new
         {
             result.Success,
             result.ErrorMessage,
             workflowHint = result.Success
-                ? $"Total function '{totalFunction}' applied to column '{columnName}' in table '{tableName}'."
+                ? $"Total function '{totalFunction}' applied to column '{columnName}' in table '{tableName}'. Changes auto-saved."
                 : $"Failed to set column total for '{columnName}'. Verify column exists and totals row is enabled.",
             suggestedNextActions = result.Success
                 ? new[] { "Use excel_range to read totals row values", "Use 'get' to view updated table info", "Use 'set-column-total' for other columns" }
@@ -334,7 +302,7 @@ Optional batchId for batch sessions.")]
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> AppendRows(TableCommands commands, string filePath, string? tableName, string? csvData, string? batchId)
+    private static async Task<string> AppendRows(TableCommands commands, string filePath, string? tableName, string? csvData)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "append");
         if (string.IsNullOrWhiteSpace(csvData)) ExcelToolsBase.ThrowMissingParameter(nameof(csvData), "append");
@@ -342,19 +310,15 @@ Optional batchId for batch sessions.")]
         // Parse CSV data to List<List<object?>>
         var rows = ParseCsvToRows(csvData!);
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            true, // save changes
-            async (batch) => await commands.AppendAsync(batch, tableName!, rows)
-        );
+        // Use filePath-based API directly with auto-save
+        var result = await commands.AppendAsync(filePath, tableName!, rows);
 
         return JsonSerializer.Serialize(new
         {
             result.Success,
             result.ErrorMessage,
             workflowHint = result.Success
-                ? $"Rows appended to table '{tableName}'. Table automatically expanded to include new data."
+                ? $"Rows appended to table '{tableName}'. Table automatically expanded to include new data. Changes auto-saved."
                 : $"Failed to append rows to table '{tableName}'. Verify CSV format matches table columns.",
             suggestedNextActions = result.Success
                 ? new[] { "Use excel_range to read updated table data", "Use 'get' to verify new table dimensions", "Use 'resize' to adjust if needed" }
@@ -383,24 +347,20 @@ Optional batchId for batch sessions.")]
         return rows;
     }
 
-    private static async Task<string> SetTableStyle(TableCommands commands, string filePath, string? tableName, string? tableStyle, string? batchId)
+    private static async Task<string> SetTableStyle(TableCommands commands, string filePath, string? tableName, string? tableStyle)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "set-style");
         if (string.IsNullOrWhiteSpace(tableStyle)) ExcelToolsBase.ThrowMissingParameter(nameof(tableStyle), "set-style");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            true, // save changes
-            async (batch) => await commands.SetStyleAsync(batch, tableName!, tableStyle!)
-        );
+        // Use filePath-based API directly with auto-save
+        var result = await commands.SetStyleAsync(filePath, tableName!, tableStyle!);
 
         return JsonSerializer.Serialize(new
         {
             result.Success,
             result.ErrorMessage,
             workflowHint = result.Success
-                ? $"Table style '{tableStyle}' applied to '{tableName}'. Visual formatting updated."
+                ? $"Table style '{tableStyle}' applied to '{tableName}'. Visual formatting updated. Changes auto-saved."
                 : $"Failed to set style for table '{tableName}'. Verify style name is valid.",
             suggestedNextActions = result.Success
                 ? new[] { "Use 'get' to view updated table appearance", "Use excel_range to read formatted data", "Use 'create' with different style for new tables" }
@@ -408,23 +368,19 @@ Optional batchId for batch sessions.")]
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> AddToDataModel(TableCommands commands, string filePath, string? tableName, string? batchId)
+    private static async Task<string> AddToDataModel(TableCommands commands, string filePath, string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "add-to-datamodel");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            true, // save changes
-            async (batch) => await commands.AddToDataModelAsync(batch, tableName!)
-        );
+        // Use filePath-based API directly with auto-save
+        var result = await commands.AddToDataModelAsync(filePath, tableName!);
 
         return JsonSerializer.Serialize(new
         {
             result.Success,
             result.ErrorMessage,
             workflowHint = result.Success
-                ? $"Table '{tableName}' added to Power Pivot Data Model. Ready for DAX measures and relationships."
+                ? $"Table '{tableName}' added to Power Pivot Data Model. Ready for DAX measures and relationships. Changes auto-saved."
                 : $"Failed to add table '{tableName}' to Data Model. Verify table exists and workbook supports Data Model.",
             suggestedNextActions = result.Success
                 ? new[] { "Use excel_datamodel 'list-tables' to verify table in model", "Use excel_datamodel 'create-measure' to add DAX calculations", "Use excel_datamodel 'create-relationship' to connect tables" }
