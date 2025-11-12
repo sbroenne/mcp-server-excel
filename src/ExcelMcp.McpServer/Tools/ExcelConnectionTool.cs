@@ -128,13 +128,13 @@ Optional batchId for batch sessions.")]
         }
     }
 
+    // batchId parameter kept for API compatibility but ignored - will be removed in final cleanup phase
+#pragma warning disable IDE0060 // Remove unused parameter
     private static async Task<string> ListConnectionsAsync(ConnectionCommands commands, string filePath, string? batchId)
+#pragma warning restore IDE0060
     {
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: false,
-            async (batch) => await commands.ListAsync(batch));
+        // Use filePath-based API (ignoring batchId for now - will be removed in final cleanup)
+        var result = await commands.ListAsync(filePath);
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints
@@ -167,16 +167,16 @@ Optional batchId for batch sessions.")]
         }, ExcelToolsBase.JsonOptions);
     }
 
+    // batchId parameter kept for API compatibility but ignored - will be removed in final cleanup phase
+#pragma warning disable IDE0060 // Remove unused parameter
     private static async Task<string> ViewConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? batchId)
+#pragma warning restore IDE0060
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ModelContextProtocol.McpException("connectionName is required for view action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: false,
-            async (batch) => await commands.ViewAsync(batch, connectionName));
+        // Use filePath-based API (ignoring batchId for now - will be removed in final cleanup)
+        var result = await commands.ViewAsync(filePath, connectionName);
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints for viewing connection details

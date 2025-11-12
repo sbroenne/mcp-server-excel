@@ -21,11 +21,7 @@ public class ConnectionCommands : IConnectionCommands
         var filePath = args[1];
         AnsiConsole.MarkupLine($"[bold]Connections in:[/] {Path.GetFileName(filePath)}\n");
 
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ListAsync(batch);
-        });
+        var task = Task.Run(async () => await _coreCommands.ListAsync(filePath));
         var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
@@ -81,11 +77,7 @@ public class ConnectionCommands : IConnectionCommands
         var filePath = args[1];
         var connectionName = args[2];
 
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ViewAsync(batch, connectionName);
-        });
+        var task = Task.Run(async () => await _coreCommands.ViewAsync(filePath, connectionName));
         var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
