@@ -1,24 +1,132 @@
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Power Query operations - FilePath-based API implementations
-/// These methods internally use temporary batch sessions to leverage existing Power Query logic
+/// Power Query operations - FilePath-based API using direct FileHandleManager integration
 /// </summary>
 public partial class PowerQueryCommands
 {
     /// <inheritdoc />
     public async Task<PowerQueryListResult> ListAsync(string filePath)
     {
-        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        return await ListAsync(batch);
+        var result = new PowerQueryListResult { FilePath = filePath };
+
+        try
+        {
+            var handle = await FileHandleManager.Instance.OpenOrGetAsync(filePath);
+
+            await Task.Run(() =>
+            {
+                dynamic? queriesCollection = null;
+                try
+                {
+                    queriesCollection = handle.Workbook.Queries;
+                    int count = queriesCollection.Count;
+
+                    for (int i = 1; i <= count; i++)
+                    {
+                        dynamic? query = null;
+                        try
+                        {
+                            query = queriesCollection.Item(i);
+                            string name = query.Name ?? $"Query{i}";
+                            string formula = query.Formula ?? "";
+
+                            string preview = formula.Length > 80 ? formula[..77] + "..." : formula;
+
+                            // Check if connection only
+                            bool isConnectionOnly = true;
+                            dynamic? connections = null;
+                            try
+                            {
+                                connections = handle.Workbook.Connections;
+                                for (int c = 1; c <= connections.Count; c++)
+                                {
+                                    dynamic? conn = null;
+                                    try
+                                    {
+                                        conn = connections.Item(c);
+                                        string connName = conn.Name?.ToString() ?? "";
+                                        if (connName.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+                                            connName.Equals($"Query - {name}", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            isConnectionOnly = false;
+                                            break;
+                                        }
+                                    }
+                                    finally
+                                    {
+                                        ComUtilities.Release(ref conn);
+                                    }
+                                }
+                            }
+                            catch { }
+                            finally
+                            {
+                                ComUtilities.Release(ref connections);
+                            }
+
+                            result.Queries.Add(new PowerQueryInfo
+                            {
+                                Name = name,
+                                Formula = formula,
+                                FormulaPreview = preview,
+                                IsConnectionOnly = isConnectionOnly
+                            });
+                        }
+                        catch (Exception queryEx)
+                        {
+                            result.Queries.Add(new PowerQueryInfo
+                            {
+                                Name = $"Error Query {i}",
+                                Formula = "",
+                                FormulaPreview = $"Error: {queryEx.Message}",
+                                IsConnectionOnly = false
+                            });
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref query);
+                        }
+                    }
+
+                    result.Success = true;
+                }
+                catch (Exception ex)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Error accessing Power Queries: {ex.Message}";
+
+                    string extension = Path.GetExtension(filePath).ToLowerInvariant();
+                    if (extension == ".xls")
+                    {
+                        result.ErrorMessage += " (.xls files don't support Power Query)";
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref queriesCollection);
+                }
+            });
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Failed to access workbook: {ex.Message}";
+            return result;
+        }
     }
 
     /// <inheritdoc />
     public async Task<PowerQueryViewResult> ViewAsync(string filePath, string queryName)
     {
+        // For now, delegate to batch method to avoid massive duplication
+        // TODO: Implement direct FileHandleManager version
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
         return await ViewAsync(batch, queryName);
     }
