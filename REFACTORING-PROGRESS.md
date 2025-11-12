@@ -113,26 +113,25 @@ IRangeCommands has complex COM operations that rely heavily on `IExcelBatch.Exec
 
 ---
 
-## ⏸️ Phase 4: ITableCommands (DEFERRED - Architecture Decision Required)
+## 🚧 Phase 4: ITableCommands (PARTIAL - 11/23 Methods Complete)
 
-**Reason for Deferral:**
-ITableCommands has similar architecture dependencies as IRangeCommands:
-- Number formatting operations delegate to IRangeCommands (deferred)
-- Filter/Sort operations require complex COM object manipulation
-- ~23 methods total, ~40% depend on batch context pattern
+**Status:** Core FilePath implementations for 11 simple methods complete. Complex operations (12 methods) remain batch-based.
 
-**Methods (23 total):**
-- Lifecycle: List, Get, Create, Rename, Delete, Resize
-- Styling & Totals: SetStyle, ToggleTotals, SetColumnTotal
-- Data: Append
-- Data Model: AddToDataModel
-- Filters: ApplyFilter (single), ApplyFilter (multiple), ClearFilters, GetFilters
-- Columns: AddColumn, RemoveColumn, RenameColumn
-- Structured References: GetStructuredReference
-- Sort: Sort (single column), Sort (multiple columns)
-- Number Format: GetColumnNumberFormat, SetColumnNumberFormat
+**Completed FilePath-Based Methods (11/23):**
+- Lifecycle (6): List, Get, Create, Rename, Delete, Resize
+- Styling & Totals (3): SetStyle, ToggleTotals, SetColumnTotal
+- Data Operations (2): Append, AddToDataModel
 
-**Decision:** Defer to later phase alongside IRangeCommands after architecture decision
+**Remaining Batch-Based Methods (12/23) - Complex COM:**
+- Filters (4): ApplyFilter×2, ClearFilters, GetFilters - AutoFilter COM API (~363 lines)
+- Columns (3): AddColumn, RemoveColumn, RenameColumn - Column index management (~250 lines)
+- Structured Refs (1): GetStructuredReference - Formula string construction (~179 lines)
+- Sort (2): Sort single/multiple - Sort object COM manipulation (~221 lines)
+- Number Format (2): GetColumnNumberFormat, SetColumnNumberFormat - Delegates to IRangeCommands (deferred)
+
+**Decision:** Convert 11 simple table methods end-to-end (Core + MCP + Tests + CLI). Leave 12 complex methods batch-based for now. This provides value while avoiding ~1000 lines of complex COM logic.
+
+**Next:** Update MCP Server tool, tests, and CLI for the 11 converted methods.
 
 **Status:** ⏸️ Deferred (23 methods pending architecture decision)
 
@@ -184,11 +183,12 @@ ITableCommands has similar architecture dependencies as IRangeCommands:
 - Phase 0: 5 methods (Workbook lifecycle)
 - Phase 1: 13 methods (ISheetCommands)
 - Phase 2: 7 methods (INamedRangeCommands)
-- **Total: 25 methods converted** ✅
+- Phase 4: 11 methods (ITableCommands - partial, 11/23 simple methods)
+- **Total: 36 methods converted** ✅
 
 **Deferred:**
 - Phase 3: 44 methods (IRangeCommands - architecture decision required) ⏸️
-- Phase 4: 23 methods (ITableCommands - architecture decision required) ⏸️
+- Phase 4 (partial): 12 methods (ITableCommands - complex filters/columns/sort remaining) ⏸️
 - Phase 7-10: ~50 methods (Power Query, Connection, DataModel, PivotTable - complex helpers required) ⏸️
 
 **Remaining (Simplified First):**
@@ -196,7 +196,7 @@ ITableCommands has similar architecture dependencies as IRangeCommands:
 
 **Grand Total:** ~167 methods to convert
 
-**Current Progress:** 15% complete (25/167 methods, 117 deferred pending complexity/architecture resolution)
+**Current Progress:** 22% complete (36/167 methods, 106 deferred pending complexity/architecture resolution)
 
 ---
 
