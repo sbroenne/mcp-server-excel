@@ -12,7 +12,7 @@
   "bugs": {
     "url": "https://github.com/sbroenne/mcp-server-excel/issues"
   },
-  "homepage": "https://github.com/sbroenne/mcp-server-excel#readme",
+  "homepage": "https://sbroenne.github.io/mcp-server-excel/",
   "license": "MIT",
   "engines": {
     "vscode": "^1.105.0"
@@ -27,24 +27,20 @@
   ],
   "keywords": [
     "mcp",
-    "model context protocol",
     "excel",
-    "microsoft",
-    "office",
-    "spreadsheet",
     "automation",
     "power query",
-    "m language",
     "dax",
-    "data model",
-    "power pivot",
+    "pivottable",
     "vba",
-    "macro",
-    "table",
-    "copilot",
-    "ai",
+    "formatting",
     "github copilot",
-    "data analysis"
+    "ai",
+    "etl",
+    "data analysis",
+    "spreadsheet",
+    "microsoft",
+    "office"
   ],
   "activationEvents": [
     "onStartupFinished"
