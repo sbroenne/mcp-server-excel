@@ -113,11 +113,15 @@ IRangeCommands has complex COM operations that rely heavily on `IExcelBatch.Exec
 
 ---
 
-## 🚧 Phase 4: ITableCommands (PARTIAL - DECISION NEEDED)
+## ⏸️ Phase 4: ITableCommands (DEFERRED - Architecture Decision Required)
 
-**Status:** ⏸️ **Partial Implementation - Decision Point Reached**
+**Reason for Deferral:**
+ITableCommands has similar architecture dependencies as IRangeCommands:
+- Number formatting operations delegate to IRangeCommands (deferred)
+- Filter/Sort operations require complex COM object manipulation
+- ~23 methods total, ~40% depend on batch context pattern
 
-**Actual Methods (23 total):**
+**Methods (23 total):**
 - Lifecycle: List, Get, Create, Rename, Delete, Resize
 - Styling & Totals: SetStyle, ToggleTotals, SetColumnTotal
 - Data: Append
@@ -128,32 +132,9 @@ IRangeCommands has complex COM operations that rely heavily on `IExcelBatch.Exec
 - Sort: Sort (single column), Sort (multiple columns)
 - Number Format: GetColumnNumberFormat, SetColumnNumberFormat
 
-**Implementation Progress:**
-- [x] Foundation created: `TableCommands.FilePath.cs` (651 lines, 11/23 methods)
-- [x] Core lifecycle operations (6): List, Get, Create, Rename, Delete, Resize
-- [x] Styling & totals (3): SetStyle, ToggleTotals, SetColumnTotal
-- [x] Data operations (2): Append, AddToDataModel
-- [ ] **REMAINING (12 methods):**
-  - Filter operations (4) - complex AutoFilter COM API
-  - Column management (3) - ListColumns COM operations
-  - Structured references (1) - formula string construction
-  - Sort operations (2) - Sort object COM manipulation
-  - Number formatting (2) - **BLOCKED:** delegates to IRangeCommands (deferred)
+**Decision:** Defer to later phase alongside IRangeCommands after architecture decision
 
-**Decision Point:**
-Similar to IRangeCommands, ITableCommands has significant complexity:
-- Number formatting operations delegate to IRangeCommands (which is deferred due to architecture issues)
-- Filter/Sort operations require complex COM object manipulation (~300-400 lines)
-- 12 methods remaining vs 11 completed
-
-**Options:**
-1. Complete ITableCommands (finish all 23 methods, ~400 more lines)
-2. **RECOMMENDED:** Move to simpler interfaces first (Power Query, Connection, VBA have ~10-15 methods each, no architecture dependencies)
-3. Defer remaining Table methods until IRangeCommands architecture resolved
-
-**Recommendation:** Proceed with simpler interfaces (Phase 5-7) to maintain momentum and accumulate more converted interfaces. Return to complete Table filter/sort/formatting after Range architecture is resolved.
-
-**Note:** Pre-existing build errors in ExcelRangeTool.cs and BatchCommands.cs (IDE0055 formatting) are unrelated to this refactoring work.
+**Status:** ⏸️ Deferred (23 methods pending architecture decision)
 
 ---
 
@@ -195,13 +176,14 @@ Similar to IRangeCommands, ITableCommands has significant complexity:
 
 **Deferred:**
 - Phase 3: 44 methods (IRangeCommands - architecture decision required) ⏸️
+- Phase 4: 23 methods (ITableCommands - architecture decision required) ⏸️
 
 **Remaining:**
-- Phase 4-10: ~98 methods across 7 interfaces ⏳
+- Phase 5-10: ~75 methods across 6 interfaces ⏳
 
 **Grand Total:** ~167 methods to convert
 
-**Current Progress:** 15% complete (25/167 methods)
+**Current Progress:** 15% complete (25/167 methods, 67 deferred pending architecture)
 
 ---
 
