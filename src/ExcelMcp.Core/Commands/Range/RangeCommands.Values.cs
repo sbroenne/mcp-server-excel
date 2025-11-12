@@ -80,6 +80,87 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
+    public async Task<RangeValueResult> GetValuesAsync(string filePath, string sheetName, string rangeAddress)
+    {
+        var result = new RangeValueResult
+        {
+            FilePath = filePath,
+            SheetName = sheetName,
+            RangeAddress = rangeAddress
+        };
+
+        try
+        {
+            // Get or open the workbook handle
+            var handle = await FileHandleManager.Instance.OpenOrGetAsync(filePath);
+
+            await Task.Run(() =>
+            {
+                dynamic? range = null;
+                try
+                {
+                    range = RangeHelpers.ResolveRange(handle.Workbook, sheetName, rangeAddress);
+                    if (range == null)
+                    {
+                        result.Success = false;
+                        result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, rangeAddress);
+                        return;
+                    }
+
+                    // Get actual address from Excel
+                    result.RangeAddress = range.Address;
+
+                    // Get values as 2D array - handle single cell case
+                    object valueOrArray = range.Value2;
+
+                    if (valueOrArray is object[,] values)
+                    {
+                        // Multi-cell range - process as 2D array
+                        result.RowCount = values.GetLength(0);
+                        result.ColumnCount = values.GetLength(1);
+
+                        for (int r = 1; r <= result.RowCount; r++)
+                        {
+                            var row = new List<object?>();
+                            for (int c = 1; c <= result.ColumnCount; c++)
+                            {
+                                row.Add(values[r, c]);
+                            }
+                            result.Values.Add(row);
+                        }
+                    }
+                    else
+                    {
+                        // Single cell - wrap value in 1x1 array
+                        result.RowCount = 1;
+                        result.ColumnCount = 1;
+                        result.Values.Add([valueOrArray]);
+                    }
+
+                    result.Success = true;
+                }
+                catch (Exception ex)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = ex.Message;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref range);
+                }
+            });
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Failed to access workbook: {ex.Message}";
+            return result;
+        }
+    }
+
+    /// <inheritdoc />
     public async Task<OperationResult> SetValuesAsync(IExcelBatch batch, string sheetName, string rangeAddress, List<List<object?>> values)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-values" };

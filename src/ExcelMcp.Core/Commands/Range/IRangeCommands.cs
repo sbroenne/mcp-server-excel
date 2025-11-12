@@ -20,6 +20,16 @@ public interface IRangeCommands
     Task<RangeValueResult> GetValuesAsync(IExcelBatch batch, string sheetName, string rangeAddress);
 
     /// <summary>
+    /// Gets values from a range as 2D array (filePath-based API)
+    /// Single cell "A1" returns [[value]], range "A1:B2" returns [[v1,v2],[v3,v4]]
+    /// Named ranges: Use empty sheetName and rangeAddress="NamedRange"
+    /// </summary>
+    /// <param name="filePath">Path to the workbook file</param>
+    /// <param name="sheetName">Name of the worksheet</param>
+    /// <param name="rangeAddress">Range address (e.g., "A1:D10" or "MyNamedRange")</param>
+    Task<RangeValueResult> GetValuesAsync(string filePath, string sheetName, string rangeAddress);
+
+    /// <summary>
     /// Sets values in a range from 2D array
     /// </summary>
     /// <param name="rangeAddress">
