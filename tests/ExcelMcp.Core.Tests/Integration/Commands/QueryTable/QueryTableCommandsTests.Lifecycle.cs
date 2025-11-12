@@ -105,7 +105,7 @@ public partial class QueryTableCommandsTests
         Assert.True(result.Success, $"Create failed: {result.ErrorMessage}");
 
         // Verify properties
-        var getResult = await _commands.GetAsync(batch, "TestQT");
+        var getResult = await _commands.GetAsync(testFile, "TestQT");
         Assert.True(getResult.Success);
         Assert.NotNull(getResult.QueryTable);
         Assert.True(getResult.QueryTable.BackgroundQuery);
@@ -134,15 +134,16 @@ public partial class QueryTableCommandsTests
         await sheetCommands.CreateAsync(batch, "S1");
 
         await _commands.CreateFromQueryAsync(batch, "S1", "QT1", "Q1");
+        await batch.SaveAsync();
 
         // Act
-        var result = await _commands.DeleteAsync(batch, "QT1");
+        var result = await _commands.DeleteAsync(testFile, "QT1");
 
         // Assert
         Assert.True(result.Success, $"Delete failed: {result.ErrorMessage}");
 
         // Verify deleted
-        var listResult = await _commands.ListAsync(batch);
+        var listResult = await _commands.ListAsync(testFile);
         Assert.True(listResult.Success);
         Assert.Empty(listResult.QueryTables);
     }
@@ -155,10 +156,8 @@ public partial class QueryTableCommandsTests
         var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(QueryTableCommandsTests), nameof(Delete_NonExistentQueryTable_ReturnsFalse), _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-
         // Act
-        var result = await _commands.DeleteAsync(batch, "NonExistent");
+        var result = await _commands.DeleteAsync(testFile, "NonExistent");
 
         // Assert
         Assert.False(result.Success);

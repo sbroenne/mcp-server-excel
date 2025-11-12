@@ -20,8 +20,7 @@ public partial class QueryTableCommandsTests
             nameof(QueryTableCommandsTests), nameof(List_EmptyWorkbook_ReturnsSuccessWithEmptyList), _tempDir);
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _commands.ListAsync(batch);
+        var result = await _commands.ListAsync(testFile);
 
         // Assert
         Assert.True(result.Success, $"List failed: {result.ErrorMessage}");
@@ -57,9 +56,10 @@ public partial class QueryTableCommandsTests
         // Create QueryTable from the Power Query
         var createResult = await _commands.CreateFromQueryAsync(batch, "QuerySheet", "TestQueryTable", "TestQuery");
         Assert.True(createResult.Success, $"Create QueryTable failed: {createResult.ErrorMessage}");
+        await batch.SaveAsync();
 
-        // Act - List QueryTables in same batch
-        var result = await _commands.ListAsync(batch);
+        // Act - List QueryTables using FilePath API
+        var result = await _commands.ListAsync(testFile);
 
         // Assert
         Assert.True(result.Success, $"List failed: {result.ErrorMessage}");
