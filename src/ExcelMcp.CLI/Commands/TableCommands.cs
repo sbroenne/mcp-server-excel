@@ -30,8 +30,7 @@ public class CliTableCommands : ITableCommands
         // Call core command with batch
         var task = Task.Run(async () =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ListAsync(batch);
+            return await _coreCommands.ListAsync(filePath);
         });
         var result = task.GetAwaiter().GetResult();
 
