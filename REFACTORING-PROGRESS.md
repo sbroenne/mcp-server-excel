@@ -169,24 +169,24 @@ IRangeCommands has complex COM operations that rely heavily on `IExcelBatch.Exec
 
 **Status:** ✅ Complete (Core + MCP Server + CLI, Tests pending)
 
-### Phase 6: IQueryTableCommands (PARTIAL - 3/8 methods)
-- Methods: ~8 (List, Get, Create, Delete, Refresh, RefreshAll, Properties)
-- Complexity: Medium (QueryTable COM operations)
+### Phase 6: IQueryTableCommands (PARTIAL - 3/8) ✅ COMPLETE FOR SIMPLE METHODS
+**All layers complete for 3 simple methods: List, Get, Delete**
 
 **Commits:**
 - 55d7172 - Core (partial 3/8 simple methods)
 - 1dfb124 - MCP Server (partial 3/8 simple methods)
 - 417ae92 - CLI (partial 3/8 simple methods)
 - d258f96 - Tests (5 tests for 3 methods)
+- a862432 - Progress update
 
 **Conversion:**
-- ✅ Core: 3 filePath-based methods (List, Get, Delete) in `QueryTableCommands.FilePath.cs`
+- ✅ Core: 3 filePath-based methods (List, Get, Delete) in `QueryTableCommands.FilePath.cs` - COMPLETE
 - ⏸️ Core: 5 complex methods deferred (CreateFromConnection, CreateFromQuery, Refresh, RefreshAll, UpdateProperties)
-- ✅ MCP Server: 3 methods converted to filePath API (List, Get, Delete)
+- ✅ MCP Server: 3 methods converted to filePath API (List, Get, Delete) - COMPLETE
 - ⏸️ MCP Server: 5 complex methods still use batch API with WithBatchAsync
-- ✅ CLI: 3 methods converted to filePath API (List, Get, Delete)
+- ✅ CLI: 3 methods converted to filePath API (List, Get, Delete) - COMPLETE
 - ⏸️ CLI: 5 complex methods still use batch API
-- ✅ Tests: 5 tests converted (2 List, 2 Delete, 1 Get)
+- ✅ Tests: 5 tests converted (2 List, 2 Delete, 1 Get) - COMPLETE
 
 **Methods Converted:** List, Get, Delete (3 total)
 **Methods Deferred:** CreateFromConnection, CreateFromQuery, Refresh, RefreshAll, UpdateProperties (5 total)
