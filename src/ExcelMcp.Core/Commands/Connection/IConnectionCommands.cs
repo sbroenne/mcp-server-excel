@@ -14,9 +14,19 @@ public interface IConnectionCommands
     Task<ConnectionListResult> ListAsync(IExcelBatch batch);
 
     /// <summary>
+    /// Lists all connections in a workbook (FilePath-based API)
+    /// </summary>
+    Task<ConnectionListResult> ListAsync(string filePath);
+
+    /// <summary>
     /// Views detailed connection information
     /// </summary>
     Task<ConnectionViewResult> ViewAsync(IExcelBatch batch, string connectionName);
+
+    /// <summary>
+    /// Views detailed connection information (FilePath-based API)
+    /// </summary>
+    Task<ConnectionViewResult> ViewAsync(string filePath, string connectionName);
 
     /// <summary>
     /// Creates a new connection in the workbook
