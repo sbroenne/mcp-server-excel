@@ -7,20 +7,31 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// Excel range operation commands - unified API for all range data operations
 /// Single cell is treated as 1x1 range. Named ranges work transparently via rangeAddress parameter.
 /// All operations are COM-backed (no data processing in server).
+/// 
+/// NOTE: Transitioning to active workbook pattern. Methods with IExcelBatch parameter use batch API.
+/// Methods without IExcelBatch parameter use active workbook (set via IWorkbookCommands.OpenAsync).
 /// </summary>
 public interface IRangeCommands
 {
     // === VALUE OPERATIONS ===
 
     /// <summary>
-    /// Gets values from a range as 2D array
+    /// Gets values from a range as 2D array (batch API)
     /// Single cell "A1" returns [[value]], range "A1:B2" returns [[v1,v2],[v3,v4]]
     /// Named ranges: Use empty sheetName and rangeAddress="NamedRange"
     /// </summary>
     Task<RangeValueResult> GetValuesAsync(IExcelBatch batch, string sheetName, string rangeAddress);
 
     /// <summary>
-    /// Sets values in a range from 2D array
+    /// Gets values from a range as 2D array (active workbook API)
+    /// Requires active workbook to be set via IWorkbookCommands.OpenAsync()
+    /// Single cell "A1" returns [[value]], range "A1:B2" returns [[v1,v2],[v3,v4]]
+    /// Named ranges: Use empty sheetName and rangeAddress="NamedRange"
+    /// </summary>
+    Task<RangeValueResult> GetValuesAsync(string sheetName, string rangeAddress);
+
+    /// <summary>
+    /// Sets values in a range from 2D array (batch API)
     /// </summary>
     /// <param name="rangeAddress">
     /// MUST specify full range matching data dimensions:
@@ -31,6 +42,20 @@ public interface IRangeCommands
     /// Always specify the exact range address.
     /// </param>
     Task<OperationResult> SetValuesAsync(IExcelBatch batch, string sheetName, string rangeAddress, List<List<object?>> values);
+
+    /// <summary>
+    /// Sets values in a range from 2D array (active workbook API)
+    /// Requires active workbook to be set via IWorkbookCommands.OpenAsync()
+    /// </summary>
+    /// <param name="rangeAddress">
+    /// MUST specify full range matching data dimensions:
+    /// - Single cell: "A1" for [[value]]
+    /// - Multi-cell: "A1:B2" for [[v1,v2],[v3,v4]]
+    /// - Headers + data: "A1:D11" for 11 rows x 4 columns
+    /// IMPORTANT: Passing "A1" with multi-cell array may not auto-expand reliably.
+    /// Always specify the exact range address.
+    /// </param>
+    Task<OperationResult> SetValuesAsync(string sheetName, string rangeAddress, List<List<object?>> values);
 
     // === FORMULA OPERATIONS ===
 

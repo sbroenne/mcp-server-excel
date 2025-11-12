@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Session;
 
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
@@ -131,5 +132,23 @@ public partial class RangeCommands
                 ComUtilities.Release(ref range);
             }
         });
+    }
+
+    // === ACTIVE WORKBOOK API (new pattern) ===
+
+    /// <inheritdoc />
+    public async Task<RangeValueResult> GetValuesAsync(string sheetName, string rangeAddress)
+    {
+        // Delegate to batch API using active workbook's batch
+        var batch = FileHandleManager.GetActiveWorkbookBatch();
+        return await GetValuesAsync(batch, sheetName, rangeAddress);
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResult> SetValuesAsync(string sheetName, string rangeAddress, List<List<object?>> values)
+    {
+        // Delegate to batch API using active workbook's batch
+        var batch = FileHandleManager.GetActiveWorkbookBatch();
+        return await SetValuesAsync(batch, sheetName, rangeAddress, values);
     }
 }
