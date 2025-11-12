@@ -258,10 +258,24 @@ jobs:
         Set-Location src/ExcelMcp.McpServer/.mcp
 
         # Publish to registry (verbose mode for debugging)
-        ../../../mcp-publisher.exe publish --verbose
+        # Capture output and check for errors
+        $publishOutput = ../../../mcp-publisher.exe publish --verbose 2>&1
+        $publishExitCode = $LASTEXITCODE
 
-        Write-Output "🚀 Published to MCP Registry"
-        Write-Output "🔗 Server available at: https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel"
+        Write-Output $publishOutput
+
+        if ($publishExitCode -eq 0) {
+          Write-Output ""
+          Write-Output "🚀 Published to MCP Registry"
+          Write-Output "🔗 Server available at: https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel"
+        } else {
+          Write-Output ""
+          Write-Output "❌ MCP Registry publishing failed with exit code $publishExitCode"
+          Write-Output "Error details shown above"
+          
+          # Exit with error to mark step as failed (continue-on-error will catch it)
+          exit $publishExitCode
+        }
       shell: pwsh
       env:
         PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
@@ -286,12 +300,22 @@ jobs:
           Write-Output "✅ MCP Registry publishing succeeded!"
           Write-Output "🔗 Server available at: https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel"
         } else {
-          Write-Output "⚠️ MCP Registry publishing did not complete successfully"
-          Write-Output "   This does not affect NuGet package availability"
-          Write-Output "   NuGet package: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer"
+          Write-Output "❌ MCP Registry publishing failed"
           Write-Output ""
-          Write-Output "   Known issue: MCP Registry validation may fail despite correct README format"
-          Write-Output "   See: https://github.com/sbroenne/mcp-server-excel/issues/XXX"
+          Write-Output "   Common reasons for failure:"
+          Write-Output "   - Duplicate version: Version already published to MCP Registry"
+          Write-Output "   - README validation: NuGet CDN propagation delay or missing mcp-name"
+          Write-Output "   - Authentication: GitHub OIDC token issues"
+          Write-Output ""
+          Write-Output "   ✅ NuGet package publication was SUCCESSFUL"
+          Write-Output "   🔗 NuGet: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer"
+          Write-Output ""
+          Write-Output "   To diagnose the issue:"
+          Write-Output "   1. Check the 'Publish to MCP Registry' step logs above for specific error messages"
+          Write-Output "   2. For duplicate version errors, check: https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel"
+          Write-Output "   3. For README validation errors, verify: https://api.nuget.org/v3-flatcontainer/sbroenne.excelmcp.mcpserver/${{ env.PACKAGE_VERSION }}/readme"
+          Write-Output ""
+          Write-Output "   For manual retry, see: docs/MCP_REGISTRY_PUBLISHING.md"
         }
 
         Write-Output "========================================"
