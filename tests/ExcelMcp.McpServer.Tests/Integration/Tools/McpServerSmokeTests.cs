@@ -265,14 +265,13 @@ in
 
         _output.WriteLine("  ✓ excel_datamodel: LIST TABLES in batch");
 
-        // VBA operations (with batch)
+        // VBA operations (FilePath-based - no batch support)
         var listVbaResult = await ExcelVbaTool.ExcelVba(
             VbaAction.List,
-            _testExcelFile,
-            batchId: batchId);
-        AssertSuccess(listVbaResult, "List VBA modules in batch");
+            _testExcelFile);
+        AssertSuccess(listVbaResult, "List VBA modules");
 
-        _output.WriteLine("  ✓ excel_vba: LIST in batch");
+        _output.WriteLine("  ✓ excel_vba: LIST");
 
         // =====================================================================
         // STEP 4: COMMIT BATCH SESSION (save all changes)
