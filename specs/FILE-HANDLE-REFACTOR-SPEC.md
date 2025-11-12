@@ -21,54 +21,103 @@
 - MCP Server has `excel_batch` tool (extra concept to learn)
 - CLI has batch commands (inconsistent with other commands)
 
-## Proposed Solution: File Handles
+## Proposed Solution: Active Workbook Pattern
 
 ### Core Concept
 
-**File Handle** = An opaque identifier representing an open Excel workbook
+**Active Workbook** = The currently open Excel workbook that all operations work on (similar to Excel's UI)
 
 ```csharp
-// Core API
-public interface IFileCommands
+// Core API - NEW workbook lifecycle management
+public interface IWorkbookCommands
 {
-    Task<FileHandle> CreateAsync(string filePath);
-    Task<FileHandle> OpenAsync(string filePath);
-    Task SaveAsync(FileHandle handle);
-    Task CloseAsync(FileHandle handle);
+    Task CreateAsync(string filePath);     // Create and set as active
+    Task OpenAsync(string filePath);       // Open and set as active
+    Task SaveAsync();                      // Save active workbook
+    Task CloseAsync();                     // Close active workbook
+    Task CloseAsync(string filePath);      // Close specific workbook (for multi-file scenarios)
 }
 
-// All operations use file handle
+// All operations work on active workbook (NO handle parameter!)
 public interface IRangeCommands
 {
-    Task<OperationResult> GetValuesAsync(FileHandle handle, string sheetName, string rangeAddress);
-    Task<OperationResult> SetValuesAsync(FileHandle handle, string sheetName, string rangeAddress, object[,] values);
+    Task<OperationResult> GetValuesAsync(string sheetName, string rangeAddress);
+    Task<OperationResult> SetValuesAsync(string sheetName, string rangeAddress, object[,] values);
 }
 ```
 
-**Note:** After cleanup (Phase 5), `IFileCommands` will only have these 4 methods. All other file operations (like `Test`) will be removed if not needed for the new architecture.
+**Note:** `IWorkbookCommands` is a NEW interface. Existing `IFileCommands` remains untouched (no build breakage). After Phase 5 cleanup, `IFileCommands` will be removed entirely.
 
 ### How It Works (Human/LLM Workflow)
 
+**External API (MCP/CLI):** Users continue to pass file paths - no change
+**Internal Implementation:** Active workbook managed behind the scenes
+
 ```
-1. LLM: "Create a new workbook" → create_file → FileHandle{id: "abc123"}
-2. LLM: "Add data to Sheet1"   → excel_range(handle: "abc123", action: "set-values", ...)
-3. LLM: "Save the file"        → save_file(handle: "abc123")
-4. LLM: "Close the file"       → close_file(handle: "abc123")
+LLM: "Get data from report.xlsx"
+
+Internally:
+1. MCP Server opens file → sets as active workbook
+2. Calls Core Command → GetValuesAsync(sheet, range)  [no file parameter!]
+3. Saves and closes → CloseAsync()
+4. Returns result to LLM
+
+User workflow is simple: open → work → close
 ```
 
-**Or for existing files:**
+**For multiple operations on same file:**
 ```
-1. LLM: "Open report.xlsx"     → open_file → FileHandle{id: "xyz789"}
-2. LLM: "Get data from Sheet2" → excel_range(handle: "xyz789", action: "get-values", ...)
-3. LLM: "Close without saving" → close_file(handle: "xyz789", save: false)
+LLM: "Add data to Sheet1 in report.xlsx"
+  → Open report.xlsx (sets as active)
+  → SetValuesAsync("Sheet1", "A1", data)
+
+LLM: "Now add another sheet"
+  → CreateSheetAsync("NewSheet")  [works on active workbook - report.xlsx]
+  
+LLM: "Save and close"
+  → SaveAsync(), CloseAsync()
+```
+
+**For multi-file workflows (rare):**
+```
+LLM: "Copy data from source.xlsx to target.xlsx"
+  → OpenAsync("source.xlsx")
+  → data = GetValuesAsync("Sheet1", "A1:D10")
+  → OpenAsync("target.xlsx")  [switches active workbook]
+  → SetValuesAsync("Sheet1", "A1", data)
+  → CloseAsync("target.xlsx")
+  → CloseAsync("source.xlsx")
 ```
 
 ## Architecture Design
 
-### 1. File Handle Structure
+### 1. Active Workbook Context (Internal)
 
 ```csharp
-public sealed class FileHandle
+// Thread-safe active workbook tracking using AsyncLocal
+internal static class ActiveWorkbook
+{
+    private static readonly AsyncLocal<FileHandle?> _current = new();
+    
+    internal static FileHandle Current 
+    { 
+        get => _current.Value ?? throw new InvalidOperationException("No active workbook. Call OpenAsync() or CreateAsync() first.");
+        set => _current.Value = value;
+    }
+    
+    internal static bool HasActive => _current.Value != null;
+}
+```
+
+**Why AsyncLocal?**
+- Thread-safe for async/await code
+- Each async call chain has its own "current" workbook
+- Tests can run in parallel without interference
+
+### 2. File Handle Structure
+
+```csharp
+internal sealed class FileHandle
 {
     public string Id { get; }              // Unique identifier (GUID)
     public string FilePath { get; }        // Absolute path to workbook
@@ -78,87 +127,142 @@ public sealed class FileHandle
     internal FileHandle(string id, string filePath)
     {
         Id = id;
-        FilePath = filePath;
+        FilePath = Path.GetFullPath(filePath);
         OpenedAt = DateTime.UtcNow;
         IsClosed = false;
     }
 }
 ```
 
-### 2. File Handle Manager (Internal)
+### 3. File Handle Manager (Internal)
 
 ```csharp
 // Internal to ExcelMcp.Core - not exposed to consumers
 internal sealed class FileHandleManager
 {
-    private static readonly ConcurrentDictionary<string, (dynamic Excel, dynamic Workbook)> _handles = new();
+    // Key by absolute file path - reuses handles for same file
+    private static readonly ConcurrentDictionary<string, (FileHandle Handle, dynamic Excel, dynamic Workbook)> _handlesByPath = new();
     
     internal static FileHandle Create(string filePath)
     {
-        var handle = new FileHandle(Guid.NewGuid().ToString(), filePath);
-        var (excel, workbook) = OpenExcelInstance(filePath, createNew: true);
-        _handles[handle.Id] = (excel, workbook);
+        string absolutePath = Path.GetFullPath(filePath);
+        
+        // Check if already open
+        if (_handlesByPath.TryGetValue(absolutePath, out var existing))
+        {
+            ActiveWorkbook.Current = existing.Handle;
+            return existing.Handle;  // Reuse existing handle
+        }
+        
+        var handle = new FileHandle(Guid.NewGuid().ToString(), absolutePath);
+        var (excel, workbook) = OpenExcelInstance(absolutePath, createNew: true);
+        _handlesByPath[absolutePath] = (handle, excel, workbook);
+        ActiveWorkbook.Current = handle;
         return handle;
     }
     
     internal static FileHandle Open(string filePath)
     {
-        var handle = new FileHandle(Guid.NewGuid().ToString(), filePath);
-        var (excel, workbook) = OpenExcelInstance(filePath, createNew: false);
-        _handles[handle.Id] = (excel, workbook);
+        string absolutePath = Path.GetFullPath(filePath);
+        
+        // Check if already open
+        if (_handlesByPath.TryGetValue(absolutePath, out var existing))
+        {
+            ActiveWorkbook.Current = existing.Handle;
+            return existing.Handle;  // Reuse existing handle (solves Issue #173!)
+        }
+        
+        var handle = new FileHandle(Guid.NewGuid().ToString(), absolutePath);
+        var (excel, workbook) = OpenExcelInstance(absolutePath, createNew: false);
+        _handlesByPath[absolutePath] = (handle, excel, workbook);
+        ActiveWorkbook.Current = handle;
         return handle;
     }
     
-    internal static (dynamic Excel, dynamic Workbook) GetWorkbook(FileHandle handle)
+    internal static (dynamic Excel, dynamic Workbook) GetActiveWorkbook()
     {
-        if (handle.IsClosed)
-            throw new InvalidOperationException($"File handle {handle.Id} is closed");
+        var handle = ActiveWorkbook.Current;
+        
+        // Find by file path
+        if (!_handlesByPath.TryGetValue(handle.FilePath, out var entry))
+            throw new InvalidOperationException($"Active workbook not found: {handle.FilePath}");
             
-        if (!_handles.TryGetValue(handle.Id, out var excelWorkbook))
-            throw new InvalidOperationException($"File handle {handle.Id} not found");
-            
-        return excelWorkbook;
+        return (entry.Excel, entry.Workbook);
     }
     
-    internal static void Close(FileHandle handle, bool save)
+    internal static void Close(string? filePath = null)
     {
-        if (!_handles.TryRemove(handle.Id, out var excelWorkbook))
+        // If filePath specified, close that file; otherwise close active workbook
+        string targetPath = filePath != null 
+            ? Path.GetFullPath(filePath) 
+            : ActiveWorkbook.Current.FilePath;
+        
+        // Remove by file path
+        if (!_handlesByPath.TryRemove(targetPath, out var entry))
             return;
             
         try
         {
-            if (save) excelWorkbook.Workbook.Save();
-            excelWorkbook.Workbook.Close(SaveChanges: false);
-            excelWorkbook.Excel.Quit();
+            entry.Workbook.Close(SaveChanges: false);
+            entry.Excel.Quit();
             
             // COM cleanup
-            ComUtilities.Release(ref excelWorkbook.Workbook!);
-            ComUtilities.Release(ref excelWorkbook.Excel!);
+            ComUtilities.Release(ref entry.Workbook!);
+            ComUtilities.Release(ref entry.Excel!);
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }
         finally
         {
-            handle.IsClosed = true;
+            entry.Handle.IsClosed = true;
+            
+            // Clear active workbook if this was it
+            if (ActiveWorkbook.HasActive && ActiveWorkbook.Current.FilePath == targetPath)
+                ActiveWorkbook.Current = null!;
         }
+    }
+    
+    internal static void Save()
+    {
+        var (_, workbook) = GetActiveWorkbook();
+        workbook.Save();
     }
 }
 ```
 
-### 3. Core Commands Pattern
+### 3. How This Solves Issue #173
+
+**Issue #173**: Sequential operations on same file caused locks because LLMs didn't use batch mode
+
+**Before (Batch Mode - LLM must opt-in):**
+```
+Operation 1: Open Excel → work → close (2-17s disposal) → LOCKS FILE
+Operation 2: Can't open - file locked!
+```
+
+**After (Active Workbook Pattern - Automatic):**
+```
+Operation 1: OpenAsync("report.xlsx") → returns existing handle if open → sets as active → work
+Operation 2: GetValuesAsync(...) → uses active workbook → work (NO LOCK!)
+Operation 3: CloseAsync() → only now does disposal happen
+```
+
+**Key insight**: File handles are cached by path. Multiple `OpenAsync()` calls for same file return the same handle and set it as active. This makes "batch mode" the default behavior without LLMs needing to understand it.
+
+### 4. Core Commands Pattern
 
 ```csharp
 // Example: RangeCommands
 public class RangeCommands : IRangeCommands
 {
     public async Task<OperationResult> GetValuesAsync(
-        FileHandle handle, 
         string sheetName, 
         string rangeAddress)
     {
         return await Task.Run(() =>
         {
-            var (excel, workbook) = FileHandleManager.GetWorkbook(handle);
+            // Get active workbook - NO handle parameter!
+            var (excel, workbook) = FileHandleManager.GetActiveWorkbook();
             
             dynamic? sheet = null;
             dynamic? range = null;
@@ -186,89 +290,144 @@ public class RangeCommands : IRangeCommands
 
 ## Migration Strategy
 
-### Phase 1: Add File Handle API (Parallel to Batch)
+### Phase 1: Add Active Workbook API (Parallel to Batch)
 
-**Goal:** Introduce file handles without breaking existing code
+**Goal:** Introduce active workbook pattern without breaking existing code
 
-1. Add `FileHandle` class to `ExcelMcp.Core/Models/`
+1. Add `FileHandle` class to `ExcelMcp.Core/Models/` (internal)
 2. Add `FileHandleManager` to `ExcelMcp.Core/Session/` (internal)
-3. Add file commands to `IFileCommands`:
-   - `Task<FileHandle> CreateAsync(string filePath)`
-   - `Task<FileHandle> OpenAsync(string filePath)`
-   - `Task SaveAsync(FileHandle handle)`
-   - `Task CloseAsync(FileHandle handle)`
-4. Update all `I*Commands` interfaces to accept `FileHandle` as first parameter
-5. Keep old batch-based methods for backward compatibility (NO obsolete attribute - removes cleanly later)
+3. Add `ActiveWorkbook` context to `ExcelMcp.Core/Session/` (internal)
+4. **Create NEW interface** `IWorkbookCommands` in `ExcelMcp.Core/Commands/`:
+   - `Task CreateAsync(string filePath)`
+   - `Task OpenAsync(string filePath)`
+   - `Task SaveAsync()`
+   - `Task CloseAsync()`
+   - `Task CloseAsync(string filePath)` - for multi-file scenarios
+5. **Create NEW class** `WorkbookCommands` implementing `IWorkbookCommands`
+6. Update all `I*Commands` interfaces to remove handle parameter:
+   ```csharp
+   // NEW: Active workbook API (no handle parameter!)
+   Task<OperationResult> GetValuesAsync(string sheetName, string rangeAddress);
+   
+   // OLD: Batch API (keep during development, remove in Phase 5)
+   Task<OperationResult> GetValuesAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+   ```
+7. Keep old batch-based methods for backward compatibility (NO obsolete attribute - removes cleanly later)
 
-**Example:**
-```csharp
-public interface IRangeCommands
-{
-    // NEW: File handle API
-    Task<OperationResult> GetValuesAsync(FileHandle handle, string sheetName, string rangeAddress);
-    
-    // OLD: Batch API (keep during development, remove in Phase 4)
-    Task<OperationResult> GetValuesAsync(IExcelBatch batch, string sheetName, string rangeAddress);
-}
-```
-
-**Why no `[Obsolete]` attribute:**
-- Obsolete warnings break build with `TreatWarningsAsErrors=true`
-- Batch API remains fully functional during development
-- Clean removal in Phase 4 (no gradual deprecation needed)
+**Why NEW interface instead of modifying `IFileCommands`:**
+- No build breakage (existing `IFileCommands` unchanged)
+- Clean separation (old file operations vs new workbook lifecycle)
+- `IFileCommands` deleted entirely in Phase 5 (no gradual migration)
 
 ### Phase 2: Update MCP Server
 
-**Goal:** Expose file handle API via MCP tools
+**Goal:** Replace `IFileCommands` usage with `IWorkbookCommands` internally
 
-1. Add new MCP tools:
-   - `create_file(filePath)` → returns `{fileHandle: "abc123"}`
-   - `open_file(filePath)` → returns `{fileHandle: "xyz789"}`
-   - `save_file(handle)` → saves workbook
-   - `close_file(handle, save?)` → closes workbook
-2. Update all existing tools to accept `handle` parameter:
-   - `excel_range(handle, action, ...)` - NEW
-   - `excel_range(batchId, action, ...)` - OLD (deprecated)
-3. Update tool descriptions to show file handle workflow
-4. Create new prompt files showing simple open→work→close pattern
+**External API:** No change - tools still accept `excelPath` parameter
+**Internal Implementation:** Replace batch session with active workbook management
+
+1. Update `ExcelToolsBase.WithBatchAsync()` → `WithActiveWorkbookAsync()`:
+   ```csharp
+   // OLD (batch-based)
+   await using var batch = await ExcelSession.BeginBatchAsync(excelPath);
+   var result = await commands.GetValuesAsync(batch, sheet, range);
+   await batch.SaveAsync();
+   
+   // NEW (active workbook pattern)
+   await workbookCommands.OpenAsync(excelPath);  // Sets as active, reuses if already open
+   try {
+       var result = await commands.GetValuesAsync(sheet, range);  // No handle parameter!
+       await workbookCommands.SaveAsync();
+   } finally {
+       await workbookCommands.CloseAsync();
+   }
+   ```
+
+2. Remove `excel_batch` tool (no longer needed)
+3. Update all tool implementations to use new pattern
+4. **No changes to tool signatures** - users still pass file paths
 
 ### Phase 3: Update CLI
 
-**Goal:** Simplify CLI to match file handle model
+**Goal:** Replace `IFileCommands` usage with `IWorkbookCommands` internally
 
-1. Remove batch commands (`batch-begin`, `batch-commit`, etc.)
-2. Add file commands:
-   - `excelmcp file create <path>`
-   - `excelmcp file open <path>`
-   - `excelmcp file save <handle>`
-   - `excelmcp file close <handle>`
-3. Update all commands to require `--handle` flag:
-   - `excelmcp range get-values --handle abc123 --sheet Sheet1 --range A1:D10`
+**External API:** No change - commands still accept `--file` parameter
+**Internal Implementation:** Replace batch session with active workbook management
 
-**Alternative (Simpler):** CLI could auto-manage handles
+1. Update all command handlers:
+   ```csharp
+   // OLD (batch-based)
+   await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+   var result = await _commands.GetValuesAsync(batch, sheet, range);
+   await batch.SaveAsync();
+   
+   // NEW (active workbook pattern)  
+   await _workbookCommands.OpenAsync(filePath);  // Sets as active
+   try {
+       var result = await _commands.GetValuesAsync(sheet, range);  // No handle parameter!
+       await _workbookCommands.SaveAsync();
+   } finally {
+       await _workbookCommands.CloseAsync();
+   }
+   ```
+
+2. Remove batch CLI commands (`batch-begin`, `batch-commit`, etc.)
+3. **No changes to command signatures** - users still pass `--file` flag
+
+**CLI auto-manages active workbook:**
 ```bash
-# CLI opens, executes, saves, closes automatically
+# CLI opens, sets as active, executes, saves, closes automatically
 excelmcp range get-values --file report.xlsx --sheet Sheet1 --range A1:D10
 ```
 
-### Phase 4: Remove Batch Infrastructure
+### Phase 4: Update Tests
+
+**Goal:** Migrate all tests to active workbook API
+
+1. Replace batch test pattern:
+   ```csharp
+   // OLD (batch-based)
+   await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+   var result = await _commands.GetValuesAsync(batch, "Sheet1", "A1:D10");
+   
+   // NEW (active workbook pattern)
+   await _workbookCommands.OpenAsync(testFile);
+   try {
+       var result = await _commands.GetValuesAsync("Sheet1", "A1:D10");  // No handle parameter!
+   } finally {
+       await _workbookCommands.CloseAsync();
+   }
+   ```
+
+2. Update all test classes to inject `IWorkbookCommands`
+3. Replace `ExcelSession.BeginBatchAsync()` with `OpenAsync()`
+4. No more `await using var batch` - explicit open/close instead
+5. Benefits:
+   - Tests exercise actual production code paths
+   - Faster disposal (immediate close, not 2-17 second delay)
+   - Clearer test intent (open → work → close)
+   - Simpler API (no handle parameters in command calls)
+
+### Phase 5: Remove Batch Infrastructure
 
 **Goal:** Clean removal of obsolete batch code
 
-1. Switch all consumers (MCP Server, CLI, tests) to file handle API (Phases 2-3)
+1. Verify all consumers migrated (Phases 1-4: Core APIs, MCP Server, CLI, tests all use file handles)
 2. Delete batch infrastructure in one clean commit:
    - `ExcelSession.cs`
    - `ExcelBatch.cs`
    - `IExcelBatch.cs`
-   - Batch-based method overloads from all Commands interfaces
-   - Batch MCP tool
-   - Batch CLI commands
+   - `IFileCommands.cs` interface (replaced by `IWorkbookCommands`)
+   - `FileCommands.cs` implementation (replaced by `WorkbookCommands`)
+   - Batch-based method overloads from all `I*Commands` interfaces
+   - `excel_batch` MCP tool (no longer needed)
+   - Batch CLI commands (no longer needed)
 3. Remove batch-related documentation
 4. Update CHANGELOG
 
 **Why clean removal works:**
 - No external consumers (Core is internal library)
-- All internal consumers migrated in Phases 2-3
+- All internal consumers migrated in Phases 2-4 (MCP Server, CLI, tests)
 - No `[Obsolete]` warnings to clean up
 - Single atomic change (easy to review)
 
@@ -276,18 +435,26 @@ excelmcp range get-values --file report.xlsx --sheet Sheet1 --range A1:D10
 
 ### 1. Conceptual Simplicity
 - ✅ Matches human mental model: "open file, work, save, close"
-- ✅ No batch mode confusion
+- ✅ Matches Excel's UI model: one active workbook at a time
+- ✅ No batch mode confusion - it's just how the system works
 - ✅ No prompts/elicitations needed (LLMs already know this pattern)
 - ✅ Clear lifecycle: create/open → work → save/close
 
-### 2. Performance
-- ✅ Excel stays open across operations (same as batch mode)
+### 2. API Simplicity  
+- ✅ **No handle parameters** on ~160 command methods
+- ✅ Simpler method signatures: `GetValuesAsync(sheet, range)` not `GetValuesAsync(handle, sheet, range)`
+- ✅ Less cognitive load for developers and LLMs
+- ✅ Still supports rare multi-file scenarios (via explicit file path in CloseAsync)
+
+### 3. Performance
+- ✅ Excel stays open across operations (automatic handle reuse)
 - ✅ No 2-17 second disposal between operations
 - ✅ Fixes Issue #173 (sequential file lock errors)
 - ✅ LLM controls when to close (vs automatic disposal)
 
-### 3. Architecture
-- ✅ Clear separation: Core manages handles, consumers use them
+### 4. Architecture
+- ✅ Clear separation: Core manages active workbook, consumers don't see handles
+- ✅ Thread-safe via AsyncLocal (each async chain has its own active workbook)
 - ✅ No STA thread complexity exposed to consumers
 - ✅ Simpler testing (pass handle, no batch setup)
 - ✅ Easier to understand and maintain
