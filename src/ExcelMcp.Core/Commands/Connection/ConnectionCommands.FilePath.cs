@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Connections;
@@ -80,7 +81,7 @@ public partial class ConnectionCommands
     }
 
     /// <summary>
-    /// Views detailed connection information using FilePath API
+    /// Views detailed connection information (FilePath-based API)
     /// </summary>
     public async Task<ConnectionViewResult> ViewAsync(string filePath, string connectionName)
     {
@@ -110,7 +111,7 @@ public partial class ConnectionCommands
                     result.Type = ConnectionHelpers.GetConnectionTypeName(conn.Type);
                     result.IsPowerQuery = PowerQueryHelpers.IsPowerQueryConnection(conn);
 
-                    // Get connection string (raw for LLM usage - sanitization removed)
+                    // Get connection string
                     string? rawConnectionString = GetConnectionString(conn);
                     result.ConnectionString = rawConnectionString ?? "";
 
@@ -131,8 +132,7 @@ public partial class ConnectionCommands
                         Properties = GetConnectionProperties(conn)
                     };
 
-                    result.DefinitionJson = System.Text.Json.JsonSerializer.Serialize(definition, s_jsonOptions);
-
+                    result.DefinitionJson = JsonSerializer.Serialize(definition, s_jsonOptions);
                     result.Success = true;
                 }
                 finally
