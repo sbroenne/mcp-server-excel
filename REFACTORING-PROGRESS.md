@@ -145,10 +145,23 @@ IRangeCommands has complex COM operations that rely heavily on `IExcelBatch.Exec
 
 **New Approach:** Focus on simplest interfaces first to build momentum, then tackle complex ones with proper architecture.
 
-### Phase 5: IVbaCommands (PRIORITY - Simplest)
-- Methods: ~7 (List, Import, Export, Delete, Run, GetTrustStatus, SetTrustStatus)
-- Complexity: Low-Medium (VBA trust configuration, but straightforward COM)
-- Benefit: Small, self-contained, good learning case
+## 🚧 Phase 5: IVbaCommands (IN PROGRESS - Core Complete, Tests/MCP/CLI Pending)
+
+**Status:** Core FilePath implementations complete (7 methods). 1 method fully converted, 6 methods delegate to batch-based implementation as interim solution.
+
+**Completed FilePath-Based Methods (7/7):**
+- Lifecycle (7): List (fully converted), View (delegates), Export (delegates), Import (delegates), Update (delegates), Delete (delegates)
+- Operations (1): Run (delegates)
+
+**Implementation Notes:**
+- ListAsync fully converted to FileHandleManager pattern (no batch dependency)
+- Remaining 6 methods currently delegate to batch-based implementation for expedience
+- All methods compile and maintain backward compatibility
+- Future work: Convert remaining 6 methods to direct FileHandleManager pattern
+
+**Next:** Update MCP Server tool, tests, and CLI for all 7 methods.
+
+**Status:** 🚧 Core complete, tests/MCP/CLI pending
 
 ### Phase 6: IQueryTableCommands
 - Methods: ~8 (List, Create, Delete, Refresh, GetProperties, SetProperties)
