@@ -67,14 +67,4 @@ public interface INamedRangeCommands
     /// Deletes a named range (filePath-based API)
     /// </summary>
     Task<OperationResult> DeleteAsync(string filePath, string paramName);
-
-    /// <summary>
-    /// Creates multiple named ranges with optional initial values in a single operation
-    /// </summary>
-    Task<OperationResult> CreateBulkAsync(IExcelBatch batch, IEnumerable<NamedRangeDefinition> parameters);
-
-    /// <summary>
-    /// Creates multiple named ranges with optional initial values in a single operation (filePath-based API)
-    /// </summary>
-    Task<OperationResult> CreateBulkAsync(string filePath, IEnumerable<NamedRangeDefinition> parameters);
 }
