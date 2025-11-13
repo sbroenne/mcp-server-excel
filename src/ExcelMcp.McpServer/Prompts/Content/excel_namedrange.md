@@ -1,11 +1,11 @@
 # excel_namedrange Tool
 
 **Related tools**:
-- excel_batch - Use for 2+ named range operations (75-90% faster) OR use create-bulk action
+- excel_batch - Use for 2+ named range operations (75-90% faster)
 - excel_range - For reading/writing data in named ranges (use sheetName="")
 - excel_powerquery - Named ranges can be used as Power Query parameters
 
-**Actions**: list, get, set, create, update, delete, create-bulk
+**Actions**: list, get, set, create, update, delete
 
 **When to use excel_namedrange**:
 - Named ranges as configuration parameters
@@ -16,23 +16,20 @@
 
 **Server-specific behavior**:
 - Parameters are named ranges pointing to single cells
-- create-bulk: Efficient multi-parameter creation (one call vs many)
 - Absolute references recommended: =Sheet1!$A$1
 - Parameters accessible across entire workbook
 
 **Action disambiguation**:
 - create: Add single named range parameter
-- create-bulk: Add multiple parameters in one call (90% faster)
 - get: Retrieve parameter value
 - set: Update parameter value
 - update: Change parameter cell reference
 
 **Common mistakes**:
-- Creating parameters one-by-one → Use create-bulk for 2+ parameters
 - Missing = prefix in references → Must be =Sheet1!$A$1 not Sheet1!$A$1
 - Relative references → Use absolute ($A$1) for parameters
 
 **Workflow optimization**:
-- Multiple parameters? Use create-bulk action
-- Common pattern: create-bulk for config → use in formulas/queries
-- Batch mode not needed for create-bulk (already batched internally)
+- Multiple parameters? Use excel_batch with multiple create calls
+- Common pattern: create parameters → use in formulas/queries
+

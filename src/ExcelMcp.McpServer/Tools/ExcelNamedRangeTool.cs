@@ -3,7 +3,6 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
 #pragma warning disable CA1861 // Avoid constant arrays as arguments - Workflow hints are contextual per-call
@@ -17,22 +16,12 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 [McpServerToolType]
 public static class ExcelNamedRangeTool
 {
-    // Cache JsonSerializerOptions to satisfy CA1869
-    private static readonly JsonSerializerOptions s_jsonOptions = new() { PropertyNameCaseInsensitive = true };
-
     // Cache suggestedNextActions arrays to satisfy CA1861
     private static readonly string[] s_getNextActions =
     [
         "Use 'set' to update this parameter value",
         "Use this value in excel_range or excel_powerquery operations",
         "Use 'update' to change the cell reference"
-    ];
-
-    private static readonly string[] s_createBulkNextActions =
-    [
-        "Use 'list' to verify all created named ranges",
-        "Use 'set' to assign initial values",
-        "Use excel_range to populate data in named range regions"
     ];
 
     /// <summary>
@@ -89,7 +78,6 @@ Optional batchId for batch sessions.")]
                 NamedRangeAction.Get => await GetNamedRangeAsync(namedRangeCommands, excelPath, namedRangeName, batchId),
                 NamedRangeAction.Set => await SetNamedRangeAsync(namedRangeCommands, excelPath, namedRangeName, value, batchId),
                 NamedRangeAction.Create => await CreateNamedRangeAsync(namedRangeCommands, excelPath, namedRangeName, value, batchId),
-                NamedRangeAction.CreateBulk => await CreateBulkNamedRangesAsync(namedRangeCommands, excelPath, namedRangesJson, batchId),
                 NamedRangeAction.Update => await UpdateNamedRangeAsync(namedRangeCommands, excelPath, namedRangeName, value, batchId),
                 NamedRangeAction.Delete => await DeleteNamedRangeAsync(namedRangeCommands, excelPath, namedRangeName, batchId),
                 _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
@@ -276,42 +264,6 @@ Optional batchId for batch sessions.")]
                     "Check if workbook or sheet is protected",
                     "Verify named range name spelling is correct"
                 ]
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> CreateBulkNamedRangesAsync(NamedRangeCommands commands, string excelPath, string? namedRangesJson, string? batchId)
-    {
-        if (string.IsNullOrWhiteSpace(namedRangesJson))
-            throw new ModelContextProtocol.McpException("namedRangesJson is required for create-bulk action");
-
-        // Deserialize JSON array of named range definitions
-        List<NamedRangeDefinition>? parameters;
-        try
-        {
-            parameters = JsonSerializer.Deserialize<List<NamedRangeDefinition>>(
-                namedRangesJson,
-                s_jsonOptions);
-
-            if (parameters == null || parameters.Count == 0)
-                throw new ModelContextProtocol.McpException("namedRangesJson must contain at least one named range definition");
-        }
-        catch (JsonException ex)
-        {
-            throw new ModelContextProtocol.McpException($"Invalid namedRangesJson format: {ex.Message}");
-        }
-
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await commands.CreateBulkAsync(batch, parameters));
-
-        // Add workflow hints (CreateBulk returns OperationResult, not specialized type)
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            workflowHint = "Bulk named range creation completed.",
-            suggestedNextActions = s_createBulkNextActions
         }, ExcelToolsBase.JsonOptions);
     }
 }

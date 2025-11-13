@@ -154,7 +154,6 @@ public enum NamedRangeAction
 {
     List,
     Create,
-    CreateBulk,
     Update,
     Delete,
     Get,

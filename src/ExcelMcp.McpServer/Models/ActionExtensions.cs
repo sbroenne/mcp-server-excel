@@ -104,7 +104,6 @@ public static class ActionExtensions
     {
         NamedRangeAction.List => "list",
         NamedRangeAction.Create => "create",
-        NamedRangeAction.CreateBulk => "create-bulk",
         NamedRangeAction.Update => "update",
         NamedRangeAction.Delete => "delete",
         NamedRangeAction.Get => "get",
