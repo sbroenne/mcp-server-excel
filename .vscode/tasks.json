@@ -1,0 +1,109 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Jekyll: Serve",
+      "type": "shell",
+      "command": "bundle exec jekyll serve --host 127.0.0.1 --port 4000",
+      "options": {
+        "cwd": "${workspaceFolder}/gh-pages"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^([^\\s].*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\s*Generating...",
+          "endsPattern": "^\\s*Server running\\.\\.\\. press ctrl-c to stop\\.$"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false,
+        "clear": true
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Jekyll: Build",
+      "type": "shell",
+      "command": "bundle exec jekyll build",
+      "options": {
+        "cwd": "${workspaceFolder}/gh-pages"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": false,
+        "clear": true
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Jekyll: Build (Production)",
+      "type": "shell",
+      "command": "JEKYLL_ENV=production bundle exec jekyll build",
+      "options": {
+        "cwd": "${workspaceFolder}/gh-pages"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": false,
+        "clear": true
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Jekyll: Install Bundle",
+      "type": "shell",
+      "command": "bundle install --path vendor/bundle",
+      "options": {
+        "cwd": "${workspaceFolder}/gh-pages"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": false,
+        "clear": true
+      },
+      "group": "none"
+    },
+    {
+      "label": "Jekyll: Clean",
+      "type": "shell",
+      "command": "bundle exec jekyll clean",
+      "options": {
+        "cwd": "${workspaceFolder}/gh-pages"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": false,
+        "clear": true
+      },
+      "group": "none"
+    }
+  ]
+}
