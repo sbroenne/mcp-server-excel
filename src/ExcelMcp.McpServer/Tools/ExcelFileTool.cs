@@ -9,7 +9,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
 /// Excel file management tool for MCP server.
-/// Manages Excel file creation for automation workflows.
+/// Manages Excel file creation and session lifecycle for automation workflows.
 /// Supports .xlsx (standard) and .xlsm (macro-enabled) formats.
 /// </summary>
 [McpServerToolType]
@@ -20,36 +20,32 @@ public static class ExcelFileTool
     /// Create new Excel files for automation workflows
     /// </summary>
     [McpServerTool(Name = "excel_file")]
-    [Description(@"Manage Excel files - create, test.
+    [Description(@"Manage Excel files and sessions.
 
-⚠️ IMPORTANT: Files must be CLOSED before automation!
-All operations automatically check if file is locked and fail with clear error message if file is open.
-No need to pre-check file status - operations handle this gracefully.
+⚠️ SESSION LIFECYCLE REQUIRED:
+1. OPEN - Start session, get sessionId
+2. OPERATE - Use sessionId with other tools
+3. SAVE - Explicitly save changes (optional)
+4. CLOSE - End session, release resources
+
+WORKFLOWS:
+- Default: open → operations(sessionId) → save → close
+- Read-only: open → read(sessionId) → close (no save)
+- Discard changes: open → modify(sessionId) → close (no save)
 
 FILE FORMATS:
-- .xlsx: Standard Excel workbook (Power Query, ranges, tables, worksheets, Data Model)
-- .xlsm: Macro-enabled workbook (ALL .xlsx features PLUS VBA macros)
-
-USE .xlsm WHEN:
-- VBA macros required (excel_vba tool)
-- Automation needs to import/export/run VBA code
-- User workbook contains existing macros
-
-USE .xlsx WHEN:
-- No VBA macros needed
-- Pure data/Power Query/Data Model workflows
-- Smaller file size preferred
-
-Optional batchId for batch sessions.")]
+- .xlsx:
+- .xlsm:
+")]
     public static async Task<string> ExcelFile(
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         FileAction action,
 
-        [Description("Excel file path (.xlsx or .xlsm extension)")]
-        string excelPath,
+        [Description("Excel file path (.xlsx or .xlsm extension) - required for open/create-empty, not used for save/close")]
+        string? excelPath = null,
 
-        [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
-        string? batchId = null)
+        [Description("Session ID from 'open' action - required for save/close, not used for open/create-empty/test")]
+        string? sessionId = null)
     {
         try
         {
@@ -58,10 +54,13 @@ Optional batchId for batch sessions.")]
             // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
             return action switch
             {
-                FileAction.CreateEmpty => await CreateEmptyFileAsync(fileCommands, excelPath,
-                    excelPath.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase), batchId),
-                FileAction.CloseWorkbook => CloseWorkbook(excelPath),
-                FileAction.Test => await TestFileAsync(fileCommands, excelPath),
+                FileAction.Open => await OpenSessionAsync(excelPath!),
+                FileAction.Save => await SaveSessionAsync(sessionId!),
+                FileAction.Close => await CloseSessionAsync(sessionId!),
+                FileAction.CreateEmpty => await CreateEmptyFileAsync(fileCommands, excelPath!,
+                    excelPath!.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase)),
+                FileAction.CloseWorkbook => CloseWorkbook(excelPath!),
+                FileAction.Test => await TestFileAsync(fileCommands, excelPath!),
                 _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
             };
         }
@@ -77,11 +76,156 @@ Optional batchId for batch sessions.")]
     }
 
     /// <summary>
+    /// Opens an Excel file and creates a new session.
+    /// Returns sessionId that must be used for all subsequent operations.
+    /// </summary>
+    private static async Task<string> OpenSessionAsync(string excelPath)
+    {
+        if (string.IsNullOrWhiteSpace(excelPath))
+        {
+            throw new ModelContextProtocol.McpException("excelPath is required for 'open' action");
+        }
+
+        if (!File.Exists(excelPath))
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"File not found: {excelPath}",
+                filePath = excelPath,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
+
+        try
+        {
+            string sessionId = await ExcelToolsBase.GetSessionManager().CreateSessionAsync(excelPath);
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                sessionId,
+                filePath = excelPath,
+                message = "Session opened successfully",
+                suggestedNextActions = new[]
+                {
+                    "Use sessionId with other excel_* tools to perform operations",
+                    "Call excel_file 'save' action to persist changes",
+                    "Call excel_file 'close' action when finished to release resources"
+                },
+                workflowHint = "Session active. Use sessionId for all operations, then save and close."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                filePath = excelPath,
+                isError = true,
+                suggestedNextActions = new[]
+                {
+                    "Verify file is not open in Excel",
+                    "Check file permissions",
+                    "Ensure Excel is installed"
+                }
+            }, ExcelToolsBase.JsonOptions);
+        }
+    }
+
+    /// <summary>
+    /// Saves changes for an active session.
+    /// Does not close the session - call 'close' action separately.
+    /// </summary>
+    private static async Task<string> SaveSessionAsync(string sessionId)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            throw new ModelContextProtocol.McpException("sessionId is required for 'save' action");
+        }
+
+        bool success = await ExcelToolsBase.GetSessionManager().SaveSessionAsync(sessionId);
+
+        if (success)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                sessionId,
+                message = "Changes saved successfully",
+                suggestedNextActions = new[]
+                {
+                    "Continue operations with this sessionId",
+                    "Call excel_file 'close' action when finished"
+                },
+                workflowHint = "Session still active. Continue operations or close session."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        else
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                sessionId,
+                errorMessage = $"Session '{sessionId}' not found",
+                isError = true,
+                suggestedNextActions = new[]
+                {
+                    "Verify sessionId is correct",
+                    "Session may have already been closed",
+                    "Use excel_file 'open' to start a new session"
+                }
+            }, ExcelToolsBase.JsonOptions);
+        }
+    }
+
+    /// <summary>
+    /// Closes an active session without saving changes.
+    /// To save before closing, call 'save' action first.
+    /// </summary>
+    private static async Task<string> CloseSessionAsync(string sessionId)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            throw new ModelContextProtocol.McpException("sessionId is required for 'close' action");
+        }
+
+        bool success = await ExcelToolsBase.GetSessionManager().CloseSessionAsync(sessionId);
+
+        if (success)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                sessionId,
+                message = "Session closed successfully (changes not saved)",
+                suggestedNextActions = new[]
+                {
+                    "Use excel_file 'open' to start a new session",
+                    "If changes needed to be saved, call 'save' before 'close' next time"
+                },
+                workflowHint = "Session closed. Changes were not saved."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        else
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                sessionId,
+                errorMessage = $"Session '{sessionId}' not found",
+                isError = true,
+                message = "Session not found or already closed"
+            }, ExcelToolsBase.JsonOptions);
+        }
+    }
+
+    /// <summary>
     /// Creates a new empty Excel file (.xlsx or .xlsm based on macroEnabled flag).
     /// LLM Pattern: Use this when you need a fresh Excel workbook for automation.
-    /// Note: File creation doesn't use batch sessions since it creates a new file.
     /// </summary>
-    private static async Task<string> CreateEmptyFileAsync(FileCommands fileCommands, string excelPath, bool macroEnabled, string? batchId)
+    private static async Task<string> CreateEmptyFileAsync(FileCommands fileCommands, string excelPath, bool macroEnabled)
     {
         var extension = macroEnabled ? ".xlsm" : ".xlsx";
         if (!excelPath.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
@@ -89,8 +233,6 @@ Optional batchId for batch sessions.")]
             excelPath = Path.ChangeExtension(excelPath, extension);
         }
 
-        // Note: CreateEmpty doesn't use batch session - it creates a new file
-        // batchId is ignored for this operation
         var result = await fileCommands.CreateEmptyAsync(excelPath, overwriteIfExists: false);
 
         if (result.Success)
@@ -103,16 +245,12 @@ Optional batchId for batch sessions.")]
                 message = "Excel file created successfully",
                 suggestedNextActions = new[]
                 {
-                    batchId != null
-                        ? $"Continue using batchId '{batchId}' for subsequent operations on this file"
-                        : "Use begin_excel_batch to start a batch session for multiple operations",
-                    "Use worksheet 'create' to add new worksheets",
-                    "Use PowerQuery 'import' to add data transformations",
-                    macroEnabled ? "Use VBA 'import' to add macro code" : "Use worksheet 'write' to populate data"
+                    "Use excel_file 'open' action to start a session",
+                    "Then use other excel_* tools with the sessionId"
                 },
                 workflowHint = macroEnabled
-                    ? "Macro-enabled file created. Next, add worksheets, Power Query, or VBA code."
-                    : "Excel file created. Next, add worksheets and populate data."
+                    ? "Macro-enabled file created. Open session, then add worksheets, Power Query, or VBA code."
+                    : "Excel file created. Open session, then add worksheets and populate data."
             }, ExcelToolsBase.JsonOptions);
         }
         else

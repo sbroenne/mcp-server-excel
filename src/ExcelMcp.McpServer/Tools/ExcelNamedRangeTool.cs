@@ -38,25 +38,7 @@ public static class ExcelNamedRangeTool
     /// Manage Excel parameters (named ranges) - configuration values and reusable references
     /// </summary>
     [McpServerTool(Name = "excel_namedrange")]
-    [Description(@"Manage Excel named ranges as parameters (configuration values).
-
-USE CASES:
-- Configuration values: StartDate, ReportYear, Threshold
-- Reusable parameters: Formula inputs, dynamic ranges
-- Power Query parameters: Reference in M code via Excel.CurrentWorkbook()
-
-⚡ PERFORMANCE: For creating 2+ parameters, use begin_excel_batch FIRST (90% faster):
-  1. batch = begin_excel_batch(excelPath: 'file.xlsx')
-  2. excel_namedrange(action: 'create', ..., batchId: batch.batchId)  // repeat for each parameter
-  3. commit_excel_batch(batchId: batch.batchId, save: true)
-
-⭐ NEW: Use 'create-bulk' action for even better efficiency (one call for multiple parameters).
-
-RELATED TOOLS:
-- excel_range: For bulk data operations on named range contents
-- excel_powerquery: To reference named ranges in M code
-
-Optional batchId for batch sessions.")]
+    [Description(@"Manage Excel named ranges")]
     public static async Task<string> ExcelParameter(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]

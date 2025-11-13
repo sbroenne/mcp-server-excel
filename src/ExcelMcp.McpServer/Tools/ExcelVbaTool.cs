@@ -31,16 +31,7 @@ public static class ExcelVbaTool
 ⚠️ REQUIREMENTS:
 - File format: .xlsm (macro-enabled) only
 - VBA trust: Must be enabled in Excel settings (one-time setup)
-
-RUN PARAMETERS:
-- Format: 'Module.Procedure' (e.g., 'DataProcessor.ProcessData')
-- Parameters: Comma-separated values passed to VBA procedure
-- Example: moduleName='Module1.Calculate', parameters='Sheet1,A1:C10'
-
-RELATED TOOLS:
-- excel_file: Create .xlsm files for VBA automation
-
-Optional batchId for batch sessions.")]
+")]
     public static async Task<string> ExcelVba(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]

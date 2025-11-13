@@ -20,17 +20,6 @@ public static class ExcelPowerQueryTool
     [McpServerTool(Name = "excel_powerquery")]
     [Description(@"Manage Power Query M code and data loading.
 
-⚡ PERFORMANCE: For 2+ operations on same file, use begin_excel_batch FIRST (75-90% faster):
-  1. batch = begin_excel_batch(excelPath: 'file.xlsx')
-  2. excel_powerquery(..., batchId: batch.batchId)  // repeat for each operation
-  3. commit_excel_batch(batchId: batch.batchId, save: true)
-
-LOAD DESTINATIONS (loadDestination parameter):
-- 'worksheet': Load to worksheet as table (DEFAULT - users can see/validate data)
-- 'data-model': Load to Power Pivot Data Model (ready for DAX measures/relationships)
-- 'both': Load to BOTH worksheet AND Data Model
-- 'connection-only': Don't load data (M code imported but not executed)
-
 ⚠️ SHEET NAME CONFLICTS (LoadTo action):
 - If a worksheet with the target name already exists, LoadTo returns an error
 - User must delete the existing sheet first using excel_worksheet action='Delete'
@@ -47,8 +36,7 @@ OPERATIONS GUIDANCE:
 - LoadTo: Apply load destination to connection-only query (make it load data to a worksheet or Data Model)
 - Unload: Convert query to connection-only (remove data, keep M code definition)
 - RefreshAll: Refresh ALL Power Queries in workbook (batch refresh)
-
-After loading to Data Model, use excel_datamodel tool for DAX measures and relationships.")]
+")]
     public static async Task<string> ExcelPowerQuery(
         [Required]
         [Description("Action to perform (enum values displayed as dropdown in MCP clients)")]

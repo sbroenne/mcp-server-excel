@@ -22,23 +22,10 @@ public static class ExcelDataModelTool
     [McpServerTool(Name = "excel_datamodel")]
     [Description(@"Manage Excel Power Pivot (Data Model) - DAX measures, relationships, analytical model.
 
-⚡ PERFORMANCE: For creating 2+ measures/relationships, use begin_excel_batch FIRST (75-90% faster):
-  1. batch = begin_excel_batch(excelPath: 'file.xlsx')
-  2. excel_datamodel(action: 'create-measure', ..., batchId: batch.batchId)  // repeat
-  3. commit_excel_batch(batchId: batch.batchId, save: true)
-
-KEYWORDS: Power Pivot, PowerPivot, Data Model, DAX, measures, relationships, calculated columns.
-
 ⚠️ CALCULATED COLUMNS: NOT supported via automation. When user asks to create calculated columns:
   - Provide step-by-step manual instructions (see LLM Usage Patterns in code comments)
   - OR suggest using DAX measures instead (measures ARE automated and usually better for aggregations)
-
-TYPICAL WORKFLOW:
-1. Load data: excel_powerquery(action: 'set-load-to-data-model') ← loads to Power Pivot
-2. Create relationships: excel_datamodel(action: 'create-relationship')
-3. Create DAX measures: excel_datamodel(action: 'create-measure')
-
-Actions: list-tables, list-measures, view-measure, export-measure, list-relationships, refresh, delete-measure, delete-relationship, view-table, get-model-info, create-measure, update-measure, create-relationship, update-relationship.")]
+")]
     public static async Task<string> ExcelDataModel(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]

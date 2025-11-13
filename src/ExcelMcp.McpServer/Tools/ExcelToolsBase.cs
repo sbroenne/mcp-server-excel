@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using ModelContextProtocol;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core;
 
 #pragma warning disable IL2070 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' requirements
 
@@ -11,11 +12,13 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// <summary>
 /// Base class for Excel MCP tools providing common patterns and utilities.
 /// All Excel tools inherit from this to ensure consistency for LLM usage.
-/// Provides pooled Excel instance support for conversational workflow performance.
+/// Provides session management support for conversational workflow performance.
 /// </summary>
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
 public static class ExcelToolsBase
 {
+    private static readonly SessionManager SessionManager = new();
+
     /// <summary>
     /// JSON serializer options with enum string conversion for user-friendly API responses.
     /// Used by all Excel tools for consistent JSON formatting.
@@ -26,6 +29,40 @@ public static class ExcelToolsBase
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         Converters = { new JsonStringEnumConverter() }
     };
+
+    /// <summary>
+    /// Gets the SessionManager instance for session lifecycle operations.
+    /// </summary>
+    public static SessionManager GetSessionManager() => SessionManager;
+
+    /// <summary>
+    /// Executes an async Core command with session management.
+    /// Uses the provided sessionId to retrieve an active session from SessionManager.
+    /// This is the new session-based pattern that replaces batch-of-one operations.
+    /// </summary>
+    /// <typeparam name="T">Return type of the command</typeparam>
+    /// <param name="sessionId">Required session ID from excel_file 'open' action</param>
+    /// <param name="action">Async action that takes IExcelBatch and returns Task&lt;T&gt;</param>
+    /// <returns>Result of the command</returns>
+    /// <exception cref="McpException">Session not found or command execution failed</exception>
+    public static async Task<T> WithSessionAsync<T>(
+        string sessionId,
+        Func<IExcelBatch, Task<T>> action)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            throw new McpException("sessionId is required. Use excel_file 'open' action to start a session.");
+        }
+
+        var batch = SessionManager.GetSession(sessionId);
+        if (batch == null)
+        {
+            throw new McpException(
+                $"Session '{sessionId}' not found. It may have been closed or never existed. Use excel_file 'open' to start a new session.");
+        }
+
+        return await action(batch);
+    }
 
     /// <summary>
     /// Executes an async Core command with batch session management.

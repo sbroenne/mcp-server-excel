@@ -20,16 +20,7 @@ public static class ExcelQueryTableTool
     /// Manage Excel QueryTables - simple data imports with reliable refresh patterns
     /// </summary>
     [McpServerTool(Name = "excel_querytable")]
-    [Description(@"Manage Excel QueryTables. Supports: list, get, create-from-connection, create-from-query, refresh, refresh-all, update-properties, delete.
-
-QueryTables provide reliable data import with synchronous refresh for guaranteed persistence.
-
-Use Cases:
-- Simple data imports from existing connections (no M code complexity)
-- Legacy Excel workflows requiring QueryTable-specific functionality
-- Cross-tool QueryTable discovery and management
-
-Actions available as dropdown in MCP clients.")]
+    [Description(@"Manage Excel QueryTables")]
     public static async Task<string> ExcelQueryTable(
         [Required]
         [Description("Action to perform")]

@@ -3,22 +3,95 @@
 Date: 2025-11-13
 Branch: feature/session-api-redesign-spec
 
-## Current State
+## Implementation Status
 
-### ComInterop (src/ExcelMcp.ComInterop)
-- **NEEDS REVERT**: `IExcelBatch` was renamed to `IExcelSession` - needs to be reverted back to `IExcelBatch`
-- **NEEDS REVERT**: `ExcelBatch` was renamed to `ExcelSessionInstance` - needs to be reverted back to `ExcelBatch`
-- **NEEDS REVERT**: `ExcelSession.BeginBatchAsync` was renamed to `ExcelSession.OpenSessionAsync` - needs to be reverted back to `BeginBatchAsync`
-- **Core layer should remain unchanged** - keep all existing `IExcelBatch` and `batchId` terminology
+### ✅ Completed Foundation (Ready for Use)
 
-### Core (src/ExcelMcp.Core)
-- **NEEDS REVERT**: Some command signatures were changed from `IExcelBatch` to `IExcelSession` in `Commands/DataModel/DataModelCommands.Read.cs` - needs to be reverted
-- **All Core commands should remain unchanged** - keep all existing `IExcelBatch` and `batchId` parameters
+1. **SessionManager in Core** (`src/ExcelMcp.Core/SessionManager.cs`)
+   - Maps `sessionId` → `IExcelBatch` for both MCP Server and CLI
+   - Methods: `CreateSessionAsync`, `GetSession`, `SaveSessionAsync`, `CloseSessionAsync`
+   
+2. **ExcelToolsBase Enhanced** (`src/ExcelMcp.McpServer/Tools/ExcelToolsBase.cs`)
+   - Static `SessionManager` instance accessible via `GetSessionManager()`
+   - New `WithSessionAsync` method for session-based operations
+   - Legacy `WithBatchAsync` marked `[Obsolete]` but still functional
 
-### Strategy
-- **Core and ComInterop layers**: Keep existing `IExcelBatch`, `BeginBatchAsync`, and `batchId` - no renames
-- **MCP Server and CLI layers**: Expose `sessionId` parameter to users/LLMs, but internally map to Core's `batchId`
-- This minimizes breaking changes while improving the user-facing API
+3. **excel_file Tool Updated** (`src/ExcelMcp.McpServer/Tools/ExcelFileTool.cs`)
+   - ✅ `Open` action - creates session, returns `sessionId`
+   - ✅ `Save` action - persists changes for active session
+   - ✅ `Close` action - closes session without saving
+   - ✅ Tool description updated with session lifecycle guidance
+
+4. **Build Status**
+   - ✅ Solution builds successfully (0 errors, 0 warnings)
+   - ✅ Core and ComInterop unchanged (`IExcelBatch`, `batchId` preserved)
+
+### 🚧 In Progress - Tool Migration Pattern
+
+**Pattern for Migrating Tools:**
+
+```csharp
+// OLD (batchId + excelPath):
+public static async Task<string> ExcelTool(
+    ToolAction action,
+    string excelPath,      // ❌ Remove
+    string? param = null,
+    string? batchId = null) // ❌ Change to sessionId
+
+private static async Task<string> MethodAsync(Commands commands, string excelPath, string? param, string? batchId)
+{
+    var result = await ExcelToolsBase.WithBatchAsync(batchId, excelPath, save: false, ...);
+}
+
+// NEW (sessionId only):
+public static async Task<string> ExcelTool(
+    ToolAction action,
+    string sessionId,      // ✅ Required session ID
+    string? param = null)
+
+private static async Task<string> MethodAsync(Commands commands, string sessionId, string? param)
+{
+    var result = await ExcelToolsBase.WithSessionAsync(sessionId, async (batch) => ...);
+}
+```
+
+**Steps Per Tool:**
+1. Update tool method signature: Remove `excelPath`, change `batchId?` → `sessionId` (required)
+2. Update tool description: Remove batch guidance, add session requirement
+3. Update all private method signatures: Replace `excelPath` and `batchId` with `sessionId`
+4. Replace `WithBatchAsync` → `WithSessionAsync` in all private methods
+5. Remove `save` parameter (sessions handle save via `excel_file` actions)
+
+### 📋 Remaining Work
+
+**Tools Needing Migration** (11 tools):
+- ❌ `ExcelPowerQueryTool.cs` - 11 methods to migrate
+- ❌ `ExcelWorksheetTool.cs`
+- ❌ `ExcelRangeTool.cs`
+- ❌ `ExcelTableTool.cs`
+- ❌ `ExcelVbaTool.cs`
+- ❌ `ExcelConnectionTool.cs`
+- ❌ `ExcelDataModelTool.cs`
+- ❌ `ExcelPivotTableTool.cs`
+- ❌ `ExcelNamedRangeTool.cs`
+- ❌ `ExcelQueryTableTool.cs`
+- ❌ `BatchSessionTool.cs` - DELETE (replaced by excel_file Open/Save/Close)
+
+**CLI Migration:**
+- Add `session-open`, `session-save`, `session-close` commands
+- Update all feature commands to accept `--session-id` instead of `--batch-id`
+- Map CLI `--session-id` → Core `batchId` internally
+
+**Testing:**
+- Update MCP Server tests to use `excel_file` open/save/close workflow
+- Add session lifecycle tests
+- Verify backwards compatibility during transition
+
+**Documentation:**
+- Update all tool descriptions
+- Update README with session workflow examples
+- Update MCP prompts to explain session lifecycle
+- Delete batch-related documentation
 
 ## Remaining TODOs
 
@@ -27,8 +100,8 @@ Branch: feature/session-api-redesign-spec
 - Core layer maintains its internal batch-based implementation
 - Only MCP Server and CLI will expose the session abstraction to users
 
-### 2. Introduce `SessionManager` and wire `excel_file` open/save/close (MCP Server)
-- Add a `SessionManager` in `src/ExcelMcp.McpServer` responsible for session lifecycle:
+### 2. Introduce `SessionManager` and wire `excel_file` open/save/close (Core + MCP Server)
+- Add a `SessionManager` in `src/ExcelMcp.Core` responsible for session lifecycle (shared by MCP Server and CLI):
   - Internal `ConcurrentDictionary<string, IExcelBatch>` `_activeSessions` (Core still uses IExcelBatch)
   - `CreateSession(string filePath)` → opens via `ExcelSession.BeginBatchAsync` and returns `sessionId`
   - `GetSession(string sessionId)` → returns `IExcelBatch?`
