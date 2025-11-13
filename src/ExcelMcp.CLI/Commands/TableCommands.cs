@@ -95,11 +95,10 @@ public class CliTableCommands : ITableCommands
         bool hasHeaders = args.Length > 5 ? bool.Parse(args[5]) : true;
         string? tableStyle = args.Length > 6 ? args[6] : null;
 
-        // Call core command with batch
+        // Call core command directly with filePath
         var task = Task.Run(async () =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.CreateAsync(batch, sheetName, tableName, range, hasHeaders, tableStyle);
+            return await _coreCommands.CreateAsync(filePath, sheetName, tableName, range, hasHeaders, tableStyle);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -134,8 +133,7 @@ public class CliTableCommands : ITableCommands
         // Call core command
         var task = Task.Run(async () =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.RenameAsync(batch, tableName, newName);
+            return await _coreCommands.RenameAsync(filePath, tableName, newName);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -175,8 +173,7 @@ public class CliTableCommands : ITableCommands
         // Call core command
         var task = Task.Run(async () =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.DeleteAsync(batch, tableName);
+            return await _coreCommands.DeleteAsync(filePath, tableName);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -209,8 +206,7 @@ public class CliTableCommands : ITableCommands
         // Call core command
         var task = Task.Run(async () =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.GetAsync(batch, tableName);
+            return await _coreCommands.GetAsync(filePath, tableName);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -273,8 +269,7 @@ public class CliTableCommands : ITableCommands
 
         var task = Task.Run(async () =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ResizeAsync(batch, tableName, newRange);
+            return await _coreCommands.ResizeAsync(filePath, tableName, newRange);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -305,8 +300,7 @@ public class CliTableCommands : ITableCommands
 
         var task = Task.Run(async () =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ToggleTotalsAsync(batch, tableName, showTotals);
+            return await _coreCommands.ToggleTotalsAsync(filePath, tableName, showTotals);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -339,8 +333,7 @@ public class CliTableCommands : ITableCommands
 
         var task = Task.Run(async () =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.SetColumnTotalAsync(batch, tableName, columnName, totalFunction);
+            return await _coreCommands.SetColumnTotalAsync(filePath, tableName, columnName, totalFunction);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -375,8 +368,7 @@ public class CliTableCommands : ITableCommands
 
         var task = Task.Run(async () =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.AppendAsync(batch, tableName, rows);
+            return await _coreCommands.AppendAsync(filePath, tableName, rows);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -432,8 +424,7 @@ public class CliTableCommands : ITableCommands
 
         var task = Task.Run(async () =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.SetStyleAsync(batch, tableName, tableStyle);
+            return await _coreCommands.SetStyleAsync(filePath, tableName, tableStyle);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -463,8 +454,7 @@ public class CliTableCommands : ITableCommands
 
         var task = Task.Run(async () =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.AddToDataModelAsync(batch, tableName);
+            return await _coreCommands.AddToDataModelAsync(filePath, tableName);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -1020,3 +1010,4 @@ public class CliTableCommands : ITableCommands
 
     #endregion
 }
+
