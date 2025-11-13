@@ -219,3 +219,6 @@ sample_files/
 # Bicep generated ARM templates
 infrastructure/**/*.json
 !infrastructure/**/*.parameters.json
+gh-pages/vendor
+gh-pages/_site/*
+
