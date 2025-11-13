@@ -241,7 +241,7 @@ Optional batchId for batch sessions.")]
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ExportConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? jsonPath, string? batchId)
+    private static async Task<string> ExportConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? jsonPath, string? _)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ModelContextProtocol.McpException("connectionName is required for export action");
@@ -249,15 +249,10 @@ Optional batchId for batch sessions.")]
         if (string.IsNullOrEmpty(jsonPath))
             throw new ModelContextProtocol.McpException("targetPath (JSON file path) is required for export action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: false,
-            async (batch) => await commands.ExportAsync(batch, connectionName, jsonPath));
+        // Use FilePath API directly (no batch needed for read operations)
+        var result = await commands.ExportAsync(filePath, connectionName, jsonPath);
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
-        var inBatch = !string.IsNullOrEmpty(batchId);
-
         return JsonSerializer.Serialize(new
         {
             result.Success,
@@ -270,8 +265,7 @@ Optional batchId for batch sessions.")]
                 {
                     "Store exported JSON in version control for team collaboration",
                     "Use excel_connection 'import' to restore this connection in other workbooks",
-                    "Inspect JSON file to understand connection string and properties",
-                    inBatch ? "Export more connections in this batch" : "Exporting multiple connections? Use excel_batch for efficiency"
+                    "Inspect JSON file to understand connection string and properties"
                 }
                 :
                 [
@@ -452,34 +446,28 @@ Optional batchId for batch sessions.")]
         }
     }
 
-    private static async Task<string> DeleteConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? batchId)
+    private static async Task<string> DeleteConnectionAsync(ConnectionCommands commands, string filePath, string? connectionName, string? _)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ModelContextProtocol.McpException("connectionName is required for delete action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            filePath,
-            save: true,
-            async (batch) => await commands.DeleteAsync(batch, connectionName));
+        // Use FilePath API directly with auto-save
+        var result = await commands.DeleteAsync(filePath, connectionName);
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
-        var inBatch = !string.IsNullOrEmpty(batchId);
-
         return JsonSerializer.Serialize(new
         {
             result.Success,
             result.ErrorMessage,
             workflowHint = result.Success
-                ? $"Connection '{connectionName}' deleted successfully. QueryTables using this connection may need cleanup."
+                ? $"Connection '{connectionName}' deleted successfully. Changes auto-saved. QueryTables using this connection may need cleanup."
                 : $"Failed to delete connection '{connectionName}'. Verify connection exists and is not in use.",
             suggestedNextActions = result.Success
                 ? new[]
                 {
                     "Use excel_connection 'list' to verify deletion",
                     "Check for QueryTables or PivotTables that referenced this connection",
-                    "Use excel_querytable 'list' to verify no orphaned QueryTables remain",
-                    inBatch ? "Delete more connections in this batch" : "Deleting multiple connections? Use excel_batch for efficiency"
+                    "Use excel_querytable 'list' to verify no orphaned QueryTables remain"
                 }
                 :
                 [

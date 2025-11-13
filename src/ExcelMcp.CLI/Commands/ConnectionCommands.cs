@@ -163,8 +163,7 @@ public class ConnectionCommands : IConnectionCommands
 
         var task = Task.Run(async () =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ExportAsync(batch, connectionName, jsonPath);
+            return await _coreCommands.ExportAsync(filePath, connectionName, jsonPath);
         });
         var result = task.GetAwaiter().GetResult();
 
@@ -477,3 +476,4 @@ public class ConnectionCommands : IConnectionCommands
         }
     }
 }
+

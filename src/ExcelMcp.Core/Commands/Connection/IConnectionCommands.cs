@@ -65,6 +65,16 @@ public interface IConnectionCommands
     Task<OperationResult> DeleteAsync(IExcelBatch batch, string connectionName);
 
     /// <summary>
+    /// Deletes a connection (FilePath-based API)
+    /// </summary>
+    Task<OperationResult> DeleteAsync(string filePath, string connectionName);
+
+    /// <summary>
+    /// Exports connection to JSON file (FilePath-based API)
+    /// </summary>
+    Task<OperationResult> ExportAsync(string filePath, string connectionName, string jsonFilePath);
+
+    /// <summary>
     /// Loads connection data to a worksheet
     /// </summary>
     Task<OperationResult> LoadToAsync(IExcelBatch batch, string connectionName, string sheetName);
