@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "excel": {
+      "command": "dotnet",
+      "args": ["tool", "run", "mcp-excel"],
+      "env": {}
+    }
+  }
+}
