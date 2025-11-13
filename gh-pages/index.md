@@ -1,23 +1,23 @@
 ---
 layout: default
 title: "Excel MCP Server - AI-Powered Excel Automation"
-description: "Control Microsoft Excel with natural language through AI assistants like GitHub Copilot and Claude. Automate Power Query, DAX, VBA, PivotTables, and more - no Excel programming required."
-keywords: "Excel automation, MCP server, AI Excel, Power Query, DAX measures, VBA macros, GitHub Copilot Excel, Claude Excel, Excel CLI"
+description: "Control Microsoft Excel with natural language through AI assistants like GitHub Copilot and Claude. Automate Power Query, DAX, VBA, PivotTables, and more. One-click install for Visual Studio Code."
+keywords: "Excel automation, MCP server, AI Excel, Power Query, DAX measures, VBA macros, GitHub Copilot Excel, Claude Excel, Excel CLI, M code, REPL"
 canonical_url: "https://sbroenne.github.io/mcp-server-excel/"
 ---
 
 <div class="hero">
   <div class="container">
-    <img src="{{ '/assets/images/icon.png' | relative_url }}" alt="Excel MCP Server - AI-powered Excel automation showing a table with green gradient background" class="hero-icon">
-    <p class="subtitle">Control Microsoft Excel with Natural Language through AI assistants like GitHub Copilot and Claude</p>
+    <div class="hero-content">
+      <img src="{{ '/assets/images/icon.png' | relative_url }}" alt="Excel MCP Server Icon" class="hero-icon">
+      <h1 class="hero-title">Excel MCP Server</h1>
+      <p class="hero-subtitle">AI-Powered Excel Automation</p>
+      <p class="hero-description">Control Microsoft Excel with Natural Language through AI assistants like GitHub Copilot and Claude. One-click install for Visual Studio Code.</p>
+    </div>
   </div>
 </div>
 
 <div class="container content-section" markdown="1">
-
-## Quick Navigation
-
-[What is This?](#what-is-this-project) · [Key Features](#key-features) · [Use Cases](#use-cases) · [Installation](#installation) · [Examples](#examples) · [Documentation](#documentation)
 
 ## What is This Project?
 
@@ -26,17 +26,17 @@ canonical_url: "https://sbroenne.github.io/mcp-server-excel/"
 1. **MCP Server**: Enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands
 2. **CLI Tool**: Provides direct command-line control for scripting, RPA, and CI/CD workflows
 
-Both share the same core functionality: automate Power Query, DAX measures, VBA macros, PivotTables, formatting, and data transformations. Choose MCP for AI-powered conversations or CLI for programmatic control - no Excel programming knowledge required.
+Both share the same core functionality: automate Power Query, DAX measures, VBA macros, PivotTables, formatting, and data transformations. Choose MCP for AI-powered conversations or CLI for programmatic control.
 
-<div class="callout">
-💡 <strong>Interactive Development</strong><br>
-Unlike file-based tools, ExcelMcp lets you see results instantly in Excel - create → test → refine → iterate in real-time.
-</div>
+**💡 Interactive Development:** Unlike file-based tools, ExcelMcp lets you see results instantly in Excel - create a query, run it, inspect the output, refine and repeat. Excel becomes your interactive workspace for rapid development and testing.
 
-<div class="callout">
-💻 <strong>For Developers</strong><br>
-Think of Excel as an AI-powered REPL - write code (Power Query M, DAX, VBA), execute instantly, inspect results visually in the live workbook.
-</div>
+Requires Windows OS + Microsoft Excel 2016+
+
+## 🚀 Visual Studio Code Quick Start (1 Minute)
+
+   - Open VS Code → Extensions (`Ctrl+Shift+X`)
+   - Search for **"ExcelMcp"**
+   - Click **Install**
 
 ## Key Features
 
@@ -48,12 +48,12 @@ Think of Excel as an AI-powered REPL - write code (Power Query M, DAX, VBA), exe
 
 <div class="feature-card">
 <h3>100% Safe</h3>
-<p>Uses Excel's native COM API - zero corruption risk, no file parsing</p>
+<p>Uses Excel's native COM API - zero corruption risk, full compatibility</p>
 </div>
 
 <div class="feature-card">
 <h3>Interactive Development</h3>
-<p>See changes in real-time - create, test, refine, and iterate instantly</p>
+<p>See changes in real-time - create, test, refine, and iterate instantly. Use Excel as a REPL.</p>
 </div>
 
 <div class="feature-card">
@@ -94,9 +94,7 @@ Think of Excel as an AI-powered REPL - write code (Power Query M, DAX, VBA), exe
 - Find and replace across ranges
 - Sort and filter data programmatically
 - Merge cells and auto-fit columns
-- Manage VBA macros with version control
-
-👉 [View installation options](#installation) to get started
+- Manage Powerquery M Code, DAX statements and VBA macros with version control
 
 ## Installation
 
@@ -120,14 +118,11 @@ Think of Excel as an AI-powered REPL - write code (Power Query M, DAX, VBA), exe
 </div>
 </div>
 
-**Requirements:** Windows OS, Microsoft Excel 2016+, .NET 8.0 Runtime
-
 📖 **[Complete Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md)**
 
 ## Documentation
 
 - [Excel MCP Server source code on GitHub](https://github.com/sbroenne/mcp-server-excel)
-- [Step-by-step installation instructions for VS Code, CLI, and MCP Server](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md)
 - [How to contribute to Excel MCP Server development](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/CONTRIBUTING.md)
 - [Complete API documentation and developer guides](https://github.com/sbroenne/mcp-server-excel/tree/main/docs)
 
