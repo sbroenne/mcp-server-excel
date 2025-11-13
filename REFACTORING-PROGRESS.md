@@ -205,10 +205,33 @@ IRangeCommands has complex COM operations that rely heavily on `IExcelBatch.Exec
 - **Issue:** Requires multiple helper methods (DetermineLoadConfiguration, ConfigureLoadDestinationAsync, RefreshQueryAsync, IsPowerQueryConnection, etc.) that have complex multi-step COM logic
 - **Recommendation:** Defer until simpler interfaces complete
 
-### Phase 8: IConnectionCommands (DEFERRED - Complex)
-- Methods: ~15 (List, View, Import, Export, Update, Delete, Refresh, Test, Properties)
-- Complexity: High (Connection string management, multiple connection types)
-- **Recommendation:** Defer until simpler interfaces complete
+### Phase 8: IConnectionCommands (PARTIAL - 2/13 Simple Methods) ✅ STARTED
+**Simple read methods converted: List, View**
+
+**Commits:**
+- 830a2e8 - Core List implementation
+- 813b29e - MCP/CLI conversion (List, View)
+- 815cdc6 - Core View implementation
+
+**Conversion:**
+- ✅ Core: 2 filePath-based methods (List, View) in `ConnectionCommands.FilePath.cs`
+- ⏸️ Core: 11 complex methods deferred (Create, Import, Export, Update, Refresh, Delete, LoadTo, GetProperties, SetProperties, Test)
+- ✅ MCP Server: 2 methods converted to filePath API (List, View) - direct calls, batchId ignored
+- ⏸️ MCP Server: 11 complex methods still use batch API
+- ✅ CLI: 2 methods converted to filePath API (List, View)
+- ⏸️ CLI: 11 complex methods still use batch API
+- ⏸️ Tests: Not yet converted
+
+**Methods Converted:** List, View (2 total)
+**Methods Deferred:** Create, Import, Export, UpdateProperties, Refresh (2 overloads), Delete, LoadTo, GetProperties, SetProperties, Test (11 total)
+
+**Implementation Notes:**
+- List: Full FileHandleManager implementation inline
+- View: Full FileHandleManager implementation inline (copied from batch version logic)
+- MCP Tool: Direct filePath calls, batchId parameter kept but ignored with pragma
+- Build succeeds with 0 warnings
+
+**Status:** ⏸️ Partial (Core 2/13 + MCP 2/13 + CLI 2/13, Tests pending, 11 complex methods deferred)
 
 ### Phase 9: IDataModelCommands (DEFERRED - Complex)
 - Methods: ~12 (ListTables, ListMeasures, ListRelationships, ExportMeasure, Refresh, Delete)
@@ -231,7 +254,8 @@ IRangeCommands has complex COM operations that rely heavily on `IExcelBatch.Exec
 - Phase 4: 11 methods (ITableCommands - partial, 11/23 simple methods) ✅
 - Phase 5: 7 methods (IVbaCommands) ✅
 - Phase 6: 3 methods (IQueryTableCommands - partial, 3/8 simple methods) ✅
-- **Total: 46 methods converted** ✅
+- Phase 8: 2 methods (IConnectionCommands - partial, 2/13 simple methods) ✅
+- **Total: 48 methods converted** ✅
 
 **Deferred:**
 - Phase 3: 44 methods (IRangeCommands - architecture decision required) ⏸️
@@ -244,7 +268,7 @@ IRangeCommands has complex COM operations that rely heavily on `IExcelBatch.Exec
 
 **Grand Total:** ~167 methods to convert
 
-**Current Progress:** 28% complete (46/167 methods, 121 deferred pending complexity/architecture resolution)
+**Current Progress:** 29% complete (48/167 methods, 119 deferred pending complexity/architecture resolution)
 
 ---
 
