@@ -79,11 +79,9 @@ public partial class RangeCommands
             }
             catch (System.Runtime.InteropServices.COMException comEx) when (comEx.HResult == unchecked((int)0x8007000E))
             {
-                // E_OUTOFMEMORY - "Insufficient memory" error
+                // E_OUTOFMEMORY - Excel's misleading error for sheet/range/session issues
                 result.Success = false;
-                result.ErrorMessage = $"Excel reported 'Insufficient memory' error reading formulas from range '{rangeAddress}' on sheet '{sheetName}'. " +
-                                    $"This usually means: (1) The sheet doesn't exist, (2) The range address is invalid, or (3) The workbook is not open in this session. " +
-                                    $"Use excel_worksheet(action: 'list') to verify the sheet exists, or excel_file(action: 'list') to check active sessions.";
+                result.ErrorMessage = $"Cannot read formulas from range '{rangeAddress}' on sheet '{sheetName}': {comEx.Message}";
                 return result;
             }
             catch (Exception ex)
@@ -142,11 +140,9 @@ public partial class RangeCommands
             }
             catch (System.Runtime.InteropServices.COMException comEx) when (comEx.HResult == unchecked((int)0x8007000E))
             {
-                // E_OUTOFMEMORY - "Insufficient memory" error
+                // E_OUTOFMEMORY - Excel's misleading error for sheet/range/session issues
                 result.Success = false;
-                result.ErrorMessage = $"Excel reported 'Insufficient memory' error writing formulas to range '{rangeAddress}' on sheet '{sheetName}'. " +
-                                    $"This usually means: (1) The sheet doesn't exist, (2) The range address is invalid, (3) Formula dimensions don't match the range, or (4) The workbook is not open in this session. " +
-                                    $"Verify: Sheet exists (excel_worksheet list), range address is correct, formulas are {formulas.Count}x{(formulas.Count > 0 ? formulas[0].Count : 0)} array, and session is valid (excel_file list).";
+                result.ErrorMessage = $"Cannot write formulas to range '{rangeAddress}' on sheet '{sheetName}': {comEx.Message}";
                 return result;
             }
             catch (Exception ex)

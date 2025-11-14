@@ -652,6 +652,22 @@ Use excel_datamodel tool for DAX measures.")]    {
 6. **Update server.json** - Keep synchronized with tool changes
 7. **JSON serialization** - Always use `JsonSerializer`
 8. **Handle JsonElement** - Convert before COM marshalling
+9. **Error messages: facts not guidance** - State what failed, not what to do next. LLMs figure out next steps.
+
+## Error Message Style
+
+**❌ WRONG: Verbose guidance (LLM doesn't need step-by-step instructions)**
+```csharp
+errorMessage = "Operation failed. This usually means: (1) Sheet doesn't exist, (2) Range invalid, or (3) Session closed. " +
+               "Use excel_worksheet(action: 'list') to verify sheet exists, then excel_file(action: 'list') to check sessions.";
+```
+
+**✅ CORRECT: State facts (LLM determines next action)**
+```csharp
+errorMessage = $"Cannot read range '{range}' on sheet '{sheet}': {ex.Message}";
+```
+
+**Why:** LLMs are intelligent agents that determine workflow. Error messages should report what failed and why, not prescribe solutions.
 
 ## Common Mistakes to Avoid
 
