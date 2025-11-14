@@ -3,7 +3,7 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit.Session;
+namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 
 /// <summary>
 /// Integration tests for ExcelSession - verifies public API and COM cleanup.

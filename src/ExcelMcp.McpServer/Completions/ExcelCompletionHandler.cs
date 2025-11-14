@@ -79,11 +79,6 @@ public static class ExcelCompletionHandler
         {
             suggestions = MarkdownLoader.LoadCompletionValues("privacy_level.md");
         }
-        // Format code completions
-        else if (argumentName is "formatCode" or "formatString" or "numberFormat")
-        {
-            suggestions = MarkdownLoader.LoadCompletionValues("format_codes.md");
-        }
         // Validation type completions
         else if (argumentName == "validationType")
         {
@@ -94,20 +89,6 @@ public static class ExcelCompletionHandler
         {
             suggestions = MarkdownLoader.LoadCompletionValues("validation_operators.md");
         }
-        // Error style completions
-        else if (argumentName == "errorStyle")
-        {
-            suggestions = MarkdownLoader.LoadCompletionValues("error_styles.md");
-        }
-        // Alignment completions
-        else if (argumentName == "horizontalAlignment")
-        {
-            suggestions = MarkdownLoader.LoadCompletionValues("alignment_horizontal.md");
-        }
-        else if (argumentName == "verticalAlignment")
-        {
-            suggestions = MarkdownLoader.LoadCompletionValues("alignment_vertical.md");
-        }
         // Border style completions
         else if (argumentName == "borderStyle")
         {
@@ -117,11 +98,6 @@ public static class ExcelCompletionHandler
         else if (argumentName == "borderWeight")
         {
             suggestions = MarkdownLoader.LoadCompletionValues("border_weights.md");
-        }
-        // Color completions (common Excel theme colors)
-        else if (argumentName is "fontColor" or "fillColor" or "borderColor")
-        {
-            suggestions = MarkdownLoader.LoadCompletionValues("colors_common.md");
         }
 
         return FilterSuggestions(suggestions, currentValue);

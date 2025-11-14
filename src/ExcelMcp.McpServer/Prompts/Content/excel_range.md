@@ -1,10 +1,6 @@
 # excel_range Tool
 
-**⚠️ BEFORE CALLING 'validate-range'**: Check data_validation.md elicitation
-**⚠️ BEFORE CALLING 'format-range'**: Check range_formatting.md elicitation
-
 **Related tools**:
-- excel_batch - Use for 2+ range operations (75-90% faster)
 - excel_table - For structured tables with AutoFilter and structured references
 - excel_namedrange - For defining reusable range names
 - excel_worksheet - For sheet lifecycle (create, delete, rename)
@@ -20,7 +16,6 @@
 **Server-specific behavior**:
 - Single cell returns [[value]] as 2D array, not scalar
 - Named ranges: use sheetName="" (empty string)
-- Batch mode recommended for 3+ operations on same file
 - For performance: Use set-number-formats (plural) to format multiple cells at once
 
 **Action disambiguation**:
@@ -41,13 +36,11 @@
 **Common mistakes**:
 - Expecting single cell to return scalar → Always returns 2D array [[value]]
 - Using sheetName for named ranges → Use sheetName="" for named ranges
-- Not using batch mode for multiple operations → 75-90% slower
 - Setting number format per cell → Use set-number-format for entire range instead
 - **List validation with comma-separated values → Only range references create dropdowns! Write values to range first, then reference it.**
 
 **Workflow optimization**:
-- Multiple range operations? Use begin_excel_batch first
-- Combine operations: set values + format + validate in one batch session
+- Combine operations: set values + format + validate in one session
 - Use get-used-range to discover data bounds before operations
 - **Inspecting styles?** Use get-style to check current formatting before making changes
 - **Formatting?** Try set-style with built-in styles first (faster, theme-aware, consistent)

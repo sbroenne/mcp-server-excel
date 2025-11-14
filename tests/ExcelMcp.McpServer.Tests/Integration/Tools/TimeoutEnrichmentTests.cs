@@ -62,6 +62,32 @@ public class TimeoutEnrichmentTests : IDisposable
         return testFile;
     }
 
+    private sealed class FileSessionResponse
+    {
+        public bool Success { get; set; }
+        public string? SessionId { get; set; }
+        public string? ErrorMessage { get; set; }
+    }
+
+    private async Task<string> OpenSessionAsync(string excelPath)
+    {
+        var openResponse = await ExcelFileTool.ExcelFile(FileAction.Open, excelPath);
+        var session = JsonSerializer.Deserialize<FileSessionResponse>(openResponse, JsonOptions)
+            ?? throw new InvalidOperationException("Failed to deserialize session response");
+
+        if (!session.Success || string.IsNullOrEmpty(session.SessionId))
+        {
+            throw new InvalidOperationException($"Failed to open session: {session.ErrorMessage}");
+        }
+
+        return session.SessionId;
+    }
+
+    private static async Task CloseSessionAsync(string sessionId)
+    {
+        await ExcelFileTool.ExcelFile(FileAction.Close, sessionId: sessionId);
+    }
+
     /// <summary>
     /// Tests that PowerQuery tool handles timeout exceptions with enriched guidance.
     /// </summary>
@@ -74,15 +100,17 @@ public class TimeoutEnrichmentTests : IDisposable
 
         // Arrange
         string testFile = await CreateTestFileAsync(nameof(PowerQueryTool_TimeoutException_EnrichesWithGuidance));
+        string? sessionId = null;
 
         try
         {
+            sessionId = await OpenSessionAsync(testFile);
+
             // Act - Try to refresh non-existent query (will fail, but not with timeout)
             var result = await ExcelPowerQueryTool.ExcelPowerQuery(
                 PowerQueryAction.Refresh,
-                testFile,
-                queryName: "NonExistentQuery",
-                batchId: null);
+                sessionId,
+                queryName: "NonExistentQuery");
 
             // Assert - Verify we got JSON back (not an exception thrown)
             Assert.NotNull(result);
@@ -103,6 +131,11 @@ public class TimeoutEnrichmentTests : IDisposable
         }
         finally
         {
+            if (!string.IsNullOrEmpty(sessionId))
+            {
+                await CloseSessionAsync(sessionId);
+            }
+
             if (File.Exists(testFile)) File.Delete(testFile);
         }
     }
@@ -119,15 +152,18 @@ public class TimeoutEnrichmentTests : IDisposable
 
         // Arrange
         string testFile = await CreateTestFileAsync(nameof(ConnectionTool_TimeoutException_EnrichesWithGuidance));
+        string? sessionId = null;
 
         try
         {
+            sessionId = await OpenSessionAsync(testFile);
+
             // Act - Try to list connections (should succeed with empty list)
             var result = await ExcelConnectionTool.ExcelConnection(
                 ConnectionAction.List,
                 testFile,
-                connectionName: null,
-                batchId: null);
+                sessionId,
+                connectionName: null);
 
             // Assert - Verify we got JSON back with structured response
             Assert.NotNull(result);
@@ -141,6 +177,11 @@ public class TimeoutEnrichmentTests : IDisposable
         }
         finally
         {
+            if (!string.IsNullOrEmpty(sessionId))
+            {
+                await CloseSessionAsync(sessionId);
+            }
+
             if (File.Exists(testFile)) File.Delete(testFile);
         }
     }
@@ -155,14 +196,17 @@ public class TimeoutEnrichmentTests : IDisposable
 
         // Arrange
         string testFile = await CreateTestFileAsync(nameof(DataModelTool_TimeoutException_EnrichesWithGuidance));
+        string? sessionId = null;
 
         try
         {
+            sessionId = await OpenSessionAsync(testFile);
+
             // Act - Try to refresh empty data model (will fail gracefully, not timeout)
             var result = await ExcelDataModelTool.ExcelDataModel(
                 DataModelAction.Refresh,
                 testFile,
-                batchId: null);
+                sessionId);
 
             var opResult = JsonSerializer.Deserialize<OperationResult>(result);
             Assert.NotNull(opResult);
@@ -174,6 +218,11 @@ public class TimeoutEnrichmentTests : IDisposable
         }
         finally
         {
+            if (!string.IsNullOrEmpty(sessionId))
+            {
+                await CloseSessionAsync(sessionId);
+            }
+
             if (File.Exists(testFile)) File.Delete(testFile);
         }
     }

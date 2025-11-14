@@ -3,7 +3,6 @@
 **Related tools**:
 - excel_powerquery - For creating new data connections (recommended)
 - excel_querytable - QueryTables use connections for data loading
-- excel_batch - Use for multiple connection operations (75-90% faster)
 
 **Actions**: list, view, import, export, update-properties, test, refresh, delete, load-to, get-properties, set-properties
 
@@ -34,6 +33,5 @@
 - Not testing connection before refresh → Use test first
 
 **Workflow optimization**:
-- Multiple connections? Use begin_excel_batch for refresh operations
 - Create connections in Excel UI → Manage with this tool
 - Use test before refresh to avoid errors

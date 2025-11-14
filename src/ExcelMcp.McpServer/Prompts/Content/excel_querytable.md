@@ -1,12 +1,9 @@
 # excel_querytable Tool
 
-**⚠️ BEFORE CALLING 'create-from-connection' or 'create-from-query'**: Check querytable_creation.md elicitation
-
 **Related tools**:
 - excel_connection - For managing underlying connections
 - excel_powerquery - For M code transformations (QueryTables load Power Query results)
 - excel_range - For reading/writing QueryTable data after refresh
-- excel_batch - Use for multiple QueryTable operations (75-90% faster)
 
 **Actions**: list, get, create-from-connection, create-from-query, refresh, refresh-all, update-properties, delete
 
@@ -40,7 +37,6 @@
 - Not refreshing after creation when refreshImmediately=false → Data won't appear
 
 **Workflow optimization**:
-- Creating multiple QueryTables? Use begin_excel_batch for better performance
 - After creating QueryTable: Use excel_range to read data
 - For Power Query: create-from-query is simpler than excel_powerquery load-to
 - Common pattern: create-from-connection → refresh → read with excel_range

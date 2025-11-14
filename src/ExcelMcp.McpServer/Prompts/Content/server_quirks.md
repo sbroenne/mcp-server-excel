@@ -57,22 +57,6 @@
 - If loaded to worksheet only, can't use excel_table add-to-datamodel
 - Must use excel_powerquery set-load-to-data-model to fix
 
-## Batch Mode Imperatives
-
-**Batch sessions MUST be committed**
-- begin_excel_batch creates resource that MUST be released
-- Forgetting commit_excel_batch = resource leak
-- Always pair begin with commit
-
-**One batch per file**
-- Cannot create multiple batches for same file
-- Must commit first batch before starting new one
-
-**Batch mode is UPFRONT decision**
-- Must call begin_excel_batch BEFORE first operation
-- Cannot "upgrade" to batch mode mid-workflow
-- Keyword detection should happen immediately
-
 ## Number Format Edge Cases
 
 **Format codes are strings, not patterns**
@@ -82,13 +66,6 @@
 **set-number-format vs set-number-formats (plural)**
 - set-number-format: ONE format for entire range
 - set-number-formats: DIFFERENT format per cell (2D array)
-
-## Refresh vs LoadDestination
-
-**refresh action can apply loadDestination**
-- Old way: set-load-to-table + refresh (2 calls)
-- New way: refresh(loadDestination='worksheet') (1 call)
-- Saves time for connection-only queries
 
 ## Common Error Patterns
 

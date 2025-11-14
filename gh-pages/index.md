@@ -42,8 +42,8 @@ Requires Windows OS + Microsoft Excel 2016+
 
 <div class="features-grid">
 <div class="feature-card">
-<h3>165 Operations</h3>
-<p>12 specialized tools covering Power Query, DAX, VBA, PivotTables, ranges, formatting, and more</p>
+<h3>166 Operations</h3>
+<p>11 specialized tools covering Power Query, DAX, VBA, PivotTables, ranges, formatting, and more</p>
 </div>
 
 <div class="feature-card">

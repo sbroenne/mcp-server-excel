@@ -65,67 +65,50 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **150 commands** across 13 categories:
+ExcelMcp.CLI provides **166 operations** across 11 categories:
 
-| Category | Commands | Examples |
-|----------|----------|----------|
-| **Batch Mode** | 3 | `batch-begin`, `batch-commit`, `batch-list` |
-| **File Operations** | 1 | `create-empty` |
+| Category | Operations | Examples |
+|----------|-----------|----------|
+| **File Operations** | 6 | `create-empty`, `open`, `save`, `close`, `test` |
 | **Worksheets** | 13 | `sheet-list`, `sheet-create`, `sheet-rename`, `sheet-set-tab-color` |
-| **Power Query** | 9 | `pq-list`, `pq-create`, `pq-export`, `pq-refresh`, `pq-update-mcode` |
+| **Power Query** | 12 | `pq-list`, `pq-create`, `pq-export`, `pq-refresh`, `pq-update-mcode` |
 | **Ranges** | 44 | `range-get-values`, `range-set-values`, `range-copy`, `range-find`, `range-merge-cells`, `range-add-hyperlink` |
 | **Excel Tables** | 23 | `table-create`, `table-filter`, `table-sort`, `table-add-column`, `table-get-column-format` |
-| **PivotTables** | 12 | `pivot-create-from-range`, `pivot-add-row-field`, `pivot-refresh`, `pivot-delete` |
+| **PivotTables** | 19 | `pivot-create-from-range`, `pivot-add-row-field`, `pivot-refresh`, `pivot-delete` |
 | **QueryTables** | 8 | `querytable-list`, `querytable-get`, `querytable-refresh`, `querytable-create-from-connection` |
 | **Data Model** | 15 | `dm-create-measure`, `dm-create-relationship`, `dm-refresh` |
-| **Connections** | 11 | `conn-list`, `conn-import`, `conn-refresh`, `conn-test` |
-| **Named Ranges** | 6 | `namedrange-create`, `namedrange-get`, `namedrange-set` |
-| **VBA** | 5 | `vba-list`, `vba-import`, `vba-run`, `vba-export` |
-
-> **Note:** Recent expansion added 41 new commands (33 Range operations, 3 QueryTable methods, 2 Table methods, 3 Batch commands). 7 PivotTable operations are planned for future releases.
+| **Connections** | 12 | `conn-list`, `conn-import`, `conn-refresh`, `conn-test` |
+| **Named Ranges** | 7 | `namedrange-create`, `namedrange-get`, `namedrange-set`, `namedrange-create-bulk` |
+| **VBA** | 7 | `vba-list`, `vba-import`, `vba-run`, `vba-export`
 
 ---
 
-## ⚡ Batch Mode for High Performance
+## SESSION LIFECYCLE (Open/Save/Close)
 
-**NEW:** Batch mode enables 75-90% faster execution for multi-operation workflows by keeping a single Excel instance open.
-
-Perfect for RPA scenarios where you need to make bulk changes to a workbook.
-
-### How It Works
+The CLI uses an explicit session-based workflow where you open a file, perform operations, and save:
 
 ```bash
-# 1. Start a batch session
-excelcli batch-begin data.xlsx
-# Output: Batch ID: 550e8400-e29b-41d4-a716-446655440000
+# 1. Open a session
+excelcli open data.xlsx
+# Output: Session ID: 550e8400-e29b-41d4-a716-446655440000
 
-# 2. Use the batch ID with any commands (all use same Excel instance)
-excelcli sheet-create data.xlsx "NewSheet" --batch-id 550e8400-e29b-41d4-a716-446655440000
-excelcli pq-list data.xlsx --batch-id 550e8400-e29b-41d4-a716-446655440000
-excelcli range-set-values data.xlsx NewSheet A1 "data.csv" --batch-id 550e8400-e29b-41d4-a716-446655440000
+# 2. Use the session ID with any commands
+excelcli sheet-create data.xlsx NewSheet --session-id 550e8400-e29b-41d4-a716-446655440000
+excelcli pq-list data.xlsx --session-id 550e8400-e29b-41d4-a716-446655440000
 
-# 3. Commit the batch (saves and closes)
-excelcli batch-commit 550e8400-e29b-41d4-a716-446655440000
+# 3. Save changes explicitly (optional - can discard)
+excelcli save 550e8400-e29b-41d4-a716-446655440000
 
-# Or discard changes without saving
-excelcli batch-commit 550e8400-e29b-41d4-a716-446655440000 --no-save
+# 4. Close session when done
+excelcli close 550e8400-e29b-41d4-a716-446655440000
 ```
 
-### Batch Commands
+### Session Lifecycle Benefits
 
-| Command | Description |
-|---------|-------------|
-| `batch-begin <file.xlsx>` | Start batch session, returns batch ID |
-| `batch-commit <batch-id>` | Commit batch (saves by default) |
-| `batch-commit <batch-id> --no-save` | Discard changes |
-| `batch-list` | List all active batch sessions |
-
-### Benefits
-
-- **75-90% faster** - Single Excel instance for multiple operations
-- **Explicit lifecycle** - Full control over when to save/discard
-- **RPA-friendly** - Perfect for automated workflows
-- **Backward compatible** - All commands work with or without batch mode
+- **Explicit control** - Know exactly when changes are persisted
+- **Batch efficiency** - Keep single Excel instance open for multiple operations
+- **Flexibility** - Save strategically or discard changes entirely
+- **Clean resource management** - Automatic Excel cleanup when session closes
 
 ---
 
@@ -220,34 +203,34 @@ excelcli pivot-create-from-datamodel sales.xlsx ConsumptionMilestones Analysis A
 excelcli pivot-refresh sales.xlsx SalesPivot
 ```
 
-### Batch Mode for RPA Workflows
+### Session Mode for RPA Workflows
 
 ```bash
-# Example: Automated report generation with batch mode
+# Example: Automated report generation with session lifecycle
 
-# Start batch session
-BATCH_ID=$(excelcli batch-begin report.xlsx | grep "Batch ID:" | cut -d' ' -f3)
+# 1. Open session
+SESSION_ID=$(excelcli open report.xlsx | grep "Session ID:" | cut -d' ' -f3)
 
-# Create multiple sheets (all use same Excel instance - 75-90% faster!)
-excelcli sheet-create report.xlsx "Sales" --batch-id $BATCH_ID
-excelcli sheet-create report.xlsx "Customers" --batch-id $BATCH_ID
-excelcli sheet-create report.xlsx "Summary" --batch-id $BATCH_ID
+# 2. Perform operations (all use same Excel instance)
+excelcli sheet-create report.xlsx "Sales" --session-id $SESSION_ID
+excelcli sheet-create report.xlsx "Customers" --session-id $SESSION_ID
+excelcli sheet-create report.xlsx "Summary" --session-id $SESSION_ID
 
-# Import data
-excelcli range-set-values report.xlsx Sales A1 "sales.csv" --batch-id $BATCH_ID
-excelcli range-set-values report.xlsx Customers A1 "customers.csv" --batch-id $BATCH_ID
+# 3. Import data
+excelcli range-set-values report.xlsx Sales A1 "sales.csv" --session-id $SESSION_ID
+excelcli range-set-values report.xlsx Customers A1 "customers.csv" --session-id $SESSION_ID
 
-# Add Power Query for transformations
-excelcli pq-create report.xlsx "CleanSales" "clean-sales.pq" --batch-id $BATCH_ID
+# 4. Add Power Query for transformations
+excelcli pq-create report.xlsx "CleanSales" "clean-sales.pq" --session-id $SESSION_ID
 
-# Create PivotTable
-excelcli pivot-create-from-range report.xlsx Sales A1:E1000 Summary A1 SalesPivot --batch-id $BATCH_ID
+# 5. Create PivotTable
+excelcli pivot-create-from-range report.xlsx Sales A1:E1000 Summary A1 SalesPivot --session-id $SESSION_ID
 
-# Commit all changes at once
-excelcli batch-commit $BATCH_ID
+# 6. Save all changes
+excelcli save $SESSION_ID
 
-# Check active batches
-excelcli batch-list
+# 7. Close session
+excelcli close $SESSION_ID
 ```
 
 ### QueryTable Operations

@@ -25,18 +25,18 @@ public static class ExcelScenarioPrompts
 
 Complete workflow for creating a professional financial report with formulas and formatting.
 
-## RECOMMENDED WORKFLOW (using batch mode for efficiency):
+## RECOMMENDED WORKFLOW:
 
-Step 1: begin_excel_batch(excelPath: 'FinancialReport.xlsx')
-Step 2: excel_worksheet(action: 'create', sheetName: 'Report', batchId: '<batch-id>')
-Step 3: excel_range(action: 'set-values', rangeAddress: 'A1:D1', values: [['Month', 'Revenue', 'Expenses', 'Profit']])
-Step 4: excel_range(action: 'format-range', rangeAddress: 'A1:D1', bold: true, fillColor: '#4472C4')
-Step 5: excel_range(action: 'set-formulas', rangeAddress: 'D2:D{monthCount + 1}', formulas: [['=B2-C2'], ...])
-Step 6: excel_range(action: 'set-number-format', rangeAddress: 'B2:D{monthCount + 1}', formatCode: '$#,##0')
-Step 7: commit_excel_batch(batchId: '<batch-id>', save: true)
+1. excel_file(action: 'open', excelPath: 'FinancialReport.xlsx')
+2. excel_worksheet(action: 'create', sheetName: 'Report', sessionId: '<sessionId>')
+3. excel_range(action: 'set-values', rangeAddress: 'A1:D1', values: [['Month', 'Revenue', 'Expenses', 'Profit']], sessionId: '<sessionId>')
+4. excel_range(action: 'format-range', rangeAddress: 'A1:D1', bold: true, fillColor: '#4472C4', sessionId: '<sessionId>')
+5. excel_range(action: 'set-formulas', rangeAddress: 'D2:D{monthCount + 1}', formulas: [['=B2-C2'], ...], sessionId: '<sessionId>')
+6. excel_range(action: 'set-number-format', rangeAddress: 'B2:D{monthCount + 1}', formatCode: '$#,##0', sessionId: '<sessionId>')
+7. excel_file(action: 'save', sessionId: '<sessionId>')
+8. excel_file(action: 'close', sessionId: '<sessionId>')
 
 RESULT: Professional formatted report with {monthCount} months of data
-TIME SAVINGS: 95% faster with batch mode (2-3 seconds vs 20-25 seconds)
 ");
     }
 
@@ -48,15 +48,20 @@ TIME SAVINGS: 95% faster with batch mode (2-3 seconds vs 20-25 seconds)
         var count = queryCount ?? 4;
 
         return new ChatMessage(ChatRole.User, $@"
-# IMPORT {count} POWER QUERIES TO DATA MODEL (EFFICIENT WORKFLOW)
+# IMPORT {count} POWER QUERIES TO DATA MODEL
 
-Step 1: begin_excel_batch(excelPath: 'Analytics.xlsx')
-Step 2-{count + 1}: excel_powerquery(action: 'import', queryName: '<name>', sourcePath: '<file>.pq', loadDestination: 'data-model', batchId: '<id>')
-Step {count + 2}: commit_excel_batch(batchId: '<id>', save: true)
+Complete workflow for importing multiple queries and preparing for DAX analysis.
+
+## RECOMMENDED WORKFLOW:
+
+1. excel_file(action: 'open', excelPath: 'Analytics.xlsx')
+2. For each query:
+   - excel_powerquery(action: 'import', queryName: '<name>', sourcePath: '<file>.pq', loadDestination: 'data-model', sessionId: '<sessionId>')
+3. excel_file(action: 'save', sessionId: '<sessionId>')
+4. excel_file(action: 'close', sessionId: '<sessionId>')
 
 KEY: Use loadDestination: 'data-model' for direct Power Pivot loading
-RESULT: {count} queries loaded and ready for DAX measures in 1-2 seconds
-TIME SAVINGS: {count * 2} seconds → 1-2 seconds with batch mode
+RESULT: {count} queries loaded and ready for DAX measures
 ");
     }
 
@@ -70,15 +75,17 @@ TIME SAVINGS: {count * 2} seconds → 1-2 seconds with batch mode
 Create professional data entry form with dropdowns, date validation, and formatted layout.
 
 WORKFLOW:
-1. begin_excel_batch + excel_worksheet(action: 'create', sheetName: 'Employee Form')
-2. excel_range(action: 'set-values') - Add headers and labels
-3. excel_range(action: 'format-range') - Professional formatting
-4. excel_range(action: 'validate-range', validationType: 'list') - Department dropdown
-5. excel_range(action: 'validate-range', validationType: 'date') - Hire date validation
-6. excel_range(action: 'validate-range', validationType: 'list') - Status dropdown
-7. commit_excel_batch(save: true)
+1. excel_file(action: 'open', excelPath: 'DataEntryForm.xlsx')
+2. excel_worksheet(action: 'create', sheetName: 'Employee Form', sessionId: '<sessionId>')
+3. excel_range(action: 'set-values', values: [['Employee ID', 'Name', 'Department', 'Status', 'Hire Date']], sessionId: '<sessionId>')
+4. excel_range(action: 'format-range', rangeAddress: 'A1:E1', bold: true, fillColor: '#D9E1F2', sessionId: '<sessionId>')
+5. excel_range(action: 'validate-range', rangeAddress: 'C2:C100', validationType: 'list', validationFormula1: 'IT,HR,Finance,Operations', sessionId: '<sessionId>')
+6. excel_range(action: 'validate-range', rangeAddress: 'D2:D100', validationType: 'list', validationFormula1: 'Active,Inactive,Leave', sessionId: '<sessionId>')
+7. excel_range(action: 'validate-range', rangeAddress: 'E2:E100', validationType: 'date', sessionId: '<sessionId>')
+8. excel_file(action: 'save', sessionId: '<sessionId>')
+9. excel_file(action: 'close', sessionId: '<sessionId>')
 
-RESULT: Professional form with validation, dropdowns, borders, and formatting
+RESULT: Professional form with validation, dropdowns, and formatting
 ");
     }
 
@@ -92,9 +99,11 @@ RESULT: Professional form with validation, dropdowns, borders, and formatting
 Export Power Query M code, VBA modules, and DAX measures to files for Git tracking.
 
 EXPORT WORKFLOW:
-1. excel_powerquery(action: 'export', queryName: '<name>', targetPath: 'queries/<name>.pq')
-2. excel_vba(action: 'export', moduleName: '<name>', targetPath: 'vba/<name>.bas')
-3. excel_datamodel(action: 'export-measure', targetPath: 'dax/measures.dax')
+1. excel_file(action: 'open', excelPath: 'workbook.xlsx')
+2. excel_powerquery(action: 'export', queryName: '<name>', targetPath: 'queries/<name>.pq', sessionId: '<sessionId>')
+3. excel_vba(action: 'export', moduleName: '<name>', targetPath: 'vba/<name>.bas', sessionId: '<sessionId>')
+4. excel_datamodel(action: 'export-measure', targetPath: 'dax/measures.dax', sessionId: '<sessionId>')
+5. excel_file(action: 'close', sessionId: '<sessionId>')
 
 GIT WORKFLOW:
 git add queries/*.pq vba/*.bas dax/*.dax
@@ -102,8 +111,11 @@ git commit -m 'Export Excel code artifacts'
 git push origin main
 
 IMPORT BACK:
-excel_powerquery(action: 'import', sourcePath: 'queries/<name>.pq', loadDestination: 'data-model')
-excel_vba(action: 'import', sourcePath: 'vba/<name>.bas')
+excel_file(action: 'open', excelPath: 'workbook.xlsx')
+excel_powerquery(action: 'import', sourcePath: 'queries/<name>.pq', loadDestination: 'data-model', sessionId: '<sessionId>')
+excel_vba(action: 'import', sourcePath: 'vba/<name>.bas', sessionId: '<sessionId>')
+excel_file(action: 'save', sessionId: '<sessionId>')
+excel_file(action: 'close', sessionId: '<sessionId>')
 
 BENEFITS: Track changes, code review, rollback, collaboration, audit trail
 ");
@@ -118,17 +130,23 @@ BENEFITS: Track changes, code review, rollback, collaboration, audit trail
 
 End-to-end: Import data → Build Data Model → Create DAX measures → Add PivotTable
 
-WORKFLOW (using batch mode):
-1. begin_excel_batch(excelPath: 'Analytics.xlsx')
+WORKFLOW:
+1. excel_file(action: 'open', excelPath: 'Analytics.xlsx')
 2. Import 4 queries with loadDestination: 'data-model' (Sales, Products, Customers, Calendar)
-3. Create 3 relationships (Sales→Products, Sales→Customers, Sales→Calendar)
-4. Create 4 DAX measures (Total Revenue, Revenue vs Budget %, Avg Order Value, Customer Count)
-5. commit_excel_batch(save: true)
-6. excel_pivottable(action: 'create', sourceType: 'data-model')
-7. Add fields to PivotTable (rows, columns, values)
+   - excel_powerquery(action: 'import', queryName: 'Sales', sourcePath: 'sales.pq', loadDestination: 'data-model', sessionId: '<sessionId>')
+   - ... (repeat for Products, Customers, Calendar)
+3. Create 3 relationships
+   - excel_datamodel(action: 'create-relationship', fromTable: 'Sales', fromColumn: 'ProductID', toTable: 'Products', toColumn: 'ProductID', sessionId: '<sessionId>')
+   - excel_datamodel(action: 'create-relationship', fromTable: 'Sales', fromColumn: 'CustomerID', toTable: 'Customers', toColumn: 'CustomerID', sessionId: '<sessionId>')
+   - excel_datamodel(action: 'create-relationship', fromTable: 'Sales', fromColumn: 'DateID', toTable: 'Calendar', toColumn: 'DateID', sessionId: '<sessionId>')
+4. Create 4 DAX measures
+   - excel_datamodel(action: 'create-measure', tableName: 'Measures', measureName: 'Total Revenue', daxFormula: 'SUM(Sales[Amount])', sessionId: '<sessionId>')
+   - ... (repeat for other measures)
+5. excel_pivottable(action: 'create-from-datamodel', dataModelTableName: 'Sales', destinationSheet: 'PivotTable', destinationCell: 'A1', sessionId: '<sessionId>')
+6. excel_file(action: 'save', sessionId: '<sessionId>')
+7. excel_file(action: 'close', sessionId: '<sessionId>')
 
 RESULT: 4 data sources, 3 relationships, 4 DAX measures, 1 PivotTable
-TIME: 3-5 seconds with batch mode (vs 30-40 seconds without)
 ");
     }
 }

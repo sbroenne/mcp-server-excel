@@ -16,30 +16,6 @@
 
 **This is mandatory - Excel COM automation requires exclusive file access!**
 
----
-
-## 🚨 CRITICAL FIRST STEP: Batch Mode Detection
-
-**ALWAYS SCAN THE REQUEST FOR THESE KEYWORDS FIRST:**
-
-**Numbers** → Automatic batch mode:
-- "import 4 files" → begin_excel_batch required
-- "create 5 parameters" → begin_excel_batch required  
-- "add 3 worksheets" → begin_excel_batch required
-
-**Plurals** → Automatic batch mode:
-- "queries", "measures", "parameters", "relationships", "worksheets", "tables"
-- "files", "connections", "macros", "formulas"
-
-**Lists** → Automatic batch mode:
-- "Sales, Revenue, Profit" → 3 operations = batch
-- "StartDate, EndDate, Region" → 3 operations = batch
-- Any comma-separated items = batch
-
-**❌ FAILURE TO DETECT = 75-90% PERFORMANCE LOSS**
-
----
-
 ## Data Import Requests
 
 **"Load this CSV file"**
@@ -63,21 +39,6 @@
 **"Refresh data from external source"**
 → excel_querytable(refresh) - synchronous, guaranteed persistence
 → excel_querytable(refresh-all) - all QueryTables in workbook
-
-## Bulk Operation Requests
-
-**"Import these 4 files"** (number = batch!)
-→ begin_excel_batch
-→ excel_powerquery × 4 with batchId
-→ commit_excel_batch
-
-**"Create measures for Sales, Revenue, Profit"** (list = batch!)
-→ begin_excel_batch
-→ excel_datamodel(create-measure) × 3 with batchId
-→ commit_excel_batch
-
-**"Add parameters: StartDate, EndDate, Region"** (list = batch!)
-→ excel_namedrange(create-bulk) with JSON array (no batch needed, already batched)
 
 ## Formatting Requests
 

@@ -1,7 +1,6 @@
 # excel_vba Tool
 
 **Related tools**:
-- excel_batch - Use for importing/exporting multiple modules (75-90% faster)
 - excel_file - Create .xlsm files (macro-enabled workbooks)
 - excel_range - For reading/writing data from VBA procedures
 
@@ -34,6 +33,4 @@
 - Running Function instead of Sub → Use run for Sub only
 
 **Workflow optimization**:
-- Multiple VBA modules? Use begin_excel_batch
 - Version control: export → Git → import on other machine
-- Batch mode for importing multiple modules

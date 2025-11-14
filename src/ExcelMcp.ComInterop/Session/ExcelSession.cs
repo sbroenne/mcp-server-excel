@@ -10,6 +10,12 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 public static class ExcelSession
 {
     /// <summary>
+    /// Global lock to serialize file creation operations.
+    /// Prevents resource exhaustion from parallel CreateNew() calls.
+    /// Each CreateNew() spawns a temporary Excel instance - must be sequential.
+    /// </summary>
+    private static readonly SemaphoreSlim _createFileLock = new(1, 1);
+    /// <summary>
     /// Begins a batch of Excel operations against a single workbook instance.
     /// The Excel instance remains open until the batch is disposed, enabling multiple operations
     /// without incurring Excel startup/shutdown overhead.
@@ -74,6 +80,11 @@ public static class ExcelSession
     /// <param name="operation">Synchronous COM operation to execute with ExcelContext</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Result of the operation</returns>
+    /// <remarks>
+    /// <para><b>File creation is automatically serialized</b> to prevent resource exhaustion.</para>
+    /// <para>Even if called in parallel (e.g., Task.WhenAll), calls are queued and executed one at a time.</para>
+    /// <para>This prevents spawning multiple temporary Excel.Application processes simultaneously.</para>
+    /// </remarks>
     [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
     public static async Task<T> CreateNew<T>(
         string filePath,
@@ -82,15 +93,20 @@ public static class ExcelSession
         TimeSpan? _ = null,
         CancellationToken cancellationToken = default)
     {
-        string fullPath = Path.GetFullPath(filePath);
-        string? directory = Path.GetDirectoryName(fullPath);
-        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        // CRITICAL: Acquire lock to serialize file creation operations
+        // This prevents parallel CreateNew() calls from spawning multiple Excel processes
+        await _createFileLock.WaitAsync(cancellationToken);
+        try
         {
-            Directory.CreateDirectory(directory);
-        }
+            string fullPath = Path.GetFullPath(filePath);
+            string? directory = Path.GetDirectoryName(fullPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
 
-        // Create temporary empty workbook by launching Excel briefly
-        await Task.Run(() =>
+            // Create temporary empty workbook by launching Excel briefly
+            await Task.Run(() =>
         {
             dynamic? excel = null;
             dynamic? workbook = null;
@@ -146,12 +162,18 @@ public static class ExcelSession
             }
         }, cancellationToken);
 
-        // Now use batch API to execute the operation
-        await using var batch = await BeginBatchAsync(fullPath, cancellationToken);
-        var result = await batch.Execute(operation, timeout: null, cancellationToken);
-        await batch.SaveAsync(timeout: null, cancellationToken);
+            // Now use batch API to execute the operation
+            await using var batch = await BeginBatchAsync(fullPath, cancellationToken);
+            var result = await batch.Execute(operation, timeout: null, cancellationToken);
+            await batch.SaveAsync(timeout: null, cancellationToken);
 
-        return result;
+            return result;
+        }
+        finally
+        {
+            // Release lock to allow next CreateNew() call
+            _createFileLock.Release();
+        }
     }
 
     /// <summary>
@@ -165,6 +187,11 @@ public static class ExcelSession
     /// <param name="operation">Async operation to execute with ExcelContext</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Result of the operation</returns>
+    /// <remarks>
+    /// <para><b>File creation is automatically serialized</b> to prevent resource exhaustion.</para>
+    /// <para>Even if called in parallel (e.g., Task.WhenAll), calls are queued and executed one at a time.</para>
+    /// <para>This prevents spawning multiple temporary Excel.Application processes simultaneously.</para>
+    /// </remarks>
     [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
     public static async Task<T> CreateNewAsync<T>(
         string filePath,
@@ -173,15 +200,20 @@ public static class ExcelSession
         TimeSpan? _ = null,
         CancellationToken cancellationToken = default)
     {
-        string fullPath = Path.GetFullPath(filePath);
-        string? directory = Path.GetDirectoryName(fullPath);
-        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        // CRITICAL: Acquire lock to serialize file creation operations
+        // This prevents parallel CreateNewAsync() calls from spawning multiple Excel processes
+        await _createFileLock.WaitAsync(cancellationToken);
+        try
         {
-            Directory.CreateDirectory(directory);
-        }
+            string fullPath = Path.GetFullPath(filePath);
+            string? directory = Path.GetDirectoryName(fullPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
 
-        // Create temporary empty workbook by launching Excel briefly
-        await Task.Run(() =>
+            // Create temporary empty workbook by launching Excel briefly
+            await Task.Run(() =>
         {
             dynamic? excel = null;
             dynamic? workbook = null;
@@ -237,11 +269,17 @@ public static class ExcelSession
             }
         }, cancellationToken);
 
-        // Now use batch API to execute the operation
-        await using var batch = await BeginBatchAsync(fullPath, cancellationToken);
-        var result = await batch.ExecuteAsync(operation, timeout: null, cancellationToken);
-        await batch.SaveAsync(timeout: null, cancellationToken);
+            // Now use batch API to execute the operation
+            await using var batch = await BeginBatchAsync(fullPath, cancellationToken);
+            var result = await batch.ExecuteAsync(operation, timeout: null, cancellationToken);
+            await batch.SaveAsync(timeout: null, cancellationToken);
 
-        return result;
+            return result;
+        }
+        finally
+        {
+            // Release lock to allow next CreateNewAsync() call
+            _createFileLock.Release();
+        }
     }
 }

@@ -6,9 +6,13 @@ namespace Sbroenne.ExcelMcp.McpServer.Models;
 /// <remarks>
 /// IMPORTANT: Keep enum values synchronized with ExcelFileTool.cs switch cases.
 /// Enum names are PascalCase (CreateEmpty), converted to kebab-case (create-empty) via ActionExtensions.
+/// Session Management: Open/Save/Close manage persistent sessions across multiple operations.
 /// </remarks>
 public enum FileAction
 {
+    Open,
+    Save,
+    Close,
     CreateEmpty,
     CloseWorkbook,
     Test
