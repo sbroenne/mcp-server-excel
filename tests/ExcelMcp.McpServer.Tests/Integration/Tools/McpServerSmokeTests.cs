@@ -66,7 +66,7 @@ public class McpServerSmokeTests : IDisposable
     /// Comprehensive smoke test that exercises all 12 MCP tools in a realistic LLM workflow using the session API.
     /// This test validates the complete tool chain and demonstrates proper session usage for multiple operations.
     /// </summary>
-    [Fact(Skip = "Temporarily disabled during MCP session API refactor")]
+    [Fact]
     public async Task SmokeTest_AllTools_LlmWorkflow()
     {
         _output.WriteLine("=== MCP SERVER SMOKE TEST (SESSION API) ===");
