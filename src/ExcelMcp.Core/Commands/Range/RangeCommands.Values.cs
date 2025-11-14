@@ -66,6 +66,20 @@ public partial class RangeCommands
                 result.Success = true;
                 return result;
             }
+            catch (System.Runtime.InteropServices.COMException comEx) when (comEx.HResult == unchecked((int)0x8007000E))
+            {
+                // E_OUTOFMEMORY - "Insufficient memory" error
+                // This is often Excel's misleading error for:
+                // 1. Workbook not open/accessible in this session
+                // 2. Sheet doesn't exist (should be caught by ResolveRange, but Excel can throw this too)
+                // 3. Range address is invalid for the sheet
+                // 4. Excel is in a bad state
+                result.Success = false;
+                result.ErrorMessage = $"Excel reported 'Insufficient memory' error reading range '{rangeAddress}' on sheet '{sheetName}'. " +
+                                    $"This usually means: (1) The sheet doesn't exist, (2) The range address is invalid, or (3) The workbook is not open in this session. " +
+                                    $"Use excel_worksheet(action: 'list') to verify the sheet exists, or excel_file(action: 'list') to check active sessions.";
+                return result;
+            }
             catch (Exception ex)
             {
                 result.Success = false;
@@ -118,6 +132,21 @@ public partial class RangeCommands
                 }
 
                 result.Success = true;
+                return result;
+            }
+            catch (System.Runtime.InteropServices.COMException comEx) when (comEx.HResult == unchecked((int)0x8007000E))
+            {
+                // E_OUTOFMEMORY - "Insufficient memory" error
+                // This is often Excel's misleading error for:
+                // 1. Workbook not open/accessible in this session
+                // 2. Sheet doesn't exist (should be caught by ResolveRange, but Excel can throw this too)
+                // 3. Range address is invalid for the sheet
+                // 4. Data array dimensions don't match range
+                // 5. Excel is in a bad state
+                result.Success = false;
+                result.ErrorMessage = $"Excel reported 'Insufficient memory' error writing to range '{rangeAddress}' on sheet '{sheetName}'. " +
+                                    $"This usually means: (1) The sheet doesn't exist, (2) The range address is invalid, (3) Data dimensions don't match the range, or (4) The workbook is not open in this session. " +
+                                    $"Verify: Sheet exists (excel_worksheet list), range address is correct, data is {values.Count}x{(values.Count > 0 ? values[0].Count : 0)} array, and session is valid (excel_file list).";
                 return result;
             }
             catch (Exception ex)

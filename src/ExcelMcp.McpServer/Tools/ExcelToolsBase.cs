@@ -56,8 +56,28 @@ public static class ExcelToolsBase
         var batch = SessionManager.GetSession(sessionId);
         if (batch == null)
         {
-            throw new McpException(
-                $"Session '{sessionId}' not found. It may have been closed or never existed. Use excel_file 'open' to start a new session.");
+            // Provide helpful diagnostics about active sessions
+            var activeSessionIds = SessionManager.ActiveSessionIds.ToList();
+            var sessionCount = activeSessionIds.Count;
+            var errorMessage = $"Session '{sessionId}' not found. ";
+            if (sessionCount == 0)
+            {
+                errorMessage += "No active sessions exist. Use excel_file(action: 'open', excelPath: '...') to start a new session.";
+            }
+            else if (sessionCount == 1)
+            {
+                var activeSessionId = activeSessionIds[0];
+                var activeBatch = SessionManager.GetSession(activeSessionId);
+                var workbookPath = activeBatch?.WorkbookPath ?? "unknown";
+                errorMessage += $"1 active session exists: '{activeSessionId}' (workbook: {workbookPath}). " +
+                                $"Use the correct session ID, or start a new session with excel_file(action: 'open').";
+            }
+            else
+            {
+                errorMessage += $"{sessionCount} active sessions exist. Use excel_file(action: 'list') to see all active sessions, " +
+                                $"or start a new session with excel_file(action: 'open', excelPath: '...').";
+            }
+            throw new McpException(errorMessage);
         }
 
         return await action(batch);
