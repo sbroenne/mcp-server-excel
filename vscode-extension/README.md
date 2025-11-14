@@ -41,7 +41,7 @@ Result: A working Excel file with the query ready to use
 Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), Excel MCP Server uses **Excel's official COM API**. This ensures:
 - ✅ **Zero risk of document corruption** - Excel handles all file operations safely
 - ✅ **Interactive development** - See changes in real-time as you work with live Excel files
-- ✅ **Comprehensive automation** - Currently supports 166 operations across 12 specialized tools (active development)
+- ✅ **Comprehensive automation** - Currently supports 166 operations across 11 specialized tools (active development)
 
 ## 👥 Who Should Use This?
 
@@ -77,7 +77,7 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 
 ## Features
 
-The Excel MCP Server provides **12 specialized tools** for comprehensive Excel automation:
+The Excel MCP Server provides **11 specialized tools** for comprehensive Excel automation:
 
 | Tool | Operations | Purpose |
 |------|------------|---------|
@@ -92,7 +92,7 @@ The Excel MCP Server provides **12 specialized tools** for comprehensive Excel a
 | **excel_namedrange** | 7 actions | Named ranges: list, get, set, create, delete, update, bulk create |
 | **excel_file** | 3 actions | File operations: create empty .xlsx/.xlsm workbooks, close workbook, test |
 | **excel_batch** | 3 actions | Multi-operation performance: begin, commit, list |
-| **Total** | **166 actions** | **12 tools for comprehensive Excel automation** |
+| **Total** | **166 actions**
 
 ## Troubleshooting
 
