@@ -46,19 +46,19 @@ public partial class RangeCommands
             dynamic? tgtRange = null;
             try
             {
-                srcRange = RangeHelpers.ResolveRange(ctx.Book, sourceSheet, sourceRange);
+                srcRange = RangeHelpers.ResolveRange(ctx.Book, sourceSheet, sourceRange, out string? srcError);
                 if (srcRange == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sourceSheet, sourceRange);
+                    result.ErrorMessage = srcError ?? RangeHelpers.GetResolveError(sourceSheet, sourceRange);
                     return result;
                 }
 
-                tgtRange = RangeHelpers.ResolveRange(ctx.Book, targetSheet, targetRange);
+                tgtRange = RangeHelpers.ResolveRange(ctx.Book, targetSheet, targetRange, out string? tgtError);
                 if (tgtRange == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(targetSheet, targetRange);
+                    result.ErrorMessage = tgtError ?? RangeHelpers.GetResolveError(targetSheet, targetRange);
                     return result;
                 }
 
@@ -91,19 +91,19 @@ public partial class RangeCommands
             dynamic? tgtRange = null;
             try
             {
-                srcRange = RangeHelpers.ResolveRange(ctx.Book, sourceSheet, sourceRange);
+                srcRange = RangeHelpers.ResolveRange(ctx.Book, sourceSheet, sourceRange, out string? srcError);
                 if (srcRange == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sourceSheet, sourceRange);
+                    result.ErrorMessage = srcError ?? RangeHelpers.GetResolveError(sourceSheet, sourceRange);
                     return result;
                 }
 
-                tgtRange = RangeHelpers.ResolveRange(ctx.Book, targetSheet, targetRange);
+                tgtRange = RangeHelpers.ResolveRange(ctx.Book, targetSheet, targetRange, out string? tgtError);
                 if (tgtRange == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(targetSheet, targetRange);
+                    result.ErrorMessage = tgtError ?? RangeHelpers.GetResolveError(targetSheet, targetRange);
                     return result;
                 }
 
@@ -137,19 +137,19 @@ public partial class RangeCommands
             dynamic? tgtRange = null;
             try
             {
-                srcRange = RangeHelpers.ResolveRange(ctx.Book, sourceSheet, sourceRange);
+                srcRange = RangeHelpers.ResolveRange(ctx.Book, sourceSheet, sourceRange, out string? srcError);
                 if (srcRange == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sourceSheet, sourceRange);
+                    result.ErrorMessage = srcError ?? RangeHelpers.GetResolveError(sourceSheet, sourceRange);
                     return result;
                 }
 
-                tgtRange = RangeHelpers.ResolveRange(ctx.Book, targetSheet, targetRange);
+                tgtRange = RangeHelpers.ResolveRange(ctx.Book, targetSheet, targetRange, out string? tgtError);
                 if (tgtRange == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(targetSheet, targetRange);
+                    result.ErrorMessage = tgtError ?? RangeHelpers.GetResolveError(targetSheet, targetRange);
                     return result;
                 }
 
@@ -184,11 +184,11 @@ public partial class RangeCommands
             dynamic? range = null;
             try
             {
-                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress);
+                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, rangeAddress);
+                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
                     return result;
                 }
 
@@ -220,11 +220,11 @@ public partial class RangeCommands
             dynamic? range = null;
             try
             {
-                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress);
+                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, rangeAddress);
+                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
                     return result;
                 }
 
@@ -257,11 +257,11 @@ public partial class RangeCommands
             dynamic? rows = null;
             try
             {
-                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress);
+                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, rangeAddress);
+                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
                     return result;
                 }
 
@@ -295,11 +295,11 @@ public partial class RangeCommands
             dynamic? rows = null;
             try
             {
-                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress);
+                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, rangeAddress);
+                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
                     return result;
                 }
 
@@ -333,11 +333,11 @@ public partial class RangeCommands
             dynamic? columns = null;
             try
             {
-                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress);
+                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, rangeAddress);
+                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
                     return result;
                 }
 
@@ -371,11 +371,11 @@ public partial class RangeCommands
             dynamic? columns = null;
             try
             {
-                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress);
+                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, rangeAddress);
+                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
                     return result;
                 }
 

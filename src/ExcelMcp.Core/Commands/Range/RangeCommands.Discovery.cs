@@ -92,11 +92,11 @@ public partial class RangeCommands
             dynamic? region = null;
             try
             {
-                cell = RangeHelpers.ResolveRange(ctx.Book, sheetName, cellAddress);
+                cell = RangeHelpers.ResolveRange(ctx.Book, sheetName, cellAddress, out string? specificError);
                 if (cell == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, cellAddress);
+                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, cellAddress);
                     return result;
                 }
 
@@ -152,11 +152,11 @@ public partial class RangeCommands
             dynamic? range = null;
             try
             {
-                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress);
+                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, rangeAddress);
+                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
                     return result;
                 }
 
