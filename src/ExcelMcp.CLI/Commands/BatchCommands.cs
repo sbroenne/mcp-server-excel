@@ -250,9 +250,4 @@ public class BatchCommands
 
         return _activeBatches.TryGetValue(sessionId, out var session) ? session : null;
     }
-
-    /// <summary>
-    /// Legacy method for backward compatibility - forwards to GetSession
-    /// </summary>
-    internal static IExcelBatch? GetBatch(string batchId) => GetSession(batchId);
 }

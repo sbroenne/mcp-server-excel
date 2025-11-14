@@ -29,7 +29,7 @@ internal static class CommandHelper
         if (!string.IsNullOrEmpty(sessionId))
         {
             // Use existing session
-            var batch = BatchCommands.GetBatch(sessionId);
+            var batch = BatchCommands.GetSession(sessionId);
             if (batch == null)
             {
                 throw new InvalidOperationException(
