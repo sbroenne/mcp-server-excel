@@ -97,15 +97,38 @@ FILE FORMATS:
             }, ExcelToolsBase.JsonOptions);
         }
 
-        string sessionId = await ExcelToolsBase.GetSessionManager().CreateSessionAsync(excelPath);
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            success = true,
-            sessionId,
-            filePath = excelPath,
-            workflowHint = "Use sessionId with other excel_* tools. Call 'save' to persist changes, then 'close' to release resources."
-        }, ExcelToolsBase.JsonOptions);
+            string sessionId = await ExcelToolsBase.GetSessionManager().CreateSessionAsync(excelPath);
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                sessionId,
+                filePath = excelPath,
+                workflowHint = "Use sessionId with other excel_* tools. Call 'save' to persist changes, then 'close' to release resources."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("already open"))
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"Cannot open '{excelPath}': {ex.Message}",
+                filePath = excelPath,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"Cannot open '{excelPath}': {ex.Message}",
+                filePath = excelPath,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     /// <summary>
