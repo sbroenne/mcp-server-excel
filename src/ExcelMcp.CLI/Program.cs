@@ -12,7 +12,7 @@ internal sealed class Program
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
         AnsiConsole.Write(new FigletText("Excel CLI").Color(Color.Blue));
-        AnsiConsole.MarkupLine("[dim]Excel Command Line Interface - MCP-aligned Session API[/]\n");
+        AnsiConsole.WriteLine();
 
         if (args.Length == 0)
         {
@@ -55,15 +55,11 @@ internal sealed class Program
                 // Version and help commands
                 "--version" or "-v" or "version" => ShowVersion(),
 
-                // Session lifecycle commands (MCP-aligned: open/save/close)
+                // Session lifecycle commands (MCP-aligned)
                 "open" => batch.Open(args),
                 "save" => batch.Save(args),
+                "close" => batch.Close(args),
                 "list" => batch.List(args),
-
-                // Legacy batch commands (deprecated, mapped to new session API)
-                "batch-begin" => batch.Open(args),
-                "batch-commit" => batch.Save(args),
-                "batch-list" => batch.List(args),
 
                 // File commands
                 "create-empty" => file.CreateEmpty(args),
@@ -372,16 +368,11 @@ internal sealed class Program
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Session Lifecycle Commands (MCP-aligned):[/]");
-        AnsiConsole.MarkupLine("  [cyan]open[/] file.xlsx                               Start session, returns session-id");
-        AnsiConsole.MarkupLine("  [cyan]save[/] session-id [[--no-save]]                 Close session (saves by default)");
-        AnsiConsole.MarkupLine("  [cyan]list[/]                                         List active sessions");
+        AnsiConsole.MarkupLine("  [cyan]open[/] file.xlsx                              Start session, returns session-id");
+        AnsiConsole.MarkupLine("  [cyan]save[/] session-id                             Save workbook (keep session open)");
+        AnsiConsole.MarkupLine("  [cyan]close[/] session-id                            Close session, discard changes");
+        AnsiConsole.MarkupLine("  [cyan]list[/]                                        List active sessions");
         AnsiConsole.MarkupLine("  [dim]Use --session-id with any command for multi-operation workflows[/]");
-        AnsiConsole.WriteLine();
-
-        AnsiConsole.MarkupLine("[bold yellow]Legacy Batch Commands (deprecated, use session commands above):[/]");
-        AnsiConsole.MarkupLine("  [dim][cyan]batch-begin[/] → [cyan]open[/][/]");
-        AnsiConsole.MarkupLine("  [dim][cyan]batch-commit[/] → [cyan]save[/][/]");
-        AnsiConsole.MarkupLine("  [dim][cyan]batch-list[/] → [cyan]list[/][/]");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]File Commands:[/]");

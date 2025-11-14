@@ -88,24 +88,75 @@ public class BatchCommands
     }
 
     /// <summary>
-    /// Save and close a session (session lifecycle end)
+    /// Save the workbook (keeps session open)
     /// </summary>
-    /// <param name="args">Command arguments: save session-id [--no-save]</param>
+    /// <param name="args">Command arguments: save session-id</param>
     /// <returns>0 for success, 1 for error</returns>
     public int Save(string[] args)
     {
         if (args.Length < 2)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] save <session-id> [[--no-save]]");
+            AnsiConsole.MarkupLine("[red]Usage:[/] save <session-id>");
             return 1;
         }
 
         string sessionId = args[1];
-        bool shouldSave = !args.Contains("--no-save");
 
         try
         {
-            // Retrieve batch session
+            // Retrieve batch session (don't remove it - keep session open)
+            if (!_activeBatches.TryGetValue(sessionId, out var batch))
+            {
+                AnsiConsole.MarkupLine($"[red]Error:[/] Session '{sessionId}' not found");
+                AnsiConsole.MarkupLine("[yellow]Hint:[/] Use list to see active sessions");
+                return 1;
+            }
+
+            string filePath = batch.WorkbookPath;
+
+            try
+            {
+                var task = Task.Run(async () => await batch.SaveAsync());
+                task.GetAwaiter().GetResult();
+
+                AnsiConsole.MarkupLine($"[green]✓[/] [bold]Changes saved[/]");
+                AnsiConsole.MarkupLine($"[cyan]Session ID:[/] {sessionId}");
+                AnsiConsole.MarkupLine($"[dim]File:[/] {filePath}");
+                AnsiConsole.MarkupLine("[dim]Session remains open for more operations[/]");
+
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]Error saving:[/] {ex.Message.EscapeMarkup()}");
+                throw;
+            }
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+            return 1;
+        }
+    }
+
+    /// <summary>
+    /// Close a session (session lifecycle end, discards changes)
+    /// </summary>
+    /// <param name="args">Command arguments: close session-id</param>
+    /// <returns>0 for success, 1 for error</returns>
+    public int Close(string[] args)
+    {
+        if (args.Length < 2)
+        {
+            AnsiConsole.MarkupLine("[red]Usage:[/] close <session-id>");
+            return 1;
+        }
+
+        string sessionId = args[1];
+
+        try
+        {
+            // Retrieve batch session and remove it
             if (!_activeBatches.TryRemove(sessionId, out var batch))
             {
                 AnsiConsole.MarkupLine($"[red]Error:[/] Session '{sessionId}' not found");
@@ -117,36 +168,19 @@ public class BatchCommands
 
             try
             {
-                var task = Task.Run(async () =>
-                {
-                    // Save if requested
-                    if (shouldSave)
-                    {
-                        await batch.SaveAsync();
-                    }
-
-                    // Dispose (closes workbook and releases Excel)
-                    await batch.DisposeAsync();
-                });
+                var task = Task.Run(async () => await batch.DisposeAsync());
                 task.GetAwaiter().GetResult();
 
                 AnsiConsole.MarkupLine($"[green]✓[/] [bold]Session closed[/]");
                 AnsiConsole.MarkupLine($"[cyan]Session ID:[/] {sessionId}");
                 AnsiConsole.MarkupLine($"[dim]File:[/] {filePath}");
-                if (shouldSave)
-                {
-                    AnsiConsole.MarkupLine($"[green]Changes saved[/]");
-                }
-                else
-                {
-                    AnsiConsole.MarkupLine($"[yellow]Changes discarded (--no-save)[/]");
-                }
+                AnsiConsole.MarkupLine("[yellow]Changes discarded[/]");
 
                 return 0;
             }
             catch
             {
-                // If save/dispose fails, try to dispose anyway to prevent resource leaks
+                // If dispose fails, try to dispose anyway to prevent resource leaks
                 try
                 {
                     var disposeTask = Task.Run(async () => await batch.DisposeAsync());
@@ -198,7 +232,7 @@ public class BatchCommands
         AnsiConsole.Write(table);
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("[yellow]⚠[/] [bold]Remember to close sessions![/]");
-        AnsiConsole.MarkupLine("[dim]Each session holds Excel open. Call save to release resources.[/]");
+        AnsiConsole.MarkupLine("[dim]Each session holds Excel open. Call close to release resources.[/]");
 
         return 0;
     }

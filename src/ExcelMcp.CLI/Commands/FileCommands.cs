@@ -79,9 +79,14 @@ public class FileCommands : IFileCommands
     public int Open(string[] args) => _batchCommands.Open(args);
 
     /// <summary>
-    /// Save and close a session - forwards to BatchCommands
+    /// Save the workbook - forwards to BatchCommands
     /// </summary>
     public int Save(string[] args) => _batchCommands.Save(args);
+
+    /// <summary>
+    /// Close a session - forwards to BatchCommands
+    /// </summary>
+    public int Close(string[] args) => _batchCommands.Close(args);
 
     /// <summary>
     /// List active sessions - forwards to BatchCommands

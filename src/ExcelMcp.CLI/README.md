@@ -85,7 +85,7 @@ ExcelMcp.CLI provides **166 operations** across 11 categories:
 
 ## SESSION LIFECYCLE (Open/Save/Close)
 
-The CLI uses an explicit session-based workflow where you open a file, perform operations, and save:
+The CLI uses an explicit session-based workflow where you open a file, perform operations, and save or close:
 
 ```bash
 # 1. Open a session
@@ -99,11 +99,11 @@ excelcli list
 excelcli sheet-create data.xlsx NewSheet --session-id 550e8400-e29b-41d4-a716-446655440000
 excelcli pq-list data.xlsx --session-id 550e8400-e29b-41d4-a716-446655440000
 
-# 4. Save changes and close session
+# 4. Save changes and keep session open
 excelcli save 550e8400-e29b-41d4-a716-446655440000
 
-# 5. Or discard changes without saving
-excelcli save 550e8400-e29b-41d4-a716-446655440000 --no-save
+# 5. Close session and discard changes
+excelcli close 550e8400-e29b-41d4-a716-446655440000
 ```
 
 ### Session Lifecycle Benefits
@@ -229,7 +229,7 @@ excelcli pq-create report.xlsx "CleanSales" "clean-sales.pq" --session-id $SESSI
 # 5. Create PivotTable
 excelcli pivot-create-from-range report.xlsx Sales A1:E1000 Summary A1 SalesPivot --session-id $SESSION_ID
 
-# 6. Save all changes
+# 6. Save changes
 excelcli save $SESSION_ID
 
 # 7. Close session
