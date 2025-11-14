@@ -104,13 +104,7 @@ FILE FORMATS:
             success = true,
             sessionId,
             filePath = excelPath,
-            message = "Session opened successfully",
-            suggestedNextActions = new List<string>
-            {
-                "Use the returned sessionId with other excel_* tools",
-                "Call excel_file 'save' action to persist changes when ready",
-                "Call excel_file 'close' action when finished to release resources"
-            }
+            workflowHint = "Use sessionId with other excel_* tools. Call 'save' to persist changes, then 'close' to release resources."
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -132,12 +126,7 @@ FILE FORMATS:
             return JsonSerializer.Serialize(new
             {
                 success = true,
-                sessionId,
-                message = "Changes saved successfully",
-                suggestedNextActions = new List<string>
-                {
-                    "Call excel_file 'close' action when finished"
-                }
+                sessionId
             }, ExcelToolsBase.JsonOptions);
         }
 
@@ -146,12 +135,7 @@ FILE FORMATS:
             success = false,
             sessionId,
             errorMessage = $"Session '{sessionId}' not found",
-            isError = true,
-            suggestedNextActions = new List<string>
-            {
-                "Session may have already been closed",
-                "Use excel_file 'open' to start a new session"
-            }
+            isError = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -173,12 +157,7 @@ FILE FORMATS:
             return JsonSerializer.Serialize(new
             {
                 success = true,
-                sessionId,
-                message = "Session closed successfully (changes not saved)",
-                suggestedNextActions = new List<string>
-                {
-                    "If changes needed to be saved, call 'save' before 'close' next time"
-                }
+                sessionId
             }, ExcelToolsBase.JsonOptions);
         }
 
@@ -187,8 +166,7 @@ FILE FORMATS:
             success = false,
             sessionId,
             errorMessage = $"Session '{sessionId}' not found",
-            isError = true,
-            message = "Session not found or already closed"
+            isError = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -212,13 +190,7 @@ FILE FORMATS:
             {
                 success = true,
                 filePath = result.FilePath,
-                macroEnabled,
-                message = "Excel file created successfully",
-                suggestedNextActions = new List<string>
-                {
-                    "Call excel_file 'open' to start a new session for this file",
-                    "Then use other excel_* tools with the sessionId"
-                }
+                macroEnabled
             }, ExcelToolsBase.JsonOptions);
         }
 
@@ -226,8 +198,7 @@ FILE FORMATS:
         {
             success = false,
             errorMessage = result.ErrorMessage,
-            filePath = excelPath,
-            message = result.ErrorMessage
+            filePath = excelPath
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -241,13 +212,7 @@ FILE FORMATS:
         return JsonSerializer.Serialize(new
         {
             success = true,
-            filePath = excelPath,
-            message = "Workbook closure is automatic with single-instance architecture",
-            suggestedNextActions = new List<string>
-            {
-                "Use other excel_* tools to work with files",
-                "Each operation automatically manages its own Excel instance"
-            }
+            filePath = excelPath
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -274,14 +239,7 @@ FILE FORMATS:
                 isValid = result.IsValid,
                 extension = result.Extension,
                 size = result.Size,
-                lastModified = result.LastModified,
-                message = "File exists and is a valid Excel file",
-                suggestedNextActions = new List<string>
-                {
-                    "Use excel_powerquery to manage Power Query connections",
-                    "Use excel_vba to manage VBA macros",
-                    "Use begin_excel_batch for multi-operation workflows"
-                }
+                lastModified = result.LastModified
             }, ExcelToolsBase.JsonOptions);
         }
 
@@ -295,7 +253,6 @@ FILE FORMATS:
             size = result.Size,
             lastModified = result.LastModified,
             errorMessage = result.ErrorMessage,
-            message = result.ErrorMessage,
             isError = true
         }, ExcelToolsBase.JsonOptions);
     }

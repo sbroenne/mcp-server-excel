@@ -123,15 +123,7 @@ public static class ExcelPivotTableTool
         {
             result.Success,
             result.PivotTables,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Found {result.PivotTables.Count} PivotTable(s) - ready for analysis or field management"
-                : "Failed to list PivotTables - some PivotTables may have properties that cannot be read",
-            suggestedNextActions = result.Success
-                ? result.PivotTables.Count == 0
-                    ? new[] { "Create PivotTable with create-from-range, create-from-table, or create-from-datamodel", "Load data into workbook first", "Check if PivotTables exist in different sheets" }
-                    : [$"Use get to view {result.PivotTables[0].Name} details", "Use list-fields to see available fields", "Use refresh to update data from source"]
-                : ["Try opening and saving the workbook in Excel first", "Check if PivotTables are disconnected from data sources", "Some PivotTables may use Data Model or external sources"]
+            result.ErrorMessage
         }, JsonOptions);
     }
 
@@ -151,13 +143,7 @@ public static class ExcelPivotTableTool
             result.Success,
             result.PivotTable,
             result.Fields,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"{result.PivotTable.Name}: {result.PivotTable.RowFieldCount} rows, {result.PivotTable.ColumnFieldCount} cols, {result.PivotTable.ValueFieldCount} values, {result.Fields.Count} total fields"
-                : $"PivotTable '{pivotTableName}' not found or inaccessible",
-            suggestedNextActions = result.Success
-                ? new[] { "Use add-row-field, add-column-field, or add-value-field to configure", "Use refresh to update with latest source data", "Use get-data to extract PivotTable results" }
-                : ["Use list to see all available PivotTables", "Check PivotTable name spelling", "Verify PivotTable exists in workbook"]
+            result.ErrorMessage
         }, JsonOptions);
     }
 
@@ -194,13 +180,7 @@ public static class ExcelPivotTableTool
             result.SourceData,
             result.SourceRowCount,
             result.AvailableFields,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"PivotTable '{result.PivotTableName}' created at {result.SheetName}!{result.Range} from {result.SourceRowCount} rows, {result.AvailableFields.Count} fields available"
-                : "Failed to create PivotTable from range - check source range contains headers and data",
-            suggestedNextActions = result.Success
-                ? new[] { $"Use add-row-field with fields: {string.Join(", ", result.AvailableFields.Take(3))}", "Use add-value-field to summarize data", "Use add-filter-field to enable interactive filtering" }
-                : ["Verify source range contains header row", "Check source range has at least 2 rows (headers + data)", "Ensure range address is valid (e.g., A1:D100)"]
+            result.ErrorMessage
         }, JsonOptions);
     }
 
@@ -234,13 +214,7 @@ public static class ExcelPivotTableTool
             result.SourceData,
             result.SourceRowCount,
             result.AvailableFields,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"PivotTable '{result.PivotTableName}' created at {result.SheetName}!{result.Range} from Excel Table '{tableName}' ({result.SourceRowCount} rows)"
-                : $"Failed to create PivotTable from table '{tableName}' - verify table exists",
-            suggestedNextActions = result.Success
-                ? new[] { $"Use add-row-field with fields: {string.Join(", ", result.AvailableFields.Take(3))}", "Use add-value-field to calculate aggregations", "Use refresh when source table data changes" }
-                : ["Use table-list to see available Excel Tables", "Check table name spelling", "Ensure table contains data rows"]
+            result.ErrorMessage
         }, JsonOptions);
     }
 
@@ -274,13 +248,7 @@ public static class ExcelPivotTableTool
             result.SourceData,
             result.SourceRowCount,
             result.AvailableFields,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"PivotTable '{result.PivotTableName}' created from Data Model table '{dataModelTableName}' ({result.SourceRowCount} rows) with DAX measures support"
-                : $"Failed to create PivotTable from Data Model table '{dataModelTableName}'",
-            suggestedNextActions = result.Success
-                ? new[] { $"Use add-row-field with fields: {string.Join(", ", result.AvailableFields.Take(3))}", "Use add-value-field to add DAX measures", "Leverage relationships between Data Model tables" }
-                : ["Use dm-list-tables to see available Data Model tables", "Verify Data Model contains data (use dm-refresh)", "Check table name spelling"]
+            result.ErrorMessage
         }, JsonOptions);
     }
 
@@ -298,13 +266,7 @@ public static class ExcelPivotTableTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"PivotTable '{pivotTableName}' deleted - analysis removed from workbook"
-                : $"Failed to delete PivotTable '{pivotTableName}'",
-            suggestedNextActions = result.Success
-                ? new[] { "Use list to verify deletion", "Create new PivotTable if needed", "Source data remains unchanged" }
-                : ["Verify PivotTable name is correct", "Check PivotTable isn't protected", "Use list to see available PivotTables"]
+            result.ErrorMessage
         }, JsonOptions);
     }
 
@@ -329,17 +291,7 @@ public static class ExcelPivotTableTool
             result.StructureChanged,
             result.NewFields,
             result.RemovedFields,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? result.StructureChanged
-                    ? $"Refreshed '{result.PivotTableName}': {result.SourceRecordCount} rows (was {result.PreviousRecordCount}), structure changed - {result.NewFields.Count} new, {result.RemovedFields.Count} removed"
-                    : $"Refreshed '{result.PivotTableName}': {result.SourceRecordCount} rows (was {result.PreviousRecordCount})"
-                : $"Failed to refresh PivotTable '{pivotTableName}' - check source data connectivity",
-            suggestedNextActions = result.Success
-                ? result.StructureChanged
-                    ? new[] { $"Review new fields: {string.Join(", ", result.NewFields.Take(3))}", $"Update field configuration if needed", "Verify removed fields didn't break analysis" }
-                    : ["Use get-data to extract refreshed results", "Verify data changes as expected", "Continue with field configuration or analysis"]
-                : ["Check source data connection is valid", "Verify source table/range still exists", "Ensure source data is accessible"]
+            result.ErrorMessage
         }, JsonOptions);
     }
 
@@ -358,15 +310,7 @@ public static class ExcelPivotTableTool
         {
             result.Success,
             result.Fields,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"{result.Fields.Count} field(s) in '{pivotTableName}' - ready for field configuration"
-                : $"Failed to list fields for PivotTable '{pivotTableName}'",
-            suggestedNextActions = result.Success
-                ? result.Fields.Count == 0
-                    ? new[] { "Use add-row-field to add grouping dimensions", "Use add-value-field to add calculations", "Check source data contains fields" }
-                    : [$"Use add-row-field with available fields", "Use add-value-field for aggregations", "Use set-field-function to change calculations"]
-                : ["Verify PivotTable name is correct", "Use list to see available PivotTables", "Refresh PivotTable if structure changed"]
+            result.ErrorMessage
         }, JsonOptions);
     }
 
@@ -397,13 +341,7 @@ public static class ExcelPivotTableTool
             result.AvailableValues,
             result.SampleValue,
             result.DataType,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Added '{result.FieldName}' as row field at position {result.Position} - grouping enabled"
-                : $"Failed to add row field '{fieldName}' to PivotTable '{pivotTableName}'",
-            suggestedNextActions = result.Success
-                ? new[] { "Use add-column-field or add-value-field to complete analysis", "Use add-filter-field for interactive filtering", "Use refresh if source data changed" }
-                : ["Use list-fields to see available field names", "Check field name spelling", "Verify PivotTable exists (use list)"]
+            result.ErrorMessage
         }, JsonOptions);
     }
 
@@ -434,13 +372,7 @@ public static class ExcelPivotTableTool
             result.AvailableValues,
             result.SampleValue,
             result.DataType,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Added '{result.FieldName}' as column field at position {result.Position} - cross-tabulation enabled"
-                : $"Failed to add column field '{fieldName}' to PivotTable '{pivotTableName}'",
-            suggestedNextActions = result.Success
-                ? new[] { "Use add-value-field to calculate aggregations across columns", "Use add-row-field for grouping", "Use get-data to extract cross-tab results" }
-                : ["Use list-fields to see available field names", "Check field name spelling", "Verify PivotTable exists (use list)"]
+            result.ErrorMessage
         }, JsonOptions);
     }
 
@@ -481,13 +413,7 @@ public static class ExcelPivotTableTool
             result.AvailableValues,
             result.SampleValue,
             result.DataType,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Added value field '{result.CustomName}' ({result.Function}) at position {result.Position} - aggregation configured"
-                : $"Failed to add value field '{fieldName}' to PivotTable '{pivotTableName}'",
-            suggestedNextActions = result.Success
-                ? new[] { "Use set-field-format to apply number formatting", "Use set-field-name to customize display name", "Use get-data to extract aggregated results" }
-                : ["Use list-fields to see available field names", "Check field name spelling", "Verify field is numeric for Sum/Average functions"]
+            result.ErrorMessage
         }, JsonOptions);
     }
 
@@ -517,13 +443,7 @@ public static class ExcelPivotTableTool
             result.AvailableValues,
             result.SampleValue,
             result.DataType,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Added filter field '{result.FieldName}' - interactive filtering enabled with {result.AvailableValues.Count} possible values"
-                : $"Failed to add filter field '{fieldName}' to PivotTable '{pivotTableName}'",
-            suggestedNextActions = result.Success
-                ? new[] { $"Use set-field-filter with values from: {string.Join(", ", result.AvailableValues.Take(5))}", "Use get-data to view filtered results", "Add more filter fields for multi-dimensional filtering" }
-                : ["Use list-fields to see available field names", "Check field name spelling", "Verify PivotTable exists (use list)"]
+            result.ErrorMessage
         }, JsonOptions);
     }
 
@@ -553,13 +473,7 @@ public static class ExcelPivotTableTool
             result.AvailableValues,
             result.SampleValue,
             result.DataType,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Removed field '{result.FieldName}' from {result.Area} area - PivotTable reconfigured"
-                : $"Failed to remove field '{fieldName}' from PivotTable '{pivotTableName}'",
-            suggestedNextActions = result.Success
-                ? new[] { "Use list-fields to verify field removal", "Use get to view updated PivotTable structure", "Add different fields to reconfigure analysis" }
-                : ["Use list-fields to see current field configuration", "Check field name spelling", "Verify field is currently in PivotTable"]
+            result.ErrorMessage
         }, JsonOptions);
     }
 
@@ -598,13 +512,7 @@ public static class ExcelPivotTableTool
             result.AvailableValues,
             result.SampleValue,
             result.DataType,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Changed '{result.FieldName}' aggregation to {result.Function} - calculation method updated"
-                : $"Failed to set aggregation function for field '{fieldName}' in PivotTable '{pivotTableName}'",
-            suggestedNextActions = result.Success
-                ? new[] { "Use get-data to view updated calculations", "Use set-field-format to apply appropriate number formatting", "Use refresh if source data changed" }
-                : ["Verify field is a value field (not row/column/filter)", "Check field name spelling", "Ensure function is valid for data type"]
+            result.ErrorMessage
         }, JsonOptions);
     }
 
@@ -637,13 +545,7 @@ public static class ExcelPivotTableTool
             result.AvailableValues,
             result.SampleValue,
             result.DataType,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Renamed field '{result.FieldName}' to '{result.CustomName}' - display name customized"
-                : $"Failed to rename field '{fieldName}' in PivotTable '{pivotTableName}'",
-            suggestedNextActions = result.Success
-                ? new[] { "Use get to view updated PivotTable with new field name", "Use set-field-format to apply number formatting", "Continue configuring field properties" }
-                : ["Check field name spelling", "Verify field exists in PivotTable (use list-fields)", "Ensure custom name is valid"]
+            result.ErrorMessage
         }, JsonOptions);
     }
 
@@ -676,13 +578,7 @@ public static class ExcelPivotTableTool
             result.AvailableValues,
             result.SampleValue,
             result.DataType,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Applied number format '{result.NumberFormat}' to field '{result.FieldName}' - values formatted"
-                : $"Failed to set number format for field '{fieldName}' in PivotTable '{pivotTableName}'",
-            suggestedNextActions = result.Success
-                ? new[] { "Use get-data to view formatted values", "Use set-field-name to customize field display name", "Continue configuring analysis" }
-                : ["Verify field name spelling", "Check number format code syntax", "Ensure field is a value field"]
+            result.ErrorMessage
         }, JsonOptions);
     }
 
@@ -707,13 +603,7 @@ public static class ExcelPivotTableTool
             result.DataRowCount,
             result.DataColumnCount,
             result.GrandTotals,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Extracted {result.DataRowCount}×{result.DataColumnCount} data grid from PivotTable '{result.PivotTableName}' - analysis results ready"
-                : $"Failed to extract data from PivotTable '{pivotTableName}'",
-            suggestedNextActions = result.Success
-                ? new[] { "Process extracted values for further analysis", "Export data to external system", "Use refresh to update with latest source data" }
-                : ["Verify PivotTable exists (use list)", "Check PivotTable has data (use get)", "Ensure fields are configured properly"]
+            result.ErrorMessage
         }, JsonOptions);
     }
 
@@ -754,13 +644,7 @@ public static class ExcelPivotTableTool
             result.VisibleRowCount,
             result.TotalRowCount,
             result.ShowAll,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Filtered field '{result.FieldName}' to {result.SelectedItems.Count} of {result.AvailableItems.Count} values - showing {result.VisibleRowCount}/{result.TotalRowCount} rows"
-                : $"Failed to filter field '{fieldName}' in PivotTable '{pivotTableName}'",
-            suggestedNextActions = result.Success
-                ? new[] { "Use get-data to extract filtered results", $"Selected values: {string.Join(", ", result.SelectedItems.Take(5))}", "Use refresh to update with latest source data" }
-                : ["Verify field name spelling", "Check filter values are valid for field", "Ensure field exists in PivotTable (use list-fields)"]
+            result.ErrorMessage
         }, JsonOptions);
     }
 
@@ -800,13 +684,7 @@ public static class ExcelPivotTableTool
             result.AvailableValues,
             result.SampleValue,
             result.DataType,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Sorted field '{result.FieldName}' {direction.ToString().ToLowerInvariant()} - data reordered"
-                : $"Failed to sort field '{fieldName}' in PivotTable '{pivotTableName}'",
-            suggestedNextActions = result.Success
-                ? new[] { "Use get-data to extract sorted results", "Use add-value-field if need aggregation", "Continue configuring analysis" }
-                : ["Verify field name spelling", "Ensure field exists in PivotTable (use list-fields)", "Check field is in row or column area"]
+            result.ErrorMessage
         }, JsonOptions);
     }
 }

@@ -1,7 +1,6 @@
 # excel_worksheet Tool
 
 **Related tools**:
-- excel_batch - Use for 2+ worksheet operations (75-90% faster)
 - excel_range - For data operations on worksheet cells
 - excel_table - For structured tables on worksheets
 - excel_powerquery - For loading external data to worksheets
@@ -19,7 +18,6 @@
 - Cannot delete last remaining worksheet (Excel limitation)
 - Cannot delete active worksheet while viewing in Excel UI
 - very-hide: Hidden from UI and VBA (stronger than hide)
-- Batch mode recommended for creating multiple sheets
 
 **Action disambiguation**:
 - create: Add new blank worksheet
@@ -30,10 +28,4 @@
 
 **Common mistakes**:
 - Trying to delete last worksheet → Excel requires at least one sheet
-- Creating sheets one-by-one → Use batch mode for multiple sheets
 - Not checking if sheet exists before operations → Use list first
-
-**Workflow optimization**:
-- Creating multiple sheets? Use begin_excel_batch
-- After creating sheets: Use excel_range to populate data
-- Use set-tab-color to organize sheets visually

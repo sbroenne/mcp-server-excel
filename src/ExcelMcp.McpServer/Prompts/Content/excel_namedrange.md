@@ -1,7 +1,6 @@
 # excel_namedrange Tool
 
 **Related tools**:
-- excel_batch - Use for 2+ named range operations (75-90% faster) OR use create-bulk action
 - excel_range - For reading/writing data in named ranges (use sheetName="")
 - excel_powerquery - Named ranges can be used as Power Query parameters
 
@@ -34,5 +33,3 @@
 
 **Workflow optimization**:
 - Multiple parameters? Use create-bulk action
-- Common pattern: create-bulk for config → use in formulas/queries
-- Batch mode not needed for create-bulk (already batched internally)

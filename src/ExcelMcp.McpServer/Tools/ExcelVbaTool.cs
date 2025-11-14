@@ -102,13 +102,7 @@ public static class ExcelVbaTool
         {
             success = true,
             scripts = result.Scripts,
-            count = moduleCount,
-            workflowHint = moduleCount == 0
-                ? "No VBA modules found. Use 'import' to add VBA code."
-                : $"Found {moduleCount} VBA module(s). Use 'view' to inspect or 'run' to execute.",
-            suggestedNextActions = moduleCount == 0
-                ? new[] { "Use 'import' to add VBA modules from .vba files", "Use excel_file to create .xlsm files for VBA" }
-                : ["Use 'run' to execute macros", "Use 'export' to backup VBA code", "Use 'view' to inspect module code"]
+            count = moduleCount
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -131,15 +125,7 @@ public static class ExcelVbaTool
             result.ModuleType,
             result.Code,
             result.LineCount,
-            result.Procedures,
-            workflowHint = $"Module '{moduleName}' has {lineCount} lines and {procedureCount} procedure(s).",
-            suggestedNextActions = new[]
-            {
-                "Use 'run' to execute procedures from this module",
-                "Use 'export' to save VBA code to file for version control",
-                "Use 'update' to modify the module code",
-                "Viewing multiple modules? Use excel_batch for efficiency"
-            }
+            result.Procedures
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -157,15 +143,7 @@ public static class ExcelVbaTool
             result.Success,
             result.ErrorMessage,
             ModuleName = moduleName,
-            FilePath = targetPath,
-            workflowHint = $"VBA module '{moduleName}' exported to {targetPath}.",
-            suggestedNextActions = new[]
-            {
-                "Commit exported VBA file to version control",
-                "Use 'import' or 'update' to restore VBA code from backup",
-                "Review exported code for documentation or code review",
-                "Exporting multiple modules? Use excel_batch for efficiency"
-            }
+            FilePath = targetPath
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -185,15 +163,7 @@ public static class ExcelVbaTool
             result.Success,
             result.ErrorMessage,
             ModuleName = moduleName,
-            SourcePath = sourcePath,
-            workflowHint = $"VBA module '{moduleName}' imported from {sourcePath}. Ready to run.",
-            suggestedNextActions = new[]
-            {
-                "Use 'view' to inspect the imported VBA code",
-                "Use 'run' to execute procedures from this module",
-                "Use 'list' to see all VBA modules including the new one",
-                "Importing multiple modules? Use excel_batch for efficiency"
-            }
+            SourcePath = sourcePath
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -211,15 +181,7 @@ public static class ExcelVbaTool
             result.Success,
             result.ErrorMessage,
             ModuleName = moduleName,
-            SourcePath = sourcePath,
-            workflowHint = $"VBA module '{moduleName}' updated from {sourcePath}. Changes saved.",
-            suggestedNextActions = new[]
-            {
-                "Use 'view' to verify the updated VBA code",
-                "Use 'run' to test the updated procedures",
-                "Use 'export' to backup the updated module",
-                "Updating multiple modules? Use excel_batch for efficiency"
-            }
+            SourcePath = sourcePath
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -251,15 +213,7 @@ public static class ExcelVbaTool
             result.Success,
             result.ErrorMessage,
             ProcedureName = moduleName,
-            ParameterCount = paramCount,
-            workflowHint = $"VBA procedure '{moduleName}' executed with {paramCount} parameter(s).",
-            suggestedNextActions = new[]
-            {
-                "Check Excel workbook for procedure output (worksheets, cells, etc.)",
-                "Use excel_range or excel_worksheet to verify VBA changes",
-                "Use 'view' to inspect VBA code if unexpected results",
-                "Running multiple procedures? Use excel_batch for efficiency"
-            }
+            ParameterCount = paramCount
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -276,15 +230,7 @@ public static class ExcelVbaTool
         {
             result.Success,
             result.ErrorMessage,
-            ModuleName = moduleName,
-            workflowHint = $"VBA module '{moduleName}' deleted permanently. Changes saved.",
-            suggestedNextActions = new[]
-            {
-                "Use 'list' to verify module was removed",
-                "Use 'import' to restore module from backup if needed",
-                "Export remaining modules for backup before further deletions",
-                "Deleting multiple modules? Use excel_batch for efficiency"
-            }
+            ModuleName = moduleName
         }, ExcelToolsBase.JsonOptions);
     }
 }

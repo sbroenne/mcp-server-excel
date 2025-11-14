@@ -123,13 +123,7 @@ public static class TableTool
         {
             result.Success,
             result.Tables,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Found {result.Tables.Count} Excel Tables. Use for structured data with AutoFilter and dynamic expansion."
-                : "Failed to list tables. Verify workbook contains Excel Tables (ListObjects).",
-            suggestedNextActions = result.Success
-                ? new[] { "Use 'get' to view detailed table information", "Use 'create' to convert ranges to Excel Tables", "Use excel_range to read table data" }
-                : ["Create tables with 'create' action", "Verify workbook has data ranges", "Check if workbook is corrupted"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -146,13 +140,7 @@ public static class TableTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Table '{tableName}' created successfully. Data now has AutoFilter and structured references enabled."
-                : $"Failed to create table '{tableName}'. Verify range exists and doesn't overlap existing tables.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use 'get' to view table details", "Use excel_range to populate table data", "Use 'set-style' to apply table formatting" }
-                : ["Verify range address is valid (e.g., A1:D10)", "Check sheet name is correct", "Ensure range doesn't overlap existing tables"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -168,13 +156,7 @@ public static class TableTool
         {
             result.Success,
             result.Table,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Table '{tableName}' details retrieved. Review columns, range, and configuration."
-                : $"Failed to get info for table '{tableName}'. Verify table name is correct.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use excel_range to read table data", "Use 'resize' to adjust table range", "Use 'toggle-totals' to enable summary row" }
-                : ["Use 'list' to see all available table names", "Check for typos in table name", "Verify table exists in workbook"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -190,13 +172,7 @@ public static class TableTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Table renamed from '{tableName}' to '{newName}'. All structured references updated automatically."
-                : $"Failed to rename table '{tableName}'. Verify new name doesn't conflict with existing tables.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use 'list' to verify rename", "Use 'get' to view updated table info", "Update formulas using old name if needed" }
-                : ["Check new name doesn't already exist", "Verify table name format (no spaces, special chars)", "Ensure table exists in workbook"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -211,13 +187,7 @@ public static class TableTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Table '{tableName}' deleted. Converted back to range - data preserved but AutoFilter and structured references removed."
-                : $"Failed to delete table '{tableName}'. Verify table exists.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use 'list' to verify deletion", "Use excel_range to access remaining data as range", "Create new table if needed with 'create'" }
-                : ["Use 'list' to verify table name", "Check if table is in use by formulas", "Ensure table exists in workbook"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -233,13 +203,7 @@ public static class TableTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Table '{tableName}' resized to {newRange}. Data and formulas adjusted automatically."
-                : $"Failed to resize table '{tableName}'. Verify new range is valid and doesn't overlap other tables.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use 'get' to verify new table dimensions", "Use excel_range to populate new rows/columns", "Use 'append' to add data to expanded table" }
-                : ["Check new range format (e.g., A1:D20)", "Verify range doesn't overlap existing tables", "Ensure range includes all existing data"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -254,15 +218,7 @@ public static class TableTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Totals row {(showTotals ? "enabled" : "disabled")} for table '{tableName}'."
-                : $"Failed to toggle totals for table '{tableName}'. Verify table exists.",
-            suggestedNextActions = result.Success
-                ? (showTotals
-                    ? new[] { "Use 'set-column-total' to configure aggregation functions", "Use excel_range to read totals row values", "Use 'get' to view updated table info" }
-                    : ["Use 'toggle-totals' with true to re-enable totals", "Use 'get' to verify totals row removed", "Use excel_range to read table data"])
-                : ["Use 'list' to verify table name", "Check if table exists", "Verify table has data rows"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -279,13 +235,7 @@ public static class TableTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Total function '{totalFunction}' applied to column '{columnName}' in table '{tableName}'."
-                : $"Failed to set column total for '{columnName}'. Verify column exists and totals row is enabled.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use excel_range to read totals row values", "Use 'get' to view updated table info", "Use 'set-column-total' for other columns" }
-                : ["Use 'toggle-totals' to enable totals row first", "Verify column name is correct", "Check totalFunction is valid (sum, avg, count, max, min)"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -304,13 +254,7 @@ public static class TableTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Rows appended to table '{tableName}'. Table automatically expanded to include new data."
-                : $"Failed to append rows to table '{tableName}'. Verify CSV format matches table columns.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use excel_range to read updated table data", "Use 'get' to verify new table dimensions", "Use 'resize' to adjust if needed" }
-                : ["Verify CSV column count matches table columns", "Check CSV format (comma-separated values)", "Ensure table exists in workbook"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -347,13 +291,7 @@ public static class TableTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Table style '{tableStyle}' applied to '{tableName}'. Visual formatting updated."
-                : $"Failed to set style for table '{tableName}'. Verify style name is valid.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use 'get' to view updated table appearance", "Use excel_range to read formatted data", "Use 'create' with different style for new tables" }
-                : ["Check style name (e.g., TableStyleMedium2, TableStyleLight1)", "Use 'list' to verify table exists", "Try different predefined table style"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -368,13 +306,7 @@ public static class TableTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Table '{tableName}' added to Power Pivot Data Model. Ready for DAX measures and relationships."
-                : $"Failed to add table '{tableName}' to Data Model. Verify table exists and workbook supports Data Model.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use excel_datamodel 'list-tables' to verify table in model", "Use excel_datamodel 'create-measure' to add DAX calculations", "Use excel_datamodel 'create-relationship' to connect tables" }
-                : ["Verify workbook is .xlsx format (not .xls)", "Check if Power Pivot is available", "Use 'list' to verify table exists"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -393,13 +325,7 @@ public static class TableTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Filter applied to column '{columnName}' in table '{tableName}' with criteria '{criteria}'."
-                : $"Failed to apply filter to column '{columnName}'. Verify column exists and criteria format is valid.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use excel_range to read filtered data", "Use 'get-filters' to view active filters", "Use 'clear-filters' to remove all filters" }
-                : ["Verify column name is correct", "Check criteria format (e.g., >100, =Active, <>Closed)", "Use 'get' to see available columns"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -427,13 +353,7 @@ public static class TableTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Filter applied to column '{columnName}' with {filterValues.Count} specific values."
-                : $"Failed to apply value filter to column '{columnName}'. Verify column exists and values are valid.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use excel_range to read filtered data", "Use 'get-filters' to view active filters", "Use 'apply-filter' for criteria-based filtering" }
-                : ["Verify column name is correct", "Check filterValues format (JSON array of strings)", "Use 'get' to see available columns"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -448,13 +368,7 @@ public static class TableTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"All filters cleared from table '{tableName}'. Full dataset is now visible."
-                : $"Failed to clear filters from table '{tableName}'.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use excel_range to read all table data", "Use 'apply-filter' to set new filters", "Use 'get' to view table information" }
-                : ["Verify table exists with 'list'", "Check if table has filters with 'get-filters'", "Ensure workbook is not protected"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -472,17 +386,7 @@ public static class TableTool
             result.TableName,
             result.ColumnFilters,
             result.HasActiveFilters,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? (result.HasActiveFilters
-                    ? $"Table '{tableName}' has {result.ColumnFilters?.Count ?? 0} active filter(s)."
-                    : $"Table '{tableName}' has no active filters.")
-                : $"Failed to retrieve filters from table '{tableName}'.",
-            suggestedNextActions = result.Success
-                ? (result.HasActiveFilters
-                    ? new[] { "Use 'clear-filters' to remove all filters", "Use excel_range to read filtered data", "Use 'apply-filter' to modify filter criteria" }
-                    : ["Use 'apply-filter' to filter by criteria", "Use 'apply-filter-values' to filter by specific values", "Use excel_range to read all table data"])
-                : ["Verify table exists with 'list'", "Check table name spelling", "Ensure table has AutoFilter enabled"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -514,13 +418,7 @@ public static class TableTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Column '{columnName}' added to table '{tableName}'{(position.HasValue ? $" at position {position.Value}" : "")}."
-                : $"Failed to add column '{columnName}' to table '{tableName}'.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use excel_range to populate the new column with data", "Use 'rename-column' to change column name if needed", "Use 'get' to view updated table structure" }
-                : ["Verify table exists with 'list'", "Check if column name already exists", "Ensure position is within table bounds"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -536,13 +434,7 @@ public static class TableTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Column '{columnName}' removed from table '{tableName}'. Table structure updated."
-                : $"Failed to remove column '{columnName}' from table '{tableName}'.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use 'get' to view updated table structure", "Use 'list' to verify table still exists", "Use excel_range to verify remaining data" }
-                : ["Verify column name is correct with 'get'", "Check if column is the last column in table", "Ensure table has more than one column"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -559,13 +451,7 @@ public static class TableTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Column '{oldColumnName}' renamed to '{newColumnName}' in table '{tableName}'. Formulas referencing this column will update automatically."
-                : $"Failed to rename column '{oldColumnName}' to '{newColumnName}' in table '{tableName}'.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use 'get' to verify column name change", "Use 'get-structured-reference' to see updated column reference", "Update any external references to this column" }
-                : ["Verify old column name is correct with 'get'", "Check if new column name already exists", "Ensure new column name follows Excel naming rules"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -593,13 +479,7 @@ public static class TableTool
             result.Region,
             result.RangeAddress,
             result.StructuredReference,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Structured reference for table '{tableName}', region '{region}'{(!string.IsNullOrEmpty(columnName) ? $", column '{columnName}'" : "")} is '{result.StructuredReference}'."
-                : $"Failed to get structured reference for table '{tableName}'.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use structured reference in Excel formulas", "Use excel_range with RangeAddress to read/write data", "Use different region to get other table parts" }
-                : ["Verify table exists with 'list'", "Check region value (All, Data, Headers, Totals, ThisRow)", "Verify column name if specified"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -615,13 +495,7 @@ public static class TableTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Table '{tableName}' sorted by column '{columnName}' in {(ascending ? "ascending" : "descending")} order."
-                : $"Failed to sort table '{tableName}' by column '{columnName}'.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use excel_range to read sorted data", "Use 'sort-multi' for multi-level sorting", "Use 'get' to view table information" }
-                : ["Verify column name is correct with 'get'", "Check if table has data to sort", "Ensure table is not protected"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -652,13 +526,7 @@ public static class TableTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Table '{tableName}' sorted by {sortColumns.Count} column(s) with multi-level criteria."
-                : $"Failed to sort table '{tableName}' with multiple columns.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use excel_range to read sorted data", "Use 'get' to view table information", "Use 'sort' for single-column sorting" }
-                : ["Verify all column names exist with 'get'", "Check sortColumns JSON format", "Ensure table has data to sort"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -682,13 +550,7 @@ public static class TableTool
             result.RangeAddress,
             result.Formats,
             result.RowCount,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Retrieved number format for column '{columnName}' in table '{tableName}' ({result.RowCount} rows)."
-                : $"Failed to get number format for column '{columnName}' in table '{tableName}'.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use 'set-column-number-format' to change format", "Use excel_range to read formatted values", "Use 'get' to view table structure" }
-                : ["Verify column name is correct with 'get'", "Check if table exists with 'list'", "Ensure table has data"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -708,13 +570,7 @@ public static class TableTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Number format '{formatCode}' applied to column '{columnName}' in table '{tableName}'."
-                : $"Failed to set number format for column '{columnName}' in table '{tableName}'.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use 'get-column-number-format' to verify format applied", "Use excel_range to read formatted values", "Use 'get' to view table structure" }
-                : ["Verify column name is correct with 'get'", "Check format code syntax (e.g., '#,##0.00', '0.00%')", "Ensure table exists with 'list'"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 }

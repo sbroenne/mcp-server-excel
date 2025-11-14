@@ -121,13 +121,7 @@ OPERATIONS GUIDANCE:
         {
             result.Success,
             result.Queries,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Found {result.Queries.Count} Power Queries. Review M code and refresh configurations."
-                : "Failed to list queries. Verify workbook has Power Query data connections.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use 'view' to examine M code for specific queries", "Use 'get-load-config' to check data loading settings", "Use 'refresh' to reload data from sources" }
-                : ["Verify workbook has Power Query connections", "Check if workbook is macro-enabled if needed", "Use excel_connection list to see all connections"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -144,13 +138,7 @@ OPERATIONS GUIDANCE:
             result.Success,
             result.QueryName,
             result.MCode,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"M code retrieved for '{queryName}'. Review transformations and data source connections."
-                : $"Failed to view '{queryName}'. Verify query name is correct.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use 'export' to save M code for version control", "Use 'update-mcode' to modify transformations", "Use 'refresh' to reload with current M code" }
-                : ["Use 'list' to see all available query names", "Check for typos in query name", "Verify query exists in workbook"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -166,13 +154,7 @@ OPERATIONS GUIDANCE:
         {
             result.Success,
             result.FilePath,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"M code exported to '{targetPath}'. Store in version control for change tracking."
-                : $"Failed to export '{queryName}'. Verify query exists and target path is writable.",
-            suggestedNextActions = result.Success
-                ? new[] { "Commit .pq file to version control system", "Use 'update-mcode' to import modified M code", "Share .pq file with team for reuse" }
-                : ["Use 'list' to verify query name", "Check directory permissions for target path", "Ensure parent directory exists"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -236,8 +218,7 @@ OPERATIONS GUIDANCE:
                 {
                     "Check if Excel is showing a 'Privacy Level' dialog or credential prompt",
                     "Verify the data source is accessible (network connection, database availability)",
-                    "For large datasets, consider filtering data at source or breaking into smaller queries",
-                    "Use batch mode (begin_excel_batch) if not already using it to optimize multiple operations"
+                    "For large datasets, consider filtering data at source or breaking into smaller queries"
                 }
             };
 
@@ -258,11 +239,8 @@ OPERATIONS GUIDANCE:
             result.Success,
             result.ErrorMessage,
             workflowHint = result.Success
-                ? $"Query '{queryName}' deleted successfully. QueryTables referencing it may need cleanup."
-                : $"Failed to delete '{queryName}'. Verify query exists and is not actively refreshing.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use 'list' to verify deletion", "Check for orphaned QueryTables with excel_querytable list", "Export backup before deletion (if not already done)" }
-                : ["Use 'list' to verify query name", "Stop any active refresh operations", "Check if query is in use by PivotTables"]
+                ? "QueryTables referencing this query may need cleanup."
+                : null
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -281,12 +259,9 @@ OPERATIONS GUIDANCE:
             result.LoadMode,
             result.TargetSheet,
             result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Load configuration: {result.LoadMode}. Data is {(result.LoadMode == PowerQueryLoadMode.ConnectionOnly ? "not loaded" : $"loaded to {result.TargetSheet ?? "worksheet/data-model"}")}."
-                : $"Failed to get load config for '{queryName}'. Verify query exists.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use 'load-to' to change data loading destination", "Use 'unload' to convert to connection-only", "Use 'refresh' to reload with current configuration" }
-                : ["Use 'list' to verify query name", "Check query exists in workbook", "Verify query is not corrupted"]
+            workflowHint = result.Success && result.LoadMode == PowerQueryLoadMode.ConnectionOnly
+                ? "Query is connection-only (M code defined but data not loaded)."
+                : null
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -300,13 +275,7 @@ OPERATIONS GUIDANCE:
         {
             result.Success,
             result.Worksheets,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Found {result.Worksheets.Count} available Excel sources. Use in M code: Excel.CurrentWorkbook(){{[Name=\"SourceName\"]}}[Content]."
-                : "Failed to list Excel sources. Verify workbook has tables or named ranges.",
-            suggestedNextActions = result.Success
-                ? new[] { "Reference sources in M code transformations", "Use excel_table list to see structured tables", "Use excel_namedrange list to see named ranges" }
-                : ["Create Excel Tables with excel_table create", "Create named ranges with excel_namedrange create", "Verify workbook structure"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -346,13 +315,7 @@ OPERATIONS GUIDANCE:
             result.QueryName,
             result.LoadDestination,
             result.WorksheetName,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Query '{queryName}' created and data loaded to {loadMode}. M code imported from .pq file."
-                : $"Failed to create '{queryName}'. Check M code syntax and data source connectivity.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use 'refresh' to reload data from source", "Use 'view' to inspect M code", "Use 'get-load-config' to verify loading settings" }
-                : ["Verify M code syntax in .pq file", "Check data source connectivity", "Use 'eval' to test M code before creating query"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -375,13 +338,7 @@ OPERATIONS GUIDANCE:
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"M code updated and data refreshed for '{queryName}' atomically. Query is current."
-                : $"Failed to update '{queryName}'. {result.ErrorMessage}",
-            suggestedNextActions = result.Success
-                ? new[] { "Use 'view' to verify M code changes", "Use excel_range to inspect refreshed data", "Use 'get-load-config' to see loading configuration" }
-                : ["Use 'list' to verify query name", "Check M syntax in .pq file", "Verify data source connectivity"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -405,8 +362,6 @@ OPERATIONS GUIDANCE:
         var isSheetConflict = !result.Success &&
                              result.ErrorMessage?.Contains("worksheet already exists", StringComparison.OrdinalIgnoreCase) == true;
 
-        // Add workflow hints
-        var inBatch = true; // sessions are mandatory; keep flag true for guidance text
         var destinationName = loadMode switch
         {
             PowerQueryLoadMode.LoadToTable => "worksheet",
@@ -425,40 +380,9 @@ OPERATIONS GUIDANCE:
             result.ConfigurationApplied,
             result.DataRefreshed,
             result.RowsLoaded,
-            workflowHint = result.Success
-                ? $"Query '{queryName}' now loaded to {destinationName}. Data refreshed with {result.RowsLoaded} rows."
-                : isSheetConflict
-                    ? $"Cannot load query '{queryName}': sheet '{targetSheet ?? queryName}' already exists. Delete it first, then retry LoadTo."
-                    : $"Failed to load query '{queryName}': {result.ErrorMessage}",
-            suggestedNextActions = result.Success
-                ? (loadMode == PowerQueryLoadMode.LoadToDataModel || loadMode == PowerQueryLoadMode.LoadToBoth
-                    ? new[]
-                    {
-                        "Use excel_datamodel 'list-tables' to verify query appears in Data Model",
-                        "Use excel_datamodel 'create-measure' to add DAX calculations",
-                        "Use excel_datamodel 'list-relationships' to check table relationships",
-                        inBatch ? "Load more queries in this batch" : "Loading multiple queries? Use excel_batch for efficiency"
-                    }
-                    :
-                    [
-                        $"Use excel_range 'get-values' to read data from worksheet '{targetSheet ?? queryName}'",
-                        "Use excel_powerquery 'refresh' to update data from source",
-                        "Use excel_table 'create' to convert range to Excel Table for filtering/sorting",
-                        inBatch ? "Load more queries in this batch" : "Loading multiple queries? Use excel_batch for efficiency"
-                    ])
-                : isSheetConflict
-                    ?
-                    [
-                        $"Use excel_worksheet action='Delete' sheetName='{targetSheet ?? queryName}' to delete the existing sheet",
-                        $"Then retry: excel_powerquery action='LoadTo' queryName='{queryName}' loadDestination='{loadDestination ?? "worksheet"}' targetSheet='{targetSheet ?? queryName}'",
-                        "Or rename the target sheet if you want to keep existing data"
-                    ]
-                    :
-                    [
-                        "Check if query name is correct with excel_powerquery 'list'",
-                        "Verify query is connection-only with excel_powerquery 'get-load-config'",
-                        "Review error message for specific issue"
-                    ]
+            workflowHint = isSheetConflict
+                ? $"Sheet '{targetSheet ?? queryName}' already exists. Delete it first with excel_worksheet action='Delete', then retry LoadTo."
+                : null
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -478,11 +402,8 @@ OPERATIONS GUIDANCE:
             result.Success,
             result.ErrorMessage,
             workflowHint = result.Success
-                ? $"Query '{queryName}' converted to connection-only. Data removed from worksheet/data-model."
-                : $"Failed to unload '{queryName}'. Verify query exists and is currently loaded.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use 'get-load-config' to verify connection-only status", "Use 'load-to' to reload data to worksheet/data-model", "Use 'list' to see updated query status" }
-                : ["Use 'get-load-config' to check current load status", "Verify query is not already connection-only", "Use 'list' to verify query name"]
+                ? "Query converted to connection-only (M code preserved, data removed)."
+                : null
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -496,13 +417,7 @@ OPERATIONS GUIDANCE:
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? "All Power Queries refreshed successfully. All data reloaded from sources."
-                : "Failed to refresh all queries. Some queries may have connectivity issues.",
-            suggestedNextActions = result.Success
-                ? new[] { "Use 'list' to verify all queries refreshed", "Use excel_range to inspect updated data", "Check refresh timestamps with 'list' action" }
-                : ["Use 'refresh' on individual queries to isolate failures", "Check data source connectivity for failed queries", "Review error messages for specific query issues"]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 

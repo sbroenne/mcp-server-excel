@@ -4,7 +4,6 @@
 - excel_range - For source data ranges (use create-from-range)
 - excel_table - For structured source tables (use create-from-table)
 - excel_datamodel - For Data Model tables with DAX (use create-from-datamodel)
-- excel_batch - Use for multiple PivotTable field operations (75-90% faster)
 
 **Actions**: list, get-info, create-from-range, create-from-table, create-from-datamodel, delete, refresh, list-fields, add-row-field, add-column-field, add-value-field, add-filter-field, remove-field, set-field-function, set-field-name, set-field-format, set-field-filter, sort-field, get-data
 
@@ -41,6 +40,4 @@
 - Wrong field type → Rows vs Columns vs Values have different purposes
 
 **Workflow optimization**:
-- Multiple PivotTables? Use begin_excel_batch
 - Pattern: Create → Add fields → Set functions → Format → Sort
-- Batch mode for configuring multiple fields

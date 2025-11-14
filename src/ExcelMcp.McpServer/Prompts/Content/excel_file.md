@@ -27,16 +27,14 @@
 - close-workbook: Deprecated (automatic cleanup)
 
 **Common mistakes**:
-- Manually calling close-workbook → Not needed, automatic
 - Forgetting .xlsm for VBA → Specify extension in path
-- Not using batch mode after creation → Start batch for multiple operations
+- Not testing before operations → Use test to validate
 
 **Error handling**:
 - **File locked/open**: All operations will return clear error: "The file is already open in Excel or another process is using it. Please close the file before running automation commands."
 - No need to pre-check if file is open - operations will fail gracefully with user guidance
 
 **Workflow optimization**:
-- After create-empty: Use begin_excel_batch for setup operations
-- Pattern: Create file → Begin batch → Add sheets → Create queries → Commit batch
+- After create-empty: Use excel_worksheet to add sheets
 
 

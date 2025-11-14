@@ -131,12 +131,7 @@ POWER QUERY AUTO-REDIRECT:
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.Connections,
-            workflowHint = count == 0
-                ? "No connections found. Create connections via Excel UI or import from .odc files."
-                : powerQueryCount > 0
-                    ? $"Found {count} connection(s): {count - powerQueryCount} regular, {powerQueryCount} Power Query. Different tools needed."
-                    : $"Found {count} regular connection(s). Ready for refresh or data operations."
+            result.Connections
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -157,10 +152,7 @@ POWER QUERY AUTO-REDIRECT:
             result.ConnectionName,
             result.ConnectionString,
             result.CommandText,
-            result.IsPowerQuery,
-            workflowHint = result.IsPowerQuery
-                ? $"Power Query connection '{connectionName}' detected. Use excel_powerquery tool for management."
-                : $"Connection '{connectionName}' details retrieved. Ready for refresh or configuration."
+            result.IsPowerQuery
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -180,9 +172,7 @@ POWER QUERY AUTO-REDIRECT:
         // Add workflow hints
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            workflowHint = $"Connection '{connectionName}' imported successfully from {jsonPath}. Ready for use."
-
+            result.Success
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -202,10 +192,7 @@ POWER QUERY AUTO-REDIRECT:
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Connection '{connectionName}' exported to {jsonPath}. Use for version control or deployment."
-                : $"Failed to export connection '{connectionName}'. Verify connection exists and file path is writable."
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -225,10 +212,7 @@ POWER QUERY AUTO-REDIRECT:
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Connection '{connectionName}' properties updated from {jsonPath}. New settings applied."
-                : $"Failed to update connection '{connectionName}'. Verify connection exists and JSON file format is valid."
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -256,25 +240,7 @@ POWER QUERY AUTO-REDIRECT:
 
                 return JsonSerializer.Serialize(new
                 {
-                    result.Success,
-                    workflowHint = isConnectionOnly
-                        ? $"Connection '{connectionName}' validated successfully. Connection is working but no data is loaded to worksheets."
-                        : $"Connection '{connectionName}' refreshed successfully. External data has been updated in the workbook.",
-                    suggestedNextActions = isConnectionOnly ? new[]
-                    {
-                        "Connection validation confirmed - data source is accessible",
-                        "Use excel_connection 'loadto' to load data to a specific worksheet",
-                        "Use excel_connection 'view' to see connection details and last refresh time",
-                        "Connection-only means no QueryTables exist - data source ready for use",
-                        "Validate more connections in this session"
-                    } :
-                    [
-                        "Data refresh completed - external data source has been queried",
-                        "Use excel_range 'get-values' or 'get-used-range' to examine refreshed data",
-                        "Use excel_connection 'view' to verify last refresh timestamp",
-                        "Use excel_connection 'properties' to check auto-refresh settings",
-                        "Refresh more connections in this session"
-                    ]
+                    result.Success
                 }, ExcelToolsBase.JsonOptions);
             }
             else
@@ -285,8 +251,7 @@ POWER QUERY AUTO-REDIRECT:
                 return JsonSerializer.Serialize(new
                 {
                     result.Success,
-                    result.ErrorMessage,
-                    workflowHint = $"Connection '{connectionName}' refresh failed - data source issue detected."
+                    result.ErrorMessage
                 }, ExcelToolsBase.JsonOptions);
             }
         }
@@ -324,19 +289,7 @@ POWER QUERY AUTO-REDIRECT:
                 result.Action,
                 result.OperationContext,
                 result.IsRetryable,
-                result.RetryGuidance,
-
-                // Workflow hints - MCP Server layer responsibility
-                WorkflowHint = "Connection refresh timeout - verify data source accessibility",
-                SuggestedNextActions = new[]
-                {
-                    "Connection refresh timed out - check for blocking dialogs in Excel",
-                    "Verify the data source is responsive (database server, network share, web service)",
-                    "For OLEDB/ODBC connections, test connectivity using Windows ODBC Data Source Administrator",
-                    "Check firewall rules and network connectivity to remote data sources",
-                    "Look for credential prompts or authentication dialogs that may be hidden",
-                    "Large datasets may require longer refresh times - consider data filtering at source"
-                }
+                result.RetryGuidance
             };
 
             return JsonSerializer.Serialize(response, ExcelToolsBase.JsonOptions);
@@ -356,10 +309,7 @@ POWER QUERY AUTO-REDIRECT:
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Connection '{connectionName}' deleted successfully. QueryTables using this connection may need cleanup."
-                : $"Failed to delete connection '{connectionName}'. Verify connection exists and is not in use."
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -379,10 +329,7 @@ POWER QUERY AUTO-REDIRECT:
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Connection '{connectionName}' data loaded to worksheet '{sheetName}'. Data table created."
-                : $"Failed to load connection '{connectionName}' to '{sheetName}'. Verify connection and sheet exist."
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -403,10 +350,7 @@ POWER QUERY AUTO-REDIRECT:
             result.BackgroundQuery,
             result.RefreshOnFileOpen,
             result.SavePassword,
-            result.RefreshPeriod,
-            workflowHint = result.Success
-                ? $"Connection '{connectionName}' properties retrieved. Review refresh settings and background query status."
-                : $"Failed to retrieve properties for connection '{connectionName}'. Verify connection exists."
+            result.RefreshPeriod
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -424,10 +368,7 @@ POWER QUERY AUTO-REDIRECT:
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Connection '{connectionName}' properties updated. New settings will apply on next refresh."
-                : $"Failed to update properties for connection '{connectionName}'. Verify connection exists and property values are valid."
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -445,10 +386,7 @@ POWER QUERY AUTO-REDIRECT:
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Connection '{connectionName}' test successful - data source is accessible and responding."
-                : $"Connection '{connectionName}' test failed - data source connectivity issue detected."
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -474,10 +412,7 @@ POWER QUERY AUTO-REDIRECT:
         {
             result.Success,
             result.ErrorMessage,
-            connectionName,
-            workflowHint = result.Success
-                ? $"Connection '{connectionName}' created successfully and ready for use."
-                : $"Connection '{connectionName}' creation failed - check connection string format and parameters."
+            connectionName
         }, ExcelToolsBase.JsonOptions);
     }
 }

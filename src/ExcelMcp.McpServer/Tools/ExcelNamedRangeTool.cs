@@ -6,8 +6,6 @@ using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
-#pragma warning disable CA1861 // Avoid constant arrays as arguments - Workflow hints are contextual per-call
-
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
@@ -18,21 +16,6 @@ public static class ExcelNamedRangeTool
 {
     // Cache JsonSerializerOptions to satisfy CA1869
     private static readonly JsonSerializerOptions s_jsonOptions = new() { PropertyNameCaseInsensitive = true };
-
-    // Cache suggestedNextActions arrays to satisfy CA1861
-    private static readonly string[] s_getNextActions =
-    [
-        "Use 'set' to update this parameter value",
-        "Use this value in excel_range or excel_powerquery operations",
-        "Use 'update' to change the cell reference"
-    ];
-
-    private static readonly string[] s_createBulkNextActions =
-    [
-        "Use 'list' to verify all created named ranges",
-        "Use 'set' to assign initial values",
-        "Use excel_range to populate data in named range regions"
-    ];
 
     /// <summary>
     /// Manage Excel parameters (named ranges) - configuration values and reusable references
@@ -105,23 +88,7 @@ public static class ExcelNamedRangeTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.NamedRanges,
-            workflowHint = count == 0
-                ? "No named ranges found. Create parameters for reusable values and formula references."
-                : $"Found {count} named range(s). Use 'get' to retrieve values or 'set' to update them.",
-            suggestedNextActions = count == 0
-                ? new[]
-                {
-                    "Use 'create' to define new named ranges as parameters",
-                    "Add more operations in this session"
-                }
-                :
-                [
-                    "Use 'get' to retrieve named range values",
-                    "Use 'set' to update parameter values",
-                    "Use excel_range with sheetName='' to reference named ranges in formulas",
-                    "Continue operations in this session"
-                ]
+            result.NamedRanges
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -141,9 +108,7 @@ public static class ExcelNamedRangeTool
         {
             result.Success,
             result.NamedRangeName,
-            result.Value,
-            workflowHint = $"Retrieved value: {result.Value}",
-            suggestedNextActions = s_getNextActions
+            result.Value
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -161,14 +126,7 @@ public static class ExcelNamedRangeTool
         // Add workflow hints
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            workflowHint = $"Parameter '{namedRangeName}' updated to '{value}'.",
-            suggestedNextActions = new[]
-            {
-                "Use 'get' to verify the new value",
-                "Use excel_range to see how formulas using this parameter changed",
-                "Set more parameters in this session"
-            }
+            result.Success
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -185,23 +143,7 @@ public static class ExcelNamedRangeTool
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Named range '{namedRangeName}' now points to {value}. Formulas referencing it will use new location."
-                : $"Failed to update '{namedRangeName}'. Verify the named range exists and cell reference is valid.",
-            suggestedNextActions = result.Success
-                ? new[]
-                {
-                    "Use 'get' to retrieve value from new location",
-                    "Use excel_range to read data from new cell reference",
-                    "Update more references in this session"
-                }
-                :
-                [
-                    "Use 'list' to verify named range exists",
-                    "Check cell reference format (e.g., 'Sheet1!A1' or 'Sheet1!A1:B10')",
-                    "Ensure target sheet exists in workbook"
-                ]
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -219,14 +161,7 @@ public static class ExcelNamedRangeTool
         // Add workflow hints
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            workflowHint = $"Named range '{namedRangeName}' created pointing to {value}.",
-            suggestedNextActions = new[]
-            {
-                "Use 'set' to assign an initial value",
-                "Use 'get' to verify the named range",
-                "Create more named ranges in this session"
-            }
+            result.Success
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -244,22 +179,7 @@ public static class ExcelNamedRangeTool
         {
             result.Success,
             result.ErrorMessage,
-            workflowHint = result.Success
-                ? $"Named range '{namedRangeName}' deleted successfully. Formulas referencing it will show #NAME? error."
-                : $"Failed to delete '{namedRangeName}'. Verify the named range exists and is not protected.",
-            suggestedNextActions = result.Success
-                ? new[]
-                {
-                    "Use 'list' to verify deletion",
-                    "Check formulas that referenced this parameter (will show #NAME? errors)",
-                    "Delete more named ranges in this session"
-                }
-                :
-                [
-                    "Use 'list' to verify named range exists",
-                    "Check if workbook or sheet is protected",
-                    "Verify named range name spelling is correct"
-                ]
+            workflowHint = result.Success ? "Formulas referencing this named range will show #NAME? error" : null
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -291,9 +211,7 @@ public static class ExcelNamedRangeTool
         // Add workflow hints (CreateBulk returns OperationResult, not specialized type)
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            workflowHint = "Bulk named range creation completed.",
-            suggestedNextActions = s_createBulkNextActions
+            result.Success
         }, ExcelToolsBase.JsonOptions);
     }
 }
