@@ -12,7 +12,7 @@ internal sealed class Program
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
         AnsiConsole.Write(new FigletText("Excel CLI").Color(Color.Blue));
-        AnsiConsole.MarkupLine("[dim]Excel Command Line Interface for Coding Agents[/]\n");
+        AnsiConsole.MarkupLine("[dim]Excel Command Line Interface - MCP-aligned Session API[/]\n");
 
         if (args.Length == 0)
         {
@@ -55,9 +55,14 @@ internal sealed class Program
                 // Version and help commands
                 "--version" or "-v" or "version" => ShowVersion(),
 
-                // Batch commands
-                "batch-begin" => batch.Begin(args),
-                "batch-commit" => batch.Commit(args),
+                // Session lifecycle commands (MCP-aligned: open/save/close)
+                "open" => batch.Open(args),
+                "save" => batch.Save(args),
+                "list" => batch.List(args),
+
+                // Legacy batch commands (deprecated, mapped to new session API)
+                "batch-begin" => batch.Open(args),
+                "batch-commit" => batch.Save(args),
                 "batch-list" => batch.List(args),
 
                 // File commands
@@ -366,11 +371,17 @@ internal sealed class Program
         AnsiConsole.MarkupLine("[bold]Usage:[/] excelcli command args");
         AnsiConsole.WriteLine();
 
-        AnsiConsole.MarkupLine("[bold yellow]Batch Commands (75-90% faster for multi-operation workflows):[/]");
-        AnsiConsole.MarkupLine("  [cyan]batch-begin[/] file.xlsx                       Start batch session, returns batch-id");
-        AnsiConsole.MarkupLine("  [cyan]batch-commit[/] batch-id [[--no-save]]          Commit batch session (saves by default)");
-        AnsiConsole.MarkupLine("  [cyan]batch-list[/]                                  List active batch sessions");
-        AnsiConsole.MarkupLine("  [dim]Use --batch-id with any command for multi-operation workflows[/]");
+        AnsiConsole.MarkupLine("[bold yellow]Session Lifecycle Commands (MCP-aligned):[/]");
+        AnsiConsole.MarkupLine("  [cyan]open[/] file.xlsx                               Start session, returns session-id");
+        AnsiConsole.MarkupLine("  [cyan]save[/] session-id [[--no-save]]                 Close session (saves by default)");
+        AnsiConsole.MarkupLine("  [cyan]list[/]                                         List active sessions");
+        AnsiConsole.MarkupLine("  [dim]Use --session-id with any command for multi-operation workflows[/]");
+        AnsiConsole.WriteLine();
+
+        AnsiConsole.MarkupLine("[bold yellow]Legacy Batch Commands (deprecated, use session commands above):[/]");
+        AnsiConsole.MarkupLine("  [dim][cyan]batch-begin[/] → [cyan]open[/][/]");
+        AnsiConsole.MarkupLine("  [dim][cyan]batch-commit[/] → [cyan]save[/][/]");
+        AnsiConsole.MarkupLine("  [dim][cyan]batch-list[/] → [cyan]list[/][/]");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]File Commands:[/]");

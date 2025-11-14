@@ -3,12 +3,13 @@ using Spectre.Console;
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
 /// <summary>
-/// File management commands implementation for CLI
+/// File and session management commands implementation for CLI
 /// Wraps Core commands and provides console formatting
 /// </summary>
 public class FileCommands : IFileCommands
 {
     private readonly Core.Commands.FileCommands _coreCommands = new();
+    private readonly BatchCommands _batchCommands = new();
 
     public int CreateEmpty(string[] args)
     {
@@ -71,4 +72,19 @@ public class FileCommands : IFileCommands
             return 1;
         }
     }
+
+    /// <summary>
+    /// Open a session for a workbook - forwards to BatchCommands
+    /// </summary>
+    public int Open(string[] args) => _batchCommands.Open(args);
+
+    /// <summary>
+    /// Save and close a session - forwards to BatchCommands
+    /// </summary>
+    public int Save(string[] args) => _batchCommands.Save(args);
+
+    /// <summary>
+    /// List active sessions - forwards to BatchCommands
+    /// </summary>
+    public int ListSessions(string[] args) => _batchCommands.List(args);
 }

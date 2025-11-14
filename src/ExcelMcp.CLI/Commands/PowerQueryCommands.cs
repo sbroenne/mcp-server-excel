@@ -22,7 +22,7 @@ public class PowerQueryCommands : IPowerQueryCommands
     {
         if (args.Length < 2)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] pq-list <file.xlsx> [--batch-id <id>]");
+            AnsiConsole.MarkupLine("[red]Usage:[/] pq-list <file.xlsx> [[--session-id <id>]]");
             return 1;
         }
 

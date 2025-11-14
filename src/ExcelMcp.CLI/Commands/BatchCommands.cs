@@ -5,23 +5,24 @@ using Spectre.Console;
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
 /// <summary>
-/// Batch session management commands - CLI presentation layer
-/// Enables multi-operation workflows with single Excel instance (75-90% faster)
+/// Session management commands - CLI presentation layer
+/// Enables multi-operation workflows with single Excel instance for fast batch processing
+/// Aligned with MCP Server session pattern: open → operate → save → close
 /// </summary>
 public class BatchCommands
 {
     private static readonly ConcurrentDictionary<string, IExcelBatch> _activeBatches = new();
 
     /// <summary>
-    /// Begin a new batch session for a workbook
+    /// Open a session for a workbook (session lifecycle start)
     /// </summary>
-    /// <param name="args">Command arguments: batch-begin file.xlsx</param>
+    /// <param name="args">Command arguments: open file.xlsx</param>
     /// <returns>0 for success, 1 for error</returns>
-    public int Begin(string[] args)
+    public int Open(string[] args)
     {
         if (args.Length < 2)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] batch-begin <file.xlsx>");
+            AnsiConsole.MarkupLine("[red]Usage:[/] open <file.xlsx>");
             return 1;
         }
 
@@ -68,14 +69,14 @@ public class BatchCommands
                 return 1;
             }
 
-            AnsiConsole.MarkupLine($"[green]✓[/] [bold]Batch session started[/]");
-            AnsiConsole.MarkupLine($"[cyan]Batch ID:[/] {batchId}");
+            AnsiConsole.MarkupLine($"[green]✓[/] [bold]Session opened[/]");
+            AnsiConsole.MarkupLine($"[cyan]Session ID:[/] {batchId}");
             AnsiConsole.MarkupLine($"[dim]File:[/] {normalizedPath}");
             AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine("[bold]Next steps:[/]");
-            AnsiConsole.MarkupLine($"[dim]• Use --batch-id {batchId} with any command[/]");
-            AnsiConsole.MarkupLine($"[dim]• All operations use same Excel instance (75-90% faster!)[/]");
-            AnsiConsole.MarkupLine($"[dim]• Call batch-commit {batchId} when done[/]");
+            AnsiConsole.MarkupLine($"[dim]• Use --session-id {batchId} with any command[/]");
+            AnsiConsole.MarkupLine($"[dim]• All operations use same Excel instance[/]");
+            AnsiConsole.MarkupLine($"[dim]• Call save {batchId} when done[/]");
 
             return 0;
         }
@@ -87,28 +88,28 @@ public class BatchCommands
     }
 
     /// <summary>
-    /// Commit (save and close) a batch session
+    /// Save and close a session (session lifecycle end)
     /// </summary>
-    /// <param name="args">Command arguments: batch-commit batch-id [--no-save]</param>
+    /// <param name="args">Command arguments: save session-id [--no-save]</param>
     /// <returns>0 for success, 1 for error</returns>
-    public int Commit(string[] args)
+    public int Save(string[] args)
     {
         if (args.Length < 2)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] batch-commit <batch-id> [[--no-save]]");
+            AnsiConsole.MarkupLine("[red]Usage:[/] save <session-id> [[--no-save]]");
             return 1;
         }
 
-        string batchId = args[1];
-        bool save = !args.Contains("--no-save");
+        string sessionId = args[1];
+        bool shouldSave = !args.Contains("--no-save");
 
         try
         {
             // Retrieve batch session
-            if (!_activeBatches.TryRemove(batchId, out var batch))
+            if (!_activeBatches.TryRemove(sessionId, out var batch))
             {
-                AnsiConsole.MarkupLine($"[red]Error:[/] Batch session '{batchId}' not found");
-                AnsiConsole.MarkupLine("[yellow]Hint:[/] Use batch-list to see active sessions");
+                AnsiConsole.MarkupLine($"[red]Error:[/] Session '{sessionId}' not found");
+                AnsiConsole.MarkupLine("[yellow]Hint:[/] Use list to see active sessions");
                 return 1;
             }
 
@@ -119,7 +120,7 @@ public class BatchCommands
                 var task = Task.Run(async () =>
                 {
                     // Save if requested
-                    if (save)
+                    if (shouldSave)
                     {
                         await batch.SaveAsync();
                     }
@@ -129,10 +130,10 @@ public class BatchCommands
                 });
                 task.GetAwaiter().GetResult();
 
-                AnsiConsole.MarkupLine($"[green]✓[/] [bold]Batch committed[/]");
-                AnsiConsole.MarkupLine($"[cyan]Batch ID:[/] {batchId}");
+                AnsiConsole.MarkupLine($"[green]✓[/] [bold]Session closed[/]");
+                AnsiConsole.MarkupLine($"[cyan]Session ID:[/] {sessionId}");
                 AnsiConsole.MarkupLine($"[dim]File:[/] {filePath}");
-                if (save)
+                if (shouldSave)
                 {
                     AnsiConsole.MarkupLine($"[green]Changes saved[/]");
                 }
@@ -163,30 +164,30 @@ public class BatchCommands
     }
 
     /// <summary>
-    /// List all active batch sessions
+    /// List all active sessions
     /// </summary>
-    /// <param name="args">Command arguments: batch-list</param>
+    /// <param name="args">Command arguments: list</param>
     /// <returns>0 for success</returns>
 #pragma warning disable IDE0060 // Remove unused parameter
     public int List(string[] args)
 #pragma warning restore IDE0060 // Remove unused parameter
     {
-        var batches = _activeBatches.ToList();
+        var sessions = _activeBatches.ToList();
 
-        if (batches.Count == 0)
+        if (sessions.Count == 0)
         {
-            AnsiConsole.MarkupLine("[yellow]No active batch sessions[/]");
-            AnsiConsole.MarkupLine("[dim]Start one with:[/] [cyan]batch-begin file.xlsx[/]");
+            AnsiConsole.MarkupLine("[yellow]No active sessions[/]");
+            AnsiConsole.MarkupLine("[dim]Start one with:[/] [cyan]open file.xlsx[/]");
             return 0;
         }
 
-        AnsiConsole.MarkupLine($"[bold]Active Batch Sessions:[/] {batches.Count}\n");
+        AnsiConsole.MarkupLine($"[bold]Active Sessions:[/] {sessions.Count}\n");
 
         var table = new Table();
-        table.AddColumn("[bold]Batch ID[/]");
+        table.AddColumn("[bold]Session ID[/]");
         table.AddColumn("[bold]File Path[/]");
 
-        foreach (var kvp in batches)
+        foreach (var kvp in sessions)
         {
             table.AddRow(
                 $"[cyan]{kvp.Key}[/]",
@@ -196,23 +197,28 @@ public class BatchCommands
 
         AnsiConsole.Write(table);
         AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("[yellow]⚠[/] [bold]Remember to commit batches![/]");
-        AnsiConsole.MarkupLine("[dim]Each batch holds Excel open. Call batch-commit to release resources.[/]");
+        AnsiConsole.MarkupLine("[yellow]⚠[/] [bold]Remember to close sessions![/]");
+        AnsiConsole.MarkupLine("[dim]Each session holds Excel open. Call save to release resources.[/]");
 
         return 0;
     }
 
     /// <summary>
-    /// Get an active batch session by ID.
-    /// Used internally by other commands to retrieve the batch for operations.
+    /// Get an active session by ID.
+    /// Used internally by other commands to retrieve the session for operations.
     /// </summary>
-    internal static IExcelBatch? GetBatch(string batchId)
+    internal static IExcelBatch? GetSession(string sessionId)
     {
-        if (string.IsNullOrWhiteSpace(batchId))
+        if (string.IsNullOrWhiteSpace(sessionId))
         {
             return null;
         }
 
-        return _activeBatches.TryGetValue(batchId, out var batch) ? batch : null;
+        return _activeBatches.TryGetValue(sessionId, out var session) ? session : null;
     }
+
+    /// <summary>
+    /// Legacy method for backward compatibility - forwards to GetSession
+    /// </summary>
+    internal static IExcelBatch? GetBatch(string batchId) => GetSession(batchId);
 }

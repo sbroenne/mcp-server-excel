@@ -27,68 +27,68 @@ public class CliBatchCommandsTests
     }
 
     [Fact]
-    public void Begin_WithMissingFileArg_ReturnsErrorExitCode()
+    public void Open_WithMissingFileArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = ["batch-begin"]; // Missing file path
+        string[] args = ["open"]; // Missing file path
 
         // Act
-        int exitCode = _cliCommands.Begin(args);
+        int exitCode = _cliCommands.Open(args);
 
         // Assert - CLI returns 1 for error (missing arguments)
         Assert.Equal(1, exitCode);
     }
 
     [Fact]
-    public void Begin_WithNonExistentFile_ReturnsErrorExitCode()
+    public void Open_WithNonExistentFile_ReturnsErrorExitCode()
     {
         // Arrange
         string nonExistentFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".xlsx");
-        string[] args = ["batch-begin", nonExistentFile];
+        string[] args = ["open", nonExistentFile];
 
         // Act
-        int exitCode = _cliCommands.Begin(args);
+        int exitCode = _cliCommands.Open(args);
 
         // Assert - CLI returns 1 for error (file not found)
         Assert.Equal(1, exitCode);
     }
 
     [Fact]
-    public void Commit_WithMissingBatchIdArg_ReturnsErrorExitCode()
+    public void Save_WithMissingSessionIdArg_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = ["batch-commit"]; // Missing batch ID
+        string[] args = ["save"]; // Missing session ID
 
         // Act
-        int exitCode = _cliCommands.Commit(args);
+        int exitCode = _cliCommands.Save(args);
 
         // Assert - CLI returns 1 for error (missing arguments)
         Assert.Equal(1, exitCode);
     }
 
     [Fact]
-    public void Commit_WithInvalidBatchId_ReturnsErrorExitCode()
+    public void Save_WithInvalidSessionId_ReturnsErrorExitCode()
     {
         // Arrange
-        string[] args = ["batch-commit", "invalid-batch-id-12345"];
+        string[] args = ["save", "invalid-session-id-12345"];
 
         // Act
-        int exitCode = _cliCommands.Commit(args);
+        int exitCode = _cliCommands.Save(args);
 
-        // Assert - CLI returns 1 for error (batch not found)
+        // Assert - CLI returns 1 for error (session not found)
         Assert.Equal(1, exitCode);
     }
 
     [Fact]
-    public void List_WithNoActiveBatches_ReturnsSuccessExitCode()
+    public void List_WithNoActiveSessions_ReturnsSuccessExitCode()
     {
         // Arrange
-        string[] args = ["batch-list"];
+        string[] args = ["list"];
 
         // Act
         int exitCode = _cliCommands.List(args);
 
-        // Assert - CLI returns 0 even when no batches (success case)
+        // Assert - CLI returns 0 even when no sessions (success case)
         Assert.Equal(0, exitCode);
     }
 }

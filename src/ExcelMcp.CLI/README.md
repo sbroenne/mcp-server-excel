@@ -92,21 +92,24 @@ The CLI uses an explicit session-based workflow where you open a file, perform o
 excelcli open data.xlsx
 # Output: Session ID: 550e8400-e29b-41d4-a716-446655440000
 
-# 2. Use the session ID with any commands
+# 2. List active sessions anytime
+excelcli list
+
+# 3. Use the session ID with any commands (optional - can operate without session)
 excelcli sheet-create data.xlsx NewSheet --session-id 550e8400-e29b-41d4-a716-446655440000
 excelcli pq-list data.xlsx --session-id 550e8400-e29b-41d4-a716-446655440000
 
-# 3. Save changes explicitly (optional - can discard)
+# 4. Save changes and close session
 excelcli save 550e8400-e29b-41d4-a716-446655440000
 
-# 4. Close session when done
-excelcli close 550e8400-e29b-41d4-a716-446655440000
+# 5. Or discard changes without saving
+excelcli save 550e8400-e29b-41d4-a716-446655440000 --no-save
 ```
 
 ### Session Lifecycle Benefits
 
 - **Explicit control** - Know exactly when changes are persisted
-- **Batch efficiency** - Keep single Excel instance open for multiple operations
+- **Batch efficiency** - Keep single Excel instance open for multiple operations (75-90% faster)
 - **Flexibility** - Save strategically or discard changes entirely
 - **Clean resource management** - Automatic Excel cleanup when session closes
 

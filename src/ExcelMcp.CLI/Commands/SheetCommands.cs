@@ -16,7 +16,7 @@ public class SheetCommands : ISheetCommands
     {
         if (args.Length < 2)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] sheet-list <file.xlsx> [--batch-id <id>]");
+            AnsiConsole.MarkupLine("[red]Usage:[/] sheet-list <file.xlsx> [[--session-id <id>]]");
             return 1;
         }
 
@@ -68,7 +68,7 @@ public class SheetCommands : ISheetCommands
     {
         if (args.Length < 3)
         {
-            AnsiConsole.MarkupLine("[red]Usage:[/] sheet-create <file.xlsx> <sheet-name> [--batch-id <id>]");
+            AnsiConsole.MarkupLine("[red]Usage:[/] sheet-create <file.xlsx> <sheet-name> [[--session-id <id>]]");
             return 1;
         }
 
