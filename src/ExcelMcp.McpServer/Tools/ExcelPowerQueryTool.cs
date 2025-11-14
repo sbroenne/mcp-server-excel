@@ -43,9 +43,8 @@ OPERATIONS GUIDANCE:
         PowerQueryAction action,
 
         [Required]
-        [FileExtensions(Extensions = "xlsx,xlsm")]
-        [Description("Excel file path (.xlsx or .xlsm)")]
-        string excelPath,
+        [Description("Session ID from excel_file 'open' action. Required for all Power Query operations.")]
+        string sessionId,
 
         [StringLength(255, MinimumLength = 1)]
         [Description("Power Query name (required for most actions)")]
@@ -72,9 +71,6 @@ OPERATIONS GUIDANCE:
   - 'connection-only': Don't load data (M code imported but not executed)")]
         string? loadDestination = null,
 
-        [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
-        string? batchId = null,
-
         [Description("Timeout in minutes for Power Query operations. Default: 5 minutes for refresh operations, 2 minutes for others")]
         double? timeout = null)
     {
@@ -87,20 +83,20 @@ OPERATIONS GUIDANCE:
             // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
             return action switch
             {
-                PowerQueryAction.List => await ListPowerQueriesAsync(powerQueryCommands, excelPath, batchId),
-                PowerQueryAction.View => await ViewPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
-                PowerQueryAction.Export => await ExportPowerQueryAsync(powerQueryCommands, excelPath, queryName, targetPath, batchId),
-                PowerQueryAction.Refresh => await RefreshPowerQueryAsync(powerQueryCommands, excelPath, queryName, timeout, batchId),
-                PowerQueryAction.Delete => await DeletePowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
-                PowerQueryAction.GetLoadConfig => await GetLoadConfigAsync(powerQueryCommands, excelPath, queryName, batchId),
-                PowerQueryAction.ListExcelSources => await ListExcelSourcesAsync(powerQueryCommands, excelPath, batchId),
+                PowerQueryAction.List => await ListPowerQueriesAsync(powerQueryCommands, sessionId),
+                PowerQueryAction.View => await ViewPowerQueryAsync(powerQueryCommands, sessionId, queryName),
+                PowerQueryAction.Export => await ExportPowerQueryAsync(powerQueryCommands, sessionId, queryName, targetPath),
+                PowerQueryAction.Refresh => await RefreshPowerQueryAsync(powerQueryCommands, sessionId, queryName, timeout),
+                PowerQueryAction.Delete => await DeletePowerQueryAsync(powerQueryCommands, sessionId, queryName),
+                PowerQueryAction.GetLoadConfig => await GetLoadConfigAsync(powerQueryCommands, sessionId, queryName),
+                PowerQueryAction.ListExcelSources => await ListExcelSourcesAsync(powerQueryCommands, sessionId),
 
                 // Atomic Operations
-                PowerQueryAction.Create => await CreatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, loadDestination, targetSheet, batchId),
-                PowerQueryAction.Update => await UpdatePowerQueryAsync(powerQueryCommands, excelPath, queryName, sourcePath, batchId),
-                PowerQueryAction.LoadTo => await LoadToPowerQueryAsync(powerQueryCommands, excelPath, queryName, loadDestination, targetSheet, batchId),
-                PowerQueryAction.Unload => await UnloadPowerQueryAsync(powerQueryCommands, excelPath, queryName, batchId),
-                PowerQueryAction.RefreshAll => await RefreshAllPowerQueriesAsync(powerQueryCommands, excelPath, batchId),
+                PowerQueryAction.Create => await CreatePowerQueryAsync(powerQueryCommands, sessionId, queryName, sourcePath, loadDestination, targetSheet),
+                PowerQueryAction.Update => await UpdatePowerQueryAsync(powerQueryCommands, sessionId, queryName, sourcePath),
+                PowerQueryAction.LoadTo => await LoadToPowerQueryAsync(powerQueryCommands, sessionId, queryName, loadDestination, targetSheet),
+                PowerQueryAction.Unload => await UnloadPowerQueryAsync(powerQueryCommands, sessionId, queryName),
+                PowerQueryAction.RefreshAll => await RefreshAllPowerQueriesAsync(powerQueryCommands, sessionId),
 
                 _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
             };
@@ -111,18 +107,15 @@ OPERATIONS GUIDANCE:
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString());
             throw; // Unreachable but satisfies compiler
         }
     }
 
-    private static async Task<string> ListPowerQueriesAsync(PowerQueryCommands commands, string excelPath, string? batchId)
+    private static async Task<string> ListPowerQueriesAsync(PowerQueryCommands commands, string sessionId)
     {
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: false,
-            async (batch) => await commands.ListAsync(batch));
+        var result = await ExcelToolsBase.WithSessionAsync(sessionId,
+            async batch => await commands.ListAsync(batch));
 
         return JsonSerializer.Serialize(new
         {
@@ -138,16 +131,13 @@ OPERATIONS GUIDANCE:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ViewPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
+    private static async Task<string> ViewPowerQueryAsync(PowerQueryCommands commands, string sessionId, string? queryName)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for view action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: false,
-            async (batch) => await commands.ViewAsync(batch, queryName));
+        var result = await ExcelToolsBase.WithSessionAsync(sessionId,
+            async batch => await commands.ViewAsync(batch, queryName));
 
         return JsonSerializer.Serialize(new
         {
@@ -164,16 +154,13 @@ OPERATIONS GUIDANCE:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ExportPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? targetPath, string? batchId)
+    private static async Task<string> ExportPowerQueryAsync(PowerQueryCommands commands, string sessionId, string? queryName, string? targetPath)
     {
         if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(targetPath))
             throw new ModelContextProtocol.McpException("queryName and targetPath are required for export action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: false,
-            async (batch) => await commands.ExportAsync(batch, queryName, targetPath));
+        var result = await ExcelToolsBase.WithSessionAsync(sessionId,
+            async batch => await commands.ExportAsync(batch, queryName, targetPath));
 
         return JsonSerializer.Serialize(new
         {
@@ -189,7 +176,7 @@ OPERATIONS GUIDANCE:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RefreshPowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, double? timeoutMinutes, string? batchId)
+    private static async Task<string> RefreshPowerQueryAsync(PowerQueryCommands commands, string sessionId, string? queryName, double? timeoutMinutes)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for refresh action");
@@ -199,11 +186,8 @@ OPERATIONS GUIDANCE:
             // Apply operation-specific timeout default (5 minutes for refresh)
             var timeoutSpan = timeoutMinutes.HasValue ? (TimeSpan?)TimeSpan.FromMinutes(timeoutMinutes.Value) : null;
 
-            var result = await ExcelToolsBase.WithBatchAsync(
-                batchId,
-                excelPath,
-                save: true,
-                async (batch) => await commands.RefreshAsync(batch, queryName, timeoutSpan));
+            var result = await ExcelToolsBase.WithSessionAsync(sessionId,
+                async batch => await commands.RefreshAsync(batch, queryName, timeoutSpan));
 
             // Always return JSON (success or failure) - MCP clients handle the success flag
             return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
@@ -216,7 +200,7 @@ OPERATIONS GUIDANCE:
                 Success = false,
                 ErrorMessage = ex.Message,
                 QueryName = queryName,
-                FilePath = excelPath,
+                FilePath = null,
                 RefreshTime = DateTime.Now,
 
                 OperationContext = new Dictionary<string, object>
@@ -261,16 +245,13 @@ OPERATIONS GUIDANCE:
         }
     }
 
-    private static async Task<string> DeletePowerQueryAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
+    private static async Task<string> DeletePowerQueryAsync(PowerQueryCommands commands, string sessionId, string? queryName)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for delete action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await commands.DeleteAsync(batch, queryName));
+        var result = await ExcelToolsBase.WithSessionAsync(sessionId,
+            async batch => await commands.DeleteAsync(batch, queryName));
 
         return JsonSerializer.Serialize(new
         {
@@ -285,16 +266,13 @@ OPERATIONS GUIDANCE:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetLoadConfigAsync(PowerQueryCommands commands, string excelPath, string? queryName, string? batchId)
+    private static async Task<string> GetLoadConfigAsync(PowerQueryCommands commands, string sessionId, string? queryName)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for get-load-config action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: false,
-            async (batch) => await commands.GetLoadConfigAsync(batch, queryName));
+        var result = await ExcelToolsBase.WithSessionAsync(sessionId,
+            async batch => await commands.GetLoadConfigAsync(batch, queryName));
 
         return JsonSerializer.Serialize(new
         {
@@ -312,14 +290,11 @@ OPERATIONS GUIDANCE:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ListExcelSourcesAsync(PowerQueryCommands commands, string excelPath, string? batchId)
+    private static async Task<string> ListExcelSourcesAsync(PowerQueryCommands commands, string sessionId)
     {
         // list-excel-sources action lists all available sources (doesn't require queryName)
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: false,
-            async (batch) => await commands.ListExcelSourcesAsync(batch));
+        var result = await ExcelToolsBase.WithSessionAsync(sessionId,
+            async batch => await commands.ListExcelSourcesAsync(batch));
 
         return JsonSerializer.Serialize(new
         {
@@ -341,12 +316,11 @@ OPERATIONS GUIDANCE:
 
     private static async Task<string> CreatePowerQueryAsync(
         PowerQueryCommands commands,
-        string excelPath,
+        string sessionId,
         string? queryName,
         string? sourcePath,
         string? loadDestination,
-        string? targetSheet,
-        string? batchId)
+        string? targetSheet)
     {
         // Validate ALL required parameters first so error message lists every missing one
         if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(sourcePath))
@@ -363,11 +337,8 @@ OPERATIONS GUIDANCE:
         // Parse loadDestination to PowerQueryLoadMode enum
         var loadMode = ParseLoadMode(loadDestination ?? "worksheet");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await commands.CreateAsync(batch, queryName, sourcePath, loadMode, targetSheet));
+        var result = await ExcelToolsBase.WithSessionAsync(sessionId,
+            async batch => await commands.CreateAsync(batch, queryName, sourcePath, loadMode, targetSheet));
 
         return JsonSerializer.Serialize(new
         {
@@ -387,10 +358,9 @@ OPERATIONS GUIDANCE:
 
     private static async Task<string> UpdatePowerQueryAsync(
         PowerQueryCommands commands,
-        string excelPath,
+        string sessionId,
         string? queryName,
-        string? sourcePath,
-        string? batchId)
+        string? sourcePath)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for update action");
@@ -399,11 +369,8 @@ OPERATIONS GUIDANCE:
 
         sourcePath = PathValidator.ValidateExistingFile(sourcePath, nameof(sourcePath));
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await commands.UpdateAsync(batch, queryName, sourcePath));
+        var result = await ExcelToolsBase.WithSessionAsync(sessionId,
+            async batch => await commands.UpdateAsync(batch, queryName, sourcePath));
 
         return JsonSerializer.Serialize(new
         {
@@ -420,11 +387,10 @@ OPERATIONS GUIDANCE:
 
     private static async Task<string> LoadToPowerQueryAsync(
         PowerQueryCommands commands,
-        string excelPath,
+        string sessionId,
         string? queryName,
         string? loadDestination,
-        string? targetSheet,
-        string? batchId)
+        string? targetSheet)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for load-to action");
@@ -432,18 +398,15 @@ OPERATIONS GUIDANCE:
         // Parse loadDestination to PowerQueryLoadMode enum
         var loadMode = ParseLoadMode(loadDestination ?? "worksheet");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await commands.LoadToAsync(batch, queryName, loadMode, targetSheet));
+        var result = await ExcelToolsBase.WithSessionAsync(sessionId,
+            async batch => await commands.LoadToAsync(batch, queryName, loadMode, targetSheet));
 
         // Detect sheet conflict error and provide specific guidance
         var isSheetConflict = !result.Success &&
                              result.ErrorMessage?.Contains("worksheet already exists", StringComparison.OrdinalIgnoreCase) == true;
 
         // Add workflow hints
-        var inBatch = !string.IsNullOrEmpty(batchId);
+        var inBatch = true; // sessions are mandatory; keep flag true for guidance text
         var destinationName = loadMode switch
         {
             PowerQueryLoadMode.LoadToTable => "worksheet",
@@ -501,18 +464,14 @@ OPERATIONS GUIDANCE:
 
     private static async Task<string> UnloadPowerQueryAsync(
         PowerQueryCommands commands,
-        string excelPath,
-        string? queryName,
-        string? batchId)
+        string sessionId,
+        string? queryName)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ModelContextProtocol.McpException("queryName is required for unload action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await commands.UnloadAsync(batch, queryName));
+        var result = await ExcelToolsBase.WithSessionAsync(sessionId,
+            async batch => await commands.UnloadAsync(batch, queryName));
 
         return JsonSerializer.Serialize(new
         {
@@ -529,14 +488,10 @@ OPERATIONS GUIDANCE:
 
     private static async Task<string> RefreshAllPowerQueriesAsync(
         PowerQueryCommands commands,
-        string excelPath,
-        string? batchId)
+        string sessionId)
     {
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await commands.RefreshAllAsync(batch));
+        var result = await ExcelToolsBase.WithSessionAsync(sessionId,
+            async batch => await commands.RefreshAllAsync(batch));
 
         return JsonSerializer.Serialize(new
         {

@@ -31,6 +31,10 @@ public static class ExcelQueryTableTool
         [Description("Excel file path (.xlsx or .xlsm)")]
         string excelPath,
 
+        [Required]
+        [Description("Session ID from excel_file 'open' action")]
+        string sessionId,
+
         [StringLength(255, MinimumLength = 1)]
         [Description("QueryTable name")]
         string? queryTableName = null,
@@ -69,10 +73,7 @@ public static class ExcelQueryTableTool
         bool? adjustColumnWidth = null,
 
         [Description("Refresh immediately after creation")]
-        bool? refreshImmediately = null,
-
-        [Description("Optional batch ID for grouping operations")]
-        string? batchId = null)
+        bool? refreshImmediately = null)
     {
         try
         {
@@ -80,14 +81,14 @@ public static class ExcelQueryTableTool
 
             return action switch
             {
-                QueryTableAction.List => await ListQueryTablesAsync(queryTableCommands, excelPath, batchId),
-                QueryTableAction.Get => await GetQueryTableAsync(queryTableCommands, excelPath, queryTableName, batchId),
-                QueryTableAction.CreateFromConnection => await CreateFromConnectionAsync(queryTableCommands, excelPath, sheetName, queryTableName, connectionName, range, backgroundQuery, refreshOnFileOpen, savePassword, preserveColumnInfo, preserveFormatting, adjustColumnWidth, refreshImmediately, batchId),
-                QueryTableAction.CreateFromQuery => await CreateFromQueryAsync(queryTableCommands, excelPath, sheetName, queryTableName, queryName, range, backgroundQuery, refreshOnFileOpen, savePassword, preserveColumnInfo, preserveFormatting, adjustColumnWidth, refreshImmediately, batchId),
-                QueryTableAction.Refresh => await RefreshQueryTableAsync(queryTableCommands, excelPath, queryTableName, batchId),
-                QueryTableAction.RefreshAll => await RefreshAllQueryTablesAsync(queryTableCommands, excelPath, batchId),
-                QueryTableAction.UpdateProperties => await UpdatePropertiesAsync(queryTableCommands, excelPath, queryTableName, backgroundQuery, refreshOnFileOpen, savePassword, preserveColumnInfo, preserveFormatting, adjustColumnWidth, batchId),
-                QueryTableAction.Delete => await DeleteQueryTableAsync(queryTableCommands, excelPath, queryTableName, batchId),
+                QueryTableAction.List => await ListQueryTablesAsync(queryTableCommands, sessionId),
+                QueryTableAction.Get => await GetQueryTableAsync(queryTableCommands, sessionId, queryTableName),
+                QueryTableAction.CreateFromConnection => await CreateFromConnectionAsync(queryTableCommands, sessionId, sheetName, queryTableName, connectionName, range, backgroundQuery, refreshOnFileOpen, savePassword, preserveColumnInfo, preserveFormatting, adjustColumnWidth, refreshImmediately),
+                QueryTableAction.CreateFromQuery => await CreateFromQueryAsync(queryTableCommands, sessionId, sheetName, queryTableName, queryName, range, backgroundQuery, refreshOnFileOpen, savePassword, preserveColumnInfo, preserveFormatting, adjustColumnWidth, refreshImmediately),
+                QueryTableAction.Refresh => await RefreshQueryTableAsync(queryTableCommands, sessionId, queryTableName),
+                QueryTableAction.RefreshAll => await RefreshAllQueryTablesAsync(queryTableCommands, sessionId),
+                QueryTableAction.UpdateProperties => await UpdatePropertiesAsync(queryTableCommands, sessionId, queryTableName, backgroundQuery, refreshOnFileOpen, savePassword, preserveColumnInfo, preserveFormatting, adjustColumnWidth),
+                QueryTableAction.Delete => await DeleteQueryTableAsync(queryTableCommands, sessionId, queryTableName),
                 _ => throw new ModelContextProtocol.McpException($"Unknown action: {action}")
             };
         }
@@ -102,13 +103,11 @@ public static class ExcelQueryTableTool
         }
     }
 
-    private static async Task<string> ListQueryTablesAsync(QueryTableCommands commands, string excelPath, string? batchId)
+    private static async Task<string> ListQueryTablesAsync(QueryTableCommands commands, string sessionId)
     {
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: false,
-            async (batch) => await commands.ListAsync(batch));
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await commands.ListAsync(batch));
 
         return JsonSerializer.Serialize(new
         {
@@ -128,16 +127,14 @@ public static class ExcelQueryTableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetQueryTableAsync(QueryTableCommands commands, string excelPath, string? queryTableName, string? batchId)
+    private static async Task<string> GetQueryTableAsync(QueryTableCommands commands, string sessionId, string? queryTableName)
     {
         if (string.IsNullOrWhiteSpace(queryTableName))
             throw new ModelContextProtocol.McpException("queryTableName is required for get action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: false,
-            async (batch) => await commands.GetAsync(batch, queryTableName));
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await commands.GetAsync(batch, queryTableName));
 
         return JsonSerializer.Serialize(new
         {
@@ -155,7 +152,7 @@ public static class ExcelQueryTableTool
 
     private static async Task<string> CreateFromConnectionAsync(
         QueryTableCommands commands,
-        string excelPath,
+        string sessionId,
         string? sheetName,
         string? queryTableName,
         string? connectionName,
@@ -166,8 +163,7 @@ public static class ExcelQueryTableTool
         bool? preserveColumnInfo,
         bool? preserveFormatting,
         bool? adjustColumnWidth,
-        bool? refreshImmediately,
-        string? batchId)
+        bool? refreshImmediately)
     {
         if (string.IsNullOrWhiteSpace(sheetName))
             throw new ModelContextProtocol.McpException("sheetName is required for create-from-connection action");
@@ -189,11 +185,9 @@ public static class ExcelQueryTableTool
             RefreshImmediately = refreshImmediately ?? true
         };
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await commands.CreateFromConnectionAsync(batch, sheetName, queryTableName, connectionName, range ?? "A1", options));
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await commands.CreateFromConnectionAsync(batch, sheetName, queryTableName, connectionName, range ?? "A1", options));
 
         return JsonSerializer.Serialize(new
         {
@@ -210,7 +204,7 @@ public static class ExcelQueryTableTool
 
     private static async Task<string> CreateFromQueryAsync(
         QueryTableCommands commands,
-        string excelPath,
+        string sessionId,
         string? sheetName,
         string? queryTableName,
         string? queryName,
@@ -221,8 +215,7 @@ public static class ExcelQueryTableTool
         bool? preserveColumnInfo,
         bool? preserveFormatting,
         bool? adjustColumnWidth,
-        bool? refreshImmediately,
-        string? batchId)
+        bool? refreshImmediately)
     {
         if (string.IsNullOrWhiteSpace(sheetName))
             throw new ModelContextProtocol.McpException("sheetName is required for create-from-query action");
@@ -244,11 +237,9 @@ public static class ExcelQueryTableTool
             RefreshImmediately = refreshImmediately ?? true
         };
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await commands.CreateFromQueryAsync(batch, sheetName, queryTableName, queryName, range ?? "A1", options));
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await commands.CreateFromQueryAsync(batch, sheetName, queryTableName, queryName, range ?? "A1", options));
 
         return JsonSerializer.Serialize(new
         {
@@ -263,16 +254,14 @@ public static class ExcelQueryTableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RefreshQueryTableAsync(QueryTableCommands commands, string excelPath, string? queryTableName, string? batchId)
+    private static async Task<string> RefreshQueryTableAsync(QueryTableCommands commands, string sessionId, string? queryTableName)
     {
         if (string.IsNullOrWhiteSpace(queryTableName))
             throw new ModelContextProtocol.McpException("queryTableName is required for refresh action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await commands.RefreshAsync(batch, queryTableName));
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await commands.RefreshAsync(batch, queryTableName));
 
         return JsonSerializer.Serialize(new
         {
@@ -287,13 +276,11 @@ public static class ExcelQueryTableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RefreshAllQueryTablesAsync(QueryTableCommands commands, string excelPath, string? batchId)
+    private static async Task<string> RefreshAllQueryTablesAsync(QueryTableCommands commands, string sessionId)
     {
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await commands.RefreshAllAsync(batch));
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await commands.RefreshAllAsync(batch));
 
         return JsonSerializer.Serialize(new
         {
@@ -310,15 +297,14 @@ public static class ExcelQueryTableTool
 
     private static async Task<string> UpdatePropertiesAsync(
         QueryTableCommands commands,
-        string excelPath,
+        string sessionId,
         string? queryTableName,
         bool? backgroundQuery,
         bool? refreshOnFileOpen,
         bool? savePassword,
         bool? preserveColumnInfo,
         bool? preserveFormatting,
-        bool? adjustColumnWidth,
-        string? batchId)
+        bool? adjustColumnWidth)
     {
         if (string.IsNullOrWhiteSpace(queryTableName))
             throw new ModelContextProtocol.McpException("queryTableName is required for update-properties action");
@@ -333,11 +319,9 @@ public static class ExcelQueryTableTool
             AdjustColumnWidth = adjustColumnWidth
         };
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await commands.UpdatePropertiesAsync(batch, queryTableName, options));
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await commands.UpdatePropertiesAsync(batch, queryTableName, options));
 
         return JsonSerializer.Serialize(new
         {
@@ -352,16 +336,14 @@ public static class ExcelQueryTableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> DeleteQueryTableAsync(QueryTableCommands commands, string excelPath, string? queryTableName, string? batchId)
+    private static async Task<string> DeleteQueryTableAsync(QueryTableCommands commands, string sessionId, string? queryTableName)
     {
         if (string.IsNullOrWhiteSpace(queryTableName))
             throw new ModelContextProtocol.McpException("queryTableName is required for delete action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await commands.DeleteAsync(batch, queryTableName));
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await commands.DeleteAsync(batch, queryTableName));
 
         return JsonSerializer.Serialize(new
         {

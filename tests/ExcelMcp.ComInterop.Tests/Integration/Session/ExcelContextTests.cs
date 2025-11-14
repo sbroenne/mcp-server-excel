@@ -1,7 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit.Session;
+namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 
 /// <summary>
 /// Unit tests for ExcelContext - validates constructor and property behavior.

@@ -1,13 +1,103 @@
 # Session API Redesign Specification
 
-**Version:** 1.0  
-**Status:** Draft  
-**Date:** 2025-01-13  
+**Version:** 1.0
+**Status:** Draft
+**Date:** 2025-01-13
 **Author:** Development Team
 
 ## Executive Summary
 
 This specification proposes a **breaking redesign** of ExcelMcp's session API to use intuitive **Open/Save/Close** semantics exclusively. The goal is to eliminate the "batch" concept entirely and remove all cognitive load from LLMs - every operation works through sessions, always. No backwards compatibility, no dual patterns, no decisions about when to batch.
+
+## ⚠️ CRITICAL: Excel COM Threading & Concurrency Limitations
+
+**Excel COM API is fundamentally single-threaded and does NOT support parallel operations.**
+
+### Operations Within a Session are ALWAYS SERIAL
+
+- Each session (`IExcelBatch`/`IExcelSession`) runs on **ONE dedicated STA thread** with **ONE Excel instance**
+- Operations are **queued** and executed **sequentially** via `Channel<Func<Task>>`
+- Multiple `session.Execute()` calls are processed **one at a time** (never in parallel)
+- This is a **COM interop requirement**, not an implementation choice
+
+**Example - Operations are SERIAL, not parallel:**
+
+```csharp
+// ❌ These do NOT run in parallel - they are queued serially!
+var task1 = session.Execute(ctx => ctx.Book.Worksheets.Add("Sheet1"));  // Queued
+var task2 = session.Execute(ctx => ctx.Book.Worksheets.Add("Sheet2"));  // Queued AFTER task1
+await Task.WhenAll(task1, task2);  // Still serial execution on STA thread!
+```
+
+**Why:** Excel COM requires Single-Threaded Apartment (STA) model. No concurrent access to Excel objects is possible.
+
+### Multiple Sessions = Multiple Excel Processes (Resource Heavy)
+
+**You CAN create multiple sessions for DIFFERENT files:**
+- Each session = one `Excel.Application` process (~50-100MB+ memory each)
+- Sessions run in **separate processes** (true parallelism between files)
+- But **operations within each session remain serial**
+
+**Example - Multiple files (parallel processes, serial operations per file):**
+
+```csharp
+// ✅ CORRECT: Multiple files = multiple Excel processes (true parallelism)
+var session1 = await manager.CreateSessionAsync("fileA.xlsx");  // Excel process 1
+var session2 = await manager.CreateSessionAsync("fileB.xlsx");  // Excel process 2
+
+// These run in parallel (different Excel processes)
+var task1 = GetSession(session1).Execute(...);  // Runs in Excel process 1
+var task2 = GetSession(session2).Execute(...);  // Runs in Excel process 2
+await Task.WhenAll(task1, task2);  // ✅ True parallelism (different processes)
+
+// But within each session, operations are still serial
+var task3 = GetSession(session1).Execute(...);  // Queued after task1
+var task4 = GetSession(session1).Execute(...);  // Queued after task3
+```
+
+**Resource Limits:**
+- Each Excel process consumes ~50-100MB+ memory
+- Windows desktop machines have finite resources
+- **Recommendation:** Limit to 3-5 concurrent sessions for typical desktops
+
+### File Creation Must Be Sequential
+
+**File creation is automatically serialized by the implementation:**
+
+```csharp
+// ✅ This is now SAFE - internal lock serializes calls automatically
+var tasks = Enumerable.Range(1, 10).Select(i =>
+    ExcelSession.CreateNew($"file{i}.xlsx", false, ...));
+await Task.WhenAll(tasks);  // Executes sequentially despite Task.WhenAll!
+
+// ✅ This is also safe and more explicit
+for (int i = 1; i <= 10; i++)
+{
+    await ExcelSession.CreateNew($"file{i}.xlsx", false, ...);
+}
+```
+
+**How it works:** `ExcelSession` uses a static `SemaphoreSlim(1, 1)` to serialize all `CreateNew()` and `CreateNewAsync()` calls. Even if called in parallel, they queue and execute one at a time.
+
+**Why enforced:** Each `CreateNew()` temporarily creates an Excel instance, saves the file, then closes it. Without serialization, parallel creation would spawn many Excel processes simultaneously, causing memory exhaustion.
+
+### SessionManager Prevents Same-File Conflicts
+
+```csharp
+// SessionManager enforces one session per file
+await manager.CreateSessionAsync("sales.xlsx");  // ✅ OK
+await manager.CreateSessionAsync("sales.xlsx");  // ❌ Throws: "File already open in another session"
+```
+
+This matches Excel UI behavior (cannot open same file twice).
+
+### Key Takeaways for Implementation
+
+1. **Within-session parallelism is IMPOSSIBLE** - all operations are queued serially on STA thread
+2. **Between-sessions parallelism is POSSIBLE** - different files = different processes
+3. **File creation is AUTOMATICALLY SERIALIZED** - enforced by SemaphoreSlim lock (prevents resource exhaustion)
+4. **Resource limits matter** - each session = one Excel process (~50-100MB+)
+5. **LLMs must manage session lifecycle carefully** - close sessions promptly to free resources
 
 ## Problem Statement
 
@@ -282,7 +372,7 @@ var result = await commands.SomeAsync(session, args);
 
 ### No More "Auto-Detection"
 
-**Current:** LLM must decide when to use batch mode (decision fatigue)  
+**Current:** LLM must decide when to use batch mode (decision fatigue)
 **New:** Sessions are mandatory - no decision needed
 
 **Key Insight:** By making sessions mandatory, we:
@@ -291,6 +381,102 @@ var result = await commands.SomeAsync(session, args);
 2. **Consistent performance** - Every operation is optimized
 3. **Simpler code** - Single code path through entire system
 4. **Better UX** - Open/Close workflow is intuitive
+
+### Performance Best Practices
+
+#### ✅ DO: Batch Operations on Same File (Single Session)
+
+```csharp
+// ✅ FAST: All operations in one session (single Excel instance reused)
+var session = await CreateSessionAsync("sales.xlsx");
+await GetSession(session).Execute(ctx => ctx.Book.Worksheets.Add("Q1"));  // Op 1
+await GetSession(session).Execute(ctx => ctx.Book.Worksheets.Add("Q2"));  // Op 2
+await GetSession(session).Execute(ctx => ctx.Book.Worksheets.Add("Q3"));  // Op 3
+await SaveSessionAsync(session);
+await CloseSessionAsync(session);
+
+// Result: 1 Excel instance created/destroyed (fast)
+```
+
+#### ❌ DON'T: Open/Close Repeatedly (Multiple Excel Instances)
+
+```csharp
+// ❌ SLOW: Creates 3 separate Excel instances (5-10x overhead per open/close)
+await CreateSessionAsync("sales.xlsx");
+await GetSession(...).Execute(ctx => ctx.Book.Worksheets.Add("Q1"));
+await CloseSessionAsync(...);
+
+await CreateSessionAsync("sales.xlsx");  // New Excel instance!
+await GetSession(...).Execute(ctx => ctx.Book.Worksheets.Add("Q2"));
+await CloseSessionAsync(...);
+
+await CreateSessionAsync("sales.xlsx");  // Yet another Excel instance!
+await GetSession(...).Execute(ctx => ctx.Book.Worksheets.Add("Q3"));
+await CloseSessionAsync(...);
+
+// Result: 3 Excel instances created/destroyed (very slow)
+```
+
+**Performance Impact:** Opening Excel repeatedly is 5-10x slower than reusing a session. The session API is designed to keep Excel open for multiple operations.
+
+#### ✅ DO: Parallel Processing of DIFFERENT Files
+
+```csharp
+// ✅ TRUE PARALLELISM: Different files = different processes
+var files = new[] { "sales.xlsx", "inventory.xlsx", "customers.xlsx" };
+var sessions = await Task.WhenAll(files.Select(f => CreateSessionAsync(f)));
+
+// Process all files in parallel (3 Excel processes running simultaneously)
+await Task.WhenAll(sessions.Select(async sessId => {
+    var session = GetSession(sessId);
+    await session.Execute(ctx => ProcessWorkbook(ctx));
+    await SaveSessionAsync(sessId);
+    await CloseSessionAsync(sessId);
+}));
+
+// Result: True parallelism - operations on different files don't block each other
+```
+
+#### ❌ DON'T: Try to Parallelize Operations on SAME File
+
+```csharp
+// ❌ NO BENEFIT: Operations are queued serially anyway (Excel COM limitation)
+var sess = await CreateSessionAsync("data.xlsx");
+await Task.WhenAll(
+    GetSession(sess).Execute(ctx => ctx.Book.Worksheets.Add("Sheet1")),  // Queued
+    GetSession(sess).Execute(ctx => ctx.Book.Worksheets.Add("Sheet2")),  // Queued (waits)
+    GetSession(sess).Execute(ctx => ctx.Book.Worksheets.Add("Sheet3"))   // Queued (waits)
+);
+
+// Result: Operations still run serially (no speedup) - just write them sequentially for clarity
+```
+
+**Why No Benefit:** Each session has one STA thread processing operations one at a time. `Task.WhenAll` doesn't change this - they still execute serially on the Excel COM thread.
+
+#### File Creation (Automatically Serialized)
+
+```csharp
+// ✅ This pattern works correctly - internal lock serializes calls
+var tasks = Enumerable.Range(1, 10).Select(i =>
+    ExcelSession.CreateNew($"report{i}.xlsx", false,
+        (ctx, ct) => {
+            ctx.Book.Worksheets[1].Name = $"Report {i}";
+            return 0;
+        }));
+await Task.WhenAll(tasks);  // Executes sequentially despite Task.WhenAll!
+
+// ✅ This explicit sequential pattern also works
+for (int i = 1; i <= 10; i++)
+{
+    await ExcelSession.CreateNew($"report{i}.xlsx", false, ...);
+}
+
+// Result: Files created one at a time - peak memory = 1 temporary Excel instance
+```
+
+**How it works:** `ExcelSession` uses a static `SemaphoreSlim(1, 1)` to serialize all `CreateNew()` and `CreateNewAsync()` calls. Even if called via `Task.WhenAll`, they queue and execute one at a time.
+
+**Why enforced:** Each `CreateNew()` temporarily spawns an Excel process. Without serialization, parallel calls would create N Excel processes simultaneously, causing memory exhaustion. The lock prevents this automatically.
 
 ### Code Simplification
 
@@ -385,7 +571,7 @@ Only `excel_file(action: 'open'|'create-empty')` accepts `filePath`. All other t
 Current System (Issue #173):
   Call 1: excel_range(action, NO batchId)
     → Create temp Excel → Use → Start disposal (2-17s background)
-  Call 2: excel_range(action, NO batchId)  
+  Call 2: excel_range(action, NO batchId)
     → Try create NEW Excel → File locked! ❌
 
 New System (Mandatory Sessions):
@@ -468,6 +654,10 @@ New System (Mandatory Sessions):
 - [ ] **ADD** discard changes tests: open → modify → close (no save = rollback)
 - [ ] **VERIFY** no performance regression (sessions were batches internally)
 - [ ] **TEST** integration with MCP clients (Claude, Copilot) using new API
+- [ ] **ADD** concurrency tests: verify operations within session are serial (not parallel)
+- [ ] **ADD** multi-session tests: verify operations between sessions CAN run parallel
+- [ ] **ADD** resource limit tests: verify 5+ concurrent sessions don't cause memory issues
+- [ ] **ADD** file creation tests: verify sequential creation pattern (not parallel)
 
 ### Documentation (Complete Rewrite)
 
@@ -487,6 +677,10 @@ New System (Mandatory Sessions):
 - [ ] Update `user_request_patterns.md` with session detection hints
 - [ ] Add session error recovery guidance
 - [ ] Update elicitations to ask about multi-operation intent
+- [ ] **ADD** concurrency model documentation: operations within session are serial
+- [ ] **ADD** performance guidance: batch operations on same file, parallelize different files
+- [ ] **ADD** resource limits guidance: recommend 3-5 concurrent sessions max
+- [ ] **ADD** file creation guidance: always sequential, never parallel
 
 ## Edge Cases & Error Handling
 
@@ -543,14 +737,63 @@ No change - same Excel COM behavior. Sessions don't change locking semantics.
 
 ### Multiple Workbooks / Sessions
 
-You can have multiple sessions open at once (one per workbook):
+**You can open multiple files simultaneously, but understand the concurrency model:**
 
-1. `excel_file(action: 'open', filePath: 'A.xlsx')` → `sessionId: 'sess-A'`
-2. `excel_file(action: 'open', filePath: 'B.xlsx')` → `sessionId: 'sess-B'`
-3. Use `sess-A` for operations on `A.xlsx`, and `sess-B` for operations on `B.xlsx`.
-4. Close each when done: `excel_file(action: 'close', sessionId: 'sess-A')`, then `'sess-B'`.
+1. Each file gets its own session (and Excel process)
+2. Operations **between** files run in parallel (separate processes)
+3. Operations **within** each file remain serial (Excel COM limitation - see CRITICAL section above)
 
-LLMs should track and reuse the correct `sessionId` for each workbook, and close sessions when each logical workflow completes.
+**Example:**
+
+```csharp
+// Open 3 files (3 Excel processes created)
+var sessA = await CreateSessionAsync("A.xlsx");  // Excel.Application process 1
+var sessB = await CreateSessionAsync("B.xlsx");  // Excel.Application process 2
+var sessC = await CreateSessionAsync("C.xlsx");  // Excel.Application process 3
+
+// These 3 operations run in TRUE parallel (different processes)
+await Task.WhenAll(
+    GetSession(sessA).Execute(ctx => ctx.Book.Worksheets.Add("Sheet1")),  // Process 1
+    GetSession(sessB).Execute(ctx => ctx.Book.Worksheets.Add("Sheet1")),  // Process 2
+    GetSession(sessC).Execute(ctx => ctx.Book.Worksheets.Add("Sheet1"))   // Process 3
+);  // ✅ True parallelism - different Excel processes
+
+// But operations on SAME file are SERIAL (queued)
+await GetSession(sessA).Execute(ctx => ctx.Book.Worksheets.Add("Sheet2"));  // Queued operation 1
+await GetSession(sessA).Execute(ctx => ctx.Book.Worksheets.Add("Sheet3"));  // Queued operation 2 (waits for 1)
+```
+
+**Resource Limits & Best Practices:**
+
+- Each session = one Excel process (~50-100MB+ memory)
+- **Recommendation:** Limit to 3-5 concurrent sessions for typical desktop machines
+- LLMs should close sessions promptly to free resources
+- Monitor system resources when processing many files
+
+**File Locking:**
+
+- SessionManager prevents opening same file twice: `File 'X.xlsx' is already open in another session`
+- This matches Excel UI behavior (cannot open same file in multiple windows)
+- Attempting to open an already-open file throws `InvalidOperationException`
+
+**LLM Guidance:**
+
+LLMs should track the correct `sessionId` for each workbook and close sessions when each logical workflow completes. For bulk file processing, consider sequential processing to limit resource usage:
+
+```
+# Processing many files - sequential approach (resource-friendly)
+for each file:
+  1. open → sessionId
+  2. perform operations (all serial within session)
+  3. save
+  4. close (frees Excel process immediately)
+
+# OR parallel approach for small batches (faster but memory-intensive)
+1. open files 1-5 → get 5 sessionIds (5 Excel processes)
+2. process all 5 in parallel
+3. close all 5
+4. repeat for files 6-10
+```
 
 ## Success Metrics
 
@@ -571,14 +814,14 @@ LLMs should track and reuse the correct `sessionId` for each workbook, and close
 
 ### 1. Should `open` action fail if workbook already open in Excel UI?
 
-**Decision:** Yes, fail immediately with clear error  
-**Rationale:** Excel COM limitation - we can't safely work with UI-open files  
+**Decision:** Yes, fail immediately with clear error
+**Rationale:** Excel COM limitation - we can't safely work with UI-open files
 **Implementation:** Existing file lock detection works correctly
 
 ### 2. Should `save` be implicit on `close` by default?
 
-**Decision:** No, close NEVER saves - explicit save action only  
-**Rationale:**  
+**Decision:** No, close NEVER saves - explicit save action only
+**Rationale:**
 
 - **Explicit is better than implicit** - No surprise saves
 - **LLM clarity** - "save" action = save, "close" action = close (no overlap)
@@ -590,8 +833,8 @@ LLMs should track and reuse the correct `sessionId` for each workbook, and close
 
 ### 3. Should sessions timeout automatically after inactivity?
 
-**Decision:** No automatic timeout - rely on process lifetime  
-**Rationale:**  
+**Decision:** No automatic timeout - rely on process lifetime
+**Rationale:**
 
 - **Client-side execution** - MCP server runs on user's machine, not remote server
 - **Process lifetime** - When user closes MCP client (VS Code, Claude Desktop), process terminates and Excel closes
@@ -603,7 +846,7 @@ LLMs should track and reuse the correct `sessionId` for each workbook, and close
 
 ### 4. What are the save semantics for different workflows?
 
-**Decision:** Explicit save action only, close never saves  
+**Decision:** Explicit save action only, close never saves
 
 **Workflows supported:**
 
@@ -648,7 +891,7 @@ LLMs should track and reuse the correct `sessionId` for each workbook, and close
 
 ### 5. Should we keep `excel_batch` as deprecated alias?
 
-**Decision:** No, complete removal  
+**Decision:** No, complete removal
 **Rationale:**
 
 - Maintaining alias adds complexity
@@ -658,7 +901,7 @@ LLMs should track and reuse the correct `sessionId` for each workbook, and close
 
 ### 6. Should CLI and MCP Server both use same session API?
 
-**Decision:** Yes, unified API everywhere  
+**Decision:** Yes, unified API everywhere
 **Rationale:**
 
 - CLI and MCP Server share Core/ComInterop
@@ -705,12 +948,12 @@ LLM: I'll create 3 worksheets using batch mode for performance.
 1. excel_batch(action: 'begin', filePath: 'sales.xlsx')
    → { batchId: 'abc-123' }
 
-2. excel_worksheet(action: 'create', excelPath: 'sales.xlsx', 
+2. excel_worksheet(action: 'create', excelPath: 'sales.xlsx',
                    sheetName: 'Q1', batchId: 'abc-123')
-   
+
 3. excel_worksheet(action: 'create', excelPath: 'sales.xlsx',
                    sheetName: 'Q2', batchId: 'abc-123')
-                   
+
 4. excel_worksheet(action: 'create', excelPath: 'sales.xlsx',
                    sheetName: 'Q3', batchId: 'abc-123')
 
@@ -728,10 +971,10 @@ LLM: I'll open the workbook and create 3 worksheets.
 
 2. excel_worksheet(action: 'create',
                    sheetName: 'Q1', sessionId: 'abc-123')
-   
+
 3. excel_worksheet(action: 'create',
                    sheetName: 'Q2', sessionId: 'abc-123')
-                   
+
 4. excel_worksheet(action: 'create',
                    sheetName: 'Q3', sessionId: 'abc-123')
 
@@ -821,6 +1064,7 @@ This redesign achieves the ultimate goal: **Eliminate all cognitive load from LL
 5. **Breaking** - Clean slate, no backwards compatibility baggage
 6. **Extensible** - Future optimizations (connection pooling, caching) build on simpler foundation
 7. **Bug-fixing** - Eliminates Issue #173 file lock race condition by design
+8. **Realistic** - Acknowledges and documents Excel COM threading limitations (single-threaded STA model)
 
 ### Key Achievements
 
@@ -829,6 +1073,7 @@ This redesign achieves the ultimate goal: **Eliminate all cognitive load from LL
 - ✅ Zero decision fatigue (no "should I batch?" questions)
 - ✅ 50% fewer tokens for workflows (no batch mode explanations)
 - ✅ Intuitive API (open/close is universal)
+- ✅ Clear concurrency model (operations within session = serial, between sessions = parallel)
 
 **For Developers:**
 
@@ -836,6 +1081,7 @@ This redesign achieves the ultimate goal: **Eliminate all cognitive load from LL
 - ✅ Simpler testing (single pattern)
 - ✅ Easier maintenance (one way to do things)
 - ✅ Fixes Issue #173 (eliminates file lock race condition at architectural level)
+- ✅ Honest documentation (acknowledges COM limitations, not hidden complexity)
 
 **For Users:**
 
@@ -843,6 +1089,19 @@ This redesign achieves the ultimate goal: **Eliminate all cognitive load from LL
 - ✅ Clear errors ("session not found" is obvious)
 - ✅ Predictable behavior (explicit lifecycle)
 - ✅ No more file lock errors from rapid sequential operations
+- ✅ Realistic expectations (understand that operations within a file are serial due to Excel COM)
+
+### Critical Technical Constraints
+
+**This spec acknowledges and documents fundamental Excel COM limitations:**
+
+1. **Single-threaded nature** - Each session runs on one STA thread with serial operation queue
+2. **No within-session parallelism** - Multiple operations on same file execute serially (COM requirement)
+3. **Between-session parallelism possible** - Different files = different Excel processes = true parallelism
+4. **Resource constraints** - Each session = ~50-100MB+ memory; recommend 3-5 concurrent sessions max
+5. **File creation must be sequential** - Parallel creation causes resource exhaustion
+
+These are **not implementation deficiencies** - they are inherent Excel COM API constraints that apply to ANY Excel automation solution (VBA, .NET interop, Python xlwings, etc.). By documenting them clearly, we set correct expectations and guide users toward performant patterns.
 
 ### Breaking Change Justification
 

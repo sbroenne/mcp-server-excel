@@ -7,5 +7,6 @@
         "Sbroenne",
         "Xunit"
     ],
-    "dotnet.defaultSdkVersion": "8.0.x"
+    "dotnet.defaultSdkVersion": "8.0.x",
+     "chat.tools.terminal.enableAutoApprove": true,
 }

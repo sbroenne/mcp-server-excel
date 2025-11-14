@@ -24,6 +24,12 @@ public static class ExcelWorksheetTool
     [McpServerTool(Name = "excel_worksheet")]
     [Description(@"Manage Excel worksheets: lifecycle, tab colors, visibility.
 
+REQUIRED WORKFLOW:
+- Use excel_file(action: 'open') first to get a sessionId
+- Pass sessionId to all worksheet actions
+- Use excel_file(action: 'save') to persist changes
+- Use excel_file(action: 'close') to end the session (does NOT save)
+
 TAB COLORS (set-tab-color):
 - RGB values: 0-255 for red, green, blue components
 - Example: red=255, green=0, blue=0 for red tab
@@ -34,9 +40,8 @@ TAB COLORS (set-tab-color):
         WorksheetAction action,
 
         [Required]
-        [FileExtensions(Extensions = "xlsx,xlsm")]
-        [Description("Excel file path (.xlsx or .xlsm)")]
-        string excelPath,
+        [Description("Active Excel session ID from excel_file 'open' action")]
+        string sessionId,
 
         [StringLength(31, MinimumLength = 1)]
         [RegularExpression(@"^[^[\]/*?\\:]+$")]
@@ -62,10 +67,7 @@ TAB COLORS (set-tab-color):
 
         [RegularExpression("^(visible|hidden|veryhidden)$")]
         [Description("Visibility level for set-visibility action: visible (normal), hidden (user can unhide), veryhidden (requires code to unhide)")]
-        string? visibility = null,
-
-        [Description("Optional batch session ID from begin_excel_batch (for multi-operation workflows)")]
-        string? batchId = null)
+        string? visibility = null)
     {
         try
         {
@@ -74,29 +76,55 @@ TAB COLORS (set-tab-color):
             // Expression switch pattern for audit compliance
             return action switch
             {
-                WorksheetAction.List => await ListAsync(sheetCommands, excelPath, batchId),
-                WorksheetAction.Create => await CreateAsync(sheetCommands, excelPath, sheetName, batchId),
-                WorksheetAction.Rename => await RenameAsync(sheetCommands, excelPath, sheetName, targetName, batchId),
-                WorksheetAction.Copy => await CopyAsync(sheetCommands, excelPath, sheetName, targetName, batchId),
-                WorksheetAction.Delete => await DeleteAsync(sheetCommands, excelPath, sheetName, batchId),
-                WorksheetAction.SetTabColor => await SetTabColorAsync(sheetCommands, excelPath, sheetName, red, green, blue, batchId),
-                WorksheetAction.GetTabColor => await GetTabColorAsync(sheetCommands, excelPath, sheetName, batchId),
-                WorksheetAction.ClearTabColor => await ClearTabColorAsync(sheetCommands, excelPath, sheetName, batchId),
-                WorksheetAction.SetVisibility => await SetVisibilityAsync(sheetCommands, excelPath, sheetName, visibility, batchId),
-                WorksheetAction.GetVisibility => await GetVisibilityAsync(sheetCommands, excelPath, sheetName, batchId),
-                WorksheetAction.Show => await ShowAsync(sheetCommands, excelPath, sheetName, batchId),
-                WorksheetAction.Hide => await HideAsync(sheetCommands, excelPath, sheetName, batchId),
-                WorksheetAction.VeryHide => await VeryHideAsync(sheetCommands, excelPath, sheetName, batchId),
+                WorksheetAction.List => await ListAsync(sheetCommands, sessionId),
+                WorksheetAction.Create => await CreateAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.Delete => await DeleteAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.Rename => await RenameAsync(sheetCommands, sessionId, sheetName, targetName),
+                WorksheetAction.Copy => await CopyAsync(sheetCommands, sessionId, sheetName, targetName),
+                WorksheetAction.SetTabColor => await SetTabColorAsync(sheetCommands, sessionId, sheetName, red, green, blue),
+                WorksheetAction.GetTabColor => await GetTabColorAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.ClearTabColor => await ClearTabColorAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.SetVisibility => await SetVisibilityAsync(sheetCommands, sessionId, sheetName, visibility),
+                WorksheetAction.GetVisibility => await GetVisibilityAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.Show => await ShowAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.Hide => await HideAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.VeryHide => await VeryHideAsync(sheetCommands, sessionId, sheetName),
                 _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
             };
         }
         catch (ModelContextProtocol.McpException)
         {
-            throw; // Re-throw MCP exceptions as-is
+            throw;
+        }
+        catch (TimeoutException ex)
+        {
+            var result = new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                operationContext = new Dictionary<string, object>
+                {
+                    { "OperationType", "excel_worksheet" },
+                    { "Action", action.ToActionString() },
+                    { "TimeoutReached", true }
+                },
+                isRetryable = !ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase),
+                retryGuidance = ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase)
+                    ? "Maximum timeout reached. Check workbook state manually."
+                    : "Retry acceptable if issue is transient.",
+                suggestedNextActions = new List<string>
+                {
+                    "Check if Excel is showing a dialog or prompt",
+                    "Verify data source connectivity if operation touches external data",
+                    "For large workbooks, operation may need more time"
+                }
+            };
+
+            return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
+            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString());
             throw;
         }
     }
@@ -105,17 +133,13 @@ TAB COLORS (set-tab-color):
 
     private static async Task<string> ListAsync(
         SheetCommands sheetCommands,
-        string excelPath,
-        string? batchId)
+        string sessionId)
     {
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: false,
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
             sheetCommands.ListAsync);
-
         var count = result.Worksheets?.Count ?? 0;
-        var inBatch = !string.IsNullOrEmpty(batchId);
+        var inSession = !string.IsNullOrEmpty(sessionId);
 
         return JsonSerializer.Serialize(new
         {
@@ -129,27 +153,22 @@ TAB COLORS (set-tab-color):
                 "Use excel_range for data operations (get-values, set-values, clear-*)",
                 "Use 'create' to add new worksheets",
                 "Use 'set-tab-color' to organize sheets visually",
-                inBatch ? "Continue batch operations" : count > 3 ? "Use excel_batch for multiple sheet operations (faster)" : "Use 'rename' or 'copy' to manage sheets"
+                inSession ? "Continue working in this session" : "Use excel_file 'open' to start a session before worksheet operations"
                 ]
         }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> CreateAsync(
         SheetCommands sheetCommands,
-        string excelPath,
-        string? sheetName,
-        string? batchId)
+        string sessionId,
+        string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ModelContextProtocol.McpException("sheetName is required for create action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await sheetCommands.CreateAsync(batch, sheetName));
-
-        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await sheetCommands.CreateAsync(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -159,28 +178,23 @@ TAB COLORS (set-tab-color):
             {
                 "Use excel_range 'set-values' to add data to the new sheet",
                 "Use 'set-tab-color' to color-code this sheet",
-                usedBatchMode ? "Create more worksheets in this batch" : "Creating multiple sheets? Use excel_batch (faster)"
+                "Creating multiple sheets? Keep reusing this session for best performance"
             }
         }, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> RenameAsync(
         SheetCommands sheetCommands,
-        string excelPath,
+        string sessionId,
         string? sheetName,
-        string? targetName,
-        string? batchId)
+        string? targetName)
     {
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
             throw new ModelContextProtocol.McpException("sheetName and targetName are required for rename action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await sheetCommands.RenameAsync(batch, sheetName, targetName));
-
-        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await sheetCommands.RenameAsync(batch, sheetName, targetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -194,7 +208,7 @@ TAB COLORS (set-tab-color):
                 {
                     "Update any references to the old sheet name in formulas or code",
                     "Use excel_range to access the renamed sheet's data",
-                    usedBatchMode ? "Continue renaming other sheets in this batch" : "Renaming multiple sheets? Use excel_batch (faster)"
+                    "Renaming multiple sheets? Keep reusing this session for best performance"
                 }
                 :
                 [
@@ -207,21 +221,16 @@ TAB COLORS (set-tab-color):
 
     private static async Task<string> CopyAsync(
         SheetCommands sheetCommands,
-        string excelPath,
+        string sessionId,
         string? sheetName,
-        string? targetName,
-        string? batchId)
+        string? targetName)
     {
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
             throw new ModelContextProtocol.McpException("sheetName and targetName are required for copy action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await sheetCommands.CopyAsync(batch, sheetName, targetName));
-
-        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await sheetCommands.CopyAsync(batch, sheetName, targetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -235,7 +244,7 @@ TAB COLORS (set-tab-color):
                 {
                     "Modify the copied sheet using excel_range (set-values, set-formulas)",
                     "Use 'set-tab-color' to visually distinguish the copy",
-                    usedBatchMode ? "Copy more worksheets in this batch" : "Copying multiple sheets? Use excel_batch (faster)"
+                    "Copying multiple sheets? Keep reusing this session for best performance"
                 }
                 :
                 [
@@ -248,20 +257,15 @@ TAB COLORS (set-tab-color):
 
     private static async Task<string> DeleteAsync(
         SheetCommands sheetCommands,
-        string excelPath,
-        string? sheetName,
-        string? batchId)
+        string sessionId,
+        string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ModelContextProtocol.McpException("sheetName is required for delete action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await sheetCommands.DeleteAsync(batch, sheetName));
-
-        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await sheetCommands.DeleteAsync(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -275,7 +279,7 @@ TAB COLORS (set-tab-color):
                 {
                     "Verify remaining worksheets using 'list' action",
                     "Check for broken references in formulas or VBA code",
-                    usedBatchMode ? "Delete more worksheets in this batch" : "Deleting multiple sheets? Use excel_batch (faster)"
+                    "Deleting multiple sheets? Keep reusing this session for best performance"
                 }
                 :
                 [
@@ -288,12 +292,11 @@ TAB COLORS (set-tab-color):
 
     private static async Task<string> SetTabColorAsync(
         SheetCommands sheetCommands,
-        string excelPath,
+        string sessionId,
         string? sheetName,
         int? red,
         int? green,
-        int? blue,
-        string? batchId)
+        int? blue)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ModelContextProtocol.McpException("sheetName is required for set-tab-color action");
@@ -310,13 +313,9 @@ TAB COLORS (set-tab-color):
         int greenValue = green.Value;
         int blueValue = blue.Value;
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await sheetCommands.SetTabColorAsync(batch, sheetName, redValue, greenValue, blueValue));
-
-        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await sheetCommands.SetTabColorAsync(batch, sheetName, redValue, greenValue, blueValue));
         string hexColor = $"#{redValue:X2}{greenValue:X2}{blueValue:X2}";
 
         return JsonSerializer.Serialize(new
@@ -331,7 +330,7 @@ TAB COLORS (set-tab-color):
                 {
                     "Use 'get-tab-color' to verify the color was applied",
                     "Apply consistent colors to related sheets for organization",
-                    usedBatchMode ? "Set colors for more sheets in this batch" : "Coloring multiple sheets? Use excel_batch (faster)"
+                    "Coloring multiple sheets? Keep reusing this session for best performance"
                 }
                 :
                 [
@@ -344,18 +343,15 @@ TAB COLORS (set-tab-color):
 
     private static async Task<string> GetTabColorAsync(
         SheetCommands sheetCommands,
-        string excelPath,
-        string? sheetName,
-        string? batchId)
+        string sessionId,
+        string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ModelContextProtocol.McpException("sheetName is required for get-tab-color action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: false,
-            async (batch) => await sheetCommands.GetTabColorAsync(batch, sheetName));
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await sheetCommands.GetTabColorAsync(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -396,20 +392,15 @@ TAB COLORS (set-tab-color):
 
     private static async Task<string> ClearTabColorAsync(
         SheetCommands sheetCommands,
-        string excelPath,
-        string? sheetName,
-        string? batchId)
+        string sessionId,
+        string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ModelContextProtocol.McpException("sheetName is required for clear-tab-color action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await sheetCommands.ClearTabColorAsync(batch, sheetName));
-
-        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await sheetCommands.ClearTabColorAsync(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -423,7 +414,7 @@ TAB COLORS (set-tab-color):
                 {
                     "Use 'get-tab-color' to verify the color was removed",
                     "Use 'set-tab-color' to apply a new color",
-                    usedBatchMode ? "Clear colors from more sheets in this batch" : "Clearing multiple sheets? Use excel_batch (faster)"
+                    "Clearing colors on multiple sheets? Keep reusing this session for best performance"
                 }
                 :
                 [
@@ -436,10 +427,9 @@ TAB COLORS (set-tab-color):
 
     private static async Task<string> SetVisibilityAsync(
         SheetCommands sheetCommands,
-        string excelPath,
+        string sessionId,
         string? sheetName,
-        string? visibility,
-        string? batchId)
+        string? visibility)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ModelContextProtocol.McpException("sheetName is required for set-visibility action");
@@ -455,13 +445,9 @@ TAB COLORS (set-tab-color):
             _ => throw new ModelContextProtocol.McpException($"Invalid visibility value '{visibility}'. Use: visible, hidden, or veryhidden")
         };
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await sheetCommands.SetVisibilityAsync(batch, sheetName, visibilityLevel));
-
-        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await sheetCommands.SetVisibilityAsync(batch, sheetName, visibilityLevel));
 
         return JsonSerializer.Serialize(new
         {
@@ -475,7 +461,7 @@ TAB COLORS (set-tab-color):
                 {
                     "Use 'get-visibility' to verify the visibility level",
                     visibilityLevel == SheetVisibility.Hidden ? "Users can unhide this sheet via Excel UI" : (visibilityLevel == SheetVisibility.VeryHidden ? "Only code can unhide this sheet (good for protection)" : "Sheet is now visible in workbook"),
-                    usedBatchMode ? "Set visibility for more sheets in this batch" : "Managing multiple sheets? Use excel_batch (faster)"
+                    "Managing visibility for multiple sheets? Keep reusing this session for best performance"
                 }
                 :
                 [
@@ -488,18 +474,15 @@ TAB COLORS (set-tab-color):
 
     private static async Task<string> GetVisibilityAsync(
         SheetCommands sheetCommands,
-        string excelPath,
-        string? sheetName,
-        string? batchId)
+        string sessionId,
+        string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ModelContextProtocol.McpException("sheetName is required for get-visibility action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: false,
-            async (batch) => await sheetCommands.GetVisibilityAsync(batch, sheetName));
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await sheetCommands.GetVisibilityAsync(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -542,20 +525,15 @@ TAB COLORS (set-tab-color):
 
     private static async Task<string> ShowAsync(
         SheetCommands sheetCommands,
-        string excelPath,
-        string? sheetName,
-        string? batchId)
+        string sessionId,
+        string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ModelContextProtocol.McpException("sheetName is required for show action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await sheetCommands.ShowAsync(batch, sheetName));
-
-        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await sheetCommands.ShowAsync(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -569,7 +547,7 @@ TAB COLORS (set-tab-color):
                 {
                     "Use 'get-visibility' to verify the sheet is visible",
                     "Access the sheet's data using excel_range",
-                    usedBatchMode ? "Show more sheets in this batch" : "Showing multiple sheets? Use excel_batch (faster)"
+                    "Showing multiple sheets? Keep reusing this session for best performance"
                 }
                 :
                 [
@@ -582,20 +560,15 @@ TAB COLORS (set-tab-color):
 
     private static async Task<string> HideAsync(
         SheetCommands sheetCommands,
-        string excelPath,
-        string? sheetName,
-        string? batchId)
+        string sessionId,
+        string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ModelContextProtocol.McpException("sheetName is required for hide action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await sheetCommands.HideAsync(batch, sheetName));
-
-        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await sheetCommands.HideAsync(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -610,7 +583,7 @@ TAB COLORS (set-tab-color):
                     "Use 'get-visibility' to verify the sheet is hidden",
                     "Users can unhide this sheet via Excel: Right-click sheet tab → Unhide",
                     "Use 'very-hide' for stronger protection (requires code to unhide)",
-                    usedBatchMode ? "Hide more sheets in this batch" : "Hiding multiple sheets? Use excel_batch (faster)"
+                    "Hiding multiple sheets? Keep reusing this session for best performance"
                 }
                 :
                 [
@@ -623,20 +596,15 @@ TAB COLORS (set-tab-color):
 
     private static async Task<string> VeryHideAsync(
         SheetCommands sheetCommands,
-        string excelPath,
-        string? sheetName,
-        string? batchId)
+        string sessionId,
+        string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ModelContextProtocol.McpException("sheetName is required for very-hide action");
 
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await sheetCommands.VeryHideAsync(batch, sheetName));
-
-        bool usedBatchMode = !string.IsNullOrEmpty(batchId);
+        var result = await ExcelToolsBase.WithSessionAsync(
+            sessionId,
+            async batch => await sheetCommands.VeryHideAsync(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -651,7 +619,7 @@ TAB COLORS (set-tab-color):
                     "Use 'get-visibility' to verify the sheet is very hidden",
                     "This sheet cannot be unhidden via Excel UI - only via code",
                     "Good for protecting calculation, configuration, or sensitive sheets",
-                    usedBatchMode ? "Very hide more sheets in this batch" : "Protecting multiple sheets? Use excel_batch (faster)"
+                    "Protecting multiple sheets? Keep reusing this session for best performance"
                 }
                 :
                 [

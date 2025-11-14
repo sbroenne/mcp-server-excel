@@ -76,28 +76,31 @@ public class ExcelMcpServerTests : IDisposable
     {
         // Arrange
         await ExcelFileTool.ExcelFile(FileAction.CreateEmpty, _testExcelFile);
+        var sessionId = await OpenSessionAsync();
 
         // Act
-        var result = await ExcelWorksheetTool.ExcelWorksheet(WorksheetAction.List, _testExcelFile);
+        try
+        {
+            var result = await ExcelWorksheetTool.ExcelWorksheet(WorksheetAction.List, sessionId);
 
-        // Assert
-        var json = JsonDocument.Parse(result);
-        // Should succeed (return success: true) when file exists
-        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+            // Assert
+            var json = JsonDocument.Parse(result);
+            Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        }
+        finally
+        {
+            await CloseSessionAsync(sessionId);
+        }
     }
     /// <inheritdoc/>
 
     [Fact]
-    public async Task ExcelWorksheet_NonExistentFile_ShouldReturnError()
+    public async Task ExcelWorksheet_InvalidSession_ShouldThrowError()
     {
-        // Act & Assert - Should throw McpException with detailed error message
         var exception = await Assert.ThrowsAsync<ModelContextProtocol.McpException>(async () =>
-            await ExcelWorksheetTool.ExcelWorksheet(WorksheetAction.List, "nonexistent.xlsx"));
+            await ExcelWorksheetTool.ExcelWorksheet(WorksheetAction.List, sessionId: "invalid-session"));
 
-        // Verify error message contains relevant information
-        // Error message format changed - just verify it contains "list" and "Excel"
-        Assert.Contains("list", exception.Message);
-        Assert.Contains("Excel", exception.Message);
+        Assert.Contains("session", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
     /// <inheritdoc/>
 
@@ -112,11 +115,19 @@ public class ExcelMcpServerTests : IDisposable
         Assert.True(File.Exists(_testExcelFile), "Test file should exist before listing parameters");
 
         // Act
-        var result = await ExcelNamedRangeTool.ExcelParameter(NamedRangeAction.List, _testExcelFile);
+        var sessionId = await OpenSessionAsync();
+        try
+        {
+            var result = await ExcelNamedRangeTool.ExcelParameter(NamedRangeAction.List, _testExcelFile, sessionId);
 
-        // Assert
-        var json = JsonDocument.Parse(result);
-        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+            // Assert
+            var json = JsonDocument.Parse(result);
+            Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        }
+        finally
+        {
+            await CloseSessionAsync(sessionId);
+        }
     }
     /// <inheritdoc/>
 
@@ -125,6 +136,7 @@ public class ExcelMcpServerTests : IDisposable
     {
         // Arrange
         await ExcelFileTool.ExcelFile(FileAction.CreateEmpty, _testExcelFile);
+        var sessionId = await OpenSessionAsync();
         var queryName = "ToolTestQuery";
         var mCodeFile = Path.Join(_tempDir, "tool-test-query.pq");
         var mCode = @"let
@@ -135,7 +147,7 @@ in
         File.WriteAllText(mCodeFile, mCode);
 
         // Act - Create Power Query
-        var importResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.Create, _testExcelFile, queryName, sourcePath: mCodeFile);
+        var importResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.Create, sessionId, queryName, sourcePath: mCodeFile);
 
         // Debug: Print the actual response to understand the structure
         Console.WriteLine($"Import result JSON: {importResult}");
@@ -151,7 +163,7 @@ in
         Assert.True(importJson.RootElement.GetProperty("success").GetBoolean());
 
         // Act - View the imported query
-        var viewResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.View, _testExcelFile, queryName);
+        var viewResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.View, sessionId, queryName);
 
         // Debug: Print the actual response to understand the structure
         Console.WriteLine($"View result JSON: {viewResult}");
@@ -173,7 +185,7 @@ in
         // Note: Current MCP server architecture limitation - operations return success/error only
 
         // Act - List queries to verify it appears
-        var listResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.List, _testExcelFile);
+        var listResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.List, sessionId);
         var listJson = JsonDocument.Parse(listResult);
         Assert.True(listJson.RootElement.GetProperty("success").GetBoolean());
 
@@ -181,9 +193,33 @@ in
         // The actual query data is not returned in JSON format, only displayed to console
 
         // Act - Delete the query
-        var deleteResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.Delete, _testExcelFile, queryName);
+        var deleteResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.Delete, sessionId, queryName);
         var deleteJson = JsonDocument.Parse(deleteResult);
         Assert.True(deleteJson.RootElement.GetProperty("success").GetBoolean());
+        await CloseSessionAsync(sessionId);
+    }
+
+    private async Task<string> OpenSessionAsync()
+    {
+        var openResult = await ExcelFileTool.ExcelFile(FileAction.Open, _testExcelFile);
+        var json = JsonDocument.Parse(openResult);
+        if (!json.RootElement.TryGetProperty("sessionId", out var sessionProp))
+        {
+            throw new InvalidOperationException($"Failed to open session: {openResult}");
+        }
+
+        var sessionId = sessionProp.GetString();
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            throw new InvalidOperationException("Session ID missing in open response");
+        }
+
+        return sessionId;
+    }
+
+    private static async Task CloseSessionAsync(string sessionId)
+    {
+        await ExcelFileTool.ExcelFile(FileAction.Close, sessionId: sessionId);
     }
 }
 

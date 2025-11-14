@@ -3,7 +3,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using ModelContextProtocol;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core;
 
 #pragma warning disable IL2070 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' requirements
 
@@ -62,60 +61,6 @@ public static class ExcelToolsBase
         }
 
         return await action(batch);
-    }
-
-    /// <summary>
-    /// Executes an async Core command with batch session management.
-    /// If batchId is provided, uses existing batch session. Otherwise, creates batch-of-one.
-    ///
-    /// This is the standard pattern for all MCP tools to support both:
-    /// - LLM-controlled batch sessions (pass batchId for multi-operation workflows)
-    /// - Single operations (no batchId = automatic batch-of-one for backward compat)
-    /// </summary>
-    /// <typeparam name="T">Return type of the command</typeparam>
-    /// <param name="batchId">Optional batch session ID from begin_excel_batch</param>
-    /// <param name="filePath">Path to the Excel file (required if no batchId)</param>
-    /// <param name="save">Whether to save changes (only used for batch-of-one)</param>
-    /// <param name="action">Async action that takes IExcelBatch and returns Task&lt;T&gt;</param>
-    /// <returns>Result of the command</returns>
-    public static async Task<T> WithBatchAsync<T>(
-        string? batchId,
-        string filePath,
-        bool save,
-        Func<IExcelBatch, Task<T>> action)
-    {
-        if (!string.IsNullOrEmpty(batchId))
-        {
-            // Use existing batch session (LLM-controlled lifecycle)
-            var batch = BatchSessionTool.GetBatch(batchId);
-            if (batch == null)
-            {
-                throw new McpException(
-                    $"Batch session '{batchId}' not found. It may have already been committed or never existed.");
-            }
-
-            // Verify file path matches batch
-            if (!string.Equals(batch.WorkbookPath, Path.GetFullPath(filePath), StringComparison.OrdinalIgnoreCase))
-            {
-                throw new McpException(
-                    $"File path mismatch. Batch session is for '{batch.WorkbookPath}' but operation requested '{filePath}'.");
-            }
-
-            return await action(batch);
-        }
-        else
-        {
-            // Batch-of-one (backward compatibility for single operations)
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var result = await action(batch);
-
-            if (save)
-            {
-                await batch.SaveAsync();
-            }
-
-            return result;
-        }
     }
 
     /// <summary>

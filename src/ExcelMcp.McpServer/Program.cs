@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Sbroenne.ExcelMcp.McpServer.Tools;
 
 namespace Sbroenne.ExcelMcp.McpServer;
 
@@ -17,7 +16,6 @@ namespace Sbroenne.ExcelMcp.McpServer;
 /// - excel_connection: Manage Excel connections (OLEDB, ODBC, Text, Web)
 /// - excel_data_model: Manage Data Model (tables, measures, relationships)
 /// - excel_table: Manage Excel Tables (ListObjects)
-/// - begin_excel_batch/commit_excel_batch: Batch session management for multi-operation workflows
 ///
 /// Performance Optimization:
 /// Uses ExcelInstancePool for conversational workflows - reuses Excel instances
@@ -53,13 +51,6 @@ public class Program
         // To enable: handle "completion/complete" method in custom transport layer
 
         var host = builder.Build();
-
-        // Register cleanup handler for batch sessions
-        var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
-        lifetime.ApplicationStopping.Register(() =>
-        {
-            BatchSessionTool.CleanupAllBatches().GetAwaiter().GetResult();
-        });
 
         await host.RunAsync();
     }
