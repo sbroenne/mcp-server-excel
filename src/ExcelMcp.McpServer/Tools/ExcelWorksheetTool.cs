@@ -148,7 +148,7 @@ TAB COLORS (set-tab-color):
         string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for create action");
+            throw new ArgumentException("sheetName is required for create action", nameof(sheetName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -167,7 +167,7 @@ TAB COLORS (set-tab-color):
         string? targetName)
     {
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
-            throw new ModelContextProtocol.McpException("sheetName and targetName are required for rename action");
+            throw new ArgumentException("sheetName and targetName are required for rename action", "sheetName,targetName");
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -187,7 +187,7 @@ TAB COLORS (set-tab-color):
         string? targetName)
     {
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
-            throw new ModelContextProtocol.McpException("sheetName and targetName are required for copy action");
+            throw new ArgumentException("sheetName and targetName are required for copy action", "sheetName,targetName");
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -206,7 +206,7 @@ TAB COLORS (set-tab-color):
         string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for delete action");
+            throw new ArgumentException("sheetName is required for delete action", nameof(sheetName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -228,14 +228,14 @@ TAB COLORS (set-tab-color):
         int? blue)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for set-tab-color action");
+            throw new ArgumentException("sheetName is required for set-tab-color action", nameof(sheetName));
 
         if (!red.HasValue)
-            throw new ModelContextProtocol.McpException("red value (0-255) is required for set-tab-color action");
+            throw new ArgumentException("red value (0-255) is required for set-tab-color action", nameof(red));
         if (!green.HasValue)
-            throw new ModelContextProtocol.McpException("green value (0-255) is required for set-tab-color action");
+            throw new ArgumentException("green value (0-255) is required for set-tab-color action", nameof(green));
         if (!blue.HasValue)
-            throw new ModelContextProtocol.McpException("blue value (0-255) is required for set-tab-color action");
+            throw new ArgumentException("blue value (0-255) is required for set-tab-color action", nameof(blue));
 
         // Extract values after validation (null checks above guarantee non-null)
         int redValue = red.Value;
@@ -260,7 +260,7 @@ TAB COLORS (set-tab-color):
         string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for get-tab-color action");
+            throw new ArgumentException("sheetName is required for get-tab-color action", nameof(sheetName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -284,7 +284,7 @@ TAB COLORS (set-tab-color):
         string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for clear-tab-color action");
+            throw new ArgumentException("sheetName is required for clear-tab-color action", nameof(sheetName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -304,10 +304,10 @@ TAB COLORS (set-tab-color):
         string? visibility)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for set-visibility action");
+            throw new ArgumentException("sheetName is required for set-visibility action", nameof(sheetName));
 
         if (string.IsNullOrEmpty(visibility))
-            throw new ModelContextProtocol.McpException("visibility (visible|hidden|veryhidden) is required for set-visibility action");
+            throw new ArgumentException("visibility (visible|hidden|veryhidden) is required for set-visibility action", nameof(visibility));
 
         SheetVisibility visibilityLevel = visibility.ToLowerInvariant() switch
         {
@@ -334,7 +334,7 @@ TAB COLORS (set-tab-color):
         string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for get-visibility action");
+            throw new ArgumentException("sheetName is required for get-visibility action", nameof(sheetName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -355,7 +355,7 @@ TAB COLORS (set-tab-color):
         string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for show action");
+            throw new ArgumentException("sheetName is required for show action", nameof(sheetName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -374,7 +374,7 @@ TAB COLORS (set-tab-color):
         string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for hide action");
+            throw new ArgumentException("sheetName is required for hide action", nameof(sheetName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -394,7 +394,7 @@ TAB COLORS (set-tab-color):
         string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for very-hide action");
+            throw new ArgumentException("sheetName is required for very-hide action", nameof(sheetName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,

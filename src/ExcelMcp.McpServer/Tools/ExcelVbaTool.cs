@@ -110,7 +110,7 @@ public static class ExcelVbaTool
     private static async Task<string> ViewVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName)
     {
         if (string.IsNullOrEmpty(moduleName))
-            throw new ModelContextProtocol.McpException("moduleName is required for view action");
+            throw new ArgumentException("moduleName is required for view action", nameof(moduleName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -133,7 +133,7 @@ public static class ExcelVbaTool
     private static async Task<string> ExportVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName, string? targetPath)
     {
         if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(targetPath))
-            throw new ModelContextProtocol.McpException("moduleName and targetPath are required for export action");
+            throw new ArgumentException("moduleName and targetPath are required for export action", "moduleName,targetPath");
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -151,9 +151,9 @@ public static class ExcelVbaTool
     private static async Task<string> ImportVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName, string? sourcePath)
     {
         if (string.IsNullOrEmpty(moduleName))
-            throw new ModelContextProtocol.McpException("moduleName is required for import action");
+            throw new ArgumentException("moduleName is required for import action", nameof(moduleName));
         if (string.IsNullOrEmpty(sourcePath))
-            throw new ModelContextProtocol.McpException("sourcePath is required for import action");
+            throw new ArgumentException("sourcePath is required for import action", nameof(sourcePath));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -171,7 +171,7 @@ public static class ExcelVbaTool
     private static async Task<string> UpdateVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName, string? sourcePath)
     {
         if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(sourcePath))
-            throw new ModelContextProtocol.McpException("moduleName and sourcePath are required for update action");
+            throw new ArgumentException("moduleName and sourcePath are required for update action", "moduleName,sourcePath");
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -189,7 +189,7 @@ public static class ExcelVbaTool
     private static async Task<string> RunVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName, string? parameters)
     {
         if (string.IsNullOrEmpty(moduleName))
-            throw new ModelContextProtocol.McpException("moduleName (format: 'Module.Procedure') is required for run action");
+            throw new ArgumentException("moduleName (format: 'Module.Procedure') is required for run action", nameof(moduleName));
 
         // Parse parameters if provided
         string[] paramArray;
@@ -221,7 +221,7 @@ public static class ExcelVbaTool
     private static async Task<string> DeleteVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName)
     {
         if (string.IsNullOrEmpty(moduleName))
-            throw new ModelContextProtocol.McpException("moduleName is required for delete action");
+            throw new ArgumentException("moduleName is required for delete action", nameof(moduleName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,

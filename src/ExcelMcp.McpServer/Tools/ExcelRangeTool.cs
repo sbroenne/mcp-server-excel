@@ -548,7 +548,7 @@ DATA FORMAT:
 
         if (!Enum.TryParse<InsertShiftDirection>(shift, true, out var shiftDirection))
         {
-            throw new ModelContextProtocol.McpException($"Invalid shift direction '{shift}'. Must be 'Down' or 'Right'.");
+            throw new ArgumentException($"Invalid shift direction '{shift}'. Must be 'Down' or 'Right'.", nameof(shift));
         }
 
         var result = await ExcelToolsBase.WithSessionAsync(
@@ -571,7 +571,7 @@ DATA FORMAT:
 
         if (!Enum.TryParse<DeleteShiftDirection>(shift, true, out var shiftDirection))
         {
-            throw new ModelContextProtocol.McpException($"Invalid shift direction '{shift}'. Must be 'Up' or 'Left'.");
+            throw new ArgumentException($"Invalid shift direction '{shift}'. Must be 'Up' or 'Left'.", nameof(shift));
         }
 
         var result = await ExcelToolsBase.WithSessionAsync(

@@ -160,7 +160,7 @@ public static class ExcelDataModelTool
     private static async Task<string> ViewMeasureAsync(DataModelCommands commands, string sessionId, string? measureName)
     {
         if (string.IsNullOrEmpty(measureName))
-            throw new ModelContextProtocol.McpException("measureName is required for view-measure action");
+            throw new ArgumentException("measureName is required for view-measure action", nameof(measureName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -179,10 +179,10 @@ public static class ExcelDataModelTool
     private static async Task<string> ExportMeasureAsync(DataModelCommands commands, string sessionId, string? measureName, string? outputPath)
     {
         if (string.IsNullOrEmpty(measureName))
-            throw new ModelContextProtocol.McpException("measureName is required for export-measure action");
+            throw new ArgumentException("measureName is required for export-measure action", nameof(measureName));
 
         if (string.IsNullOrEmpty(outputPath))
-            throw new ModelContextProtocol.McpException("outputPath is required for export-measure action");
+            throw new ArgumentException("outputPath is required for export-measure action", nameof(outputPath));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -270,7 +270,7 @@ public static class ExcelDataModelTool
     {
         if (string.IsNullOrWhiteSpace(measureName))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'measureName' is required for delete-measure action");
+            throw new ArgumentException("Parameter 'measureName' is required for delete-measure action", nameof(measureName));
         }
 
         var result = await ExcelToolsBase.WithSessionAsync(
@@ -289,22 +289,22 @@ public static class ExcelDataModelTool
     {
         if (string.IsNullOrWhiteSpace(fromTable))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'fromTable' is required for delete-relationship action");
+            throw new ArgumentException("Parameter 'fromTable' is required for delete-relationship action", nameof(fromTable));
         }
 
         if (string.IsNullOrWhiteSpace(fromColumn))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'fromColumn' is required for delete-relationship action");
+            throw new ArgumentException("Parameter 'fromColumn' is required for delete-relationship action", nameof(fromColumn));
         }
 
         if (string.IsNullOrWhiteSpace(toTable))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'toTable' is required for delete-relationship action");
+            throw new ArgumentException("Parameter 'toTable' is required for delete-relationship action", nameof(toTable));
         }
 
         if (string.IsNullOrWhiteSpace(toColumn))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'toColumn' is required for delete-relationship action");
+            throw new ArgumentException("Parameter 'toColumn' is required for delete-relationship action", nameof(toColumn));
         }
 
         var result = await ExcelToolsBase.WithSessionAsync(
@@ -323,7 +323,7 @@ public static class ExcelDataModelTool
     {
         if (string.IsNullOrWhiteSpace(tableName))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for view-table action");
+            throw new ArgumentException("Parameter 'tableName' is required for view-table action", nameof(tableName));
         }
 
         var result = await ExcelToolsBase.WithSessionAsync(
@@ -347,7 +347,7 @@ public static class ExcelDataModelTool
     {
         if (string.IsNullOrWhiteSpace(tableName))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for list-columns action");
+            throw new ArgumentException("Parameter 'tableName' is required for list-columns action", nameof(tableName));
         }
 
         var result = await ExcelToolsBase.WithSessionAsync(
@@ -391,17 +391,17 @@ public static class ExcelDataModelTool
     {
         if (string.IsNullOrWhiteSpace(tableName))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for create-measure action");
+            throw new ArgumentException("Parameter 'tableName' is required for create-measure action", nameof(tableName));
         }
 
         if (string.IsNullOrWhiteSpace(measureName))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'measureName' is required for create-measure action");
+            throw new ArgumentException("Parameter 'measureName' is required for create-measure action", nameof(measureName));
         }
 
         if (string.IsNullOrWhiteSpace(daxFormula))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'daxFormula' is required for create-measure action");
+            throw new ArgumentException("Parameter 'daxFormula' is required for create-measure action", nameof(daxFormula));
         }
 
         var result = await ExcelToolsBase.WithSessionAsync(
@@ -421,7 +421,7 @@ public static class ExcelDataModelTool
     {
         if (string.IsNullOrWhiteSpace(measureName))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'measureName' is required for update-measure action");
+            throw new ArgumentException("Parameter 'measureName' is required for update-measure action", nameof(measureName));
         }
 
         var result = await ExcelToolsBase.WithSessionAsync(
@@ -440,22 +440,22 @@ public static class ExcelDataModelTool
     {
         if (string.IsNullOrWhiteSpace(fromTable))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'fromTable' is required for create-relationship action");
+            throw new ArgumentException("Parameter 'fromTable' is required for create-relationship action", nameof(fromTable));
         }
 
         if (string.IsNullOrWhiteSpace(fromColumn))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'fromColumn' is required for create-relationship action");
+            throw new ArgumentException("Parameter 'fromColumn' is required for create-relationship action", nameof(fromColumn));
         }
 
         if (string.IsNullOrWhiteSpace(toTable))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'toTable' is required for create-relationship action");
+            throw new ArgumentException("Parameter 'toTable' is required for create-relationship action", nameof(toTable));
         }
 
         if (string.IsNullOrWhiteSpace(toColumn))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'toColumn' is required for create-relationship action");
+            throw new ArgumentException("Parameter 'toColumn' is required for create-relationship action", nameof(toColumn));
         }
 
         var result = await ExcelToolsBase.WithSessionAsync(
@@ -475,27 +475,27 @@ public static class ExcelDataModelTool
     {
         if (string.IsNullOrWhiteSpace(fromTable))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'fromTable' is required for update-relationship action");
+            throw new ArgumentException("Parameter 'fromTable' is required for update-relationship action", nameof(fromTable));
         }
 
         if (string.IsNullOrWhiteSpace(fromColumn))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'fromColumn' is required for update-relationship action");
+            throw new ArgumentException("Parameter 'fromColumn' is required for update-relationship action", nameof(fromColumn));
         }
 
         if (string.IsNullOrWhiteSpace(toTable))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'toTable' is required for update-relationship action");
+            throw new ArgumentException("Parameter 'toTable' is required for update-relationship action", nameof(toTable));
         }
 
         if (string.IsNullOrWhiteSpace(toColumn))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'toColumn' is required for update-relationship action");
+            throw new ArgumentException("Parameter 'toColumn' is required for update-relationship action", nameof(toColumn));
         }
 
         if (!isActive.HasValue)
         {
-            throw new ModelContextProtocol.McpException("Parameter 'isActive' is required for update-relationship action");
+            throw new ArgumentException("Parameter 'isActive' is required for update-relationship action", nameof(isActive));
         }
 
         var result = await ExcelToolsBase.WithSessionAsync(

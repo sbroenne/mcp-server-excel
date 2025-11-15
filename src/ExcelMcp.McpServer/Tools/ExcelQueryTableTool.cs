@@ -120,7 +120,7 @@ public static class ExcelQueryTableTool
     private static async Task<string> GetQueryTableAsync(QueryTableCommands commands, string sessionId, string? queryTableName)
     {
         if (string.IsNullOrWhiteSpace(queryTableName))
-            throw new ModelContextProtocol.McpException("queryTableName is required for get action");
+            throw new ArgumentException("queryTableName is required for get action", nameof(queryTableName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -150,13 +150,13 @@ public static class ExcelQueryTableTool
         bool? refreshImmediately)
     {
         if (string.IsNullOrWhiteSpace(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for create-from-connection action");
+            throw new ArgumentException("sheetName is required for create-from-connection action", nameof(sheetName));
 
         if (string.IsNullOrWhiteSpace(queryTableName))
-            throw new ModelContextProtocol.McpException("queryTableName is required for create-from-connection action");
+            throw new ArgumentException("queryTableName is required for create-from-connection action", nameof(queryTableName));
 
         if (string.IsNullOrWhiteSpace(connectionName))
-            throw new ModelContextProtocol.McpException("connectionName is required for create-from-connection action");
+            throw new ArgumentException("connectionName is required for create-from-connection action", nameof(connectionName));
 
         var options = new QueryTableCreateOptions
         {
@@ -196,13 +196,13 @@ public static class ExcelQueryTableTool
         bool? refreshImmediately)
     {
         if (string.IsNullOrWhiteSpace(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for create-from-query action");
+            throw new ArgumentException("sheetName is required for create-from-query action", nameof(sheetName));
 
         if (string.IsNullOrWhiteSpace(queryTableName))
-            throw new ModelContextProtocol.McpException("queryTableName is required for create-from-query action");
+            throw new ArgumentException("queryTableName is required for create-from-query action", nameof(queryTableName));
 
         if (string.IsNullOrWhiteSpace(queryName))
-            throw new ModelContextProtocol.McpException("queryName is required for create-from-query action");
+            throw new ArgumentException("queryName is required for create-from-query action", nameof(queryName));
 
         var options = new QueryTableCreateOptions
         {
@@ -229,7 +229,7 @@ public static class ExcelQueryTableTool
     private static async Task<string> RefreshQueryTableAsync(QueryTableCommands commands, string sessionId, string? queryTableName)
     {
         if (string.IsNullOrWhiteSpace(queryTableName))
-            throw new ModelContextProtocol.McpException("queryTableName is required for refresh action");
+            throw new ArgumentException("queryTableName is required for refresh action", nameof(queryTableName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -267,7 +267,7 @@ public static class ExcelQueryTableTool
         bool? adjustColumnWidth)
     {
         if (string.IsNullOrWhiteSpace(queryTableName))
-            throw new ModelContextProtocol.McpException("queryTableName is required for update-properties action");
+            throw new ArgumentException("queryTableName is required for update-properties action", nameof(queryTableName));
 
         var options = new QueryTableUpdateOptions
         {
@@ -293,7 +293,7 @@ public static class ExcelQueryTableTool
     private static async Task<string> DeleteQueryTableAsync(QueryTableCommands commands, string sessionId, string? queryTableName)
     {
         if (string.IsNullOrWhiteSpace(queryTableName))
-            throw new ModelContextProtocol.McpException("queryTableName is required for delete action");
+            throw new ArgumentException("queryTableName is required for delete action", nameof(queryTableName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,

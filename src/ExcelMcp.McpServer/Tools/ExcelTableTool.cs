@@ -343,7 +343,7 @@ public static class TableTool
         }
         catch (JsonException ex)
         {
-            throw new ModelContextProtocol.McpException($"Invalid JSON array for filterValues: {ex.Message}");
+            throw new ArgumentException($"Invalid JSON array for filterValues: {ex.Message}", nameof(filterValuesJson));
         }
 
         var result = await ExcelToolsBase.WithSessionAsync(
@@ -407,7 +407,7 @@ public static class TableTool
             }
             else
             {
-                throw new ModelContextProtocol.McpException($"Invalid position value: '{positionStr}'. Must be a number.");
+                throw new ArgumentException($"Invalid position value: '{positionStr}'. Must be a number.", nameof(positionStr));
             }
         }
 
@@ -465,7 +465,7 @@ public static class TableTool
         var region = Core.Models.TableRegion.Data; // Default
         if (!string.IsNullOrWhiteSpace(regionStr) && !Enum.TryParse(regionStr, true, out region))
         {
-            throw new ModelContextProtocol.McpException($"Invalid region '{regionStr}'. Valid values: All, Data, Headers, Totals, ThisRow");
+            throw new ArgumentException($"Invalid region '{regionStr}'. Valid values: All, Data, Headers, Totals, ThisRow", nameof(regionStr));
         }
 
         var result = await ExcelToolsBase.WithSessionAsync(
@@ -511,12 +511,12 @@ public static class TableTool
             sortColumns = JsonSerializer.Deserialize<List<Core.Models.TableSortColumn>>(sortColumnsJson!);
             if (sortColumns == null || sortColumns.Count == 0)
             {
-                throw new ModelContextProtocol.McpException("sortColumns JSON must be a non-empty array");
+                throw new ArgumentException("sortColumns JSON must be a non-empty array", nameof(sortColumnsJson));
             }
         }
         catch (JsonException ex)
         {
-            throw new ModelContextProtocol.McpException($"Invalid sortColumns JSON: {ex.Message}");
+            throw new ArgumentException($"Invalid sortColumns JSON: {ex.Message}", nameof(sortColumnsJson));
         }
 
         var result = await ExcelToolsBase.WithSessionAsync(

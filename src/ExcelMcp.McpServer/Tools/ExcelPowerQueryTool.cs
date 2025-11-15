@@ -128,7 +128,7 @@ OPERATIONS GUIDANCE:
     private static async Task<string> ViewPowerQueryAsync(PowerQueryCommands commands, string sessionId, string? queryName)
     {
         if (string.IsNullOrEmpty(queryName))
-            throw new ModelContextProtocol.McpException("queryName is required for view action");
+            throw new ArgumentException("queryName is required for view action", nameof(queryName));
 
         var result = await ExcelToolsBase.WithSessionAsync(sessionId,
             async batch => await commands.ViewAsync(batch, queryName));
@@ -145,7 +145,7 @@ OPERATIONS GUIDANCE:
     private static async Task<string> ExportPowerQueryAsync(PowerQueryCommands commands, string sessionId, string? queryName, string? targetPath)
     {
         if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(targetPath))
-            throw new ModelContextProtocol.McpException("queryName and targetPath are required for export action");
+            throw new ArgumentException("queryName and targetPath are required for export action", "queryName,targetPath");
 
         var result = await ExcelToolsBase.WithSessionAsync(sessionId,
             async batch => await commands.ExportAsync(batch, queryName, targetPath));
@@ -161,7 +161,7 @@ OPERATIONS GUIDANCE:
     private static async Task<string> RefreshPowerQueryAsync(PowerQueryCommands commands, string sessionId, string? queryName, double? timeoutMinutes)
     {
         if (string.IsNullOrEmpty(queryName))
-            throw new ModelContextProtocol.McpException("queryName is required for refresh action");
+            throw new ArgumentException("queryName is required for refresh action", nameof(queryName));
 
         try
         {
@@ -229,7 +229,7 @@ OPERATIONS GUIDANCE:
     private static async Task<string> DeletePowerQueryAsync(PowerQueryCommands commands, string sessionId, string? queryName)
     {
         if (string.IsNullOrEmpty(queryName))
-            throw new ModelContextProtocol.McpException("queryName is required for delete action");
+            throw new ArgumentException("queryName is required for delete action", nameof(queryName));
 
         var result = await ExcelToolsBase.WithSessionAsync(sessionId,
             async batch => await commands.DeleteAsync(batch, queryName));
@@ -247,7 +247,7 @@ OPERATIONS GUIDANCE:
     private static async Task<string> GetLoadConfigAsync(PowerQueryCommands commands, string sessionId, string? queryName)
     {
         if (string.IsNullOrEmpty(queryName))
-            throw new ModelContextProtocol.McpException("queryName is required for get-load-config action");
+            throw new ArgumentException("queryName is required for get-load-config action", nameof(queryName));
 
         var result = await ExcelToolsBase.WithSessionAsync(sessionId,
             async batch => await commands.GetLoadConfigAsync(batch, queryName));
@@ -298,7 +298,7 @@ OPERATIONS GUIDANCE:
             if (string.IsNullOrEmpty(queryName)) missing.Add("queryName");
             if (string.IsNullOrEmpty(sourcePath)) missing.Add("sourcePath");
             var plural = missing.Count > 1 ? "are" : "is";
-            throw new ModelContextProtocol.McpException($"{string.Join(" and ", missing)} {plural} required for create action (.pq file required)");
+            throw new ArgumentException($"{string.Join(" and ", missing)} {plural} required for create action (.pq file required)", string.Join(",", missing));
         }
 
         sourcePath = PathValidator.ValidateExistingFile(sourcePath, nameof(sourcePath));
@@ -326,9 +326,9 @@ OPERATIONS GUIDANCE:
         string? sourcePath)
     {
         if (string.IsNullOrEmpty(queryName))
-            throw new ModelContextProtocol.McpException("queryName is required for update action");
+            throw new ArgumentException("queryName is required for update action", nameof(queryName));
         if (string.IsNullOrEmpty(sourcePath))
-            throw new ModelContextProtocol.McpException("sourcePath is required for update action (.pq file)");
+            throw new ArgumentException("sourcePath is required for update action (.pq file)", nameof(sourcePath));
 
         sourcePath = PathValidator.ValidateExistingFile(sourcePath, nameof(sourcePath));
 
@@ -350,7 +350,7 @@ OPERATIONS GUIDANCE:
         string? targetSheet)
     {
         if (string.IsNullOrEmpty(queryName))
-            throw new ModelContextProtocol.McpException("queryName is required for load-to action");
+            throw new ArgumentException("queryName is required for load-to action", nameof(queryName));
 
         // Parse loadDestination to PowerQueryLoadMode enum
         var loadMode = ParseLoadMode(loadDestination ?? "worksheet");
@@ -392,7 +392,7 @@ OPERATIONS GUIDANCE:
         string? queryName)
     {
         if (string.IsNullOrEmpty(queryName))
-            throw new ModelContextProtocol.McpException("queryName is required for unload action");
+            throw new ArgumentException("queryName is required for unload action", nameof(queryName));
 
         var result = await ExcelToolsBase.WithSessionAsync(sessionId,
             async batch => await commands.UnloadAsync(batch, queryName));
@@ -429,7 +429,7 @@ OPERATIONS GUIDANCE:
             "data-model" => PowerQueryLoadMode.LoadToDataModel,
             "both" => PowerQueryLoadMode.LoadToBoth,
             "connection-only" => PowerQueryLoadMode.ConnectionOnly,
-            _ => throw new ModelContextProtocol.McpException($"Invalid loadDestination: '{loadDestination}'. Valid values: worksheet, data-model, both, connection-only")
+            _ => throw new ArgumentException($"Invalid loadDestination: '{loadDestination}'. Valid values: worksheet, data-model, both, connection-only", nameof(loadDestination))
         };
     }
 }

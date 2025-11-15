@@ -95,7 +95,7 @@ public static class ExcelNamedRangeTool
     private static async Task<string> GetNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName)
     {
         if (string.IsNullOrEmpty(namedRangeName))
-            throw new ModelContextProtocol.McpException("namedRangeName is required for get action");
+            throw new ArgumentException("namedRangeName is required for get action", nameof(namedRangeName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -115,7 +115,7 @@ public static class ExcelNamedRangeTool
     private static async Task<string> SetNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName, string? value)
     {
         if (string.IsNullOrEmpty(namedRangeName) || value == null)
-            throw new ModelContextProtocol.McpException("namedRangeName and value are required for set action");
+            throw new ArgumentException("namedRangeName and value are required for set action", "namedRangeName,value");
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -133,7 +133,7 @@ public static class ExcelNamedRangeTool
     private static async Task<string> UpdateNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName, string? value)
     {
         if (string.IsNullOrEmpty(namedRangeName) || string.IsNullOrEmpty(value))
-            throw new ModelContextProtocol.McpException("namedRangeName and value (cell reference) are required for update action");
+            throw new ArgumentException("namedRangeName and value (cell reference) are required for update action", "namedRangeName,value");
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -150,7 +150,7 @@ public static class ExcelNamedRangeTool
     private static async Task<string> CreateNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName, string? value)
     {
         if (string.IsNullOrEmpty(namedRangeName) || string.IsNullOrEmpty(value))
-            throw new ModelContextProtocol.McpException("namedRangeName and value (cell reference) are required for create action");
+            throw new ArgumentException("namedRangeName and value (cell reference) are required for create action", "namedRangeName,value");
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -168,7 +168,7 @@ public static class ExcelNamedRangeTool
     private static async Task<string> DeleteNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName)
     {
         if (string.IsNullOrEmpty(namedRangeName))
-            throw new ModelContextProtocol.McpException("namedRangeName is required for delete action");
+            throw new ArgumentException("namedRangeName is required for delete action", nameof(namedRangeName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -186,7 +186,7 @@ public static class ExcelNamedRangeTool
     private static async Task<string> CreateBulkNamedRangesAsync(NamedRangeCommands commands, string sessionId, string? namedRangesJson)
     {
         if (string.IsNullOrWhiteSpace(namedRangesJson))
-            throw new ModelContextProtocol.McpException("namedRangesJson is required for create-bulk action");
+            throw new ArgumentException("namedRangesJson is required for create-bulk action", nameof(namedRangesJson));
 
         // Deserialize JSON array of named range definitions
         List<NamedRangeDefinition>? parameters;
@@ -197,11 +197,11 @@ public static class ExcelNamedRangeTool
                 s_jsonOptions);
 
             if (parameters == null || parameters.Count == 0)
-                throw new ModelContextProtocol.McpException("namedRangesJson must contain at least one named range definition");
+                throw new ArgumentException("namedRangesJson must contain at least one named range definition", nameof(namedRangesJson));
         }
         catch (JsonException ex)
         {
-            throw new ModelContextProtocol.McpException($"Invalid namedRangesJson format: {ex.Message}");
+            throw new ArgumentException($"Invalid namedRangesJson format: {ex.Message}", nameof(namedRangesJson));
         }
 
         var result = await ExcelToolsBase.WithSessionAsync(

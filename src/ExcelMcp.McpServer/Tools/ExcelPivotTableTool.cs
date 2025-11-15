@@ -394,8 +394,8 @@ public static class ExcelPivotTableTool
         if (!string.IsNullOrEmpty(aggregationFunction) &&
             !Enum.TryParse(aggregationFunction, true, out function))
         {
-            throw new ModelContextProtocol.McpException(
-                $"Invalid aggregation function '{aggregationFunction}'. Valid values: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP");
+            throw new ArgumentException(
+                $"Invalid aggregation function '{aggregationFunction}'. Valid values: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP", nameof(aggregationFunction));
         }
 
         var result = await ExcelToolsBase.WithSessionAsync(sessionId,
@@ -493,8 +493,8 @@ public static class ExcelPivotTableTool
 
         if (!Enum.TryParse<AggregationFunction>(aggregationFunction!, true, out var function))
         {
-            throw new ModelContextProtocol.McpException(
-                $"Invalid aggregation function '{aggregationFunction}'. Valid values: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP");
+            throw new ArgumentException(
+                $"Invalid aggregation function '{aggregationFunction}'. Valid values: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP", nameof(aggregationFunction));
         }
 
         var result = await ExcelToolsBase.WithSessionAsync(sessionId,
@@ -629,7 +629,7 @@ public static class ExcelPivotTableTool
         }
         catch (JsonException ex)
         {
-            throw new ModelContextProtocol.McpException($"Invalid filterValues JSON: {ex.Message}. Expected format: '[\"value1\",\"value2\"]'");
+            throw new ArgumentException($"Invalid filterValues JSON: {ex.Message}. Expected format: '[\"value1\",\"value2\"]'", nameof(filterValues));
         }
 
         var result = await ExcelToolsBase.WithSessionAsync(sessionId,
@@ -665,8 +665,8 @@ public static class ExcelPivotTableTool
         if (!string.IsNullOrEmpty(sortDirection) &&
             !Enum.TryParse(sortDirection, true, out direction))
         {
-            throw new ModelContextProtocol.McpException(
-                $"Invalid sort direction '{sortDirection}'. Valid values: Ascending, Descending");
+            throw new ArgumentException(
+                $"Invalid sort direction '{sortDirection}'. Valid values: Ascending, Descending", nameof(sortDirection));
         }
 
         var result = await ExcelToolsBase.WithSessionAsync(sessionId,
