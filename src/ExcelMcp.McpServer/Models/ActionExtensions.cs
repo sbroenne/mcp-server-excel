@@ -7,6 +7,9 @@ public static class ActionExtensions
 {
     public static string ToActionString(this FileAction action) => action switch
     {
+        FileAction.Open => "open",
+        FileAction.Save => "save",
+        FileAction.Close => "close",
         FileAction.CreateEmpty => "create-empty",
         FileAction.CloseWorkbook => "close-workbook",
         FileAction.Test => "test",
@@ -93,8 +96,6 @@ public static class ActionExtensions
         RangeAction.MergeCells => "merge-cells",
         RangeAction.UnmergeCells => "unmerge-cells",
         RangeAction.GetMergeInfo => "get-merge-info",
-        RangeAction.AddConditionalFormatting => "add-conditional-formatting",
-        RangeAction.ClearConditionalFormatting => "clear-conditional-formatting",
         RangeAction.SetCellLock => "set-cell-lock",
         RangeAction.GetCellLock => "get-cell-lock",
         _ => throw new ArgumentException($"Unknown RangeAction: {action}")
@@ -110,6 +111,13 @@ public static class ActionExtensions
         NamedRangeAction.Get => "get",
         NamedRangeAction.Set => "set",
         _ => throw new ArgumentException($"Unknown NamedRangeAction: {action}")
+    };
+
+    public static string ToActionString(this ConditionalFormatAction action) => action switch
+    {
+        ConditionalFormatAction.AddRule => "add-rule",
+        ConditionalFormatAction.ClearRules => "clear-rules",
+        _ => throw new ArgumentException($"Unknown ConditionalFormatAction: {action}")
     };
 
     public static string ToActionString(this VbaAction action) => action switch
@@ -213,14 +221,6 @@ public static class ActionExtensions
         _ => throw new ArgumentException($"Unknown PivotTableAction: {action}")
     };
 
-    public static string ToActionString(this BatchAction action) => action switch
-    {
-        BatchAction.Begin => "begin",
-        BatchAction.Commit => "commit",
-        BatchAction.List => "list",
-        _ => throw new ArgumentException($"Unknown BatchAction: {action}")
-    };
-
     public static string ToActionString(this QueryTableAction action) => action switch
     {
         QueryTableAction.List => "list",
@@ -234,4 +234,5 @@ public static class ActionExtensions
         _ => throw new ArgumentException($"Unknown QueryTableAction: {action}")
     };
 }
+
 

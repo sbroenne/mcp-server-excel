@@ -142,10 +142,6 @@ public enum RangeAction
     UnmergeCells,
     GetMergeInfo,
 
-    // Conditional Formatting
-    AddConditionalFormatting,
-    ClearConditionalFormatting,
-
     // Cell Protection
     SetCellLock,
     GetCellLock
@@ -163,6 +159,15 @@ public enum NamedRangeAction
     Delete,
     Get,
     Set
+}
+
+/// <summary>
+/// Actions available for excel_conditional_format tool
+/// </summary>
+public enum ConditionalFormatAction
+{
+    AddRule,
+    ClearRules
 }
 
 /// <summary>
@@ -301,16 +306,6 @@ public enum PivotTableAction
 }
 
 /// <summary>
-/// Actions available for excel_batch tool
-/// </summary>
-public enum BatchAction
-{
-    Begin,
-    Commit,
-    List
-}
-
-/// <summary>
 /// Actions available for excel_querytable tool
 /// </summary>
 public enum QueryTableAction
@@ -324,4 +319,5 @@ public enum QueryTableAction
     UpdateProperties,
     Delete
 }
+
 

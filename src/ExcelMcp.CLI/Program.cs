@@ -49,6 +49,7 @@ internal sealed class Program
             var pivot = new PivotTableCommands();
             var queryTable = new QueryTableCommands();
             var batch = new BatchCommands();
+            var conditionalFormat = new ConditionalFormatCommands();
 
             return args[0].ToLowerInvariant() switch
             {
@@ -160,8 +161,10 @@ internal sealed class Program
                 // Range advanced operations
                 "range-set-cell-lock" => range.SetCellLock(args),
                 "range-get-cell-lock" => range.GetCellLock(args),
-                "range-add-conditional-formatting" => range.AddConditionalFormatting(args),
-                "range-clear-conditional-formatting" => range.ClearConditionalFormatting(args),
+                "range-add-conditional-formatting" => conditionalFormat.AddRule(args),  // Legacy alias
+                "range-clear-conditional-formatting" => conditionalFormat.ClearRules(args),  // Legacy alias
+                "cf-add-rule" => conditionalFormat.AddRule(args),
+                "cf-clear-rules" => conditionalFormat.ClearRules(args),
 
                 // Parameter commands
                 "namedrange-list" => param.List(args),
@@ -477,8 +480,9 @@ internal sealed class Program
         AnsiConsole.MarkupLine("  [bold]Advanced:[/]");
         AnsiConsole.MarkupLine("  [cyan]range-set-cell-lock[/] file.xlsx sheet range locked  Lock/unlock cells");
         AnsiConsole.MarkupLine("  [cyan]range-get-cell-lock[/] file.xlsx sheet range");
-        AnsiConsole.MarkupLine("  [cyan]range-add-conditional-formatting[/] file.xlsx sheet range type formula1 [[formula2]]");
-        AnsiConsole.MarkupLine("  [cyan]range-clear-conditional-formatting[/] file.xlsx sheet range");
+        AnsiConsole.MarkupLine("  [cyan]cf-add-rule[/] file.xlsx sheet range type operator formula1 [[formula2]] [[interior-color]] [[interior-pattern]] [[font-color]] [[bold]] [[italic]] [[border-style]] [[border-color]]");
+        AnsiConsole.MarkupLine("  [cyan]cf-clear-rules[/] file.xlsx sheet range");
+        AnsiConsole.MarkupLine("  [dim]  (Legacy aliases: range-add-conditional-formatting, range-clear-conditional-formatting)[/]");
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[bold yellow]Range Formatting Commands:[/]");

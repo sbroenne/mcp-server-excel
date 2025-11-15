@@ -1834,80 +1834,8 @@ public class RangeCommands
         }
     }
 
-    public int AddConditionalFormatting(string[] args)
-    {
-        if (args.Length < 6)
-        {
-            AnsiConsole.MarkupLine("[red]Usage:[/] range-add-conditional-formatting <file.xlsx> <sheet-name> <range-address> <rule-type> <formula1> [formula2] [format-style]");
-            AnsiConsole.MarkupLine("[dim]Example: range-add-conditional-formatting data.xlsx Sheet1 A1:A10 cellValue \">100\" \"\" highlight[/]");
-            AnsiConsole.MarkupLine("[dim]Rule types: cellValue, expression, colorScale, dataBar, iconSet, top10, uniqueValues, duplicateValues[/]");
-            return 1;
-        }
-
-        var filePath = args[1];
-        var sheetName = args[2];
-        var rangeAddress = args[3];
-        var ruleType = args[4];
-        var formula1 = args[5];
-        var formula2 = args.Length > 6 ? args[6] : null;
-        var formatStyle = args.Length > 7 ? args[7] : null;
-
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var result = await _coreCommands.AddConditionalFormattingAsync(batch, sheetName, rangeAddress, ruleType, formula1, formula2, formatStyle);
-            await batch.SaveAsync();
-            return result;
-        });
-        var result = task.GetAwaiter().GetResult();
-
-        if (result.Success)
-        {
-            AnsiConsole.MarkupLine($"[green]✓[/] Added conditional formatting to {rangeAddress.EscapeMarkup()}");
-            return 0;
-        }
-        else
-        {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-            return 1;
-        }
-    }
-
-    public int ClearConditionalFormatting(string[] args)
-    {
-        if (args.Length < 4)
-        {
-            AnsiConsole.MarkupLine("[red]Usage:[/] range-clear-conditional-formatting <file.xlsx> <sheet-name> <range-address>");
-            AnsiConsole.MarkupLine("[dim]Example: range-clear-conditional-formatting data.xlsx Sheet1 A1:A10[/]");
-            return 1;
-        }
-
-        var filePath = args[1];
-        var sheetName = args[2];
-        var rangeAddress = args[3];
-
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            var result = await _coreCommands.ClearConditionalFormattingAsync(batch, sheetName, rangeAddress);
-            await batch.SaveAsync();
-            return result;
-        });
-        var result = task.GetAwaiter().GetResult();
-
-        if (result.Success)
-        {
-            AnsiConsole.MarkupLine($"[green]✓[/] Cleared conditional formatting from {rangeAddress.EscapeMarkup()}");
-            return 0;
-        }
-        else
-        {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {result.ErrorMessage?.EscapeMarkup()}");
-            return 1;
-        }
-    }
-
     // === HELPER METHODS ===
+
 
 
 

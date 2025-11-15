@@ -357,27 +357,6 @@ public interface IRangeCommands
     /// </summary>
     Task<RangeMergeInfoResult> GetMergeInfoAsync(IExcelBatch batch, string sheetName, string rangeAddress);
 
-    // === CONDITIONAL FORMATTING OPERATIONS ===
-
-    /// <summary>
-    /// Adds conditional formatting rule to range
-    /// Excel COM: Range.FormatConditions.Add()
-    /// </summary>
-    Task<OperationResult> AddConditionalFormattingAsync(
-        IExcelBatch batch,
-        string sheetName,
-        string rangeAddress,
-        string ruleType,
-        string? formula1,
-        string? formula2,
-        string? formatStyle);
-
-    /// <summary>
-    /// Removes all conditional formatting from range
-    /// Excel COM: Range.FormatConditions.Delete()
-    /// </summary>
-    Task<OperationResult> ClearConditionalFormattingAsync(IExcelBatch batch, string sheetName, string rangeAddress);
-
     // === CELL PROTECTION OPERATIONS ===
 
     /// <summary>

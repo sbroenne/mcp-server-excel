@@ -102,12 +102,12 @@ public class ToolDiscoveryTests
         // Arrange - Expected tool names that should be discoverable
         var expectedToolNames = new HashSet<string>
         {
-            "excel_batch",
+            "excel_conditionalformat",
             "excel_connection",
             "excel_datamodel",
             "excel_file",
             "excel_namedrange",
-            "excel_pivottable",  // This is the critical one that was failing
+            "excel_pivottable",
             "excel_powerquery",
             "excel_querytable",
             "excel_range",
@@ -115,7 +115,6 @@ public class ToolDiscoveryTests
             "excel_vba",
             "excel_worksheet"
         };
-
         // Act - Scan assembly for tool types (simulating MCP SDK behavior)
         var assembly = typeof(ExcelPivotTableTool).Assembly;
         var toolTypes = assembly.GetTypes()

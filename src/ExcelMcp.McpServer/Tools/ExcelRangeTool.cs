@@ -202,21 +202,7 @@ DATA FORMAT:
         bool? showDropdown = null,
 
         [Description("Lock status for cells (for set-cell-lock: true = locked, false = unlocked)")]
-        bool? locked = null,
-
-        // === CONDITIONAL FORMATTING PARAMETERS ===
-
-        [Description("Conditional formatting rule type (for add-conditional-formatting: cellValue, expression, colorScale, dataBar, iconSet, top10, uniqueValues, duplicateValues, blanks, noBlanks, errors, noErrors)")]
-        string? ruleType = null,
-
-        [Description("First formula for conditional formatting rule (for add-conditional-formatting, required for most rule types)")]
-        string? formula1 = null,
-
-        [Description("Second formula for conditional formatting rule (for add-conditional-formatting, optional, used for 'between' rules)")]
-        string? formula2 = null,
-
-        [Description("Format style for conditional formatting (for add-conditional-formatting, optional, e.g., 'highlight', 'databar', 'colorscale')")]
-        string? formatStyle = null)
+        bool? locked = null)
     {
         try
         {
@@ -265,8 +251,6 @@ DATA FORMAT:
                 RangeAction.MergeCells => await MergeCellsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
                 RangeAction.UnmergeCells => await UnmergeCellsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
                 RangeAction.GetMergeInfo => await GetMergeInfoAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.AddConditionalFormatting => await AddConditionalFormattingAsync(rangeCommands, sessionId, sheetName, rangeAddress, ruleType, formula1, formula2, formatStyle),
-                RangeAction.ClearConditionalFormatting => await ClearConditionalFormattingAsync(rangeCommands, sessionId, sheetName, rangeAddress),
                 RangeAction.SetCellLock => await SetCellLockAsync(rangeCommands, sessionId, sheetName, rangeAddress, locked),
                 RangeAction.GetCellLock => await GetCellLockAsync(rangeCommands, sessionId, sheetName, rangeAddress),
                 _ => throw new ArgumentException(
@@ -1154,53 +1138,6 @@ DATA FORMAT:
             result.Success,
             ((dynamic)result).IsMerged,
             ((dynamic)result).MergeAddress,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> AddConditionalFormattingAsync(
-        RangeCommands commands,
-        string sessionId,
-        string? sheetName,
-        string? rangeAddress,
-        string? ruleType,
-        string? formula1,
-        string? formula2,
-        string? formatStyle)
-    {
-        if (string.IsNullOrEmpty(rangeAddress))
-            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "add-conditional-formatting");
-        if (string.IsNullOrEmpty(ruleType))
-            ExcelToolsBase.ThrowMissingParameter("ruleType", "add-conditional-formatting");
-
-        var result = await ExcelToolsBase.WithSessionAsync(
-            sessionId,
-            async batch => await commands.AddConditionalFormattingAsync(batch, sheetName ?? "", rangeAddress!,
-                ruleType!, formula1, formula2, formatStyle));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> ClearConditionalFormattingAsync(
-        RangeCommands commands,
-        string sessionId,
-        string? sheetName,
-        string? rangeAddress)
-    {
-        if (string.IsNullOrEmpty(rangeAddress))
-            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "clear-conditional-formatting");
-
-        var result = await ExcelToolsBase.WithSessionAsync(
-            sessionId,
-            async batch => await commands.ClearConditionalFormattingAsync(batch, sheetName ?? "", rangeAddress!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
             result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
