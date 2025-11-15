@@ -41,7 +41,7 @@ Result: A working Excel file with the query ready to use
 Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), Excel MCP Server uses **Excel's official COM API**. This ensures:
 - ✅ **Zero risk of document corruption** - Excel handles all file operations safely
 - ✅ **Interactive development** - See changes in real-time as you work with live Excel files
-- ✅ **Comprehensive automation** - Currently supports 166 operations across 11 specialized tools (active development)
+- ✅ **Comprehensive automation** - Currently supports 168 operations across 12 specialized tools
 
 ## 👥 Who Should Use This?
 
@@ -77,7 +77,7 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 
 ## Features
 
-The Excel MCP Server provides **11 specialized tools** for comprehensive Excel automation:
+The Excel MCP Server provides **12 specialized tools** for comprehensive Excel automation:
 
 | Tool | Operations | Purpose |
 |------|------------|---------|
@@ -85,14 +85,15 @@ The Excel MCP Server provides **11 specialized tools** for comprehensive Excel a
 | **excel_datamodel** | 15 actions | Power Pivot (Data Model): DAX measures, relationships, discover structure (tables, columns) |
 | **excel_table** | 26 actions | Excel Tables: lifecycle, columns, filters, sorts, structured references, number formatting |
 | **excel_pivottable** | 20 actions | PivotTables: create, field management, aggregations, filters, sorting, extract data |
-| **excel_range** | 45 actions | Ranges: get/set values/formulas, formatting, validation, clear, copy, insert/delete, find/replace, merge, conditional formatting, cell protection |
+| **excel_range** | 43 actions | Ranges: get/set values/formulas, formatting, validation, clear, copy, insert/delete, find/replace, merge, cell protection |
+| **excel_conditionalformat** | 2 actions | Conditional Formatting: add rules (cell value, expression-based), clear rules |
 | **excel_vba** | 7 actions | VBA: list, view, export, import, update, run, delete modules |
 | **excel_connection** | 11 actions | Connections: OLEDB/ODBC/Text/Web management, properties, refresh, test |
 | **excel_worksheet** | 13 actions | Worksheets: lifecycle, tab colors, visibility (list, create, rename, copy, delete, show/hide, very-hide) |
 | **excel_namedrange** | 7 actions | Named ranges: list, get, set, create, delete, update, bulk create |
-| **excel_file** | 3 actions | File operations: create empty .xlsx/.xlsm workbooks, close workbook, test |
-| **excel_batch** | 3 actions | Multi-operation performance: begin, commit, list |
-| **Total** | **166 actions**
+| **excel_querytable** | 8 actions | QueryTables: create from connections/queries, refresh, update properties, delete |
+| **excel_file** | 6 actions | File operations: create empty, open, save, close, close-workbook, test |
+| **Total** | **168 actions**
 
 ## Troubleshooting
 

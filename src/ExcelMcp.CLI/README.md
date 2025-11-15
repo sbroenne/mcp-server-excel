@@ -48,6 +48,7 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 - **VBA Development** - Manage VBA modules, run macros, automated testing
 - **Data Model & DAX** - Create measures, manage relationships, Power Pivot operations
 - **PivotTable Automation** - Create, configure, and manage PivotTables programmatically
+- **Conditional Formatting** - Add rules (cell value, expression-based), clear formatting
 
 ### 📊 Data Operations
 - **Worksheet Management** - Create, rename, copy, delete sheets with tab colors and visibility
@@ -65,14 +66,15 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **166 operations** across 11 categories:
+ExcelMcp.CLI provides **168 operations** across 12 categories:
 
 | Category | Operations | Examples |
 |----------|-----------|----------|
 | **File Operations** | 6 | `create-empty`, `open`, `save`, `close`, `test` |
 | **Worksheets** | 13 | `sheet-list`, `sheet-create`, `sheet-rename`, `sheet-set-tab-color` |
 | **Power Query** | 12 | `pq-list`, `pq-create`, `pq-export`, `pq-refresh`, `pq-update-mcode` |
-| **Ranges** | 44 | `range-get-values`, `range-set-values`, `range-copy`, `range-find`, `range-merge-cells`, `range-add-hyperlink` |
+| **Ranges** | 43 | `range-get-values`, `range-set-values`, `range-copy`, `range-find`, `range-merge-cells`, `range-add-hyperlink` |
+| **Conditional Formatting** | 2 | `cf-add-rule`, `cf-clear-rules` |
 | **Excel Tables** | 23 | `table-create`, `table-filter`, `table-sort`, `table-add-column`, `table-get-column-format` |
 | **PivotTables** | 19 | `pivot-create-from-range`, `pivot-add-row-field`, `pivot-refresh`, `pivot-delete` |
 | **QueryTables** | 8 | `querytable-list`, `querytable-get`, `querytable-refresh`, `querytable-create-from-connection` |
@@ -287,6 +289,19 @@ excelcli range-set-number-format data.xlsx Sheet1 E2:E100 "0.00%"      # Percent
 
 # Add data validation
 excelcli range-validate data.xlsx Sheet1 F2:F100 List "Active,Inactive,Pending"
+```
+
+### Conditional Formatting
+
+```bash
+# Add conditional formatting rule (highlight cells > 100)
+excelcli cf-add-rule data.xlsx Sheet1 A1:A10 cell-value greater 100 "" "#FFFF00" solid
+
+# Add expression-based rule
+excelcli cf-add-rule data.xlsx Sheet1 B1:B10 expression "" "=B1>AVERAGE($B$1:$B$10)" "" "#90EE90" solid
+
+# Clear conditional formatting
+excelcli cf-clear-rules data.xlsx Sheet1 A1:A10
 ```
 
 ---

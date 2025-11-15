@@ -15,7 +15,7 @@ Also includes a powerful CLI for RPA (Robotic Process Automation) and scripting 
 
 **🛡️ 100% Safe - Uses Excel's Native COM API**
 
-Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time. Currently supports **166 operations across 11 specialized tools** with active development expanding capabilities.
+Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time. Currently supports **168 operations across 12 specialized tools** with active development expanding capabilities.
 
 **Requirements:** Windows OS + Excel 2016+
 
