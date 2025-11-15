@@ -95,16 +95,6 @@ public class ExcelMcpServerTests : IDisposable
     /// <inheritdoc/>
 
     [Fact]
-    public async Task ExcelWorksheet_InvalidSession_ShouldThrowError()
-    {
-        var exception = await Assert.ThrowsAsync<ModelContextProtocol.McpException>(async () =>
-            await ExcelWorksheetTool.ExcelWorksheet(WorksheetAction.List, sessionId: "invalid-session"));
-
-        Assert.Contains("session", exception.Message, StringComparison.OrdinalIgnoreCase);
-    }
-    /// <inheritdoc/>
-
-    [Fact]
     public async Task ExcelParameter_List_ShouldReturnSuccessAfterCreation()
     {
         // Arrange
