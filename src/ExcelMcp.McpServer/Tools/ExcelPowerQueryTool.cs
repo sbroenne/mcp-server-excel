@@ -115,7 +115,7 @@ OPERATIONS GUIDANCE:
     private static async Task<string> ListPowerQueriesAsync(PowerQueryCommands commands, string sessionId)
     {
         var result = await ExcelToolsBase.WithSessionAsync(sessionId,
-            async batch => await commands.ListAsync(batch));
+            commands.ListAsync);
 
         return JsonSerializer.Serialize(new
         {
@@ -269,7 +269,7 @@ OPERATIONS GUIDANCE:
     {
         // list-excel-sources action lists all available sources (doesn't require queryName)
         var result = await ExcelToolsBase.WithSessionAsync(sessionId,
-            async batch => await commands.ListExcelSourcesAsync(batch));
+            commands.ListExcelSourcesAsync);
 
         return JsonSerializer.Serialize(new
         {
@@ -412,7 +412,7 @@ OPERATIONS GUIDANCE:
         string sessionId)
     {
         var result = await ExcelToolsBase.WithSessionAsync(sessionId,
-            async batch => await commands.RefreshAllAsync(batch));
+            commands.RefreshAllAsync);
 
         return JsonSerializer.Serialize(new
         {

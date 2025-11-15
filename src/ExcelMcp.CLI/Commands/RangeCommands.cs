@@ -1144,7 +1144,7 @@ public class RangeCommands
             for (int i = 0; i < displayRows; i++)
             {
                 var row = result.Values[i];
-                var cellValues = row.Select(v => FormatCsvValue(v)).ToArray();
+                var cellValues = row.Select(FormatCsvValue).ToArray();
                 table.AddRow(cellValues);
             }
 
@@ -1203,7 +1203,7 @@ public class RangeCommands
             for (int i = 0; i < displayRows; i++)
             {
                 var row = result.Values[i];
-                var cellValues = row.Select(v => FormatCsvValue(v)).ToArray();
+                var cellValues = row.Select(FormatCsvValue).ToArray();
                 table.AddRow(cellValues);
             }
 

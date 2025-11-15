@@ -117,7 +117,7 @@ public static class TableTool
     {
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
-            async batch => await commands.ListAsync(batch));
+            commands.ListAsync);
 
         return JsonSerializer.Serialize(new
         {

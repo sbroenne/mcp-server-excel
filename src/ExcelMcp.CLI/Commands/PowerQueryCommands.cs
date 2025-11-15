@@ -33,7 +33,7 @@ public class PowerQueryCommands : IPowerQueryCommands
         try
         {
             result = CommandHelper.WithBatchAsync(args, filePath, save: false,
-                async (batch) => await _coreCommands.ListAsync(batch));
+                _coreCommands.ListAsync);
         }
         catch (Exception ex)
         {

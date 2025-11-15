@@ -121,7 +121,7 @@ POWER QUERY AUTO-REDIRECT:
     {
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
-            async batch => await commands.ListAsync(batch));
+            commands.ListAsync);
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints

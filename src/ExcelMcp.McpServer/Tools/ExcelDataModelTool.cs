@@ -133,7 +133,7 @@ public static class ExcelDataModelTool
     {
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
-            async batch => await commands.ListTablesAsync(batch));
+            commands.ListTablesAsync);
 
         return JsonSerializer.Serialize(new
         {
@@ -200,7 +200,7 @@ public static class ExcelDataModelTool
     {
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
-            async batch => await commands.ListRelationshipsAsync(batch));
+            commands.ListRelationshipsAsync);
 
         return JsonSerializer.Serialize(new
         {
@@ -371,7 +371,7 @@ public static class ExcelDataModelTool
     {
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
-            async batch => await commands.GetInfoAsync(batch));
+            commands.GetInfoAsync);
 
         return JsonSerializer.Serialize(new
         {

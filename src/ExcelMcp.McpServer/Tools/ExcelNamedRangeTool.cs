@@ -78,7 +78,7 @@ public static class ExcelNamedRangeTool
     {
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
-            async batch => await commands.ListAsync(batch));
+            commands.ListAsync);
 
         // If operation failed, throw exception with detailed error message
         // Always return JSON (success or failure) - MCP clients handle the success flag

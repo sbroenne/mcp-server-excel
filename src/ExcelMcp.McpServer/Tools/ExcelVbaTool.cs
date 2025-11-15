@@ -94,7 +94,7 @@ public static class ExcelVbaTool
     {
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
-            async batch => await commands.ListAsync(batch));
+            commands.ListAsync);
 
         // If listing failed, throw exception with detailed error message
         // Always return JSON (success or failure) - MCP clients handle the success flag
