@@ -216,9 +216,7 @@ sample_files/
 # Exception: Allow Data Model template (required for tests)
 !tests/ExcelMcp.Core.Tests/TestAssets/DataModelTemplate.xlsx
 
-# Bicep generated ARM templates
-infrastructure/**/*.json
-!infrastructure/**/*.parameters.json
+# Jekyll generated files (only used when testing locally)
 gh-pages/vendor
 gh-pages/_site/*
 
