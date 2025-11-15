@@ -147,3 +147,4 @@ public class ExcelContextTests
         Assert.NotEqual(context1.WorkbookPath, context2.WorkbookPath);
     }
 }
+

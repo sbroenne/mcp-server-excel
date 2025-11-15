@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public class FileCommands : IFileCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> CreateEmptyAsync(string filePath, bool overwriteIfExists = false)
+    public Task<OperationResult> CreateEmptyAsync(string filePath, bool overwriteIfExists = false)
     {
         try
         {
@@ -21,7 +21,7 @@ public class FileCommands : IFileCommands
             string extension = Path.GetExtension(filePath).ToLowerInvariant();
             if (extension is not ".xlsx" and not ".xlsm")
             {
-                return new OperationResult
+                return Task.FromResult(new OperationResult
                 {
                     Success = false,
                     ErrorMessage = "File must have .xlsx or .xlsm extension",
@@ -65,7 +65,7 @@ public class FileCommands : IFileCommands
             // Create Excel workbook using proper resource management
             bool isMacroEnabled = extension == ".xlsm";
 
-            return await ExcelSession.CreateNew(filePath, isMacroEnabled, (ctx, ct) =>
+            return ExcelSession.CreateNew(filePath, isMacroEnabled, (ctx, ct) =>
             {
                 // Set up a basic structure with proper COM cleanup
                 dynamic? sheet = null;
@@ -110,7 +110,7 @@ public class FileCommands : IFileCommands
     }
 
     /// <inheritdoc />
-    public async Task<FileValidationResult> TestAsync(string filePath)
+    public Task<FileValidationResult> TestAsync(string filePath)
     {
         try
         {
@@ -136,7 +136,7 @@ public class FileCommands : IFileCommands
                 lastModified = fileInfo.LastWriteTime;
             }
 
-            return await Task.FromResult(new FileValidationResult
+            return Task.FromResult(new FileValidationResult
             {
                 Success = exists && isValidExtension,
                 ErrorMessage = !exists ? $"File not found: {filePath}"
@@ -152,7 +152,7 @@ public class FileCommands : IFileCommands
         }
         catch (Exception ex)
         {
-            return new FileValidationResult
+            return Task.FromResult(new FileValidationResult
             {
                 Success = false,
                 ErrorMessage = $"Failed to validate file: {ex.Message}",
@@ -162,8 +162,10 @@ public class FileCommands : IFileCommands
                 Extension = "",
                 LastModified = DateTime.MinValue,
                 IsValid = false
-            };
+            });
         }
     }
 
 }
+
+

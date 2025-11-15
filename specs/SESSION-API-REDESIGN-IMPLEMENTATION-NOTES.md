@@ -105,7 +105,7 @@ private static async Task<string> MethodAsync(Commands commands, string sessionI
   - Internal `ConcurrentDictionary<string, IExcelBatch>` `_activeSessions` (Core still uses IExcelBatch)
   - `CreateSession(string filePath)` → opens via `ExcelSession.BeginBatchAsync` and returns `sessionId`
   - `GetSession(string sessionId)` → returns `IExcelBatch?`
-  - `SaveSession(string sessionId)` → calls `SaveAsync` on the batch
+  - `SaveSession(string sessionId)` → calls `Save` on the batch
   - `CloseSession(string sessionId)` → calls `DisposeAsync`, removes entry
 - Extend `FileAction` in `ExcelFileTool` with `Open`, `Save`, and `Close`
 - Update `ExcelFile(...)` tool method to:

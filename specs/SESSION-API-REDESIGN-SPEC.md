@@ -502,7 +502,7 @@ public static async Task<T> WithBatchAsync<T>(
         // Path 2: Create temporary "batch-of-one"
         await using var batch = await ExcelSession.BeginBatchAsync(filePath);
         var result = await action(batch);
-        if (save) await batch.SaveAsync();
+        if (save) await batch.Save();
         return result;
     }
 }

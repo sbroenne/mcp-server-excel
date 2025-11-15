@@ -29,17 +29,6 @@ internal sealed class ExcelBatch : IExcelBatch
     private readonly CancellationTokenSource _shutdownCts;
     private int _disposed; // 0 = not disposed, 1 = disposed (using int for Interlocked.CompareExchange)
 
-    /// <summary>
-    /// Default timeout for most Excel operations (list, get, set, etc.).
-    /// </summary>
-    private static readonly TimeSpan DefaultOperationTimeout = TimeSpan.FromMinutes(2);
-
-    /// <summary>
-    /// Maximum allowed timeout to prevent runaway operations.
-    /// Heavy operations like refresh can request up to this limit.
-    /// </summary>
-    private static readonly TimeSpan MaxOperationTimeout = TimeSpan.FromMinutes(5);
-
     // COM state (STA thread only)
     private dynamic? _excel;
     private dynamic? _workbook;
@@ -169,9 +158,17 @@ internal sealed class ExcelBatch : IExcelBatch
             }
             finally
             {
-                // Cleanup on STA thread exit
+                // Cleanup COM objects on STA thread exit (children -> parents)
                 _logger.LogDebug("STA thread cleanup starting for {FileName}", Path.GetFileName(_workbookPath));
-                CleanupComObjects();
+
+                _workbook?.Close(false); // Don't save - Save must be called explicitly
+                _workbook = null;
+
+                _excel?.Quit();
+                _excel = null;
+
+                _context = null;
+
                 OleMessageFilter.Revoke();
                 _logger.LogDebug("STA thread cleanup completed for {FileName}", Path.GetFileName(_workbookPath));
             }
@@ -191,24 +188,20 @@ internal sealed class ExcelBatch : IExcelBatch
 
     public string WorkbookPath => _workbookPath;
 
-    // Synchronous COM operations
-    public async Task<T> Execute<T>(
+    /// <summary>
+    /// Executes a COM operation on the STA thread.
+    /// All Excel COM operations are synchronous.
+    /// </summary>
+    public T Execute<T>(
         Func<ExcelContext, CancellationToken, T> operation,
-        TimeSpan? timeout = null,
         CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
 
-        // Clamp timeout between default and max
-        var effectiveTimeout = timeout.HasValue
-            ? TimeSpan.FromMilliseconds(Math.Min(timeout.Value.TotalMilliseconds, MaxOperationTimeout.TotalMilliseconds))
-            : DefaultOperationTimeout;
-
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var startTime = DateTime.UtcNow;
 
-        // Post operation to STA thread
-        await _workQueue.Writer.WriteAsync(() =>
+        // Post operation to STA thread synchronously
+        var writeTask = _workQueue.Writer.WriteAsync(() =>
         {
             try
             {
@@ -227,117 +220,40 @@ internal sealed class ExcelBatch : IExcelBatch
             return Task.CompletedTask;
         }, cancellationToken);
 
-        // Add timeout protection
-        using var timeoutCts = new CancellationTokenSource(effectiveTimeout);
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+        // ValueTask is completed synchronously in normal case
+        if (writeTask.IsCompleted)
+        {
+            writeTask.GetAwaiter().GetResult();
+        }
+        else
+        {
+            // Fallback: should not normally occur with unbounded channel
+            writeTask.AsTask().GetAwaiter().GetResult();
+        }
 
+        // Wait for operation to complete (caller controls cancellation)
         try
         {
-            return await tcs.Task.WaitAsync(linkedCts.Token);
+            return tcs.Task.WaitAsync(cancellationToken).GetAwaiter().GetResult();
         }
-        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException)
         {
-            var duration = DateTime.UtcNow - startTime;
-            var usedMaxTimeout = effectiveTimeout >= MaxOperationTimeout;
-
-            _logger.LogWarning("Operation timeout after {Duration}s (limit: {Limit}min, max: {UsedMax}) for {FileName}",
-                duration.TotalSeconds, effectiveTimeout.TotalMinutes, usedMaxTimeout, Path.GetFileName(_workbookPath));
-
-            var message = usedMaxTimeout
-                ? $"Excel operation exceeded maximum timeout of {MaxOperationTimeout.TotalMinutes} minutes (actual: {duration.TotalMinutes:F1} min). " +
-                  "This indicates Excel is hung, unresponsive, or the operation is too complex. " +
-                  "Check if Excel is showing a dialog or consider breaking the operation into smaller steps."
-                : $"Excel operation timed out after {effectiveTimeout.TotalMinutes} minutes (actual: {duration.TotalMinutes:F1} min). " +
-                  $"For large datasets or complex operations, more time may be needed (maximum: {MaxOperationTimeout.TotalMinutes} min).";
-
-            throw new TimeoutException(message);
+            _logger.LogDebug("Operation cancelled for {FileName}", Path.GetFileName(_workbookPath));
+            throw;
         }
     }
 
-    // Genuinely async operations (file I/O, etc.)
-    public async Task<T> ExecuteAsync<T>(
-        Func<ExcelContext, CancellationToken, Task<T>> operation,
-        TimeSpan? timeout = null,
-        CancellationToken cancellationToken = default)
+    public void Save(CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
-
-        // Clamp timeout between default and max
-        var effectiveTimeout = timeout.HasValue
-            ? TimeSpan.FromMilliseconds(Math.Min(timeout.Value.TotalMilliseconds, MaxOperationTimeout.TotalMilliseconds))
-            : DefaultOperationTimeout;
-
-        var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var startTime = DateTime.UtcNow;
-
-        // Post operation to STA thread
-        await _workQueue.Writer.WriteAsync(async () =>
+        Execute((ctx, ct) =>
         {
             try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var result = await operation(_context!, cancellationToken);
-                tcs.SetResult(result);
-            }
-            catch (OperationCanceledException oce)
-            {
-                tcs.TrySetCanceled(oce.CancellationToken);
-            }
-            catch (Exception ex)
-            {
-                tcs.TrySetException(ex);
-            }
-        }, cancellationToken);
-
-        // Add timeout protection
-        using var timeoutCts = new CancellationTokenSource(effectiveTimeout);
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
-
-        try
-        {
-            return await tcs.Task.WaitAsync(linkedCts.Token);
-        }
-        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
-        {
-            var duration = DateTime.UtcNow - startTime;
-            var usedMaxTimeout = effectiveTimeout >= MaxOperationTimeout;
-
-            _logger.LogWarning(
-                "Async operation timeout after {Duration}s (limit: {Limit}min, max: {UsedMax}) for {FileName}",
-                duration.TotalSeconds, effectiveTimeout.TotalMinutes, usedMaxTimeout, Path.GetFileName(_workbookPath));
-
-            var message = usedMaxTimeout
-                ? $"Excel operation exceeded maximum timeout of {MaxOperationTimeout.TotalMinutes} minutes (actual: {duration.TotalMinutes:F1} min). " +
-                  "This indicates Excel is hung, unresponsive, or the operation is too complex. " +
-                  "Check if Excel is showing a dialog or consider breaking the operation into smaller steps."
-                : $"Excel operation timed out after {effectiveTimeout.TotalMinutes} minutes (actual: {duration.TotalMinutes:F1} min). " +
-                  $"For large datasets or complex operations, more time may be needed (maximum: {MaxOperationTimeout.TotalMinutes} min).";
-
-            throw new TimeoutException(message);
-        }
-    }
-
-    public async Task SaveAsync(TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-    {
-        ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
-
-        // Determine effective timeout (save operations default 2 minutes, no maximum limit)
-        var effectiveTimeout = timeout ?? TimeSpan.FromMinutes(2); // Save operations get 2-minute default
-
-        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        // Post save operation to STA thread
-        _workQueue.Writer.TryWrite(async () =>
-        {
-            try
-            {
-                cancellationToken.ThrowIfCancellationRequested();
                 _workbook!.Save();
-                tcs.SetResult();
+                return 0;
             }
             catch (COMException ex)
             {
-                // Map common Excel COM error codes to meaningful messages
                 string errorMessage = ex.HResult switch
                 {
                     unchecked((int)0x800A03EC) =>
@@ -349,124 +265,17 @@ internal sealed class ExcelBatch : IExcelBatch
                     _ => $"Failed to save workbook '{Path.GetFileName(_workbookPath)}': {ex.Message}"
                 };
 
-                tcs.SetException(new InvalidOperationException(errorMessage, ex));
-            }
-            catch (OperationCanceledException oce)
-            {
-                tcs.TrySetCanceled(oce.CancellationToken);
+                throw new InvalidOperationException(errorMessage, ex);
             }
             catch (Exception ex)
             {
-                tcs.SetException(new InvalidOperationException(
-                    $"Unexpected error saving workbook '{Path.GetFileName(_workbookPath)}': {ex.Message}", ex));
+                throw new InvalidOperationException(
+                    $"Unexpected error saving workbook '{Path.GetFileName(_workbookPath)}': {ex.Message}", ex);
             }
-
-            await Task.CompletedTask;
-        });
-
-        // Apply timeout protection
-        try
-        {
-            await tcs.Task.WaitAsync(effectiveTimeout, cancellationToken);
-        }
-        catch (TimeoutException)
-        {
-            // Rethrow with contextual message
-            throw new TimeoutException(
-                $"Excel save operation timed out after {effectiveTimeout.TotalMinutes:F2} minutes. " +
-                $"The workbook '{Path.GetFileName(_workbookPath)}' may have many changes or Excel may be busy. " +
-                $"Maximum timeout is {MaxOperationTimeout.TotalMinutes} minutes.");
-        }
+        }, cancellationToken);
     }
 
-    private static bool IsTransientSaveError(COMException ex)
-    {
-        // Excel temp file access errors during concurrent saves (transient)
-        // "Microsoft Excel cannot access the file 'C:\...\Temp\...'..."
-        if (ex.Message.Contains("Temp", StringComparison.OrdinalIgnoreCase) &&
-            (ex.Message.Contains("cannot access") || ex.Message.Contains("being used by another program")))
-        {
-            return true;
-        }
-
-        // Common transient error codes
-        return ex.HResult switch
-        {
-            unchecked((int)0x800A03EC) => true,  // VBA Error 1004 (can be transient during concurrent ops)
-            unchecked((int)0x800AC472) => true,  // File locked (can be transient)
-            _ => false
-        };
-    }
-
-    /// <summary>
-    /// Cleanup COM objects in reverse order (children -> parents).
-    /// MUST be called on STA thread.
-    /// </summary>
-    private void CleanupComObjects()
-    {
-        // Close workbook without saving (SaveAsync must be called explicitly)
-        if (_workbook != null)
-        {
-            try
-            {
-                _workbook.Close(false);
-            }
-            catch
-            {
-                // Workbook might already be closed, ignore to continue cleanup
-            }
-        }
-
-        // Quit Excel application
-        if (_excel != null)
-        {
-            try
-            {
-                // Excel.Quit() can deadlock when multiple instances are disposing
-                // Use a timeout task to prevent hanging forever
-                var quitTask = Task.Run(() =>
-                {
-                    try
-                    {
-                        _excel.Quit();
-                    }
-                    catch
-                    {
-                        // Ignore - Excel might already be closing
-                    }
-                });
-
-                // Wait up to 2 seconds for Quit() to complete
-                if (!quitTask.Wait(TimeSpan.FromSeconds(2)))
-                {
-                    // Quit() is hung - likely Excel COM deadlock
-                    // Let it hang in background and continue cleanup
-                    // Windows will eventually clean up the process
-                }
-
-                // Note: Excel.Quit() returns immediately but process may take time to exit
-                // We rely on DisposeAsync's thread join to wait for actual termination
-            }
-            catch
-            {
-                // Excel might already be closing, ignore to continue cleanup
-            }
-        }
-
-        // Null out references to allow GC to clean up
-        // DON'T use Marshal.ReleaseComObject - let GC handle it
-        // Microsoft recommends against using ReleaseComObject in most cases
-        _workbook = null;
-        _excel = null;
-        _context = null;
-
-        // Force GC to clean up COM objects (Runtime Callable Wrappers)
-        // Single cycle is sufficient for modern .NET
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-    }
-
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
         var callingThread = Environment.CurrentManagedThreadId;
 
@@ -474,11 +283,11 @@ internal sealed class ExcelBatch : IExcelBatch
         // Returns 0 if exchange succeeded (was not disposed), 1 if already disposed
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         {
-            _logger.LogDebug("[Thread {CallingThread}] DisposeAsync skipped - already disposed for {FileName}", callingThread, Path.GetFileName(_workbookPath));
+            _logger.LogDebug("[Thread {CallingThread}] Dispose skipped - already disposed for {FileName}", callingThread, Path.GetFileName(_workbookPath));
             return; // Already disposed
         }
 
-        _logger.LogDebug("[Thread {CallingThread}] DisposeAsync starting for {FileName}", callingThread, Path.GetFileName(_workbookPath));
+        _logger.LogDebug("[Thread {CallingThread}] Dispose starting for {FileName}", callingThread, Path.GetFileName(_workbookPath));
 
         // Cancel the shutdown token FIRST to wake up the message pump
         _logger.LogDebug("[Thread {CallingThread}] Cancelling shutdown token for {FileName}", callingThread, Path.GetFileName(_workbookPath));
@@ -489,112 +298,43 @@ internal sealed class ExcelBatch : IExcelBatch
         _workQueue.Writer.Complete();
 
         // Give the thread a moment to notice the cancellation
-        _logger.LogDebug("[Thread {CallingThread}] Delaying 100ms for {FileName}", callingThread, Path.GetFileName(_workbookPath));
-        await Task.Delay(100);
+        _logger.LogDebug("[Thread {CallingThread}] Sleeping 100ms for {FileName}", callingThread, Path.GetFileName(_workbookPath));
+        Thread.Sleep(100);
 
         _logger.LogDebug("[Thread {CallingThread}] Waiting for STA thread (Id={STAThread}) to exit for {FileName}", callingThread, _staThread?.ManagedThreadId ?? -1, Path.GetFileName(_workbookPath));
 
         // Wait for STA thread to finish cleanup (with timeout)
-        // Use Task.Run with timeout to prevent hanging forever if Excel COM deadlocks
-        var joinTask = Task.Run(() =>
+        if (_staThread != null && _staThread.IsAlive)
         {
-            var workerThread = Environment.CurrentManagedThreadId;
-            _logger.LogDebug("[Thread {WorkerThread}] Task.Run worker thread starting join wait for STA={STAThread}, file={FileName}", workerThread, _staThread?.ManagedThreadId ?? -1, Path.GetFileName(_workbookPath));
+            _logger.LogDebug("[Thread {CallingThread}] Calling Join() with 3s timeout on STA={STAThread}, file={FileName}", callingThread, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
 
-            if (_staThread != null && _staThread.IsAlive)
+            // Give STA thread 3 seconds to cleanup gracefully
+            // When multiple Excel instances are being disposed, Excel COM can deadlock
+            // It's better to timeout and let Windows clean up than hang forever
+            if (!_staThread.Join(TimeSpan.FromSeconds(3)))
             {
-                _logger.LogDebug("[Thread {WorkerThread}] Calling Join() with 3s timeout on STA={STAThread}, file={FileName}", workerThread, _staThread?.ManagedThreadId ?? -1, Path.GetFileName(_workbookPath));
+                // CRITICAL: STA thread didn't exit - this means Excel.Quit() is hung
+                // Do NOT attempt cross-thread COM calls - that violates COM apartment rules
+                // Instead, fail cleanly and let the OS clean up the process leak
+                _logger.LogError("[Thread {CallingThread}] Join() TIMED OUT after 3s waiting for STA={STAThread}, file={FileName} - Excel COM is hung. Process will leak.", callingThread, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
 
-                // Give STA thread 3 seconds to cleanup gracefully
-                // When multiple Excel instances are being disposed, Excel COM can deadlock
-                // It's better to timeout and let Windows clean up than hang forever
-                if (!_staThread.Join(TimeSpan.FromSeconds(3)))
-                {
-                    _logger.LogWarning("[Thread {WorkerThread}] Join() TIMED OUT after 3s waiting for STA={STAThread}, file={FileName} - attempting emergency cleanup", workerThread, _staThread?.ManagedThreadId ?? -1, Path.GetFileName(_workbookPath));
-                    // CRITICAL: Thread didn't exit - force cleanup on this thread
-                    // This is a safety measure for leaked Excel processes
-                    try
-                    {
-                        // Attempt emergency cleanup from current thread
-                        // NOTE: This violates STA rules but prevents process leaks
-                        if (_excel != null)
-                        {
-                            _logger.LogDebug("[Thread {WorkerThread}] Emergency: Calling _excel.Quit() for {FileName}", workerThread, Path.GetFileName(_workbookPath));
-                            try { _excel.Quit(); } catch { /* Ignore */ }
-                            _logger.LogDebug("[Thread {WorkerThread}] Emergency: Releasing _excel COM object for {FileName}", workerThread, Path.GetFileName(_workbookPath));
-                            try { Marshal.FinalReleaseComObject(_excel); } catch { /* Ignore */ }
-                        }
-                        if (_workbook != null)
-                        {
-                            _logger.LogDebug("[Thread {WorkerThread}] Emergency: Releasing _workbook COM object for {FileName}", workerThread, Path.GetFileName(_workbookPath));
-                            try { Marshal.FinalReleaseComObject(_workbook); } catch { /* Ignore */ }
-                        }
-                    }
-                    catch (Exception emergEx)
-                    {
-                        _logger.LogWarning(emergEx, "[Thread {WorkerThread}] Emergency cleanup failed for {FileName}", workerThread, Path.GetFileName(_workbookPath));
-                    }
-                }
-                else
-                {
-                    _logger.LogDebug("[Thread {WorkerThread}] Join() SUCCEEDED - STA thread (Id={STAThread}) exited successfully for {FileName}", workerThread, _staThread?.ManagedThreadId ?? -1, Path.GetFileName(_workbookPath));
-                }
-            }
-            else
-            {
-                _logger.LogDebug("[Thread {WorkerThread}] STA thread was null or not alive for {FileName}", workerThread, Path.GetFileName(_workbookPath));
-            }
-        });
-
-        // Wait for join task with aggressive timeout (Excel.Quit can block forever in COM deadlock scenarios)
-        try
-        {
-            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-            await joinTask.WaitAsync(timeoutCts.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.LogWarning("[Thread {CallingThread}] Join task timed out after 2s for {FileName} - Excel COM deadlock, force-killing Excel process", callingThread, Path.GetFileName(_workbookPath));
-
-            // CRITICAL: Excel COM is deadlocked - force-kill all Excel processes to prevent leaks
-            // This is a last resort when Excel.Quit() hangs due to COM threading issues
-            try
-            {
-                var excelProcesses = System.Diagnostics.Process.GetProcessesByName("EXCEL");
-                foreach (var process in excelProcesses)
-                {
-                    try
-                    {
-                        _logger.LogWarning("[Thread {CallingThread}] Force-killing Excel process {ProcessId}", callingThread, process.Id);
-                        process.Kill();
-                        process.WaitForExit(1000); // Wait up to 1s for termination
-                    }
-                    catch (Exception killEx)
-                    {
-                        _logger.LogWarning(killEx, "[Thread {CallingThread}] Failed to kill Excel process {ProcessId}", callingThread, process.Id);
-                    }
-                    finally
-                    {
-                        process.Dispose();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "[Thread {CallingThread}] Failed to enumerate/kill Excel processes", callingThread);
+                // Throw exception to signal disposal failure
+                throw new InvalidOperationException(
+                    $"Excel COM cleanup timed out for '{Path.GetFileName(_workbookPath)}'. " +
+                    "The STA thread did not exit within 3 seconds, indicating Excel.Quit() is hung. " +
+                    "This typically occurs when Excel is showing a modal dialog or is in an unresponsive state. " +
+                    "The Excel.exe process will leak and must be terminated manually.");
             }
         }
-
-        // Force GC to clean up any remaining COM objects
-        _logger.LogDebug("[Thread {CallingThread}] Running GC.Collect() for {FileName}", callingThread, Path.GetFileName(_workbookPath));
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
+        else
+        {
+            _logger.LogDebug("[Thread {CallingThread}] STA thread was null or not alive for {FileName}", callingThread, Path.GetFileName(_workbookPath));
+        }
 
         // Dispose cancellation token source
         _logger.LogDebug("[Thread {CallingThread}] Disposing CancellationTokenSource for {FileName}", callingThread, Path.GetFileName(_workbookPath));
         _shutdownCts.Dispose();
 
-        _logger.LogDebug("[Thread {CallingThread}] DisposeAsync COMPLETED for {FileName}", callingThread, Path.GetFileName(_workbookPath));
+        _logger.LogDebug("[Thread {CallingThread}] Dispose COMPLETED for {FileName}", callingThread, Path.GetFileName(_workbookPath));
     }
 }

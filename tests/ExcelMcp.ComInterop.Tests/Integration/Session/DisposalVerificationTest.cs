@@ -14,7 +14,6 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 [Trait("Speed", "Medium")]
 [Trait("Layer", "ComInterop")]
 [Trait("Feature", "SessionManager")]
-[Trait("RunType", "OnDemand")]
 [Trait("RequiresExcel", "true")]
 [Collection("Sequential")]
 public class DisposalVerificationTest : IAsyncLifetime
@@ -30,7 +29,7 @@ public class DisposalVerificationTest : IAsyncLifetime
         Directory.CreateDirectory(_tempDir);
     }
 
-    public async Task InitializeAsync()
+    public Task InitializeAsync()
     {
         // Kill any existing Excel processes to ensure clean state
         try
@@ -45,16 +44,18 @@ public class DisposalVerificationTest : IAsyncLifetime
                     p.WaitForExit(5000);
                     p.Dispose();
                 }
-                await Task.Delay(2000);
+                Thread.Sleep(2000);
             }
         }
         catch (Exception ex)
         {
             _output.WriteLine($"Warning: Failed to clean Excel processes: {ex.Message}");
         }
+
+        return Task.CompletedTask;
     }
 
-    public async Task DisposeAsync()
+    public Task DisposeAsync()
     {
         foreach (var file in _testFiles)
         {
@@ -83,27 +84,29 @@ public class DisposalVerificationTest : IAsyncLifetime
             // Best effort
         }
 
-        await Task.Delay(1000);
+        Thread.Sleep(1000);
+
+        return Task.CompletedTask;
     }
 
-    private async Task<string> CreateTestFileAsync(string testName)
+    private string CreateTestFile(string testName)
     {
         var fileName = $"{testName}_{Guid.NewGuid():N}.xlsx";
         var filePath = Path.Combine(_tempDir, fileName);
 
-        await ExcelSession.CreateNewAsync(
+        ExcelSession.CreateNew(
             filePath,
             isMacroEnabled: false,
-            async (ctx, ct) => await Task.FromResult(0));
+            (ctx, ct) => 0);
 
         _testFiles.Add(filePath);
         return filePath;
     }
 
     [Fact]
-    public async Task DisposeAsync_CalledTwice_OnlyDisposesOnce()
+    public void Dispose_CalledTwice_OnlyDisposesOnce()
     {
-        var testFile = await CreateTestFileAsync(nameof(DisposeAsync_CalledTwice_OnlyDisposesOnce));
+        var testFile = CreateTestFile(nameof(Dispose_CalledTwice_OnlyDisposesOnce));
 
         // Create logger that captures messages
         var loggerFactory = LoggerFactory.Create(builder =>
@@ -118,46 +121,46 @@ public class DisposalVerificationTest : IAsyncLifetime
 
         // First disposal - should execute
         _output.WriteLine("=== First DisposeAsync call ===");
-        await batch.DisposeAsync();
+        batch.Dispose();
         _output.WriteLine("=== First DisposeAsync completed ===");
 
         // Second disposal - should be no-op (return immediately)
         _output.WriteLine("=== Second DisposeAsync call ===");
-        await batch.DisposeAsync();
+        batch.Dispose();
         _output.WriteLine("=== Second DisposeAsync completed ===");
 
         // Third disposal - should also be no-op
         _output.WriteLine("=== Third DisposeAsync call ===");
-        await batch.DisposeAsync();
+        batch.Dispose();
         _output.WriteLine("=== Third DisposeAsync completed ===");
 
         _output.WriteLine("=== Test completed successfully - only one disposal should have executed ===");
     }
 
     [Fact]
-    public async Task SessionManager_DoubleDisposal_OnlyDisposesOnce()
+    public void SessionManager_DoubleDisposal_OnlyDisposesOnce()
     {
-        var testFile = await CreateTestFileAsync(nameof(SessionManager_DoubleDisposal_OnlyDisposesOnce));
+        var testFile = CreateTestFile(nameof(SessionManager_DoubleDisposal_OnlyDisposesOnce));
 
         // This mimics the original bug scenario:
         // 1. User calls CloseSessionAsync (triggers batch.DisposeAsync)
-        // 2. await using manager disposes (triggers batch.DisposeAsync again)
+        // 2. using manager disposes
 
-        await using var manager = new SessionManager();
+        using var manager = new SessionManager();
 
         _output.WriteLine("Creating session...");
-        var sessionId = await manager.CreateSessionAsync(testFile);
+        var sessionId = manager.CreateSession(testFile);
         _output.WriteLine($"Session created: {sessionId}");
 
         // This calls batch.DisposeAsync internally
-        _output.WriteLine("Calling CloseSessionAsync (first disposal)...");
-        await manager.CloseSessionAsync(sessionId);
-        _output.WriteLine("CloseSessionAsync completed");
+        _output.WriteLine("Calling CloseSession (first disposal)...");
+        manager.CloseSession(sessionId);
+        _output.WriteLine("CloseSession completed");
 
         // await using will call manager.DisposeAsync at end of scope
         // Since we already removed the batch from the dictionary in CloseSessionAsync,
         // the batch won't be disposed again
-        _output.WriteLine("Exiting await using scope (manager disposal)...");
+        _output.WriteLine("Exiting using scope (manager disposal)...");
     }
 }
 
@@ -218,3 +221,4 @@ internal sealed class TestLogger : ILogger
         _output.WriteLine($"[{logLevel}] {_categoryName}: {message}");
     }
 }
+
