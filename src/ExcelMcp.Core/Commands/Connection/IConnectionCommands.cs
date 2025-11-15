@@ -30,11 +30,6 @@ public interface IConnectionCommands
     Task<OperationResult> ImportAsync(IExcelBatch batch, string connectionName, string jsonFilePath);
 
     /// <summary>
-    /// Exports connection to JSON file
-    /// </summary>
-    Task<OperationResult> ExportAsync(IExcelBatch batch, string connectionName, string jsonFilePath);
-
-    /// <summary>
     /// Updates existing connection properties from JSON file
     /// </summary>
     Task<OperationResult> UpdatePropertiesAsync(IExcelBatch batch, string connectionName, string jsonFilePath);

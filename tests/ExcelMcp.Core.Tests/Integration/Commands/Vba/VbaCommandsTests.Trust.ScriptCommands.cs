@@ -57,18 +57,17 @@ public partial class VbaCommandsTests
         string vbaFile = Path.Join(_tempDir, $"ImportModule_{Guid.NewGuid():N}.vba");
         System.IO.File.WriteAllText(vbaFile, "Sub TestCode()\nEnd Sub");
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
         var importResult = await _scriptCommands.ImportAsync(batch, "TestModule", vbaFile);
         Assert.True(importResult.Success, "Import should succeed before export test");
 
-        string exportFile = Path.Join(_tempDir, $"ExportedModule_{Guid.NewGuid():N}.vba");
-
-        // Act - Export the module we just imported
-        var result = await _scriptCommands.ExportAsync(batch, "TestModule", exportFile);
+        // Act - View (export) the module we just imported
+        var result = await _scriptCommands.ViewAsync(batch, "TestModule");
 
         // Assert - Should succeed when VBA trust is enabled (as in CI environment)
-        Assert.True(result.Success, $"Export should succeed with VBA trust enabled. Error: {result.ErrorMessage}");
-        Assert.True(System.IO.File.Exists(exportFile), "Exported file should exist");
+        Assert.True(result.Success, $"View should succeed with VBA trust enabled. Error: {result.ErrorMessage}");
+        Assert.NotNull(result.Code);
+        Assert.NotEmpty(result.Code);
     }
     /// <inheritdoc/>
 

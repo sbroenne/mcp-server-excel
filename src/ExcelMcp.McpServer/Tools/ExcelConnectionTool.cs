@@ -182,18 +182,14 @@ POWER QUERY AUTO-REDIRECT:
             throw new ArgumentException("connectionName is required for export action", nameof(connectionName));
 
         if (string.IsNullOrEmpty(jsonPath))
-            throw new ArgumentException("targetPath (JSON file path) is required for export action", nameof(jsonPath));
+            throw new ArgumentException("connectionName is required for export action", nameof(connectionName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
-            async batch => await commands.ExportAsync(batch, connectionName, jsonPath));
+            async batch => await commands.ViewAsync(batch, connectionName));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> UpdateConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName, string? jsonPath)

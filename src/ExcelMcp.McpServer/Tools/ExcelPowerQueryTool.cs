@@ -144,18 +144,13 @@ OPERATIONS GUIDANCE:
 
     private static async Task<string> ExportPowerQueryAsync(PowerQueryCommands commands, string sessionId, string? queryName, string? targetPath)
     {
-        if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(targetPath))
-            throw new ArgumentException("queryName and targetPath are required for export action", "queryName,targetPath");
+        if (string.IsNullOrEmpty(queryName))
+            throw new ArgumentException("queryName is required for export action", nameof(queryName));
 
         var result = await ExcelToolsBase.WithSessionAsync(sessionId,
-            async batch => await commands.ExportAsync(batch, queryName, targetPath));
+            async batch => await commands.ViewAsync(batch, queryName));
 
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.FilePath,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> RefreshPowerQueryAsync(PowerQueryCommands commands, string sessionId, string? queryName, double? timeoutMinutes)

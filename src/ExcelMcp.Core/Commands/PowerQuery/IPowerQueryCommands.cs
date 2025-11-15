@@ -19,11 +19,6 @@ public interface IPowerQueryCommands
     Task<PowerQueryViewResult> ViewAsync(IExcelBatch batch, string queryName);
 
     /// <summary>
-    /// Exports a Power Query's M code to a file
-    /// </summary>
-    Task<OperationResult> ExportAsync(IExcelBatch batch, string queryName, string outputFile);
-
-    /// <summary>
     /// Refreshes a Power Query to update its data with error detection
     /// </summary>
     Task<PowerQueryRefreshResult> RefreshAsync(IExcelBatch batch, string queryName);

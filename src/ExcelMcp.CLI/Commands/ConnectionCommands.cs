@@ -171,15 +171,15 @@ public class ConnectionCommands : IConnectionCommands
 
         var task = Task.Run(async () =>
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.ExportAsync(batch, connectionName, jsonPath);
+            using var batch = ExcelSession.BeginBatch(filePath);
+            return await _coreCommands.ViewAsync(batch, connectionName);
         });
         var result = task.GetAwaiter().GetResult();
 
         if (result.Success)
         {
-            AnsiConsole.MarkupLine($"[green]✓[/] Exported connection '{connectionName.EscapeMarkup()}' to {Path.GetFileName(jsonPath)}");
-            AnsiConsole.MarkupLine($"[dim]Output: {jsonPath}[/]");
+            AnsiConsole.MarkupLine($"[green]✓[/] Connection '[cyan]{connectionName.EscapeMarkup()}[/]':");
+            AnsiConsole.WriteLine(result.ConnectionStringFormatted);
             return 0;
         }
         else

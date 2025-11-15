@@ -137,7 +137,6 @@ ListAsync()
 ViewAsync()
 ImportAsync()           // Multi-parameter: loadDestination, worksheetName
 UpdateAsync()           // Updates M code only
-ExportAsync()
 DeleteAsync()
 
 // Refresh Operations
@@ -325,14 +324,6 @@ Task<OperationResult> UpdateMCodeAsync(
     IExcelBatch batch, 
     string queryName, 
     string mCodeFile);
-
-/// <summary>
-/// Exports M code to file
-/// </summary>
-Task<OperationResult> ExportAsync(
-    IExcelBatch batch, 
-    string queryName, 
-    string outputFile);
 
 /// <summary>
 /// Deletes query (removes both Query and QueryTable if exists)
@@ -1126,7 +1117,6 @@ Task<PowerQueryListResult> ListAsync(IExcelBatch batch);
 Task<PowerQueryViewResult> ViewAsync(IExcelBatch batch, string queryName);
 Task<OperationResult> ImportAsync(IExcelBatch batch, string queryName, string mCodeFile, string loadDestination = "worksheet", string? worksheetName = null);
 Task<OperationResult> UpdateAsync(IExcelBatch batch, string queryName, string mCodeFile);
-Task<OperationResult> ExportAsync(IExcelBatch batch, string queryName, string outputFile);
 Task<OperationResult> DeleteAsync(IExcelBatch batch, string queryName);
 
 // Refresh (2 methods)
@@ -1157,7 +1147,6 @@ Task<PowerQueryListResult> ListAsync(IExcelBatch batch);
 Task<PowerQueryViewResult> ViewAsync(IExcelBatch batch, string queryName);
 Task<PowerQueryCreateResult> CreateAsync(IExcelBatch batch, string queryName, string mCodeFile, QueryDestination loadTo = QueryDestination.Worksheet, string? worksheetName = null);
 Task<OperationResult> UpdateMCodeAsync(IExcelBatch batch, string queryName, string mCodeFile);
-Task<OperationResult> ExportAsync(IExcelBatch batch, string queryName, string outputFile);
 Task<OperationResult> DeleteAsync(IExcelBatch batch, string queryName);
 
 // Data Load (4 methods)

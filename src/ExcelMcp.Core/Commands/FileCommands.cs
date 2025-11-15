@@ -27,7 +27,7 @@ public class FileCommands : IFileCommands
                     ErrorMessage = "File must have .xlsx or .xlsm extension",
                     FilePath = filePath,
                     Action = "create-empty"
-                };
+                });
             }
 
             // Check if file already exists

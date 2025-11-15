@@ -170,10 +170,9 @@ public class PowerQueryCommands : IPowerQueryCommands
 
         string filePath = args[1];
         string queryName = args[2];
-        string outputFile = args.Length > 3 ? args[3] : $"{queryName}.pq";
 
-        await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-        var result = await _coreCommands.ExportAsync(batch, queryName, outputFile);
+        using var batch = ExcelSession.BeginBatch(filePath);
+        var result = await _coreCommands.ViewAsync(batch, queryName);
 
         if (!result.Success)
         {
@@ -181,13 +180,8 @@ public class PowerQueryCommands : IPowerQueryCommands
             return 1;
         }
 
-        AnsiConsole.MarkupLine($"[green]✓[/] Exported Power Query '[cyan]{queryName}[/]' to [cyan]{outputFile}[/]");
-
-        if (File.Exists(outputFile))
-        {
-            var fileInfo = new FileInfo(outputFile);
-            AnsiConsole.MarkupLine($"[dim]File size: {fileInfo.Length} bytes[/]");
-        }
+        AnsiConsole.MarkupLine($"[green]✓[/] Power Query '[cyan]{queryName}[/]':");
+        AnsiConsole.WriteLine(result.Code);
 
         return 0;
     }

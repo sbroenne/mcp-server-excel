@@ -132,20 +132,14 @@ public static class ExcelVbaTool
 
     private static async Task<string> ExportVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName, string? targetPath)
     {
-        if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(targetPath))
-            throw new ArgumentException("moduleName and targetPath are required for export action", "moduleName,targetPath");
+        if (string.IsNullOrEmpty(moduleName))
+            throw new ArgumentException("moduleName is required for export action", nameof(moduleName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
-            async batch => await commands.ExportAsync(batch, moduleName, targetPath));
+            async batch => await commands.ViewAsync(batch, moduleName));
 
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.ErrorMessage,
-            ModuleName = moduleName,
-            FilePath = targetPath
-        }, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static async Task<string> ImportVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName, string? sourcePath)
