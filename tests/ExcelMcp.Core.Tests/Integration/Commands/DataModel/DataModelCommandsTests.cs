@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.ComInterop.Session;
+﻿using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -56,8 +56,8 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
     [Fact]
     public async Task ListTables_WithDataModel_ReturnsTables()
     {
-        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
-        var result = await _dataModelCommands.ListTablesAsync(batch);
+        using var batch = ExcelSession.BeginBatch(_dataModelFile);
+        var result = _dataModelCommands.ListTables(batch);
 
         Assert.True(result.Success, $"ListTables failed: {result.ErrorMessage}");
         Assert.Equal(3, result.Tables.Count);
@@ -73,8 +73,8 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
     [Fact]
     public async Task GetTable_WithValidTable_ReturnsCompleteInfo()
     {
-        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
-        var result = await _dataModelCommands.GetTableAsync(batch, "SalesTable");
+        using var batch = ExcelSession.BeginBatch(_dataModelFile);
+        var result = _dataModelCommands.GetTable(batch, "SalesTable");
 
         Assert.True(result.Success, $"ViewTable failed: {result.ErrorMessage}");
         Assert.Equal("SalesTable", result.TableName);
@@ -91,8 +91,8 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
     [Fact]
     public async Task GetInfo_WithRealisticDataModel_ReturnsAccurateStatistics()
     {
-        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
-        var result = await _dataModelCommands.GetInfoAsync(batch);
+        using var batch = ExcelSession.BeginBatch(_dataModelFile);
+        var result = _dataModelCommands.GetInfo(batch);
 
         Assert.True(result.Success, $"GetModelInfo failed: {result.ErrorMessage}");
         Assert.Equal(3, result.TableCount);
@@ -114,8 +114,8 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
     [Fact]
     public async Task ListMeasures_WithRealisticDataModel_ReturnsMeasuresWithFormulas()
     {
-        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
-        var result = await _dataModelCommands.ListMeasuresAsync(batch);
+        using var batch = ExcelSession.BeginBatch(_dataModelFile);
+        var result = _dataModelCommands.ListMeasures(batch);
 
         Assert.True(result.Success, $"ListMeasures failed: {result.ErrorMessage}");
         Assert.NotNull(result.Measures);
@@ -134,8 +134,8 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
     [Fact]
     public async Task Get_WithRealisticDataModel_ReturnsValidDAXFormula()
     {
-        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
-        var result = await _dataModelCommands.GetAsync(batch, "Total Sales");
+        using var batch = ExcelSession.BeginBatch(_dataModelFile);
+        var result = _dataModelCommands.Get(batch, "Total Sales");
 
         Assert.True(result.Success, $"ViewMeasure failed: {result.ErrorMessage}");
         Assert.NotNull(result.DaxFormula);
@@ -154,13 +154,13 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
         var measureName = $"Test_{nameof(CreateMeasure_ValidNameAndFormula_CreatesSuccessfully)}_{Guid.NewGuid():N}";
         var daxFormula = "SUM(SalesTable[Amount])";
 
-        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
-        var result = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, daxFormula);
+        using var batch = ExcelSession.BeginBatch(_dataModelFile);
+        var result = _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, daxFormula);
 
         Assert.True(result.Success, $"CreateMeasure failed: {result.ErrorMessage}");
 
         // Verify measure created
-        var listResult = await _dataModelCommands.ListMeasuresAsync(batch);
+        var listResult = _dataModelCommands.ListMeasures(batch);
         Assert.Contains(listResult.Measures, m => m.Name == measureName);
     }
 
@@ -175,18 +175,18 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
         var originalFormula = "SUM(SalesTable[Amount])";
         var updatedFormula = "AVERAGE(SalesTable[Amount])";
 
-        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        using var batch = ExcelSession.BeginBatch(_dataModelFile);
 
         // Create measure
-        var createResult = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, originalFormula);
+        var createResult = _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, originalFormula);
         Assert.True(createResult.Success);
 
         // Update formula
-        var updateResult = await _dataModelCommands.UpdateMeasureAsync(batch, measureName, daxFormula: updatedFormula);
+        var updateResult = _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: updatedFormula);
         Assert.True(updateResult.Success);
 
         // Verify update
-        var viewResult = await _dataModelCommands.GetAsync(batch, measureName);
+        var viewResult = _dataModelCommands.Get(batch, measureName);
         Assert.Contains("AVERAGE", viewResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -199,18 +199,18 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
     {
         var measureName = $"Test_{nameof(DeleteMeasure_WithValidMeasure_ReturnsSuccessResult)}_{Guid.NewGuid():N}";
 
-        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        using var batch = ExcelSession.BeginBatch(_dataModelFile);
 
         // Create measure
-        var createResult = await _dataModelCommands.CreateMeasureAsync(batch, "SalesTable", measureName, "SUM(SalesTable[Amount])");
+        var createResult = _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, "SUM(SalesTable[Amount])");
         Assert.True(createResult.Success);
 
         // Delete measure
-        var result = await _dataModelCommands.DeleteMeasureAsync(batch, measureName);
+        var result = _dataModelCommands.DeleteMeasure(batch, measureName);
         Assert.True(result.Success);
 
         // Verify deletion
-        var listResult = await _dataModelCommands.ListMeasuresAsync(batch);
+        var listResult = _dataModelCommands.ListMeasures(batch);
         Assert.DoesNotContain(listResult.Measures, m => m.Name == measureName);
     }
 
@@ -225,8 +225,8 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
     [Fact]
     public async Task ListRelationships_WithRealisticDataModel_ReturnsRelationshipsWithDetails()
     {
-        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
-        var result = await _dataModelCommands.ListRelationshipsAsync(batch);
+        using var batch = ExcelSession.BeginBatch(_dataModelFile);
+        var result = _dataModelCommands.ListRelationships(batch);
 
         Assert.True(result.Success, $"ListRelationships failed: {result.ErrorMessage}");
         Assert.NotNull(result.Relationships);
@@ -256,25 +256,25 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
     [Fact]
     public async Task CreateRelationship_ValidTablesAndColumns_CreatesSuccessfully()
     {
-        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        using var batch = ExcelSession.BeginBatch(_dataModelFile);
 
         // Delete existing relationship first to allow recreating it
-        var listResult = await _dataModelCommands.ListRelationshipsAsync(batch);
+        var listResult = _dataModelCommands.ListRelationships(batch);
         if (listResult.Success && listResult.Relationships?.Any(r =>
             r.FromTable == "SalesTable" && r.ToTable == "CustomersTable" &&
             r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID") == true)
         {
-            await _dataModelCommands.DeleteRelationshipAsync(batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");
+            await _dataModelCommands.DeleteRelationship(batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");
         }
 
         // Create relationship
-        var createResult = await _dataModelCommands.CreateRelationshipAsync(
+        var createResult = _dataModelCommands.CreateRelationship(
             batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");
 
         Assert.True(createResult.Success, $"CreateRelationship failed: {createResult.ErrorMessage}");
 
         // Verify creation
-        var verifyResult = await _dataModelCommands.ListRelationshipsAsync(batch);
+        var verifyResult = _dataModelCommands.ListRelationships(batch);
         Assert.Contains(verifyResult.Relationships, r =>
             r.FromTable == "SalesTable" && r.ToTable == "CustomersTable" &&
             r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID");
@@ -287,22 +287,22 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
     [Fact]
     public async Task DeleteRelationship_ExistingRelationship_ReturnsSuccess()
     {
-        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
+        using var batch = ExcelSession.BeginBatch(_dataModelFile);
 
         // Delete relationship
-        var deleteResult = await _dataModelCommands.DeleteRelationshipAsync(
+        var deleteResult = _dataModelCommands.DeleteRelationship(
             batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");
 
         Assert.True(deleteResult.Success, $"DeleteRelationship failed: {deleteResult.ErrorMessage}");
 
         // Verify deletion
-        var verifyResult = await _dataModelCommands.ListRelationshipsAsync(batch);
+        var verifyResult = _dataModelCommands.ListRelationships(batch);
         Assert.DoesNotContain(verifyResult.Relationships, r =>
             r.FromTable == "SalesTable" && r.ToTable == "CustomersTable" &&
             r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID");
 
         // Recreate for other tests (shared file)
-        await _dataModelCommands.CreateRelationshipAsync(batch,
+        await _dataModelCommands.CreateRelationship(batch,
             "SalesTable", "CustomerID", "CustomersTable", "CustomerID", active: true);
     }
 

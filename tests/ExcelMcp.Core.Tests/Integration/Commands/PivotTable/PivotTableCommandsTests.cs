@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.ComInterop.Session;
+﻿using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -39,12 +39,12 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     /// </summary>
     private async Task<string> CreateTestFileWithDataAsync(string testName)
     {
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(PivotTableCommandsTests), testName, _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
-        await batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item(1);
             sheet.Name = "SalesData";
@@ -82,7 +82,7 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
             return 0;
         });
 
-        await batch.SaveAsync();
+        batch.Save();
 
         return testFile;
     }
@@ -90,9 +90,9 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     /// <summary>
     /// Explicit test that validates the fixture creation results.
     /// This makes the data preparation test visible in test results and validates:
-    /// - FileCommands.CreateEmptyAsync()
+    /// - FileCommands.CreateEmpty()
     /// - Sales data creation
-    /// - Batch.SaveAsync() persistence
+    /// - Batch.Save() persistence
     /// </summary>
     [Fact]
     [Trait("Speed", "Fast")]
@@ -119,10 +119,10 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     public async Task DataPreparation_Persists_AfterReopenFile()
     {
         // Close and reopen to verify persistence (new batch = new session)
-        await using var batch = await ExcelSession.BeginBatchAsync(_pivotFile);
+        using var batch = ExcelSession.BeginBatch(_pivotFile);
 
         // Verify data persisted by reading range
-        await batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item("SalesData");
 

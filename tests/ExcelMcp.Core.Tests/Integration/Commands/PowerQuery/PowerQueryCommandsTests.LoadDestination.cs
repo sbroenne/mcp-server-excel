@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.ComInterop.Session;
+﻿using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -7,7 +7,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
 
 /// <summary>
 /// Integration tests for PowerQuery operations
-/// Test Coverage: CreateAsync, UpdateAsync, LoadToAsync, UnloadAsync, ValidateSyntaxAsync, RefreshAllAsync
+/// Test Coverage: Create, Update, LoadToAsync, UnloadAsync, ValidateSyntaxAsync, RefreshAllAsync
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
@@ -17,13 +17,13 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
 public partial class PowerQueryCommandsTests
 {
     /// <inheritdoc/>
-    #region CreateAsync Tests
+    #region Create Tests
 
     [Fact]
     public async Task Create_ConnectionOnly_CreatesQuerySuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(Create_ConnectionOnly_CreatesQuerySuccessfully),
             _tempDir);
@@ -31,8 +31,8 @@ public partial class PowerQueryCommandsTests
         var mCodeFile = CreateUniqueTestQueryFile(nameof(Create_ConnectionOnly_CreatesQuerySuccessfully));
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var createResult = await _powerQueryCommands.CreateAsync(
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var createResult = _powerQueryCommands.Create(
             batch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
         // Assert
@@ -42,7 +42,7 @@ public partial class PowerQueryCommandsTests
         Assert.False(createResult.DataLoaded);
 
         // Verify query exists
-        var listResult = await _powerQueryCommands.ListAsync(batch);
+        var listResult = _powerQueryCommands.List(batch);
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Queries, q => q.Name == queryName);
     }
@@ -52,7 +52,7 @@ public partial class PowerQueryCommandsTests
     public async Task Create_LoadToTable_CreatesAndLoadsData()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(Create_LoadToTable_CreatesAndLoadsData),
             _tempDir);
@@ -61,15 +61,15 @@ public partial class PowerQueryCommandsTests
         var targetSheet = "DataSheet";
 
         // Create target sheet first
-        await using (var setupBatch = await ExcelSession.BeginBatchAsync(testFile))
+        await using (var setupBatch = await ExcelSession.BeginBatch(testFile))
         {
-            await _sheetCommands.CreateAsync(setupBatch, targetSheet);
-            await setupBatch.SaveAsync();
+            await _sheetCommands.Create(setupBatch, targetSheet);
+            await setupBatch.Save();
         }
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var createResult = await _powerQueryCommands.CreateAsync(
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var createResult = _powerQueryCommands.Create(
             batch, queryName, mCodeFile, PowerQueryLoadMode.LoadToTable, targetSheet);
 
         // Assert
@@ -80,7 +80,7 @@ public partial class PowerQueryCommandsTests
         Assert.Equal(targetSheet, createResult.WorksheetName);
 
         // Verify query exists
-        var listResult = await _powerQueryCommands.ListAsync(batch);
+        var listResult = _powerQueryCommands.List(batch);
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Queries, q => q.Name == queryName);
     }
@@ -90,7 +90,7 @@ public partial class PowerQueryCommandsTests
     public async Task Create_LoadToDataModel_CreatesAndLoadsToModel()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(Create_LoadToDataModel_CreatesAndLoadsToModel),
             _tempDir);
@@ -98,8 +98,8 @@ public partial class PowerQueryCommandsTests
         var mCodeFile = CreateUniqueTestQueryFile(nameof(Create_LoadToDataModel_CreatesAndLoadsToModel));
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var createResult = await _powerQueryCommands.CreateAsync(
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var createResult = _powerQueryCommands.Create(
             batch, queryName, mCodeFile, PowerQueryLoadMode.LoadToDataModel);
 
         // Assert
@@ -109,7 +109,7 @@ public partial class PowerQueryCommandsTests
         Assert.True(createResult.DataLoaded);
 
         // Verify query exists
-        var listResult = await _powerQueryCommands.ListAsync(batch);
+        var listResult = _powerQueryCommands.List(batch);
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Queries, q => q.Name == queryName);
     }
@@ -119,7 +119,7 @@ public partial class PowerQueryCommandsTests
     public async Task Create_LoadToBoth_CreatesAndLoadsToTableAndModel()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(Create_LoadToBoth_CreatesAndLoadsToTableAndModel),
             _tempDir);
@@ -128,15 +128,15 @@ public partial class PowerQueryCommandsTests
         var targetSheet = "BothSheet";
 
         // Create target sheet first
-        await using (var setupBatch = await ExcelSession.BeginBatchAsync(testFile))
+        await using (var setupBatch = await ExcelSession.BeginBatch(testFile))
         {
-            await _sheetCommands.CreateAsync(setupBatch, targetSheet);
-            await setupBatch.SaveAsync();
+            await _sheetCommands.Create(setupBatch, targetSheet);
+            await setupBatch.Save();
         }
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var createResult = await _powerQueryCommands.CreateAsync(
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var createResult = _powerQueryCommands.Create(
             batch, queryName, mCodeFile, PowerQueryLoadMode.LoadToBoth, targetSheet);
 
         // Assert
@@ -147,7 +147,7 @@ public partial class PowerQueryCommandsTests
         Assert.Equal(targetSheet, createResult.WorksheetName);
 
         // Verify query exists
-        var listResult = await _powerQueryCommands.ListAsync(batch);
+        var listResult = _powerQueryCommands.List(batch);
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Queries, q => q.Name == queryName);
     }
@@ -161,7 +161,7 @@ public partial class PowerQueryCommandsTests
     public async Task UpdateMCode_ExistingQuery_UpdatesSuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(UpdateMCode_ExistingQuery_UpdatesSuccessfully),
             _tempDir);
@@ -178,22 +178,22 @@ in
     Source");
 
         // Create query first
-        await using (var setupBatch = await ExcelSession.BeginBatchAsync(testFile))
+        await using (var setupBatch = await ExcelSession.BeginBatch(testFile))
         {
-            await _powerQueryCommands.CreateAsync(
+            await _powerQueryCommands.Create(
                 setupBatch, queryName, originalFile, PowerQueryLoadMode.ConnectionOnly);
-            await setupBatch.SaveAsync();
+            await setupBatch.Save();
         }
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var updateResult = await _powerQueryCommands.UpdateAsync(batch, queryName, updatedFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var updateResult = _powerQueryCommands.Update(batch, queryName, updatedFile);
 
         // Assert
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
 
         // Verify M code was updated
-        var viewResult = await _powerQueryCommands.ViewAsync(batch, queryName);
+        var viewResult = _powerQueryCommands.View(batch, queryName);
         Assert.True(viewResult.Success);
         Assert.Contains("UpdatedColumn", viewResult.MCode);
     }
@@ -207,7 +207,7 @@ in
     public async Task LoadTo_ConnectionOnlyToTable_LoadsDataSuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(LoadTo_ConnectionOnlyToTable_LoadsDataSuccessfully),
             _tempDir);
@@ -216,14 +216,14 @@ in
         var targetSheet = "LoadSheet";
 
         // Act - Create connection-only query and LoadTo (all in one batch)
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create connection-only query first
-        await _powerQueryCommands.CreateAsync(
+        await _powerQueryCommands.Create(
             batch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
         // LoadTo should create sheet and load data
-        var loadResult = await _powerQueryCommands.LoadToAsync(
+        var loadResult = _powerQueryCommands.LoadTo(
             batch, queryName, PowerQueryLoadMode.LoadToTable, targetSheet);
 
         // Assert
@@ -239,7 +239,7 @@ in
     public async Task LoadTo_ToDataModel_LoadsToModelSuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(LoadTo_ToDataModel_LoadsToModelSuccessfully),
             _tempDir);
@@ -247,16 +247,16 @@ in
         var mCodeFile = CreateUniqueTestQueryFile(nameof(LoadTo_ToDataModel_LoadsToModelSuccessfully));
 
         // Create connection-only query first
-        await using (var setupBatch = await ExcelSession.BeginBatchAsync(testFile))
+        await using (var setupBatch = await ExcelSession.BeginBatch(testFile))
         {
-            await _powerQueryCommands.CreateAsync(
+            await _powerQueryCommands.Create(
                 setupBatch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
-            await setupBatch.SaveAsync();
+            await setupBatch.Save();
         }
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var loadResult = await _powerQueryCommands.LoadToAsync(
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var loadResult = _powerQueryCommands.LoadTo(
             batch, queryName, PowerQueryLoadMode.LoadToDataModel);
 
         // Assert
@@ -275,7 +275,7 @@ in
     public async Task Unload_LoadedQuery_UnloadsSuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(Unload_LoadedQuery_UnloadsSuccessfully),
             _tempDir);
@@ -284,23 +284,23 @@ in
         var targetSheet = "UnloadSheet";
 
         // Create loaded query first
-        await using (var setupBatch = await ExcelSession.BeginBatchAsync(testFile))
+        await using (var setupBatch = await ExcelSession.BeginBatch(testFile))
         {
-            await _sheetCommands.CreateAsync(setupBatch, targetSheet);
-            await _powerQueryCommands.CreateAsync(
+            await _sheetCommands.Create(setupBatch, targetSheet);
+            await _powerQueryCommands.Create(
                 setupBatch, queryName, mCodeFile, PowerQueryLoadMode.LoadToTable, targetSheet);
-            await setupBatch.SaveAsync();
+            await setupBatch.Save();
         }
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var unloadResult = await _powerQueryCommands.UnloadAsync(batch, queryName);
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var unloadResult = _powerQueryCommands.Unload(batch, queryName);
 
         // Assert
         Assert.True(unloadResult.Success, $"Unload failed: {unloadResult.ErrorMessage}");
 
         // Verify query still exists
-        var listResult = await _powerQueryCommands.ListAsync(batch);
+        var listResult = _powerQueryCommands.List(batch);
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Queries, q => q.Name == queryName);
     }
@@ -315,13 +315,13 @@ in
 
     #endregion
 
-    #region UpdateAndRefreshAsync Tests
+    #region UpdateAndRefresh Tests
 
     [Fact]
     public async Task UpdateAndRefresh_ExistingLoadedQuery_UpdatesAndRefreshes()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(UpdateAndRefresh_ExistingLoadedQuery_UpdatesAndRefreshes),
             _tempDir);
@@ -339,24 +339,24 @@ in
         var targetSheet = "RefreshSheet";
 
         // Create loaded query first
-        await using (var setupBatch = await ExcelSession.BeginBatchAsync(testFile))
+        await using (var setupBatch = await ExcelSession.BeginBatch(testFile))
         {
-            await _sheetCommands.CreateAsync(setupBatch, targetSheet);
-            await _powerQueryCommands.CreateAsync(
+            await _sheetCommands.Create(setupBatch, targetSheet);
+            await _powerQueryCommands.Create(
                 setupBatch, queryName, originalFile, PowerQueryLoadMode.LoadToTable, targetSheet);
-            await setupBatch.SaveAsync();
+            await setupBatch.Save();
         }
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var updateResult = await _powerQueryCommands.UpdateAsync(
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var updateResult = _powerQueryCommands.Update(
             batch, queryName, updatedFile);
 
         // Assert
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
 
         // Verify M code was updated
-        var viewResult = await _powerQueryCommands.ViewAsync(batch, queryName);
+        var viewResult = _powerQueryCommands.View(batch, queryName);
         Assert.True(viewResult.Success);
         Assert.Contains("RefreshedColumn", viewResult.MCode);
     }
@@ -370,7 +370,7 @@ in
     public async Task RefreshAll_MultipleQueries_RefreshesAll()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(RefreshAll_MultipleQueries_RefreshesAll),
             _tempDir);
@@ -382,18 +382,18 @@ in
         var sheet2 = "Sheet2";
 
         // Create multiple loaded queries
-        await using (var setupBatch = await ExcelSession.BeginBatchAsync(testFile))
+        await using (var setupBatch = await ExcelSession.BeginBatch(testFile))
         {
-            await _sheetCommands.CreateAsync(setupBatch, sheet1);
-            await _sheetCommands.CreateAsync(setupBatch, sheet2);
-            await _powerQueryCommands.CreateAsync(setupBatch, query1, mCodeFile1, PowerQueryLoadMode.LoadToTable, sheet1);
-            await _powerQueryCommands.CreateAsync(setupBatch, query2, mCodeFile2, PowerQueryLoadMode.LoadToTable, sheet2);
-            await setupBatch.SaveAsync();
+            await _sheetCommands.Create(setupBatch, sheet1);
+            await _sheetCommands.Create(setupBatch, sheet2);
+            await _powerQueryCommands.Create(setupBatch, query1, mCodeFile1, PowerQueryLoadMode.LoadToTable, sheet1);
+            await _powerQueryCommands.Create(setupBatch, query2, mCodeFile2, PowerQueryLoadMode.LoadToTable, sheet2);
+            await setupBatch.Save();
         }
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var refreshResult = await _powerQueryCommands.RefreshAllAsync(batch);
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var refreshResult = _powerQueryCommands.RefreshAll(batch);
 
         // Assert
         Assert.True(refreshResult.Success, $"RefreshAll failed: {refreshResult.ErrorMessage}");
@@ -404,14 +404,14 @@ in
     public async Task RefreshAll_EmptyWorkbook_Succeeds()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(RefreshAll_EmptyWorkbook_Succeeds),
             _tempDir);
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var refreshResult = await _powerQueryCommands.RefreshAllAsync(batch);
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var refreshResult = _powerQueryCommands.RefreshAll(batch);
 
         // Assert
         Assert.True(refreshResult.Success, $"RefreshAll on empty workbook failed: {refreshResult.ErrorMessage}");

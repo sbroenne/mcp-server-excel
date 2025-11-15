@@ -53,32 +53,30 @@ public static class ExcelNamedRangeTool
             // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
             return action switch
             {
-                NamedRangeAction.List => await ListNamedRangesAsync(namedRangeCommands, sessionId),
-                NamedRangeAction.Get => await GetNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName),
-                NamedRangeAction.Set => await SetNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName, value),
-                NamedRangeAction.Create => await CreateNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName, value),
-                NamedRangeAction.CreateBulk => await CreateBulkNamedRangesAsync(namedRangeCommands, sessionId, namedRangesJson),
-                NamedRangeAction.Update => await UpdateNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName, value),
-                NamedRangeAction.Delete => await DeleteNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName),
+                NamedRangeAction.List => ListNamedRangesAsync(namedRangeCommands, sessionId),
+                NamedRangeAction.Get => GetNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName),
+                NamedRangeAction.Set => SetNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName, value),
+                NamedRangeAction.Create => CreateNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName, value),
+                NamedRangeAction.CreateBulk => CreateBulkNamedRangesAsync(namedRangeCommands, sessionId, namedRangesJson),
+                NamedRangeAction.Update => UpdateNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName, value),
+                NamedRangeAction.Delete => DeleteNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName),
                 _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
         }
         catch (Exception ex)
         {
-            return JsonSerializer.Serialize(new
+            return Task.FromResult(JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
                 isError = true
-            }, ExcelToolsBase.JsonOptions);
+            }, ExcelToolsBase.JsonOptions));
         }
     }
 
-    private static async Task<string> ListNamedRangesAsync(NamedRangeCommands commands, string sessionId)
+    private static string ListNamedRangesAsync(NamedRangeCommands commands, string sessionId)
     {
-        var result = await ExcelToolsBase.WithSessionAsync(
-            sessionId,
-            commands.ListAsync);
+        var result = ExcelToolsBase.WithSession(sessionId, batch => commands.List(batch));
 
         // If operation failed, throw exception with detailed error message
         // Always return JSON (success or failure) - MCP clients handle the success flag
@@ -92,14 +90,14 @@ public static class ExcelNamedRangeTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName)
+    private static string GetNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName)
     {
         if (string.IsNullOrEmpty(namedRangeName))
             throw new ArgumentException("namedRangeName is required for get action", nameof(namedRangeName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.GetAsync(batch, namedRangeName));
+            batch => commands.Read(batch, namedRangeName));
 
         // If operation failed, throw exception with detailed error message
         // Always return JSON (success or failure) - MCP clients handle the success flag
@@ -112,14 +110,14 @@ public static class ExcelNamedRangeTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName, string? value)
+    private static string SetNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName, string? value)
     {
         if (string.IsNullOrEmpty(namedRangeName) || value == null)
             throw new ArgumentException("namedRangeName and value are required for set action", "namedRangeName,value");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.SetAsync(batch, namedRangeName, value));
+            batch => commands.Write(batch, namedRangeName, value));
 
         // If operation failed, throw exception with detailed error message
         // Always return JSON (success or failure) - MCP clients handle the success flag
@@ -130,14 +128,14 @@ public static class ExcelNamedRangeTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> UpdateNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName, string? value)
+    private static string UpdateNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName, string? value)
     {
         if (string.IsNullOrEmpty(namedRangeName) || string.IsNullOrEmpty(value))
             throw new ArgumentException("namedRangeName and value (cell reference) are required for update action", "namedRangeName,value");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.UpdateAsync(batch, namedRangeName, value));
+            batch => commands.Update(batch, namedRangeName, value));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(new
@@ -147,14 +145,14 @@ public static class ExcelNamedRangeTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> CreateNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName, string? value)
+    private static string CreateNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName, string? value)
     {
         if (string.IsNullOrEmpty(namedRangeName) || string.IsNullOrEmpty(value))
             throw new ArgumentException("namedRangeName and value (cell reference) are required for create action", "namedRangeName,value");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.CreateAsync(batch, namedRangeName, value));
+            batch => commands.Create(batch, namedRangeName, value));
 
         // If operation failed, throw exception with detailed error message
         // Always return JSON (success or failure) - MCP clients handle the success flag
@@ -165,14 +163,14 @@ public static class ExcelNamedRangeTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> DeleteNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName)
+    private static string DeleteNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName)
     {
         if (string.IsNullOrEmpty(namedRangeName))
             throw new ArgumentException("namedRangeName is required for delete action", nameof(namedRangeName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.DeleteAsync(batch, namedRangeName));
+            batch => commands.Delete(batch, namedRangeName));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(new
@@ -183,7 +181,7 @@ public static class ExcelNamedRangeTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> CreateBulkNamedRangesAsync(NamedRangeCommands commands, string sessionId, string? namedRangesJson)
+    private static string CreateBulkNamedRangesAsync(NamedRangeCommands commands, string sessionId, string? namedRangesJson)
     {
         if (string.IsNullOrWhiteSpace(namedRangesJson))
             throw new ArgumentException("namedRangesJson is required for create-bulk action", nameof(namedRangesJson));
@@ -204,9 +202,9 @@ public static class ExcelNamedRangeTool
             throw new ArgumentException($"Invalid namedRangesJson format: {ex.Message}", nameof(namedRangesJson));
         }
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.CreateBulkAsync(batch, parameters));
+            batch => commands.CreateBulk(batch, parameters));
 
         // Add workflow hints (CreateBulk returns OperationResult, not specialized type)
         return JsonSerializer.Serialize(new
@@ -215,3 +213,4 @@ public static class ExcelNamedRangeTool
         }, ExcelToolsBase.JsonOptions);
     }
 }
+

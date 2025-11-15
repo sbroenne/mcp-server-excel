@@ -14,7 +14,7 @@ public partial class ConnectionCommands
     /// <summary>
     /// Loads connection data to a worksheet
     /// </summary>
-    public async Task<OperationResult> LoadToAsync(IExcelBatch batch, string connectionName, string sheetName)
+    public OperationResult LoadTo(IExcelBatch batch, string connectionName, string sheetName)
     {
         var result = new OperationResult
         {
@@ -22,7 +22,7 @@ public partial class ConnectionCommands
             Action = "loadto"
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? conn = null;
             dynamic? sheets = null;
@@ -109,7 +109,7 @@ public partial class ConnectionCommands
     /// Gets connection properties
     /// </summary>
 
-    public async Task<OperationResult> TestAsync(IExcelBatch batch, string connectionName)
+    public OperationResult Test(IExcelBatch batch, string connectionName)
     {
         var result = new OperationResult
         {
@@ -117,7 +117,7 @@ public partial class ConnectionCommands
             Action = "test"
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -165,3 +165,4 @@ public partial class ConnectionCommands
         });
     }
 }
+

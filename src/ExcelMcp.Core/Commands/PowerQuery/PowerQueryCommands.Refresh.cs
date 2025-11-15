@@ -11,13 +11,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class PowerQueryCommands
 {
     /// <inheritdoc />
-    public async Task<PowerQueryRefreshResult> RefreshAsync(IExcelBatch batch, string queryName)
+    public PowerQueryRefreshResult Refresh(IExcelBatch batch, string queryName)
     {
-        return await RefreshAsync(batch, queryName, timeout: null);
+        return Refresh(batch, queryName);
     }
 
     /// <inheritdoc />
-    public async Task<PowerQueryRefreshResult> RefreshAsync(IExcelBatch batch, string queryName, TimeSpan? timeout)
+    public PowerQueryRefreshResult Refresh(IExcelBatch batch, string queryName, TimeSpan? timeout)
     {
         var result = new PowerQueryRefreshResult
         {
@@ -34,7 +34,7 @@ public partial class PowerQueryCommands
             return result;
         }
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -114,7 +114,7 @@ public partial class PowerQueryCommands
                 result.ErrorMessage = $"Error refreshing query: {ex.Message}";
                 return result;
             }
-        }, timeout: timeout ?? TimeSpan.FromMinutes(5));  // Default 5 minutes for Power Query refresh, LLM can override
+        });  // Default 5 minutes for Power Query refresh, LLM can override
     }
 
     /// <summary>
@@ -122,14 +122,14 @@ public partial class PowerQueryCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <returns>Operation result with refresh summary</returns>
-    public async Task<OperationResult> RefreshAllAsync(IExcelBatch batch)
+    public OperationResult RefreshAll(IExcelBatch batch)
     {
         var result = new OperationResult
         {
             FilePath = batch.WorkbookPath
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? queries = null;
 
@@ -234,3 +234,4 @@ public partial class PowerQueryCommands
         return null;
     }
 }
+

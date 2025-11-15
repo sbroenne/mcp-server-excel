@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.ComInterop.Session;
+﻿using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -15,26 +15,26 @@ public partial class QueryTableCommandsTests
     public async Task Get_ExistingQueryTable_ReturnsDetails()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(QueryTableCommandsTests), nameof(Get_ExistingQueryTable_ReturnsDetails), _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create QueryTable
         var dataModelCommands = new Core.Commands.DataModelCommands();
         var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"Column1\"}, {{\"Data1\"}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "MyQuery.pq");
-        await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
-        await pqCommands.CreateAsync(batch, "MyQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+        await System.IO.File.WriteAllText(mCodeFile, mCode);
+        await pqCommands.Create(batch, "MyQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Core.Commands.SheetCommands();
-        await sheetCommands.CreateAsync(batch, "Sheet1");
+        await sheetCommands.Create(batch, "Sheet1");
 
-        await _commands.CreateFromQueryAsync(batch, "Sheet1", "MyQT", "MyQuery");
+        await _commands.CreateFromQuery(batch, "Sheet1", "MyQT", "MyQuery");
 
         // Act
-        var result = await _commands.GetAsync(batch, "MyQT");
+        var result = _commands.Get(batch, "MyQT");
 
         // Assert
         Assert.True(result.Success, $"Get failed: {result.ErrorMessage}");
@@ -49,13 +49,13 @@ public partial class QueryTableCommandsTests
     public async Task Get_NonExistentQueryTable_ReturnsFalse()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(QueryTableCommandsTests), nameof(Get_NonExistentQueryTable_ReturnsFalse), _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Act
-        var result = await _commands.GetAsync(batch, "NonExistent");
+        var result = _commands.Get(batch, "NonExistent");
 
         // Assert
         Assert.False(result.Success);
@@ -67,26 +67,26 @@ public partial class QueryTableCommandsTests
     public async Task Refresh_ExistingQueryTable_RefreshesSuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(QueryTableCommandsTests), nameof(Refresh_ExistingQueryTable_RefreshesSuccessfully), _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create QueryTable
         var dataModelCommands = new Core.Commands.DataModelCommands();
         var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"Name\"}, {{\"Test\"}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "RefreshQuery.pq");
-        await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
-        await pqCommands.CreateAsync(batch, "RefreshQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+        await System.IO.File.WriteAllText(mCodeFile, mCode);
+        await pqCommands.Create(batch, "RefreshQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Core.Commands.SheetCommands();
-        await sheetCommands.CreateAsync(batch, "RefreshSheet");
+        await sheetCommands.Create(batch, "RefreshSheet");
 
-        await _commands.CreateFromQueryAsync(batch, "RefreshSheet", "RefreshQT", "RefreshQuery");
+        await _commands.CreateFromQuery(batch, "RefreshSheet", "RefreshQT", "RefreshQuery");
 
         // Act
-        var result = await _commands.RefreshAsync(batch, "RefreshQT");
+        var result = _commands.Refresh(batch, "RefreshQT");
 
         // Assert
         Assert.True(result.Success, $"Refresh failed: {result.ErrorMessage}");
@@ -97,13 +97,13 @@ public partial class QueryTableCommandsTests
     public async Task Refresh_NonExistentQueryTable_ReturnsFalse()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(QueryTableCommandsTests), nameof(Refresh_NonExistentQueryTable_ReturnsFalse), _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Act
-        var result = await _commands.RefreshAsync(batch, "NonExistent");
+        var result = _commands.Refresh(batch, "NonExistent");
 
         // Assert
         Assert.False(result.Success);
@@ -115,10 +115,10 @@ public partial class QueryTableCommandsTests
     public async Task RefreshAll_MultipleQueryTables_RefreshesAll()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(QueryTableCommandsTests), nameof(RefreshAll_MultipleQueryTables_RefreshesAll), _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create multiple QueryTables
         var dataModelCommands = new Core.Commands.DataModelCommands();
@@ -127,20 +127,20 @@ public partial class QueryTableCommandsTests
         var mCode2 = "let Source = #table({\"B\"}, {{2}}) in Source";
         var mCodeFile1 = Path.Combine(_tempDir, "Q1.pq");
         var mCodeFile2 = Path.Combine(_tempDir, "Q2.pq");
-        await System.IO.File.WriteAllTextAsync(mCodeFile1, mCode1);
-        await System.IO.File.WriteAllTextAsync(mCodeFile2, mCode2);
-        await pqCommands.CreateAsync(batch, "Q1", mCodeFile1, PowerQueryLoadMode.ConnectionOnly);
-        await pqCommands.CreateAsync(batch, "Q2", mCodeFile2, PowerQueryLoadMode.ConnectionOnly);
+        await System.IO.File.WriteAllText(mCodeFile1, mCode1);
+        await System.IO.File.WriteAllText(mCodeFile2, mCode2);
+        await pqCommands.Create(batch, "Q1", mCodeFile1, PowerQueryLoadMode.ConnectionOnly);
+        await pqCommands.Create(batch, "Q2", mCodeFile2, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Core.Commands.SheetCommands();
-        await sheetCommands.CreateAsync(batch, "S1");
-        await sheetCommands.CreateAsync(batch, "S2");
+        await sheetCommands.Create(batch, "S1");
+        await sheetCommands.Create(batch, "S2");
 
-        await _commands.CreateFromQueryAsync(batch, "S1", "QT1", "Q1");
-        await _commands.CreateFromQueryAsync(batch, "S2", "QT2", "Q2");
+        await _commands.CreateFromQuery(batch, "S1", "QT1", "Q1");
+        await _commands.CreateFromQuery(batch, "S2", "QT2", "Q2");
 
         // Act
-        var result = await _commands.RefreshAllAsync(batch);
+        var result = _commands.RefreshAll(batch);
 
         // Assert
         Assert.True(result.Success, $"RefreshAll failed: {result.ErrorMessage}");
@@ -151,13 +151,13 @@ public partial class QueryTableCommandsTests
     public async Task RefreshAll_EmptyWorkbook_ReturnsSuccess()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(QueryTableCommandsTests), nameof(RefreshAll_EmptyWorkbook_ReturnsSuccess), _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Act
-        var result = await _commands.RefreshAllAsync(batch);
+        var result = _commands.RefreshAll(batch);
 
         // Assert
         Assert.True(result.Success, $"RefreshAll failed: {result.ErrorMessage}");
@@ -168,23 +168,23 @@ public partial class QueryTableCommandsTests
     public async Task UpdateProperties_ExistingQueryTable_UpdatesSuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(QueryTableCommandsTests), nameof(UpdateProperties_ExistingQueryTable_UpdatesSuccessfully), _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create QueryTable with default options
         var dataModelCommands = new Core.Commands.DataModelCommands();
         var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"X\"}, {{\"Y\"}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "UpdateQuery.pq");
-        await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
-        await pqCommands.CreateAsync(batch, "UpdateQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+        await System.IO.File.WriteAllText(mCodeFile, mCode);
+        await pqCommands.Create(batch, "UpdateQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Core.Commands.SheetCommands();
-        await sheetCommands.CreateAsync(batch, "UpdateSheet");
+        await sheetCommands.Create(batch, "UpdateSheet");
 
-        await _commands.CreateFromQueryAsync(batch, "UpdateSheet", "UpdateQT", "UpdateQuery");
+        await _commands.CreateFromQuery(batch, "UpdateSheet", "UpdateQT", "UpdateQuery");
 
         // Act
         var updateOptions = new QueryTableUpdateOptions
@@ -192,13 +192,13 @@ public partial class QueryTableCommandsTests
             BackgroundQuery = true,
             RefreshOnFileOpen = true
         };
-        var result = await _commands.UpdatePropertiesAsync(batch, "UpdateQT", updateOptions);
+        var result = _commands.UpdateProperties(batch, "UpdateQT", updateOptions);
 
         // Assert
         Assert.True(result.Success, $"UpdateProperties failed: {result.ErrorMessage}");
 
         // Verify updated properties
-        var getResult = await _commands.GetAsync(batch, "UpdateQT");
+        var getResult = _commands.Get(batch, "UpdateQT");
         Assert.True(getResult.Success);
         Assert.NotNull(getResult.QueryTable);
         Assert.True(getResult.QueryTable.BackgroundQuery);
@@ -210,10 +210,10 @@ public partial class QueryTableCommandsTests
     public async Task UpdateProperties_NonExistentQueryTable_ReturnsFalse()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(QueryTableCommandsTests), nameof(UpdateProperties_NonExistentQueryTable_ReturnsFalse), _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         var updateOptions = new QueryTableUpdateOptions
         {
@@ -221,7 +221,7 @@ public partial class QueryTableCommandsTests
         };
 
         // Act
-        var result = await _commands.UpdatePropertiesAsync(batch, "NonExistent", updateOptions);
+        var result = _commands.UpdateProperties(batch, "NonExistent", updateOptions);
 
         // Assert
         Assert.False(result.Success);

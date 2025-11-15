@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
@@ -39,7 +39,7 @@ public class TableTestsFixture : IAsyncLifetime
     /// <summary>
     /// Called ONCE before any tests in the class run.
     /// This IS the test for Table creation - if it fails, all tests fail (correct behavior).
-    /// Tests: file creation, data creation, TableCommands.CreateAsync(), persistence.
+    /// Tests: file creation, data creation, TableCommands.Create(), persistence.
     /// </summary>
     public async Task InitializeAsync()
     {
@@ -52,19 +52,19 @@ public class TableTestsFixture : IAsyncLifetime
         {
             // TEST 1: File Creation
             var fileCommands = new FileCommands();
-            var createFileResult = await fileCommands.CreateEmptyAsync(TestFilePath);
+            var createFileResult = fileCommands.CreateEmpty(TestFilePath);
             if (!createFileResult.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: File creation failed: {createFileResult.ErrorMessage}");
 
             CreationResult.FileCreated = true;
 
-            await using var batch = await ExcelSession.BeginBatchAsync(TestFilePath);
+            using var batch = ExcelSession.BeginBatch(TestFilePath);
 
             // TEST 2: Data Creation and Table Creation
 
             // Create sample sales data
-            await batch.Execute((ctx, ct) =>
+            batch.Execute((ctx, ct) =>
             {
                 dynamic sheet = ctx.Book.Worksheets.Item(1);
                 sheet.Name = "Sales";
@@ -101,7 +101,7 @@ public class TableTestsFixture : IAsyncLifetime
 
             // Create Table using TableCommands
             var tableCommands = new TableCommands();
-            var createTableResult = await tableCommands.CreateAsync(
+            var createTableResult = tableCommands.Create(
                 batch, "Sales", "SalesTable", "A1:D5", hasHeaders: true, tableStyle: "TableStyleMedium2");
 
             if (!createTableResult.Success)
@@ -111,7 +111,7 @@ public class TableTestsFixture : IAsyncLifetime
             CreationResult.TablesCreated = 1;
 
             // TEST 3: Persistence (Save)
-            await batch.SaveAsync();
+            batch.Save();
 
             sw.Stop();
             CreationResult.Success = true;

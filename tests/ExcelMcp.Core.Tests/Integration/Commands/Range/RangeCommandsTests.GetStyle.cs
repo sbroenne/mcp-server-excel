@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.ComInterop.Session;
+﻿using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -11,15 +11,15 @@ public partial class RangeCommandsTests
     public async Task GetStyle_UnstyledRange_ReturnsNormalStyle()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(GetStyle_UnstyledRange_ReturnsNormalStyle),
             _tempDir,
             ".xlsx");
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _commands.GetStyleAsync(batch, "Sheet1", "A1");
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var result = _commands.GetStyle(batch, "Sheet1", "A1");
 
         // Assert
         Assert.True(result.Success, $"GetStyle failed: {result.ErrorMessage}");
@@ -33,21 +33,21 @@ public partial class RangeCommandsTests
     public async Task GetStyle_AfterSetStyle_ReturnsAppliedStyle()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(GetStyle_AfterSetStyle_ReturnsAppliedStyle),
             _tempDir,
             ".xlsx");
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Set a style first
-        var setResult = await _commands.SetStyleAsync(batch, "Sheet1", "A1", "Heading 1");
+        var setResult = _commands.SetStyle(batch, "Sheet1", "A1", "Heading 1");
         Assert.True(setResult.Success, $"SetStyle failed: {setResult.ErrorMessage}");
 
         // Now get the style
-        var getResult = await _commands.GetStyleAsync(batch, "Sheet1", "A1");
+        var getResult = _commands.GetStyle(batch, "Sheet1", "A1");
 
         // Assert
         Assert.True(getResult.Success, $"GetStyle failed: {getResult.ErrorMessage}");
@@ -61,28 +61,28 @@ public partial class RangeCommandsTests
     public async Task GetStyle_MultipleStyles_ReturnsCorrectStyles()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(GetStyle_MultipleStyles_ReturnsCorrectStyles),
             _tempDir,
             ".xlsx");
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Set different styles on different cells
-        var setHeading1 = await _commands.SetStyleAsync(batch, "Sheet1", "A1", "Heading 1");
-        var setAccent1 = await _commands.SetStyleAsync(batch, "Sheet1", "B1", "Accent1");
-        var setCurrency = await _commands.SetStyleAsync(batch, "Sheet1", "C1", "Currency");
+        var setHeading1 = await _commands.SetStyle(batch, "Sheet1", "A1", "Heading 1");
+        var setAccent1 = await _commands.SetStyle(batch, "Sheet1", "B1", "Accent1");
+        var setCurrency = await _commands.SetStyle(batch, "Sheet1", "C1", "Currency");
 
         Assert.True(setHeading1.Success, $"SetStyle Heading 1 failed: {setHeading1.ErrorMessage}");
         Assert.True(setAccent1.Success, $"SetStyle Accent1 failed: {setAccent1.ErrorMessage}");
         Assert.True(setCurrency.Success, $"SetStyle Currency failed: {setCurrency.ErrorMessage}");
 
         // Get the styles
-        var getHeading1 = await _commands.GetStyleAsync(batch, "Sheet1", "A1");
-        var getAccent1 = await _commands.GetStyleAsync(batch, "Sheet1", "B1");
-        var getCurrency = await _commands.GetStyleAsync(batch, "Sheet1", "C1");
+        var getHeading1 = await _commands.GetStyle(batch, "Sheet1", "A1");
+        var getAccent1 = await _commands.GetStyle(batch, "Sheet1", "B1");
+        var getCurrency = await _commands.GetStyle(batch, "Sheet1", "C1");
 
         // Assert
         Assert.True(getHeading1.Success, $"GetStyle A1 failed: {getHeading1.ErrorMessage}");
@@ -103,21 +103,21 @@ public partial class RangeCommandsTests
     public async Task GetStyle_RangeMultipleCells_ReturnsFirstCellStyle()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(GetStyle_RangeMultipleCells_ReturnsFirstCellStyle),
             _tempDir,
             ".xlsx");
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Set style on entire range (this applies to all cells in the range)
-        var setResult = await _commands.SetStyleAsync(batch, "Sheet1", "A1:C3", "Good");
+        var setResult = _commands.SetStyle(batch, "Sheet1", "A1:C3", "Good");
         Assert.True(setResult.Success, $"SetStyle failed: {setResult.ErrorMessage}");
 
         // Get style for entire range (should return first cell's style)
-        var getResult = await _commands.GetStyleAsync(batch, "Sheet1", "A1:C3");
+        var getResult = _commands.GetStyle(batch, "Sheet1", "A1:C3");
 
         // Assert
         Assert.True(getResult.Success, $"GetStyle failed: {getResult.ErrorMessage}");
@@ -130,15 +130,15 @@ public partial class RangeCommandsTests
     public async Task GetStyle_InvalidRange_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(GetStyle_InvalidRange_ReturnsError),
             _tempDir,
             ".xlsx");
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _commands.GetStyleAsync(batch, "Sheet1", "InvalidRange");
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var result = _commands.GetStyle(batch, "Sheet1", "InvalidRange");
 
         // Assert
         Assert.False(result.Success);

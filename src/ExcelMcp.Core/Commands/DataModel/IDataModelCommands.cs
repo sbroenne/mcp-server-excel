@@ -14,7 +14,7 @@ public interface IDataModelCommands
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <returns>Result containing list of tables with metadata</returns>
-    Task<DataModelTableListResult> ListTablesAsync(IExcelBatch batch);
+    DataModelTableListResult ListTables(IExcelBatch batch);
 
     /// <summary>
     /// Lists all columns in a Data Model table
@@ -22,7 +22,7 @@ public interface IDataModelCommands
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Name of the table to list columns from</param>
     /// <returns>Result containing list of columns with metadata</returns>
-    Task<DataModelTableColumnsResult> ListColumnsAsync(IExcelBatch batch, string tableName);
+    DataModelTableColumnsResult ListColumns(IExcelBatch batch, string tableName);
 
     /// <summary>
     /// Gets complete table details including columns and measures
@@ -30,14 +30,14 @@ public interface IDataModelCommands
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Name of the table to get</param>
     /// <returns>Result containing complete table information</returns>
-    Task<DataModelTableViewResult> GetTableAsync(IExcelBatch batch, string tableName);
+    DataModelTableViewResult ReadTable(IExcelBatch batch, string tableName);
 
     /// <summary>
     /// Gets overall Data Model summary statistics
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <returns>Result containing model metadata (table count, measure count, etc.)</returns>
-    Task<DataModelInfoResult> GetInfoAsync(IExcelBatch batch);
+    DataModelInfoResult ReadInfo(IExcelBatch batch);
 
     /// <summary>
     /// Lists all DAX measures in the model
@@ -45,7 +45,7 @@ public interface IDataModelCommands
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Optional: Filter measures by table name</param>
     /// <returns>Result containing list of measures with formulas</returns>
-    Task<DataModelMeasureListResult> ListMeasuresAsync(IExcelBatch batch, string? tableName = null);
+    DataModelMeasureListResult ListMeasures(IExcelBatch batch, string? tableName = null);
 
     /// <summary>
     /// Gets complete measure details and DAX formula
@@ -53,7 +53,7 @@ public interface IDataModelCommands
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="measureName">Name of the measure to get</param>
     /// <returns>Result containing complete measure information</returns>
-    Task<DataModelMeasureViewResult> GetAsync(IExcelBatch batch, string measureName);
+    DataModelMeasureViewResult Read(IExcelBatch batch, string measureName);
 
     /// <summary>
     /// Exports measure DAX formula to file with metadata
@@ -62,14 +62,14 @@ public interface IDataModelCommands
     /// <param name="measureName">Name of the measure to export</param>
     /// <param name="outputFile">Path to output DAX file</param>
     /// <returns>Result indicating success or failure</returns>
-    Task<OperationResult> ExportMeasureAsync(IExcelBatch batch, string measureName, string outputFile);
+    OperationResult ExportMeasure(IExcelBatch batch, string measureName, string outputFile);
 
     /// <summary>
     /// Lists all table relationships in the model
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <returns>Result containing list of relationships</returns>
-    Task<DataModelRelationshipListResult> ListRelationshipsAsync(IExcelBatch batch);
+    DataModelRelationshipListResult ListRelationships(IExcelBatch batch);
 
     /// <summary>
     /// Deletes a DAX measure from the Data Model
@@ -77,7 +77,7 @@ public interface IDataModelCommands
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="measureName">Name of the measure to delete</param>
     /// <returns>Result indicating success or failure</returns>
-    Task<OperationResult> DeleteMeasureAsync(IExcelBatch batch, string measureName);
+    OperationResult DeleteMeasure(IExcelBatch batch, string measureName);
 
     /// <summary>
     /// Deletes a relationship from the Data Model
@@ -88,7 +88,7 @@ public interface IDataModelCommands
     /// <param name="toTable">Target table name</param>
     /// <param name="toColumn">Target column name</param>
     /// <returns>Result indicating success or failure</returns>
-    Task<OperationResult> DeleteRelationshipAsync(IExcelBatch batch, string fromTable, string fromColumn, string toTable, string toColumn);
+    OperationResult DeleteRelationship(IExcelBatch batch, string fromTable, string fromColumn, string toTable, string toColumn);
 
     /// <summary>
     /// Refreshes entire Data Model or specific table
@@ -96,7 +96,7 @@ public interface IDataModelCommands
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Optional: Specific table to refresh (if null, refreshes entire model)</param>
     /// <returns>Result indicating success or failure</returns>
-    Task<OperationResult> RefreshAsync(IExcelBatch batch, string? tableName = null);
+    OperationResult Refresh(IExcelBatch batch, string? tableName = null);
 
     /// <summary>
     /// Refreshes Data Model table(s) with timeout
@@ -105,7 +105,7 @@ public interface IDataModelCommands
     /// <param name="tableName">Optional: Specific table to refresh (if null, refreshes entire model)</param>
     /// <param name="timeout">Timeout for the refresh operation</param>
     /// <returns>Result indicating success or failure</returns>
-    Task<OperationResult> RefreshAsync(IExcelBatch batch, string? tableName, TimeSpan? timeout);
+    OperationResult Refresh(IExcelBatch batch, string? tableName, TimeSpan? timeout);
 
     /// <summary>
     /// Creates a new DAX measure in the Data Model
@@ -118,7 +118,7 @@ public interface IDataModelCommands
     /// <param name="formatType">Optional: Format type (Currency, Decimal, Percentage, General)</param>
     /// <param name="description">Optional: Description of the measure</param>
     /// <returns>Result indicating success or failure</returns>
-    Task<OperationResult> CreateMeasureAsync(IExcelBatch batch, string tableName, string measureName,
+    OperationResult CreateMeasure(IExcelBatch batch, string tableName, string measureName,
                                              string daxFormula, string? formatType = null,
                                              string? description = null);
 
@@ -132,7 +132,7 @@ public interface IDataModelCommands
     /// <param name="formatType">Optional: New format type (null to keep existing)</param>
     /// <param name="description">Optional: New description (null to keep existing)</param>
     /// <returns>Result indicating success or failure</returns>
-    Task<OperationResult> UpdateMeasureAsync(IExcelBatch batch, string measureName,
+    OperationResult UpdateMeasure(IExcelBatch batch, string measureName,
                                              string? daxFormula = null, string? formatType = null,
                                              string? description = null);
 
@@ -147,7 +147,7 @@ public interface IDataModelCommands
     /// <param name="toColumn">Target column name</param>
     /// <param name="active">Whether the relationship should be active (default: true)</param>
     /// <returns>Result indicating success or failure</returns>
-    Task<OperationResult> CreateRelationshipAsync(IExcelBatch batch, string fromTable,
+    OperationResult CreateRelationship(IExcelBatch batch, string fromTable,
                                                    string fromColumn, string toTable,
                                                    string toColumn, bool active = true);
 
@@ -162,7 +162,8 @@ public interface IDataModelCommands
     /// <param name="toColumn">Target column name</param>
     /// <param name="active">New active state for the relationship</param>
     /// <returns>Result indicating success or failure</returns>
-    Task<OperationResult> UpdateRelationshipAsync(IExcelBatch batch, string fromTable,
+    OperationResult UpdateRelationship(IExcelBatch batch, string fromTable,
                                                    string fromColumn, string toTable,
                                                    string toColumn, bool active);
 }
+

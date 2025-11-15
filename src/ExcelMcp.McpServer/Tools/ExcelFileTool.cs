@@ -54,25 +54,25 @@ FILE FORMATS:
             // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
             return action switch
             {
-                FileAction.Open => await OpenSessionAsync(excelPath!),
-                FileAction.Save => await SaveSessionAsync(sessionId!),
-                FileAction.Close => await CloseSessionAsync(sessionId!),
-                FileAction.CreateEmpty => await CreateEmptyFileAsync(fileCommands, excelPath!,
+                FileAction.Open => OpenSessionAsync(excelPath!),
+                FileAction.Save => SaveSessionAsync(sessionId!),
+                FileAction.Close => CloseSessionAsync(sessionId!),
+                FileAction.CreateEmpty => CreateEmptyFileAsync(fileCommands, excelPath!,
                     excelPath!.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase)),
                 FileAction.CloseWorkbook => CloseWorkbook(excelPath!),
-                FileAction.Test => await TestFileAsync(fileCommands, excelPath!),
+                FileAction.Test => TestFileAsync(fileCommands, excelPath!),
                 _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
         }
         catch (Exception ex)
         {
-            return JsonSerializer.Serialize(new
+            return Task.FromResult(JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
                 filePath = excelPath,
                 isError = true
-            }, ExcelToolsBase.JsonOptions);
+            }, ExcelToolsBase.JsonOptions));
         }
     }
 
@@ -80,7 +80,7 @@ FILE FORMATS:
     /// Opens an Excel file and creates a new session.
     /// Returns sessionId that must be used for all subsequent operations.
     /// </summary>
-    private static async Task<string> OpenSessionAsync(string excelPath)
+    private static string OpenSessionAsync(string excelPath)
     {
         if (string.IsNullOrWhiteSpace(excelPath))
         {
@@ -100,7 +100,7 @@ FILE FORMATS:
 
         try
         {
-            string sessionId = await ExcelToolsBase.GetSessionManager().CreateSessionAsync(excelPath);
+            string sessionId = ExcelToolsBase.GetSessionManager().CreateSession(excelPath);
 
             return JsonSerializer.Serialize(new
             {
@@ -136,7 +136,7 @@ FILE FORMATS:
     /// Saves changes for an active session.
     /// Does not close the session - call 'close' action separately.
     /// </summary>
-    private static async Task<string> SaveSessionAsync(string sessionId)
+    private static string SaveSessionAsync(string sessionId)
     {
         if (string.IsNullOrEmpty(sessionId))
         {
@@ -145,7 +145,7 @@ FILE FORMATS:
 
         try
         {
-            bool success = await ExcelToolsBase.GetSessionManager().SaveSessionAsync(sessionId);
+            bool success = ExcelToolsBase.GetSessionManager().SaveSession(sessionId);
 
             if (success)
             {
@@ -180,7 +180,7 @@ FILE FORMATS:
     /// Closes an active session without saving changes.
     /// To save before closing, call 'save' action first.
     /// </summary>
-    private static async Task<string> CloseSessionAsync(string sessionId)
+    private static string CloseSessionAsync(string sessionId)
     {
         if (string.IsNullOrWhiteSpace(sessionId))
         {
@@ -189,7 +189,7 @@ FILE FORMATS:
 
         try
         {
-            bool success = await ExcelToolsBase.GetSessionManager().CloseSessionAsync(sessionId);
+            bool success = ExcelToolsBase.GetSessionManager().CloseSession(sessionId);
 
             if (success)
             {
@@ -224,7 +224,7 @@ FILE FORMATS:
     /// Creates a new empty Excel file (.xlsx or .xlsm based on macroEnabled flag).
     /// LLM Pattern: Use this when you need a fresh Excel workbook for automation.
     /// </summary>
-    private static async Task<string> CreateEmptyFileAsync(FileCommands fileCommands, string excelPath, bool macroEnabled)
+    private static string CreateEmptyFileAsync(FileCommands fileCommands, string excelPath, bool macroEnabled)
     {
         var extension = macroEnabled ? ".xlsm" : ".xlsx";
         if (!excelPath.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
@@ -232,7 +232,7 @@ FILE FORMATS:
             excelPath = Path.ChangeExtension(excelPath, extension);
         }
 
-        var result = await fileCommands.CreateEmptyAsync(excelPath, overwriteIfExists: false);
+        var result = fileCommands.CreateEmpty(excelPath, overwriteIfExists: false);
 
         if (result.Success)
         {
@@ -270,14 +270,14 @@ FILE FORMATS:
     /// Tests if an Excel file exists and is valid without opening it via Excel COM.
     /// LLM Pattern: Use this for discovery/connectivity testing before running operations.
     /// </summary>
-    private static async Task<string> TestFileAsync(FileCommands fileCommands, string excelPath)
+    private static string TestFileAsync(FileCommands fileCommands, string excelPath)
     {
         if (string.IsNullOrWhiteSpace(excelPath))
         {
             throw new ArgumentException("excelPath is required for 'test' action", nameof(excelPath));
         }
 
-        var result = await fileCommands.TestAsync(excelPath);
+        var result = fileCommands.Test(excelPath);
 
         if (result.Success)
         {
@@ -307,3 +307,4 @@ FILE FORMATS:
         }, ExcelToolsBase.JsonOptions);
     }
 }
+

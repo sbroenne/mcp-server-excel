@@ -13,11 +13,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class DataModelCommands
 {
     /// <inheritdoc />
-    public async Task<DataModelTableListResult> ListTablesAsync(IExcelBatch batch)
+    public DataModelTableListResult ListTables(IExcelBatch batch)
     {
         var result = new DataModelTableListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             // Check if workbook has Data Model
             if (!HasDataModelTables(ctx.Book))
@@ -62,11 +62,11 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<DataModelMeasureListResult> ListMeasuresAsync(IExcelBatch batch, string? tableName = null)
+    public DataModelMeasureListResult ListMeasures(IExcelBatch batch, string? tableName = null)
     {
         var result = new DataModelMeasureListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             try
@@ -142,7 +142,7 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<DataModelMeasureViewResult> GetAsync(IExcelBatch batch, string measureName)
+    public DataModelMeasureViewResult Read(IExcelBatch batch, string measureName)
     {
         var result = new DataModelMeasureViewResult
         {
@@ -150,7 +150,7 @@ public partial class DataModelCommands
             MeasureName = measureName
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? measure = null;
@@ -231,7 +231,7 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> ExportMeasureAsync(IExcelBatch batch, string measureName, string outputFile)
+    public OperationResult ExportMeasure(IExcelBatch batch, string measureName, string outputFile)
     {
         var result = new OperationResult
         {
@@ -251,7 +251,7 @@ public partial class DataModelCommands
             return result;
         }
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? measure = null;
@@ -337,11 +337,11 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<DataModelRelationshipListResult> ListRelationshipsAsync(IExcelBatch batch)
+    public DataModelRelationshipListResult ListRelationships(IExcelBatch batch)
     {
         var result = new DataModelRelationshipListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             try
@@ -387,7 +387,7 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<DataModelTableColumnsResult> ListColumnsAsync(IExcelBatch batch, string tableName)
+    public DataModelTableColumnsResult ListColumns(IExcelBatch batch, string tableName)
     {
         var result = new DataModelTableColumnsResult
         {
@@ -395,7 +395,7 @@ public partial class DataModelCommands
             TableName = tableName
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? table = null;
@@ -464,7 +464,7 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<DataModelTableViewResult> GetTableAsync(IExcelBatch batch, string tableName)
+    public DataModelTableViewResult ReadTable(IExcelBatch batch, string tableName)
     {
         var result = new DataModelTableViewResult
         {
@@ -472,7 +472,7 @@ public partial class DataModelCommands
             TableName = tableName
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? table = null;
@@ -556,11 +556,11 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<DataModelInfoResult> GetInfoAsync(IExcelBatch batch)
+    public DataModelInfoResult ReadInfo(IExcelBatch batch)
     {
         var result = new DataModelInfoResult { FilePath = batch.WorkbookPath };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             try
@@ -613,3 +613,4 @@ public partial class DataModelCommands
         });
     }
 }
+

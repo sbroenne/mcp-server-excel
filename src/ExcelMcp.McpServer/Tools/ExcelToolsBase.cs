@@ -35,6 +35,42 @@ public static class ExcelToolsBase
     public static SessionManager GetSessionManager() => SessionManager;
 
     /// <summary>
+    /// Executes a synchronous Core command with session management.
+    /// Uses the provided sessionId to retrieve an active session from SessionManager.
+    /// All Core commands are now synchronous (blocking).
+    /// </summary>
+    /// <typeparam name="T">Return type of the command</typeparam>
+    /// <param name="sessionId">Required session ID from excel_file 'open' action</param>
+    /// <param name="action">Synchronous action that takes IExcelBatch and returns T</param>
+    /// <returns>Result of the command</returns>
+    /// <exception cref="McpException">Session not found or command execution failed</exception>
+    public static T WithSession<T>(
+        string sessionId,
+        Func<IExcelBatch, T> action)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            throw new ArgumentException("sessionId is required. Use excel_file 'open' action to start a session.", nameof(sessionId));
+        }
+
+        var batch = SessionManager.GetSession(sessionId);
+        if (batch == null)
+        {
+            var activeSessionIds = SessionManager.ActiveSessionIds.ToList();
+            var sessionCount = activeSessionIds.Count;
+            var errorMessage = sessionCount switch
+            {
+                0 => $"Session '{sessionId}' not found. No active sessions exist.",
+                1 => $"Session '{sessionId}' not found. Active session: {activeSessionIds[0]}",
+                _ => $"Session '{sessionId}' not found. {sessionCount} active sessions exist."
+            };
+            throw new InvalidOperationException(errorMessage);
+        }
+
+        return action(batch);
+    }
+
+    /// <summary>
     /// Executes an async Core command with session management.
     /// Uses the provided sessionId to retrieve an active session from SessionManager.
     /// This is the new session-based pattern that replaces batch-of-one operations.

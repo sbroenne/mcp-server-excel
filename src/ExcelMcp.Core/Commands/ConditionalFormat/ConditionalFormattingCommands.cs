@@ -10,7 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class ConditionalFormattingCommands : IConditionalFormattingCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> AddRuleAsync(
+    public OperationResult AddRule(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,
@@ -26,7 +26,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         string? borderStyle = null,
         string? borderColor = null)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -134,12 +134,12 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> ClearRulesAsync(
+    public OperationResult ClearRules(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -271,3 +271,4 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         };
     }
 }
+

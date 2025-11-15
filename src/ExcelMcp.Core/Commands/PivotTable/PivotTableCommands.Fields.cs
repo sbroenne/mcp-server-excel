@@ -12,9 +12,9 @@ public partial class PivotTableCommands
     /// <summary>
     /// Lists all fields in a PivotTable
     /// </summary>
-    public async Task<PivotFieldListResult> ListFieldsAsync(IExcelBatch batch, string pivotTableName)
+    public PivotFieldListResult ListFields(IExcelBatch batch, string pivotTableName)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? pivotFields = null;
@@ -301,10 +301,10 @@ public partial class PivotTableCommands
     /// <summary>
     /// Adds a field to the Row area
     /// </summary>
-    public async Task<PivotFieldResult> AddRowFieldAsync(IExcelBatch batch, string pivotTableName,
+    public PivotFieldResult AddRowField(IExcelBatch batch, string pivotTableName,
         string fieldName, int? position = null)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
 
@@ -335,10 +335,10 @@ public partial class PivotTableCommands
     /// <summary>
     /// Adds a field to the Column area
     /// </summary>
-    public async Task<PivotFieldResult> AddColumnFieldAsync(IExcelBatch batch, string pivotTableName,
+    public PivotFieldResult AddColumnField(IExcelBatch batch, string pivotTableName,
         string fieldName, int? position = null)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
 
@@ -369,11 +369,11 @@ public partial class PivotTableCommands
     /// <summary>
     /// Adds a field to the Values area with aggregation
     /// </summary>
-    public async Task<PivotFieldResult> AddValueFieldAsync(IExcelBatch batch, string pivotTableName,
+    public PivotFieldResult AddValueField(IExcelBatch batch, string pivotTableName,
         string fieldName, AggregationFunction aggregationFunction = AggregationFunction.Sum,
         string? customName = null)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
 
@@ -404,10 +404,10 @@ public partial class PivotTableCommands
     /// <summary>
     /// Adds a field to the Filter area
     /// </summary>
-    public async Task<PivotFieldResult> AddFilterFieldAsync(IExcelBatch batch, string pivotTableName,
+    public PivotFieldResult AddFilterField(IExcelBatch batch, string pivotTableName,
         string fieldName)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
 
@@ -438,10 +438,10 @@ public partial class PivotTableCommands
     /// <summary>
     /// Removes a field from any area
     /// </summary>
-    public async Task<PivotFieldResult> RemoveFieldAsync(IExcelBatch batch, string pivotTableName,
+    public PivotFieldResult RemoveField(IExcelBatch batch, string pivotTableName,
         string fieldName)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
 
@@ -472,10 +472,10 @@ public partial class PivotTableCommands
     /// <summary>
     /// Sets the aggregation function for a value field
     /// </summary>
-    public async Task<PivotFieldResult> SetFieldFunctionAsync(IExcelBatch batch, string pivotTableName,
+    public PivotFieldResult SetFieldFunction(IExcelBatch batch, string pivotTableName,
         string fieldName, AggregationFunction aggregationFunction)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
 
@@ -506,10 +506,10 @@ public partial class PivotTableCommands
     /// <summary>
     /// Sets custom name for a field
     /// </summary>
-    public async Task<PivotFieldResult> SetFieldNameAsync(IExcelBatch batch, string pivotTableName,
+    public PivotFieldResult SetFieldName(IExcelBatch batch, string pivotTableName,
         string fieldName, string customName)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
 
@@ -540,10 +540,10 @@ public partial class PivotTableCommands
     /// <summary>
     /// Sets number format for a value field
     /// </summary>
-    public async Task<PivotFieldResult> SetFieldFormatAsync(IExcelBatch batch, string pivotTableName,
+    public PivotFieldResult SetFieldFormat(IExcelBatch batch, string pivotTableName,
         string fieldName, string numberFormat)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
 
@@ -571,3 +571,4 @@ public partial class PivotTableCommands
         });
     }
 }
+

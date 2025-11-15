@@ -16,31 +16,31 @@ public partial class RangeCommands
     /// Clears all content (values, formulas, formats) from range
     /// Excel COM: Range.Clear()
     /// </summary>
-    public async Task<OperationResult> ClearAllAsync(IExcelBatch batch, string sheetName, string rangeAddress)
+    public OperationResult ClearAll(IExcelBatch batch, string sheetName, string rangeAddress)
     {
-        return await ClearRangeAsync(batch, sheetName, rangeAddress, "clear-all", r => r.Clear());
+        return ClearRange(batch, sheetName, rangeAddress, "clear-all", r => r.Clear());
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> ClearContentsAsync(IExcelBatch batch, string sheetName, string rangeAddress)
+    public OperationResult ClearContents(IExcelBatch batch, string sheetName, string rangeAddress)
     {
-        return await ClearRangeAsync(batch, sheetName, rangeAddress, "clear-contents", r => r.ClearContents());
+        return ClearRange(batch, sheetName, rangeAddress, "clear-contents", r => r.ClearContents());
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> ClearFormatsAsync(IExcelBatch batch, string sheetName, string rangeAddress)
+    public OperationResult ClearFormats(IExcelBatch batch, string sheetName, string rangeAddress)
     {
-        return await ClearRangeAsync(batch, sheetName, rangeAddress, "clear-formats", r => r.ClearFormats());
+        return ClearRange(batch, sheetName, rangeAddress, "clear-formats", r => r.ClearFormats());
     }
 
     // === COPY OPERATIONS ===
 
     /// <inheritdoc />
-    public async Task<OperationResult> CopyAsync(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange)
+    public OperationResult Copy(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "copy" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? srcRange = null;
             dynamic? tgtRange = null;
@@ -81,11 +81,11 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> CopyValuesAsync(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange)
+    public OperationResult CopyValues(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "copy-values" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? srcRange = null;
             dynamic? tgtRange = null;
@@ -127,11 +127,11 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> CopyFormulasAsync(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange)
+    public OperationResult CopyFormulas(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "copy-formulas" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? srcRange = null;
             dynamic? tgtRange = null;
@@ -175,11 +175,11 @@ public partial class RangeCommands
     // === INSERT/DELETE OPERATIONS ===
 
     /// <inheritdoc />
-    public async Task<OperationResult> InsertCellsAsync(IExcelBatch batch, string sheetName, string rangeAddress, InsertShiftDirection shift)
+    public OperationResult InsertCells(IExcelBatch batch, string sheetName, string rangeAddress, InsertShiftDirection shift)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "insert-cells" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             try
@@ -211,11 +211,11 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> DeleteCellsAsync(IExcelBatch batch, string sheetName, string rangeAddress, DeleteShiftDirection shift)
+    public OperationResult DeleteCells(IExcelBatch batch, string sheetName, string rangeAddress, DeleteShiftDirection shift)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "delete-cells" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             try
@@ -247,11 +247,11 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> InsertRowsAsync(IExcelBatch batch, string sheetName, string rangeAddress)
+    public OperationResult InsertRows(IExcelBatch batch, string sheetName, string rangeAddress)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "insert-rows" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             dynamic? rows = null;
@@ -285,11 +285,11 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> DeleteRowsAsync(IExcelBatch batch, string sheetName, string rangeAddress)
+    public OperationResult DeleteRows(IExcelBatch batch, string sheetName, string rangeAddress)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "delete-rows" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             dynamic? rows = null;
@@ -323,11 +323,11 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> InsertColumnsAsync(IExcelBatch batch, string sheetName, string rangeAddress)
+    public OperationResult InsertColumns(IExcelBatch batch, string sheetName, string rangeAddress)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "insert-columns" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             dynamic? columns = null;
@@ -361,11 +361,11 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> DeleteColumnsAsync(IExcelBatch batch, string sheetName, string rangeAddress)
+    public OperationResult DeleteColumns(IExcelBatch batch, string sheetName, string rangeAddress)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "delete-columns" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             dynamic? columns = null;
@@ -401,3 +401,4 @@ public partial class RangeCommands
     // === FIND/REPLACE OPERATIONS ===
 
 }
+

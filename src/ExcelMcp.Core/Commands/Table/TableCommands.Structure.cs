@@ -10,13 +10,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> ResizeAsync(IExcelBatch batch, string tableName, string newRange)
+    public OperationResult Resize(IExcelBatch batch, string tableName, string newRange)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "resize" };
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? sheet = null;
@@ -56,13 +56,13 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> ToggleTotalsAsync(IExcelBatch batch, string tableName, bool showTotals)
+    public OperationResult ToggleTotals(IExcelBatch batch, string tableName, bool showTotals)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "toggle-totals" };
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             try
@@ -94,13 +94,13 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> SetColumnTotalAsync(IExcelBatch batch, string tableName, string columnName, string totalFunction)
+    public OperationResult SetColumnTotal(IExcelBatch batch, string tableName, string columnName, string totalFunction)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-column-total" };
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? listColumns = null;
@@ -191,13 +191,13 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> SetStyleAsync(IExcelBatch batch, string tableName, string tableStyle)
+    public OperationResult SetStyle(IExcelBatch batch, string tableName, string tableStyle)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-style" };
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             try
@@ -228,3 +228,4 @@ public partial class TableCommands
         });
     }
 }
+

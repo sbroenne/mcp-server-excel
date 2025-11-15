@@ -12,7 +12,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class DataModelCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> DeleteMeasureAsync(IExcelBatch batch, string measureName)
+    public OperationResult DeleteMeasure(IExcelBatch batch, string measureName)
     {
         var result = new OperationResult
         {
@@ -20,7 +20,7 @@ public partial class DataModelCommands
             Action = "model-delete-measure"
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? measure = null;
@@ -79,7 +79,7 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> DeleteRelationshipAsync(IExcelBatch batch, string fromTable, string fromColumn, string toTable, string toColumn)
+    public OperationResult DeleteRelationship(IExcelBatch batch, string fromTable, string fromColumn, string toTable, string toColumn)
     {
         var result = new OperationResult
         {
@@ -87,7 +87,7 @@ public partial class DataModelCommands
             Action = "model-delete-relationship"
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? modelRelationships = null;
@@ -181,7 +181,7 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> CreateMeasureAsync(IExcelBatch batch, string tableName, string measureName,
+    public OperationResult CreateMeasure(IExcelBatch batch, string tableName, string measureName,
                                                           string daxFormula, string? formatType = null,
                                                           string? description = null)
     {
@@ -191,7 +191,7 @@ public partial class DataModelCommands
             Action = "model-create-measure"
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? table = null;
@@ -271,7 +271,7 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> UpdateMeasureAsync(IExcelBatch batch, string measureName,
+    public OperationResult UpdateMeasure(IExcelBatch batch, string measureName,
                                                           string? daxFormula = null, string? formatType = null,
                                                           string? description = null)
     {
@@ -281,7 +281,7 @@ public partial class DataModelCommands
             Action = "model-update-measure"
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? measure = null;
@@ -363,7 +363,7 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> CreateRelationshipAsync(IExcelBatch batch, string fromTable,
+    public OperationResult CreateRelationship(IExcelBatch batch, string fromTable,
                                                                 string fromColumn, string toTable,
                                                                 string toColumn, bool active = true)
     {
@@ -373,7 +373,7 @@ public partial class DataModelCommands
             Action = "model-create-relationship"
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? relationships = null;
@@ -473,7 +473,7 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> UpdateRelationshipAsync(IExcelBatch batch, string fromTable,
+    public OperationResult UpdateRelationship(IExcelBatch batch, string fromTable,
                                                                 string fromColumn, string toTable,
                                                                 string toColumn, bool active)
     {
@@ -483,7 +483,7 @@ public partial class DataModelCommands
             Action = "model-update-relationship"
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? relationship = null;
@@ -536,3 +536,4 @@ public partial class DataModelCommands
         });
     }
 }
+

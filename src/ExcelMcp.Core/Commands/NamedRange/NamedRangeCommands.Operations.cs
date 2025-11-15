@@ -10,11 +10,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class NamedRangeCommands
 {
     /// <inheritdoc />
-    public async Task<NamedRangeListResult> ListAsync(IExcelBatch batch)
+    public NamedRangeListResult List(IExcelBatch batch)
     {
         var result = new NamedRangeListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? namesCollection = null;
             try
@@ -87,11 +87,11 @@ public partial class NamedRangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> SetAsync(IExcelBatch batch, string paramName, string value)
+    public OperationResult Write(IExcelBatch batch, string paramName, string value)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-parameter" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? nameObj = null;
             dynamic? refersToRange = null;
@@ -139,11 +139,11 @@ public partial class NamedRangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<NamedRangeValueResult> GetAsync(IExcelBatch batch, string paramName)
+    public NamedRangeValueResult Read(IExcelBatch batch, string paramName)
     {
         var result = new NamedRangeValueResult { FilePath = batch.WorkbookPath, NamedRangeName = paramName };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? nameObj = null;
             dynamic? refersToRange = null;
@@ -179,7 +179,7 @@ public partial class NamedRangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> CreateAsync(IExcelBatch batch, string paramName, string reference)
+    public OperationResult Create(IExcelBatch batch, string paramName, string reference)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "create-parameter" };
 
@@ -198,7 +198,7 @@ public partial class NamedRangeCommands
             return result;
         }
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? existing = null;
             dynamic? namesCollection = null;
@@ -239,7 +239,7 @@ public partial class NamedRangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> UpdateAsync(IExcelBatch batch, string paramName, string reference)
+    public OperationResult Update(IExcelBatch batch, string paramName, string reference)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "update-parameter" };
 
@@ -258,7 +258,7 @@ public partial class NamedRangeCommands
             return result;
         }
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? nameObj = null;
             try
@@ -296,11 +296,11 @@ public partial class NamedRangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> DeleteAsync(IExcelBatch batch, string paramName)
+    public OperationResult Delete(IExcelBatch batch, string paramName)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "delete-parameter" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? nameObj = null;
             try
@@ -330,3 +330,4 @@ public partial class NamedRangeCommands
         });
     }
 }
+

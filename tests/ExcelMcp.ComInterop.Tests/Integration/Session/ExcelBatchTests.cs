@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 using Xunit.Abstractions;
@@ -10,12 +10,12 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 /// Tests that Excel instances are reused across operations and properly cleaned up.
 ///
 /// LAYER RESPONSIBILITY:
-/// - ✅ Test ExcelBatch.ExecuteAsync() reuses Excel instance
-/// - ✅ Test ExcelBatch.DisposeAsync() COM cleanup
-/// - ✅ Test ExcelBatch.SaveAsync() functionality
+/// - ✅ Test ExcelBatch.Execute() reuses Excel instance
+/// - ✅ Test ExcelBatch.Dispose() COM cleanup
+/// - ✅ Test ExcelBatch.Save() functionality
 /// - ✅ Verify Excel.exe process termination (no leaks)
 ///
-/// NOTE: ExcelBatch.DisposeAsync() handles all GC cleanup automatically.
+/// NOTE: ExcelBatch.Dispose() handles all GC cleanup automatically.
 /// Tests only need to wait for async disposal and process termination timing.
 ///
 /// IMPORTANT: These tests spawn and terminate Excel processes (side effects).

@@ -10,11 +10,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-    public async Task<TableListResult> ListAsync(IExcelBatch batch)
+    public TableListResult List(IExcelBatch batch)
     {
         var result = new TableListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheets = null;
             try
@@ -133,14 +133,14 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> CreateAsync(IExcelBatch batch, string sheetName, string tableName, string range, bool hasHeaders = true, string? tableStyle = null)
+    public OperationResult Create(IExcelBatch batch, string sheetName, string tableName, string range, bool hasHeaders = true, string? tableStyle = null)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "create" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? rangeObj = null;
@@ -205,14 +205,14 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> RenameAsync(IExcelBatch batch, string tableName, string newName)
+    public OperationResult Rename(IExcelBatch batch, string tableName, string newName)
     {
         // Security: Validate table names
         ValidateTableName(tableName);
         ValidateTableName(newName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "rename" };
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             try
@@ -251,13 +251,13 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> DeleteAsync(IExcelBatch batch, string tableName)
+    public OperationResult Delete(IExcelBatch batch, string tableName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "delete" };
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? tableRange = null;
@@ -306,13 +306,13 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public async Task<TableInfoResult> GetAsync(IExcelBatch batch, string tableName)
+    public TableInfoResult Read(IExcelBatch batch, string tableName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new TableInfoResult { FilePath = batch.WorkbookPath };
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? sheet = null;
@@ -413,3 +413,4 @@ public partial class TableCommands
         });
     }
 }
+

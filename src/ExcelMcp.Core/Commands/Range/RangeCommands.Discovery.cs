@@ -16,7 +16,7 @@ public partial class RangeCommands
     /// Gets the used range (all non-empty cells) from worksheet
     /// Excel COM: Worksheet.UsedRange
     /// </summary>
-    public async Task<RangeValueResult> GetUsedRangeAsync(IExcelBatch batch, string sheetName)
+    public RangeValueResult GetUsedRange(IExcelBatch batch, string sheetName)
     {
         var result = new RangeValueResult
         {
@@ -24,7 +24,7 @@ public partial class RangeCommands
             SheetName = sheetName
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -77,7 +77,7 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<RangeValueResult> GetCurrentRegionAsync(IExcelBatch batch, string sheetName, string cellAddress)
+    public RangeValueResult GetCurrentRegion(IExcelBatch batch, string sheetName, string cellAddress)
     {
         var result = new RangeValueResult
         {
@@ -86,7 +86,7 @@ public partial class RangeCommands
             RangeAddress = cellAddress
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? cell = null;
             dynamic? region = null;
@@ -139,7 +139,7 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<RangeInfoResult> GetInfoAsync(IExcelBatch batch, string sheetName, string rangeAddress)
+    public RangeInfoResult GetInfo(IExcelBatch batch, string sheetName, string rangeAddress)
     {
         var result = new RangeInfoResult
         {
@@ -147,7 +147,7 @@ public partial class RangeCommands
             SheetName = sheetName
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             try
@@ -181,3 +181,4 @@ public partial class RangeCommands
         });
     }
 }
+

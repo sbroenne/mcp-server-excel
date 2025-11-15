@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.ComInterop.Session;
+﻿using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -20,12 +20,12 @@ public partial class NamedRangeCommandsTests
     public async Task Create_EmptyParameterName_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(Create_EmptyParameterName_ReturnsError), _tempDir);
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _parameterCommands.CreateAsync(batch, "", "Sheet1!A1");
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var result = _parameterCommands.Create(batch, "", "Sheet1!A1");
 
         // Assert
         Assert.False(result.Success);
@@ -37,12 +37,12 @@ public partial class NamedRangeCommandsTests
     public async Task Create_WhitespaceParameterName_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(Create_WhitespaceParameterName_ReturnsError), _tempDir);
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _parameterCommands.CreateAsync(batch, "   ", "Sheet1!A1");
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var result = _parameterCommands.Create(batch, "   ", "Sheet1!A1");
 
         // Assert
         Assert.False(result.Success);
@@ -55,18 +55,18 @@ public partial class NamedRangeCommandsTests
     {
         // Arrange - Create name with exactly 255 characters (Excel's limit)
         var paramName = new string('A', 255);
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(Create_ParameterNameExactly255Characters_ReturnsSuccess), _tempDir);
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _parameterCommands.CreateAsync(batch, paramName, "Sheet1!A1");
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var result = _parameterCommands.Create(batch, paramName, "Sheet1!A1");
 
         // Assert
         Assert.True(result.Success, $"Expected success with 255-char name but got error: {result.ErrorMessage}");
 
         // Verify the parameter was actually created
-        var listResult = await _parameterCommands.ListAsync(batch);
+        var listResult = _parameterCommands.List(batch);
         Assert.Contains(listResult.NamedRanges, p => p.Name == paramName);
     }
     /// <inheritdoc/>
@@ -76,12 +76,12 @@ public partial class NamedRangeCommandsTests
     {
         // Arrange - Create name with 256 characters (exceeds Excel's limit)
         var paramName = new string('B', 256);
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(Create_ParameterName256Characters_ReturnsError), _tempDir);
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _parameterCommands.CreateAsync(batch, paramName, "Sheet1!A1");
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var result = _parameterCommands.Create(batch, paramName, "Sheet1!A1");
 
         // Assert
         Assert.False(result.Success);
@@ -95,12 +95,12 @@ public partial class NamedRangeCommandsTests
     {
         // Arrange
         var longParamName = new string('C', 300);
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(Update_ParameterNameExceeds255Characters_ReturnsError), _tempDir);
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _parameterCommands.UpdateAsync(batch, longParamName, "Sheet1!B2");
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var result = _parameterCommands.Update(batch, longParamName, "Sheet1!B2");
 
         // Assert
         Assert.False(result.Success);
@@ -114,7 +114,7 @@ public partial class NamedRangeCommandsTests
     {
         // Arrange
         var longParamName = new string('D', 270);
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(CreateBulk_ParameterNameExceeds255Characters_SkipsWithError), _tempDir);
 
         var parameters = new[]
@@ -125,14 +125,14 @@ public partial class NamedRangeCommandsTests
         };
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _parameterCommands.CreateBulkAsync(batch, parameters);
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var result = _parameterCommands.CreateBulk(batch, parameters);
 
         // Assert - Should succeed for valid params but skip the long one
         Assert.True(result.Success, $"Expected partial success but got error: {result.ErrorMessage}");
 
         // Verify valid parameters were created
-        var listResult = await _parameterCommands.ListAsync(batch);
+        var listResult = _parameterCommands.List(batch);
         Assert.Contains(listResult.NamedRanges, p => p.Name == "ValidParam1");
         Assert.Contains(listResult.NamedRanges, p => p.Name == "ValidParam2");
         Assert.DoesNotContain(listResult.NamedRanges, p => p.Name == longParamName);
@@ -145,7 +145,7 @@ public partial class NamedRangeCommandsTests
         // Arrange
         var longParamName1 = new string('E', 260);
         var longParamName2 = new string('F', 280);
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(CreateBulk_AllParametersExceedLimit_ReturnsError), _tempDir);
 
         var parameters = new[]
@@ -155,8 +155,8 @@ public partial class NamedRangeCommandsTests
         };
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _parameterCommands.CreateBulkAsync(batch, parameters);
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var result = _parameterCommands.CreateBulk(batch, parameters);
 
         // Assert - Should fail because all parameters are invalid
         Assert.False(result.Success);

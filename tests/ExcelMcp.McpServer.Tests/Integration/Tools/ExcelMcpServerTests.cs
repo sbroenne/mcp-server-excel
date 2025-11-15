@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Sbroenne.ExcelMcp.McpServer.Models;
 using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
@@ -50,7 +50,7 @@ public class ExcelMcpServerTests : IDisposable
     public async Task ExcelFile_CreateEmpty_ShouldReturnSuccessJson()
     {
         // Act
-        var createResult = await ExcelFileTool.ExcelFile(FileAction.CreateEmpty, _testExcelFile);
+        var createResult = ExcelFileTool.ExcelFile(FileAction.CreateEmpty, _testExcelFile);
 
         // Assert
         Assert.NotNull(createResult);
@@ -81,7 +81,7 @@ public class ExcelMcpServerTests : IDisposable
         // Act
         try
         {
-            var result = await ExcelWorksheetTool.ExcelWorksheet(WorksheetAction.List, sessionId);
+            var result = ExcelWorksheetTool.ExcelWorksheet(WorksheetAction.List, sessionId);
 
             // Assert
             var json = JsonDocument.Parse(result);
@@ -98,7 +98,7 @@ public class ExcelMcpServerTests : IDisposable
     public async Task ExcelParameter_List_ShouldReturnSuccessAfterCreation()
     {
         // Arrange
-        var createResult = await ExcelFileTool.ExcelFile(FileAction.CreateEmpty, _testExcelFile);
+        var createResult = ExcelFileTool.ExcelFile(FileAction.CreateEmpty, _testExcelFile);
         Assert.NotNull(createResult);
 
         // Verify file was created
@@ -108,7 +108,7 @@ public class ExcelMcpServerTests : IDisposable
         var sessionId = await OpenSessionAsync();
         try
         {
-            var result = await ExcelNamedRangeTool.ExcelParameter(NamedRangeAction.List, _testExcelFile, sessionId);
+            var result = ExcelNamedRangeTool.ExcelParameter(NamedRangeAction.List, _testExcelFile, sessionId);
 
             // Assert
             var json = JsonDocument.Parse(result);
@@ -137,7 +137,7 @@ in
         File.WriteAllText(mCodeFile, mCode);
 
         // Act - Create Power Query
-        var importResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.Create, sessionId, queryName, sourcePath: mCodeFile);
+        var importResult = ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.Create, sessionId, queryName, sourcePath: mCodeFile);
 
         // Debug: Print the actual response to understand the structure
         Console.WriteLine($"Import result JSON: {importResult}");
@@ -153,7 +153,7 @@ in
         Assert.True(importJson.RootElement.GetProperty("success").GetBoolean());
 
         // Act - View the imported query
-        var viewResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.View, sessionId, queryName);
+        var viewResult = ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.View, sessionId, queryName);
 
         // Debug: Print the actual response to understand the structure
         Console.WriteLine($"View result JSON: {viewResult}");
@@ -175,7 +175,7 @@ in
         // Note: Current MCP server architecture limitation - operations return success/error only
 
         // Act - List queries to verify it appears
-        var listResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.List, sessionId);
+        var listResult = ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.List, sessionId);
         var listJson = JsonDocument.Parse(listResult);
         Assert.True(listJson.RootElement.GetProperty("success").GetBoolean());
 
@@ -183,7 +183,7 @@ in
         // The actual query data is not returned in JSON format, only displayed to console
 
         // Act - Delete the query
-        var deleteResult = await ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.Delete, sessionId, queryName);
+        var deleteResult = ExcelPowerQueryTool.ExcelPowerQuery(PowerQueryAction.Delete, sessionId, queryName);
         var deleteJson = JsonDocument.Parse(deleteResult);
         Assert.True(deleteJson.RootElement.GetProperty("success").GetBoolean());
         await CloseSessionAsync(sessionId);
@@ -191,7 +191,7 @@ in
 
     private async Task<string> OpenSessionAsync()
     {
-        var openResult = await ExcelFileTool.ExcelFile(FileAction.Open, _testExcelFile);
+        var openResult = ExcelFileTool.ExcelFile(FileAction.Open, _testExcelFile);
         var json = JsonDocument.Parse(openResult);
         if (!json.RootElement.TryGetProperty("sessionId", out var sessionProp))
         {

@@ -11,35 +11,36 @@ public interface INamedRangeCommands
     /// <summary>
     /// Lists all named ranges in the workbook
     /// </summary>
-    Task<NamedRangeListResult> ListAsync(IExcelBatch batch);
+    NamedRangeListResult List(IExcelBatch batch);
 
     /// <summary>
     /// Sets the value of a named range
     /// </summary>
-    Task<OperationResult> SetAsync(IExcelBatch batch, string paramName, string value);
+    OperationResult Write(IExcelBatch batch, string paramName, string value);
 
     /// <summary>
     /// Gets the value of a named range
     /// </summary>
-    Task<NamedRangeValueResult> GetAsync(IExcelBatch batch, string paramName);
+    NamedRangeValueResult Read(IExcelBatch batch, string paramName);
 
     /// <summary>
     /// Updates a named range reference
     /// </summary>
-    Task<OperationResult> UpdateAsync(IExcelBatch batch, string paramName, string reference);
+    OperationResult Update(IExcelBatch batch, string paramName, string reference);
 
     /// <summary>
     /// Creates a new named range
     /// </summary>
-    Task<OperationResult> CreateAsync(IExcelBatch batch, string paramName, string reference);
+    OperationResult Create(IExcelBatch batch, string paramName, string reference);
 
     /// <summary>
     /// Deletes a named range
     /// </summary>
-    Task<OperationResult> DeleteAsync(IExcelBatch batch, string paramName);
+    OperationResult Delete(IExcelBatch batch, string paramName);
 
     /// <summary>
     /// Creates multiple named ranges with optional initial values in a single operation
     /// </summary>
-    Task<OperationResult> CreateBulkAsync(IExcelBatch batch, IEnumerable<NamedRangeDefinition> parameters);
+    OperationResult CreateBulk(IExcelBatch batch, IEnumerable<NamedRangeDefinition> parameters);
 }
+

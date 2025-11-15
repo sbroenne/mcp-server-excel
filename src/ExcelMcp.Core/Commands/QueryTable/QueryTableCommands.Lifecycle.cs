@@ -11,11 +11,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands.QueryTable;
 public partial class QueryTableCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> CreateFromConnectionAsync(IExcelBatch batch, string sheetName,
+    public OperationResult CreateFromConnection(IExcelBatch batch, string sheetName,
         string queryTableName, string connectionName, string range = "A1",
         QueryTableCreateOptions? options = null)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             var result = new OperationResult
             {
@@ -149,11 +149,11 @@ public partial class QueryTableCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> CreateFromQueryAsync(IExcelBatch batch, string sheetName,
+    public OperationResult CreateFromQuery(IExcelBatch batch, string sheetName,
         string queryTableName, string queryName, string range = "A1",
         QueryTableCreateOptions? options = null)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             var result = new OperationResult
             {
@@ -218,10 +218,10 @@ public partial class QueryTableCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> UpdatePropertiesAsync(IExcelBatch batch, string queryTableName,
+    public OperationResult UpdateProperties(IExcelBatch batch, string queryTableName,
         QueryTableUpdateOptions options)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             var result = new OperationResult
             {
@@ -297,3 +297,4 @@ public partial class QueryTableCommands
         }
     }
 }
+

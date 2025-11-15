@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.ComInterop.Session;
+﻿using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -14,17 +14,17 @@ public partial class ConnectionCommandsTests
     public async Task View_ExistingConnection_ReturnsDetails()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests), nameof(View_ExistingConnection_ReturnsDetails), _tempDir);
-        var csvFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var csvFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests), nameof(View_ExistingConnection_ReturnsDetails), _tempDir, ".csv", "Name,Value\nTest1,100\nTest2,200");
         string connName = "ViewTestConnection";
 
-        await ConnectionTestHelper.CreateTextFileConnectionAsync(testFile, connName, csvFile);
+        await ConnectionTestHelper.CreateTextFileConnection(testFile, connName, csvFile);
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _commands.ViewAsync(batch, connName);
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var result = _commands.View(batch, connName);
 
         // Assert
         Assert.True(result.Success, $"View failed: {result.ErrorMessage}");
@@ -38,12 +38,12 @@ public partial class ConnectionCommandsTests
     public async Task View_NonExistentConnection_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests), nameof(View_NonExistentConnection_ReturnsError), _tempDir);
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _commands.ViewAsync(batch, "NonExistent");
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var result = _commands.View(batch, "NonExistent");
 
         // Assert
         Assert.False(result.Success);

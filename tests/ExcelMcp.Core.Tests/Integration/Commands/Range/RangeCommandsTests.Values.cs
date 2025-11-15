@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.ComInterop.Session;
+﻿using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -16,14 +16,14 @@ public partial class RangeCommandsTests
     public async Task GetValues_SingleCell_Returns1x1Array()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        string testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Set a value first
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1", [[100]]);
+        await _commands.SetValues(batch, "Sheet1", "A1", [[100]]);
 
         // Act
-        var result = await _commands.GetValuesAsync(batch, "Sheet1", "A1");
+        var result = _commands.GetValues(batch, "Sheet1", "A1");
 
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
@@ -41,8 +41,8 @@ public partial class RangeCommandsTests
     public async Task GetValues_3x3Range_Returns2DArray()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        string testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         var testData = new List<List<object?>>
         {
@@ -51,10 +51,10 @@ public partial class RangeCommandsTests
             new() { 7, 8, 9 }
         };
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1:C3", testData);
+        await _commands.SetValues(batch, "Sheet1", "A1:C3", testData);
 
         // Act
-        var result = await _commands.GetValuesAsync(batch, "Sheet1", "A1:C3");
+        var result = _commands.GetValues(batch, "Sheet1", "A1:C3");
 
         // Assert
         Assert.True(result.Success);
@@ -74,8 +74,8 @@ public partial class RangeCommandsTests
     public async Task SetValues_TableWithHeaders_WritesAndReadsBack()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        string testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         var testData = new List<List<object?>>
         {
@@ -85,12 +85,12 @@ public partial class RangeCommandsTests
         };
 
         // Act
-        var result = await _commands.SetValuesAsync(batch, "Sheet1", "A1:B3", testData);
+        var result = _commands.SetValues(batch, "Sheet1", "A1:B3", testData);
         // Assert
         Assert.True(result.Success);
 
         // Verify by reading back
-        var readResult = await _commands.GetValuesAsync(batch, "Sheet1", "A1:B3");
+        var readResult = _commands.GetValues(batch, "Sheet1", "A1:B3");
         Assert.Equal("Name", readResult.Values[0][0]);
         Assert.Equal(
             30.0,
@@ -102,8 +102,8 @@ public partial class RangeCommandsTests
     public async Task SetValues_JsonElementStrings_WritesCorrectly()
     {
         // Arrange - Simulate MCP Server scenario where JSON deserialization creates JsonElement objects
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        string testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Simulate MCP JSON: [["Azure Region Code", "Azure Region Name", "Geography", "Country"]]
         string json = """[["Azure Region Code", "Azure Region Name", "Geography", "Country"]]""";
@@ -123,12 +123,12 @@ public partial class RangeCommandsTests
         }
 
         // Act
-        var result = await _commands.SetValuesAsync(batch, "Sheet1", "A1:D1", testData);
+        var result = _commands.SetValues(batch, "Sheet1", "A1:D1", testData);
         // Assert
         Assert.True(result.Success, $"SetValuesAsync failed: {result.ErrorMessage}");
 
         // Verify by reading back
-        var readResult = await _commands.GetValuesAsync(batch, "Sheet1", "A1:D1");
+        var readResult = _commands.GetValues(batch, "Sheet1", "A1:D1");
         Assert.Equal("Azure Region Code", readResult.Values[0][0]);
         Assert.Equal("Azure Region Name", readResult.Values[0][1]);
         Assert.Equal("Geography", readResult.Values[0][2]);
@@ -140,8 +140,8 @@ public partial class RangeCommandsTests
     public async Task SetValues_JsonElementMixedTypes_WritesCorrectly()
     {
         // Arrange - Test different JSON value types (string, number, boolean, null)
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        string testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Simulate MCP JSON: [["Text", 123, true, null]]
         string json = """[["Text", 123, true, null]]""";
@@ -161,12 +161,12 @@ public partial class RangeCommandsTests
         }
 
         // Act
-        var result = await _commands.SetValuesAsync(batch, "Sheet1", "A1:D1", testData);
+        var result = _commands.SetValues(batch, "Sheet1", "A1:D1", testData);
         // Assert
         Assert.True(result.Success, $"SetValuesAsync failed: {result.ErrorMessage}");
 
         // Verify by reading back
-        var readResult = await _commands.GetValuesAsync(batch, "Sheet1", "A1:D1");
+        var readResult = _commands.GetValues(batch, "Sheet1", "A1:D1");
         Assert.Equal("Text", readResult.Values[0][0]);
         Assert.Equal(
             123.0,

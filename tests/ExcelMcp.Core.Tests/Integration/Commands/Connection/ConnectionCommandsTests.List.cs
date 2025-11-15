@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.ComInterop.Session;
+﻿using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -14,12 +14,12 @@ public partial class ConnectionCommandsTests
     public async Task List_EmptyWorkbook_ReturnsSuccessWithEmptyList()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests), nameof(List_EmptyWorkbook_ReturnsSuccessWithEmptyList), _tempDir);
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _commands.ListAsync(batch);
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var result = _commands.List(batch);
 
         // Assert
         Assert.True(result.Success, $"List failed: {result.ErrorMessage}");
@@ -33,17 +33,17 @@ public partial class ConnectionCommandsTests
     public async Task List_WithTextConnection_ReturnsConnection()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests), nameof(List_WithTextConnection_ReturnsConnection), _tempDir);
-        var csvFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var csvFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests), nameof(List_WithTextConnection_ReturnsConnection), _tempDir, ".csv", "Name,Value\nTest1,100\nTest2,200");
         string connName = "TestText";
 
-        await ConnectionTestHelper.CreateTextFileConnectionAsync(testFile, connName, csvFile);
+        await ConnectionTestHelper.CreateTextFileConnection(testFile, connName, csvFile);
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _commands.ListAsync(batch);
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var result = _commands.List(batch);
 
         // Assert
         Assert.True(result.Success, $"List failed: {result.ErrorMessage}");

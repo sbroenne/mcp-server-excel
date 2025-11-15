@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Sbroenne.ExcelMcp.McpServer.Models;
 using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
@@ -53,7 +53,7 @@ public class ExcelFileDirectoryTests : IDisposable
         _output.WriteLine($"Directory exists before: {Directory.Exists(Path.GetDirectoryName(testFile))}");
 
         // Act - Call the tool directly
-        var result = await ExcelFileTool.ExcelFile(FileAction.CreateEmpty, testFile);
+        var result = ExcelFileTool.ExcelFile(FileAction.CreateEmpty, testFile);
 
         _output.WriteLine($"Tool result: {result}");
 
@@ -86,7 +86,7 @@ public class ExcelFileDirectoryTests : IDisposable
         _output.WriteLine($"Path: {testFile}");
 
         // Act - Call the tool directly
-        var result = await ExcelFileTool.ExcelFile(FileAction.CreateEmpty, testFile);
+        var result = ExcelFileTool.ExcelFile(FileAction.CreateEmpty, testFile);
 
         _output.WriteLine($"Tool result: {result}");
 

@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.ComInterop.Session;
+﻿using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -15,33 +15,33 @@ public partial class QueryTableCommandsTests
     public async Task CreateFromQuery_ValidQuery_CreatesQueryTable()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(QueryTableCommandsTests), nameof(CreateFromQuery_ValidQuery_CreatesQueryTable), _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create a Power Query
         var dataModelCommands = new Core.Commands.DataModelCommands();
         var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"Name\", \"Value\"}, {{\"A\", 1}, {\"B\", 2}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "DataQuery.pq");
-        await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
-        var importResult = await pqCommands.CreateAsync(batch, "DataQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+        await System.IO.File.WriteAllText(mCodeFile, mCode);
+        var importResult = pqCommands.Create(batch, "DataQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
         Assert.True(importResult.Success);
 
         // Create worksheet
         var sheetCommands = new Core.Commands.SheetCommands();
-        var createSheetResult = await sheetCommands.CreateAsync(batch, "Data");
+        var createSheetResult = sheetCommands.Create(batch, "Data");
         Assert.True(createSheetResult.Success);
 
         // Act
-        var result = await _commands.CreateFromQueryAsync(batch, "Data", "MyQueryTable", "DataQuery");
+        var result = _commands.CreateFromQuery(batch, "Data", "MyQueryTable", "DataQuery");
 
         // Assert
         Assert.True(result.Success, $"Create failed: {result.ErrorMessage}");
 
         // Verify QueryTable exists
-        var listResult = await _commands.ListAsync(batch);
+        var listResult = _commands.List(batch);
         Assert.True(listResult.Success);
         var qt = Assert.Single(listResult.QueryTables);
         Assert.Equal("MyQueryTable", qt.Name);
@@ -53,17 +53,17 @@ public partial class QueryTableCommandsTests
     public async Task CreateFromQuery_NonExistentQuery_ReturnsFalse()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(QueryTableCommandsTests), nameof(CreateFromQuery_NonExistentQuery_ReturnsFalse), _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create worksheet
         var sheetCommands = new Core.Commands.SheetCommands();
-        await sheetCommands.CreateAsync(batch, "Data");
+        await sheetCommands.Create(batch, "Data");
 
         // Act
-        var result = await _commands.CreateFromQueryAsync(batch, "Data", "MyQueryTable", "NonExistent");
+        var result = _commands.CreateFromQuery(batch, "Data", "MyQueryTable", "NonExistent");
 
         // Assert
         Assert.False(result.Success);
@@ -75,21 +75,21 @@ public partial class QueryTableCommandsTests
     public async Task CreateFromQuery_WithOptions_AppliesOptions()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(QueryTableCommandsTests), nameof(CreateFromQuery_WithOptions_AppliesOptions), _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create Power Query and worksheet
         var dataModelCommands = new Core.Commands.DataModelCommands();
         var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"Col1\"}, {{\"Val1\"}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "TestQuery.pq");
-        await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
-        await pqCommands.CreateAsync(batch, "TestQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+        await System.IO.File.WriteAllText(mCodeFile, mCode);
+        await pqCommands.Create(batch, "TestQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Core.Commands.SheetCommands();
-        await sheetCommands.CreateAsync(batch, "Sheet1");
+        await sheetCommands.Create(batch, "Sheet1");
 
         var options = new QueryTableCreateOptions
         {
@@ -99,13 +99,13 @@ public partial class QueryTableCommandsTests
         };
 
         // Act
-        var result = await _commands.CreateFromQueryAsync(batch, "Sheet1", "TestQT", "TestQuery", "A1", options);
+        var result = _commands.CreateFromQuery(batch, "Sheet1", "TestQT", "TestQuery", "A1", options);
 
         // Assert
         Assert.True(result.Success, $"Create failed: {result.ErrorMessage}");
 
         // Verify properties
-        var getResult = await _commands.GetAsync(batch, "TestQT");
+        var getResult = _commands.Get(batch, "TestQT");
         Assert.True(getResult.Success);
         Assert.NotNull(getResult.QueryTable);
         Assert.True(getResult.QueryTable.BackgroundQuery);
@@ -117,32 +117,32 @@ public partial class QueryTableCommandsTests
     public async Task Delete_ExistingQueryTable_DeletesSuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(QueryTableCommandsTests), nameof(Delete_ExistingQueryTable_DeletesSuccessfully), _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create QueryTable
         var dataModelCommands = new Core.Commands.DataModelCommands();
         var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"A\"}, {{1}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "Q1.pq");
-        await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
-        await pqCommands.CreateAsync(batch, "Q1", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+        await System.IO.File.WriteAllText(mCodeFile, mCode);
+        await pqCommands.Create(batch, "Q1", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Core.Commands.SheetCommands();
-        await sheetCommands.CreateAsync(batch, "S1");
+        await sheetCommands.Create(batch, "S1");
 
-        await _commands.CreateFromQueryAsync(batch, "S1", "QT1", "Q1");
+        await _commands.CreateFromQuery(batch, "S1", "QT1", "Q1");
 
         // Act
-        var result = await _commands.DeleteAsync(batch, "QT1");
+        var result = _commands.Delete(batch, "QT1");
 
         // Assert
         Assert.True(result.Success, $"Delete failed: {result.ErrorMessage}");
 
         // Verify deleted
-        var listResult = await _commands.ListAsync(batch);
+        var listResult = _commands.List(batch);
         Assert.True(listResult.Success);
         Assert.Empty(listResult.QueryTables);
     }
@@ -152,13 +152,13 @@ public partial class QueryTableCommandsTests
     public async Task Delete_NonExistentQueryTable_ReturnsFalse()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(QueryTableCommandsTests), nameof(Delete_NonExistentQueryTable_ReturnsFalse), _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Act
-        var result = await _commands.DeleteAsync(batch, "NonExistent");
+        var result = _commands.Delete(batch, "NonExistent");
 
         // Assert
         Assert.False(result.Success);

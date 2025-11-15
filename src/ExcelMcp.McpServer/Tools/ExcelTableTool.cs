@@ -104,20 +104,18 @@ public static class TableTool
         }
         catch (Exception ex)
         {
-            return JsonSerializer.Serialize(new
+            return Task.FromResult(JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
                 isError = true
-            }, ExcelToolsBase.JsonOptions);
+            }, ExcelToolsBase.JsonOptions));
         }
     }
 
     private static async Task<string> ListTables(TableCommands commands, string sessionId)
     {
-        var result = await ExcelToolsBase.WithSessionAsync(
-            sessionId,
-            commands.ListAsync);
+        var result = ExcelToolsBase.WithSession(sessionId, batch => commands.List(batch));
 
         return JsonSerializer.Serialize(new
         {
@@ -133,9 +131,9 @@ public static class TableTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "create");
         if (string.IsNullOrWhiteSpace(range)) ExcelToolsBase.ThrowMissingParameter(nameof(range), "create");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.CreateAsync(batch, sheetName!, tableName!, range!, hasHeaders, tableStyle));
+            batch => commands.Create(batch, sheetName!, tableName!, range!, hasHeaders, tableStyle));
 
         return JsonSerializer.Serialize(new
         {
@@ -148,9 +146,9 @@ public static class TableTool
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "info");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.GetAsync(batch, tableName!));
+            batch => commands.Read(batch, tableName!));
 
         return JsonSerializer.Serialize(new
         {
@@ -165,9 +163,9 @@ public static class TableTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "rename");
         if (string.IsNullOrWhiteSpace(newName)) ExcelToolsBase.ThrowMissingParameter(nameof(newName), "rename");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.RenameAsync(batch, tableName!, newName!));
+            batch => commands.Rename(batch, tableName!, newName!));
 
         return JsonSerializer.Serialize(new
         {
@@ -180,9 +178,9 @@ public static class TableTool
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "delete");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.DeleteAsync(batch, tableName!));
+            batch => commands.Delete(batch, tableName!));
 
         return JsonSerializer.Serialize(new
         {
@@ -196,9 +194,9 @@ public static class TableTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "resize");
         if (string.IsNullOrWhiteSpace(newRange)) ExcelToolsBase.ThrowMissingParameter(nameof(newRange), "resize");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ResizeAsync(batch, tableName!, newRange!));
+            batch => commands.Resize(batch, tableName!, newRange!));
 
         return JsonSerializer.Serialize(new
         {
@@ -211,9 +209,9 @@ public static class TableTool
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "toggle-totals");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ToggleTotalsAsync(batch, tableName!, showTotals));
+            batch => commands.ToggleTotals(batch, tableName!, showTotals));
 
         return JsonSerializer.Serialize(new
         {
@@ -228,9 +226,9 @@ public static class TableTool
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "set-column-total");
         if (string.IsNullOrWhiteSpace(totalFunction)) ExcelToolsBase.ThrowMissingParameter(nameof(totalFunction), "set-column-total");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.SetColumnTotalAsync(batch, tableName!, columnName!, totalFunction!));
+            batch => commands.SetColumnTotal(batch, tableName!, columnName!, totalFunction!));
 
         return JsonSerializer.Serialize(new
         {
@@ -247,9 +245,9 @@ public static class TableTool
         // Parse CSV data to List<List<object?>>
         var rows = ParseCsvToRows(csvData!);
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.AppendAsync(batch, tableName!, rows));
+            batch => commands.Append(batch, tableName!, rows));
 
         return JsonSerializer.Serialize(new
         {
@@ -284,9 +282,9 @@ public static class TableTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "set-style");
         if (string.IsNullOrWhiteSpace(tableStyle)) ExcelToolsBase.ThrowMissingParameter(nameof(tableStyle), "set-style");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.SetStyleAsync(batch, tableName!, tableStyle!));
+            batch => commands.SetStyle(batch, tableName!, tableStyle!));
 
         return JsonSerializer.Serialize(new
         {
@@ -299,9 +297,9 @@ public static class TableTool
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "add-to-datamodel");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.AddToDataModelAsync(batch, tableName!));
+            batch => commands.AddToDataModel(batch, tableName!));
 
         return JsonSerializer.Serialize(new
         {
@@ -318,9 +316,9 @@ public static class TableTool
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "apply-filter");
         if (string.IsNullOrWhiteSpace(criteria)) ExcelToolsBase.ThrowMissingParameter(nameof(criteria), "apply-filter");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ApplyFilterAsync(batch, tableName!, columnName!, criteria!));
+            batch => commands.ApplyFilter(batch, tableName!, columnName!, criteria!));
 
         return JsonSerializer.Serialize(new
         {
@@ -346,9 +344,9 @@ public static class TableTool
             throw new ArgumentException($"Invalid JSON array for filterValues: {ex.Message}", nameof(filterValuesJson));
         }
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ApplyFilterAsync(batch, tableName!, columnName!, filterValues));
+            batch => commands.ApplyFilter(batch, tableName!, columnName!, filterValues));
 
         return JsonSerializer.Serialize(new
         {
@@ -361,9 +359,9 @@ public static class TableTool
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "clear-filters");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ClearFiltersAsync(batch, tableName!));
+            batch => commands.ClearFilters(batch, tableName!));
 
         return JsonSerializer.Serialize(new
         {
@@ -376,9 +374,9 @@ public static class TableTool
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "get-filters");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.GetFiltersAsync(batch, tableName!));
+            batch => commands.GetFilters(batch, tableName!));
 
         return JsonSerializer.Serialize(new
         {
@@ -411,9 +409,9 @@ public static class TableTool
             }
         }
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.AddColumnAsync(batch, tableName!, columnName!, position));
+            batch => commands.AddColumn(batch, tableName!, columnName!, position));
 
         return JsonSerializer.Serialize(new
         {
@@ -427,9 +425,9 @@ public static class TableTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "remove-column");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "remove-column");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.RemoveColumnAsync(batch, tableName!, columnName!));
+            batch => commands.RemoveColumn(batch, tableName!, columnName!));
 
         return JsonSerializer.Serialize(new
         {
@@ -444,9 +442,9 @@ public static class TableTool
         if (string.IsNullOrWhiteSpace(oldColumnName)) ExcelToolsBase.ThrowMissingParameter(nameof(oldColumnName), "rename-column");
         if (string.IsNullOrWhiteSpace(newColumnName)) ExcelToolsBase.ThrowMissingParameter(nameof(newColumnName), "rename-column");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.RenameColumnAsync(batch, tableName!, oldColumnName!, newColumnName!));
+            batch => commands.RenameColumn(batch, tableName!, oldColumnName!, newColumnName!));
 
         return JsonSerializer.Serialize(new
         {
@@ -468,9 +466,9 @@ public static class TableTool
             throw new ArgumentException($"Invalid region '{regionStr}'. Valid values: All, Data, Headers, Totals, ThisRow", nameof(regionStr));
         }
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.GetStructuredReferenceAsync(batch, tableName!, region, columnName));
+            batch => commands.GetStructuredReference(batch, tableName!, region, columnName));
 
         return JsonSerializer.Serialize(new
         {
@@ -488,9 +486,9 @@ public static class TableTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "sort");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "sort");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.SortAsync(batch, tableName!, columnName!, ascending));
+            batch => commands.Sort(batch, tableName!, columnName!, ascending));
 
         return JsonSerializer.Serialize(new
         {
@@ -519,9 +517,9 @@ public static class TableTool
             throw new ArgumentException($"Invalid sortColumns JSON: {ex.Message}", nameof(sortColumnsJson));
         }
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.SortAsync(batch, tableName!, sortColumns));
+            batch => commands.Sort(batch, tableName!, sortColumns));
 
         return JsonSerializer.Serialize(new
         {
@@ -539,9 +537,9 @@ public static class TableTool
         if (string.IsNullOrEmpty(columnName))
             ExcelToolsBase.ThrowMissingParameter("columnName", "get-column-number-format");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.GetColumnNumberFormatAsync(batch, tableName!, columnName!));
+            batch => commands.GetColumnNumberFormat(batch, tableName!, columnName!));
 
         return JsonSerializer.Serialize(new
         {
@@ -563,9 +561,9 @@ public static class TableTool
         if (string.IsNullOrEmpty(formatCode))
             ExcelToolsBase.ThrowMissingParameter("formatCode", "set-column-number-format");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.SetColumnNumberFormatAsync(batch, tableName!, columnName!, formatCode!));
+            batch => commands.SetColumnNumberFormat(batch, tableName!, columnName!, formatCode!));
 
         return JsonSerializer.Serialize(new
         {
@@ -574,3 +572,4 @@ public static class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 }
+

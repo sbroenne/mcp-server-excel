@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Xunit;
@@ -50,15 +50,15 @@ public class PivotTableTestsFixture : IAsyncLifetime
         try
         {
             var fileCommands = new FileCommands();
-            var createFileResult = await fileCommands.CreateEmptyAsync(TestFilePath);
+            var createFileResult = fileCommands.CreateEmpty(TestFilePath);
             if (!createFileResult.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: File creation failed: {createFileResult.ErrorMessage}");
 
             CreationResult.FileCreated = true;
 
-            await using var batch = await ExcelSession.BeginBatchAsync(TestFilePath);
-            await batch.Execute((ctx, ct) =>
+            using var batch = ExcelSession.BeginBatch(TestFilePath);
+            batch.Execute((ctx, ct) =>
             {
                 dynamic sheet = ctx.Book.Worksheets.Item(1);
                 sheet.Name = "SalesData";
@@ -100,7 +100,7 @@ public class PivotTableTestsFixture : IAsyncLifetime
 
             CreationResult.DataRowsCreated = 5;
 
-            await batch.SaveAsync();
+            batch.Save();
 
             sw.Stop();
             CreationResult.Success = true;

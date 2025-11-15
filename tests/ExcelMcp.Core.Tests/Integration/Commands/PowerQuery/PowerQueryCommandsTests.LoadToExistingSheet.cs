@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.ComInterop.Session;
+﻿using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -22,7 +22,7 @@ public partial class PowerQueryCommandsTests
     public async Task LoadTo_LoadToTableWithExistingSheet_ReturnsErrorRequiringExplicitDeletion()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(LoadTo_LoadToTableWithExistingSheet_ReturnsErrorRequiringExplicitDeletion),
             _tempDir);
@@ -31,17 +31,17 @@ public partial class PowerQueryCommandsTests
         var targetSheet = "ExistingSheet";
 
         // Act - Create query, sheet, then attempt LoadTo (all in one batch)
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create connection-only query
-        await _powerQueryCommands.CreateAsync(
+        await _powerQueryCommands.Create(
             batch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
         // Create sheet that will conflict
-        await _sheetCommands.CreateAsync(batch, targetSheet);
+        await _sheetCommands.Create(batch, targetSheet);
 
         // LoadTo should detect existing sheet and return error
-        var loadResult = await _powerQueryCommands.LoadToAsync(
+        var loadResult = _powerQueryCommands.LoadTo(
             batch, queryName, PowerQueryLoadMode.LoadToTable, targetSheet);
 
         // Assert - Should fail with clear error message
@@ -54,7 +54,7 @@ public partial class PowerQueryCommandsTests
     public async Task LoadTo_LoadToBothWithExistingSheet_ReturnsErrorRequiringExplicitDeletion()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(LoadTo_LoadToBothWithExistingSheet_ReturnsErrorRequiringExplicitDeletion),
             _tempDir);
@@ -63,17 +63,17 @@ public partial class PowerQueryCommandsTests
         var targetSheet = "ExistingSheetBoth";
 
         // Act - Create query, sheet, then attempt LoadTo (all in one batch)
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create connection-only query
-        await _powerQueryCommands.CreateAsync(
+        await _powerQueryCommands.Create(
             batch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
         // Create sheet that will conflict
-        await _sheetCommands.CreateAsync(batch, targetSheet);
+        await _sheetCommands.Create(batch, targetSheet);
 
         // LoadTo with LoadToBoth should detect existing sheet
-        var loadResult = await _powerQueryCommands.LoadToAsync(
+        var loadResult = _powerQueryCommands.LoadTo(
             batch, queryName, PowerQueryLoadMode.LoadToBoth, targetSheet);
 
         // Assert - Should fail with clear error message
@@ -86,7 +86,7 @@ public partial class PowerQueryCommandsTests
     public async Task LoadTo_DeleteExistingSheetThenLoadTo_SucceedsAfterManualDeletion()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(LoadTo_DeleteExistingSheetThenLoadTo_SucceedsAfterManualDeletion),
             _tempDir);
@@ -95,28 +95,28 @@ public partial class PowerQueryCommandsTests
         var targetSheet = "SequentialSheet";
 
         // Act - All in one batch: Create query, LoadTo, verify error, delete sheet, LoadTo succeeds
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create connection-only query
-        await _powerQueryCommands.CreateAsync(
+        await _powerQueryCommands.Create(
             batch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
         // First LoadTo creates sheet with data
-        var load1 = await _powerQueryCommands.LoadToAsync(
+        var load1 = await _powerQueryCommands.LoadTo(
             batch, queryName, PowerQueryLoadMode.LoadToTable, targetSheet);
         Assert.True(load1.Success, $"First LoadTo failed: {load1.ErrorMessage}");
 
         // Second LoadTo should fail because sheet exists
-        var load2 = await _powerQueryCommands.LoadToAsync(
+        var load2 = await _powerQueryCommands.LoadTo(
             batch, queryName, PowerQueryLoadMode.LoadToTable, targetSheet);
         Assert.False(load2.Success, "Second LoadTo should fail when sheet already exists");
         Assert.Contains("worksheet already exists", load2.ErrorMessage);
 
         // User deletes sheet manually
-        await _sheetCommands.DeleteAsync(batch, targetSheet);
+        await _sheetCommands.Delete(batch, targetSheet);
 
         // LoadTo after manual deletion succeeds
-        var load3 = await _powerQueryCommands.LoadToAsync(
+        var load3 = await _powerQueryCommands.LoadTo(
             batch, queryName, PowerQueryLoadMode.LoadToTable, targetSheet);
         Assert.True(load3.Success, $"LoadTo after manual deletion failed: {load3.ErrorMessage}");
         Assert.True(load3.ConfigurationApplied);
@@ -128,7 +128,7 @@ public partial class PowerQueryCommandsTests
     public async Task LoadTo_WithExistingSheetSameName_ReturnsErrorRequiringExplicitDeletion()
     {
         // Arrange - This test verifies the actual bug scenario: query and sheet have same name
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(LoadTo_WithExistingSheetSameName_ReturnsErrorRequiringExplicitDeletion),
             _tempDir);
@@ -136,17 +136,17 @@ public partial class PowerQueryCommandsTests
         var mCodeFile = CreateUniqueTestQueryFile(nameof(LoadTo_WithExistingSheetSameName_ReturnsErrorRequiringExplicitDeletion));
 
         // Act - Create sheet, query, then attempt LoadTo (all in one batch)
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create sheet with same name as query first
-        await _sheetCommands.CreateAsync(batch, queryName);
+        await _sheetCommands.Create(batch, queryName);
 
         // Create connection-only query with same name
-        await _powerQueryCommands.CreateAsync(
+        await _powerQueryCommands.Create(
             batch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
         // LoadTo with sheet already existing (bug report scenario)
-        var loadResult = await _powerQueryCommands.LoadToAsync(
+        var loadResult = _powerQueryCommands.LoadTo(
             batch, queryName, PowerQueryLoadMode.LoadToTable, queryName);
 
         // Assert - The bug was silent failure. Now we return clear error.
@@ -159,7 +159,7 @@ public partial class PowerQueryCommandsTests
     public async Task LoadTo_AfterManualDeletion_DataLoadedSuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(LoadTo_AfterManualDeletion_DataLoadedSuccessfully),
             _tempDir);
@@ -168,29 +168,29 @@ public partial class PowerQueryCommandsTests
         var targetSheet = "RoundTripSheet";
 
         // Act - All in one batch: Create query, sheet, verify error, delete, LoadTo succeeds
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create query (connection-only) and existing sheet
-        await _powerQueryCommands.CreateAsync(
+        await _powerQueryCommands.Create(
             batch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
-        await _sheetCommands.CreateAsync(batch, targetSheet);
+        await _sheetCommands.Create(batch, targetSheet);
 
         // Verify LoadTo fails with existing sheet
-        var failResult = await _powerQueryCommands.LoadToAsync(
+        var failResult = _powerQueryCommands.LoadTo(
             batch, queryName, PowerQueryLoadMode.LoadToTable, targetSheet);
         Assert.False(failResult.Success, "LoadTo should fail with existing sheet");
 
         // Delete sheet manually
-        await _sheetCommands.DeleteAsync(batch, targetSheet);
+        await _sheetCommands.Delete(batch, targetSheet);
 
         // LoadTo after deletion succeeds
-        var loadResult = await _powerQueryCommands.LoadToAsync(
+        var loadResult = _powerQueryCommands.LoadTo(
             batch, queryName, PowerQueryLoadMode.LoadToTable, targetSheet);
         Assert.True(loadResult.Success, $"LoadTo after deletion failed: {loadResult.ErrorMessage}");
         Assert.True(loadResult.RowsLoaded > 0, "Data should be loaded");
 
         // Verify sheet exists with data
-        var listSheets = await _sheetCommands.ListAsync(batch);
+        var listSheets = await _sheetCommands.List(batch);
         Assert.Contains(listSheets.Worksheets, s => s.Name == targetSheet);
     }
 
@@ -198,7 +198,7 @@ public partial class PowerQueryCommandsTests
     public async Task LoadTo_NewSheetName_CreatesSheetSuccessfully()
     {
         // Arrange - Verify backwards compatibility: new sheet name still works
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(LoadTo_NewSheetName_CreatesSheetSuccessfully),
             _tempDir);
@@ -207,21 +207,21 @@ public partial class PowerQueryCommandsTests
         var targetSheet = "BrandNewSheet";
 
         // Act - Create query and LoadTo with non-existent sheet (all in one batch)
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create connection-only query (no sheet exists)
-        await _powerQueryCommands.CreateAsync(
+        await _powerQueryCommands.Create(
             batch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
         // LoadTo with non-existent sheet should succeed
-        var loadResult = await _powerQueryCommands.LoadToAsync(
+        var loadResult = _powerQueryCommands.LoadTo(
             batch, queryName, PowerQueryLoadMode.LoadToTable, targetSheet);
 
         // Assert
         Assert.True(loadResult.Success, $"LoadTo failed: {loadResult.ErrorMessage}");
 
         // Verify sheet was created
-        var listResult = await _sheetCommands.ListAsync(batch);
+        var listResult = _sheetCommands.List(batch);
         Assert.Contains(listResult.Worksheets, s => s.Name == targetSheet);
     }
 

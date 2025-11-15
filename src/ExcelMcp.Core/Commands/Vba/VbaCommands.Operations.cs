@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class VbaCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> RunAsync(IExcelBatch batch, string procedureName, TimeSpan? timeout, params string[] parameters)
+    public OperationResult Run(IExcelBatch batch, string procedureName, TimeSpan? timeout, params string[] parameters)
     {
         var result = new OperationResult
         {
@@ -33,7 +33,7 @@ public partial class VbaCommands
             return CreateVbaTrustGuidance();
         }
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -64,11 +64,11 @@ public partial class VbaCommands
                 result.ErrorMessage = $"Error running procedure '{procedureName}': {ex.Message}";
                 return result;
             }
-        }, timeout: timeout);
+        });
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> DeleteAsync(IExcelBatch batch, string moduleName)
+    public OperationResult Delete(IExcelBatch batch, string moduleName)
     {
         var result = new OperationResult
         {
@@ -90,7 +90,7 @@ public partial class VbaCommands
             return CreateVbaTrustGuidance();
         }
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -157,3 +157,4 @@ public partial class VbaCommands
         });
     }
 }
+

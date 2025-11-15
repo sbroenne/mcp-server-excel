@@ -13,12 +13,12 @@ public partial class PivotTableCommands
     /// Creates a PivotTable from an Excel range
     /// Following VBA pattern from ReneNyffenegger/about-MS-Office-object-model
     /// </summary>
-    public async Task<PivotTableCreateResult> CreateFromRangeAsync(IExcelBatch batch,
+    public PivotTableCreateResult CreateFromRange(IExcelBatch batch,
         string sourceSheet, string sourceRange,
         string destinationSheet, string destinationCell,
         string pivotTableName)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sourceWorksheet = null;
             dynamic? sourceRangeObj = null;
@@ -151,12 +151,12 @@ public partial class PivotTableCommands
     /// <summary>
     /// Creates a PivotTable from an Excel Table
     /// </summary>
-    public async Task<PivotTableCreateResult> CreateFromTableAsync(IExcelBatch batch,
+    public PivotTableCreateResult CreateFromTable(IExcelBatch batch,
         string tableName,
         string destinationSheet, string destinationCell,
         string pivotTableName)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? destWorksheet = null;
@@ -326,12 +326,12 @@ public partial class PivotTableCommands
     /// Creates a PivotTable from a Power Pivot Data Model table
     /// Uses xlExternal source type with "ThisWorkbookDataModel" connection
     /// </summary>
-    public async Task<PivotTableCreateResult> CreateFromDataModelAsync(IExcelBatch batch,
+    public PivotTableCreateResult CreateFromDataModel(IExcelBatch batch,
         string tableName,
         string destinationSheet, string destinationCell,
         string pivotTableName)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? modelTable = null;
@@ -513,3 +513,4 @@ public partial class PivotTableCommands
         });
     }
 }
+

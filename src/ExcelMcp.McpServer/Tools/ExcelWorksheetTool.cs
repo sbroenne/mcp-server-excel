@@ -76,19 +76,19 @@ TAB COLORS (set-tab-color):
             // Expression switch pattern for audit compliance
             return action switch
             {
-                WorksheetAction.List => await ListAsync(sheetCommands, sessionId),
-                WorksheetAction.Create => await CreateAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.Delete => await DeleteAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.Rename => await RenameAsync(sheetCommands, sessionId, sheetName, targetName),
-                WorksheetAction.Copy => await CopyAsync(sheetCommands, sessionId, sheetName, targetName),
-                WorksheetAction.SetTabColor => await SetTabColorAsync(sheetCommands, sessionId, sheetName, red, green, blue),
-                WorksheetAction.GetTabColor => await GetTabColorAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.ClearTabColor => await ClearTabColorAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.SetVisibility => await SetVisibilityAsync(sheetCommands, sessionId, sheetName, visibility),
-                WorksheetAction.GetVisibility => await GetVisibilityAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.Show => await ShowAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.Hide => await HideAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.VeryHide => await VeryHideAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.List => ListAsync(sheetCommands, sessionId),
+                WorksheetAction.Create => CreateAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.Delete => DeleteAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.Rename => RenameAsync(sheetCommands, sessionId, sheetName, targetName),
+                WorksheetAction.Copy => CopyAsync(sheetCommands, sessionId, sheetName, targetName),
+                WorksheetAction.SetTabColor => SetTabColorAsync(sheetCommands, sessionId, sheetName, red, green, blue),
+                WorksheetAction.GetTabColor => GetTabColorAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.ClearTabColor => ClearTabColorAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.SetVisibility => SetVisibilityAsync(sheetCommands, sessionId, sheetName, visibility),
+                WorksheetAction.GetVisibility => GetVisibilityAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.Show => ShowAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.Hide => HideAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.VeryHide => VeryHideAsync(sheetCommands, sessionId, sheetName),
                 _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
         }
@@ -114,24 +114,24 @@ TAB COLORS (set-tab-color):
         }
         catch (Exception ex)
         {
-            return JsonSerializer.Serialize(new
+            return Task.FromResult(JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
                 isError = true
-            }, ExcelToolsBase.JsonOptions);
+            }, ExcelToolsBase.JsonOptions));
         }
     }
 
     // === PRIVATE HELPER METHODS ===
 
-    private static async Task<string> ListAsync(
+    private static string ListAsync(
         SheetCommands sheetCommands,
         string sessionId)
     {
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            sheetCommands.ListAsync);
+            batch => sheetCommands.List(batch));
         var count = result.Worksheets?.Count ?? 0;
         var inSession = !string.IsNullOrEmpty(sessionId);
 
@@ -142,7 +142,7 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> CreateAsync(
+    private static string CreateAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName)
@@ -150,9 +150,9 @@ TAB COLORS (set-tab-color):
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for create action", nameof(sheetName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.CreateAsync(batch, sheetName));
+            batch => sheetCommands.Create(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -160,7 +160,7 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RenameAsync(
+    private static string RenameAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName,
@@ -169,9 +169,9 @@ TAB COLORS (set-tab-color):
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
             throw new ArgumentException("sheetName and targetName are required for rename action", "sheetName,targetName");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.RenameAsync(batch, sheetName, targetName));
+            batch => sheetCommands.Rename(batch, sheetName, targetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -180,7 +180,7 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> CopyAsync(
+    private static string CopyAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName,
@@ -189,9 +189,9 @@ TAB COLORS (set-tab-color):
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
             throw new ArgumentException("sheetName and targetName are required for copy action", "sheetName,targetName");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.CopyAsync(batch, sheetName, targetName));
+            batch => sheetCommands.Copy(batch, sheetName, targetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -200,7 +200,7 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> DeleteAsync(
+    private static string DeleteAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName)
@@ -208,9 +208,9 @@ TAB COLORS (set-tab-color):
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for delete action", nameof(sheetName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.DeleteAsync(batch, sheetName));
+            batch => sheetCommands.Delete(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -219,7 +219,7 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetTabColorAsync(
+    private static string SetTabColorAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName,
@@ -242,9 +242,9 @@ TAB COLORS (set-tab-color):
         int greenValue = green.Value;
         int blueValue = blue.Value;
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.SetTabColorAsync(batch, sheetName, redValue, greenValue, blueValue));
+            batch => sheetCommands.SetTabColor(batch, sheetName, redValue, greenValue, blueValue));
         string hexColor = $"#{redValue:X2}{greenValue:X2}{blueValue:X2}";
 
         return JsonSerializer.Serialize(new
@@ -254,7 +254,7 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetTabColorAsync(
+    private static string GetTabColorAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName)
@@ -262,9 +262,9 @@ TAB COLORS (set-tab-color):
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for get-tab-color action", nameof(sheetName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.GetTabColorAsync(batch, sheetName));
+            batch => sheetCommands.GetTabColor(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -278,7 +278,7 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ClearTabColorAsync(
+    private static string ClearTabColorAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName)
@@ -286,9 +286,9 @@ TAB COLORS (set-tab-color):
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for clear-tab-color action", nameof(sheetName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.ClearTabColorAsync(batch, sheetName));
+            batch => sheetCommands.ClearTabColor(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -297,7 +297,7 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetVisibilityAsync(
+    private static string SetVisibilityAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName,
@@ -317,9 +317,9 @@ TAB COLORS (set-tab-color):
             _ => throw new ArgumentException($"Invalid visibility value '{visibility}'. Use: visible, hidden, or veryhidden", nameof(visibility))
         };
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.SetVisibilityAsync(batch, sheetName, visibilityLevel));
+            batch => sheetCommands.SetVisibility(batch, sheetName, visibilityLevel));
 
         return JsonSerializer.Serialize(new
         {
@@ -328,7 +328,7 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetVisibilityAsync(
+    private static string GetVisibilityAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName)
@@ -336,9 +336,9 @@ TAB COLORS (set-tab-color):
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for get-visibility action", nameof(sheetName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.GetVisibilityAsync(batch, sheetName));
+            batch => sheetCommands.GetVisibility(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -349,7 +349,7 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ShowAsync(
+    private static string ShowAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName)
@@ -357,9 +357,9 @@ TAB COLORS (set-tab-color):
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for show action", nameof(sheetName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.ShowAsync(batch, sheetName));
+            batch => sheetCommands.Show(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -368,7 +368,7 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> HideAsync(
+    private static string HideAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName)
@@ -376,19 +376,19 @@ TAB COLORS (set-tab-color):
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for hide action", nameof(sheetName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.HideAsync(batch, sheetName));
+            batch => sheetCommands.Hide(batch, sheetName));
 
-        return JsonSerializer.Serialize(new
+        return Task.FromResult(JsonSerializer.Serialize(new
         {
             result.Success,
             result.ErrorMessage,
             workflowHint = result.Success ? "Sheet now hidden (users can unhide via Excel UI)" : null
-        }, ExcelToolsBase.JsonOptions);
+        }, ExcelToolsBase.JsonOptions));
     }
 
-    private static async Task<string> VeryHideAsync(
+    private static string VeryHideAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName)
@@ -396,15 +396,16 @@ TAB COLORS (set-tab-color):
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for very-hide action", nameof(sheetName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.VeryHideAsync(batch, sheetName));
+            batch => sheetCommands.VeryHide(batch, sheetName));
 
-        return JsonSerializer.Serialize(new
+        return Task.FromResult(JsonSerializer.Serialize(new
         {
             result.Success,
             result.ErrorMessage,
             workflowHint = result.Success ? "Sheet now very-hidden (not visible even in VBA, requires code to unhide)" : null
-        }, ExcelToolsBase.JsonOptions);
+        }, ExcelToolsBase.JsonOptions));
     }
 }
+

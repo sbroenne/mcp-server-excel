@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -39,7 +39,7 @@ public class PowerQueryTestsFixture : IAsyncLifetime
     /// <summary>
     /// Called ONCE before any tests in the class run.
     /// This IS the test for Power Query creation - if it fails, all tests fail (correct behavior).
-    /// Tests: file creation, M code file creation, ImportAsync, persistence.
+    /// Tests: file creation, M code file creation, Import, persistence.
     /// </summary>
     public async Task InitializeAsync()
     {
@@ -51,14 +51,14 @@ public class PowerQueryTestsFixture : IAsyncLifetime
         try
         {
             var fileCommands = new FileCommands();
-            var createFileResult = await fileCommands.CreateEmptyAsync(TestFilePath);
+            var createFileResult = fileCommands.CreateEmpty(TestFilePath);
             if (!createFileResult.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: File creation failed: {createFileResult.ErrorMessage}");
 
             CreationResult.FileCreated = true;
 
-            await using var batch = await ExcelSession.BeginBatchAsync(TestFilePath);
+            using var batch = ExcelSession.BeginBatch(TestFilePath);
 
             var mCodeFiles = new string[3];
             mCodeFiles[0] = CreateMCodeFile("BasicQuery", CreateBasicMCode());
@@ -69,27 +69,27 @@ public class PowerQueryTestsFixture : IAsyncLifetime
             var dataModelCommands = new DataModelCommands();
             var powerQueryCommands = new PowerQueryCommands(dataModelCommands);
 
-            var import1 = await powerQueryCommands.CreateAsync(batch, "BasicQuery", mCodeFiles[0], PowerQueryLoadMode.ConnectionOnly);
+            var import1 = powerQueryCommands.Create(batch, "BasicQuery", mCodeFiles[0], PowerQueryLoadMode.ConnectionOnly);
             if (!import1.Success)
                 throw new InvalidOperationException(
-                    $"CREATION TEST FAILED: CreateAsync(BasicQuery) failed: {import1.ErrorMessage}");
+                    $"CREATION TEST FAILED: Create(BasicQuery) failed: {import1.ErrorMessage}");
 
-            var import2 = await powerQueryCommands.CreateAsync(batch, "DataQuery", mCodeFiles[1], PowerQueryLoadMode.ConnectionOnly);
+            var import2 = powerQueryCommands.Create(batch, "DataQuery", mCodeFiles[1], PowerQueryLoadMode.ConnectionOnly);
             if (!import2.Success)
                 throw new InvalidOperationException(
-                    $"CREATION TEST FAILED: CreateAsync(DataQuery) failed: {import2.ErrorMessage}");
+                    $"CREATION TEST FAILED: Create(DataQuery) failed: {import2.ErrorMessage}");
 
-            var import3 = await powerQueryCommands.CreateAsync(batch, "RefreshableQuery", mCodeFiles[2], PowerQueryLoadMode.ConnectionOnly);
+            var import3 = powerQueryCommands.Create(batch, "RefreshableQuery", mCodeFiles[2], PowerQueryLoadMode.ConnectionOnly);
             if (!import3.Success)
                 throw new InvalidOperationException(
-                    $"CREATION TEST FAILED: CreateAsync(RefreshableQuery) failed: {import3.ErrorMessage}");
+                    $"CREATION TEST FAILED: Create(RefreshableQuery) failed: {import3.ErrorMessage}");
 
             CreationResult.QueriesImported = 3;
 
             // ═══════════════════════════════════════════════════════
             // TEST 4: Persistence (Save)
             // ═══════════════════════════════════════════════════════
-            await batch.SaveAsync();
+            batch.Save();
 
             sw.Stop();
             CreationResult.Success = true;

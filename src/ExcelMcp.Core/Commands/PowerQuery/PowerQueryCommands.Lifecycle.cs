@@ -1,8 +1,7 @@
-using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Core.Security;
+using System.Runtime.InteropServices;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -12,11 +11,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class PowerQueryCommands
 {
     /// <inheritdoc />
-    public async Task<PowerQueryListResult> ListAsync(IExcelBatch batch)
+    public PowerQueryListResult List(IExcelBatch batch)
     {
         var result = new PowerQueryListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? queriesCollection = null;
             try
@@ -115,7 +114,7 @@ public partial class PowerQueryCommands
     }
 
     /// <inheritdoc />
-    public async Task<PowerQueryViewResult> ViewAsync(IExcelBatch batch, string queryName)
+    public PowerQueryViewResult View(IExcelBatch batch, string queryName)
     {
         var result = new PowerQueryViewResult
         {
@@ -131,7 +130,7 @@ public partial class PowerQueryCommands
             return result;
         }
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -205,7 +204,7 @@ public partial class PowerQueryCommands
     }
 
     /// <inheritdoc />
-    public async Task<PowerQueryLoadConfigResult> GetLoadConfigAsync(IExcelBatch batch, string queryName)
+    public PowerQueryLoadConfigResult GetLoadConfig(IExcelBatch batch, string queryName)
     {
         var result = new PowerQueryLoadConfigResult
         {
@@ -221,7 +220,7 @@ public partial class PowerQueryCommands
             return result;
         }
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? query = null;
             dynamic? worksheets = null;
@@ -400,7 +399,7 @@ public partial class PowerQueryCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> DeleteAsync(IExcelBatch batch, string queryName)
+    public OperationResult Delete(IExcelBatch batch, string queryName)
     {
         var result = new OperationResult
         {
@@ -416,7 +415,7 @@ public partial class PowerQueryCommands
             return result;
         }
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? query = null;
             dynamic? queriesCollection = null;
@@ -492,7 +491,7 @@ public partial class PowerQueryCommands
     /// <param name="loadMode">Where to load the data (default: LoadToTable)</param>
     /// <param name="targetSheet">Target worksheet name (required for LoadToTable/LoadToBoth)</param>
     /// <returns>Result with query creation and data load status</returns>
-    public async Task<PowerQueryCreateResult> CreateAsync(
+    public PowerQueryCreateResult Create(
         IExcelBatch batch,
         string queryName,
         string mCodeFile,
@@ -533,7 +532,7 @@ public partial class PowerQueryCommands
             }
 
             // Read M code
-            var mCode = await File.ReadAllTextAsync(mCodeFile);
+            var mCode = File.ReadAllText(mCodeFile);
             if (string.IsNullOrWhiteSpace(mCode))
             {
                 result.Success = false;
@@ -541,7 +540,7 @@ public partial class PowerQueryCommands
                 return result;
             }
 
-            return await batch.Execute((ctx, ct) =>
+            return batch.Execute((ctx, ct) =>
             {
                 dynamic? queries = null;
                 dynamic? query = null;
@@ -732,7 +731,7 @@ public partial class PowerQueryCommands
     /// <param name="queryName">Name of the query to update</param>
     /// <param name="mCodeFile">Path to new M code file</param>
     /// <returns>Operation result</returns>
-    public async Task<OperationResult> UpdateAsync(
+    public OperationResult Update(
         IExcelBatch batch,
         string queryName,
         string mCodeFile)
@@ -752,7 +751,7 @@ public partial class PowerQueryCommands
                 return result;
             }
 
-            var mCode = await File.ReadAllTextAsync(mCodeFile);
+            var mCode = File.ReadAllText(mCodeFile);
             if (string.IsNullOrWhiteSpace(mCode))
             {
                 result.Success = false;
@@ -760,7 +759,7 @@ public partial class PowerQueryCommands
                 return result;
             }
 
-            return await batch.Execute((ctx, ct) =>
+            return batch.Execute((ctx, ct) =>
             {
                 dynamic? queries = null;
                 dynamic? query = null;
@@ -913,7 +912,7 @@ public partial class PowerQueryCommands
     /// <param name="loadMode">Where to load the data</param>
     /// <param name="targetSheet">Target worksheet (required for LoadToTable/LoadToBoth)</param>
     /// <returns>Result with load configuration and refresh status</returns>
-    public async Task<PowerQueryLoadResult> LoadToAsync(
+    public PowerQueryLoadResult LoadTo(
         IExcelBatch batch,
         string queryName,
         PowerQueryLoadMode loadMode,
@@ -937,7 +936,7 @@ public partial class PowerQueryCommands
                 return result;
             }
 
-            return await batch.Execute((ctx, ct) =>
+            return batch.Execute((ctx, ct) =>
             {
                 dynamic? queries = null;
                 dynamic? query = null;
@@ -1163,7 +1162,7 @@ public partial class PowerQueryCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query</param>
     /// <returns>Operation result</returns>
-    public async Task<OperationResult> UnloadAsync(
+    public OperationResult Unload(
         IExcelBatch batch,
         string queryName)
     {
@@ -1173,7 +1172,7 @@ public partial class PowerQueryCommands
             Action = "unload"
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? queries = null;
             dynamic? query = null;
@@ -1289,3 +1288,4 @@ public partial class PowerQueryCommands
         return queryTable;
     }
 }
+

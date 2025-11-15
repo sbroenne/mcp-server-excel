@@ -27,7 +27,7 @@ public interface IConditionalFormattingCommands
     /// <param name="fontItalic">Italic font</param>
     /// <param name="borderStyle">Border style: none, continuous, dash, dot, etc.</param>
     /// <param name="borderColor">Border color (#RRGGBB or color index)</param>
-    Task<OperationResult> AddRuleAsync(
+    OperationResult AddRule(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,
@@ -47,8 +47,9 @@ public interface IConditionalFormattingCommands
     /// Removes all conditional formatting from range
     /// Excel COM: Range.FormatConditions.Delete()
     /// </summary>
-    Task<OperationResult> ClearRulesAsync(
+    OperationResult ClearRules(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress);
 }
+

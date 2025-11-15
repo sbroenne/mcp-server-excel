@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.Core.Commands;
+﻿using Sbroenne.ExcelMcp.Core.Commands;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
@@ -23,15 +23,15 @@ public static class CoreTestHelper
     /// Usage patterns:
     /// <code>
     /// // Excel file
-    /// var excelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+    /// var excelFile = await CoreTestHelper.CreateUniqueTestFile(
     ///     nameof(MyTests), nameof(MyTest), _tempDir, ".xlsx");
     ///
     /// // CSV file with default data
-    /// var csvFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+    /// var csvFile = await CoreTestHelper.CreateUniqueTestFile(
     ///     nameof(MyTests), nameof(MyTest), _tempDir, ".csv");
     ///
     /// // CSV file with custom data
-    /// var csvFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+    /// var csvFile = await CoreTestHelper.CreateUniqueTestFile(
     ///     nameof(MyTests), nameof(MyTest), _tempDir, ".csv", "Col1,Col2\nA,B");
     /// </code>
     /// </remarks>
@@ -50,7 +50,7 @@ public static class CoreTestHelper
         if (extension is ".xlsx" or ".xlsm")
         {
             var fileCommands = new FileCommands();
-            var result = await fileCommands.CreateEmptyAsync(filePath, overwriteIfExists: false);
+            var result = fileCommands.CreateEmpty(filePath, overwriteIfExists: false);
 
             if (!result.Success)
             {

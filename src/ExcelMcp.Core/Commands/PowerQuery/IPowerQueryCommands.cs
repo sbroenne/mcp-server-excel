@@ -11,37 +11,37 @@ public interface IPowerQueryCommands
     /// <summary>
     /// Lists all Power Query queries in the workbook
     /// </summary>
-    Task<PowerQueryListResult> ListAsync(IExcelBatch batch);
+    PowerQueryListResult List(IExcelBatch batch);
 
     /// <summary>
     /// Views the M code of a Power Query
     /// </summary>
-    Task<PowerQueryViewResult> ViewAsync(IExcelBatch batch, string queryName);
+    PowerQueryViewResult View(IExcelBatch batch, string queryName);
 
     /// <summary>
     /// Refreshes a Power Query to update its data with error detection
     /// </summary>
-    Task<PowerQueryRefreshResult> RefreshAsync(IExcelBatch batch, string queryName);
+    PowerQueryRefreshResult Refresh(IExcelBatch batch, string queryName);
 
     /// <summary>
     /// Refreshes a Power Query to update its data with error detection and timeout
     /// </summary>
-    Task<PowerQueryRefreshResult> RefreshAsync(IExcelBatch batch, string queryName, TimeSpan? timeout);
+    PowerQueryRefreshResult Refresh(IExcelBatch batch, string queryName, TimeSpan? timeout);
 
     /// <summary>
     /// Gets the current load configuration of a Power Query
     /// </summary>
-    Task<PowerQueryLoadConfigResult> GetLoadConfigAsync(IExcelBatch batch, string queryName);
+    PowerQueryLoadConfigResult GetLoadConfig(IExcelBatch batch, string queryName);
 
     /// <summary>
     /// Deletes a Power Query from the workbook
     /// </summary>
-    Task<OperationResult> DeleteAsync(IExcelBatch batch, string queryName);
+    OperationResult Delete(IExcelBatch batch, string queryName);
 
     /// <summary>
     /// Lists available data sources (Excel.CurrentWorkbook() sources: tables and named ranges)
     /// </summary>
-    Task<WorksheetListResult> ListExcelSourcesAsync(IExcelBatch batch);
+    WorksheetListResult ListExcelSources(IExcelBatch batch);
 
     // =========================================================================
     // ATOMIC OPERATIONS - Improved Workflows
@@ -57,7 +57,7 @@ public interface IPowerQueryCommands
     /// <param name="loadMode">Load destination mode</param>
     /// <param name="targetSheet">Target worksheet name (required for LoadToTable and LoadToBoth)</param>
     /// <returns>PowerQueryCreateResult with creation and load tracking</returns>
-    Task<PowerQueryCreateResult> CreateAsync(IExcelBatch batch, string queryName, string mCodeFile, PowerQueryLoadMode loadMode = PowerQueryLoadMode.LoadToTable, string? targetSheet = null);
+    PowerQueryCreateResult Create(IExcelBatch batch, string queryName, string mCodeFile, PowerQueryLoadMode loadMode = PowerQueryLoadMode.LoadToTable, string? targetSheet = null);
 
     /// <summary>
     /// Updates M code and refreshes data atomically
@@ -67,7 +67,7 @@ public interface IPowerQueryCommands
     /// <param name="queryName">Name of the query to update</param>
     /// <param name="mCodeFile">Path to M code file</param>
     /// <returns>OperationResult with update and refresh status</returns>
-    Task<OperationResult> UpdateAsync(IExcelBatch batch, string queryName, string mCodeFile);
+    OperationResult Update(IExcelBatch batch, string queryName, string mCodeFile);
 
     /// <summary>
     /// Atomically sets load destination and refreshes data
@@ -78,7 +78,7 @@ public interface IPowerQueryCommands
     /// <param name="loadMode">Load destination mode</param>
     /// <param name="targetSheet">Target worksheet name (required for LoadToTable and LoadToBoth)</param>
     /// <returns>PowerQueryLoadResult with configuration and refresh tracking</returns>
-    Task<PowerQueryLoadResult> LoadToAsync(IExcelBatch batch, string queryName, PowerQueryLoadMode loadMode, string? targetSheet = null);
+    PowerQueryLoadResult LoadTo(IExcelBatch batch, string queryName, PowerQueryLoadMode loadMode, string? targetSheet = null);
 
     /// <summary>
     /// Converts a query to connection-only mode (removes all data loads)
@@ -87,7 +87,7 @@ public interface IPowerQueryCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query</param>
     /// <returns>OperationResult with unload status</returns>
-    Task<OperationResult> UnloadAsync(IExcelBatch batch, string queryName);
+    OperationResult Unload(IExcelBatch batch, string queryName);
 
     // ValidateSyntaxAsync removed - Excel doesn't validate M code syntax at query creation time.
     // Validation only happens during refresh, making syntax-only validation unreliable.
@@ -98,6 +98,7 @@ public interface IPowerQueryCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <returns>OperationResult with batch refresh summary</returns>
-    Task<OperationResult> RefreshAllAsync(IExcelBatch batch);
+    OperationResult RefreshAll(IExcelBatch batch);
 }
+
 

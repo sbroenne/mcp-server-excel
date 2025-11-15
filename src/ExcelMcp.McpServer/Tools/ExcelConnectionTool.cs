@@ -90,38 +90,36 @@ POWER QUERY AUTO-REDIRECT:
             // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
             return action switch
             {
-                ConnectionAction.List => await ListConnectionsAsync(connectionCommands, sessionId),
-                ConnectionAction.View => await ViewConnectionAsync(connectionCommands, sessionId, connectionName),
-                ConnectionAction.Create => await CreateConnectionAsync(connectionCommands, sessionId, connectionName, connectionString, commandText, description),
-                ConnectionAction.Import => await ImportConnectionAsync(connectionCommands, sessionId, connectionName, targetPath),
-                ConnectionAction.Export => await ExportConnectionAsync(connectionCommands, sessionId, connectionName, targetPath),
-                ConnectionAction.UpdateProperties => await UpdateConnectionAsync(connectionCommands, sessionId, connectionName, targetPath),
-                ConnectionAction.Refresh => await RefreshConnectionAsync(connectionCommands, excelPath, sessionId, connectionName, timeout),
-                ConnectionAction.Delete => await DeleteConnectionAsync(connectionCommands, sessionId, connectionName),
-                ConnectionAction.Test => await TestConnectionAsync(connectionCommands, sessionId, connectionName),
-                ConnectionAction.LoadTo => await LoadToWorksheetAsync(connectionCommands, sessionId, connectionName, targetPath),
-                ConnectionAction.GetProperties => await GetPropertiesAsync(connectionCommands, sessionId, connectionName),
-                ConnectionAction.SetProperties => await SetPropertiesAsync(connectionCommands, sessionId, connectionName, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod),
+                ConnectionAction.List => ListConnectionsAsync(connectionCommands, sessionId),
+                ConnectionAction.View => ViewConnectionAsync(connectionCommands, sessionId, connectionName),
+                ConnectionAction.Create => CreateConnectionAsync(connectionCommands, sessionId, connectionName, connectionString, commandText, description),
+                ConnectionAction.Import => ImportConnectionAsync(connectionCommands, sessionId, connectionName, targetPath),
+                ConnectionAction.Export => ExportConnectionAsync(connectionCommands, sessionId, connectionName, targetPath),
+                ConnectionAction.UpdateProperties => UpdateConnectionAsync(connectionCommands, sessionId, connectionName, targetPath),
+                ConnectionAction.Refresh => RefreshConnectionAsync(connectionCommands, excelPath, sessionId, connectionName, timeout),
+                ConnectionAction.Delete => DeleteConnectionAsync(connectionCommands, sessionId, connectionName),
+                ConnectionAction.Test => TestConnectionAsync(connectionCommands, sessionId, connectionName),
+                ConnectionAction.LoadTo => LoadToWorksheetAsync(connectionCommands, sessionId, connectionName, targetPath),
+                ConnectionAction.GetProperties => GetPropertiesAsync(connectionCommands, sessionId, connectionName),
+                ConnectionAction.SetProperties => SetPropertiesAsync(connectionCommands, sessionId, connectionName, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod),
                 _ => throw new ArgumentException(
                     $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
         }
         catch (Exception ex)
         {
-            return JsonSerializer.Serialize(new
+            return Task.FromResult(JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
                 isError = true
-            }, ExcelToolsBase.JsonOptions);
+            }, ExcelToolsBase.JsonOptions));
         }
     }
 
-    private static async Task<string> ListConnectionsAsync(ConnectionCommands commands, string sessionId)
+    private static string ListConnectionsAsync(ConnectionCommands commands, string sessionId)
     {
-        var result = await ExcelToolsBase.WithSessionAsync(
-            sessionId,
-            commands.ListAsync);
+        var result = ExcelToolsBase.WithSession(sessionId, batch => commands.List(batch));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints
@@ -135,14 +133,14 @@ POWER QUERY AUTO-REDIRECT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ViewConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName)
+    private static string ViewConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ArgumentException("connectionName is required for view action", nameof(connectionName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ViewAsync(batch, connectionName));
+            batch => commands.View(batch, connectionName));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints for viewing connection details
@@ -156,7 +154,7 @@ POWER QUERY AUTO-REDIRECT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ImportConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName, string? jsonPath)
+    private static string ImportConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName, string? jsonPath)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ArgumentException("connectionName is required for import action", nameof(connectionName));
@@ -164,9 +162,9 @@ POWER QUERY AUTO-REDIRECT:
         if (string.IsNullOrEmpty(jsonPath))
             throw new ArgumentException("targetPath (JSON file path) is required for import action", nameof(jsonPath));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ImportAsync(batch, connectionName, jsonPath));
+            batch => commands.Import(batch, connectionName, jsonPath));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints
@@ -176,7 +174,7 @@ POWER QUERY AUTO-REDIRECT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ExportConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName, string? jsonPath)
+    private static string ExportConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName, string? jsonPath)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ArgumentException("connectionName is required for export action", nameof(connectionName));
@@ -184,15 +182,15 @@ POWER QUERY AUTO-REDIRECT:
         if (string.IsNullOrEmpty(jsonPath))
             throw new ArgumentException("connectionName is required for export action", nameof(connectionName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ViewAsync(batch, connectionName));
+            batch => commands.View(batch, connectionName));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> UpdateConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName, string? jsonPath)
+    private static string UpdateConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName, string? jsonPath)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ArgumentException("connectionName is required for update action", nameof(connectionName));
@@ -200,9 +198,9 @@ POWER QUERY AUTO-REDIRECT:
         if (string.IsNullOrEmpty(jsonPath))
             throw new ArgumentException("targetPath (JSON file path) is required for update action", nameof(jsonPath));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.UpdatePropertiesAsync(batch, connectionName, jsonPath));
+            batch => commands.UpdateProperties(batch, connectionName, jsonPath));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(new
@@ -212,7 +210,7 @@ POWER QUERY AUTO-REDIRECT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RefreshConnectionAsync(ConnectionCommands commands, string excelPath, string sessionId, string? connectionName, double? timeoutMinutes)
+    private static string RefreshConnectionAsync(ConnectionCommands commands, string excelPath, string sessionId, string? connectionName, double? timeoutMinutes)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ArgumentException("connectionName is required for refresh action", nameof(connectionName));
@@ -222,9 +220,9 @@ POWER QUERY AUTO-REDIRECT:
             // Apply timeout parameter (default 2 minutes for connection operations)
             var timeoutSpan = timeoutMinutes.HasValue ? (TimeSpan?)TimeSpan.FromMinutes(timeoutMinutes.Value) : null;
 
-            var result = await ExcelToolsBase.WithSessionAsync(
+            var result = ExcelToolsBase.WithSession(
                 sessionId,
-                async batch => await commands.RefreshAsync(batch, connectionName, timeoutSpan));
+                batch => commands.Refresh(batch, connectionName, timeoutSpan));
 
             // Always return JSON (success or failure) - MCP clients handle the success flag
             // Add workflow hints based on actual result and operation context
@@ -292,14 +290,14 @@ POWER QUERY AUTO-REDIRECT:
         }
     }
 
-    private static async Task<string> DeleteConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName)
+    private static string DeleteConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ArgumentException("connectionName is required for delete action", nameof(connectionName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.DeleteAsync(batch, connectionName));
+            batch => commands.Delete(batch, connectionName));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(new
@@ -309,7 +307,7 @@ POWER QUERY AUTO-REDIRECT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> LoadToWorksheetAsync(ConnectionCommands commands, string sessionId, string? connectionName, string? sheetName)
+    private static string LoadToWorksheetAsync(ConnectionCommands commands, string sessionId, string? connectionName, string? sheetName)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ArgumentException("connectionName is required for loadto action", nameof(connectionName));
@@ -317,9 +315,9 @@ POWER QUERY AUTO-REDIRECT:
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("targetPath (sheet name) is required for loadto action", nameof(sheetName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.LoadToAsync(batch, connectionName, sheetName));
+            batch => commands.LoadTo(batch, connectionName, sheetName));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(new
@@ -329,14 +327,14 @@ POWER QUERY AUTO-REDIRECT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetPropertiesAsync(ConnectionCommands commands, string sessionId, string? connectionName)
+    private static string GetPropertiesAsync(ConnectionCommands commands, string sessionId, string? connectionName)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ArgumentException("connectionName is required for properties action", nameof(connectionName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.GetPropertiesAsync(batch, connectionName));
+            batch => commands.GetProperties(batch, connectionName));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(new
@@ -350,15 +348,15 @@ POWER QUERY AUTO-REDIRECT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetPropertiesAsync(ConnectionCommands commands, string sessionId, string? connectionName,
+    private static string SetPropertiesAsync(ConnectionCommands commands, string sessionId, string? connectionName,
         bool? backgroundQuery, bool? refreshOnFileOpen, bool? savePassword, int? refreshPeriod)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ArgumentException("connectionName is required for set-properties action", nameof(connectionName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.SetPropertiesAsync(batch, connectionName, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod));
+            batch => commands.SetProperties(batch, connectionName, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(new
@@ -368,14 +366,14 @@ POWER QUERY AUTO-REDIRECT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> TestConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName)
+    private static string TestConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ArgumentException("connectionName is required for test action", nameof(connectionName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.TestAsync(batch, connectionName));
+            batch => commands.Test(batch, connectionName));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         // Add workflow hints for connection testing
@@ -386,7 +384,7 @@ POWER QUERY AUTO-REDIRECT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> CreateConnectionAsync(
+    private static string CreateConnectionAsync(
         ConnectionCommands commands,
         string sessionId,
         string? connectionName,
@@ -400,9 +398,9 @@ POWER QUERY AUTO-REDIRECT:
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new ArgumentException("connectionString is required for create action", nameof(connectionString));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.CreateAsync(batch, connectionName, connectionString, commandText, description));
+            batch => commands.Create(batch, connectionName, connectionString, commandText, description));
 
         return JsonSerializer.Serialize(new
         {
@@ -412,3 +410,4 @@ POWER QUERY AUTO-REDIRECT:
         }, ExcelToolsBase.JsonOptions);
     }
 }
+

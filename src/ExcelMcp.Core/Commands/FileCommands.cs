@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public class FileCommands : IFileCommands
 {
     /// <inheritdoc />
-    public Task<OperationResult> CreateEmptyAsync(string filePath, bool overwriteIfExists = false)
+    public OperationResult CreateEmpty(string filePath, bool overwriteIfExists = false)
     {
         try
         {
@@ -21,13 +21,13 @@ public class FileCommands : IFileCommands
             string extension = Path.GetExtension(filePath).ToLowerInvariant();
             if (extension is not ".xlsx" and not ".xlsm")
             {
-                return Task.FromResult(new OperationResult
+                return new OperationResult
                 {
                     Success = false,
                     ErrorMessage = "File must have .xlsx or .xlsm extension",
                     FilePath = filePath,
                     Action = "create-empty"
-                });
+                };
             }
 
             // Check if file already exists
@@ -110,7 +110,7 @@ public class FileCommands : IFileCommands
     }
 
     /// <inheritdoc />
-    public Task<FileValidationResult> TestAsync(string filePath)
+    public FileValidationResult Test(string filePath)
     {
         try
         {
@@ -136,7 +136,7 @@ public class FileCommands : IFileCommands
                 lastModified = fileInfo.LastWriteTime;
             }
 
-            return Task.FromResult(new FileValidationResult
+            return new FileValidationResult
             {
                 Success = exists && isValidExtension,
                 ErrorMessage = !exists ? $"File not found: {filePath}"
@@ -148,11 +148,11 @@ public class FileCommands : IFileCommands
                 Extension = extension,
                 LastModified = lastModified,
                 IsValid = exists && isValidExtension
-            });
+            };
         }
         catch (Exception ex)
         {
-            return Task.FromResult(new FileValidationResult
+            return new FileValidationResult
             {
                 Success = false,
                 ErrorMessage = $"Failed to validate file: {ex.Message}",
@@ -162,7 +162,7 @@ public class FileCommands : IFileCommands
                 Extension = "",
                 LastModified = DateTime.MinValue,
                 IsValid = false
-            });
+            };
         }
     }
 

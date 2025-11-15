@@ -1,4 +1,4 @@
-// Suppress IDE0005 for explicit framework usings retained for clarity
+﻿// Suppress IDE0005 for explicit framework usings retained for clarity
 #pragma warning disable IDE0005
 using System;
 using System.Collections.Generic;
@@ -52,7 +52,7 @@ public class TimeoutEnrichmentTests : IDisposable
 
         // Create empty workbook using FileCommands
         var fileCommands = new FileCommands();
-        var result = await fileCommands.CreateEmptyAsync(testFile);
+        var result = fileCommands.CreateEmpty(testFile);
 
         if (!result.Success)
         {
@@ -107,7 +107,7 @@ public class TimeoutEnrichmentTests : IDisposable
             sessionId = await OpenSessionAsync(testFile);
 
             // Act - Try to refresh non-existent query (will fail, but not with timeout)
-            var result = await ExcelPowerQueryTool.ExcelPowerQuery(
+            var result = ExcelPowerQueryTool.ExcelPowerQuery(
                 PowerQueryAction.Refresh,
                 sessionId,
                 queryName: "NonExistentQuery");
@@ -159,7 +159,7 @@ public class TimeoutEnrichmentTests : IDisposable
             sessionId = await OpenSessionAsync(testFile);
 
             // Act - Try to list connections (should succeed with empty list)
-            var result = await ExcelConnectionTool.ExcelConnection(
+            var result = ExcelConnectionTool.ExcelConnection(
                 ConnectionAction.List,
                 testFile,
                 sessionId,
@@ -203,7 +203,7 @@ public class TimeoutEnrichmentTests : IDisposable
             sessionId = await OpenSessionAsync(testFile);
 
             // Act - Try to refresh empty data model (will fail gracefully, not timeout)
-            var result = await ExcelDataModelTool.ExcelDataModel(
+            var result = ExcelDataModelTool.ExcelDataModel(
                 DataModelAction.Refresh,
                 testFile,
                 sessionId);

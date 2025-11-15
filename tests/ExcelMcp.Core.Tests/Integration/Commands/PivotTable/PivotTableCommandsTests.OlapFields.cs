@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.ComInterop.Session;
+﻿using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -25,11 +25,11 @@ public partial class PivotTableCommandsTests
     {
         // Arrange - Create OLAP test file with data model
         var olapTestFile = await CreateOlapTestFileAsync(nameof(AddRowField_OlapPivot_AddsFieldToRows));
-        await using var batch = await ExcelSession.BeginBatchAsync(olapTestFile);
+        using var batch = ExcelSession.BeginBatch(olapTestFile);
 
         // Act - Remove existing Region field first, then add Quarter
-        await _pivotCommands.RemoveFieldAsync(batch, "DataModelPivot", "Region");
-        var result = await _pivotCommands.AddRowFieldAsync(batch, "DataModelPivot", "Quarter", null);
+        await _pivotCommands.RemoveField(batch, "DataModelPivot", "Region");
+        var result = _pivotCommands.AddRowField(batch, "DataModelPivot", "Quarter", null);
 
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
@@ -44,11 +44,11 @@ public partial class PivotTableCommandsTests
     {
         // Arrange - Create OLAP test file with data model
         var olapTestFile = await CreateOlapTestFileAsync(nameof(AddColumnField_OlapPivot_AddsFieldToColumns));
-        await using var batch = await ExcelSession.BeginBatchAsync(olapTestFile);
+        using var batch = ExcelSession.BeginBatch(olapTestFile);
 
         // Act - Remove existing Region field first to make room for Quarter
-        await _pivotCommands.RemoveFieldAsync(batch, "DataModelPivot", "Region");
-        var result = await _pivotCommands.AddColumnFieldAsync(batch, "DataModelPivot", "Quarter", null);
+        await _pivotCommands.RemoveField(batch, "DataModelPivot", "Region");
+        var result = _pivotCommands.AddColumnField(batch, "DataModelPivot", "Quarter", null);
 
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
@@ -63,10 +63,10 @@ public partial class PivotTableCommandsTests
     {
         // Arrange - Create OLAP test file with data model
         var olapTestFile = await CreateOlapTestFileAsync(nameof(SortField_OlapPivot_SortsFieldSuccessfully));
-        await using var batch = await ExcelSession.BeginBatchAsync(olapTestFile);
+        using var batch = ExcelSession.BeginBatch(olapTestFile);
 
         // Act - Region row field exists in fixture
-        var result = await _pivotCommands.SortFieldAsync(
+        var result = _pivotCommands.SortField(
             batch,
             "DataModelPivot",
             "Region",
@@ -85,7 +85,7 @@ public partial class PivotTableCommandsTests
     {
         // For OLAP tests, we use the realistic fixture which has a Data Model PivotTable
         var fixture = new PivotTableRealisticFixture();
-        await fixture.InitializeAsync();
+        await fixture.Initialize();
         _createdFixtures.Add(fixture);
         return fixture.TestFilePath;
     }

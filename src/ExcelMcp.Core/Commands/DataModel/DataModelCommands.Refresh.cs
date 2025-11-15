@@ -12,13 +12,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class DataModelCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> RefreshAsync(IExcelBatch batch, string? tableName = null)
+    public OperationResult Refresh(IExcelBatch batch, string? tableName = null)
     {
-        return await RefreshAsync(batch, tableName, TimeSpan.FromMinutes(2));  // Default 2 minutes for Data Model refresh, LLM can override
+        return Refresh(batch, tableName, TimeSpan.FromMinutes(2));  // Default 2 minutes for Data Model refresh, LLM can override
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> RefreshAsync(IExcelBatch batch, string? tableName, TimeSpan? timeout)
+    public OperationResult Refresh(IExcelBatch batch, string? tableName, TimeSpan? timeout)
     {
         var result = new OperationResult
         {
@@ -26,7 +26,7 @@ public partial class DataModelCommands
             Action = tableName != null ? $"model-refresh-table:{tableName}" : "model-refresh"
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             try
@@ -90,6 +90,7 @@ public partial class DataModelCommands
             }
 
             return result;
-        }, timeout: timeout ?? TimeSpan.FromMinutes(2));  // Default 2 minutes for Data Model refresh, LLM can override
+        });  // Default 2 minutes for Data Model refresh, LLM can override
     }
 }
+

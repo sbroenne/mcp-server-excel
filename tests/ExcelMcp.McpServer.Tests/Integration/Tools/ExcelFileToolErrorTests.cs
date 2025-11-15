@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Sbroenne.ExcelMcp.McpServer.Models;
 using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
@@ -52,7 +52,7 @@ public class ExcelFileToolErrorTests : IDisposable
         _output.WriteLine($"Testing file creation at: {testFile}");
 
         // Act - Call the tool directly
-        var result = await ExcelFileTool.ExcelFile(FileAction.CreateEmpty, testFile);
+        var result = ExcelFileTool.ExcelFile(FileAction.CreateEmpty, testFile);
 
         _output.WriteLine($"Tool result: {result}");
 
@@ -101,7 +101,7 @@ public class ExcelFileToolErrorTests : IDisposable
         _output.WriteLine($"Testing file validation at: {testFile}");
 
         // Act - Call the test action
-        var result = await ExcelFileTool.ExcelFile(FileAction.Test, testFile);
+        var result = ExcelFileTool.ExcelFile(FileAction.Test, testFile);
 
         _output.WriteLine($"Test result: {result}");
 
@@ -129,7 +129,7 @@ public class ExcelFileToolErrorTests : IDisposable
         _output.WriteLine($"Testing non-existent file at: {testFile}");
 
         // Act - Call the test action on non-existent file
-        var result = await ExcelFileTool.ExcelFile(FileAction.Test, testFile);
+        var result = ExcelFileTool.ExcelFile(FileAction.Test, testFile);
 
         _output.WriteLine($"Test result: {result}");
 
@@ -158,7 +158,7 @@ public class ExcelFileToolErrorTests : IDisposable
         _output.WriteLine($"Testing invalid extension at: {testFile}");
 
         // Act - Call the test action
-        var result = await ExcelFileTool.ExcelFile(FileAction.Test, testFile);
+        var result = ExcelFileTool.ExcelFile(FileAction.Test, testFile);
 
         _output.WriteLine($"Test result: {result}");
 

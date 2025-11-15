@@ -12,9 +12,9 @@ public partial class PivotTableCommands
     /// <summary>
     /// Gets the current data from a PivotTable
     /// </summary>
-    public async Task<PivotTableDataResult> GetDataAsync(IExcelBatch batch, string pivotTableName)
+    public PivotTableDataResult GetData(IExcelBatch batch, string pivotTableName)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? tableRange = null;
@@ -69,10 +69,10 @@ public partial class PivotTableCommands
     /// <summary>
     /// Sets filter for a field
     /// </summary>
-    public async Task<PivotFieldFilterResult> SetFieldFilterAsync(IExcelBatch batch, string pivotTableName,
+    public PivotFieldFilterResult SetFieldFilter(IExcelBatch batch, string pivotTableName,
         string fieldName, List<string> selectedValues)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
 
@@ -103,10 +103,10 @@ public partial class PivotTableCommands
     /// <summary>
     /// Sorts a field
     /// </summary>
-    public async Task<PivotFieldResult> SortFieldAsync(IExcelBatch batch, string pivotTableName,
+    public PivotFieldResult SortField(IExcelBatch batch, string pivotTableName,
         string fieldName, SortDirection direction = SortDirection.Ascending)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
 
@@ -134,3 +134,4 @@ public partial class PivotTableCommands
         });
     }
 }
+

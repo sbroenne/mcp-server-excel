@@ -1,4 +1,4 @@
-// Suppress IDE0005 (unnecessary using) – explicit usings kept for clarity in test reflection code
+﻿// Suppress IDE0005 (unnecessary using) – explicit usings kept for clarity in test reflection code
 #pragma warning disable IDE0005
 using System;
 using System.Linq;
@@ -236,7 +236,7 @@ public class CoreCommandsCoverageTests
     {
         // Count DISTINCT async method base names (treat overloads as single logical operation).
         // Reason: Enum actions represent semantic operations, not overload variants.
-        // Example: RefreshAsync(...) and RefreshAsync(..., TimeSpan?) map to single "refresh" action.
+        // Example: Refresh(...) and Refresh(..., TimeSpan?) map to single "refresh" action.
         return interfaceType
             .GetMethods(BindingFlags.Public | BindingFlags.Instance)
             .Where(m => m.Name.EndsWith("Async", StringComparison.Ordinal))

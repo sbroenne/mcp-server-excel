@@ -10,12 +10,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 public partial class RangeCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> MergeCellsAsync(
+    public OperationResult MergeCells(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -57,12 +57,12 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> UnmergeCellsAsync(
+    public OperationResult UnmergeCells(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -104,12 +104,12 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<RangeMergeInfoResult> GetMergeInfoAsync(
+    public RangeMergeInfoResult GetMergeInfo(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -154,13 +154,13 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> SetCellLockAsync(
+    public OperationResult SetCellLock(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,
         bool locked)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -202,12 +202,12 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<RangeLockInfoResult> GetCellLockAsync(
+    public RangeLockInfoResult GetCellLock(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -252,3 +252,4 @@ public partial class RangeCommands
     }
 
 }
+

@@ -12,7 +12,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class VbaCommands
 {
     /// <inheritdoc />
-    public async Task<VbaListResult> ListAsync(IExcelBatch batch)
+    public VbaListResult List(IExcelBatch batch)
     {
         var result = new VbaListResult { FilePath = batch.WorkbookPath };
 
@@ -34,7 +34,7 @@ public partial class VbaCommands
             return result;
         }
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -132,7 +132,7 @@ public partial class VbaCommands
     }
 
     /// <inheritdoc />
-    public async Task<VbaViewResult> ViewAsync(IExcelBatch batch, string moduleName)
+    public VbaViewResult View(IExcelBatch batch, string moduleName)
     {
         var result = new VbaViewResult { FilePath = batch.WorkbookPath, ModuleName = moduleName };
 
@@ -160,7 +160,7 @@ public partial class VbaCommands
             return result;
         }
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -261,7 +261,7 @@ public partial class VbaCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> ImportAsync(IExcelBatch batch, string moduleName, string vbaFile)
+    public OperationResult Import(IExcelBatch batch, string moduleName, string vbaFile)
     {
         var result = new OperationResult
         {
@@ -295,9 +295,9 @@ public partial class VbaCommands
             return CreateVbaTrustGuidance();
         }
 
-        string vbaCode = await File.ReadAllTextAsync(vbaFile);
+        string vbaCode = File.ReadAllText(vbaFile);
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -363,7 +363,7 @@ public partial class VbaCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> UpdateAsync(IExcelBatch batch, string moduleName, string vbaFile)
+    public OperationResult Update(IExcelBatch batch, string moduleName, string vbaFile)
     {
         var result = new OperationResult
         {
@@ -397,9 +397,9 @@ public partial class VbaCommands
             return CreateVbaTrustGuidance();
         }
 
-        string vbaCode = await File.ReadAllTextAsync(vbaFile);
+        string vbaCode = File.ReadAllText(vbaFile);
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -476,3 +476,4 @@ public partial class VbaCommands
         });
     }
 }
+

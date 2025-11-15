@@ -10,7 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class PowerQueryCommands
 {
     /// <inheritdoc />
-    public static async Task<OperationResult> LoadToAsync(IExcelBatch batch, string queryName, string sheetName)
+    public OperationResult LoadTo(IExcelBatch batch, string queryName, string sheetName)
     {
         var result = new OperationResult
         {
@@ -26,7 +26,7 @@ public partial class PowerQueryCommands
             return result;
         }
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? query = null;
             try
@@ -273,11 +273,11 @@ public partial class PowerQueryCommands
     }
 
     /// <inheritdoc />
-    public async Task<WorksheetListResult> ListExcelSourcesAsync(IExcelBatch batch)
+    public WorksheetListResult ListExcelSources(IExcelBatch batch)
     {
         var result = new WorksheetListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? worksheets = null;
             dynamic? names = null;
@@ -365,3 +365,4 @@ public partial class PowerQueryCommands
     }
 
 }
+

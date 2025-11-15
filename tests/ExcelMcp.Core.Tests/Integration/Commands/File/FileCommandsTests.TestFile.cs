@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.Core.Tests.Helpers;
+﻿using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.File;
@@ -13,11 +13,11 @@ public partial class FileCommandsTests
     public async Task Test_ExistingValidFile_ReturnsSuccess()
     {
         // Arrange - Create a valid file
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = await CoreTestHelper.CreateUniqueTestFile(
             nameof(FileCommandsTests), nameof(Test_ExistingValidFile_ReturnsSuccess), _tempDir);
 
         // Act
-        var result = await _fileCommands.TestAsync(testFile);
+        var result = _fileCommands.Test(testFile);
 
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
@@ -36,7 +36,7 @@ public partial class FileCommandsTests
         string testFile = Path.Join(_tempDir, $"NonExistent_{Guid.NewGuid():N}.xlsx");
 
         // Act
-        var result = await _fileCommands.TestAsync(testFile);
+        var result = _fileCommands.Test(testFile);
 
         // Assert
         Assert.False(result.Success);
@@ -60,7 +60,7 @@ public partial class FileCommandsTests
         System.IO.File.WriteAllText(testFile, "test content");
 
         // Act
-        var result = await _fileCommands.TestAsync(testFile);
+        var result = _fileCommands.Test(testFile);
 
         // Assert
         Assert.False(result.Success);

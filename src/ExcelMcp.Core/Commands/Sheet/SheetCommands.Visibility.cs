@@ -10,11 +10,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class SheetCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> SetVisibilityAsync(IExcelBatch batch, string sheetName, SheetVisibility visibility)
+    public OperationResult SetVisibility(IExcelBatch batch, string sheetName, SheetVisibility visibility)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-visibility" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             try
@@ -49,11 +49,11 @@ public partial class SheetCommands
 
     /// <inheritdoc />
     /// <inheritdoc />
-    public async Task<SheetVisibilityResult> GetVisibilityAsync(IExcelBatch batch, string sheetName)
+    public SheetVisibilityResult GetVisibility(IExcelBatch batch, string sheetName)
     {
         var result = new SheetVisibilityResult { FilePath = batch.WorkbookPath };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             try
@@ -88,23 +88,24 @@ public partial class SheetCommands
 
     /// <inheritdoc />
     /// <inheritdoc />
-    public async Task<OperationResult> ShowAsync(IExcelBatch batch, string sheetName)
+    public OperationResult Show(IExcelBatch batch, string sheetName)
     {
-        return await SetVisibilityAsync(batch, sheetName, SheetVisibility.Visible);
+        return SetVisibility(batch, sheetName, SheetVisibility.Visible);
     }
 
     /// <inheritdoc />
     /// <inheritdoc />
-    public async Task<OperationResult> HideAsync(IExcelBatch batch, string sheetName)
+    public OperationResult Hide(IExcelBatch batch, string sheetName)
     {
-        return await SetVisibilityAsync(batch, sheetName, SheetVisibility.Hidden);
+        return SetVisibility(batch, sheetName, SheetVisibility.Hidden);
     }
 
     /// <inheritdoc />
     /// <inheritdoc />
-    public async Task<OperationResult> VeryHideAsync(IExcelBatch batch, string sheetName)
+    public OperationResult VeryHide(IExcelBatch batch, string sheetName)
     {
-        return await SetVisibilityAsync(batch, sheetName, SheetVisibility.VeryHidden);
+        return SetVisibility(batch, sheetName, SheetVisibility.VeryHidden);
     }
 }
+
 

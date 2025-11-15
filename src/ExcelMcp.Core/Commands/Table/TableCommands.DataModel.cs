@@ -10,13 +10,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> AddToDataModelAsync(IExcelBatch batch, string tableName)
+    public OperationResult AddToDataModel(IExcelBatch batch, string tableName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "table-add-to-datamodel" };
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? model = null;
@@ -142,3 +142,4 @@ public partial class TableCommands
         });
     }
 }
+

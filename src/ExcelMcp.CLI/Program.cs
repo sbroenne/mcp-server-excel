@@ -6,7 +6,7 @@ namespace Sbroenne.ExcelMcp.CLI;
 
 internal sealed class Program
 {
-    private static async Task<int> Main(string[] args)
+    private static int Main(string[] args)
     {
         // Set console encoding for better international character support
         Console.OutputEncoding = System.Text.Encoding.UTF8;
@@ -67,17 +67,17 @@ internal sealed class Program
                 // Power Query commands
                 "pq-list" => powerQuery.List(args),
                 "pq-view" => powerQuery.View(args),
-                "pq-export" => await powerQuery.Export(args),
+                "pq-export" => powerQuery.Export(args),
                 "pq-sources" => powerQuery.Sources(args),
                 "pq-refresh" => powerQuery.Refresh(args),
                 "pq-delete" => powerQuery.Delete(args),
                 "pq-get-load-config" => powerQuery.GetLoadConfig(args),
 
                 // Power Query commands - Atomic operations
-                "pq-create" => await powerQuery.Create(args),
-                "pq-update" => await powerQuery.Update(args),
-                "pq-unload" => await powerQuery.Unload(args),
-                "pq-refresh-all" => await powerQuery.RefreshAll(args),
+                "pq-create" => powerQuery.Create(args),
+                "pq-update" => powerQuery.Update(args),
+                "pq-unload" => powerQuery.Unload(args),
+                "pq-refresh-all" => powerQuery.RefreshAll(args),
 
                 // Sheet commands (lifecycle only - data operations use range-* commands)
                 "sheet-list" => sheet.List(args),
@@ -236,12 +236,12 @@ internal sealed class Program
                 "conn-set-properties" => connection.SetProperties(args),
                 "conn-test" => connection.Test(args),
 
-                // Script commands
+                // VBA commands
                 "vba-list" => script.List(args),
                 "vba-view" => script.View(args),
                 "vba-export" => script.Export(args),
-                "vba-import" => await script.Import(args),
-                "vba-update" => await script.Update(args),
+                "vba-import" => script.Import(args),
+                "vba-update" => script.Update(args),
                 "vba-delete" => script.Delete(args),
                 "vba-run" => script.Run(args),
 

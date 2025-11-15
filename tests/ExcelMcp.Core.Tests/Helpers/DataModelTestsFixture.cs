@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
@@ -51,14 +51,14 @@ public class DataModelTestsFixture : IAsyncLifetime
         try
         {
             var fileCommands = new FileCommands();
-            var createFileResult = await fileCommands.CreateEmptyAsync(TestFilePath);
+            var createFileResult = fileCommands.CreateEmpty(TestFilePath);
             if (!createFileResult.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: File creation failed: {createFileResult.ErrorMessage}");
 
             CreationResult.FileCreated = true;
 
-            await using var batch = await ExcelSession.BeginBatchAsync(TestFilePath);
+            using var batch = ExcelSession.BeginBatch(TestFilePath);
 
             await CreateSalesTableAsync(batch);
             await CreateCustomersTableAsync(batch);
@@ -68,30 +68,30 @@ public class DataModelTestsFixture : IAsyncLifetime
             var tableCommands = new TableCommands();
             var dataModelCommands = new DataModelCommands();
 
-            var addSales = await tableCommands.AddToDataModelAsync(batch, "SalesTable");
+            var addSales = tableCommands.AddToDataModel(batch, "SalesTable");
             if (!addSales.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: AddToDataModel(SalesTable) failed: {addSales.ErrorMessage}");
 
-            var addCustomers = await tableCommands.AddToDataModelAsync(batch, "CustomersTable");
+            var addCustomers = tableCommands.AddToDataModel(batch, "CustomersTable");
             if (!addCustomers.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: AddToDataModel(CustomersTable) failed: {addCustomers.ErrorMessage}");
 
-            var addProducts = await tableCommands.AddToDataModelAsync(batch, "ProductsTable");
+            var addProducts = tableCommands.AddToDataModel(batch, "ProductsTable");
             if (!addProducts.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: AddToDataModel(ProductsTable) failed: {addProducts.ErrorMessage}");
 
             CreationResult.TablesLoadedToModel = 3;
 
-            var rel1 = await dataModelCommands.CreateRelationshipAsync(batch,
+            var rel1 = dataModelCommands.CreateRelationship(batch,
                 "SalesTable", "CustomerID", "CustomersTable", "CustomerID", active: true);
             if (!rel1.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: CreateRelationship(Sales→Customers) failed: {rel1.ErrorMessage}");
 
-            var rel2 = await dataModelCommands.CreateRelationshipAsync(batch,
+            var rel2 = dataModelCommands.CreateRelationship(batch,
                 "SalesTable", "ProductID", "ProductsTable", "ProductID", active: true);
             if (!rel2.Success)
                 throw new InvalidOperationException(
@@ -99,19 +99,19 @@ public class DataModelTestsFixture : IAsyncLifetime
 
             CreationResult.RelationshipsCreated = 2;
 
-            var m1 = await dataModelCommands.CreateMeasureAsync(batch, "SalesTable", "Total Sales",
+            var m1 = dataModelCommands.CreateMeasure(batch, "SalesTable", "Total Sales",
                 "SUM(SalesTable[Amount])", "Currency", "Total sales revenue");
             if (!m1.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: CreateMeasure(Total Sales) failed: {m1.ErrorMessage}");
 
-            var m2 = await dataModelCommands.CreateMeasureAsync(batch, "SalesTable", "Average Sale",
+            var m2 = dataModelCommands.CreateMeasure(batch, "SalesTable", "Average Sale",
                 "AVERAGE(SalesTable[Amount])", "Currency", "Average sale amount");
             if (!m2.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: CreateMeasure(Average Sale) failed: {m2.ErrorMessage}");
 
-            var m3 = await dataModelCommands.CreateMeasureAsync(batch, "SalesTable", "Total Customers",
+            var m3 = dataModelCommands.CreateMeasure(batch, "SalesTable", "Total Customers",
                 "DISTINCTCOUNT(SalesTable[CustomerID])", "WholeNumber", "Unique customer count");
             if (!m3.Success)
                 throw new InvalidOperationException(
@@ -122,7 +122,7 @@ public class DataModelTestsFixture : IAsyncLifetime
             // ═══════════════════════════════════════════════════════
             // TEST 6: Persistence (Save)
             // ═══════════════════════════════════════════════════════
-            await batch.SaveAsync();
+            batch.Save();
 
             sw.Stop();
             CreationResult.Success = true;
@@ -164,7 +164,7 @@ public class DataModelTestsFixture : IAsyncLifetime
     /// </summary>
     private static async Task CreateSalesTableAsync(IExcelBatch batch)
     {
-        await batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -226,7 +226,7 @@ public class DataModelTestsFixture : IAsyncLifetime
     /// </summary>
     private static async Task CreateCustomersTableAsync(IExcelBatch batch)
     {
-        await batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -281,7 +281,7 @@ public class DataModelTestsFixture : IAsyncLifetime
     /// </summary>
     private static async Task CreateProductsTableAsync(IExcelBatch batch)
     {
-        await batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;

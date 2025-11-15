@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.ComInterop.Session;
+﻿using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
@@ -35,16 +35,16 @@ public partial class PowerQueryCommandsTimeoutTests : IDisposable
     private async Task<string> CreateTestFileAsync(string testName)
     {
         string testFile = Path.Join(_tempDir, $"{testName}-{Guid.NewGuid():N}.xlsx");
-        await ExcelSession.CreateNew(testFile, isMacroEnabled: false, (ctx, ct) => 0);
+        ExcelSession.CreateNew(testFile, isMacroEnabled: false, (ctx, ct) => 0);
         return testFile;
     }
     /// <inheritdoc/>
 
     [Fact]
-    public async Task RefreshAsync_RequestsExtendedTimeout()
+    public async Task Refresh_RequestsExtendedTimeout()
     {
         // Arrange
-        string testFile = await CreateTestFileAsync(nameof(RefreshAsync_RequestsExtendedTimeout));
+        string testFile = await CreateTestFileAsync(nameof(Refresh_RequestsExtendedTimeout));
 
         // Create a simple Power Query
         string mCode = """
@@ -54,22 +54,22 @@ public partial class PowerQueryCommandsTimeoutTests : IDisposable
                 Source
             """;
         string mFile = Path.Join(_tempDir, "simple.pq");
-        await File.WriteAllTextAsync(mFile, mCode);
+        await File.WriteAllText(mFile, mCode);
 
         try
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+            using var batch = ExcelSession.BeginBatch(testFile);
 
             // Import query
-            var importResult = await _commands.CreateAsync(batch, "TestQuery", mFile, PowerQueryLoadMode.LoadToTable, "Sheet1");
+            var importResult = _commands.Create(batch, "TestQuery", mFile, PowerQueryLoadMode.LoadToTable, "Sheet1");
             Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
 
             // Act - Refresh should request 5-minute timeout (won't actually timeout in this test)
-            var refreshResult = await _commands.RefreshAsync(batch, "TestQuery");
+            var refreshResult = _commands.Refresh(batch, "TestQuery");
 
             // Assert - Verify refresh succeeded (timeout was sufficient)
             Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
-            _output.WriteLine("✓ RefreshAsync completed with extended timeout");
+            _output.WriteLine("✓ Refresh completed with extended timeout");
         }
         finally
         {
@@ -80,10 +80,10 @@ public partial class PowerQueryCommandsTimeoutTests : IDisposable
     /// <inheritdoc/>
 
     [Fact]
-    public async Task RefreshAsync_SlowQuery_DoesNotTimeoutWithExtendedTimeout()
+    public async Task Refresh_SlowQuery_DoesNotTimeoutWithExtendedTimeout()
     {
         // Arrange
-        string testFile = await CreateTestFileAsync(nameof(RefreshAsync_SlowQuery_DoesNotTimeoutWithExtendedTimeout));
+        string testFile = await CreateTestFileAsync(nameof(Refresh_SlowQuery_DoesNotTimeoutWithExtendedTimeout));
 
         // Create a query that takes some time (but less than 5 minutes)
         string mCode = """
@@ -93,18 +93,18 @@ public partial class PowerQueryCommandsTimeoutTests : IDisposable
                 Source
             """;
         string mFile = Path.Join(_tempDir, "slow.pq");
-        await File.WriteAllTextAsync(mFile, mCode);
+        await File.WriteAllText(mFile, mCode);
 
         try
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+            using var batch = ExcelSession.BeginBatch(testFile);
 
             // Import query
-            var importResult = await _commands.CreateAsync(batch, "SlowQuery", mFile, PowerQueryLoadMode.LoadToTable, "Sheet1");
+            var importResult = _commands.Create(batch, "SlowQuery", mFile, PowerQueryLoadMode.LoadToTable, "Sheet1");
             Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
 
             // Act - Refresh with extended timeout
-            var refreshResult = await _commands.RefreshAsync(batch, "SlowQuery");
+            var refreshResult = _commands.Refresh(batch, "SlowQuery");
 
             // Assert - Should complete successfully
             Assert.True(refreshResult.Success, $"Refresh should succeed with extended timeout: {refreshResult.ErrorMessage}");

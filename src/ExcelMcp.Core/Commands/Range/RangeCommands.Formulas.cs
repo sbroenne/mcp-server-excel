@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 public partial class RangeCommands
 {
     /// <inheritdoc />
-    public async Task<RangeFormulaResult> GetFormulasAsync(IExcelBatch batch, string sheetName, string rangeAddress)
+    public RangeFormulaResult GetFormulas(IExcelBatch batch, string sheetName, string rangeAddress)
     {
         var result = new RangeFormulaResult
         {
@@ -20,7 +20,7 @@ public partial class RangeCommands
             RangeAddress = rangeAddress
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             try
@@ -98,11 +98,11 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> SetFormulasAsync(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>> formulas)
+    public OperationResult SetFormulas(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>> formulas)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-formulas" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             try
@@ -158,3 +158,4 @@ public partial class RangeCommands
         });
     }
 }
+

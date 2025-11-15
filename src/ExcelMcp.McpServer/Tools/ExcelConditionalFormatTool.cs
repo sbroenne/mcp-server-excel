@@ -94,27 +94,27 @@ Example: Highlight cells > 100 in red:
             // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
             return action switch
             {
-                ConditionalFormatAction.AddRule => await AddRuleAsync(
+                ConditionalFormatAction.AddRule => AddRuleAsync(
                     conditionalFormattingCommands, sessionId, sheetName, rangeAddress, ruleType, operatorType,
                     formula1, formula2, interiorColor, interiorPattern, fontColor, fontBold, fontItalic,
                     borderStyle, borderColor),
-                ConditionalFormatAction.ClearRules => await ClearRulesAsync(
+                ConditionalFormatAction.ClearRules => ClearRulesAsync(
                     conditionalFormattingCommands, sessionId, sheetName, rangeAddress),
                 _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
         }
         catch (Exception ex)
         {
-            return JsonSerializer.Serialize(new
+            return Task.FromResult(JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
                 isError = true
-            }, ExcelToolsBase.JsonOptions);
+            }, ExcelToolsBase.JsonOptions));
         }
     }
 
-    private static async Task<string> AddRuleAsync(
+    private static string AddRuleAsync(
         ConditionalFormattingCommands commands,
         string sessionId,
         string? sheetName,
@@ -141,9 +141,9 @@ Example: Highlight cells > 100 in red:
         if (string.IsNullOrEmpty(formula1))
             throw new ArgumentException("formula1 is required for add-rule action", nameof(formula1));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.AddRuleAsync(
+            batch => commands.AddRule(
                 batch,
                 sheetName,
                 rangeAddress,
@@ -169,7 +169,7 @@ Example: Highlight cells > 100 in red:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ClearRulesAsync(
+    private static string ClearRulesAsync(
         ConditionalFormattingCommands commands,
         string sessionId,
         string? sheetName,
@@ -180,9 +180,9 @@ Example: Highlight cells > 100 in red:
         if (string.IsNullOrEmpty(rangeAddress))
             throw new ArgumentException("rangeAddress is required for clear-rules action", nameof(rangeAddress));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ClearRulesAsync(batch, sheetName, rangeAddress));
+            batch => commands.ClearRules(batch, sheetName, rangeAddress));
 
         return JsonSerializer.Serialize(new
         {
@@ -194,3 +194,4 @@ Example: Highlight cells > 100 in red:
         }, ExcelToolsBase.JsonOptions);
     }
 }
+

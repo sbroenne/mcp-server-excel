@@ -11,9 +11,9 @@ namespace Sbroenne.ExcelMcp.Core.Commands.QueryTable;
 public partial class QueryTableCommands : IQueryTableCommands
 {
     /// <inheritdoc />
-    public async Task<QueryTableListResult> ListAsync(IExcelBatch batch)
+    public QueryTableListResult List(IExcelBatch batch)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             var result = new QueryTableListResult { FilePath = batch.WorkbookPath };
             var queryTables = new List<QueryTableInfo>();
@@ -67,9 +67,9 @@ public partial class QueryTableCommands : IQueryTableCommands
     }
 
     /// <inheritdoc />
-    public async Task<QueryTableInfoResult> GetAsync(IExcelBatch batch, string queryTableName)
+    public QueryTableInfoResult Read(IExcelBatch batch, string queryTableName)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             var result = new QueryTableInfoResult { FilePath = batch.WorkbookPath };
 
@@ -98,9 +98,9 @@ public partial class QueryTableCommands : IQueryTableCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> RefreshAsync(IExcelBatch batch, string queryTableName, TimeSpan? timeout = null)
+    public OperationResult Refresh(IExcelBatch batch, string queryTableName, TimeSpan? timeout = null)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             var result = new OperationResult
             {
@@ -133,13 +133,13 @@ public partial class QueryTableCommands : IQueryTableCommands
             }
 
             return result;
-        }, timeout: timeout);
+        });
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> RefreshAllAsync(IExcelBatch batch, TimeSpan? timeout = null)
+    public OperationResult RefreshAll(IExcelBatch batch, TimeSpan? timeout = null)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             var result = new OperationResult
             {
@@ -215,13 +215,13 @@ public partial class QueryTableCommands : IQueryTableCommands
             }
 
             return result;
-        }, timeout: timeout);
+        });
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> DeleteAsync(IExcelBatch batch, string queryTableName)
+    public OperationResult Delete(IExcelBatch batch, string queryTableName)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             var result = new OperationResult
             {
@@ -400,3 +400,4 @@ public partial class QueryTableCommands : IQueryTableCommands
 
     #endregion
 }
+

@@ -10,11 +10,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class SheetCommands
 {
     /// <inheritdoc />
-    public async Task<WorksheetListResult> ListAsync(IExcelBatch batch)
+    public WorksheetListResult List(IExcelBatch batch)
     {
         var result = new WorksheetListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheets = null;
             try
@@ -51,11 +51,11 @@ public partial class SheetCommands
 
     /// <inheritdoc />
     /// <inheritdoc />
-    public async Task<OperationResult> CreateAsync(IExcelBatch batch, string sheetName)
+    public OperationResult Create(IExcelBatch batch, string sheetName)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "create-sheet" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheets = null;
             dynamic? newSheet = null;
@@ -83,11 +83,11 @@ public partial class SheetCommands
 
     /// <inheritdoc />
     /// <inheritdoc />
-    public async Task<OperationResult> RenameAsync(IExcelBatch batch, string oldName, string newName)
+    public OperationResult Rename(IExcelBatch batch, string oldName, string newName)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "rename-sheet" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             try
@@ -118,11 +118,11 @@ public partial class SheetCommands
 
     /// <inheritdoc />
     /// <inheritdoc />
-    public async Task<OperationResult> CopyAsync(IExcelBatch batch, string sourceName, string targetName)
+    public OperationResult Copy(IExcelBatch batch, string sourceName, string targetName)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "copy-sheet" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sourceSheet = null;
             dynamic? sheets = null;
@@ -163,11 +163,11 @@ public partial class SheetCommands
 
     /// <inheritdoc />
     /// <inheritdoc />
-    public async Task<OperationResult> DeleteAsync(IExcelBatch batch, string sheetName)
+    public OperationResult Delete(IExcelBatch batch, string sheetName)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "delete-sheet" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             try
@@ -196,3 +196,4 @@ public partial class SheetCommands
         });
     }
 }
+

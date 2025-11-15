@@ -10,7 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 public partial class RangeCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> ValidateRangeAsync(
+    public OperationResult ValidateRange(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,
@@ -28,7 +28,7 @@ public partial class RangeCommands
         bool? ignoreBlank,
         bool? showDropdown)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -158,12 +158,12 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<RangeValidationResult> GetValidationAsync(
+    public RangeValidationResult GetValidation(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -260,12 +260,12 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> RemoveValidationAsync(
+    public OperationResult RemoveValidation(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -352,3 +352,4 @@ public partial class RangeCommands
         };
     }
 }
+
