@@ -102,18 +102,18 @@ POWER QUERY AUTO-REDIRECT:
                 ConnectionAction.LoadTo => await LoadToWorksheetAsync(connectionCommands, sessionId, connectionName, targetPath),
                 ConnectionAction.GetProperties => await GetPropertiesAsync(connectionCommands, sessionId, connectionName),
                 ConnectionAction.SetProperties => await SetPropertiesAsync(connectionCommands, sessionId, connectionName, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod),
-                _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action: {action} ({action.ToActionString()})")
+                _ => throw new ArgumentException(
+                    $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
-        }
-        catch (ModelContextProtocol.McpException)
-        {
-            throw; // Re-throw MCP exceptions as-is
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
-            throw; // Unreachable but satisfies compiler
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 
@@ -138,7 +138,7 @@ POWER QUERY AUTO-REDIRECT:
     private static async Task<string> ViewConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName)
     {
         if (string.IsNullOrEmpty(connectionName))
-            throw new ModelContextProtocol.McpException("connectionName is required for view action");
+            throw new ArgumentException("connectionName is required for view action", nameof(connectionName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -159,10 +159,10 @@ POWER QUERY AUTO-REDIRECT:
     private static async Task<string> ImportConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName, string? jsonPath)
     {
         if (string.IsNullOrEmpty(connectionName))
-            throw new ModelContextProtocol.McpException("connectionName is required for import action");
+            throw new ArgumentException("connectionName is required for import action", nameof(connectionName));
 
         if (string.IsNullOrEmpty(jsonPath))
-            throw new ModelContextProtocol.McpException("targetPath (JSON file path) is required for import action");
+            throw new ArgumentException("targetPath (JSON file path) is required for import action", nameof(jsonPath));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -179,10 +179,10 @@ POWER QUERY AUTO-REDIRECT:
     private static async Task<string> ExportConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName, string? jsonPath)
     {
         if (string.IsNullOrEmpty(connectionName))
-            throw new ModelContextProtocol.McpException("connectionName is required for export action");
+            throw new ArgumentException("connectionName is required for export action", nameof(connectionName));
 
         if (string.IsNullOrEmpty(jsonPath))
-            throw new ModelContextProtocol.McpException("targetPath (JSON file path) is required for export action");
+            throw new ArgumentException("targetPath (JSON file path) is required for export action", nameof(jsonPath));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -199,10 +199,10 @@ POWER QUERY AUTO-REDIRECT:
     private static async Task<string> UpdateConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName, string? jsonPath)
     {
         if (string.IsNullOrEmpty(connectionName))
-            throw new ModelContextProtocol.McpException("connectionName is required for update action");
+            throw new ArgumentException("connectionName is required for update action", nameof(connectionName));
 
         if (string.IsNullOrEmpty(jsonPath))
-            throw new ModelContextProtocol.McpException("targetPath (JSON file path) is required for update action");
+            throw new ArgumentException("targetPath (JSON file path) is required for update action", nameof(jsonPath));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -219,7 +219,7 @@ POWER QUERY AUTO-REDIRECT:
     private static async Task<string> RefreshConnectionAsync(ConnectionCommands commands, string excelPath, string sessionId, string? connectionName, double? timeoutMinutes)
     {
         if (string.IsNullOrEmpty(connectionName))
-            throw new ModelContextProtocol.McpException("connectionName is required for refresh action");
+            throw new ArgumentException("connectionName is required for refresh action", nameof(connectionName));
 
         try
         {
@@ -299,7 +299,7 @@ POWER QUERY AUTO-REDIRECT:
     private static async Task<string> DeleteConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName)
     {
         if (string.IsNullOrEmpty(connectionName))
-            throw new ModelContextProtocol.McpException("connectionName is required for delete action");
+            throw new ArgumentException("connectionName is required for delete action", nameof(connectionName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -316,10 +316,10 @@ POWER QUERY AUTO-REDIRECT:
     private static async Task<string> LoadToWorksheetAsync(ConnectionCommands commands, string sessionId, string? connectionName, string? sheetName)
     {
         if (string.IsNullOrEmpty(connectionName))
-            throw new ModelContextProtocol.McpException("connectionName is required for loadto action");
+            throw new ArgumentException("connectionName is required for loadto action", nameof(connectionName));
 
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("targetPath (sheet name) is required for loadto action");
+            throw new ArgumentException("targetPath (sheet name) is required for loadto action", nameof(sheetName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -336,7 +336,7 @@ POWER QUERY AUTO-REDIRECT:
     private static async Task<string> GetPropertiesAsync(ConnectionCommands commands, string sessionId, string? connectionName)
     {
         if (string.IsNullOrEmpty(connectionName))
-            throw new ModelContextProtocol.McpException("connectionName is required for properties action");
+            throw new ArgumentException("connectionName is required for properties action", nameof(connectionName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -358,7 +358,7 @@ POWER QUERY AUTO-REDIRECT:
         bool? backgroundQuery, bool? refreshOnFileOpen, bool? savePassword, int? refreshPeriod)
     {
         if (string.IsNullOrEmpty(connectionName))
-            throw new ModelContextProtocol.McpException("connectionName is required for set-properties action");
+            throw new ArgumentException("connectionName is required for set-properties action", nameof(connectionName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -375,7 +375,7 @@ POWER QUERY AUTO-REDIRECT:
     private static async Task<string> TestConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName)
     {
         if (string.IsNullOrEmpty(connectionName))
-            throw new ModelContextProtocol.McpException("connectionName is required for test action");
+            throw new ArgumentException("connectionName is required for test action", nameof(connectionName));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,
@@ -399,10 +399,10 @@ POWER QUERY AUTO-REDIRECT:
         string? description)
     {
         if (string.IsNullOrWhiteSpace(connectionName))
-            throw new ModelContextProtocol.McpException("connectionName is required for create action");
+            throw new ArgumentException("connectionName is required for create action", nameof(connectionName));
 
         if (string.IsNullOrWhiteSpace(connectionString))
-            throw new ModelContextProtocol.McpException("connectionString is required for create action");
+            throw new ArgumentException("connectionString is required for create action", nameof(connectionString));
 
         var result = await ExcelToolsBase.WithSessionAsync(
             sessionId,

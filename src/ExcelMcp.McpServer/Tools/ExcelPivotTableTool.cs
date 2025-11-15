@@ -98,17 +98,17 @@ public static class ExcelPivotTableTool
                 PivotTableAction.GetData => await GetDataAsync(commands, sessionId, pivotTableName),
                 PivotTableAction.SetFieldFilter => await SetFieldFilterAsync(commands, sessionId, pivotTableName, fieldName, filterValues),
                 PivotTableAction.SortField => await SortFieldAsync(commands, sessionId, pivotTableName, fieldName, sortDirection),
-                _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
+                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
-        }
-        catch (ModelContextProtocol.McpException)
-        {
-            throw; // Re-throw MCP exceptions as-is
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
-            throw; // Unreachable but satisfies compiler
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 

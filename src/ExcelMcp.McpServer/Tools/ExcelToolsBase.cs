@@ -50,7 +50,7 @@ public static class ExcelToolsBase
     {
         if (string.IsNullOrWhiteSpace(sessionId))
         {
-            throw new McpException("sessionId is required. Use excel_file 'open' action to start a session.");
+            throw new ArgumentException("sessionId is required. Use excel_file 'open' action to start a session.", nameof(sessionId));
         }
 
         var batch = SessionManager.GetSession(sessionId);
@@ -64,36 +64,34 @@ public static class ExcelToolsBase
                 1 => $"Session '{sessionId}' not found. Active session: {activeSessionIds[0]}",
                 _ => $"Session '{sessionId}' not found. {sessionCount} active sessions exist."
             };
-            throw new McpException(errorMessage);
+            throw new InvalidOperationException(errorMessage);
         }
 
         return await action(batch);
     }
 
     /// <summary>
-    /// Throws MCP exception for unknown actions.
-    /// SDK Pattern: Use McpException for parameter validation errors.
+    /// Throws exception for unknown actions.
     /// </summary>
     /// <param name="action">The invalid action that was attempted</param>
     /// <param name="supportedActions">List of supported actions for this tool</param>
-    /// <exception cref="McpException">Always throws with descriptive error message</exception>
+    /// <exception cref="ArgumentException">Always throws with descriptive error message</exception>
     public static void ThrowUnknownAction(string action, params string[] supportedActions)
     {
-        throw new McpException(
-            $"Unknown action '{action}'. Supported: {string.Join(", ", supportedActions)}");
+        throw new ArgumentException(
+            $"Unknown action '{action}'. Supported: {string.Join(", ", supportedActions)}", nameof(action));
     }
 
     /// <summary>
-    /// Throws MCP exception for missing required parameters.
-    /// SDK Pattern: Use McpException for parameter validation errors.
+    /// Throws exception for missing required parameters.
     /// </summary>
     /// <param name="parameterName">Name of the missing parameter</param>
     /// <param name="action">The action that requires the parameter</param>
-    /// <exception cref="McpException">Always throws with descriptive error message</exception>
+    /// <exception cref="ArgumentException">Always throws with descriptive error message</exception>
     public static void ThrowMissingParameter(string parameterName, string action)
     {
-        throw new McpException(
-            $"{parameterName} is required for {action} action");
+        throw new ArgumentException(
+            $"{parameterName} is required for {action} action", parameterName);
     }
 
     /// <summary>

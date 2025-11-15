@@ -98,18 +98,18 @@ public static class TableTool
                 TableAction.SortMulti => await SortTableMulti(tableCommands, sessionId, tableName, filterValues),
                 TableAction.GetColumnNumberFormat => await GetColumnNumberFormat(tableCommands, sessionId, tableName, newName),
                 TableAction.SetColumnNumberFormat => await SetColumnNumberFormat(tableCommands, sessionId, tableName, newName, formatCode),
-                _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action: {action} ({action.ToActionString()})")
+                _ => throw new ArgumentException(
+                    $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
-        }
-        catch (ModelContextProtocol.McpException)
-        {
-            throw; // Re-throw MCP exceptions as-is
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
-            throw; // Unreachable but satisfies compiler
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 

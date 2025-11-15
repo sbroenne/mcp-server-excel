@@ -89,12 +89,8 @@ TAB COLORS (set-tab-color):
                 WorksheetAction.Show => await ShowAsync(sheetCommands, sessionId, sheetName),
                 WorksheetAction.Hide => await HideAsync(sheetCommands, sessionId, sheetName),
                 WorksheetAction.VeryHide => await VeryHideAsync(sheetCommands, sessionId, sheetName),
-                _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
+                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
-        }
-        catch (ModelContextProtocol.McpException)
-        {
-            throw;
         }
         catch (TimeoutException ex)
         {
@@ -118,8 +114,12 @@ TAB COLORS (set-tab-color):
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString());
-            throw;
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 
@@ -314,7 +314,7 @@ TAB COLORS (set-tab-color):
             "visible" => SheetVisibility.Visible,
             "hidden" => SheetVisibility.Hidden,
             "veryhidden" => SheetVisibility.VeryHidden,
-            _ => throw new ModelContextProtocol.McpException($"Invalid visibility value '{visibility}'. Use: visible, hidden, or veryhidden")
+            _ => throw new ArgumentException($"Invalid visibility value '{visibility}'. Use: visible, hidden, or veryhidden", nameof(visibility))
         };
 
         var result = await ExcelToolsBase.WithSessionAsync(

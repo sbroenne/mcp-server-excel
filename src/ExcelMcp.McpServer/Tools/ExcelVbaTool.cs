@@ -75,17 +75,18 @@ public static class ExcelVbaTool
                 VbaAction.Update => await UpdateVbaScriptAsync(vbaCommands, sessionId, moduleName, sourcePath),
                 VbaAction.Run => await RunVbaScriptAsync(vbaCommands, sessionId, moduleName, parameters),
                 VbaAction.Delete => await DeleteVbaScriptAsync(vbaCommands, sessionId, moduleName),
-                _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
+                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
-        }
-        catch (ModelContextProtocol.McpException)
-        {
-            throw;
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
-            throw;
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
+                filePath = excelPath,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 

@@ -89,17 +89,17 @@ public static class ExcelQueryTableTool
                 QueryTableAction.RefreshAll => await RefreshAllQueryTablesAsync(queryTableCommands, sessionId),
                 QueryTableAction.UpdateProperties => await UpdatePropertiesAsync(queryTableCommands, sessionId, queryTableName, backgroundQuery, refreshOnFileOpen, savePassword, preserveColumnInfo, preserveFormatting, adjustColumnWidth),
                 QueryTableAction.Delete => await DeleteQueryTableAsync(queryTableCommands, sessionId, queryTableName),
-                _ => throw new ModelContextProtocol.McpException($"Unknown action: {action}")
+                _ => throw new ArgumentException($"Unknown action: {action}", nameof(action))
             };
-        }
-        catch (ModelContextProtocol.McpException)
-        {
-            throw;
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
-            throw;
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 

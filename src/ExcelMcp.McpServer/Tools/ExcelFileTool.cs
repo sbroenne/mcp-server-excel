@@ -61,17 +61,18 @@ FILE FORMATS:
                     excelPath!.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase)),
                 FileAction.CloseWorkbook => CloseWorkbook(excelPath!),
                 FileAction.Test => await TestFileAsync(fileCommands, excelPath!),
-                _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
+                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
-        }
-        catch (ModelContextProtocol.McpException)
-        {
-            throw; // Re-throw MCP exceptions as-is
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
-            throw; // Unreachable but satisfies compiler
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
+                filePath = excelPath,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 
@@ -83,7 +84,7 @@ FILE FORMATS:
     {
         if (string.IsNullOrWhiteSpace(excelPath))
         {
-            throw new ModelContextProtocol.McpException("excelPath is required for 'open' action");
+            throw new ArgumentException("excelPath is required for 'open' action", nameof(excelPath));
         }
 
         if (!File.Exists(excelPath))
@@ -137,29 +138,42 @@ FILE FORMATS:
     /// </summary>
     private static async Task<string> SaveSessionAsync(string sessionId)
     {
-        if (string.IsNullOrWhiteSpace(sessionId))
+        if (string.IsNullOrEmpty(sessionId))
         {
-            throw new ModelContextProtocol.McpException("sessionId is required for 'save' action");
+            throw new ArgumentException("sessionId is required for 'save' action", nameof(sessionId));
         }
 
-        bool success = await ExcelToolsBase.GetSessionManager().SaveSessionAsync(sessionId);
+        try
+        {
+            bool success = await ExcelToolsBase.GetSessionManager().SaveSessionAsync(sessionId);
 
-        if (success)
+            if (success)
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    sessionId
+                }, ExcelToolsBase.JsonOptions);
+            }
+
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                sessionId,
+                errorMessage = $"Session '{sessionId}' not found",
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
         {
             return JsonSerializer.Serialize(new
             {
-                success = true,
-                sessionId
+                success = false,
+                sessionId,
+                errorMessage = $"Cannot save session '{sessionId}': {ex.Message}",
+                isError = true
             }, ExcelToolsBase.JsonOptions);
         }
-
-        return JsonSerializer.Serialize(new
-        {
-            success = false,
-            sessionId,
-            errorMessage = $"Session '{sessionId}' not found",
-            isError = true
-        }, ExcelToolsBase.JsonOptions);
     }
 
     /// <summary>
@@ -170,27 +184,40 @@ FILE FORMATS:
     {
         if (string.IsNullOrWhiteSpace(sessionId))
         {
-            throw new ModelContextProtocol.McpException("sessionId is required for 'close' action");
+            throw new ArgumentException("sessionId is required for 'close' action", nameof(sessionId));
         }
 
-        bool success = await ExcelToolsBase.GetSessionManager().CloseSessionAsync(sessionId);
+        try
+        {
+            bool success = await ExcelToolsBase.GetSessionManager().CloseSessionAsync(sessionId);
 
-        if (success)
+            if (success)
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    sessionId
+                }, ExcelToolsBase.JsonOptions);
+            }
+
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                sessionId,
+                errorMessage = $"Session '{sessionId}' not found",
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
         {
             return JsonSerializer.Serialize(new
             {
-                success = true,
-                sessionId
+                success = false,
+                sessionId,
+                errorMessage = $"Cannot close session '{sessionId}': {ex.Message}",
+                isError = true
             }, ExcelToolsBase.JsonOptions);
         }
-
-        return JsonSerializer.Serialize(new
-        {
-            success = false,
-            sessionId,
-            errorMessage = $"Session '{sessionId}' not found",
-            isError = true
-        }, ExcelToolsBase.JsonOptions);
     }
 
     /// <summary>
@@ -247,7 +274,7 @@ FILE FORMATS:
     {
         if (string.IsNullOrWhiteSpace(excelPath))
         {
-            throw new ModelContextProtocol.McpException("excelPath is required for 'test' action");
+            throw new ArgumentException("excelPath is required for 'test' action", nameof(excelPath));
         }
 
         var result = await fileCommands.TestAsync(excelPath);

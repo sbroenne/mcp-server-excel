@@ -98,17 +98,17 @@ OPERATIONS GUIDANCE:
                 PowerQueryAction.Unload => await UnloadPowerQueryAsync(powerQueryCommands, sessionId, queryName),
                 PowerQueryAction.RefreshAll => await RefreshAllPowerQueriesAsync(powerQueryCommands, sessionId),
 
-                _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
+                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
-        }
-        catch (ModelContextProtocol.McpException)
-        {
-            throw; // Re-throw MCP exceptions as-is
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString());
-            throw; // Unreachable but satisfies compiler
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 
