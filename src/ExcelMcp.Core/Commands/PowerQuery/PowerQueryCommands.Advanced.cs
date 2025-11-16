@@ -70,6 +70,25 @@ public partial class PowerQueryCommands
                         targetSheet = sheets.Add();
                         targetSheet.Name = sheetName;
                     }
+                    else
+                    {
+                        // Sheet already exists - check if it has QueryTables
+                        dynamic? queryTables = null;
+                        try
+                        {
+                            queryTables = targetSheet.QueryTables;
+                            if (queryTables.Count > 0)
+                            {
+                                result.Success = false;
+                                result.ErrorMessage = $"Cannot load query to sheet '{sheetName}': worksheet already has QueryTables. Delete sheet first or use a different sheet name.";
+                                return result;
+                            }
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref queryTables);
+                        }
+                    }
                 }
                 finally
                 {

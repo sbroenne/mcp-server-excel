@@ -105,12 +105,12 @@ public partial class ConnectionCommands
                 result.IsPowerQuery = PowerQueryHelpers.IsPowerQueryConnection(conn);
 
                 // Get connection string (raw for LLM usage - sanitization removed)
-                string? rawConnectionString = GetConnectionString(conn);
+                string? rawConnectionString = ConnectionHelpers.GetConnectionString(conn);
                 result.ConnectionString = rawConnectionString ?? "";
 
                 // Get command text and type
-                result.CommandText = GetCommandText(conn);
-                result.CommandType = GetCommandType(conn);
+                result.CommandText = ConnectionHelpers.GetCommandText(conn);
+                result.CommandType = ConnectionHelpers.GetCommandType(conn);
 
                 // Build comprehensive JSON definition
                 var definition = new

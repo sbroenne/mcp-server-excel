@@ -79,7 +79,7 @@ public partial class ConnectionCommands
                 PowerQueryHelpers.RemoveQueryTables(ctx.Book, connectionName);
 
                 // Create QueryTable to load data
-                var options = new PowerQueryHelpers.QueryTableOptions
+                var options = new PowerQueryHelpers.QueryTableCreateOptions
                 {
                     Name = connectionName,
                     RefreshImmediately = true
@@ -143,7 +143,7 @@ public partial class ConnectionCommands
                 }
 
                 // For other connection types (OLEDB, ODBC), validate connection string
-                string? connectionString = GetConnectionString(conn);
+                string? connectionString = ConnectionHelpers.GetConnectionString(conn);
 
                 if (string.IsNullOrWhiteSpace(connectionString))
                 {

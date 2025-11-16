@@ -150,77 +150,129 @@ public static class PowerQueryHelpers
     }
 
     /// <summary>
-    /// Options for creating QueryTable connections
+    /// Unified options for creating QueryTables from any source (Power Query, connections, custom)
     /// </summary>
-    public class QueryTableOptions
+    public class QueryTableCreateOptions
     {
         /// <summary>
-        /// Name of the query or connection
+        /// Name of the QueryTable (required)
         /// </summary>
         public required string Name { get; init; }
 
         /// <summary>
-        /// Whether to refresh data in background
+        /// Target range for QueryTable (default: "A1")
+        /// </summary>
+        public string Range { get; init; } = "A1";
+
+        /// <summary>
+        /// Connection string (optional - will be auto-generated for Power Query if not provided)
+        /// </summary>
+        public string? ConnectionString { get; init; }
+
+        /// <summary>
+        /// Command text/SQL query (optional - will be auto-generated for Power Query if not provided)
+        /// </summary>
+        public string? CommandText { get; init; }
+
+        /// <summary>
+        /// Whether to clear worksheet data before creating QueryTable (default: false)
+        /// Set to true for Power Query scenarios to prevent column accumulation
+        /// </summary>
+        public bool ClearWorksheet { get; init; }
+
+        /// <summary>
+        /// Whether to refresh data in background (default: false for synchronous behavior)
         /// </summary>
         public bool BackgroundQuery { get; init; }
 
         /// <summary>
-        /// Whether to refresh data when file opens
+        /// Whether to refresh data when file opens (default: false)
         /// </summary>
         public bool RefreshOnFileOpen { get; init; }
 
         /// <summary>
-        /// Whether to save password in connection
+        /// Whether to save password in connection (default: false for security)
         /// </summary>
         public bool SavePassword { get; init; }
 
         /// <summary>
-        /// Whether to preserve column information
+        /// Whether to preserve column information (default: true)
         /// IMPORTANT: Set to FALSE to allow column structure changes when query is updated
         /// If TRUE, column structure is locked at QueryTable creation time
         /// </summary>
-        public bool PreserveColumnInfo { get; init; }
+        public bool PreserveColumnInfo { get; init; } = true;
 
         /// <summary>
-        /// Whether to preserve formatting
+        /// Whether to preserve formatting (default: true)
         /// </summary>
         public bool PreserveFormatting { get; init; } = true;
 
         /// <summary>
-        /// Whether to auto-adjust column width
+        /// Whether to auto-adjust column width (default: true)
         /// </summary>
         public bool AdjustColumnWidth { get; init; } = true;
 
         /// <summary>
-        /// Whether to refresh immediately after creation
+        /// Whether to refresh immediately after creation (default: true for immediate feedback)
         /// </summary>
-        public bool RefreshImmediately { get; init; }
+        public bool RefreshImmediately { get; init; } = true;
     }
 
     /// <summary>
-    /// Creates a QueryTable connection that loads data from a Power Query to a worksheet
+    /// Unified method to create QueryTable from any source (Power Query, connection, custom)
+    /// This is the single source of truth for QueryTable creation logic
     /// </summary>
     /// <param name="targetSheet">Target worksheet COM object</param>
-    /// <param name="queryName">Name of the Power Query</param>
     /// <param name="options">QueryTable configuration options</param>
-    public static void CreateQueryTable(dynamic targetSheet, string queryName, QueryTableOptions? options = null)
+    /// <param name="queryName">Name of Power Query (optional - used to auto-generate connection string if not provided in options)</param>
+    public static void CreateQueryTable(dynamic targetSheet, QueryTableCreateOptions options, string? queryName = null)
     {
-        options ??= new QueryTableOptions { Name = queryName };
-
+        dynamic? usedRange = null;
         dynamic? queryTables = null;
         dynamic? queryTable = null;
         dynamic? range = null;
 
         try
         {
+            // Clear worksheet if requested (Power Query scenarios to prevent column accumulation)
+            if (options.ClearWorksheet)
+            {
+                try
+                {
+                    usedRange = targetSheet.UsedRange;
+                    usedRange.Clear();
+                }
+                catch
+                {
+                    // Ignore errors if worksheet is empty
+                }
+            }
+
             queryTables = targetSheet.QueryTables;
+            range = targetSheet.Range[options.Range];
 
-            // Connection string for Power Query (uses Microsoft.Mashup.OleDb provider)
-            string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
-            string commandText = $"SELECT * FROM [{queryName}]";
+            // Determine connection string and command text
+            string connectionString;
+            string commandText;
 
-            // Create QueryTable at cell A1
-            range = targetSheet.Range["A1"];
+            if (!string.IsNullOrWhiteSpace(options.ConnectionString))
+            {
+                // Use provided connection string (for connections or custom scenarios)
+                connectionString = options.ConnectionString;
+                commandText = options.CommandText ?? "";
+            }
+            else if (!string.IsNullOrWhiteSpace(queryName))
+            {
+                // Auto-generate for Power Query
+                connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
+                commandText = $"SELECT * FROM [{queryName}]";
+            }
+            else
+            {
+                throw new ArgumentException("Either ConnectionString or queryName must be provided");
+            }
+
+            // Create QueryTable
             queryTable = queryTables.Add(connectionString, range, commandText);
 
             // Configure QueryTable properties
@@ -242,6 +294,7 @@ public static class PowerQueryHelpers
         finally
         {
             ComUtilities.Release(ref range);
+            ComUtilities.Release(ref usedRange);
             ComUtilities.Release(ref queryTable);
             ComUtilities.Release(ref queryTables);
         }

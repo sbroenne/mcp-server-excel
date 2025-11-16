@@ -1,6 +1,8 @@
+#pragma warning disable IDE0005 // Using directive is necessary for ConnectionHelpers
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Connections;
+#pragma warning restore IDE0005
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -82,55 +84,6 @@ public partial class PowerQueryCommands
         {
             ComUtilities.Release(ref worksheets);
             ComUtilities.Release(ref connections);
-        }
-    }
-
-    /// <summary>
-    /// Helper method to create a QueryTable connection that loads data to worksheet
-    /// </summary>
-    private static void CreateQueryTableConnection(dynamic workbook, dynamic targetSheet, string queryName)
-    {
-        try
-        {
-            // Ensure the query exists and is accessible
-            dynamic query = ComUtilities.FindQuery(workbook, queryName);
-            if (query == null)
-            {
-                throw new InvalidOperationException($"Query '{queryName}' not found");
-            }
-
-            // Get the QueryTables collection
-            dynamic queryTables = targetSheet.QueryTables;
-
-            // Build connection string for Power Query
-            string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
-            string commandText = $"SELECT * FROM [{queryName}]";
-
-            // Get the target range - ensure it's valid
-            dynamic startRange = targetSheet.Range["A1"];
-
-            // Create the QueryTable
-            dynamic queryTable = queryTables.Add(connectionString, startRange, commandText);
-            queryTable.Name = queryName.Replace(" ", "_");
-            queryTable.RefreshStyle = 1; // xlInsertDeleteCells
-            queryTable.BackgroundQuery = false;
-            queryTable.PreserveColumnInfo = false;  // Allow column structure changes when M code updates
-            queryTable.PreserveFormatting = true;
-            queryTable.AdjustColumnWidth = true;
-            queryTable.RefreshOnFileOpen = false;
-            queryTable.SavePassword = false;
-
-            // Refresh to load data immediately
-            queryTable.Refresh(false);
-        }
-        catch (COMException comEx)
-        {
-            // Provide more detailed error information
-            string hexCode = $"0x{comEx.HResult:X}";
-            throw new InvalidOperationException(
-                $"Failed to create QueryTable connection for '{queryName}': {comEx.Message} (Error: {hexCode}). " +
-                $"This may occur if the query needs to be refreshed first or if there are data source connectivity issues.",
-                comEx);
         }
     }
 

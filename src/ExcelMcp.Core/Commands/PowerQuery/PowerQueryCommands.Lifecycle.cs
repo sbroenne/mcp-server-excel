@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.PowerQuery;
 using System.Runtime.InteropServices;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -1247,45 +1248,74 @@ public partial class PowerQueryCommands
     }
 
     /// <summary>
-    /// Helper method to create QueryTable for a query
+    /// Helper method to create QueryTable for a query using unified PowerQueryHelpers
     /// </summary>
+    /// <param name="sheet">Target worksheet COM object</param>
+    /// <param name="query">Power Query COM object</param>
+    /// <returns>Created QueryTable COM object (caller must release)</returns>
     private static dynamic CreateQueryTableForQuery(dynamic sheet, dynamic query)
     {
         string queryName = query.Name;
-        string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
 
-        // Clear worksheet to prevent column accumulation (regression test requirement)
-        dynamic? usedRange = null;
+        // Use unified QueryTable creation method
+        var options = new PowerQueryHelpers.QueryTableCreateOptions
+        {
+            Name = queryName,
+            Range = "A1",
+            ClearWorksheet = true,  // Clear to prevent column accumulation (regression test requirement)
+            BackgroundQuery = false,  // Synchronous refresh
+            RefreshOnFileOpen = false,
+            SavePassword = false,
+            PreserveColumnInfo = false,  // Allow column structure changes when M code updates
+            PreserveFormatting = true,
+            AdjustColumnWidth = true,
+            RefreshImmediately = false  // Caller is responsible for calling Refresh(false)
+        };
+
+        // Create QueryTable using unified method (handles clearing, creation, configuration)
+        PowerQueryHelpers.CreateQueryTable(sheet, options, queryName);
+
+        // Retrieve and return the created QueryTable for caller manipulation
+        dynamic? queryTables = null;
+        dynamic? queryTable = null;
         try
         {
-            usedRange = sheet.UsedRange;
-            usedRange.Clear();
+            queryTables = sheet.QueryTables;
+            string normalizedName = queryName.Replace(" ", "_");
+
+            // Find the QueryTable we just created
+            for (int i = 1; i <= queryTables.Count; i++)
+            {
+                dynamic? qt = null;
+                try
+                {
+                    qt = queryTables.Item(i);
+                    string qtName = qt.Name?.ToString() ?? "";
+                    if (qtName.Equals(normalizedName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        queryTable = qt;
+                        qt = null;  // Don't release - we're returning it
+                        break;
+                    }
+                }
+                finally
+                {
+                    if (qt != null) ComUtilities.Release(ref qt);
+                }
+            }
+
+            if (queryTable == null)
+            {
+                throw new InvalidOperationException($"QueryTable '{queryName}' was created but could not be found");
+            }
+
+            return queryTable;
         }
         finally
         {
-            ComUtilities.Release(ref usedRange);
+            ComUtilities.Release(ref queryTables);
+            // Don't release queryTable - caller owns it
         }
-
-        dynamic range = sheet.Range["A1"];
-        // Use Type.Missing for 3rd parameter (working pattern from diagnostic tests)
-        dynamic queryTable = sheet.QueryTables.Add(connectionString, range, Type.Missing);
-
-        queryTable.Name = queryName;
-        queryTable.CommandText = $"SELECT * FROM [{queryName}]";  // Set AFTER creation (working pattern)
-        queryTable.RefreshStyle = 1;  // xlInsertDeleteCells
-        queryTable.RowNumbers = false;
-        queryTable.FillAdjacentFormulas = false;
-        queryTable.PreserveFormatting = true;
-        queryTable.RefreshOnFileOpen = false;
-        queryTable.BackgroundQuery = false;  // Synchronous refresh
-        queryTable.SavePassword = false;
-        queryTable.SaveData = true;
-        queryTable.AdjustColumnWidth = true;
-        queryTable.RefreshPeriod = 0;
-        queryTable.PreserveColumnInfo = false;  // Allow column structure changes when M code updates
-
-        // Note: Caller is responsible for calling Refresh(false) after QueryTable is returned
-        return queryTable;
     }
 }
 

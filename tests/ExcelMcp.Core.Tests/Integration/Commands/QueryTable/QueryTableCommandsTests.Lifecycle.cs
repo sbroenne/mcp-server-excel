@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.PowerQuery;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -91,8 +92,9 @@ public partial class QueryTableCommandsTests
         var sheetCommands = new Core.Commands.SheetCommands();
         sheetCommands.Create(batch, "Sheet1");
 
-        var options = new QueryTableCreateOptions
+        var options = new PowerQueryHelpers.QueryTableCreateOptions
         {
+            Name = "TestQT",
             BackgroundQuery = true,
             RefreshOnFileOpen = true,
             RefreshImmediately = true

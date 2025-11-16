@@ -4,6 +4,7 @@ using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands.QueryTable;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.PowerQuery;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
 #pragma warning disable CA1861 // Avoid constant arrays as arguments - Workflow hints are contextual per-call
@@ -156,8 +157,9 @@ public static class ExcelQueryTableTool
         if (string.IsNullOrWhiteSpace(connectionName))
             throw new ArgumentException("connectionName is required for create-from-connection action", nameof(connectionName));
 
-        var options = new QueryTableCreateOptions
+        var options = new PowerQueryHelpers.QueryTableCreateOptions
         {
+            Name = queryTableName,
             BackgroundQuery = backgroundQuery ?? false,
             RefreshOnFileOpen = refreshOnFileOpen ?? false,
             SavePassword = savePassword ?? false,
@@ -202,8 +204,9 @@ public static class ExcelQueryTableTool
         if (string.IsNullOrWhiteSpace(queryName))
             throw new ArgumentException("queryName is required for create-from-query action", nameof(queryName));
 
-        var options = new QueryTableCreateOptions
+        var options = new PowerQueryHelpers.QueryTableCreateOptions
         {
+            Name = queryTableName,
             BackgroundQuery = backgroundQuery ?? false,
             RefreshOnFileOpen = refreshOnFileOpen ?? false,
             SavePassword = savePassword ?? false,
