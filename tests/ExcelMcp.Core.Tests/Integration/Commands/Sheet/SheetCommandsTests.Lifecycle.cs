@@ -11,10 +11,10 @@ public partial class SheetCommandsTests
 {
     /// <inheritdoc/>
     [Fact]
-    public async Task List_DefaultWorkbook_ReturnsDefaultSheets()
+    public void List_DefaultWorkbook_ReturnsDefaultSheets()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests), nameof(List_DefaultWorkbook_ReturnsDefaultSheets), _tempDir);
 
         // Act
@@ -29,10 +29,10 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Create_UniqueName_ReturnsSuccess()
+    public void Create_UniqueName_ReturnsSuccess()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests), nameof(Create_UniqueName_ReturnsSuccess), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -53,14 +53,14 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Rename_ExistingSheet_ReturnsSuccess()
+    public void Rename_ExistingSheet_ReturnsSuccess()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests), nameof(Rename_ExistingSheet_ReturnsSuccess), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        await _sheetCommands.Create(batch, "OldName");
+        _sheetCommands.Create(batch, "OldName");
 
         // Act
         var result = _sheetCommands.Rename(batch, "OldName", "NewName");
@@ -79,14 +79,14 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Delete_NonActiveSheet_ReturnsSuccess()
+    public void Delete_NonActiveSheet_ReturnsSuccess()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests), nameof(Delete_NonActiveSheet_ReturnsSuccess), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        await _sheetCommands.Create(batch, "ToDelete");
+        _sheetCommands.Create(batch, "ToDelete");
 
         // Act
         var result = _sheetCommands.Delete(batch, "ToDelete");
@@ -104,14 +104,14 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Copy_ExistingSheet_CreatesNewSheet()
+    public void Copy_ExistingSheet_CreatesNewSheet()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests), nameof(Copy_ExistingSheet_CreatesNewSheet), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        await _sheetCommands.Create(batch, "Source");
+        _sheetCommands.Create(batch, "Source");
 
         // Act
         var result = _sheetCommands.Copy(batch, "Source", "Target");

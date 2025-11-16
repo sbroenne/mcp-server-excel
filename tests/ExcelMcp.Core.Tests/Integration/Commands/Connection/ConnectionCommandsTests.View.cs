@@ -11,16 +11,16 @@ public partial class ConnectionCommandsTests
 {
     /// <inheritdoc/>
     [Fact]
-    public async Task View_ExistingConnection_ReturnsDetails()
+    public void View_ExistingConnection_ReturnsDetails()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests), nameof(View_ExistingConnection_ReturnsDetails), _tempDir);
-        var csvFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var csvFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests), nameof(View_ExistingConnection_ReturnsDetails), _tempDir, ".csv", "Name,Value\nTest1,100\nTest2,200");
         string connName = "ViewTestConnection";
 
-        await ConnectionTestHelper.CreateTextFileConnectionAsync(testFile, connName, csvFile);
+        ConnectionTestHelper.CreateTextFileConnection(testFile, connName, csvFile);
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -35,10 +35,10 @@ public partial class ConnectionCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task View_NonExistentConnection_ReturnsError()
+    public void View_NonExistentConnection_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests), nameof(View_NonExistentConnection_ReturnsError), _tempDir);
 
         // Act

@@ -14,13 +14,13 @@ public partial class RangeCommandsTests
     // === FIND/REPLACE OPERATIONS TESTS ===
 
     [Fact]
-    public async Task Find_FindsMatchingCells()
+    public void Find_FindsMatchingCells()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        var testFile = CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        await _commands.SetValues(batch, "Sheet1", "A1:C2",
+        _commands.SetValues(batch, "Sheet1", "A1:C2",
         [
             ["Apple", "Banana", "Apple"],
             ["Cherry", "Apple", "Banana"]
@@ -40,13 +40,13 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Replace_ReplacesAllOccurrences()
+    public void Replace_ReplacesAllOccurrences()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        var testFile = CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        await _commands.SetValues(batch, "Sheet1", "A1:A3",
+        _commands.SetValues(batch, "Sheet1", "A1:A3",
         [
             ["cat"],
             ["dog"],
@@ -71,13 +71,13 @@ public partial class RangeCommandsTests
     // === SORT OPERATIONS TESTS ===
 
     [Fact]
-    public async Task Sort_SortsRangeByColumn()
+    public void Sort_SortsRangeByColumn()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        var testFile = CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        await _commands.SetValues(batch, "Sheet1", "A1:B4",
+        _commands.SetValues(batch, "Sheet1", "A1:B4",
         [
             ["Name", "Age"],
             ["Charlie", 30],

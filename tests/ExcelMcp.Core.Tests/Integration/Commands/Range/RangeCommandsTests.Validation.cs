@@ -9,10 +9,10 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 public partial class RangeCommandsTests
 {
     [Fact]
-    public async Task ValidateRange_WithInputMessage_ReturnsSuccess()
+    public void ValidateRange_WithInputMessage_ReturnsSuccess()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(ValidateRange_WithInputMessage_ReturnsSuccess),
             _tempDir);
@@ -20,7 +20,7 @@ public partial class RangeCommandsTests
         // Act - First write list values to worksheet (required for dropdown)
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        await _commands.SetValues(
+        _commands.SetValues(
             batch,
             "Sheet1",
             "B1:B3",
@@ -74,10 +74,10 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public async Task GetValidation_WithInputMessage_ReturnsInputTitleAndMessage()
+    public void GetValidation_WithInputMessage_ReturnsInputTitleAndMessage()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(GetValidation_WithInputMessage_ReturnsInputTitleAndMessage),
             _tempDir);
@@ -85,7 +85,7 @@ public partial class RangeCommandsTests
         // Act - First write list values to worksheet (required for dropdown)
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        await _commands.SetValues(
+        _commands.SetValues(
             batch,
             "Sheet1",
             "B1:B3",

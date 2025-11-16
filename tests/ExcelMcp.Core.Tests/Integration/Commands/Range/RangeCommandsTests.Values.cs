@@ -13,14 +13,14 @@ public partial class RangeCommandsTests
     // === VALUE OPERATIONS TESTS ===
 
     [Fact]
-    public async Task GetValues_SingleCell_Returns1x1Array()
+    public void GetValues_SingleCell_Returns1x1Array()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        string testFile = CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Set a value first
-        await _commands.SetValues(batch, "Sheet1", "A1", [[100]]);
+        _commands.SetValues(batch, "Sheet1", "A1", [[100]]);
 
         // Act
         var result = _commands.GetValues(batch, "Sheet1", "A1");
@@ -38,10 +38,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task GetValues_3x3Range_Returns2DArray()
+    public void GetValues_3x3Range_Returns2DArray()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        string testFile = CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         var testData = new List<List<object?>>
@@ -51,7 +51,7 @@ public partial class RangeCommandsTests
             new() { 7, 8, 9 }
         };
 
-        await _commands.SetValues(batch, "Sheet1", "A1:C3", testData);
+        _commands.SetValues(batch, "Sheet1", "A1:C3", testData);
 
         // Act
         var result = _commands.GetValues(batch, "Sheet1", "A1:C3");
@@ -71,10 +71,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetValues_TableWithHeaders_WritesAndReadsBack()
+    public void SetValues_TableWithHeaders_WritesAndReadsBack()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        string testFile = CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         var testData = new List<List<object?>>
@@ -99,10 +99,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetValues_JsonElementStrings_WritesCorrectly()
+    public void SetValues_JsonElementStrings_WritesCorrectly()
     {
         // Arrange - Simulate MCP Server scenario where JSON deserialization creates JsonElement objects
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        string testFile = CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Simulate MCP JSON: [["Azure Region Code", "Azure Region Name", "Geography", "Country"]]
@@ -137,10 +137,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetValues_JsonElementMixedTypes_WritesCorrectly()
+    public void SetValues_JsonElementMixedTypes_WritesCorrectly()
     {
         // Arrange - Test different JSON value types (string, number, boolean, null)
-        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        string testFile = CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Simulate MCP JSON: [["Text", 123, true, null]]

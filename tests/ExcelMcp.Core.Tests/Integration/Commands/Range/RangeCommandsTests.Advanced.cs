@@ -14,10 +14,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task ClearFormats_FormattedRange_RemovesFormattingOnly()
+    public void ClearFormats_FormattedRange_RemovesFormattingOnly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests), nameof(ClearFormats_FormattedRange_RemovesFormattingOnly), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -39,17 +39,17 @@ public partial class RangeCommandsTests
         Assert.True(result.Success, $"ClearFormats failed: {result.ErrorMessage}");
 
         // Verify value remains but formatting is gone
-        var values = await _commands.GetValues(batch, "Sheet1", "A1");
+        var values = _commands.GetValues(batch, "Sheet1", "A1");
         Assert.Equal("Test", values.Values[0][0]?.ToString());
     }
     /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task CopyFormulas_SourceWithFormulas_CopiesFormulasOnly()
+    public void CopyFormulas_SourceWithFormulas_CopiesFormulasOnly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests), nameof(CopyFormulas_SourceWithFormulas_CopiesFormulasOnly), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -71,7 +71,7 @@ public partial class RangeCommandsTests
         Assert.True(result.Success, $"CopyFormulas failed: {result.ErrorMessage}");
 
         // Verify formula was copied (should adjust references)
-        var formulas = await _commands.GetFormulas(batch, "Sheet1", "B3");
+        var formulas = _commands.GetFormulas(batch, "Sheet1", "B3");
         Assert.NotNull(formulas.Formulas[0][0]);
         Assert.Contains("+", formulas.Formulas[0][0]?.ToString());
     }
@@ -79,10 +79,10 @@ public partial class RangeCommandsTests
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task InsertCells_ShiftDown_InsertsAndShiftsExisting()
+    public void InsertCells_ShiftDown_InsertsAndShiftsExisting()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests), nameof(InsertCells_ShiftDown_InsertsAndShiftsExisting), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -102,17 +102,17 @@ public partial class RangeCommandsTests
         Assert.True(result.Success, $"InsertCells failed: {result.ErrorMessage}");
 
         // Verify original value shifted to A2
-        var values = await _commands.GetValues(batch, "Sheet1", "A2");
+        var values = _commands.GetValues(batch, "Sheet1", "A2");
         Assert.Equal("Original", values.Values[0][0]?.ToString());
     }
     /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task DeleteCells_ShiftUp_RemovesAndShifts()
+    public void DeleteCells_ShiftUp_RemovesAndShifts()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests), nameof(DeleteCells_ShiftUp_RemovesAndShifts), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -133,17 +133,17 @@ public partial class RangeCommandsTests
         Assert.True(result.Success, $"DeleteCells failed: {result.ErrorMessage}");
 
         // Verify A2 value shifted to A1
-        var values = await _commands.GetValues(batch, "Sheet1", "A1");
+        var values = _commands.GetValues(batch, "Sheet1", "A1");
         Assert.Equal("Keep Me", values.Values[0][0]?.ToString());
     }
     /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task InsertRows_BeforeExistingData_InsertsBlankRows()
+    public void InsertRows_BeforeExistingData_InsertsBlankRows()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests), nameof(InsertRows_BeforeExistingData_InsertsBlankRows), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -163,17 +163,17 @@ public partial class RangeCommandsTests
         Assert.True(result.Success, $"InsertRows failed: {result.ErrorMessage}");
 
         // Verify original data shifted to row 3
-        var values = await _commands.GetValues(batch, "Sheet1", "A3");
+        var values = _commands.GetValues(batch, "Sheet1", "A3");
         Assert.Equal("Row 1", values.Values[0][0]?.ToString());
     }
     /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task DeleteRows_ExistingRows_RemovesRows()
+    public void DeleteRows_ExistingRows_RemovesRows()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests), nameof(DeleteRows_ExistingRows_RemovesRows), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -195,17 +195,17 @@ public partial class RangeCommandsTests
         Assert.True(result.Success, $"DeleteRows failed: {result.ErrorMessage}");
 
         // Verify row 3 shifted to row 2
-        var values = await _commands.GetValues(batch, "Sheet1", "A2");
+        var values = _commands.GetValues(batch, "Sheet1", "A2");
         Assert.Equal("Row 3", values.Values[0][0]?.ToString());
     }
     /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task InsertColumns_BeforeExistingData_InsertsBlankColumns()
+    public void InsertColumns_BeforeExistingData_InsertsBlankColumns()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests), nameof(InsertColumns_BeforeExistingData_InsertsBlankColumns), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -225,17 +225,17 @@ public partial class RangeCommandsTests
         Assert.True(result.Success, $"InsertColumns failed: {result.ErrorMessage}");
 
         // Verify original data shifted to column C
-        var values = await _commands.GetValues(batch, "Sheet1", "C1");
+        var values = _commands.GetValues(batch, "Sheet1", "C1");
         Assert.Equal("Col A", values.Values[0][0]?.ToString());
     }
     /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task DeleteColumns_ExistingColumns_RemovesColumns()
+    public void DeleteColumns_ExistingColumns_RemovesColumns()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests), nameof(DeleteColumns_ExistingColumns_RemovesColumns), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -257,17 +257,17 @@ public partial class RangeCommandsTests
         Assert.True(result.Success, $"DeleteColumns failed: {result.ErrorMessage}");
 
         // Verify column C shifted to B
-        var values = await _commands.GetValues(batch, "Sheet1", "B1");
+        var values = _commands.GetValues(batch, "Sheet1", "B1");
         Assert.Equal("Col C", values.Values[0][0]?.ToString());
     }
     /// <inheritdoc/>
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task GetHyperlink_ExistingHyperlink_ReturnsDetails()
+    public void GetHyperlink_ExistingHyperlink_ReturnsDetails()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests), nameof(GetHyperlink_ExistingHyperlink_ReturnsDetails), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);

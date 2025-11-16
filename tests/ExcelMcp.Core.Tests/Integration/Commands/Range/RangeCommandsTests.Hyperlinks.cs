@@ -13,10 +13,10 @@ public partial class RangeCommandsTests
     // === HYPERLINK OPERATIONS TESTS ===
 
     [Fact]
-    public async Task AddHyperlink_CreatesHyperlink()
+    public void AddHyperlink_CreatesHyperlink()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        var testFile = CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Act
@@ -40,13 +40,13 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task RemoveHyperlink_DeletesHyperlink()
+    public void RemoveHyperlink_DeletesHyperlink()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        var testFile = CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        await _commands.AddHyperlink(batch, "Sheet1", "A1", "https://www.example.com");
+        _commands.AddHyperlink(batch, "Sheet1", "A1", "https://www.example.com");
 
         // Act
         var result = _commands.RemoveHyperlink(batch, "Sheet1", "A1");
@@ -59,15 +59,15 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task ListHyperlinks_ReturnsAllHyperlinks()
+    public void ListHyperlinks_ReturnsAllHyperlinks()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        var testFile = CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        await _commands.AddHyperlink(batch, "Sheet1", "A1", "https://site1.com");
-        await _commands.AddHyperlink(batch, "Sheet1", "B2", "https://site2.com");
-        await _commands.AddHyperlink(batch, "Sheet1", "C3", "https://site3.com");
+        _commands.AddHyperlink(batch, "Sheet1", "A1", "https://site1.com");
+        _commands.AddHyperlink(batch, "Sheet1", "B2", "https://site2.com");
+        _commands.AddHyperlink(batch, "Sheet1", "C3", "https://site3.com");
 
         // Act
         var result = _commands.ListHyperlinks(batch, "Sheet1");

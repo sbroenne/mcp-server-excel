@@ -24,9 +24,9 @@ public sealed class SessionCommandIntegrationTests : IClassFixture<TempDirectory
     }
 
     [Fact]
-    public async Task SessionCommands_OpenListClose_ManagesLifecycle()
+    public void SessionCommands_OpenListClose_ManagesLifecycle()
     {
-        var filePath = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var filePath = CoreTestHelper.CreateUniqueTestFile(
             nameof(SessionCommandIntegrationTests),
             nameof(SessionCommands_OpenListClose_ManagesLifecycle),
             _tempDir);
@@ -73,9 +73,9 @@ public sealed class SessionCommandIntegrationTests : IClassFixture<TempDirectory
     }
 
     [Fact]
-    public async Task SheetCommand_CreateAndList_Worksheets()
+    public void SheetCommand_CreateAndList_Worksheets()
     {
-        var filePath = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var filePath = CoreTestHelper.CreateUniqueTestFile(
             nameof(SessionCommandIntegrationTests),
             nameof(SheetCommand_CreateAndList_Worksheets),
             _tempDir);

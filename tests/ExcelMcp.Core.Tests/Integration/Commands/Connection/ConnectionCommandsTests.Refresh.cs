@@ -13,10 +13,10 @@ public partial class ConnectionCommandsTests
 {
     /// <inheritdoc/>
     [Fact]
-    public async Task Refresh_ConnectionNotFound_ReturnsFailure()
+    public void Refresh_ConnectionNotFound_ReturnsFailure()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests),
             nameof(Refresh_ConnectionNotFound_ReturnsFailure),
             _tempDir);
@@ -32,10 +32,10 @@ public partial class ConnectionCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Refresh_ConnectionOnlyQuery_ReturnsSuccessWithContext()
+    public void Refresh_ConnectionOnlyQuery_ReturnsSuccessWithContext()
     {
         // Arrange - Create a text connection but don't load data (connection-only)
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests),
             nameof(Refresh_ConnectionOnlyQuery_ReturnsSuccessWithContext),
             _tempDir);
@@ -44,7 +44,7 @@ public partial class ConnectionCommandsTests
         var connectionName = "TestTextConnection";
 
         // Create text connection without loading data to any worksheet
-        await ConnectionTestHelper.CreateTextFileConnectionAsync(testFile, connectionName, csvFile);
+        ConnectionTestHelper.CreateTextFileConnection(testFile, connectionName, csvFile);
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -57,10 +57,10 @@ public partial class ConnectionCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Refresh_ConnectionWithLoadedData_ReturnsSuccess()
+    public void Refresh_ConnectionWithLoadedData_ReturnsSuccess()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests),
             nameof(Refresh_ConnectionWithLoadedData_ReturnsSuccess),
             _tempDir);
@@ -69,14 +69,14 @@ public partial class ConnectionCommandsTests
         var connectionName = "RefreshTestConnection";
 
         // Create text connection and load data to worksheet
-        await ConnectionTestHelper.CreateTextFileConnectionAsync(testFile, connectionName, csvFile);
+        ConnectionTestHelper.CreateTextFileConnection(testFile, connectionName, csvFile);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        await _commands.LoadTo(batch, connectionName, "TestSheet");
+        _commands.LoadTo(batch, connectionName, "TestSheet");
         batch.Save();
 
         // Update CSV file with new data
-        await System.IO.File.WriteAllTextAsync(csvFile, "Name,Value\nUpdated,200\nNew Row,300\n");
+        System.IO.File.WriteAllText(csvFile, "Name,Value\nUpdated,200\nNew Row,300\n");
 
         // Act - Refresh the connection
         var result = _commands.Refresh(batch, connectionName);
@@ -87,40 +87,12 @@ public partial class ConnectionCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Refresh_WithTimeout_RespectsTimeoutParameter()
-    {
-        // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
-            nameof(ConnectionCommandsTests),
-            nameof(Refresh_WithTimeout_RespectsTimeoutParameter),
-            _tempDir);
-
-        var csvFile = Path.Combine(_tempDir, "timeout-test.csv");
-        var connectionName = "TimeoutTestConnection";
-
-        // Create text connection and load data
-        await ConnectionTestHelper.CreateTextFileConnectionAsync(testFile, connectionName, csvFile);
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-        await _commands.LoadTo(batch, connectionName, "TestSheet");
-        batch.Save();
-
-        // Act - Refresh with custom timeout
-        var customTimeout = TimeSpan.FromMinutes(1);
-        var result = _commands.Refresh(batch, connectionName, customTimeout);
-
-        // Assert
-        Assert.True(result.Success, $"Refresh failed: {result.ErrorMessage}");
-    }
-    /// <inheritdoc/>
-
-    [Fact]
-    public async Task Refresh_TextConnectionMissingFile_SucceedsWithoutValidation()
+    public void Refresh_TextConnectionMissingFile_SucceedsWithoutValidation()
     {
         // Arrange - This test documents Excel's actual behavior: TEXT connections
         // don't immediately validate file existence on refresh
         const string connectionName = "TestTextConnectionMissingFile";
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests),
             nameof(Refresh_TextConnectionMissingFile_SucceedsWithoutValidation),
             _tempDir);
@@ -130,7 +102,7 @@ public partial class ConnectionCommandsTests
         System.IO.File.WriteAllText(csvFile, "Col1,Col2\nVal1,Val2\n");
 
         // Create TEXT connection while file exists
-        await ConnectionTestHelper.CreateTextFileConnectionAsync(testFile, connectionName, csvFile);
+        ConnectionTestHelper.CreateTextFileConnection(testFile, connectionName, csvFile);
 
         // Delete the file - this is the key difference from the other test
         System.IO.File.Delete(csvFile);

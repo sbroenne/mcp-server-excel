@@ -11,10 +11,10 @@ public partial class PivotTableCommandsTests
 {
     /// <inheritdoc/>
     [Fact]
-    public async Task CreateFromRange_PopulatedRangeWithHeaders_CreatesCorrectPivotStructure()
+    public void CreateFromRange_PopulatedRangeWithHeaders_CreatesCorrectPivotStructure()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(CreateFromRange_PopulatedRangeWithHeaders_CreatesCorrectPivotStructure));
+        var testFile = CreateTestFileWithData(nameof(CreateFromRange_PopulatedRangeWithHeaders_CreatesCorrectPivotStructure));
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -33,10 +33,10 @@ public partial class PivotTableCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task CreateFromTable_WithValidTable_CreatesCorrectPivotStructure()
+    public void CreateFromTable_WithValidTable_CreatesCorrectPivotStructure()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(CreateFromTable_WithValidTable_CreatesCorrectPivotStructure));
+        var testFile = CreateTestFileWithData(nameof(CreateFromTable_WithValidTable_CreatesCorrectPivotStructure));
 
         // Act - Use single batch for table creation and pivot creation
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -62,10 +62,10 @@ public partial class PivotTableCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task CreateFromDataModel_NoDataModel_ReturnsError()
+    public void CreateFromDataModel_NoDataModel_ReturnsError()
     {
         // Arrange - Use regular file without Data Model
-        var testFile = await CreateTestFileWithDataAsync(nameof(CreateFromDataModel_NoDataModel_ReturnsError));
+        var testFile = CreateTestFileWithData(nameof(CreateFromDataModel_NoDataModel_ReturnsError));
 
         // Act - Try to create PivotTable from Data Model when none exists
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -83,10 +83,10 @@ public partial class PivotTableCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task AddRowField_WithValidField_AddsFieldToRows()
+    public void AddRowField_WithValidField_AddsFieldToRows()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(AddRowField_WithValidField_AddsFieldToRows));
+        var testFile = CreateTestFileWithData(nameof(AddRowField_WithValidField_AddsFieldToRows));
 
         // Act - Use single batch for create and add field
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -106,10 +106,10 @@ public partial class PivotTableCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task ListFields_AfterCreate_ReturnsAvailableFields()
+    public void ListFields_AfterCreate_ReturnsAvailableFields()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(ListFields_AfterCreate_ReturnsAvailableFields));
+        var testFile = CreateTestFileWithData(nameof(ListFields_AfterCreate_ReturnsAvailableFields));
 
         // Act - Use single batch for create and list fields
         using var batch = ExcelSession.BeginBatch(testFile);

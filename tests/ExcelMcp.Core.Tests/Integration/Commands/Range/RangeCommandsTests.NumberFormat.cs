@@ -12,10 +12,10 @@ public partial class RangeCommandsTests
 {
     /// <inheritdoc/>
     [Fact]
-    public async Task GetNumberFormats_SingleCell_ReturnsFormat()
+    public void GetNumberFormats_SingleCell_ReturnsFormat()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(GetNumberFormats_SingleCell_ReturnsFormat),
             _tempDir,
@@ -24,8 +24,8 @@ public partial class RangeCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Set up test data with a number format
-        await _commands.SetValues(batch, "Sheet1", "A1", [[100]]);
-        await _commands.SetNumberFormat(batch, "Sheet1", "A1", NumberFormatPresets.Currency);
+        _commands.SetValues(batch, "Sheet1", "A1", [[100]]);
+        _commands.SetNumberFormat(batch, "Sheet1", "A1", NumberFormatPresets.Currency);
 
         // Act
         var result = _commands.GetNumberFormats(batch, "Sheet1", "A1");
@@ -43,10 +43,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task GetNumberFormats_MultipleFormats_ReturnsArray()
+    public void GetNumberFormats_MultipleFormats_ReturnsArray()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(GetNumberFormats_MultipleFormats_ReturnsArray),
             _tempDir,
@@ -55,7 +55,7 @@ public partial class RangeCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Set up test data FIRST
-        await _commands.SetValues(batch, "Sheet1", "A1:B2", [[100, 0.5], [200, 0.75]]);
+        _commands.SetValues(batch, "Sheet1", "A1:B2", [[100, 0.5], [200, 0.75]]);
 
         // THEN set different formats for each cell
         var formats = new List<List<string>>
@@ -63,7 +63,7 @@ public partial class RangeCommandsTests
             new List<string> { NumberFormatPresets.Currency, NumberFormatPresets.Percentage },
             new List<string> { NumberFormatPresets.Number, NumberFormatPresets.PercentageOneDecimal }
         };
-        await _commands.SetNumberFormats(batch, "Sheet1", "A1:B2", formats);
+        _commands.SetNumberFormats(batch, "Sheet1", "A1:B2", formats);
 
         // Act
         var result = _commands.GetNumberFormats(batch, "Sheet1", "A1:B2");
@@ -81,10 +81,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetNumberFormat_Currency_AppliesFormatToRange()
+    public void SetNumberFormat_Currency_AppliesFormatToRange()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(SetNumberFormat_Currency_AppliesFormatToRange),
             _tempDir,
@@ -93,7 +93,7 @@ public partial class RangeCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Set up test data
-        await _commands.SetValues(batch, "Sheet1", "A1:A3", [[100], [200], [300]]);
+        _commands.SetValues(batch, "Sheet1", "A1:A3", [[100], [200], [300]]);
 
         // Act
         var result = _commands.SetNumberFormat(batch, "Sheet1", "A1:A3", NumberFormatPresets.Currency);
@@ -111,10 +111,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetNumberFormat_Percentage_AppliesFormatCorrectly()
+    public void SetNumberFormat_Percentage_AppliesFormatCorrectly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(SetNumberFormat_Percentage_AppliesFormatCorrectly),
             _tempDir,
@@ -122,7 +122,7 @@ public partial class RangeCommandsTests
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        await _commands.SetValues(batch, "Sheet1", "B1:B2", [[0.25], [0.75]]);
+        _commands.SetValues(batch, "Sheet1", "B1:B2", [[0.25], [0.75]]);
 
         // Act
         var result = _commands.SetNumberFormat(batch, "Sheet1", "B1:B2", NumberFormatPresets.Percentage);
@@ -138,10 +138,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetNumberFormat_DateFormat_AppliesCorrectly()
+    public void SetNumberFormat_DateFormat_AppliesCorrectly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(SetNumberFormat_DateFormat_AppliesCorrectly),
             _tempDir,
@@ -150,7 +150,7 @@ public partial class RangeCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Excel serial date: 45000 = April 17, 2023
-        await _commands.SetValues(batch, "Sheet1", "C1", [[45000]]);
+        _commands.SetValues(batch, "Sheet1", "C1", [[45000]]);
 
         // Act
         var result = _commands.SetNumberFormat(batch, "Sheet1", "C1", NumberFormatPresets.DateShort);
@@ -169,10 +169,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetNumberFormats_MixedFormats_AppliesDifferentFormatsPerCell()
+    public void SetNumberFormats_MixedFormats_AppliesDifferentFormatsPerCell()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(SetNumberFormats_MixedFormats_AppliesDifferentFormatsPerCell),
             _tempDir,
@@ -181,7 +181,7 @@ public partial class RangeCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Set up test data
-        await _commands.SetValues(batch, "Sheet1", "A1:C2", [[100, 0.5, 45000], [200, 0.75, 45100]]);
+        _commands.SetValues(batch, "Sheet1", "A1:C2", [[100, 0.5, 45000], [200, 0.75, 45100]]);
 
         // Act - Apply different formats to each column
         var formats = new List<List<string>>
@@ -211,10 +211,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetNumberFormats_DimensionMismatch_ReturnsError()
+    public void SetNumberFormats_DimensionMismatch_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(SetNumberFormats_DimensionMismatch_ReturnsError),
             _tempDir,
@@ -237,10 +237,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetNumberFormat_TextFormat_PreservesLeadingZeros()
+    public void SetNumberFormat_TextFormat_PreservesLeadingZeros()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(SetNumberFormat_TextFormat_PreservesLeadingZeros),
             _tempDir,
@@ -249,8 +249,8 @@ public partial class RangeCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // First set text format, then set value (to preserve leading zeros)
-        await _commands.SetNumberFormat(batch, "Sheet1", "D1", NumberFormatPresets.Text);
-        await _commands.SetValues(batch, "Sheet1", "D1", [["00123"]]);
+        _commands.SetNumberFormat(batch, "Sheet1", "D1", NumberFormatPresets.Text);
+        _commands.SetValues(batch, "Sheet1", "D1", [["00123"]]);
 
         // Act - Verify format is text
         var result = _commands.GetNumberFormats(batch, "Sheet1", "D1");

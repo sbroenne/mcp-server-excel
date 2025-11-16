@@ -23,19 +23,19 @@ public static class CoreTestHelper
     /// Usage patterns:
     /// <code>
     /// // Excel file
-    /// var excelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+    /// var excelFile = CoreTestHelper.CreateUniqueTestFile(
     ///     nameof(MyTests), nameof(MyTest), _tempDir, ".xlsx");
     ///
     /// // CSV file with default data
-    /// var csvFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+    /// var csvFile = CoreTestHelper.CreateUniqueTestFile(
     ///     nameof(MyTests), nameof(MyTest), _tempDir, ".csv");
     ///
     /// // CSV file with custom data
-    /// var csvFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+    /// var csvFile = CoreTestHelper.CreateUniqueTestFile(
     ///     nameof(MyTests), nameof(MyTest), _tempDir, ".csv", "Col1,Col2\nA,B");
     /// </code>
     /// </remarks>
-    public static Task<string> CreateUniqueTestFileAsync(
+    public static string CreateUniqueTestFile(
         string testClassName,
         string testName,
         string tempDir,
@@ -67,6 +67,6 @@ public static class CoreTestHelper
             File.WriteAllText(filePath, finalContent);
         }
 
-        return Task.FromResult(filePath);
+        return filePath;
     }
 }

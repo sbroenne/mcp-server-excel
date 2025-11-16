@@ -8,10 +8,10 @@ public partial class RangeCommandsTests
 {
     /// <inheritdoc/>
     [Fact]
-    public async Task SetStyle_Heading1_AppliesSuccessfully()
+    public void SetStyle_Heading1_AppliesSuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(SetStyle_Heading1_AppliesSuccessfully),
             _tempDir,
@@ -27,10 +27,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetStyle_GoodBadNeutral_AllApplySuccessfully()
+    public void SetStyle_GoodBadNeutral_AllApplySuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(SetStyle_GoodBadNeutral_AllApplySuccessfully),
             _tempDir,
@@ -51,10 +51,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetStyle_Accent1_AppliesSuccessfully()
+    public void SetStyle_Accent1_AppliesSuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(SetStyle_Accent1_AppliesSuccessfully),
             _tempDir,
@@ -70,10 +70,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetStyle_TotalStyle_AppliesSuccessfully()
+    public void SetStyle_TotalStyle_AppliesSuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(SetStyle_TotalStyle_AppliesSuccessfully),
             _tempDir,
@@ -89,10 +89,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetStyle_CurrencyComma_AppliesSuccessfully()
+    public void SetStyle_CurrencyComma_AppliesSuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(SetStyle_CurrencyComma_AppliesSuccessfully),
             _tempDir,
@@ -110,10 +110,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetStyle_InvalidStyleName_ReturnsError()
+    public void SetStyle_InvalidStyleName_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(SetStyle_InvalidStyleName_ReturnsError),
             _tempDir,
@@ -131,10 +131,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetStyle_ResetToNormal_ClearsFormatting()
+    public void SetStyle_ResetToNormal_ClearsFormatting()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(SetStyle_ResetToNormal_ClearsFormatting),
             _tempDir,

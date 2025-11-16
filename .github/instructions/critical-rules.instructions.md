@@ -273,7 +273,7 @@ Delete commented-out code (use git history). Exception: Documentation files only
 
 **Verify:**
 - ✅ Uses `IClassFixture<TempDirectoryFixture>` (NOT manual IDisposable)
-- ✅ Each test creates unique file via `CoreTestHelper.CreateUniqueTestFileAsync()`
+- ✅ Each test creates unique file via `CoreTestHelper.CreateUniqueTestFile()`
 - ✅ NEVER shares test files between tests
 - ✅ VBA tests use `.xlsm` extension (NOT .xlsx renamed)
 - ✅ Binary assertions only (NO "accept both" patterns)

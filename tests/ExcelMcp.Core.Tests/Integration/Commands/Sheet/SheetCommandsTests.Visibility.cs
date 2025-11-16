@@ -13,16 +13,16 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetVisibility_ToHidden_WorksCorrectly()
+    public void SetVisibility_ToHidden_WorksCorrectly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
             nameof(SetVisibility_ToHidden_WorksCorrectly),
             _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        await _sheetCommands.Create(batch, "HideTest");
+        _sheetCommands.Create(batch, "HideTest");
 
         // Act
         var setResult = _sheetCommands.SetVisibility(batch, "HideTest", SheetVisibility.Hidden);
@@ -41,16 +41,16 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetVisibility_ToVeryHidden_WorksCorrectly()
+    public void SetVisibility_ToVeryHidden_WorksCorrectly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
             nameof(SetVisibility_ToVeryHidden_WorksCorrectly),
             _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        await _sheetCommands.Create(batch, "VeryHideTest");
+        _sheetCommands.Create(batch, "VeryHideTest");
 
         // Act
         var setResult = _sheetCommands.SetVisibility(batch, "VeryHideTest", SheetVisibility.VeryHidden);
@@ -68,20 +68,20 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Show_HiddenSheet_MakesVisible()
+    public void Show_HiddenSheet_MakesVisible()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
             nameof(Show_HiddenSheet_MakesVisible),
             _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        await _sheetCommands.Create(batch, "ShowTest");
-        await _sheetCommands.Hide(batch, "ShowTest");
+        _sheetCommands.Create(batch, "ShowTest");
+        _sheetCommands.Hide(batch, "ShowTest");
 
         // Verify it's hidden
-        var hiddenCheck = await _sheetCommands.GetVisibility(batch, "ShowTest");
+        var hiddenCheck = _sheetCommands.GetVisibility(batch, "ShowTest");
         Assert.Equal(SheetVisibility.Hidden, hiddenCheck.Visibility);
 
         // Act - Show the sheet
@@ -90,7 +90,7 @@ public partial class SheetCommandsTests
         // Assert
         Assert.True(showResult.Success);
 
-        var visibleCheck = await _sheetCommands.GetVisibility(batch, "ShowTest");
+        var visibleCheck = _sheetCommands.GetVisibility(batch, "ShowTest");
         Assert.Equal(SheetVisibility.Visible, visibleCheck.Visibility);
 
         // Save changes
@@ -98,20 +98,20 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Show_VeryHiddenSheet_MakesVisible()
+    public void Show_VeryHiddenSheet_MakesVisible()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
             nameof(Show_VeryHiddenSheet_MakesVisible),
             _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        await _sheetCommands.Create(batch, "VeryHideShowTest");
-        await _sheetCommands.VeryHide(batch, "VeryHideShowTest");
+        _sheetCommands.Create(batch, "VeryHideShowTest");
+        _sheetCommands.VeryHide(batch, "VeryHideShowTest");
 
         // Verify it's very hidden
-        var veryHiddenCheck = await _sheetCommands.GetVisibility(batch, "VeryHideShowTest");
+        var veryHiddenCheck = _sheetCommands.GetVisibility(batch, "VeryHideShowTest");
         Assert.Equal(SheetVisibility.VeryHidden, veryHiddenCheck.Visibility);
 
         // Act - Show the sheet
@@ -120,7 +120,7 @@ public partial class SheetCommandsTests
         // Assert
         Assert.True(showResult.Success);
 
-        var visibleCheck = await _sheetCommands.GetVisibility(batch, "VeryHideShowTest");
+        var visibleCheck = _sheetCommands.GetVisibility(batch, "VeryHideShowTest");
         Assert.Equal(SheetVisibility.Visible, visibleCheck.Visibility);
 
         // Save changes
@@ -128,16 +128,16 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Hide_VisibleSheet_MakesHidden()
+    public void Hide_VisibleSheet_MakesHidden()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
             nameof(Hide_VisibleSheet_MakesHidden),
             _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        await _sheetCommands.Create(batch, "HideMe");
+        _sheetCommands.Create(batch, "HideMe");
 
         // Act
         var hideResult = _sheetCommands.Hide(batch, "HideMe");
@@ -153,16 +153,16 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task VeryHide_VeryHidesVisibleSheet()
+    public void VeryHide_VeryHidesVisibleSheet()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
             nameof(VeryHide_VeryHidesVisibleSheet),
             _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        await _sheetCommands.Create(batch, "VeryHideMe");
+        _sheetCommands.Create(batch, "VeryHideMe");
 
         // Act
         var veryHideResult = _sheetCommands.VeryHide(batch, "VeryHideMe");
@@ -178,16 +178,16 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task GetVisibility_ForVisibleSheet_ReturnsVisible()
+    public void GetVisibility_ForVisibleSheet_ReturnsVisible()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
             nameof(GetVisibility_ForVisibleSheet_ReturnsVisible),
             _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        await _sheetCommands.Create(batch, "VisibleSheet");
+        _sheetCommands.Create(batch, "VisibleSheet");
 
         // Act
         var result = _sheetCommands.GetVisibility(batch, "VisibleSheet");
@@ -200,10 +200,10 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetVisibility_WithNonExistentSheet_ReturnsError()
+    public void SetVisibility_WithNonExistentSheet_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
             nameof(SetVisibility_WithNonExistentSheet_ReturnsError),
             _tempDir);
@@ -220,36 +220,36 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Visibility_CompleteWorkflow_AllLevelsWork()
+    public void Visibility_CompleteWorkflow_AllLevelsWork()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
             nameof(Visibility_CompleteWorkflow_AllLevelsWork),
             _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        await _sheetCommands.Create(batch, "Workflow");
+        _sheetCommands.Create(batch, "Workflow");
 
         // Act & Assert - Test complete visibility workflow
 
         // Start visible
-        var check1 = await _sheetCommands.GetVisibility(batch, "Workflow");
+        var check1 = _sheetCommands.GetVisibility(batch, "Workflow");
         Assert.Equal(SheetVisibility.Visible, check1.Visibility);
 
         // Hide it
-        await _sheetCommands.Hide(batch, "Workflow");
-        var check2 = await _sheetCommands.GetVisibility(batch, "Workflow");
+        _sheetCommands.Hide(batch, "Workflow");
+        var check2 = _sheetCommands.GetVisibility(batch, "Workflow");
         Assert.Equal(SheetVisibility.Hidden, check2.Visibility);
 
         // Very hide it
-        await _sheetCommands.VeryHide(batch, "Workflow");
-        var check3 = await _sheetCommands.GetVisibility(batch, "Workflow");
+        _sheetCommands.VeryHide(batch, "Workflow");
+        var check3 = _sheetCommands.GetVisibility(batch, "Workflow");
         Assert.Equal(SheetVisibility.VeryHidden, check3.Visibility);
 
         // Show it again
-        await _sheetCommands.Show(batch, "Workflow");
-        var check4 = await _sheetCommands.GetVisibility(batch, "Workflow");
+        _sheetCommands.Show(batch, "Workflow");
+        var check4 = _sheetCommands.GetVisibility(batch, "Workflow");
         Assert.Equal(SheetVisibility.Visible, check4.Visibility);
 
         // Save changes

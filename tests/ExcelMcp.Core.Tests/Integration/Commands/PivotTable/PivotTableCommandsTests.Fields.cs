@@ -16,10 +16,10 @@ public partial class PivotTableCommandsTests
     [Fact]
     [Trait("Speed", "Medium")]
     [Trait("Category", "Regular")]
-    public async Task AddColumnField_WithValidField_AddsFieldToColumns()
+    public void AddColumnField_WithValidField_AddsFieldToColumns()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(AddColumnField_WithValidField_AddsFieldToColumns));
+        var testFile = CreateTestFileWithData(nameof(AddColumnField_WithValidField_AddsFieldToColumns));
 
         using var batch = ExcelSession.BeginBatch(testFile);
         var createResult = _pivotCommands.CreateFromRange(
@@ -39,10 +39,10 @@ public partial class PivotTableCommandsTests
     [Fact]
     [Trait("Speed", "Medium")]
     [Trait("Category", "Regular")]
-    public async Task AddValueField_WithValidField_AddsFieldToValues()
+    public void AddValueField_WithValidField_AddsFieldToValues()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(AddValueField_WithValidField_AddsFieldToValues));
+        var testFile = CreateTestFileWithData(nameof(AddValueField_WithValidField_AddsFieldToValues));
 
         using var batch = ExcelSession.BeginBatch(testFile);
         var createResult = _pivotCommands.CreateFromRange(
@@ -62,10 +62,10 @@ public partial class PivotTableCommandsTests
     [Fact]
     [Trait("Speed", "Medium")]
     [Trait("Category", "Regular")]
-    public async Task AddFilterField_WithValidField_AddsFieldToFilters()
+    public void AddFilterField_WithValidField_AddsFieldToFilters()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(AddFilterField_WithValidField_AddsFieldToFilters));
+        var testFile = CreateTestFileWithData(nameof(AddFilterField_WithValidField_AddsFieldToFilters));
 
         using var batch = ExcelSession.BeginBatch(testFile);
         var createResult = _pivotCommands.CreateFromRange(
@@ -85,10 +85,10 @@ public partial class PivotTableCommandsTests
     [Fact]
     [Trait("Speed", "Medium")]
     [Trait("Category", "Regular")]
-    public async Task RemoveField_ExistingField_RemovesFromPivot()
+    public void RemoveField_ExistingField_RemovesFromPivot()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(RemoveField_ExistingField_RemovesFromPivot));
+        var testFile = CreateTestFileWithData(nameof(RemoveField_ExistingField_RemovesFromPivot));
 
         using var batch = ExcelSession.BeginBatch(testFile);
         var createResult = _pivotCommands.CreateFromRange(
@@ -117,10 +117,10 @@ public partial class PivotTableCommandsTests
     [Fact]
     [Trait("Speed", "Medium")]
     [Trait("Category", "Regular")]
-    public async Task SetFieldFunction_ValueField_ChangesAggregation()
+    public void SetFieldFunction_ValueField_ChangesAggregation()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(SetFieldFunction_ValueField_ChangesAggregation));
+        var testFile = CreateTestFileWithData(nameof(SetFieldFunction_ValueField_ChangesAggregation));
 
         using var batch = ExcelSession.BeginBatch(testFile);
         var createResult = _pivotCommands.CreateFromRange(
@@ -144,10 +144,10 @@ public partial class PivotTableCommandsTests
     [Fact]
     [Trait("Speed", "Medium")]
     [Trait("Category", "Regular")]
-    public async Task SetFieldName_ExistingField_RenamesField()
+    public void SetFieldName_ExistingField_RenamesField()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(SetFieldName_ExistingField_RenamesField));
+        var testFile = CreateTestFileWithData(nameof(SetFieldName_ExistingField_RenamesField));
 
         using var batch = ExcelSession.BeginBatch(testFile);
         var createResult = _pivotCommands.CreateFromRange(
@@ -170,10 +170,10 @@ public partial class PivotTableCommandsTests
     [Fact]
     [Trait("Speed", "Medium")]
     [Trait("Category", "Regular")]
-    public async Task SetFieldFormat_ValueField_AppliesNumberFormat()
+    public void SetFieldFormat_ValueField_AppliesNumberFormat()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(SetFieldFormat_ValueField_AppliesNumberFormat));
+        var testFile = CreateTestFileWithData(nameof(SetFieldFormat_ValueField_AppliesNumberFormat));
 
         using var batch = ExcelSession.BeginBatch(testFile);
         var createResult = _pivotCommands.CreateFromRange(
@@ -198,10 +198,10 @@ public partial class PivotTableCommandsTests
     [Fact]
     [Trait("Speed", "Medium")]
     [Trait("Category", "Regular")]
-    public async Task SetFieldFilter_RowField_AppliesFilter()
+    public void SetFieldFilter_RowField_AppliesFilter()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(SetFieldFilter_RowField_AppliesFilter));
+        var testFile = CreateTestFileWithData(nameof(SetFieldFilter_RowField_AppliesFilter));
 
         using var batch = ExcelSession.BeginBatch(testFile);
         var createResult = _pivotCommands.CreateFromRange(
@@ -225,10 +225,10 @@ public partial class PivotTableCommandsTests
     [Fact]
     [Trait("Speed", "Medium")]
     [Trait("Category", "Regular")]
-    public async Task SortField_RowField_SortsData()
+    public void SortField_RowField_SortsData()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(SortField_RowField_SortsData));
+        var testFile = CreateTestFileWithData(nameof(SortField_RowField_SortsData));
 
         using var batch = ExcelSession.BeginBatch(testFile);
         var createResult = _pivotCommands.CreateFromRange(

@@ -104,60 +104,7 @@ public static class ExcelSession
                 Directory.CreateDirectory(directory);
             }
 
-            // Create temporary empty workbook by launching Excel briefly
-            Task.Run(() =>
-            {
-                dynamic? excel = null;
-                dynamic? workbook = null;
-
-                try
-                {
-                    var excelType = Type.GetTypeFromProgID("Excel.Application");
-                    if (excelType == null)
-                    {
-                        throw new InvalidOperationException("Excel is not installed or not properly registered.");
-                    }
-
-#pragma warning disable IL2072
-                    excel = Activator.CreateInstance(excelType);
-#pragma warning restore IL2072
-
-                    excel.Visible = false;
-                    excel.DisplayAlerts = false;
-
-                    workbook = excel.Workbooks.Add();
-
-                    // Save immediately to create the file
-                    if (isMacroEnabled)
-                    {
-                        workbook.SaveAs(fullPath, 52); // xlOpenXMLWorkbookMacroEnabled
-                    }
-                    else
-                    {
-                        workbook.SaveAs(fullPath, 51); // xlOpenXMLWorkbook
-                    }
-                }
-                finally
-                {
-                    // Close workbook and quit Excel
-                    if (workbook != null)
-                    {
-                        try { workbook.Close(false); } catch { }
-                        workbook = null; // Let GC handle RCW cleanup
-                    }
-
-                    if (excel != null)
-                    {
-                        // CodeQL suppression: Safe COM interop - excel is guaranteed to be Excel.Application type with Quit() method
-                        // The dynamic type is intentional for late-binding COM automation
-#pragma warning disable CS8602 // Dereference of a possibly null reference
-                        try { excel.Quit(); } catch { }
-#pragma warning restore CS8602
-                        excel = null; // Let GC handle RCW cleanup
-                    }
-                    // The GC will automatically handle RCW cleanup through finalizers
-                }
-            }, cancellationToken).Wait(cancellationToken);
+            CreateWorkbookOnStaThread(fullPath, isMacroEnabled, cancellationToken);
 
             // Now use batch API to execute the operation
             using var batch = BeginBatch(fullPath, cancellationToken);
@@ -173,7 +120,83 @@ public static class ExcelSession
         }
     }
 
+    private static void CreateWorkbookOnStaThread(string fullPath, bool isMacroEnabled, CancellationToken cancellationToken)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
+        var thread = new Thread(() =>
+        {
+            dynamic? excel = null;
+            dynamic? workbook = null;
+
+            try
+            {
+                OleMessageFilter.Register();
+
+                var excelType = Type.GetTypeFromProgID("Excel.Application");
+                if (excelType == null)
+                {
+                    throw new InvalidOperationException("Excel is not installed or not properly registered.");
+                }
+
+#pragma warning disable IL2072
+                excel = Activator.CreateInstance(excelType);
+#pragma warning restore IL2072
+
+                excel.Visible = false;
+                excel.DisplayAlerts = false;
+
+                workbook = excel.Workbooks.Add();
+
+                if (isMacroEnabled)
+                {
+                    workbook.SaveAs(fullPath, 52); // xlOpenXMLWorkbookMacroEnabled
+                }
+                else
+                {
+                    workbook.SaveAs(fullPath, 51); // xlOpenXMLWorkbook
+                }
+
+                completion.SetResult();
+            }
+            catch (Exception ex)
+            {
+                completion.TrySetException(ex);
+            }
+            finally
+            {
+                if (workbook != null)
+                {
+                    try { workbook.Close(false); }
+                    catch { }
+
+                    workbook = null;
+                }
+
+                if (excel != null)
+                {
+                    try { excel.Quit(); }
+                    catch { }
+
+                    excel = null;
+                }
+
+                OleMessageFilter.Revoke();
+            }
+        })
+        {
+            IsBackground = true,
+            Name = $"ExcelCreate-{Path.GetFileName(fullPath)}"
+        };
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+
+        completion.Task.Wait(cancellationToken);
+
+        // Ensure thread finished before proceeding
+        thread.Join();
+    }
 }
 
 

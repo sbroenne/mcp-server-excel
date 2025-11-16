@@ -55,7 +55,7 @@ public partial class FeatureCommandsTests : IClassFixture<TempDirectoryFixture>
     public async Task Operation_Scenario_ExpectedResult()
     {
         // Arrange - Each test gets unique file
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(FeatureCommandsTests), 
             nameof(Operation_Scenario_ExpectedResult), 
             _tempDir,
@@ -80,7 +80,7 @@ public partial class FeatureCommandsTests : IClassFixture<TempDirectoryFixture>
 ## Essential Rules
 
 ### File Isolation
-- ✅ Each test creates unique file via `CoreTestHelper.CreateUniqueTestFileAsync()`
+- ✅ Each test creates unique file via `CoreTestHelper.CreateUniqueTestFile()`
 - ❌ **NEVER** share test files between tests
 - ✅ Use `.xlsm` for VBA tests, `.xlsx` otherwise
 

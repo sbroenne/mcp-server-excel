@@ -21,14 +21,14 @@ public partial class PivotTableCommandsTests
     [Fact]
     [Trait("Speed", "Medium")]
     [Trait("Category", "OLAP")]
-    public async Task AddRowField_OlapPivot_AddsFieldToRows()
+    public void AddRowField_OlapPivot_AddsFieldToRows()
     {
         // Arrange - Create OLAP test file with data model
-        var olapTestFile = await CreateOlapTestFileAsync(nameof(AddRowField_OlapPivot_AddsFieldToRows));
+        var olapTestFile = CreateOlapTestFile(nameof(AddRowField_OlapPivot_AddsFieldToRows));
         using var batch = ExcelSession.BeginBatch(olapTestFile);
 
         // Act - Remove existing Region field first, then add Quarter
-        await _pivotCommands.RemoveField(batch, "DataModelPivot", "Region");
+        _pivotCommands.RemoveField(batch, "DataModelPivot", "Region");
         var result = _pivotCommands.AddRowField(batch, "DataModelPivot", "Quarter", null);
 
         // Assert
@@ -40,14 +40,14 @@ public partial class PivotTableCommandsTests
     [Fact]
     [Trait("Speed", "Medium")]
     [Trait("Category", "OLAP")]
-    public async Task AddColumnField_OlapPivot_AddsFieldToColumns()
+    public void AddColumnField_OlapPivot_AddsFieldToColumns()
     {
         // Arrange - Create OLAP test file with data model
-        var olapTestFile = await CreateOlapTestFileAsync(nameof(AddColumnField_OlapPivot_AddsFieldToColumns));
+        var olapTestFile = CreateOlapTestFile(nameof(AddColumnField_OlapPivot_AddsFieldToColumns));
         using var batch = ExcelSession.BeginBatch(olapTestFile);
 
         // Act - Remove existing Region field first to make room for Quarter
-        await _pivotCommands.RemoveField(batch, "DataModelPivot", "Region");
+        _pivotCommands.RemoveField(batch, "DataModelPivot", "Region");
         var result = _pivotCommands.AddColumnField(batch, "DataModelPivot", "Quarter", null);
 
         // Assert
@@ -59,10 +59,10 @@ public partial class PivotTableCommandsTests
     [Fact]
     [Trait("Speed", "Medium")]
     [Trait("Category", "OLAP")]
-    public async Task SortField_OlapPivot_SortsFieldSuccessfully()
+    public void SortField_OlapPivot_SortsFieldSuccessfully()
     {
         // Arrange - Create OLAP test file with data model
-        var olapTestFile = await CreateOlapTestFileAsync(nameof(SortField_OlapPivot_SortsFieldSuccessfully));
+        var olapTestFile = CreateOlapTestFile(nameof(SortField_OlapPivot_SortsFieldSuccessfully));
         using var batch = ExcelSession.BeginBatch(olapTestFile);
 
         // Act - Region row field exists in fixture
@@ -81,11 +81,11 @@ public partial class PivotTableCommandsTests
     /// Helper to create OLAP test file with Data Model PivotTable.
     /// Uses PivotTableRealisticFixture internally.
     /// </summary>
-    private async Task<string> CreateOlapTestFileAsync(string _)
+    private string CreateOlapTestFile(string _)
     {
         // For OLAP tests, we use the realistic fixture which has a Data Model PivotTable
         var fixture = new PivotTableRealisticFixture();
-        await fixture.InitializeAsync();
+        fixture.InitializeAsync().GetAwaiter().GetResult();
         _createdFixtures.Add(fixture);
         return fixture.TestFilePath;
     }

@@ -8,10 +8,10 @@ public partial class RangeCommandsTests
 {
     /// <inheritdoc/>
     [Fact]
-    public async Task GetStyle_UnstyledRange_ReturnsNormalStyle()
+    public void GetStyle_UnstyledRange_ReturnsNormalStyle()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(GetStyle_UnstyledRange_ReturnsNormalStyle),
             _tempDir,
@@ -30,10 +30,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task GetStyle_AfterSetStyle_ReturnsAppliedStyle()
+    public void GetStyle_AfterSetStyle_ReturnsAppliedStyle()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(GetStyle_AfterSetStyle_ReturnsAppliedStyle),
             _tempDir,
@@ -58,10 +58,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task GetStyle_MultipleStyles_ReturnsCorrectStyles()
+    public void GetStyle_MultipleStyles_ReturnsCorrectStyles()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(GetStyle_MultipleStyles_ReturnsCorrectStyles),
             _tempDir,
@@ -71,18 +71,18 @@ public partial class RangeCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Set different styles on different cells
-        var setHeading1 = await _commands.SetStyle(batch, "Sheet1", "A1", "Heading 1");
-        var setAccent1 = await _commands.SetStyle(batch, "Sheet1", "B1", "Accent1");
-        var setCurrency = await _commands.SetStyle(batch, "Sheet1", "C1", "Currency");
+        var setHeading1 = _commands.SetStyle(batch, "Sheet1", "A1", "Heading 1");
+        var setAccent1 = _commands.SetStyle(batch, "Sheet1", "B1", "Accent1");
+        var setCurrency = _commands.SetStyle(batch, "Sheet1", "C1", "Currency");
 
         Assert.True(setHeading1.Success, $"SetStyle Heading 1 failed: {setHeading1.ErrorMessage}");
         Assert.True(setAccent1.Success, $"SetStyle Accent1 failed: {setAccent1.ErrorMessage}");
         Assert.True(setCurrency.Success, $"SetStyle Currency failed: {setCurrency.ErrorMessage}");
 
         // Get the styles
-        var getHeading1 = await _commands.GetStyle(batch, "Sheet1", "A1");
-        var getAccent1 = await _commands.GetStyle(batch, "Sheet1", "B1");
-        var getCurrency = await _commands.GetStyle(batch, "Sheet1", "C1");
+        var getHeading1 = _commands.GetStyle(batch, "Sheet1", "A1");
+        var getAccent1 = _commands.GetStyle(batch, "Sheet1", "B1");
+        var getCurrency = _commands.GetStyle(batch, "Sheet1", "C1");
 
         // Assert
         Assert.True(getHeading1.Success, $"GetStyle A1 failed: {getHeading1.ErrorMessage}");
@@ -100,10 +100,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task GetStyle_RangeMultipleCells_ReturnsFirstCellStyle()
+    public void GetStyle_RangeMultipleCells_ReturnsFirstCellStyle()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(GetStyle_RangeMultipleCells_ReturnsFirstCellStyle),
             _tempDir,
@@ -127,10 +127,10 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task GetStyle_InvalidRange_ReturnsError()
+    public void GetStyle_InvalidRange_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
             nameof(GetStyle_InvalidRange_ReturnsError),
             _tempDir,

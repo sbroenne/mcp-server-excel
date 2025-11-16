@@ -63,10 +63,10 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
     /// LLM use case: "import this M code as a new Power Query"
     /// </summary>
     [Fact]
-    public async Task Import_ValidMCode_ReturnsSuccess()
+    public void Import_ValidMCode_ReturnsSuccess()
     {
         // Arrange - Use unique file to avoid polluting fixture
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(Import_ValidMCode_ReturnsSuccess),
             _tempDir);
@@ -75,7 +75,7 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
 
         // Act
         using var batch = ExcelSession.BeginBatch(testExcelFile);
-        var result = await _powerQueryCommands.Create(batch, queryName, testQueryFile, PowerQueryLoadMode.ConnectionOnly);
+        var result = _powerQueryCommands.Create(batch, queryName, testQueryFile, PowerQueryLoadMode.ConnectionOnly);
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
@@ -86,11 +86,11 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
     /// LLM use case: "show me all Power Queries in this workbook"
     /// </summary>
     [Fact]
-    public async Task List_FixtureWorkbook_ReturnsFixtureQueries()
+    public void List_FixtureWorkbook_ReturnsFixtureQueries()
     {
         // Act
         using var batch = ExcelSession.BeginBatch(_powerQueryFile);
-        var result = await _powerQueryCommands.List(batch);
+        var result = _powerQueryCommands.List(batch);
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
@@ -103,11 +103,11 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
     /// LLM use case: "show me the M code for this query"
     /// </summary>
     [Fact]
-    public async Task View_BasicQuery_ReturnsMCode()
+    public void View_BasicQuery_ReturnsMCode()
     {
         // Act
         using var batch = ExcelSession.BeginBatch(_powerQueryFile);
-        var result = await _powerQueryCommands.View(batch, "BasicQuery");
+        var result = _powerQueryCommands.View(batch, "BasicQuery");
 
         // Assert
         Assert.True(result.Success);
@@ -120,10 +120,10 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
     /// LLM use case: "update this query's M code"
     /// </summary>
     [Fact]
-    public async Task Update_ExistingQuery_ReturnsSuccess()
+    public void Update_ExistingQuery_ReturnsSuccess()
     {
         // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(Update_ExistingQuery_ReturnsSuccess),
             _tempDir);
@@ -135,7 +135,7 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
 
         // Act
         using var batch = ExcelSession.BeginBatch(testExcelFile);
-        await _powerQueryCommands.Create(batch, queryName, testQueryFile);
+        _powerQueryCommands.Create(batch, queryName, testQueryFile);
         var result = _powerQueryCommands.Update(batch, queryName, updateFile);
 
         // Assert
@@ -153,10 +153,10 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
     /// LLM use case: "update this query's M code and verify it was replaced"
     /// </summary>
     [Fact]
-    public async Task Update_ExistingQuery_ReplacesNotMergesMCode()
+    public void Update_ExistingQuery_ReplacesNotMergesMCode()
     {
         // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(Update_ExistingQuery_ReplacesNotMergesMCode),
             _tempDir);
@@ -221,10 +221,10 @@ in
     /// LLM use case: "update this query multiple times during development"
     /// </summary>
     [Fact]
-    public async Task Update_MultipleSequentialUpdates_EachReplacesCompletely()
+    public void Update_MultipleSequentialUpdates_EachReplacesCompletely()
     {
         // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(Update_MultipleSequentialUpdates_EachReplacesCompletely),
             _tempDir);
@@ -245,13 +245,13 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Create with version 1
-        await _powerQueryCommands.Create(batch, queryName, version1File);
+        _powerQueryCommands.Create(batch, queryName, version1File);
 
         // Update to version 2
-        await _powerQueryCommands.Update(batch, queryName, version2File);
+        _powerQueryCommands.Update(batch, queryName, version2File);
 
         // Update to version 3
-        await _powerQueryCommands.Update(batch, queryName, version3File);
+        _powerQueryCommands.Update(batch, queryName, version3File);
 
         // View final result
         var viewResult = _powerQueryCommands.View(batch, queryName);
@@ -274,10 +274,10 @@ in
     /// LLM use case: "delete this Power Query"
     /// </summary>
     [Fact]
-    public async Task Delete_ExistingQuery_ReturnsSuccess()
+    public void Delete_ExistingQuery_ReturnsSuccess()
     {
         // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(Delete_ExistingQuery_ReturnsSuccess),
             _tempDir);
@@ -287,7 +287,7 @@ in
 
         // Act
         using var batch = ExcelSession.BeginBatch(testExcelFile);
-        await _powerQueryCommands.Create(batch, queryName, testQueryFile);
+        _powerQueryCommands.Create(batch, queryName, testQueryFile);
         var result = _powerQueryCommands.Delete(batch, queryName);
 
         // Assert
@@ -300,10 +300,10 @@ in
     /// Real bug: LLM using Create action on existing query instead of Update
     /// </summary>
     [Fact]
-    public async Task Create_DuplicateQueryName_ReturnsError()
+    public void Create_DuplicateQueryName_ReturnsError()
     {
         // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(Create_DuplicateQueryName_ReturnsError),
             _tempDir);
@@ -314,11 +314,11 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Act 1: Create query first time (should succeed)
-        var firstCreate = await _powerQueryCommands.Create(batch, queryName, testQueryFile);
+        var firstCreate = _powerQueryCommands.Create(batch, queryName, testQueryFile);
         Assert.True(firstCreate.Success, $"First create should succeed: {firstCreate.ErrorMessage}");
 
         // Act 2: Try to Create same query again (should fail)
-        var secondCreate = await _powerQueryCommands.Create(batch, queryName, testQueryFile);
+        var secondCreate = _powerQueryCommands.Create(batch, queryName, testQueryFile);
 
         // Assert: Second create should fail with clear error message
         Assert.False(secondCreate.Success, "Second create should fail");
@@ -344,10 +344,10 @@ in
     /// LLM use case: "create a query that filters data from another query"
     /// </summary>
     [Fact]
-    public async Task Import_QueryReferencingAnotherQuery_LoadsDataSuccessfully()
+    public void Import_QueryReferencingAnotherQuery_LoadsDataSuccessfully()
     {
         // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(Import_QueryReferencingAnotherQuery_LoadsDataSuccessfully),
             _tempDir);
@@ -437,10 +437,10 @@ in
     /// This test verifies that Update preserves the load configuration.
     /// </summary>
     [Fact]
-    public async Task Update_QueryLoadedToSheet_PreservesLoadConfiguration()
+    public void Update_QueryLoadedToSheet_PreservesLoadConfiguration()
     {
         // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(Update_QueryLoadedToSheet_PreservesLoadConfiguration),
             _tempDir);
@@ -468,7 +468,7 @@ in
         Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
 
         // Verify initial load configuration
-        var loadConfigBefore = await _powerQueryCommands.GetLoadConfig(batch, queryName);
+        var loadConfigBefore = _powerQueryCommands.GetLoadConfig(batch, queryName);
         Assert.True(loadConfigBefore.Success, "GetLoadConfig before update failed");
         Assert.Equal(PowerQueryLoadMode.LoadToTable, loadConfigBefore.LoadMode);
         Assert.Equal(sheetName, loadConfigBefore.TargetSheet);
@@ -478,7 +478,7 @@ in
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
 
         // STEP 3: Verify load configuration is PRESERVED (regression check)
-        var loadConfigAfter = await _powerQueryCommands.GetLoadConfig(batch, queryName);
+        var loadConfigAfter = _powerQueryCommands.GetLoadConfig(batch, queryName);
         Assert.True(loadConfigAfter.Success, "GetLoadConfig after update failed");
 
         // THE BUG: This assertion should pass but might fail if Update doesn't restore load config
@@ -498,11 +498,11 @@ in
     /// Expected: Load configuration should survive both UpdateMCode AND Refresh operations.
     /// </summary>
     [Fact]
-    public async Task UpdateMCodeThenRefresh_QueryLoadedToSheet_PreservesLoadConfiguration()
+    public void UpdateMCodeThenRefresh_QueryLoadedToSheet_PreservesLoadConfiguration()
     {
         // Arrange
 
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(UpdateMCodeThenRefresh_QueryLoadedToSheet_PreservesLoadConfiguration),
             _tempDir);
@@ -530,7 +530,7 @@ in
         Assert.True(createResult.Success, $"Create failed: {createResult.ErrorMessage}");
 
         // STEP 2: Verify initial load configuration
-        var loadConfigBefore = await _powerQueryCommands.GetLoadConfig(batch, queryName);
+        var loadConfigBefore = _powerQueryCommands.GetLoadConfig(batch, queryName);
         Assert.True(loadConfigBefore.Success, "GetLoadConfig before update failed");
         Assert.Equal(PowerQueryLoadMode.LoadToTable, loadConfigBefore.LoadMode);
         Assert.Equal(sheetName, loadConfigBefore.TargetSheet);
@@ -540,7 +540,7 @@ in
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
 
         // STEP 4: THE CRITICAL CHECK - Does load config survive Update (which includes refresh)?
-        var loadConfigAfterUpdate = await _powerQueryCommands.GetLoadConfig(batch, queryName);
+        var loadConfigAfterUpdate = _powerQueryCommands.GetLoadConfig(batch, queryName);
         Assert.True(loadConfigAfterUpdate.Success, "GetLoadConfig after update failed");
 
         // This assertion verifies load config is preserved through update+refresh
@@ -574,10 +574,10 @@ in
     /// Fix: Set PreserveColumnInfo=false and clear worksheet before recreating QueryTable
     /// </summary>
     [Fact]
-    public async Task Update_QueryColumnStructure_UpdatesWorksheetColumns()
+    public void Update_QueryColumnStructure_UpdatesWorksheetColumns()
     {
         // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(Update_QueryColumnStructure_UpdatesWorksheetColumns),
             _tempDir);
@@ -606,7 +606,7 @@ in
 
         // STEP 2: Verify there is only ONE column
         var rangeCommands = new RangeCommands();
-        var usedRange1 = await rangeCommands.GetUsedRange(batch, sheetName);
+        var usedRange1 = rangeCommands.GetUsedRange(batch, sheetName);
         Assert.True(usedRange1.Success, $"GetUsedRange failed: {usedRange1.ErrorMessage}");
         Assert.Equal(1, usedRange1.ColumnCount);
 
@@ -626,11 +626,11 @@ in
     Source");
 
         // STEP 3: Update query to ONE column (now auto-refreshes)
-        var updateResult1 = await _powerQueryCommands.Update(batch, queryName, oneColumnUpdatedFile);
+        var updateResult1 = _powerQueryCommands.Update(batch, queryName, oneColumnUpdatedFile);
         Assert.True(updateResult1.Success, $"First update failed: {updateResult1.ErrorMessage}");
 
         // STEP 4: Check that there is still only ONE column
-        var usedRange2 = await rangeCommands.GetUsedRange(batch, sheetName);
+        var usedRange2 = rangeCommands.GetUsedRange(batch, sheetName);
         Assert.True(usedRange2.Success, $"GetUsedRange after first update failed: {usedRange2.ErrorMessage}");
         Assert.Equal(1, usedRange2.ColumnCount);
 
@@ -651,16 +651,16 @@ in
 
         // STEP 5: Update query to TWO columns (now auto-refreshes)
         // This validates the fix: PreserveColumnInfo=false allows column structure updates
-        var updateResult2 = await _powerQueryCommands.Update(batch, queryName, twoColumnQueryFile);
+        var updateResult2 = _powerQueryCommands.Update(batch, queryName, twoColumnQueryFile);
         Assert.True(updateResult2.Success, $"Second update failed: {updateResult2.ErrorMessage}");
 
         // STEP 6: Check that there are now TWO columns
         // This validates the fix: PreserveColumnInfo=false allows column structure updates
-        var usedRange3 = await rangeCommands.GetUsedRange(batch, sheetName);
+        var usedRange3 = rangeCommands.GetUsedRange(batch, sheetName);
         Assert.True(usedRange3.Success, $"GetUsedRange after second update failed: {usedRange3.ErrorMessage}");
 
         // Diagnostic: Capture actual column structure for better error messages
-        var values = await rangeCommands.GetValues(batch, sheetName, usedRange3.RangeAddress);
+        var values = rangeCommands.GetValues(batch, sheetName, usedRange3.RangeAddress);
         Assert.True(values.Success, $"GetValues failed: {values.ErrorMessage}");
 
         // Get column headers to see what columns Excel created
@@ -695,10 +695,10 @@ in
     /// This test reproduces the exact scenario from early testing where we saw accumulated columns.
     /// </summary>
     [Fact]
-    public async Task Update_QueryColumnStructureWithDeleteRecreate_NoAccumulation()
+    public void Update_QueryColumnStructureWithDeleteRecreate_NoAccumulation()
     {
         // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(PowerQueryCommandsTests),
             nameof(Update_QueryColumnStructureWithDeleteRecreate_NoAccumulation),
             _tempDir);
@@ -728,7 +728,7 @@ in
 
         // Verify initial state: 1 column
         var rangeCommands = new RangeCommands();
-        var usedRange1 = await rangeCommands.GetUsedRange(batch, sheetName);
+        var usedRange1 = rangeCommands.GetUsedRange(batch, sheetName);
         Assert.True(usedRange1.Success);
         Assert.Equal(1, usedRange1.ColumnCount);
 
@@ -764,11 +764,11 @@ in
         Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
 
         // STEP 4: Verify NO column accumulation (fix validation)
-        var usedRange2 = await rangeCommands.GetUsedRange(batch, sheetName);
+        var usedRange2 = rangeCommands.GetUsedRange(batch, sheetName);
         Assert.True(usedRange2.Success);
 
         // Get actual column headers for diagnostic output
-        var values = await rangeCommands.GetValues(batch, sheetName, usedRange2.RangeAddress);
+        var values = rangeCommands.GetValues(batch, sheetName, usedRange2.RangeAddress);
         Assert.True(values.Success);
 
         var headerRow = values.Values.FirstOrDefault();

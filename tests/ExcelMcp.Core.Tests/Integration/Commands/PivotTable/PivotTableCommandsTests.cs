@@ -37,9 +37,9 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     /// Helper to create unique test file with sales data for pivot table tests.
     /// Used when tests need unique files for specific scenarios.
     /// </summary>
-    private async Task<string> CreateTestFileWithDataAsync(string testName)
+    private string CreateTestFileWithData(string testName)
     {
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(PivotTableCommandsTests), testName, _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -116,7 +116,7 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     /// </summary>
     [Fact]
     [Trait("Speed", "Medium")]
-    public Task DataPreparation_Persists_AfterReopenFile()
+    public void DataPreparation_Persists_AfterReopenFile()
     {
         // Close and reopen to verify persistence (new batch = new session)
         using var batch = ExcelSession.BeginBatch(_pivotFile);
@@ -141,6 +141,5 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
         });
 
         // This proves data creation + save worked correctly
-        return Task.CompletedTask;
     }
 }

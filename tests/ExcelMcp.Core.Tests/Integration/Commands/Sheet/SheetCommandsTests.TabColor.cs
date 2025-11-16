@@ -12,16 +12,16 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetTabColor_WithValidRGB_SetsColorCorrectly()
+    public void SetTabColor_WithValidRGB_SetsColorCorrectly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
             nameof(SetTabColor_WithValidRGB_SetsColorCorrectly),
             _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        await _sheetCommands.Create(batch, "ColorTest");
+        _sheetCommands.Create(batch, "ColorTest");
 
         // Act - Set red color
         var setResult = _sheetCommands.SetTabColor(batch, "ColorTest", 255, 0, 0);
@@ -43,10 +43,10 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetTabColor_WithDifferentColors_AllSetCorrectly()
+    public void SetTabColor_WithDifferentColors_AllSetCorrectly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
             nameof(SetTabColor_WithDifferentColors_AllSetCorrectly),
             _tempDir);
@@ -54,29 +54,29 @@ public partial class SheetCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create multiple sheets
-        await _sheetCommands.Create(batch, "Red");
-        await _sheetCommands.Create(batch, "Green");
-        await _sheetCommands.Create(batch, "Blue");
+        _sheetCommands.Create(batch, "Red");
+        _sheetCommands.Create(batch, "Green");
+        _sheetCommands.Create(batch, "Blue");
 
         // Act - Set different colors
-        await _sheetCommands.SetTabColor(batch, "Red", 255, 0, 0);
-        await _sheetCommands.SetTabColor(batch, "Green", 0, 255, 0);
-        await _sheetCommands.SetTabColor(batch, "Blue", 0, 0, 255);
+        _sheetCommands.SetTabColor(batch, "Red", 255, 0, 0);
+        _sheetCommands.SetTabColor(batch, "Green", 0, 255, 0);
+        _sheetCommands.SetTabColor(batch, "Blue", 0, 0, 255);
 
         // Assert - Verify each color
-        var redColor = await _sheetCommands.GetTabColor(batch, "Red");
+        var redColor = _sheetCommands.GetTabColor(batch, "Red");
         Assert.True(redColor.HasColor);
         Assert.Equal(255, redColor.Red);
         Assert.Equal(0, redColor.Green);
         Assert.Equal(0, redColor.Blue);
 
-        var greenColor = await _sheetCommands.GetTabColor(batch, "Green");
+        var greenColor = _sheetCommands.GetTabColor(batch, "Green");
         Assert.True(greenColor.HasColor);
         Assert.Equal(0, greenColor.Red);
         Assert.Equal(255, greenColor.Green);
         Assert.Equal(0, greenColor.Blue);
 
-        var blueColor = await _sheetCommands.GetTabColor(batch, "Blue");
+        var blueColor = _sheetCommands.GetTabColor(batch, "Blue");
         Assert.True(blueColor.HasColor);
         Assert.Equal(0, blueColor.Red);
         Assert.Equal(0, blueColor.Green);
@@ -87,16 +87,16 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task GetTabColor_WithNoColor_ReturnsHasColorFalse()
+    public void GetTabColor_WithNoColor_ReturnsHasColorFalse()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
             nameof(GetTabColor_WithNoColor_ReturnsHasColorFalse),
             _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        await _sheetCommands.Create(batch, "NoColor");
+        _sheetCommands.Create(batch, "NoColor");
 
         // Act
         var result = _sheetCommands.GetTabColor(batch, "NoColor");
@@ -112,20 +112,20 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task ClearTabColor_RemovesColor()
+    public void ClearTabColor_RemovesColor()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
             nameof(ClearTabColor_RemovesColor),
             _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        await _sheetCommands.Create(batch, "ClearTest");
-        await _sheetCommands.SetTabColor(batch, "ClearTest", 255, 165, 0); // Orange
+        _sheetCommands.Create(batch, "ClearTest");
+        _sheetCommands.SetTabColor(batch, "ClearTest", 255, 165, 0); // Orange
 
         // Verify color is set
-        var beforeClear = await _sheetCommands.GetTabColor(batch, "ClearTest");
+        var beforeClear = _sheetCommands.GetTabColor(batch, "ClearTest");
         Assert.True(beforeClear.HasColor);
 
         // Act - Clear color
@@ -134,7 +134,7 @@ public partial class SheetCommandsTests
         // Assert
         Assert.True(clearResult.Success);
 
-        var afterClear = await _sheetCommands.GetTabColor(batch, "ClearTest");
+        var afterClear = _sheetCommands.GetTabColor(batch, "ClearTest");
         Assert.True(afterClear.Success);
         Assert.False(afterClear.HasColor);
 
@@ -143,20 +143,20 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetTabColor_WithInvalidRGB_ReturnsError()
+    public void SetTabColor_WithInvalidRGB_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
             nameof(SetTabColor_WithInvalidRGB_ReturnsError),
             _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        await _sheetCommands.Create(batch, "InvalidColor");
+        _sheetCommands.Create(batch, "InvalidColor");
 
         // Act - Try to set invalid RGB values
-        var result1 = await _sheetCommands.SetTabColor(batch, "InvalidColor", 256, 0, 0); // Red too high
-        var result2 = await _sheetCommands.SetTabColor(batch, "InvalidColor", 0, -1, 0); // Green negative
+        var result1 = _sheetCommands.SetTabColor(batch, "InvalidColor", 256, 0, 0); // Red too high
+        var result2 = _sheetCommands.SetTabColor(batch, "InvalidColor", 0, -1, 0); // Green negative
 
         // Assert
         Assert.False(result1.Success);
@@ -168,10 +168,10 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task SetTabColor_WithNonExistentSheet_ReturnsError()
+    public void SetTabColor_WithNonExistentSheet_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
             nameof(SetTabColor_WithNonExistentSheet_ReturnsError),
             _tempDir);
@@ -188,19 +188,19 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task TabColor_RGBToBGRConversion_WorksCorrectly()
+    public void TabColor_RGBToBGRConversion_WorksCorrectly()
     {
         // Arrange - Test BGR conversion accuracy
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
             nameof(TabColor_RGBToBGRConversion_WorksCorrectly),
             _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        await _sheetCommands.Create(batch, "ConversionTest");
+        _sheetCommands.Create(batch, "ConversionTest");
 
         // Act - Set a complex color (purple: RGB(128, 0, 128))
-        await _sheetCommands.SetTabColor(batch, "ConversionTest", 128, 0, 128);
+        _sheetCommands.SetTabColor(batch, "ConversionTest", 128, 0, 128);
 
         // Assert - Verify conversion accuracy
         var result = _sheetCommands.GetTabColor(batch, "ConversionTest");

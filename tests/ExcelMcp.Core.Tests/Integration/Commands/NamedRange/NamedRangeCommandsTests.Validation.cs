@@ -17,10 +17,10 @@ public partial class NamedRangeCommandsTests
 {
     /// <inheritdoc/>
     [Fact]
-    public async Task Create_EmptyParameterName_ReturnsError()
+    public void Create_EmptyParameterName_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(Create_EmptyParameterName_ReturnsError), _tempDir);
 
         // Act
@@ -34,10 +34,10 @@ public partial class NamedRangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Create_WhitespaceParameterName_ReturnsError()
+    public void Create_WhitespaceParameterName_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(Create_WhitespaceParameterName_ReturnsError), _tempDir);
 
         // Act
@@ -51,11 +51,11 @@ public partial class NamedRangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Create_ParameterNameExactly255Characters_ReturnsSuccess()
+    public void Create_ParameterNameExactly255Characters_ReturnsSuccess()
     {
         // Arrange - Create name with exactly 255 characters (Excel's limit)
         var paramName = new string('A', 255);
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(Create_ParameterNameExactly255Characters_ReturnsSuccess), _tempDir);
 
         // Act
@@ -72,11 +72,11 @@ public partial class NamedRangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Create_ParameterName256Characters_ReturnsError()
+    public void Create_ParameterName256Characters_ReturnsError()
     {
         // Arrange - Create name with 256 characters (exceeds Excel's limit)
         var paramName = new string('B', 256);
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(Create_ParameterName256Characters_ReturnsError), _tempDir);
 
         // Act
@@ -91,11 +91,11 @@ public partial class NamedRangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Update_ParameterNameExceeds255Characters_ReturnsError()
+    public void Update_ParameterNameExceeds255Characters_ReturnsError()
     {
         // Arrange
         var longParamName = new string('C', 300);
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(Update_ParameterNameExceeds255Characters_ReturnsError), _tempDir);
 
         // Act
@@ -110,11 +110,11 @@ public partial class NamedRangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task CreateBulk_ParameterNameExceeds255Characters_SkipsWithError()
+    public void CreateBulk_ParameterNameExceeds255Characters_SkipsWithError()
     {
         // Arrange
         var longParamName = new string('D', 270);
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(CreateBulk_ParameterNameExceeds255Characters_SkipsWithError), _tempDir);
 
         var parameters = new[]
@@ -140,12 +140,12 @@ public partial class NamedRangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task CreateBulk_AllParametersExceedLimit_ReturnsError()
+    public void CreateBulk_AllParametersExceedLimit_ReturnsError()
     {
         // Arrange
         var longParamName1 = new string('E', 260);
         var longParamName2 = new string('F', 280);
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(CreateBulk_AllParametersExceedLimit_ReturnsError), _tempDir);
 
         var parameters = new[]

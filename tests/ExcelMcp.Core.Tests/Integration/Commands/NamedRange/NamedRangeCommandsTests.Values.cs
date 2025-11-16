@@ -11,10 +11,10 @@ public partial class NamedRangeCommandsTests
 {
     /// <inheritdoc/>
     [Fact]
-    public async Task Set_ExistingParameter_UpdatesValue()
+    public void Set_ExistingParameter_UpdatesValue()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(Set_ExistingParameter_UpdatesValue), _tempDir);
 
         // Act - Use single batch for create, set, and verify
@@ -36,10 +36,10 @@ public partial class NamedRangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Get_ExistingParameter_ReturnsValue()
+    public void Get_ExistingParameter_ReturnsValue()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(Get_ExistingParameter_ReturnsValue), _tempDir);
         string testValue = "Integration Test Value";
 
@@ -63,10 +63,10 @@ public partial class NamedRangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Get_WithNonExistentParameter_ReturnsError()
+    public void Get_WithNonExistentParameter_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(Get_WithNonExistentParameter_ReturnsError), _tempDir);
 
         // Act

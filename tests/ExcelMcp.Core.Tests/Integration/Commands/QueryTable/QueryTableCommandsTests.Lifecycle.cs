@@ -12,10 +12,10 @@ public partial class QueryTableCommandsTests
 {
     /// <inheritdoc/>
     [Fact]
-    public async Task CreateFromQuery_ValidQuery_CreatesQueryTable()
+    public void CreateFromQuery_ValidQuery_CreatesQueryTable()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(QueryTableCommandsTests), nameof(CreateFromQuery_ValidQuery_CreatesQueryTable), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -25,7 +25,7 @@ public partial class QueryTableCommandsTests
         var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"Name\", \"Value\"}, {{\"A\", 1}, {\"B\", 2}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "DataQuery.pq");
-        await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
+        System.IO.File.WriteAllText(mCodeFile, mCode);
         var importResult = pqCommands.Create(batch, "DataQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
         Assert.True(importResult.Success);
 
@@ -50,17 +50,17 @@ public partial class QueryTableCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task CreateFromQuery_NonExistentQuery_ReturnsFalse()
+    public void CreateFromQuery_NonExistentQuery_ReturnsFalse()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(QueryTableCommandsTests), nameof(CreateFromQuery_NonExistentQuery_ReturnsFalse), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create worksheet
         var sheetCommands = new Core.Commands.SheetCommands();
-        await sheetCommands.Create(batch, "Data");
+        sheetCommands.Create(batch, "Data");
 
         // Act
         var result = _commands.CreateFromQuery(batch, "Data", "MyQueryTable", "NonExistent");
@@ -72,10 +72,10 @@ public partial class QueryTableCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task CreateFromQuery_WithOptions_AppliesOptions()
+    public void CreateFromQuery_WithOptions_AppliesOptions()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(QueryTableCommandsTests), nameof(CreateFromQuery_WithOptions_AppliesOptions), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -85,11 +85,11 @@ public partial class QueryTableCommandsTests
         var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"Col1\"}, {{\"Val1\"}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "TestQuery.pq");
-        await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
-        await pqCommands.Create(batch, "TestQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+        System.IO.File.WriteAllText(mCodeFile, mCode);
+        pqCommands.Create(batch, "TestQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Core.Commands.SheetCommands();
-        await sheetCommands.Create(batch, "Sheet1");
+        sheetCommands.Create(batch, "Sheet1");
 
         var options = new QueryTableCreateOptions
         {
@@ -114,10 +114,10 @@ public partial class QueryTableCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Delete_ExistingQueryTable_DeletesSuccessfully()
+    public void Delete_ExistingQueryTable_DeletesSuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(QueryTableCommandsTests), nameof(Delete_ExistingQueryTable_DeletesSuccessfully), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -127,13 +127,13 @@ public partial class QueryTableCommandsTests
         var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"A\"}, {{1}}) in Source";
         var mCodeFile = Path.Combine(_tempDir, "Q1.pq");
-        await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
-        await pqCommands.Create(batch, "Q1", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+        System.IO.File.WriteAllText(mCodeFile, mCode);
+        pqCommands.Create(batch, "Q1", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Core.Commands.SheetCommands();
-        await sheetCommands.Create(batch, "S1");
+        sheetCommands.Create(batch, "S1");
 
-        await _commands.CreateFromQuery(batch, "S1", "QT1", "Q1");
+        _commands.CreateFromQuery(batch, "S1", "QT1", "Q1");
 
         // Act
         var result = _commands.Delete(batch, "QT1");
@@ -149,10 +149,10 @@ public partial class QueryTableCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Delete_NonExistentQueryTable_ReturnsFalse()
+    public void Delete_NonExistentQueryTable_ReturnsFalse()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(QueryTableCommandsTests), nameof(Delete_NonExistentQueryTable_ReturnsFalse), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);

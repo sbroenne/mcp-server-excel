@@ -12,10 +12,10 @@ public partial class PivotTableCommandsTests
     /// <inheritdoc/>
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task List_EmptyWorkbook_ReturnsEmptyList()
+    public void List_EmptyWorkbook_ReturnsEmptyList()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(List_EmptyWorkbook_ReturnsEmptyList));
+        var testFile = CreateTestFileWithData(nameof(List_EmptyWorkbook_ReturnsEmptyList));
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -30,10 +30,10 @@ public partial class PivotTableCommandsTests
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task List_WithPivotTable_ReturnsPivotTableInfo()
+    public void List_WithPivotTable_ReturnsPivotTableInfo()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(List_WithPivotTable_ReturnsPivotTableInfo));
+        var testFile = CreateTestFileWithData(nameof(List_WithPivotTable_ReturnsPivotTableInfo));
 
         using var batch = ExcelSession.BeginBatch(testFile);
         var createResult = _pivotCommands.CreateFromRange(
@@ -54,10 +54,10 @@ public partial class PivotTableCommandsTests
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task GetInfo_ExistingPivotTable_ReturnsCompleteInfo()
+    public void GetInfo_ExistingPivotTable_ReturnsCompleteInfo()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(GetInfo_ExistingPivotTable_ReturnsCompleteInfo));
+        var testFile = CreateTestFileWithData(nameof(GetInfo_ExistingPivotTable_ReturnsCompleteInfo));
 
         using var batch = ExcelSession.BeginBatch(testFile);
         var createResult = _pivotCommands.CreateFromRange(
@@ -77,10 +77,10 @@ public partial class PivotTableCommandsTests
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task GetInfo_NonExistentPivotTable_ReturnsError()
+    public void GetInfo_NonExistentPivotTable_ReturnsError()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(GetInfo_NonExistentPivotTable_ReturnsError));
+        var testFile = CreateTestFileWithData(nameof(GetInfo_NonExistentPivotTable_ReturnsError));
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -95,10 +95,10 @@ public partial class PivotTableCommandsTests
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task Delete_ExistingPivotTable_RemovesPivotTable()
+    public void Delete_ExistingPivotTable_RemovesPivotTable()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(Delete_ExistingPivotTable_RemovesPivotTable));
+        var testFile = CreateTestFileWithData(nameof(Delete_ExistingPivotTable_RemovesPivotTable));
 
         using var batch = ExcelSession.BeginBatch(testFile);
         var createResult = _pivotCommands.CreateFromRange(
@@ -120,10 +120,10 @@ public partial class PivotTableCommandsTests
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task Delete_NonExistentPivotTable_ReturnsError()
+    public void Delete_NonExistentPivotTable_ReturnsError()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(Delete_NonExistentPivotTable_ReturnsError));
+        var testFile = CreateTestFileWithData(nameof(Delete_NonExistentPivotTable_ReturnsError));
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -137,10 +137,10 @@ public partial class PivotTableCommandsTests
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task Refresh_ExistingPivotTable_UpdatesData()
+    public void Refresh_ExistingPivotTable_UpdatesData()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(Refresh_ExistingPivotTable_UpdatesData));
+        var testFile = CreateTestFileWithData(nameof(Refresh_ExistingPivotTable_UpdatesData));
 
         using var batch = ExcelSession.BeginBatch(testFile);
         var createResult = _pivotCommands.CreateFromRange(
@@ -160,10 +160,10 @@ public partial class PivotTableCommandsTests
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task GetData_ExistingPivotTable_ReturnsData()
+    public void GetData_ExistingPivotTable_ReturnsData()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(GetData_ExistingPivotTable_ReturnsData));
+        var testFile = CreateTestFileWithData(nameof(GetData_ExistingPivotTable_ReturnsData));
 
         using var batch = ExcelSession.BeginBatch(testFile);
 

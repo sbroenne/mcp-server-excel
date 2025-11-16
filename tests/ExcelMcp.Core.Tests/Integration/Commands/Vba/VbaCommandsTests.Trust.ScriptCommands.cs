@@ -11,10 +11,10 @@ public partial class VbaCommandsTests
 {
     /// <inheritdoc/>
     [Fact]
-    public async Task ScriptCommands_List_WithTrustEnabled_WorksCorrectly()
+    public void ScriptCommands_List_WithTrustEnabled_WorksCorrectly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(VbaCommandsTests), nameof(ScriptCommands_List_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
 
         // Act
@@ -28,10 +28,10 @@ public partial class VbaCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task ScriptCommands_Import_WithTrustEnabled_WorksCorrectly()
+    public void ScriptCommands_Import_WithTrustEnabled_WorksCorrectly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(VbaCommandsTests), nameof(ScriptCommands_Import_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
 
         string vbaFile = Path.Join(_tempDir, $"TestModule_{Guid.NewGuid():N}.vba");
@@ -47,10 +47,10 @@ public partial class VbaCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task ScriptCommands_Export_WithTrustEnabled_WorksCorrectly()
+    public void ScriptCommands_Export_WithTrustEnabled_WorksCorrectly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(VbaCommandsTests), nameof(ScriptCommands_Export_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
 
         // First import a module so we have something to export
@@ -72,10 +72,10 @@ public partial class VbaCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task ScriptCommands_Run_WithTrustEnabled_WorksCorrectly()
+    public void ScriptCommands_Run_WithTrustEnabled_WorksCorrectly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(VbaCommandsTests), nameof(ScriptCommands_Run_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
 
         // Import a test macro first
@@ -98,10 +98,10 @@ End Sub";
     /// <inheritdoc/>
 
     [Fact]
-    public async Task ScriptCommands_Delete_WithTrustEnabled_WorksCorrectly()
+    public void ScriptCommands_Delete_WithTrustEnabled_WorksCorrectly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(VbaCommandsTests), nameof(ScriptCommands_Delete_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
 
         // Import a module first
@@ -125,10 +125,10 @@ End Sub";
     /// <inheritdoc/>
 
     [Fact]
-    public async Task ScriptCommands_View_WithTrustEnabled_WorksCorrectly()
+    public void ScriptCommands_View_WithTrustEnabled_WorksCorrectly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(VbaCommandsTests), nameof(ScriptCommands_View_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
 
         // Import a module with known code
@@ -152,10 +152,10 @@ End Sub";
     /// <inheritdoc/>
 
     [Fact]
-    public async Task ScriptCommands_Update_WithTrustEnabled_WorksCorrectly()
+    public void ScriptCommands_Update_WithTrustEnabled_WorksCorrectly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(VbaCommandsTests), nameof(ScriptCommands_Update_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
 
         // Import initial module
