@@ -21,7 +21,6 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "SmokeTest")]
 [Trait("RequiresExcel", "true")]
-[Trait("RunType", "OnDemand")]
 public class McpServerSmokeTests : IDisposable
 {
     private readonly ITestOutputHelper _output;
@@ -181,13 +180,13 @@ public class McpServerSmokeTests : IDisposable
         AssertSuccess(createParamResult, "Create named range in batch");
 
         var getParamResult = ExcelNamedRangeTool.ExcelParameter(
-            NamedRangeAction.Get,
+            NamedRangeAction.Read,
             _testExcelFile,
             sessionId,
             namedRangeName: "ReportDate");
-        AssertSuccess(getParamResult, "Get named range in batch");
+        AssertSuccess(getParamResult, "Read named range in batch");
 
-        _output.WriteLine("  ✓ excel_namedrange: CREATE and GET in batch");
+        _output.WriteLine("  ✓ excel_namedrange: CREATE and READ in batch");
 
         // Power Query operations via session API
         var csvContent = "Product,Quantity\nWidget,10\nGadget,20";

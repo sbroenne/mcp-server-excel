@@ -32,4 +32,9 @@
     <ProjectReference Include="..\..\src\ExcelMcp.Core\ExcelMcp.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\ExcelMcp.Core.Tests\Helpers\CoreTestHelper.cs" Link="Helpers\CoreTestHelper.cs" />
+    <Compile Include="..\ExcelMcp.Core.Tests\Helpers\TempDirectoryFixture.cs" Link="Helpers\TempDirectoryFixture.cs" />
+  </ItemGroup>
+
 </Project>

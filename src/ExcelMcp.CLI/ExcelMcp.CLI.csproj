@@ -90,4 +90,9 @@
     <ProjectReference Include="..\ExcelMcp.ComInterop\ExcelMcp.ComInterop.csproj" />
   </ItemGroup>
 
+  <!-- Allow CLI integration tests to access internal command infrastructure -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sbroenne.ExcelMcp.CLI.Tests" />
+  </ItemGroup>
+
 </Project>

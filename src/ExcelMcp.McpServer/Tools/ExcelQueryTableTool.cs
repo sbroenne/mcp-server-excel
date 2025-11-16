@@ -82,7 +82,7 @@ public static class ExcelQueryTableTool
             return action switch
             {
                 QueryTableAction.List => ListQueryTablesAsync(queryTableCommands, sessionId),
-                QueryTableAction.Get => GetQueryTableAsync(queryTableCommands, sessionId, queryTableName),
+                QueryTableAction.Read => ReadQueryTableAsync(queryTableCommands, sessionId, queryTableName),
                 QueryTableAction.CreateFromConnection => CreateFromConnectionAsync(queryTableCommands, sessionId, sheetName, queryTableName, connectionName, range, backgroundQuery, refreshOnFileOpen, savePassword, preserveColumnInfo, preserveFormatting, adjustColumnWidth, refreshImmediately),
                 QueryTableAction.CreateFromQuery => CreateFromQueryAsync(queryTableCommands, sessionId, sheetName, queryTableName, queryName, range, backgroundQuery, refreshOnFileOpen, savePassword, preserveColumnInfo, preserveFormatting, adjustColumnWidth, refreshImmediately),
                 QueryTableAction.Refresh => RefreshQueryTableAsync(queryTableCommands, sessionId, queryTableName),
@@ -115,10 +115,10 @@ public static class ExcelQueryTableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string GetQueryTableAsync(QueryTableCommands commands, string sessionId, string? queryTableName)
+    private static string ReadQueryTableAsync(QueryTableCommands commands, string sessionId, string? queryTableName)
     {
         if (string.IsNullOrWhiteSpace(queryTableName))
-            throw new ArgumentException("queryTableName is required for get action", nameof(queryTableName));
+            throw new ArgumentException("queryTableName is required for read action", nameof(queryTableName));
 
         var result = ExcelToolsBase.WithSession(
             sessionId,

@@ -64,8 +64,12 @@ POWER QUERY AUTO-REDIRECT:
         [Description("Connection description (for create action, optional)")]
         string? description = null,
 
-        [Description("JSON file path for import/export/update, or sheet name for loadto")]
+        [Description("JSON file path for import/update")]
         string? targetPath = null,
+
+        [StringLength(31, MinimumLength = 1)]
+        [Description("Sheet name for loadto action")]
+        string? sheetName = null,
 
         [Description("Background query setting (for set-properties)")]
         bool? backgroundQuery = null,
@@ -90,12 +94,11 @@ POWER QUERY AUTO-REDIRECT:
                 ConnectionAction.View => ViewConnectionAsync(connectionCommands, sessionId, connectionName),
                 ConnectionAction.Create => CreateConnectionAsync(connectionCommands, sessionId, connectionName, connectionString, commandText, description),
                 ConnectionAction.Import => ImportConnectionAsync(connectionCommands, sessionId, connectionName, targetPath),
-                ConnectionAction.Export => ExportConnectionAsync(connectionCommands, sessionId, connectionName, targetPath),
                 ConnectionAction.UpdateProperties => UpdateConnectionAsync(connectionCommands, sessionId, connectionName, targetPath),
                 ConnectionAction.Refresh => RefreshConnectionAsync(connectionCommands, excelPath, sessionId, connectionName),
                 ConnectionAction.Delete => DeleteConnectionAsync(connectionCommands, sessionId, connectionName),
                 ConnectionAction.Test => TestConnectionAsync(connectionCommands, sessionId, connectionName),
-                ConnectionAction.LoadTo => LoadToWorksheetAsync(connectionCommands, sessionId, connectionName, targetPath),
+                ConnectionAction.LoadTo => LoadToWorksheetAsync(connectionCommands, sessionId, connectionName, sheetName),
                 ConnectionAction.GetProperties => GetPropertiesAsync(connectionCommands, sessionId, connectionName),
                 ConnectionAction.SetProperties => SetPropertiesAsync(connectionCommands, sessionId, connectionName, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod),
                 _ => throw new ArgumentException(
@@ -170,22 +173,6 @@ POWER QUERY AUTO-REDIRECT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ExportConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName, string? jsonPath)
-    {
-        if (string.IsNullOrEmpty(connectionName))
-            throw new ArgumentException("connectionName is required for export action", nameof(connectionName));
-
-        if (string.IsNullOrEmpty(jsonPath))
-            throw new ArgumentException("connectionName is required for export action", nameof(connectionName));
-
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.View(batch, connectionName));
-
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
     private static string UpdateConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName, string? jsonPath)
     {
         if (string.IsNullOrEmpty(connectionName))
@@ -255,7 +242,7 @@ POWER QUERY AUTO-REDIRECT:
             throw new ArgumentException("connectionName is required for loadto action", nameof(connectionName));
 
         if (string.IsNullOrEmpty(sheetName))
-            throw new ArgumentException("targetPath (sheet name) is required for loadto action", nameof(sheetName));
+            throw new ArgumentException("sheetName is required for loadto action", nameof(sheetName));
 
         var result = ExcelToolsBase.WithSession(
             sessionId,

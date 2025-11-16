@@ -80,7 +80,7 @@ public static class ExcelPivotTableTool
             return action switch
             {
                 PivotTableAction.List => ListAsync(commands, sessionId),
-                PivotTableAction.Get => GetAsync(commands, sessionId, pivotTableName),
+                PivotTableAction.Read => ReadAsync(commands, sessionId, pivotTableName),
                 PivotTableAction.CreateFromRange => CreateFromRangeAsync(commands, sessionId, sheetName, range, destinationSheet, destinationCell, pivotTableName),
                 PivotTableAction.CreateFromTable => CreateFromTableAsync(commands, sessionId, tableName, destinationSheet, destinationCell, pivotTableName),
                 PivotTableAction.CreateFromDataModel => CreateFromDataModelAsync(commands, sessionId, dataModelTableName, destinationSheet, destinationCell, pivotTableName),
@@ -126,13 +126,13 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string GetAsync(
+    private static string ReadAsync(
         PivotTableCommands commands,
         string sessionId,
         string? pivotTableName)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
-            ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "get-info");
+            ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "read");
 
         var result = ExcelToolsBase.WithSession(sessionId,
             batch => commands.Read(batch, pivotTableName!));

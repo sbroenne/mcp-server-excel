@@ -54,9 +54,6 @@ OPERATIONS GUIDANCE:
         [Description("Source .pq file path (for import/update actions)")]
         string? sourcePath = null,
 
-        [FileExtensions(Extensions = "pq,txt,m")]
-        [Description("Target file path (for export action)")]
-        string? targetPath = null,
 
         [StringLength(31, MinimumLength = 1)]
         [RegularExpression(@"^[^[\]/*?\\:]+$")]
@@ -82,7 +79,6 @@ OPERATIONS GUIDANCE:
             {
                 PowerQueryAction.List => ListPowerQueriesAsync(powerQueryCommands, sessionId),
                 PowerQueryAction.View => ViewPowerQueryAsync(powerQueryCommands, sessionId, queryName),
-                PowerQueryAction.Export => ExportPowerQueryAsync(powerQueryCommands, sessionId, queryName, targetPath),
                 PowerQueryAction.Refresh => RefreshPowerQueryAsync(powerQueryCommands, sessionId, queryName),
                 PowerQueryAction.Delete => DeletePowerQueryAsync(powerQueryCommands, sessionId, queryName),
                 PowerQueryAction.GetLoadConfig => GetLoadConfigAsync(powerQueryCommands, sessionId, queryName),
@@ -136,19 +132,6 @@ OPERATIONS GUIDANCE:
             result.MCode,
             result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string ExportPowerQueryAsync(PowerQueryCommands commands, string sessionId, string? queryName, string? targetPath)
-    {
-        if (string.IsNullOrEmpty(queryName))
-            throw new ArgumentException("queryName is required for export action", nameof(queryName));
-
-        _ = targetPath; // File export handled by clients using returned M code
-
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.View(batch, queryName));
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static string RefreshPowerQueryAsync(PowerQueryCommands commands, string sessionId, string? queryName)

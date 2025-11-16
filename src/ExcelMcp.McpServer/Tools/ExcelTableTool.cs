@@ -77,7 +77,7 @@ public static class TableTool
             {
                 TableAction.List => ListTables(tableCommands, sessionId),
                 TableAction.Create => CreateTable(tableCommands, sessionId, sheetName, tableName, range, hasHeaders, tableStyle),
-                TableAction.Get => GetTableInfo(tableCommands, sessionId, tableName),
+                TableAction.Read => ReadTable(tableCommands, sessionId, tableName),
                 TableAction.Rename => RenameTable(tableCommands, sessionId, tableName, newName),
                 TableAction.Delete => DeleteTable(tableCommands, sessionId, tableName),
                 TableAction.Resize => ResizeTable(tableCommands, sessionId, tableName, range),
@@ -142,9 +142,9 @@ public static class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string GetTableInfo(TableCommands commands, string sessionId, string? tableName)
+    private static string ReadTable(TableCommands commands, string sessionId, string? tableName)
     {
-        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "info");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "read");
 
         var result = ExcelToolsBase.WithSession(
             sessionId,

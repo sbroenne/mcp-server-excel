@@ -20,7 +20,6 @@ public static class ActionExtensions
     {
         PowerQueryAction.List => "list",
         PowerQueryAction.View => "view",
-        PowerQueryAction.Export => "export",
         PowerQueryAction.Refresh => "refresh",
         PowerQueryAction.Delete => "delete",
         PowerQueryAction.GetLoadConfig => "get-load-config",
@@ -104,12 +103,12 @@ public static class ActionExtensions
     public static string ToActionString(this NamedRangeAction action) => action switch
     {
         NamedRangeAction.List => "list",
+        NamedRangeAction.Read => "read",
+        NamedRangeAction.Write => "write",
         NamedRangeAction.Create => "create",
         NamedRangeAction.CreateBulk => "create-bulk",
         NamedRangeAction.Update => "update",
         NamedRangeAction.Delete => "delete",
-        NamedRangeAction.Get => "get",
-        NamedRangeAction.Set => "set",
         _ => throw new ArgumentException($"Unknown NamedRangeAction: {action}")
     };
 
@@ -125,7 +124,6 @@ public static class ActionExtensions
         VbaAction.List => "list",
         VbaAction.View => "view",
         VbaAction.Import => "import",
-        VbaAction.Export => "export",
         VbaAction.Delete => "delete",
         VbaAction.Run => "run",
         VbaAction.Update => "update",
@@ -138,7 +136,6 @@ public static class ActionExtensions
         ConnectionAction.View => "view",
         ConnectionAction.Create => "create",
         ConnectionAction.Import => "import",
-        ConnectionAction.Export => "export",
         ConnectionAction.UpdateProperties => "update-properties",
         ConnectionAction.Test => "test",
         ConnectionAction.Refresh => "refresh",
@@ -152,10 +149,10 @@ public static class ActionExtensions
     public static string ToActionString(this DataModelAction action) => action switch
     {
         DataModelAction.ListTables => "list-tables",
-        DataModelAction.GetTable => "get-table",
+        DataModelAction.ReadTable => "read-table",
         DataModelAction.ListColumns => "list-columns",
         DataModelAction.ListMeasures => "list-measures",
-        DataModelAction.Get => "get",
+        DataModelAction.Read => "read",
         DataModelAction.ExportMeasure => "export-measure",
         DataModelAction.CreateMeasure => "create-measure",
         DataModelAction.UpdateMeasure => "update-measure",
@@ -164,7 +161,7 @@ public static class ActionExtensions
         DataModelAction.CreateRelationship => "create-relationship",
         DataModelAction.UpdateRelationship => "update-relationship",
         DataModelAction.DeleteRelationship => "delete-relationship",
-        DataModelAction.GetInfo => "get-info",
+        DataModelAction.ReadInfo => "read-info",
         DataModelAction.Refresh => "refresh",
         _ => throw new ArgumentException($"Unknown DataModelAction: {action}")
     };
@@ -172,7 +169,7 @@ public static class ActionExtensions
     public static string ToActionString(this TableAction action) => action switch
     {
         TableAction.List => "list",
-        TableAction.Get => "get",
+        TableAction.Read => "read",
         TableAction.Create => "create",
         TableAction.Rename => "rename",
         TableAction.Delete => "delete",
@@ -200,7 +197,7 @@ public static class ActionExtensions
     public static string ToActionString(this PivotTableAction action) => action switch
     {
         PivotTableAction.List => "list",
-        PivotTableAction.Get => "get",
+        PivotTableAction.Read => "read",
         PivotTableAction.CreateFromRange => "create-from-range",
         PivotTableAction.CreateFromTable => "create-from-table",
         PivotTableAction.CreateFromDataModel => "create-from-datamodel",
@@ -224,7 +221,7 @@ public static class ActionExtensions
     public static string ToActionString(this QueryTableAction action) => action switch
     {
         QueryTableAction.List => "list",
-        QueryTableAction.Get => "get",
+        QueryTableAction.Read => "read",
         QueryTableAction.CreateFromConnection => "create-from-connection",
         QueryTableAction.CreateFromQuery => "create-from-query",
         QueryTableAction.Refresh => "refresh",

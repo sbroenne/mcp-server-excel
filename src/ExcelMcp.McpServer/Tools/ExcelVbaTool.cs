@@ -51,12 +51,8 @@ public static class ExcelVbaTool
         string? moduleName = null,
 
         [FileExtensions(Extensions = "vba,bas,txt")]
-        [Description("Source VBA file path (for import/update) or target file path (for export)")]
+        [Description("Source VBA file path (for import/update actions)")]
         string? sourcePath = null,
-
-        [FileExtensions(Extensions = "vba,bas,txt")]
-        [Description("Target VBA file path (for export action)")]
-        string? targetPath = null,
 
         [Description("Parameters for VBA procedure execution (comma-separated)")]
         string? parameters = null)
@@ -70,7 +66,6 @@ public static class ExcelVbaTool
             {
                 VbaAction.List => ListVbaScriptsAsync(vbaCommands, sessionId),
                 VbaAction.View => ViewVbaScriptAsync(vbaCommands, sessionId, moduleName),
-                VbaAction.Export => ExportVbaScriptAsync(vbaCommands, sessionId, moduleName, targetPath),
                 VbaAction.Import => ImportVbaScriptAsync(vbaCommands, sessionId, moduleName, sourcePath),
                 VbaAction.Update => UpdateVbaScriptAsync(vbaCommands, sessionId, moduleName, sourcePath),
                 VbaAction.Run => RunVbaScriptAsync(vbaCommands, sessionId, moduleName, parameters),
@@ -128,20 +123,6 @@ public static class ExcelVbaTool
             result.LineCount,
             result.Procedures
         }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string ExportVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName, string? targetPath)
-    {
-        if (string.IsNullOrEmpty(moduleName))
-            throw new ArgumentException("moduleName is required for export action", nameof(moduleName));
-
-        _ = targetPath; // File export currently handled by client reading returned code
-
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.View(batch, moduleName));
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
     private static string ImportVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName, string? sourcePath)

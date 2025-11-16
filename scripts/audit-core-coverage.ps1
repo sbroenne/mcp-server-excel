@@ -30,6 +30,30 @@ Write-Host "=================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Function to count unique async method names in Core interface files (handles overloads)
+function Get-CoreMethodMatches {
+    param([string]$InterfacePath)
+
+    if (-not (Test-Path $InterfacePath)) {
+        return @()
+    }
+
+    $content = Get-Content $InterfacePath -Raw
+
+    # Match interface method signatures, e.g., "OperationResult Create(...)" or "Task<OperationResult> CreateAsync(...)"
+    $pattern = '^[\s\t]*(?:[\w<>,\[\]\? ]+)\s+(?<name>\w+)\s*\([^;]*\)\s*;'
+    $methodMatches = [regex]::Matches($content, $pattern, [System.Text.RegularExpressions.RegexOptions]::Multiline)
+
+    $methodNames = @()
+    foreach ($match in $methodMatches) {
+        $name = $match.Groups['name'].Value
+        if ($methodNames -notcontains $name) {
+            $methodNames += $name
+        }
+    }
+
+    return $methodNames
+}
+
 function Count-CoreMethods {
     param([string]$InterfacePath, [string]$InterfaceName)
 
@@ -38,17 +62,8 @@ function Count-CoreMethods {
         return 0
     }
 
-    $content = Get-Content $InterfacePath -Raw
-    # Extract all method names and count unique ones (handles overloads)
-    $matches = [regex]::Matches($content, 'Task<[^>]+>\s+(\w+)Async\s*\(')
-    $uniqueMethodNames = @()
-    foreach ($match in $matches) {
-        $methodName = $match.Groups[1].Value
-        if ($uniqueMethodNames -notcontains $methodName) {
-            $uniqueMethodNames += $methodName
-        }
-    }
-    return $uniqueMethodNames.Count
+    $methodNames = Get-CoreMethodMatches -InterfacePath $InterfacePath
+    return $methodNames.Count
 }
 
 # Function to count enum values
@@ -79,20 +94,7 @@ function Count-EnumValues {
 function Get-CoreMethodNames {
     param([string]$InterfacePath)
 
-    if (-not (Test-Path $InterfacePath)) {
-        return @()
-    }
-
-    $content = Get-Content $InterfacePath -Raw
-    $matches = [regex]::Matches($content, 'Task<[^>]+>\s+(\w+)Async\s*\(')
-    $uniqueMethodNames = @()
-    foreach ($match in $matches) {
-        $methodName = $match.Groups[1].Value
-        if ($uniqueMethodNames -notcontains $methodName) {
-            $uniqueMethodNames += $methodName
-        }
-    }
-    return $uniqueMethodNames
+    return Get-CoreMethodMatches -InterfacePath $InterfacePath
 }
 
 # Function to extract enum value names
@@ -163,10 +165,10 @@ function Get-AllEnumTypes {
 
     $content = Get-Content $ToolActionsPath -Raw
     $enumPattern = "public\s+enum\s+(\w+Action)\s*\{"
-    $matches = [regex]::Matches($content, $enumPattern)
+    $enumMatches = [regex]::Matches($content, $enumPattern)
 
     $enumTypes = @()
-    foreach ($match in $matches) {
+    foreach ($match in $enumMatches) {
         $enumTypes += $match.Groups[1].Value
     }
 
@@ -186,6 +188,7 @@ function Find-InterfaceForEnum {
 
     $enumToInterface = @{
         "WorksheetAction" = "ISheetCommands"  # Known exception
+        "ConditionalFormatAction" = "IConditionalFormattingCommands"
     }
 
     if ($enumToInterface.ContainsKey($EnumType)) {
@@ -286,7 +289,9 @@ Write-Host "--------" -ForegroundColor Cyan
 Write-Host "Total Core Methods: $totalCoreMethods" -ForegroundColor White
 Write-Host "Total Enum Values:  $totalEnumValues" -ForegroundColor White
 
-if ($totalEnumValues -eq $totalCoreMethods) {
+if ($totalCoreMethods -eq 0) {
+    Write-Host "Coverage:           N/A (no core methods detected)" -ForegroundColor Yellow
+} elseif ($totalEnumValues -eq $totalCoreMethods) {
     Write-Host "Coverage:           100% ✅" -ForegroundColor Green
 } else {
     $coverage = [math]::Round(($totalEnumValues / $totalCoreMethods) * 100, 1)
@@ -350,7 +355,6 @@ if ($CheckNaming) {
         "FileAction" = @("CloseWorkbook", "Open", "Save", "Close")  # MCP-specific session actions
     }
 
-    $namingIssues = @()
     $hasNamingIssues = $false
 
     foreach ($interface in $interfaces) {

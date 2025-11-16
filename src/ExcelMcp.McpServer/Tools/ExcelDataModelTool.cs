@@ -40,7 +40,7 @@ public static class ExcelDataModelTool
         string sessionId,
 
         [StringLength(255, MinimumLength = 1)]
-        [Description("Measure name (for view-measure, export-measure, delete-measure, update-measure)")]
+        [Description("Measure name (for read, export-measure, delete-measure, update-measure)")]
         string? measureName = null,
 
         [FileExtensions(Extensions = "dax")]
@@ -48,7 +48,7 @@ public static class ExcelDataModelTool
         string? outputPath = null,
 
         [StringLength(255, MinimumLength = 1)]
-        [Description("Table name (for create-measure, view-table)")]
+        [Description("Table name (for create-measure, read-table)")]
         string? tableName = null,
 
         [StringLength(8000, MinimumLength = 1)]
@@ -93,15 +93,15 @@ public static class ExcelDataModelTool
                 // Discovery operations
                 DataModelAction.ListTables => ListTablesAsync(dataModelCommands, sessionId),
                 DataModelAction.ListMeasures => ListMeasuresAsync(dataModelCommands, sessionId),
-                DataModelAction.Get => ViewMeasureAsync(dataModelCommands, sessionId, measureName),
+                DataModelAction.Read => ReadMeasureAsync(dataModelCommands, sessionId, measureName),
                 DataModelAction.ExportMeasure => ExportMeasureAsync(dataModelCommands, sessionId, measureName, outputPath),
                 DataModelAction.ListRelationships => ListRelationshipsAsync(dataModelCommands, sessionId),
                 DataModelAction.Refresh => RefreshAsync(dataModelCommands, sessionId),
                 DataModelAction.DeleteMeasure => DeleteMeasureAsync(dataModelCommands, sessionId, measureName),
                 DataModelAction.DeleteRelationship => DeleteRelationshipAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn),
-                DataModelAction.GetTable => ViewTableAsync(dataModelCommands, sessionId, tableName),
+                DataModelAction.ReadTable => ReadTableAsync(dataModelCommands, sessionId, tableName),
                 DataModelAction.ListColumns => ListColumnsAsync(dataModelCommands, sessionId, tableName),
-                DataModelAction.GetInfo => GetModelInfoAsync(dataModelCommands, sessionId),
+                DataModelAction.ReadInfo => ReadModelInfoAsync(dataModelCommands, sessionId),
 
                 // DAX measures (requires Office 2016+)
                 DataModelAction.CreateMeasure => CreateMeasureComAsync(dataModelCommands, sessionId, tableName, measureName, daxFormula, formatString, description),
@@ -152,10 +152,10 @@ public static class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ViewMeasureAsync(DataModelCommands commands, string sessionId, string? measureName)
+    private static string ReadMeasureAsync(DataModelCommands commands, string sessionId, string? measureName)
     {
         if (string.IsNullOrEmpty(measureName))
-            throw new ArgumentException("measureName is required for view-measure action", nameof(measureName));
+            throw new ArgumentException("measureName is required for read action", nameof(measureName));
 
         var result = ExcelToolsBase.WithSession(
             sessionId,
@@ -268,12 +268,12 @@ public static class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ViewTableAsync(DataModelCommands commands, string sessionId,
+    private static string ReadTableAsync(DataModelCommands commands, string sessionId,
         string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName))
         {
-            throw new ArgumentException("Parameter 'tableName' is required for view-table action", nameof(tableName));
+            throw new ArgumentException("Parameter 'tableName' is required for read-table action", nameof(tableName));
         }
 
         var result = ExcelToolsBase.WithSession(
@@ -317,7 +317,7 @@ public static class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string GetModelInfoAsync(DataModelCommands commands, string sessionId)
+    private static string ReadModelInfoAsync(DataModelCommands commands, string sessionId)
     {
         var result = ExcelToolsBase.WithSession(sessionId, batch => commands.ReadInfo(batch));
 

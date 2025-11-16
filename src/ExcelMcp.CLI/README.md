@@ -27,6 +27,8 @@ excelcli --version
 excelcli --help
 ```
 
+> 🔁 **Session Workflow:** Always start with `excelcli session open <file>` (captures the session id), pass `--session <id>` to other commands, then `excelcli session save <id>` (optional) and `excelcli session close <id>` when finished. The CLI reuses the same Excel instance through that lifecycle.
+
 ### Update to Latest Version
 
 ```bash
@@ -38,6 +40,14 @@ dotnet tool update --global Sbroenne.ExcelMcp.CLI
 ```bash
 dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 ```
+
+## 🆘 Built-in Help
+
+- `excelcli --help` – lists every command category plus the new descriptions from `Program.cs`
+- `excelcli <command> --help` – shows verb-specific arguments (for example `excelcli sheet --help`)
+- `excelcli session --help` – displays nested verbs such as `open`, `save`, `close`, and `list`
+
+Descriptions are kept in sync with the CLI source so the help output always reflects the latest capabilities.
 
 ---
 
@@ -70,7 +80,7 @@ ExcelMcp.CLI provides **168 operations** across 12 categories:
 
 | Category | Operations | Examples |
 |----------|-----------|----------|
-| **File Operations** | 6 | `create-empty`, `open`, `save`, `close`, `test` |
+| **File & Session** | 5 | `create-empty`, `session open`, `session save`, `session close`, `session list` |
 | **Worksheets** | 13 | `sheet-list`, `sheet-create`, `sheet-rename`, `sheet-set-tab-color` |
 | **Power Query** | 12 | `pq-list`, `pq-create`, `pq-export`, `pq-refresh`, `pq-update-mcode` |
 | **Ranges** | 43 | `range-get-values`, `range-set-values`, `range-copy`, `range-find`, `range-merge-cells`, `range-add-hyperlink` |
@@ -415,6 +425,16 @@ foreach ($file in $files) {
 # Process multiple files
 for %f in (*.xlsx) do excelcli sheet-read "%f" "Sheet1" >> output.csv
 ```
+
+## ✅ Tested Scenarios
+
+The CLI ships with real Excel-backed integration tests that exercise the session lifecycle plus worksheet creation/listing flows through the same commands you run locally. Execute them with:
+
+```bash
+dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj --filter "Layer=CLI"
+```
+
+These tests open actual workbooks, issue `session open/list/close`, and call `excelcli sheet` actions to ensure the command pipeline stays healthy.
 
 ---
 

@@ -377,7 +377,7 @@ This means you get:
 
 ### CLI for Direct Automation
 
-ExcelMcp also provides a command-line interface for Excel automation (no AI required). See **[CLI Guide](src/ExcelMcp.CLI/README.md)** for complete documentation.
+ExcelMcp also provides a command-line interface for Excel automation (no AI required). Run `excelcli --help` for a categorized list of commands, or `excelcli sheet --help` (replace `sheet`) to view action-specific options. **Always follow the session pattern:** `excelcli session open <file>` → run commands with `--session <id>` → `excelcli session save/close <id>`. See **[CLI Guide](src/ExcelMcp.CLI/README.md)** for complete documentation.
 
 ### Project Information
 

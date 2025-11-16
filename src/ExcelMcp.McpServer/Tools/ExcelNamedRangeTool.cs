@@ -37,10 +37,10 @@ public static class ExcelNamedRangeTool
         string sessionId,
 
         [StringLength(255, MinimumLength = 1)]
-        [Description("Named range name (for get, set, create, update, delete actions)")]
+        [Description("Named range name (for read, write, create, update, delete actions)")]
         string? namedRangeName = null,
 
-        [Description("Named range value (for set action) or cell reference (for create/update actions, e.g., 'Sheet1!A1')")]
+        [Description("Named range value (for write action) or cell reference (for create/update actions, e.g., 'Sheet1!A1')")]
         string? value = null,
 
         [Description("JSON array of named ranges for create-bulk action: [{name: 'Name', reference: 'Sheet1!A1', value: 'text'}, ...]")]
@@ -54,8 +54,8 @@ public static class ExcelNamedRangeTool
             return action switch
             {
                 NamedRangeAction.List => ListNamedRangesAsync(namedRangeCommands, sessionId),
-                NamedRangeAction.Get => GetNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName),
-                NamedRangeAction.Set => SetNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName, value),
+                NamedRangeAction.Read => ReadNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName),
+                NamedRangeAction.Write => WriteNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName, value),
                 NamedRangeAction.Create => CreateNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName, value),
                 NamedRangeAction.CreateBulk => CreateBulkNamedRangesAsync(namedRangeCommands, sessionId, namedRangesJson),
                 NamedRangeAction.Update => UpdateNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName, value),
@@ -90,10 +90,10 @@ public static class ExcelNamedRangeTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string GetNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName)
+    private static string ReadNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName)
     {
         if (string.IsNullOrEmpty(namedRangeName))
-            throw new ArgumentException("namedRangeName is required for get action", nameof(namedRangeName));
+            throw new ArgumentException("namedRangeName is required for read action", nameof(namedRangeName));
 
         var result = ExcelToolsBase.WithSession(
             sessionId,
@@ -110,10 +110,10 @@ public static class ExcelNamedRangeTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string SetNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName, string? value)
+    private static string WriteNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName, string? value)
     {
         if (string.IsNullOrEmpty(namedRangeName) || value == null)
-            throw new ArgumentException("namedRangeName and value are required for set action", "namedRangeName,value");
+            throw new ArgumentException("namedRangeName and value are required for write action", "namedRangeName,value");
 
         var result = ExcelToolsBase.WithSession(
             sessionId,

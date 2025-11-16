@@ -37,7 +37,6 @@ public enum PowerQueryAction
 {
     List,
     View,
-    Export,
     Refresh,
     Delete,
     GetLoadConfig,
@@ -153,12 +152,12 @@ public enum RangeAction
 public enum NamedRangeAction
 {
     List,
+    Read,
+    Write,
     Create,
     CreateBulk,
     Update,
-    Delete,
-    Get,
-    Set
+    Delete
 }
 
 /// <summary>
@@ -178,7 +177,6 @@ public enum VbaAction
     List,
     View,
     Import,
-    Export,
     Delete,
     Run,
     Update
@@ -193,7 +191,6 @@ public enum ConnectionAction
     View,
     Create,
     Import,
-    Export,
     UpdateProperties,
     Test,
     Refresh,
@@ -209,10 +206,10 @@ public enum ConnectionAction
 public enum DataModelAction
 {
     ListTables,
-    GetTable,
+    ReadTable,
     ListColumns,
     ListMeasures,
-    Get,
+    Read,
     ExportMeasure,
     CreateMeasure,
     UpdateMeasure,
@@ -221,7 +218,7 @@ public enum DataModelAction
     CreateRelationship,
     UpdateRelationship,
     DeleteRelationship,
-    GetInfo,
+    ReadInfo,
     Refresh
 }
 
@@ -232,7 +229,7 @@ public enum TableAction
 {
     // Lifecycle
     List,
-    Get,
+    Read,
     Create,
     Rename,
     Delete,
@@ -279,7 +276,7 @@ public enum PivotTableAction
 {
     // Lifecycle
     List,
-    Get,
+    Read,
     CreateFromRange,
     CreateFromTable,
     CreateFromDataModel,
@@ -311,7 +308,7 @@ public enum PivotTableAction
 public enum QueryTableAction
 {
     List,
-    Get,
+    Read,
     CreateFromConnection,
     CreateFromQuery,
     Refresh,
