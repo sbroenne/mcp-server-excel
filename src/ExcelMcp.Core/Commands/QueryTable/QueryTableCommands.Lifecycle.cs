@@ -1,6 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Connections;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
 
@@ -14,7 +13,7 @@ public partial class QueryTableCommands
     /// <inheritdoc />
     public OperationResult CreateFromConnection(IExcelBatch batch, string sheetName,
         string queryTableName, string connectionName, string range = "A1",
-        PowerQueryHelpers.QueryTableCreateOptions? options = null)
+        QueryTableCreateOptions? options = null)
     {
         return batch.Execute((ctx, ct) =>
         {
@@ -34,6 +33,9 @@ public partial class QueryTableCommands
             }
 
             dynamic? worksheet = null;
+            dynamic? queryTables = null;
+            dynamic? queryTable = null;
+            dynamic? targetRange = null;
 
             try
             {
@@ -49,35 +51,82 @@ public partial class QueryTableCommands
                     return result;
                 }
 
-                // Get connection string and command text using ConnectionHelpers
-                string? connectionString = ConnectionHelpers.GetConnectionString(connection);
-                string? commandText = ConnectionHelpers.GetCommandText(connection);
+                queryTables = worksheet.QueryTables;
+                targetRange = worksheet.Range[range];
 
-                if (string.IsNullOrWhiteSpace(connectionString))
+                // Get connection string and command text based on connection type
+                int connType = connection.Type;
+                string connectionString = "";
+                string commandText = "";
+
+                if (connType == 1) // OLEDB
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Connection '{connectionName}' has no connection string";
-                    return result;
+                    dynamic? oledb = connection.OLEDBConnection;
+                    try
+                    {
+                        connectionString = oledb?.Connection?.ToString() ?? "";
+                        commandText = oledb?.CommandText?.ToString() ?? "";
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref oledb);
+                    }
+                }
+                else if (connType == 2) // ODBC
+                {
+                    dynamic? odbc = connection.ODBCConnection;
+                    try
+                    {
+                        connectionString = odbc?.Connection?.ToString() ?? "";
+                        commandText = odbc?.CommandText?.ToString() ?? "";
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref odbc);
+                    }
+                }
+                else if (connType is 3 or 4) // TEXT (3) or WEB (4)
+                {
+                    // Try TextConnection first, fall back to WebConnection
+                    try
+                    {
+                        dynamic? text = connection.TextConnection;
+                        try
+                        {
+                            connectionString = text?.Connection?.ToString() ?? "";
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref text);
+                        }
+                    }
+                    catch
+                    {
+                        dynamic? web = connection.WebConnection;
+                        try
+                        {
+                            connectionString = web?.Connection?.ToString() ?? "";
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref web);
+                        }
+                    }
                 }
 
-                // Use unified QueryTable creation method
-                options ??= new PowerQueryHelpers.QueryTableCreateOptions { Name = queryTableName };
-                var createOptions = new PowerQueryHelpers.QueryTableCreateOptions
-                {
-                    Name = queryTableName,
-                    Range = range,
-                    ConnectionString = connectionString,
-                    CommandText = commandText ?? "",
-                    BackgroundQuery = options.BackgroundQuery,
-                    RefreshOnFileOpen = options.RefreshOnFileOpen,
-                    SavePassword = options.SavePassword,
-                    PreserveColumnInfo = options.PreserveColumnInfo,
-                    PreserveFormatting = options.PreserveFormatting,
-                    AdjustColumnWidth = options.AdjustColumnWidth,
-                    RefreshImmediately = options.RefreshImmediately
-                };
+                // Create QueryTable
+                queryTable = queryTables.Add(connectionString, targetRange, commandText);
+                queryTable.Name = queryTableName.Replace(" ", "_");
 
-                PowerQueryHelpers.CreateQueryTable(worksheet, createOptions);
+                // Apply options
+                options ??= new QueryTableCreateOptions();
+                ApplyQueryTableOptions(queryTable, options);
+
+                // Refresh immediately if requested (default true)
+                if (options.RefreshImmediately)
+                {
+                    queryTable.Refresh(false);  // CRITICAL: Synchronous for persistence
+                }
 
                 result.Success = true;
             }
@@ -88,6 +137,9 @@ public partial class QueryTableCommands
             }
             finally
             {
+                ComUtilities.Release(ref targetRange);
+                ComUtilities.Release(ref queryTable);
+                ComUtilities.Release(ref queryTables);
                 ComUtilities.Release(ref worksheet);
                 ComUtilities.Release(ref connection);
             }
@@ -99,7 +151,7 @@ public partial class QueryTableCommands
     /// <inheritdoc />
     public OperationResult CreateFromQuery(IExcelBatch batch, string sheetName,
         string queryTableName, string queryName, string range = "A1",
-        PowerQueryHelpers.QueryTableCreateOptions? options = null)
+        QueryTableCreateOptions? options = null)
     {
         return batch.Execute((ctx, ct) =>
         {
@@ -134,22 +186,20 @@ public partial class QueryTableCommands
                     return result;
                 }
 
-                // Use unified QueryTable creation method
-                options ??= new PowerQueryHelpers.QueryTableCreateOptions { Name = queryTableName };
-                var createOptions = new PowerQueryHelpers.QueryTableCreateOptions
+                // Use existing PowerQueryHelpers infrastructure
+                var queryTableOptions = new PowerQueryHelpers.QueryTableOptions
                 {
                     Name = queryTableName,
-                    Range = range,
-                    BackgroundQuery = options.BackgroundQuery,
-                    RefreshOnFileOpen = options.RefreshOnFileOpen,
-                    SavePassword = options.SavePassword,
-                    PreserveColumnInfo = options.PreserveColumnInfo,
-                    PreserveFormatting = options.PreserveFormatting,
-                    AdjustColumnWidth = options.AdjustColumnWidth,
-                    RefreshImmediately = options.RefreshImmediately
+                    BackgroundQuery = options?.BackgroundQuery ?? false,
+                    RefreshOnFileOpen = options?.RefreshOnFileOpen ?? false,
+                    SavePassword = options?.SavePassword ?? false,
+                    PreserveColumnInfo = options?.PreserveColumnInfo ?? true,
+                    PreserveFormatting = options?.PreserveFormatting ?? true,
+                    AdjustColumnWidth = options?.AdjustColumnWidth ?? true,
+                    RefreshImmediately = options?.RefreshImmediately ?? true
                 };
 
-                PowerQueryHelpers.CreateQueryTable(worksheet, createOptions, queryName);
+                PowerQueryHelpers.CreateQueryTable(worksheet, queryName, queryTableOptions);
 
                 result.Success = true;
             }
@@ -222,6 +272,29 @@ public partial class QueryTableCommands
 
             return result;
         });
+    }
+
+    /// <summary>
+    /// Applies QueryTableCreateOptions to a QueryTable COM object
+    /// </summary>
+    private static void ApplyQueryTableOptions(dynamic queryTable, QueryTableCreateOptions options)
+    {
+        try
+        {
+            queryTable.BackgroundQuery = options.BackgroundQuery;
+            queryTable.RefreshOnFileOpen = options.RefreshOnFileOpen;
+            queryTable.SavePassword = options.SavePassword;
+            queryTable.PreserveColumnInfo = options.PreserveColumnInfo;
+            queryTable.PreserveFormatting = options.PreserveFormatting;
+            queryTable.AdjustColumnWidth = options.AdjustColumnWidth;
+
+            // Apply refresh style for cell insertion behavior
+            queryTable.RefreshStyle = 1; // xlInsertDeleteCells
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to apply QueryTable options: {ex.Message}", ex);
+        }
     }
 }
 

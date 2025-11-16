@@ -1,6 +1,47 @@
 namespace Sbroenne.ExcelMcp.Core.Models;
 
 /// <summary>
+/// QueryTable creation options
+/// </summary>
+public class QueryTableCreateOptions
+{
+    /// <summary>
+    /// Whether to run the query in the background (asynchronously)
+    /// </summary>
+    public bool BackgroundQuery { get; init; }
+
+    /// <summary>
+    /// Whether to refresh the QueryTable when the file is opened
+    /// </summary>
+    public bool RefreshOnFileOpen { get; init; }
+
+    /// <summary>
+    /// Whether to save the password with the QueryTable
+    /// </summary>
+    public bool SavePassword { get; init; }
+
+    /// <summary>
+    /// Whether to preserve column information when refreshing
+    /// </summary>
+    public bool PreserveColumnInfo { get; init; } = true;
+
+    /// <summary>
+    /// Whether to preserve formatting when refreshing
+    /// </summary>
+    public bool PreserveFormatting { get; init; } = true;
+
+    /// <summary>
+    /// Whether to adjust column width automatically
+    /// </summary>
+    public bool AdjustColumnWidth { get; init; } = true;
+
+    /// <summary>
+    /// Whether to refresh immediately after creation (default: true for immediate feedback)
+    /// </summary>
+    public bool RefreshImmediately { get; init; } = true;
+}
+
+/// <summary>
 /// QueryTable property update options
 /// </summary>
 public class QueryTableUpdateOptions

@@ -6,7 +6,6 @@ using Sbroenne.ExcelMcp.CLI.Infrastructure.Session;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.QueryTable;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Core.PowerQuery;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands.QueryTable;
 
@@ -165,7 +164,7 @@ internal sealed class QueryTableCommand : Command<QueryTableCommand.Settings>
         return WriteResult(_queryTableCommands.Delete(batch, settings.QueryTableName));
     }
 
-    private PowerQueryHelpers.QueryTableCreateOptions? LoadCreateOptions(Settings settings)
+    private QueryTableCreateOptions? LoadCreateOptions(Settings settings)
     {
         if (!string.IsNullOrWhiteSpace(settings.CreateOptionsJson))
         {
@@ -221,11 +220,11 @@ internal sealed class QueryTableCommand : Command<QueryTableCommand.Settings>
         return null;
     }
 
-    private static PowerQueryHelpers.QueryTableCreateOptions? ParseCreateOptions(string json)
+    private static QueryTableCreateOptions? ParseCreateOptions(string json)
     {
         try
         {
-            return JsonSerializer.Deserialize<PowerQueryHelpers.QueryTableCreateOptions>(json, OptionsSerializer);
+            return JsonSerializer.Deserialize<QueryTableCreateOptions>(json, OptionsSerializer);
         }
         catch (JsonException)
         {

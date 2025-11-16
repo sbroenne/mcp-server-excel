@@ -1,6 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Core.PowerQuery;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.QueryTable;
 
@@ -25,14 +24,14 @@ public interface IQueryTableCommands
     /// </summary>
     OperationResult CreateFromConnection(IExcelBatch batch, string sheetName,
         string queryTableName, string connectionName, string range = "A1",
-        PowerQueryHelpers.QueryTableCreateOptions? options = null);
+        QueryTableCreateOptions? options = null);
 
     /// <summary>
     /// Creates a QueryTable from a Power Query (leverages existing PowerQueryHelpers)
     /// </summary>
     OperationResult CreateFromQuery(IExcelBatch batch, string sheetName,
         string queryTableName, string queryName, string range = "A1",
-        PowerQueryHelpers.QueryTableCreateOptions? options = null);
+        QueryTableCreateOptions? options = null);
 
     /// <summary>
     /// Refreshes a QueryTable using synchronous pattern for guaranteed persistence

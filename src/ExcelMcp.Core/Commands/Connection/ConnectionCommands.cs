@@ -1,5 +1,4 @@
 using Sbroenne.ExcelMcp.ComInterop;
-using Sbroenne.ExcelMcp.Core.Connections;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
 
 
@@ -202,6 +201,135 @@ public partial class ConnectionCommands : IConnectionCommands
                 {
                     return refreshDate;
                 }
+            }
+        }
+        catch
+        {
+            // Property not available
+        }
+
+        return null;
+    }
+
+    private static string? GetConnectionString(dynamic conn)
+    {
+        try
+        {
+            int connType = conn.Type;
+            string? connectionString = null;
+
+            if (connType == 1) // OLEDB
+            {
+                connectionString = conn.OLEDBConnection?.Connection?.ToString();
+            }
+            else if (connType == 2) // ODBC
+            {
+                connectionString = conn.ODBCConnection?.Connection?.ToString();
+            }
+            else if (connType == 4) // TEXT (xlConnectionTypeTEXT)
+            {
+                // Try to get from TextConnection first
+                dynamic textConn = conn.TextConnection;
+                if (textConn != null)
+                {
+                    try { connectionString = textConn.Connection?.ToString(); } catch { }
+                }
+            }
+            else if (connType == 5) // WEB (xlConnectionTypeWEB)
+            {
+                // Try to get from WebConnection first
+                dynamic webConn = conn.WebConnection;
+                if (webConn != null)
+                {
+                    try { connectionString = webConn.Connection?.ToString(); } catch { }
+                }
+            }
+
+            // If we still don't have a connection string, try the root ConnectionString property
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                try
+                {
+                    connectionString = conn.ConnectionString?.ToString();
+                }
+                catch
+                {
+                    // Property not available
+                }
+            }
+
+            return connectionString;
+        }
+        catch
+        {
+            // Property not available
+        }
+
+        return null;
+    }
+
+    private static string? GetCommandText(dynamic conn)
+    {
+        try
+        {
+            int connType = conn.Type;
+
+            if (connType == 1) // OLEDB
+            {
+                return conn.OLEDBConnection?.CommandText?.ToString();
+            }
+            else if (connType == 2) // ODBC
+            {
+                return conn.ODBCConnection?.CommandText?.ToString();
+            }
+            else if (connType == 3) // Text
+            {
+                return conn.TextConnection?.CommandText?.ToString();
+            }
+            else if (connType == 4) // Web
+            {
+                return conn.WebConnection?.CommandText?.ToString();
+            }
+        }
+        catch
+        {
+            // Property not available
+        }
+
+        return null;
+    }
+
+    private static string? GetCommandType(dynamic conn)
+    {
+        try
+        {
+            int connType = conn.Type;
+
+            if (connType == 1) // OLEDB
+            {
+                int? cmdType = conn.OLEDBConnection?.CommandType;
+                return cmdType switch
+                {
+                    1 => "Cube",
+                    2 => "SQL",
+                    3 => "Table",
+                    4 => "Default",
+                    5 => "List",
+                    _ => "Unknown(" + (cmdType.HasValue ? cmdType.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "null") + ")"
+                };
+            }
+            else if (connType == 2) // ODBC
+            {
+                int? cmdType = conn.ODBCConnection?.CommandType;
+                return cmdType switch
+                {
+                    1 => "Cube",
+                    2 => "SQL",
+                    3 => "Table",
+                    4 => "Default",
+                    5 => "List",
+                    _ => "Unknown(" + (cmdType.HasValue ? cmdType.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "null") + ")"
+                };
             }
         }
         catch
@@ -501,11 +629,11 @@ public partial class ConnectionCommands : IConnectionCommands
     private static void CreateQueryTableForConnection(
         dynamic targetSheet,
         dynamic conn,
-        PowerQueryHelpers.QueryTableCreateOptions options)
+        PowerQueryHelpers.QueryTableOptions options)
     {
-        // Get connection string and command text from connection object
-        string? connectionString = ConnectionHelpers.GetConnectionString(conn);
-        string? commandText = ConnectionHelpers.GetCommandText(conn);
+        // For regular connections (not Power Query), we need connection string
+        string? connectionString = GetConnectionString(conn);
+        string? commandText = GetCommandText(conn);
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {
@@ -513,29 +641,42 @@ public partial class ConnectionCommands : IConnectionCommands
         }
 
         // Command text can be empty for some connection types (Text, Web)
+        // Use empty string if not provided
         if (string.IsNullOrWhiteSpace(commandText))
         {
             commandText = "";
         }
 
-        // Use unified QueryTable creation method
-        var createOptions = new PowerQueryHelpers.QueryTableCreateOptions
-        {
-            Name = options.Name,
-            Range = options.Range,
-            ConnectionString = connectionString,
-            CommandText = commandText,
-            ClearWorksheet = options.ClearWorksheet,
-            BackgroundQuery = options.BackgroundQuery,
-            RefreshOnFileOpen = options.RefreshOnFileOpen,
-            SavePassword = options.SavePassword,
-            PreserveColumnInfo = options.PreserveColumnInfo,
-            PreserveFormatting = options.PreserveFormatting,
-            AdjustColumnWidth = options.AdjustColumnWidth,
-            RefreshImmediately = options.RefreshImmediately
-        };
+        dynamic? queryTables = null;
+        dynamic? queryTable = null;
+        dynamic? range = null;
 
-        PowerQueryHelpers.CreateQueryTable(targetSheet, createOptions);
+        try
+        {
+            queryTables = targetSheet.QueryTables;
+            range = targetSheet.Range["A1"];
+            queryTable = queryTables.Add(connectionString, range, commandText);
+
+            queryTable.Name = options.Name.Replace(" ", "_");
+            queryTable.RefreshStyle = 1; // xlInsertDeleteCells
+            queryTable.BackgroundQuery = options.BackgroundQuery;
+            queryTable.RefreshOnFileOpen = options.RefreshOnFileOpen;
+            queryTable.SavePassword = options.SavePassword;
+            queryTable.PreserveColumnInfo = options.PreserveColumnInfo;
+            queryTable.PreserveFormatting = options.PreserveFormatting;
+            queryTable.AdjustColumnWidth = options.AdjustColumnWidth;
+
+            if (options.RefreshImmediately)
+            {
+                queryTable.Refresh(false);
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref range);
+            ComUtilities.Release(ref queryTable);
+            ComUtilities.Release(ref queryTables);
+        }
     }
 
     #endregion
