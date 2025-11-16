@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -14,7 +14,7 @@ public partial class NamedRangeCommandsTests
     public async Task Set_ExistingParameter_UpdatesValue()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(NamedRangeCommandsTests), nameof(Set_ExistingParameter_UpdatesValue), _tempDir);
 
         // Act - Use single batch for create, set, and verify
@@ -25,11 +25,11 @@ public partial class NamedRangeCommandsTests
         Assert.True(createResult.Success, $"Failed to create parameter: {createResult.ErrorMessage}");
 
         // Set the parameter value
-        var result = _parameterCommands.Set(batch, "SetTestParam", "TestValue");
+        var result = _parameterCommands.Write(batch, "SetTestParam", "TestValue");
         Assert.True(result.Success, $"Failed to set parameter: {result.ErrorMessage}");
 
         // Verify the parameter value was actually set by reading it back
-        var getResult = _parameterCommands.Get(batch, "SetTestParam");
+        var getResult = _parameterCommands.Read(batch, "SetTestParam");
         Assert.True(getResult.Success, $"Failed to get parameter: {getResult.ErrorMessage}");
         Assert.Equal("TestValue", getResult.Value?.ToString());
     }
@@ -39,7 +39,7 @@ public partial class NamedRangeCommandsTests
     public async Task Get_ExistingParameter_ReturnsValue()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(NamedRangeCommandsTests), nameof(Get_ExistingParameter_ReturnsValue), _tempDir);
         string testValue = "Integration Test Value";
 
@@ -50,11 +50,11 @@ public partial class NamedRangeCommandsTests
         var createResult = _parameterCommands.Create(batch, "GetTestParam", "Sheet1!A1");
         Assert.True(createResult.Success, $"Failed to create parameter: {createResult.ErrorMessage}");
 
-        var setResult = _parameterCommands.Set(batch, "GetTestParam", testValue);
+        var setResult = _parameterCommands.Write(batch, "GetTestParam", testValue);
         Assert.True(setResult.Success, $"Failed to set parameter: {setResult.ErrorMessage}");
 
         // Get the parameter value
-        var getResult = _parameterCommands.Get(batch, "GetTestParam");
+        var getResult = _parameterCommands.Read(batch, "GetTestParam");
 
         // Assert
         Assert.True(getResult.Success, $"Failed to get parameter: {getResult.ErrorMessage}");
@@ -66,12 +66,12 @@ public partial class NamedRangeCommandsTests
     public async Task Get_WithNonExistentParameter_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(NamedRangeCommandsTests), nameof(Get_WithNonExistentParameter_ReturnsError), _tempDir);
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _parameterCommands.Get(batch, "NonExistentParam");
+        var result = _parameterCommands.Read(batch, "NonExistentParam");
 
         // Assert
         Assert.False(result.Success);

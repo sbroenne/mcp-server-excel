@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -14,12 +14,12 @@ public partial class NamedRangeCommandsTests
     public async Task List_EmptyWorkbook_ReturnsEmptyList()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(NamedRangeCommandsTests), nameof(List_EmptyWorkbook_ReturnsEmptyList), _tempDir);
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _parameterCommands.List(batch);
+        var result = await _parameterCommands.List(batch);
 
         // Assert
         Assert.True(result.Success, $"List failed: {result.ErrorMessage}");
@@ -31,18 +31,18 @@ public partial class NamedRangeCommandsTests
     public async Task Create_ValidNameAndReference_ReturnsSuccess()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(NamedRangeCommandsTests), nameof(Create_ValidNameAndReference_ReturnsSuccess), _tempDir);
 
         // Act - Use single batch for create and verify
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _parameterCommands.Create(batch, "TestParam", "Sheet1!A1");
+        var result = await _parameterCommands.Create(batch, "TestParam", "Sheet1!A1");
 
         // Assert
         Assert.True(result.Success, $"Create failed: {result.ErrorMessage}");
 
         // Verify the parameter was actually created by listing parameters
-        var listResult = _parameterCommands.List(batch);
+        var listResult = await _parameterCommands.List(batch);
         Assert.True(listResult.Success, $"Failed to list parameters: {listResult.ErrorMessage}");
         Assert.Contains(listResult.NamedRanges, p => p.Name == "TestParam");
     }
@@ -52,34 +52,31 @@ public partial class NamedRangeCommandsTests
     public async Task Delete_ExistingParameter_ReturnsSuccess()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(NamedRangeCommandsTests), nameof(Delete_ExistingParameter_ReturnsSuccess), _tempDir);
 
         // Act - Use single batch for create, delete, and verify
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create parameter first
-        var createResult = _parameterCommands.Create(batch, "DeleteTestParam", "Sheet1!A1");
+        var createResult = await _parameterCommands.Create(batch, "DeleteTestParam", "Sheet1!A1");
         Assert.True(createResult.Success, $"Failed to create parameter: {createResult.ErrorMessage}");
 
         // Delete the parameter
-        var result = _parameterCommands.Delete(batch, "DeleteTestParam");
+        var result = await _parameterCommands.Delete(batch, "DeleteTestParam");
         Assert.True(result.Success, $"Delete failed: {result.ErrorMessage}");
 
         // Verify the parameter was actually deleted by checking it's not in the list
-        var listResult = _parameterCommands.List(batch);
+        var listResult = await _parameterCommands.List(batch);
         Assert.True(listResult.Success, $"Failed to list parameters: {listResult.ErrorMessage}");
         Assert.DoesNotContain(listResult.NamedRanges, p => p.Name == "DeleteTestParam");
     }
     /// <inheritdoc/>
 
     [Fact]
-    public async Task List_WithNonExistentFile_ReturnsError()
+    public void List_WithNonExistentFile_ReturnsError()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<FileNotFoundException>(async () =>
-        {
-            using var batch = ExcelSession.BeginBatch("nonexistent.xlsx");
-        });
+        Assert.Throws<FileNotFoundException>(() => ExcelSession.BeginBatch("nonexistent.xlsx"));
     }
 }

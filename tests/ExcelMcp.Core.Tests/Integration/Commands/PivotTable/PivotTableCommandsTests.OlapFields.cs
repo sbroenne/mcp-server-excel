@@ -85,7 +85,7 @@ public partial class PivotTableCommandsTests
     {
         // For OLAP tests, we use the realistic fixture which has a Data Model PivotTable
         var fixture = new PivotTableRealisticFixture();
-        await fixture.Initialize();
+        await fixture.InitializeAsync();
         _createdFixtures.Add(fixture);
         return fixture.TestFilePath;
     }

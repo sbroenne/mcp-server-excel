@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -39,7 +39,7 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     /// </summary>
     private async Task<string> CreateTestFileWithDataAsync(string testName)
     {
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PivotTableCommandsTests), testName, _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -107,7 +107,7 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
         Assert.True(_creationResult.CreationTimeSeconds > 0);
 
         // This test appears in test results as proof that creation was tested
-        Console.WriteLine($"✅ Data prepared successfully in {_creationResult.CreationTimeSeconds:F1}s");
+        Console.WriteLine($"? Data prepared successfully in {_creationResult.CreationTimeSeconds:F1}s");
     }
 
     /// <summary>
@@ -116,7 +116,7 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     /// </summary>
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task DataPreparation_Persists_AfterReopenFile()
+    public Task DataPreparation_Persists_AfterReopenFile()
     {
         // Close and reopen to verify persistence (new batch = new session)
         using var batch = ExcelSession.BeginBatch(_pivotFile);
@@ -141,5 +141,6 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
         });
 
         // This proves data creation + save worked correctly
+        return Task.CompletedTask;
     }
 }

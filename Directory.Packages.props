@@ -5,12 +5,10 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
-    <!-- Analysis Services (TOM - Tabular Object Model) - Updated to non-deprecated packages -->
-    <!-- NOTE: Microsoft.AnalysisServices.NetCore.retail.amd64 is deprecated (retired mid-2024) -->
-    <!-- Migrated to Microsoft.AnalysisServices which is the new multi-runtime package -->
     <PackageVersion Include="Microsoft.AnalysisServices" Version="19.106.1" />
     <!-- UI Framework -->
     <PackageVersion Include="Spectre.Console" Version="0.53.0" />
+    <PackageVersion Include="Spectre.Console.Cli" Version="0.53.0" />
     <!-- Microsoft Extensions for MCP Server -->
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.10" />
@@ -22,7 +20,6 @@
     <!-- NuGet API Client -->
     <PackageVersion Include="NuGet.Protocol" Version="6.12.1" />
     <PackageVersion Include="NuGet.Versioning" Version="6.12.1" />
-    <!-- MCP (Model Context Protocol) -->
     <!-- MCP SDK -->
     <PackageVersion Include="ModelContextProtocol" Version="0.4.0-preview.2" />
     <!-- Testing Framework -->
@@ -35,6 +32,5 @@
     <!-- Code Analysis and Security -->
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.5" />
     <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="9.0.0" />
-    <PackageVersion Include="SecurityCodeScan.VS2019" Version="5.7.0" />
   </ItemGroup>
 </Project>

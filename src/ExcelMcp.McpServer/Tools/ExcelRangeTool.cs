@@ -27,7 +27,7 @@ DATA FORMAT:
 - Example single cell: [[100]] or [['=SUM(A:A)']]
 - Example range: [[1,2,3], [4,5,6], [7,8,9]]
 ")]
-    public static async Task<string> ExcelRange(
+    public static string ExcelRange(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         RangeAction action,
@@ -259,12 +259,12 @@ DATA FORMAT:
         }
         catch (Exception ex)
         {
-            return Task.FromResult(JsonSerializer.Serialize(new
+            return JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
                 isError = true
-            }, ExcelToolsBase.JsonOptions));
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 
@@ -654,7 +654,7 @@ DATA FORMAT:
             sessionId,
             batch => commands.Find(batch, sheetName ?? "", rangeAddress!, searchValue!, options));
 
-        return Task.FromResult(JsonSerializer.Serialize(new
+        return JsonSerializer.Serialize(new
         {
             result.Success,
             result.SheetName,
@@ -663,7 +663,7 @@ DATA FORMAT:
             MatchingCells = result.MatchingCells.Take(10).ToList(),
             TotalMatches = result.MatchingCells.Count,
             result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions));
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static string ReplaceAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, string? searchValue, string? replaceValue, bool? matchCase, bool? matchEntireCell, bool? searchFormulas, bool? searchValues, bool? replaceAll)
@@ -831,13 +831,13 @@ DATA FORMAT:
             sessionId,
             batch => commands.ListHyperlinks(batch, sheetName!));
 
-        return Task.FromResult(JsonSerializer.Serialize(new
+        return JsonSerializer.Serialize(new
         {
             result.Success,
             ((dynamic)result).SheetName,
             ((dynamic)result).Hyperlinks,
             result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions));
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static string GetHyperlinkAsync(RangeCommands commands, string sessionId, string? sheetName, string? cellAddress)
@@ -851,7 +851,7 @@ DATA FORMAT:
             sessionId,
             batch => commands.GetHyperlink(batch, sheetName!, cellAddress!));
 
-        return Task.FromResult(JsonSerializer.Serialize(new
+        return JsonSerializer.Serialize(new
         {
             result.Success,
             ((dynamic)result).CellAddress,
@@ -859,7 +859,7 @@ DATA FORMAT:
             ((dynamic)result).DisplayText,
             ((dynamic)result).Tooltip,
             result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions));
+        }, ExcelToolsBase.JsonOptions);
     }
 
     // === FORMATTING OPERATIONS ===
@@ -1002,7 +1002,7 @@ DATA FORMAT:
             sessionId,
             batch => commands.GetValidation(batch, sheetName ?? "", rangeAddress!));
 
-        return Task.FromResult(JsonSerializer.Serialize(new
+        return JsonSerializer.Serialize(new
         {
             result.Success,
             ((dynamic)result).ValidationType,
@@ -1017,7 +1017,7 @@ DATA FORMAT:
             ((dynamic)result).ErrorTitle,
             ValidationErrorMessage = ((dynamic)result).ErrorMessage,
             result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions));
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static string RemoveValidationAsync(
@@ -1133,13 +1133,13 @@ DATA FORMAT:
             sessionId,
             batch => commands.GetMergeInfo(batch, sheetName ?? "", rangeAddress!));
 
-        return Task.FromResult(JsonSerializer.Serialize(new
+        return JsonSerializer.Serialize(new
         {
             result.Success,
             ((dynamic)result).IsMerged,
             ((dynamic)result).MergeAddress,
             result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions));
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static string SetCellLockAsync(
@@ -1179,12 +1179,12 @@ DATA FORMAT:
             sessionId,
             batch => commands.GetCellLock(batch, sheetName ?? "", rangeAddress!));
 
-        return Task.FromResult(JsonSerializer.Serialize(new
+        return JsonSerializer.Serialize(new
         {
             result.Success,
             ((dynamic)result).Locked,
             result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions));
+        }, ExcelToolsBase.JsonOptions);
     }
 }
 

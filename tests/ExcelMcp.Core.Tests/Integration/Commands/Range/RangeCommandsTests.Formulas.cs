@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -16,7 +16,7 @@ public partial class RangeCommandsTests
     public async Task GetFormulas_ReturnsFormulasAndValues()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), nameof(GetFormulas_ReturnsFormulasAndValues), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetFormulas_ReturnsFormulasAndValues), _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Set values and formulas
@@ -48,7 +48,7 @@ public partial class RangeCommandsTests
     public async Task SetFormulas_WritesFormulasToRange()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), nameof(SetFormulas_WritesFormulasToRange), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(SetFormulas_WritesFormulasToRange), _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         await _commands.SetValues(batch, "Sheet1", "A1:A3",
@@ -86,7 +86,7 @@ public partial class RangeCommandsTests
     public async Task SetFormulas_WithJsonElementFormulas_WritesFormulasCorrectly()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), nameof(SetFormulas_WithJsonElementFormulas_WritesFormulasCorrectly), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(SetFormulas_WithJsonElementFormulas_WritesFormulasCorrectly), _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Set up source data
@@ -140,7 +140,7 @@ public partial class RangeCommandsTests
     public async Task ComplexFormulas_RealisticBusinessScenario_CalculatesCorrectly()
     {
         // Arrange - Create a realistic sales report with complex formulas
-        string testFile = await CoreTestHelper.CreateUniqueTestFile(
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(ComplexFormulas_RealisticBusinessScenario_CalculatesCorrectly),
             _tempDir);
@@ -294,7 +294,7 @@ public partial class RangeCommandsTests
     public async Task SetFormulas_CrossSheetReferences_CalculatesCorrectly()
     {
         // Arrange - Test that our API correctly handles cross-sheet formula references
-        string testFile = await CoreTestHelper.CreateUniqueTestFile(
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(SetFormulas_CrossSheetReferences_CalculatesCorrectly),
             _tempDir);
@@ -365,7 +365,7 @@ public partial class RangeCommandsTests
     public async Task SetFormulas_AbsoluteAndRelativeReferences_PreservesReferenceTypes()
     {
         // Arrange - Test that our API preserves absolute ($A$1) vs relative (A1) reference types
-        string testFile = await CoreTestHelper.CreateUniqueTestFile(
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(SetFormulas_AbsoluteAndRelativeReferences_PreservesReferenceTypes),
             _tempDir);
@@ -459,7 +459,7 @@ public partial class RangeCommandsTests
     public async Task SetFormulas_LargeFormulaSet_HandlesEfficientlyInBulk()
     {
         // Arrange - Test that our batch API handles large formula sets efficiently
-        string testFile = await CoreTestHelper.CreateUniqueTestFile(
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(SetFormulas_LargeFormulaSet_HandlesEfficientlyInBulk),
             _tempDir);

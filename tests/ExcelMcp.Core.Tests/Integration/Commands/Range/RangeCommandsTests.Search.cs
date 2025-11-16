@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -17,7 +17,7 @@ public partial class RangeCommandsTests
     public async Task Find_FindsMatchingCells()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         await _commands.SetValues(batch, "Sheet1", "A1:C2",
@@ -43,7 +43,7 @@ public partial class RangeCommandsTests
     public async Task Replace_ReplacesAllOccurrences()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         await _commands.SetValues(batch, "Sheet1", "A1:A3",
@@ -74,7 +74,7 @@ public partial class RangeCommandsTests
     public async Task Sort_SortsRangeByColumn()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         await _commands.SetValues(batch, "Sheet1", "A1:B4",

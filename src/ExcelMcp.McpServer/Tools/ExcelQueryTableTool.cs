@@ -21,7 +21,7 @@ public static class ExcelQueryTableTool
     /// </summary>
     [McpServerTool(Name = "excel_querytable")]
     [Description(@"Manage Excel QueryTables")]
-    public static async Task<string> ExcelQueryTable(
+    public static string ExcelQueryTable(
         [Required]
         [Description("Action to perform")]
         QueryTableAction action,
@@ -94,12 +94,12 @@ public static class ExcelQueryTableTool
         }
         catch (Exception ex)
         {
-            return Task.FromResult(JsonSerializer.Serialize(new
+            return JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
                 isError = true
-            }, ExcelToolsBase.JsonOptions));
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 

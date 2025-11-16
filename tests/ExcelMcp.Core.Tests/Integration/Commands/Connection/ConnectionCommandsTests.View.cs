@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -14,13 +14,13 @@ public partial class ConnectionCommandsTests
     public async Task View_ExistingConnection_ReturnsDetails()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(ConnectionCommandsTests), nameof(View_ExistingConnection_ReturnsDetails), _tempDir);
-        var csvFile = await CoreTestHelper.CreateUniqueTestFile(
+        var csvFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(ConnectionCommandsTests), nameof(View_ExistingConnection_ReturnsDetails), _tempDir, ".csv", "Name,Value\nTest1,100\nTest2,200");
         string connName = "ViewTestConnection";
 
-        await ConnectionTestHelper.CreateTextFileConnection(testFile, connName, csvFile);
+        await ConnectionTestHelper.CreateTextFileConnectionAsync(testFile, connName, csvFile);
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -38,7 +38,7 @@ public partial class ConnectionCommandsTests
     public async Task View_NonExistentConnection_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(ConnectionCommandsTests), nameof(View_NonExistentConnection_ReturnsError), _tempDir);
 
         // Act

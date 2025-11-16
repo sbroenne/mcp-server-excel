@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -16,7 +16,7 @@ public partial class RangeCommandsTests
     public async Task ClearAll_FormattedRange_RemovesEverything()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), nameof(ClearAll_FormattedRange_RemovesEverything), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(ClearAll_FormattedRange_RemovesEverything), _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         await _commands.SetValues(batch, "Sheet1", "A1", [["Test"]]);
@@ -35,7 +35,7 @@ public partial class RangeCommandsTests
     public async Task ClearContents_FormattedRange_PreservesFormatting()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), nameof(ClearContents_FormattedRange_PreservesFormatting), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(ClearContents_FormattedRange_PreservesFormatting), _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         await _commands.SetValues(batch, "Sheet1", "A1:B2",
@@ -60,7 +60,7 @@ public partial class RangeCommandsTests
     public async Task Copy_CopiesRangeToNewLocation()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), nameof(Copy_CopiesRangeToNewLocation), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(Copy_CopiesRangeToNewLocation), _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         var sourceData = new List<List<object?>>
@@ -86,7 +86,7 @@ public partial class RangeCommandsTests
     public async Task CopyValues_CopiesOnlyValues()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), nameof(CopyValues_CopiesOnlyValues), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(CopyValues_CopiesOnlyValues), _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         await _commands.SetValues(batch, "Sheet1", "A1", [[10]]);

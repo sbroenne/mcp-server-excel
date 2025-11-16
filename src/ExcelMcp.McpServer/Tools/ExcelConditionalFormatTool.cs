@@ -34,7 +34,7 @@ FORMATTING:
 
 Example: Highlight cells > 100 in red:
   ruleType='cell-value', operatorType='greater', formula1='100', interiorColor='#FF0000'")]
-    public static async Task<string> ExcelConditionalFormat(
+    public static string ExcelConditionalFormat(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         ConditionalFormatAction action,
@@ -105,12 +105,12 @@ Example: Highlight cells > 100 in red:
         }
         catch (Exception ex)
         {
-            return Task.FromResult(JsonSerializer.Serialize(new
+            return JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
                 isError = true
-            }, ExcelToolsBase.JsonOptions));
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 

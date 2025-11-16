@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -60,7 +60,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     public async Task List_WithValidFile_ReturnsTables()
     {
         using var batch = ExcelSession.BeginBatch(_tableFile);
-        var result = _tableCommands.List(batch);
+        var result = await _tableCommands.List(batch);
 
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
         Assert.NotNull(result.Tables);
@@ -75,7 +75,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     public async Task Info_WithValidTable_ReturnsTableDetails()
     {
         using var batch = ExcelSession.BeginBatch(_tableFile);
-        var result = _tableCommands.Get(batch, "SalesTable");
+        var result = await _tableCommands.Read(batch, "SalesTable");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Table);
@@ -92,7 +92,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     [Fact]
     public async Task Create_WithValidData_CreatesTable()
     {
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(TableCommandsTests), nameof(Create_WithValidData_CreatesTable), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -165,14 +165,14 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        var initialInfo = await _tableCommands.Get(batch, "SalesTable");
+        var initialInfo = await _tableCommands.Read(batch, "SalesTable");
         Assert.True(initialInfo.Success);
 
         var result = _tableCommands.Resize(batch, "SalesTable", "A1:D10");
         Assert.True(result.Success);
 
         // Verify resize
-        var resizedInfo = await _tableCommands.Get(batch, "SalesTable");
+        var resizedInfo = await _tableCommands.Read(batch, "SalesTable");
         Assert.Equal(9, resizedInfo.Table!.RowCount); // 10 rows - 1 header
     }
 
@@ -191,14 +191,14 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        var initialInfo = await _tableCommands.Get(batch, "SalesTable");
+        var initialInfo = await _tableCommands.Read(batch, "SalesTable");
         var initialColumnCount = initialInfo.Table!.Columns!.Count;
 
         var result = _tableCommands.AddColumn(batch, "SalesTable", "NewColumn");
         Assert.True(result.Success);
 
         // Verify column added
-        var updatedInfo = await _tableCommands.Get(batch, "SalesTable");
+        var updatedInfo = await _tableCommands.Read(batch, "SalesTable");
         Assert.Equal(initialColumnCount + 1, updatedInfo.Table!.Columns!.Count);
         Assert.Contains("NewColumn", updatedInfo.Table.Columns);
     }
@@ -218,7 +218,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         Assert.True(result.Success);
 
         // Verify rename
-        var info = await _tableCommands.Get(batch, "SalesTable");
+        var info = await _tableCommands.Read(batch, "SalesTable");
         Assert.Contains("Revenue", info.Table!.Columns!);
         Assert.DoesNotContain("Amount", info.Table.Columns);
     }
@@ -248,7 +248,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         Assert.True(result.Success);
 
         // Verify rows added
-        var info = await _tableCommands.Get(batch, "SalesTable");
+        var info = await _tableCommands.Read(batch, "SalesTable");
         Assert.True(info.Table!.RowCount >= 6); // Original 4 + appended 2
     }
 
@@ -260,7 +260,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     public async Task GetStructuredReference_WithValidTable_ReturnsReference()
     {
         using var batch = ExcelSession.BeginBatch(_tableFile);
-        var result = _tableCommands.GetStructuredReference(batch, "SalesTable", TableRegion.Data, "Amount");
+        var result = await _tableCommands.GetStructuredReference(batch, "SalesTable", TableRegion.Data, "Amount");
 
         Assert.True(result.Success);
         Assert.NotNull(result.StructuredReference);
@@ -325,7 +325,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         Assert.True(result.Success);
 
         // Verify totals enabled
-        var info = await _tableCommands.Get(batch, "SalesTable");
+        var info = await _tableCommands.Read(batch, "SalesTable");
         Assert.True(info.Table!.ShowTotals);
     }
 
@@ -357,7 +357,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     /// </summary>
     private async Task<string> CreateTestFileWithTableAsync(string testName)
     {
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(TableCommandsTests), testName, _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -425,7 +425,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        var initialInfo = await _tableCommands.Get(batch, "SalesTable");
+        var initialInfo = await _tableCommands.Read(batch, "SalesTable");
         var initialColumnCount = initialInfo.Table!.Columns!.Count;
 
         // Add column with purely numeric name
@@ -433,7 +433,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         Assert.True(result.Success, $"Failed to add numeric column: {result.ErrorMessage}");
 
         // Verify column added
-        var updatedInfo = await _tableCommands.Get(batch, "SalesTable");
+        var updatedInfo = await _tableCommands.Read(batch, "SalesTable");
         Assert.Equal(initialColumnCount + 1, updatedInfo.Table!.Columns!.Count);
         Assert.Contains("60", updatedInfo.Table.Columns);
     }
@@ -455,7 +455,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         Assert.True(result.Success, $"Failed to rename to numeric column name: {result.ErrorMessage}");
 
         // Verify column renamed
-        var updatedInfo = await _tableCommands.Get(batch, "SalesTable");
+        var updatedInfo = await _tableCommands.Read(batch, "SalesTable");
         Assert.Contains("60", updatedInfo.Table!.Columns!);
         Assert.DoesNotContain("Amount", updatedInfo.Table.Columns);
     }
@@ -480,7 +480,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         Assert.True(result.Success, $"Failed to rename numeric column to numeric name: {result.ErrorMessage}");
 
         // Verify column renamed
-        var updatedInfo = await _tableCommands.Get(batch, "SalesTable");
+        var updatedInfo = await _tableCommands.Read(batch, "SalesTable");
         Assert.Contains("120", updatedInfo.Table!.Columns!);
         Assert.DoesNotContain("60", updatedInfo.Table.Columns);
     }

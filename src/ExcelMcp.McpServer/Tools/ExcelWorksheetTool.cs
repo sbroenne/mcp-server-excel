@@ -34,7 +34,7 @@ TAB COLORS (set-tab-color):
 - RGB values: 0-255 for red, green, blue components
 - Example: red=255, green=0, blue=0 for red tab
 ")]
-    public static async Task<string> ExcelWorksheet(
+    public static string ExcelWorksheet(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         WorksheetAction action,
@@ -92,34 +92,14 @@ TAB COLORS (set-tab-color):
                 _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
         }
-        catch (TimeoutException ex)
-        {
-            var result = new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                operationContext = new Dictionary<string, object>
-                {
-                    { "OperationType", "excel_worksheet" },
-                    { "Action", action.ToActionString() },
-                    { "TimeoutReached", true }
-                },
-                isRetryable = !ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase),
-                retryGuidance = ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase)
-                    ? "Maximum timeout reached. Check workbook state manually."
-                    : "Retry acceptable if issue is transient."
-            };
-
-            return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-        }
         catch (Exception ex)
         {
-            return Task.FromResult(JsonSerializer.Serialize(new
+            return JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
                 isError = true
-            }, ExcelToolsBase.JsonOptions));
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 
@@ -380,12 +360,12 @@ TAB COLORS (set-tab-color):
             sessionId,
             batch => sheetCommands.Hide(batch, sheetName));
 
-        return Task.FromResult(JsonSerializer.Serialize(new
+        return JsonSerializer.Serialize(new
         {
             result.Success,
             result.ErrorMessage,
             workflowHint = result.Success ? "Sheet now hidden (users can unhide via Excel UI)" : null
-        }, ExcelToolsBase.JsonOptions));
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static string VeryHideAsync(
@@ -400,12 +380,12 @@ TAB COLORS (set-tab-color):
             sessionId,
             batch => sheetCommands.VeryHide(batch, sheetName));
 
-        return Task.FromResult(JsonSerializer.Serialize(new
+        return JsonSerializer.Serialize(new
         {
             result.Success,
             result.ErrorMessage,
             workflowHint = result.Success ? "Sheet now very-hidden (not visible even in VBA, requires code to unhide)" : null
-        }, ExcelToolsBase.JsonOptions));
+        }, ExcelToolsBase.JsonOptions);
     }
 }
 

@@ -8,6 +8,8 @@ applyTo: "src/ExcelMcp.McpServer/**/*.cs"
 
 # MCP Server Development Guide------
 
+> **Timeout Handling Removed (2025-11-15).** Previous timeout parameters and `TimeoutException` enrichment patterns have been retired. Do **not** add timeout-specific arguments, exception handling, or documentation. Any remaining references in this file are historical and will be cleaned up incrementally.
+
 
 
 ## Implementation Patterns

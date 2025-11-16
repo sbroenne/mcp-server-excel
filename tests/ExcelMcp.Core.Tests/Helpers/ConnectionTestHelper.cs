@@ -12,7 +12,7 @@ public static class ConnectionTestHelper
     /// Creates a simple OLEDB connection to a test database in an Excel workbook.
     /// This creates an actual Excel connection object that can be managed by ConnectionCommands.
     /// </summary>
-    public static async Task CreateOleDbConnectionAsync(string filePath, string connectionName, string connectionString)
+    public static Task CreateOleDbConnectionAsync(string filePath, string connectionName, string connectionString)
     {
         using var batch = ExcelSession.BeginBatch(filePath);
         batch.Execute((ctx, ct) =>
@@ -50,13 +50,13 @@ public static class ConnectionTestHelper
                 throw new InvalidOperationException($"Failed to create OLEDB connection '{connectionName}': {ex.Message}", ex);
             }
         });
-        batch.Save();
+        return Task.CompletedTask;
     }
 
     /// <summary>
     /// Creates a simple ODBC connection in an Excel workbook.
     /// </summary>
-    public static async Task CreateOdbcConnectionAsync(string filePath, string connectionName, string connectionString)
+    public static Task CreateOdbcConnectionAsync(string filePath, string connectionName, string connectionString)
     {
         using var batch = ExcelSession.BeginBatch(filePath);
         batch.Execute((ctx, ct) =>
@@ -80,14 +80,14 @@ public static class ConnectionTestHelper
                 throw new InvalidOperationException($"Failed to create ODBC connection '{connectionName}': {ex.Message}", ex);
             }
         });
-        batch.Save();
+        return Task.CompletedTask;
     }
 
     /// <summary>
     /// Creates a text file connection in an Excel workbook.
     /// This is useful for testing connection refresh and data loading.
     /// </summary>
-    public static async Task CreateTextFileConnectionAsync(string filePath, string connectionName, string textFilePath)
+    public static Task CreateTextFileConnectionAsync(string filePath, string connectionName, string textFilePath)
     {
         using var batch = ExcelSession.BeginBatch(filePath);
         batch.Execute((ctx, ct) =>
@@ -125,13 +125,14 @@ public static class ConnectionTestHelper
             }
         });
         batch.Save();
+        return Task.CompletedTask;
     }
 
     /// <summary>
     /// Creates a simple web connection (URL) in an Excel workbook.
     /// Uses the same approach as ConnectionCommands.Import() for consistency.
     /// </summary>
-    public static async Task CreateWebConnectionAsync(string filePath, string connectionName, string url)
+    public static Task CreateWebConnectionAsync(string filePath, string connectionName, string url)
     {
         using var batch = ExcelSession.BeginBatch(filePath);
         batch.Execute((ctx, ct) =>
@@ -163,12 +164,13 @@ public static class ConnectionTestHelper
             }
         });
         batch.Save();
+        return Task.CompletedTask;
     }
 
     /// <summary>
     /// Creates multiple test connections of different types for multi-connection tests.
     /// </summary>
-    public static async Task CreateMultipleConnectionsAsync(string filePath, params (string name, string type, string connectionString)[] connections)
+    public static Task CreateMultipleConnectionsAsync(string filePath, params (string name, string type, string connectionString)[] connections)
     {
         using var batch = ExcelSession.BeginBatch(filePath);
         batch.Execute((ctx, ct) =>
@@ -196,5 +198,6 @@ public static class ConnectionTestHelper
             }
         });
         batch.Save();
+        return Task.CompletedTask;
     }
 }

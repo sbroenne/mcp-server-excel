@@ -65,7 +65,7 @@ public partial class PivotTableCommandsTests
         Assert.True(createResult.Success);
 
         // Act - No save needed
-        var result = _pivotCommands.Get(batch, "TestPivot");
+        var result = _pivotCommands.Read(batch, "TestPivot");
 
         // Assert
         Assert.True(result.Success, $"GetInfo failed: {result.ErrorMessage}");
@@ -84,7 +84,7 @@ public partial class PivotTableCommandsTests
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _pivotCommands.Get(batch, "NonExistent");
+        var result = _pivotCommands.Read(batch, "NonExistent");
 
         // Assert
         Assert.False(result.Success);

@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -16,7 +16,7 @@ public partial class RangeCommandsTests
     public async Task GetUsedRange_SheetWithSparseData_ReturnsNonEmptyCells()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), nameof(GetUsedRange_SheetWithSparseData_ReturnsNonEmptyCells), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetUsedRange_SheetWithSparseData_ReturnsNonEmptyCells), _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         await _commands.SetValues(batch, "Sheet1", "A1", [["Start"]]);
@@ -37,7 +37,7 @@ public partial class RangeCommandsTests
     public async Task GetCurrentRegion_CellInPopulated3x3Range_ReturnsContiguousBlock()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), nameof(GetCurrentRegion_CellInPopulated3x3Range_ReturnsContiguousBlock), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetCurrentRegion_CellInPopulated3x3Range_ReturnsContiguousBlock), _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         await _commands.SetValues(batch, "Sheet1", "A1:C3",
@@ -67,7 +67,7 @@ public partial class RangeCommandsTests
     public async Task GetInfo_ValidAddress_ReturnsMetadata()
     {
         // Arrange
-        string testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), nameof(GetInfo_ValidAddress_ReturnsMetadata), _tempDir);
+        string testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), nameof(GetInfo_ValidAddress_ReturnsMetadata), _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         await _commands.SetValues(batch, "Sheet1", "A1:D10",

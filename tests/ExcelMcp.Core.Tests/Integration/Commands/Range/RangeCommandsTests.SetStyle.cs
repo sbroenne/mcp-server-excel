@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -11,7 +11,7 @@ public partial class RangeCommandsTests
     public async Task SetStyle_Heading1_AppliesSuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(SetStyle_Heading1_AppliesSuccessfully),
             _tempDir,
@@ -30,7 +30,7 @@ public partial class RangeCommandsTests
     public async Task SetStyle_GoodBadNeutral_AllApplySuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(SetStyle_GoodBadNeutral_AllApplySuccessfully),
             _tempDir,
@@ -54,7 +54,7 @@ public partial class RangeCommandsTests
     public async Task SetStyle_Accent1_AppliesSuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(SetStyle_Accent1_AppliesSuccessfully),
             _tempDir,
@@ -73,7 +73,7 @@ public partial class RangeCommandsTests
     public async Task SetStyle_TotalStyle_AppliesSuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(SetStyle_TotalStyle_AppliesSuccessfully),
             _tempDir,
@@ -92,7 +92,7 @@ public partial class RangeCommandsTests
     public async Task SetStyle_CurrencyComma_AppliesSuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(SetStyle_CurrencyComma_AppliesSuccessfully),
             _tempDir,
@@ -113,7 +113,7 @@ public partial class RangeCommandsTests
     public async Task SetStyle_InvalidStyleName_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(SetStyle_InvalidStyleName_ReturnsError),
             _tempDir,
@@ -134,7 +134,7 @@ public partial class RangeCommandsTests
     public async Task SetStyle_ResetToNormal_ClearsFormatting()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(SetStyle_ResetToNormal_ClearsFormatting),
             _tempDir,

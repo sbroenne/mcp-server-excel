@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -16,7 +16,7 @@ public partial class SheetCommandsTests
     public async Task SetVisibility_ToHidden_WorksCorrectly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
             nameof(SetVisibility_ToHidden_WorksCorrectly),
             _tempDir);
@@ -44,7 +44,7 @@ public partial class SheetCommandsTests
     public async Task SetVisibility_ToVeryHidden_WorksCorrectly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
             nameof(SetVisibility_ToVeryHidden_WorksCorrectly),
             _tempDir);
@@ -71,7 +71,7 @@ public partial class SheetCommandsTests
     public async Task Show_HiddenSheet_MakesVisible()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
             nameof(Show_HiddenSheet_MakesVisible),
             _tempDir);
@@ -101,7 +101,7 @@ public partial class SheetCommandsTests
     public async Task Show_VeryHiddenSheet_MakesVisible()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
             nameof(Show_VeryHiddenSheet_MakesVisible),
             _tempDir);
@@ -131,7 +131,7 @@ public partial class SheetCommandsTests
     public async Task Hide_VisibleSheet_MakesHidden()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
             nameof(Hide_VisibleSheet_MakesHidden),
             _tempDir);
@@ -156,7 +156,7 @@ public partial class SheetCommandsTests
     public async Task VeryHide_VeryHidesVisibleSheet()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
             nameof(VeryHide_VeryHidesVisibleSheet),
             _tempDir);
@@ -181,7 +181,7 @@ public partial class SheetCommandsTests
     public async Task GetVisibility_ForVisibleSheet_ReturnsVisible()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
             nameof(GetVisibility_ForVisibleSheet_ReturnsVisible),
             _tempDir);
@@ -203,7 +203,7 @@ public partial class SheetCommandsTests
     public async Task SetVisibility_WithNonExistentSheet_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
             nameof(SetVisibility_WithNonExistentSheet_ReturnsError),
             _tempDir);
@@ -223,7 +223,7 @@ public partial class SheetCommandsTests
     public async Task Visibility_CompleteWorkflow_AllLevelsWork()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
             nameof(Visibility_CompleteWorkflow_AllLevelsWork),
             _tempDir);

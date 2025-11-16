@@ -22,7 +22,7 @@ public static class ExcelNamedRangeTool
     /// </summary>
     [McpServerTool(Name = "excel_namedrange")]
     [Description(@"Manage Excel named ranges")]
-    public static async Task<string> ExcelParameter(
+    public static string ExcelParameter(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         NamedRangeAction action,
@@ -65,12 +65,12 @@ public static class ExcelNamedRangeTool
         }
         catch (Exception ex)
         {
-            return Task.FromResult(JsonSerializer.Serialize(new
+            return JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
                 isError = true
-            }, ExcelToolsBase.JsonOptions));
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 

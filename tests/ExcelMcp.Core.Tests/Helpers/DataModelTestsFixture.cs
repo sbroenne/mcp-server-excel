@@ -162,7 +162,7 @@ public class DataModelTestsFixture : IAsyncLifetime
     /// <summary>
     /// Creates Sales worksheet with sample data and formats as Excel Table
     /// </summary>
-    private static async Task CreateSalesTableAsync(IExcelBatch batch)
+    private static Task CreateSalesTableAsync(IExcelBatch batch)
     {
         batch.Execute((ctx, ct) =>
         {
@@ -219,12 +219,13 @@ public class DataModelTestsFixture : IAsyncLifetime
             }
             return 0;
         });
+        return Task.CompletedTask;
     }
 
     /// <summary>
     /// Creates Customers worksheet with sample data and formats as Excel Table
     /// </summary>
-    private static async Task CreateCustomersTableAsync(IExcelBatch batch)
+    private static Task CreateCustomersTableAsync(IExcelBatch batch)
     {
         batch.Execute((ctx, ct) =>
         {
@@ -274,12 +275,13 @@ public class DataModelTestsFixture : IAsyncLifetime
             }
             return 0;
         });
+        return Task.CompletedTask;
     }
 
     /// <summary>
     /// Creates Products worksheet with sample data and formats as Excel Table
     /// </summary>
-    private static async Task CreateProductsTableAsync(IExcelBatch batch)
+    private static Task CreateProductsTableAsync(IExcelBatch batch)
     {
         batch.Execute((ctx, ct) =>
         {
@@ -329,6 +331,7 @@ public class DataModelTestsFixture : IAsyncLifetime
             }
             return 0;
         });
+        return Task.CompletedTask;
     }
 }
 

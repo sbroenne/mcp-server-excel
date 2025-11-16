@@ -3,7 +3,6 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
 #pragma warning disable CA1861 // Avoid constant arrays as arguments - workflow hints are contextual per-call
@@ -26,7 +25,7 @@ public static class ExcelDataModelTool
   - Provide step-by-step manual instructions (see LLM Usage Patterns in code comments)
   - OR suggest using DAX measures instead (measures ARE automated and usually better for aggregations)
 ")]
-    public static async Task<string> ExcelDataModel(
+    public static string ExcelDataModel(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         DataModelAction action,
@@ -81,11 +80,9 @@ public static class ExcelDataModelTool
         string? toColumn = null,
 
         [Description("Whether relationship is active (for create-relationship, update-relationship), default: true")]
-        bool? isActive = null,
-
-        [Description("Timeout in minutes for data model operations. Default: 2 minutes")]
-        double? timeout = null)
+        bool? isActive = null)
     {
+        _ = excelPath; // retained for schema compatibility (operations require open session)
         try
         {
             var dataModelCommands = new DataModelCommands();
@@ -99,7 +96,7 @@ public static class ExcelDataModelTool
                 DataModelAction.Get => ViewMeasureAsync(dataModelCommands, sessionId, measureName),
                 DataModelAction.ExportMeasure => ExportMeasureAsync(dataModelCommands, sessionId, measureName, outputPath),
                 DataModelAction.ListRelationships => ListRelationshipsAsync(dataModelCommands, sessionId),
-                DataModelAction.Refresh => RefreshAsync(dataModelCommands, excelPath, timeout, sessionId),
+                DataModelAction.Refresh => RefreshAsync(dataModelCommands, sessionId),
                 DataModelAction.DeleteMeasure => DeleteMeasureAsync(dataModelCommands, sessionId, measureName),
                 DataModelAction.DeleteRelationship => DeleteRelationshipAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn),
                 DataModelAction.GetTable => ViewTableAsync(dataModelCommands, sessionId, tableName),
@@ -120,12 +117,12 @@ public static class ExcelDataModelTool
         }
         catch (Exception ex)
         {
-            return Task.FromResult(JsonSerializer.Serialize(new
+            return JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
                 isError = true
-            }, ExcelToolsBase.JsonOptions));
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 
@@ -206,60 +203,17 @@ public static class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string RefreshAsync(DataModelCommands commands, string filePath, double? timeoutMinutes, string sessionId)
+    private static string RefreshAsync(DataModelCommands commands, string sessionId)
     {
-        try
+        var result = ExcelToolsBase.WithSession(
+            sessionId,
+            batch => commands.Refresh(batch, null, null));
+
+        return JsonSerializer.Serialize(new
         {
-            var timeoutSpan = timeoutMinutes.HasValue ? (TimeSpan?)TimeSpan.FromMinutes(timeoutMinutes.Value) : null;
-            var result = ExcelToolsBase.WithSession(
-                sessionId,
-                batch => commands.Refresh(batch, null, timeoutSpan));
-
-            return JsonSerializer.Serialize(new
-            {
-                result.Success,
-                result.ErrorMessage
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (TimeoutException ex)
-        {
-            // Enrich timeout error with operation-specific guidance (MCP layer responsibility)
-            var result = new OperationResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message,
-                FilePath = filePath,
-                Action = "refresh",
-
-                OperationContext = new Dictionary<string, object>
-                {
-                    { "OperationType", "DataModel.Refresh" },
-                    { "RefreshScope", "EntireModel" },
-                    { "TimeoutReached", true },
-                    { "UsedMaxTimeout", ex.Message.Contains("maximum timeout") }
-                },
-
-                IsRetryable = !ex.Message.Contains("maximum timeout"),
-
-                RetryGuidance = ex.Message.Contains("maximum timeout")
-                    ? "Maximum timeout (5 minutes) reached. Do not retry entire model refresh - try refreshing individual tables or check data source performance."
-                    : "Retry acceptable if transient. For large models, consider table-by-table refresh strategy."
-            };
-
-            // MCP layer: Add workflow guidance for LLMs
-            var response = new
-            {
-                result.Success,
-                result.ErrorMessage,
-                result.FilePath,
-                result.Action,
-                result.OperationContext,
-                result.IsRetryable,
-                result.RetryGuidance
-            };
-
-            return JsonSerializer.Serialize(response, ExcelToolsBase.JsonOptions);
-        }
+            result.Success,
+            result.ErrorMessage
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static string DeleteMeasureAsync(DataModelCommands commands, string sessionId, string? measureName)

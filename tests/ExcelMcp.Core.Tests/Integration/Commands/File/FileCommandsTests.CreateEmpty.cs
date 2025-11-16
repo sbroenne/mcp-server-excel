@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -12,22 +12,23 @@ public partial class FileCommandsTests
     /// <summary>
     /// Helper method to verify a file is a valid Excel workbook by trying to open it
     /// </summary>
-    private static async Task<bool> IsValidExcelFileAsync(string filePath)
+    private static Task<bool> IsValidExcelFileAsync(string filePath)
     {
         try
         {
             using var batch = ExcelSession.BeginBatch(filePath);
-            return await batch.Execute<bool>((ctx, ct) =>
+            var isValid = batch.Execute((ctx, ct) =>
             {
                 // If we can access the workbook and get worksheets, it's valid
                 dynamic sheets = ctx.Book.Worksheets;
                 return sheets.Count >= 1;
             });
+            return Task.FromResult(isValid);
         }
         catch (Exception)
         {
             // Test helper - any Excel error means file is invalid
-            return false;
+            return Task.FromResult(false);
         }
     }
     /// <inheritdoc/>
@@ -39,7 +40,7 @@ public partial class FileCommandsTests
         string testFile = Path.Join(_tempDir, $"{nameof(CreateEmpty_ValidXlsx_ReturnsSuccess)}_{Guid.NewGuid():N}.xlsx");
 
         // Act
-        var result = _fileCommands.CreateEmpty(testFile);
+        var result = await _fileCommands.CreateEmpty(testFile);
 
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
@@ -61,7 +62,7 @@ public partial class FileCommandsTests
         string testFile = Path.Join(_tempDir, $"{nameof(CreateEmpty_ValidXlsm_ReturnsSuccess)}_{Guid.NewGuid():N}.xlsm");
 
         // Act
-        var result = _fileCommands.CreateEmpty(testFile);
+        var result = await _fileCommands.CreateEmpty(testFile);
 
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
@@ -84,7 +85,7 @@ public partial class FileCommandsTests
         string testFile = Path.Join(_tempDir, $"{Guid.NewGuid():N}_{fileName}");
 
         // Act
-        var result = _fileCommands.CreateEmpty(testFile);
+        var result = await _fileCommands.CreateEmpty(testFile);
 
         // Assert
         Assert.False(result.Success);
@@ -98,11 +99,11 @@ public partial class FileCommandsTests
     public async Task CreateEmpty_FileExists_WithoutOverwrite_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(FileCommandsTests), nameof(CreateEmpty_FileExists_WithoutOverwrite_ReturnsError), _tempDir);
 
         // Act - Try to create again without overwrite flag
-        var result = _fileCommands.CreateEmpty(testFile, overwriteIfExists: false);
+        var result = await _fileCommands.CreateEmpty(testFile, overwriteIfExists: false);
 
         // Assert
         Assert.False(result.Success);
@@ -115,11 +116,11 @@ public partial class FileCommandsTests
     public async Task CreateEmpty_FileExists_WithOverwrite_ReturnsSuccess()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(FileCommandsTests), nameof(CreateEmpty_FileExists_WithOverwrite_ReturnsSuccess), _tempDir);
 
         // Act - Overwrite
-        var result = _fileCommands.CreateEmpty(testFile, overwriteIfExists: true);
+        var result = await _fileCommands.CreateEmpty(testFile, overwriteIfExists: true);
 
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");

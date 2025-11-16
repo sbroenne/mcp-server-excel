@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -15,7 +15,7 @@ public partial class SheetCommandsTests
     public async Task SetTabColor_WithValidRGB_SetsColorCorrectly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
             nameof(SetTabColor_WithValidRGB_SetsColorCorrectly),
             _tempDir);
@@ -46,7 +46,7 @@ public partial class SheetCommandsTests
     public async Task SetTabColor_WithDifferentColors_AllSetCorrectly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
             nameof(SetTabColor_WithDifferentColors_AllSetCorrectly),
             _tempDir);
@@ -90,7 +90,7 @@ public partial class SheetCommandsTests
     public async Task GetTabColor_WithNoColor_ReturnsHasColorFalse()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
             nameof(GetTabColor_WithNoColor_ReturnsHasColorFalse),
             _tempDir);
@@ -115,7 +115,7 @@ public partial class SheetCommandsTests
     public async Task ClearTabColor_RemovesColor()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
             nameof(ClearTabColor_RemovesColor),
             _tempDir);
@@ -146,7 +146,7 @@ public partial class SheetCommandsTests
     public async Task SetTabColor_WithInvalidRGB_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
             nameof(SetTabColor_WithInvalidRGB_ReturnsError),
             _tempDir);
@@ -171,7 +171,7 @@ public partial class SheetCommandsTests
     public async Task SetTabColor_WithNonExistentSheet_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
             nameof(SetTabColor_WithNonExistentSheet_ReturnsError),
             _tempDir);
@@ -191,7 +191,7 @@ public partial class SheetCommandsTests
     public async Task TabColor_RGBToBGRConversion_WorksCorrectly()
     {
         // Arrange - Test BGR conversion accuracy
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests),
             nameof(TabColor_RGBToBGRConversion_WorksCorrectly),
             _tempDir);

@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -17,7 +17,7 @@ public partial class RangeCommandsTests
     public async Task ClearFormats_FormattedRange_RemovesFormattingOnly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests), nameof(ClearFormats_FormattedRange_RemovesFormattingOnly), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -49,7 +49,7 @@ public partial class RangeCommandsTests
     public async Task CopyFormulas_SourceWithFormulas_CopiesFormulasOnly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests), nameof(CopyFormulas_SourceWithFormulas_CopiesFormulasOnly), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -82,7 +82,7 @@ public partial class RangeCommandsTests
     public async Task InsertCells_ShiftDown_InsertsAndShiftsExisting()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests), nameof(InsertCells_ShiftDown_InsertsAndShiftsExisting), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -112,7 +112,7 @@ public partial class RangeCommandsTests
     public async Task DeleteCells_ShiftUp_RemovesAndShifts()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests), nameof(DeleteCells_ShiftUp_RemovesAndShifts), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -143,7 +143,7 @@ public partial class RangeCommandsTests
     public async Task InsertRows_BeforeExistingData_InsertsBlankRows()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests), nameof(InsertRows_BeforeExistingData_InsertsBlankRows), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -173,7 +173,7 @@ public partial class RangeCommandsTests
     public async Task DeleteRows_ExistingRows_RemovesRows()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests), nameof(DeleteRows_ExistingRows_RemovesRows), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -205,7 +205,7 @@ public partial class RangeCommandsTests
     public async Task InsertColumns_BeforeExistingData_InsertsBlankColumns()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests), nameof(InsertColumns_BeforeExistingData_InsertsBlankColumns), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -235,7 +235,7 @@ public partial class RangeCommandsTests
     public async Task DeleteColumns_ExistingColumns_RemovesColumns()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests), nameof(DeleteColumns_ExistingColumns_RemovesColumns), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -267,7 +267,7 @@ public partial class RangeCommandsTests
     public async Task GetHyperlink_ExistingHyperlink_ReturnsDetails()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests), nameof(GetHyperlink_ExistingHyperlink_ReturnsDetails), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);

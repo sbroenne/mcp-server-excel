@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -14,7 +14,7 @@ public partial class SheetCommandsTests
     public async Task List_DefaultWorkbook_ReturnsDefaultSheets()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests), nameof(List_DefaultWorkbook_ReturnsDefaultSheets), _tempDir);
 
         // Act
@@ -32,7 +32,7 @@ public partial class SheetCommandsTests
     public async Task Create_UniqueName_ReturnsSuccess()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests), nameof(Create_UniqueName_ReturnsSuccess), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -56,7 +56,7 @@ public partial class SheetCommandsTests
     public async Task Rename_ExistingSheet_ReturnsSuccess()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests), nameof(Rename_ExistingSheet_ReturnsSuccess), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -82,7 +82,7 @@ public partial class SheetCommandsTests
     public async Task Delete_NonActiveSheet_ReturnsSuccess()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests), nameof(Delete_NonActiveSheet_ReturnsSuccess), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -107,7 +107,7 @@ public partial class SheetCommandsTests
     public async Task Copy_ExistingSheet_CreatesNewSheet()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(SheetCommandsTests), nameof(Copy_ExistingSheet_CreatesNewSheet), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);

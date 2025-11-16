@@ -4,7 +4,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
 #pragma warning disable CA1861 // Avoid constant arrays as arguments - workflow hints are contextual per-call
@@ -38,7 +37,7 @@ POWER QUERY AUTO-REDIRECT:
 - Power Query connections automatically redirect to excel_powerquery tool
 - Use excel_powerquery for M code-based connections
 ")]
-    public static async Task<string> ExcelConnection(
+    public static string ExcelConnection(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         ConnectionAction action,
@@ -78,10 +77,7 @@ POWER QUERY AUTO-REDIRECT:
         bool? savePassword = null,
 
         [Description("Refresh period in minutes (for set-properties)")]
-        int? refreshPeriod = null,
-
-        [Description("Timeout in minutes for connection operations. Default: 2 minutes")]
-        double? timeout = null)
+        int? refreshPeriod = null)
     {
         try
         {
@@ -96,7 +92,7 @@ POWER QUERY AUTO-REDIRECT:
                 ConnectionAction.Import => ImportConnectionAsync(connectionCommands, sessionId, connectionName, targetPath),
                 ConnectionAction.Export => ExportConnectionAsync(connectionCommands, sessionId, connectionName, targetPath),
                 ConnectionAction.UpdateProperties => UpdateConnectionAsync(connectionCommands, sessionId, connectionName, targetPath),
-                ConnectionAction.Refresh => RefreshConnectionAsync(connectionCommands, excelPath, sessionId, connectionName, timeout),
+                ConnectionAction.Refresh => RefreshConnectionAsync(connectionCommands, excelPath, sessionId, connectionName),
                 ConnectionAction.Delete => DeleteConnectionAsync(connectionCommands, sessionId, connectionName),
                 ConnectionAction.Test => TestConnectionAsync(connectionCommands, sessionId, connectionName),
                 ConnectionAction.LoadTo => LoadToWorksheetAsync(connectionCommands, sessionId, connectionName, targetPath),
@@ -108,12 +104,12 @@ POWER QUERY AUTO-REDIRECT:
         }
         catch (Exception ex)
         {
-            return Task.FromResult(JsonSerializer.Serialize(new
+            return JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
                 isError = true
-            }, ExcelToolsBase.JsonOptions));
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 
@@ -210,84 +206,30 @@ POWER QUERY AUTO-REDIRECT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string RefreshConnectionAsync(ConnectionCommands commands, string excelPath, string sessionId, string? connectionName, double? timeoutMinutes)
+    private static string RefreshConnectionAsync(ConnectionCommands commands, string excelPath, string sessionId, string? connectionName)
     {
         if (string.IsNullOrEmpty(connectionName))
             throw new ArgumentException("connectionName is required for refresh action", nameof(connectionName));
 
-        try
+        _ = excelPath; // retained parameter for schema compatibility
+
+        var result = ExcelToolsBase.WithSession(
+            sessionId,
+            batch => commands.Refresh(batch, connectionName, null));
+
+        if (result.Success)
         {
-            // Apply timeout parameter (default 2 minutes for connection operations)
-            var timeoutSpan = timeoutMinutes.HasValue ? (TimeSpan?)TimeSpan.FromMinutes(timeoutMinutes.Value) : null;
-
-            var result = ExcelToolsBase.WithSession(
-                sessionId,
-                batch => commands.Refresh(batch, connectionName, timeoutSpan));
-
-            // Always return JSON (success or failure) - MCP clients handle the success flag
-            // Add workflow hints based on actual result and operation context
-            if (result.Success)
+            return JsonSerializer.Serialize(new
             {
-                // Check if connection is connection-only (no data loaded)
-                bool isConnectionOnly = result.OperationContext?.ContainsKey("IsConnectionOnly") == true &&
-                                      (bool)result.OperationContext["IsConnectionOnly"];
-
-                return JsonSerializer.Serialize(new
-                {
-                    result.Success
-                }, ExcelToolsBase.JsonOptions);
-            }
-            else
-            {
-                // Failed refresh - check for specific error types
-                bool isPowerQueryConnection = result.ErrorMessage?.Contains("Power Query connection") == true;
-
-                return JsonSerializer.Serialize(new
-                {
-                    result.Success,
-                    result.ErrorMessage
-                }, ExcelToolsBase.JsonOptions);
-            }
+                result.Success
+            }, ExcelToolsBase.JsonOptions);
         }
-        catch (TimeoutException ex)
+
+        return JsonSerializer.Serialize(new
         {
-            // Enrich timeout error with operation-specific guidance (MCP layer responsibility)
-            var result = new OperationResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message,
-                FilePath = excelPath,
-                Action = "refresh",
-
-                OperationContext = new Dictionary<string, object>
-                {
-                    { "OperationType", "Connection.Refresh" },
-                    { "ConnectionName", connectionName },
-                    { "TimeoutReached", true },
-                    { "UsedMaxTimeout", ex.Message.Contains("maximum timeout") }
-                },
-
-                IsRetryable = !ex.Message.Contains("maximum timeout"),
-
-                RetryGuidance = ex.Message.Contains("maximum timeout")
-                    ? "Maximum timeout (5 minutes) reached. Check data source connectivity and resolve any authentication prompts before retrying."
-                    : "Retry acceptable after checking for hidden dialogs and verifying data source connectivity. Consider using 'test' action first."
-            };
-
-            // MCP layer: Add workflow guidance for LLMs
-            var response = new
-            {
-                result.Success,
-                result.ErrorMessage,
-                result.FilePath,
-                result.Action,
-                result.OperationContext,
-                result.IsRetryable,
-                result.RetryGuidance
-            };
-
-            return JsonSerializer.Serialize(response, ExcelToolsBase.JsonOptions);
-        }
+            result.Success,
+            result.ErrorMessage
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static string DeleteConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName)

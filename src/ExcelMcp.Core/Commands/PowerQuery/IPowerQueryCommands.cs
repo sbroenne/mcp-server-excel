@@ -43,10 +43,6 @@ public interface IPowerQueryCommands
     /// </summary>
     WorksheetListResult ListExcelSources(IExcelBatch batch);
 
-    // =========================================================================
-    // ATOMIC OPERATIONS - Improved Workflows
-    // =========================================================================
-
     /// <summary>
     /// Creates a new Power Query by importing M code and loading data atomically
     /// Replaces multi-step workflow (import + configure + refresh in ONE operation)

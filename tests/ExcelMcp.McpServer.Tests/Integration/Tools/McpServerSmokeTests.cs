@@ -67,7 +67,7 @@ public class McpServerSmokeTests : IDisposable
     /// This test validates the complete tool chain and demonstrates proper session usage for multiple operations.
     /// </summary>
     [Fact]
-    public async Task SmokeTest_AllTools_LlmWorkflow()
+    public void SmokeTest_AllTools_LlmWorkflow()
     {
         _output.WriteLine("=== MCP SERVER SMOKE TEST (SESSION API) ===");
         _output.WriteLine("Testing all 12 tools in optimized session workflow...\n");
@@ -317,7 +317,7 @@ in
         {
             if (!string.IsNullOrEmpty(verifySessionId))
             {
-                await ExcelFileTool.ExcelFile(FileAction.Close, sessionId: verifySessionId);
+                ExcelFileTool.ExcelFile(FileAction.Close, sessionId: verifySessionId);
             }
         }
 

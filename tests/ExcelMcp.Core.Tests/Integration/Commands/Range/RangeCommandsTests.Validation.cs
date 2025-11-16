@@ -1,4 +1,4 @@
-﻿// Copyright (c) Stefan Broenne. All rights reserved.
+// Copyright (c) Stefan Broenne. All rights reserved.
 
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -12,7 +12,7 @@ public partial class RangeCommandsTests
     public async Task ValidateRange_WithInputMessage_ReturnsSuccess()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(ValidateRange_WithInputMessage_ReturnsSuccess),
             _tempDir);
@@ -77,7 +77,7 @@ public partial class RangeCommandsTests
     public async Task GetValidation_WithInputMessage_ReturnsInputTitleAndMessage()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(GetValidation_WithInputMessage_ReturnsInputTitleAndMessage),
             _tempDir);

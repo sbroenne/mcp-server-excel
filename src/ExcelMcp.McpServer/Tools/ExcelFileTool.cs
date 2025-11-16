@@ -37,7 +37,7 @@ FILE FORMATS:
 - .xlsx:
 - .xlsm:
 ")]
-    public static async Task<string> ExcelFile(
+    public static string ExcelFile(
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         FileAction action,
 
@@ -66,13 +66,13 @@ FILE FORMATS:
         }
         catch (Exception ex)
         {
-            return Task.FromResult(JsonSerializer.Serialize(new
+            return JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
                 filePath = excelPath,
                 isError = true
-            }, ExcelToolsBase.JsonOptions));
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 

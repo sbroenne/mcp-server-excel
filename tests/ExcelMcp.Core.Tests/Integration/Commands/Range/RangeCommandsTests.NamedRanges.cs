@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -17,7 +17,7 @@ public partial class RangeCommandsTests
     public async Task GetValues_WithNamedRange_ResolvesProperly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create a named range pointing to A1:B2
@@ -51,7 +51,7 @@ public partial class RangeCommandsTests
     public async Task SetValues_WithNamedRange_WritesProperly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create a named range
@@ -80,7 +80,7 @@ public partial class RangeCommandsTests
     public async Task GetFormulas_WithNamedRange_ReturnsFormulas()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create named range and set data + formula
@@ -107,7 +107,7 @@ public partial class RangeCommandsTests
     public async Task ClearContents_WithNamedRange_ClearsData()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create named range and populate

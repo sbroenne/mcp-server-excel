@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Commands;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
@@ -23,19 +23,19 @@ public static class CoreTestHelper
     /// Usage patterns:
     /// <code>
     /// // Excel file
-    /// var excelFile = await CoreTestHelper.CreateUniqueTestFile(
+    /// var excelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
     ///     nameof(MyTests), nameof(MyTest), _tempDir, ".xlsx");
     ///
     /// // CSV file with default data
-    /// var csvFile = await CoreTestHelper.CreateUniqueTestFile(
+    /// var csvFile = await CoreTestHelper.CreateUniqueTestFileAsync(
     ///     nameof(MyTests), nameof(MyTest), _tempDir, ".csv");
     ///
     /// // CSV file with custom data
-    /// var csvFile = await CoreTestHelper.CreateUniqueTestFile(
+    /// var csvFile = await CoreTestHelper.CreateUniqueTestFileAsync(
     ///     nameof(MyTests), nameof(MyTest), _tempDir, ".csv", "Col1,Col2\nA,B");
     /// </code>
     /// </remarks>
-    public static async Task<string> CreateUniqueTestFileAsync(
+    public static Task<string> CreateUniqueTestFileAsync(
         string testClassName,
         string testName,
         string tempDir,
@@ -62,15 +62,11 @@ public static class CoreTestHelper
         // Handle data files (.csv, .txt, etc.)
         else
         {
-            if (content == null)
-            {
-                throw new ArgumentNullException(nameof(content),
-                    $"Content must be provided for non-Excel files with extension '{extension}'");
-            }
-
-            File.WriteAllText(filePath, content);
+            const string defaultContent = "Name,Value\nSample,123\n";
+            var finalContent = content ?? defaultContent;
+            File.WriteAllText(filePath, finalContent);
         }
 
-        return filePath;
+        return Task.FromResult(filePath);
     }
 }

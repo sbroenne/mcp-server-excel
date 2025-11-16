@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -66,7 +66,7 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
     public async Task Import_ValidMCode_ReturnsSuccess()
     {
         // Arrange - Use unique file to avoid polluting fixture
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PowerQueryCommandsTests),
             nameof(Import_ValidMCode_ReturnsSuccess),
             _tempDir);
@@ -75,7 +75,7 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
 
         // Act
         using var batch = ExcelSession.BeginBatch(testExcelFile);
-        var result = _powerQueryCommands.Create(batch, queryName, testQueryFile, PowerQueryLoadMode.ConnectionOnly);
+        var result = await _powerQueryCommands.Create(batch, queryName, testQueryFile, PowerQueryLoadMode.ConnectionOnly);
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
@@ -90,7 +90,7 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
     {
         // Act
         using var batch = ExcelSession.BeginBatch(_powerQueryFile);
-        var result = _powerQueryCommands.List(batch);
+        var result = await _powerQueryCommands.List(batch);
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
@@ -107,7 +107,7 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
     {
         // Act
         using var batch = ExcelSession.BeginBatch(_powerQueryFile);
-        var result = _powerQueryCommands.View(batch, "BasicQuery");
+        var result = await _powerQueryCommands.View(batch, "BasicQuery");
 
         // Assert
         Assert.True(result.Success);
@@ -123,7 +123,7 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
     public async Task Update_ExistingQuery_ReturnsSuccess()
     {
         // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PowerQueryCommandsTests),
             nameof(Update_ExistingQuery_ReturnsSuccess),
             _tempDir);
@@ -156,7 +156,7 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
     public async Task Update_ExistingQuery_ReplacesNotMergesMCode()
     {
         // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PowerQueryCommandsTests),
             nameof(Update_ExistingQuery_ReplacesNotMergesMCode),
             _tempDir);
@@ -224,7 +224,7 @@ in
     public async Task Update_MultipleSequentialUpdates_EachReplacesCompletely()
     {
         // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PowerQueryCommandsTests),
             nameof(Update_MultipleSequentialUpdates_EachReplacesCompletely),
             _tempDir);
@@ -277,7 +277,7 @@ in
     public async Task Delete_ExistingQuery_ReturnsSuccess()
     {
         // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PowerQueryCommandsTests),
             nameof(Delete_ExistingQuery_ReturnsSuccess),
             _tempDir);
@@ -303,7 +303,7 @@ in
     public async Task Create_DuplicateQueryName_ReturnsError()
     {
         // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PowerQueryCommandsTests),
             nameof(Create_DuplicateQueryName_ReturnsError),
             _tempDir);
@@ -347,7 +347,7 @@ in
     public async Task Import_QueryReferencingAnotherQuery_LoadsDataSuccessfully()
     {
         // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PowerQueryCommandsTests),
             nameof(Import_QueryReferencingAnotherQuery_LoadsDataSuccessfully),
             _tempDir);
@@ -440,7 +440,7 @@ in
     public async Task Update_QueryLoadedToSheet_PreservesLoadConfiguration()
     {
         // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PowerQueryCommandsTests),
             nameof(Update_QueryLoadedToSheet_PreservesLoadConfiguration),
             _tempDir);
@@ -492,7 +492,7 @@ in
 
     /// <summary>
     /// REGRESSION TEST for reported user bug (2025-01-28):
-    /// User workflow: Create query loaded to worksheet → UpdateMCode → Refresh → query becomes connection-only
+    /// User workflow: Create query loaded to worksheet ? UpdateMCode ? Refresh ? query becomes connection-only
     ///
     /// This test validates that UpdateMCode + Refresh preserves load configuration.
     /// Expected: Load configuration should survive both UpdateMCode AND Refresh operations.
@@ -502,7 +502,7 @@ in
     {
         // Arrange
 
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PowerQueryCommandsTests),
             nameof(UpdateMCodeThenRefresh_QueryLoadedToSheet_PreservesLoadConfiguration),
             _tempDir);
@@ -577,7 +577,7 @@ in
     public async Task Update_QueryColumnStructure_UpdatesWorksheetColumns()
     {
         // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PowerQueryCommandsTests),
             nameof(Update_QueryColumnStructure_UpdatesWorksheetColumns),
             _tempDir);
@@ -698,7 +698,7 @@ in
     public async Task Update_QueryColumnStructureWithDeleteRecreate_NoAccumulation()
     {
         // Arrange
-        var testExcelFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testExcelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PowerQueryCommandsTests),
             nameof(Update_QueryColumnStructureWithDeleteRecreate_NoAccumulation),
             _tempDir);

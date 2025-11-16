@@ -32,11 +32,11 @@ public partial class PowerQueryCommandsTimeoutTests : IDisposable
         Directory.CreateDirectory(_tempDir);
     }
 
-    private async Task<string> CreateTestFileAsync(string testName)
+    private Task<string> CreateTestFileAsync(string testName)
     {
         string testFile = Path.Join(_tempDir, $"{testName}-{Guid.NewGuid():N}.xlsx");
         ExcelSession.CreateNew(testFile, isMacroEnabled: false, (ctx, ct) => 0);
-        return testFile;
+        return Task.FromResult(testFile);
     }
     /// <inheritdoc/>
 
@@ -54,7 +54,7 @@ public partial class PowerQueryCommandsTimeoutTests : IDisposable
                 Source
             """;
         string mFile = Path.Join(_tempDir, "simple.pq");
-        await File.WriteAllText(mFile, mCode);
+        await File.WriteAllTextAsync(mFile, mCode);
 
         try
         {
@@ -93,7 +93,7 @@ public partial class PowerQueryCommandsTimeoutTests : IDisposable
                 Source
             """;
         string mFile = Path.Join(_tempDir, "slow.pq");
-        await File.WriteAllText(mFile, mCode);
+        await File.WriteAllTextAsync(mFile, mCode);
 
         try
         {

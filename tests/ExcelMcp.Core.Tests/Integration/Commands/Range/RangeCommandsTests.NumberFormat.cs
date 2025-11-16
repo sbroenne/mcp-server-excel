@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -15,7 +15,7 @@ public partial class RangeCommandsTests
     public async Task GetNumberFormats_SingleCell_ReturnsFormat()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(GetNumberFormats_SingleCell_ReturnsFormat),
             _tempDir,
@@ -46,7 +46,7 @@ public partial class RangeCommandsTests
     public async Task GetNumberFormats_MultipleFormats_ReturnsArray()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(GetNumberFormats_MultipleFormats_ReturnsArray),
             _tempDir,
@@ -84,7 +84,7 @@ public partial class RangeCommandsTests
     public async Task SetNumberFormat_Currency_AppliesFormatToRange()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(SetNumberFormat_Currency_AppliesFormatToRange),
             _tempDir,
@@ -114,7 +114,7 @@ public partial class RangeCommandsTests
     public async Task SetNumberFormat_Percentage_AppliesFormatCorrectly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(SetNumberFormat_Percentage_AppliesFormatCorrectly),
             _tempDir,
@@ -141,7 +141,7 @@ public partial class RangeCommandsTests
     public async Task SetNumberFormat_DateFormat_AppliesCorrectly()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(SetNumberFormat_DateFormat_AppliesCorrectly),
             _tempDir,
@@ -172,7 +172,7 @@ public partial class RangeCommandsTests
     public async Task SetNumberFormats_MixedFormats_AppliesDifferentFormatsPerCell()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(SetNumberFormats_MixedFormats_AppliesDifferentFormatsPerCell),
             _tempDir,
@@ -214,7 +214,7 @@ public partial class RangeCommandsTests
     public async Task SetNumberFormats_DimensionMismatch_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(SetNumberFormats_DimensionMismatch_ReturnsError),
             _tempDir,
@@ -240,7 +240,7 @@ public partial class RangeCommandsTests
     public async Task SetNumberFormat_TextFormat_PreservesLeadingZeros()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(RangeCommandsTests),
             nameof(SetNumberFormat_TextFormat_PreservesLeadingZeros),
             _tempDir,

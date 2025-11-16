@@ -32,7 +32,7 @@ public static class ExcelVbaTool
 - File format: .xlsm (macro-enabled) only
 - VBA trust: Must be enabled in Excel settings (one-time setup)
 ")]
-    public static async Task<string> ExcelVba(
+    public static string ExcelVba(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         VbaAction action,
@@ -80,13 +80,13 @@ public static class ExcelVbaTool
         }
         catch (Exception ex)
         {
-            return Task.FromResult(JsonSerializer.Serialize(new
+            return JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
                 filePath = excelPath,
                 isError = true
-            }, ExcelToolsBase.JsonOptions));
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 
@@ -134,6 +134,8 @@ public static class ExcelVbaTool
     {
         if (string.IsNullOrEmpty(moduleName))
             throw new ArgumentException("moduleName is required for export action", nameof(moduleName));
+
+        _ = targetPath; // File export currently handled by client reading returned code
 
         var result = ExcelToolsBase.WithSession(
             sessionId,

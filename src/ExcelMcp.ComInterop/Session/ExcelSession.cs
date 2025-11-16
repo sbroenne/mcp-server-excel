@@ -155,8 +155,6 @@ public static class ExcelSession
 #pragma warning restore CS8602
                         excel = null; // Let GC handle RCW cleanup
                     }
-
-                    // No need for Marshal.FinalReleaseComObject or GC.Collect()
                     // The GC will automatically handle RCW cleanup through finalizers
                 }
             }, cancellationToken).Wait(cancellationToken);

@@ -22,7 +22,7 @@ public static class TableTool
     /// </summary>
     [McpServerTool(Name = "excel_table")]
     [Description(@"Manage Excel Tables (ListObjects) - structured data with AutoFilter")]
-    public static async Task<string> Table(
+    public static string Table(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         TableAction action,
@@ -75,45 +75,45 @@ public static class TableTool
             // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
             return action switch
             {
-                TableAction.List => await ListTables(tableCommands, sessionId),
-                TableAction.Create => await CreateTable(tableCommands, sessionId, sheetName, tableName, range, hasHeaders, tableStyle),
-                TableAction.Get => await GetTableInfo(tableCommands, sessionId, tableName),
-                TableAction.Rename => await RenameTable(tableCommands, sessionId, tableName, newName),
-                TableAction.Delete => await DeleteTable(tableCommands, sessionId, tableName),
-                TableAction.Resize => await ResizeTable(tableCommands, sessionId, tableName, range),
-                TableAction.ToggleTotals => await ToggleTotals(tableCommands, sessionId, tableName, hasHeaders),
-                TableAction.SetColumnTotal => await SetColumnTotal(tableCommands, sessionId, tableName, newName, tableStyle),
-                TableAction.Append => await AppendRows(tableCommands, sessionId, tableName, tableStyle),
-                TableAction.SetStyle => await SetTableStyle(tableCommands, sessionId, tableName, tableStyle),
-                TableAction.AddToDataModel => await AddToDataModel(tableCommands, sessionId, tableName),
-                TableAction.ApplyFilter => await ApplyFilter(tableCommands, sessionId, tableName, newName, filterCriteria),
-                TableAction.ApplyFilterValues => await ApplyFilterValues(tableCommands, sessionId, tableName, newName, filterValues),
-                TableAction.ClearFilters => await ClearFilters(tableCommands, sessionId, tableName),
-                TableAction.GetFilters => await GetFilters(tableCommands, sessionId, tableName),
-                TableAction.AddColumn => await AddColumn(tableCommands, sessionId, tableName, newName, filterCriteria),
-                TableAction.RemoveColumn => await RemoveColumn(tableCommands, sessionId, tableName, newName),
-                TableAction.RenameColumn => await RenameColumn(tableCommands, sessionId, tableName, newName, filterCriteria),
-                TableAction.GetStructuredReference => await GetStructuredReference(tableCommands, sessionId, tableName, filterCriteria, newName),
-                TableAction.Sort => await SortTable(tableCommands, sessionId, tableName, newName, hasHeaders),
-                TableAction.SortMulti => await SortTableMulti(tableCommands, sessionId, tableName, filterValues),
-                TableAction.GetColumnNumberFormat => await GetColumnNumberFormat(tableCommands, sessionId, tableName, newName),
-                TableAction.SetColumnNumberFormat => await SetColumnNumberFormat(tableCommands, sessionId, tableName, newName, formatCode),
+                TableAction.List => ListTables(tableCommands, sessionId),
+                TableAction.Create => CreateTable(tableCommands, sessionId, sheetName, tableName, range, hasHeaders, tableStyle),
+                TableAction.Get => GetTableInfo(tableCommands, sessionId, tableName),
+                TableAction.Rename => RenameTable(tableCommands, sessionId, tableName, newName),
+                TableAction.Delete => DeleteTable(tableCommands, sessionId, tableName),
+                TableAction.Resize => ResizeTable(tableCommands, sessionId, tableName, range),
+                TableAction.ToggleTotals => ToggleTotals(tableCommands, sessionId, tableName, hasHeaders),
+                TableAction.SetColumnTotal => SetColumnTotal(tableCommands, sessionId, tableName, newName, tableStyle),
+                TableAction.Append => AppendRows(tableCommands, sessionId, tableName, tableStyle),
+                TableAction.SetStyle => SetTableStyle(tableCommands, sessionId, tableName, tableStyle),
+                TableAction.AddToDataModel => AddToDataModel(tableCommands, sessionId, tableName),
+                TableAction.ApplyFilter => ApplyFilter(tableCommands, sessionId, tableName, newName, filterCriteria),
+                TableAction.ApplyFilterValues => ApplyFilterValues(tableCommands, sessionId, tableName, newName, filterValues),
+                TableAction.ClearFilters => ClearFilters(tableCommands, sessionId, tableName),
+                TableAction.GetFilters => GetFilters(tableCommands, sessionId, tableName),
+                TableAction.AddColumn => AddColumn(tableCommands, sessionId, tableName, newName, filterCriteria),
+                TableAction.RemoveColumn => RemoveColumn(tableCommands, sessionId, tableName, newName),
+                TableAction.RenameColumn => RenameColumn(tableCommands, sessionId, tableName, newName, filterCriteria),
+                TableAction.GetStructuredReference => GetStructuredReference(tableCommands, sessionId, tableName, filterCriteria, newName),
+                TableAction.Sort => SortTable(tableCommands, sessionId, tableName, newName, hasHeaders),
+                TableAction.SortMulti => SortTableMulti(tableCommands, sessionId, tableName, filterValues),
+                TableAction.GetColumnNumberFormat => GetColumnNumberFormat(tableCommands, sessionId, tableName, newName),
+                TableAction.SetColumnNumberFormat => SetColumnNumberFormat(tableCommands, sessionId, tableName, newName, formatCode),
                 _ => throw new ArgumentException(
                     $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
         }
         catch (Exception ex)
         {
-            return Task.FromResult(JsonSerializer.Serialize(new
+            return JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
                 isError = true
-            }, ExcelToolsBase.JsonOptions));
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 
-    private static async Task<string> ListTables(TableCommands commands, string sessionId)
+    private static string ListTables(TableCommands commands, string sessionId)
     {
         var result = ExcelToolsBase.WithSession(sessionId, batch => commands.List(batch));
 
@@ -125,7 +125,7 @@ public static class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> CreateTable(TableCommands commands, string sessionId, string? sheetName, string? tableName, string? range, bool hasHeaders, string? tableStyle)
+    private static string CreateTable(TableCommands commands, string sessionId, string? sheetName, string? tableName, string? range, bool hasHeaders, string? tableStyle)
     {
         if (string.IsNullOrWhiteSpace(sheetName)) ExcelToolsBase.ThrowMissingParameter(nameof(sheetName), "create");
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "create");
@@ -142,7 +142,7 @@ public static class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetTableInfo(TableCommands commands, string sessionId, string? tableName)
+    private static string GetTableInfo(TableCommands commands, string sessionId, string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "info");
 
@@ -158,7 +158,7 @@ public static class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RenameTable(TableCommands commands, string sessionId, string? tableName, string? newName)
+    private static string RenameTable(TableCommands commands, string sessionId, string? tableName, string? newName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "rename");
         if (string.IsNullOrWhiteSpace(newName)) ExcelToolsBase.ThrowMissingParameter(nameof(newName), "rename");
@@ -174,7 +174,7 @@ public static class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> DeleteTable(TableCommands commands, string sessionId, string? tableName)
+    private static string DeleteTable(TableCommands commands, string sessionId, string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "delete");
 
@@ -189,7 +189,7 @@ public static class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ResizeTable(TableCommands commands, string sessionId, string? tableName, string? newRange)
+    private static string ResizeTable(TableCommands commands, string sessionId, string? tableName, string? newRange)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "resize");
         if (string.IsNullOrWhiteSpace(newRange)) ExcelToolsBase.ThrowMissingParameter(nameof(newRange), "resize");
@@ -205,7 +205,7 @@ public static class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ToggleTotals(TableCommands commands, string sessionId, string? tableName, bool showTotals)
+    private static string ToggleTotals(TableCommands commands, string sessionId, string? tableName, bool showTotals)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "toggle-totals");
 
@@ -220,7 +220,7 @@ public static class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetColumnTotal(TableCommands commands, string sessionId, string? tableName, string? columnName, string? totalFunction)
+    private static string SetColumnTotal(TableCommands commands, string sessionId, string? tableName, string? columnName, string? totalFunction)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "set-column-total");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "set-column-total");
@@ -237,7 +237,7 @@ public static class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> AppendRows(TableCommands commands, string sessionId, string? tableName, string? csvData)
+    private static string AppendRows(TableCommands commands, string sessionId, string? tableName, string? csvData)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "append");
         if (string.IsNullOrWhiteSpace(csvData)) ExcelToolsBase.ThrowMissingParameter(nameof(csvData), "append");
@@ -277,7 +277,7 @@ public static class TableTool
         return rows;
     }
 
-    private static async Task<string> SetTableStyle(TableCommands commands, string sessionId, string? tableName, string? tableStyle)
+    private static string SetTableStyle(TableCommands commands, string sessionId, string? tableName, string? tableStyle)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "set-style");
         if (string.IsNullOrWhiteSpace(tableStyle)) ExcelToolsBase.ThrowMissingParameter(nameof(tableStyle), "set-style");
@@ -293,7 +293,7 @@ public static class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> AddToDataModel(TableCommands commands, string sessionId, string? tableName)
+    private static string AddToDataModel(TableCommands commands, string sessionId, string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "add-to-datamodel");
 
@@ -310,7 +310,7 @@ public static class TableTool
 
     // === FILTER OPERATIONS ===
 
-    private static async Task<string> ApplyFilter(TableCommands commands, string sessionId, string? tableName, string? columnName, string? criteria)
+    private static string ApplyFilter(TableCommands commands, string sessionId, string? tableName, string? columnName, string? criteria)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "apply-filter");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "apply-filter");
@@ -327,7 +327,7 @@ public static class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ApplyFilterValues(TableCommands commands, string sessionId, string? tableName, string? columnName, string? filterValuesJson)
+    private static string ApplyFilterValues(TableCommands commands, string sessionId, string? tableName, string? columnName, string? filterValuesJson)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "apply-filter-values");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "apply-filter-values");
@@ -355,7 +355,7 @@ public static class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ClearFilters(TableCommands commands, string sessionId, string? tableName)
+    private static string ClearFilters(TableCommands commands, string sessionId, string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "clear-filters");
 
@@ -370,7 +370,7 @@ public static class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetFilters(TableCommands commands, string sessionId, string? tableName)
+    private static string GetFilters(TableCommands commands, string sessionId, string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "get-filters");
 
@@ -390,7 +390,7 @@ public static class TableTool
 
     // === COLUMN OPERATIONS ===
 
-    private static async Task<string> AddColumn(TableCommands commands, string sessionId, string? tableName, string? columnName, string? positionStr)
+    private static string AddColumn(TableCommands commands, string sessionId, string? tableName, string? columnName, string? positionStr)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "add-column");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "add-column");
@@ -420,7 +420,7 @@ public static class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RemoveColumn(TableCommands commands, string sessionId, string? tableName, string? columnName)
+    private static string RemoveColumn(TableCommands commands, string sessionId, string? tableName, string? columnName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "remove-column");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "remove-column");
@@ -436,7 +436,7 @@ public static class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RenameColumn(TableCommands commands, string sessionId, string? tableName, string? oldColumnName, string? newColumnName)
+    private static string RenameColumn(TableCommands commands, string sessionId, string? tableName, string? oldColumnName, string? newColumnName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "rename-column");
         if (string.IsNullOrWhiteSpace(oldColumnName)) ExcelToolsBase.ThrowMissingParameter(nameof(oldColumnName), "rename-column");
@@ -455,7 +455,7 @@ public static class TableTool
 
     // === PHASE 2: STRUCTURED REFERENCE & SORT OPERATIONS ===
 
-    private static async Task<string> GetStructuredReference(TableCommands commands, string sessionId, string? tableName, string? regionStr, string? columnName)
+    private static string GetStructuredReference(TableCommands commands, string sessionId, string? tableName, string? regionStr, string? columnName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "get-structured-reference");
 
@@ -481,7 +481,7 @@ public static class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SortTable(TableCommands commands, string sessionId, string? tableName, string? columnName, bool ascending)
+    private static string SortTable(TableCommands commands, string sessionId, string? tableName, string? columnName, bool ascending)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "sort");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "sort");
@@ -497,7 +497,7 @@ public static class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SortTableMulti(TableCommands commands, string sessionId, string? tableName, string? sortColumnsJson)
+    private static string SortTableMulti(TableCommands commands, string sessionId, string? tableName, string? sortColumnsJson)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "sort-multi");
         if (string.IsNullOrWhiteSpace(sortColumnsJson)) ExcelToolsBase.ThrowMissingParameter(nameof(sortColumnsJson), "sort-multi");
@@ -530,7 +530,7 @@ public static class TableTool
 
     // === NUMBER FORMAT OPERATIONS ===
 
-    private static async Task<string> GetColumnNumberFormat(TableCommands commands, string sessionId, string? tableName, string? columnName)
+    private static string GetColumnNumberFormat(TableCommands commands, string sessionId, string? tableName, string? columnName)
     {
         if (string.IsNullOrEmpty(tableName))
             ExcelToolsBase.ThrowMissingParameter("tableName", "get-column-number-format");
@@ -552,7 +552,7 @@ public static class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetColumnNumberFormat(TableCommands commands, string sessionId, string? tableName, string? columnName, string? formatCode)
+    private static string SetColumnNumberFormat(TableCommands commands, string sessionId, string? tableName, string? columnName, string? formatCode)
     {
         if (string.IsNullOrEmpty(tableName))
             ExcelToolsBase.ThrowMissingParameter("tableName", "set-column-number-format");

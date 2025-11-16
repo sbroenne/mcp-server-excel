@@ -20,7 +20,7 @@ public static class ExcelPivotTableTool
 
     [McpServerTool(Name = "excel_pivottable")]
     [Description(@"Excel PivotTable operations - interactive data analysis and summarization.")]
-    public static async Task<string> ExcelPivotTable(
+    public static string ExcelPivotTable(
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         PivotTableAction action,
 
@@ -103,12 +103,12 @@ public static class ExcelPivotTableTool
         }
         catch (Exception ex)
         {
-            return Task.FromResult(JsonSerializer.Serialize(new
+            return JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
                 isError = true
-            }, ExcelToolsBase.JsonOptions));
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 

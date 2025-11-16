@@ -44,7 +44,7 @@ public class PivotTableRealisticFixture : IAsyncLifetime
     /// Called ONCE before any tests in the class run.
     /// Creates realistic PivotTables from multiple source types.
     /// </summary>
-    public async Task InitializeAsync()
+    public Task InitializeAsync()
     {
         var sw = Stopwatch.StartNew();
 
@@ -175,6 +175,8 @@ public class PivotTableRealisticFixture : IAsyncLifetime
             Console.WriteLine($"❌ PivotTable fixture creation FAILED after {sw.ElapsedMilliseconds}ms: {ex.Message}");
             throw;
         }
+
+        return Task.CompletedTask;
     }
 
     private static void CreateSalesTable(IExcelBatch batch)

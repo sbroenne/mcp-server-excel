@@ -42,7 +42,7 @@ public class PivotTableDataModelTests : IClassFixture<DataModelTestsFixture>
 
         // Act - Create PivotTable from Data Model table
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
-        var result = _pivotCommands.CreateFromDataModel(
+        var result = await _pivotCommands.CreateFromDataModel(
             batch,
             "SalesTable",  // Data Model table name from fixture
             "Sales",       // Destination sheet
@@ -75,7 +75,7 @@ public class PivotTableDataModelTests : IClassFixture<DataModelTestsFixture>
 
         // Act - Try to create PivotTable from non-existent table
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
-        var result = _pivotCommands.CreateFromDataModel(
+        var result = await _pivotCommands.CreateFromDataModel(
             batch,
             "NonExistentTable",
             "Sales",
@@ -98,7 +98,7 @@ public class PivotTableDataModelTests : IClassFixture<DataModelTestsFixture>
 
         // Act - Create PivotTable and verify all fields are discovered
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
-        var result = _pivotCommands.CreateFromDataModel(
+        var result = await _pivotCommands.CreateFromDataModel(
             batch,
             "CustomersTable",  // Has 4 columns: CustomerID, Name, Region, Country
             "Customers",

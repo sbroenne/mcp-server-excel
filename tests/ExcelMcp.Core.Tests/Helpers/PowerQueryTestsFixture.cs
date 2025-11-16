@@ -41,7 +41,7 @@ public class PowerQueryTestsFixture : IAsyncLifetime
     /// This IS the test for Power Query creation - if it fails, all tests fail (correct behavior).
     /// Tests: file creation, M code file creation, Import, persistence.
     /// </summary>
-    public async Task InitializeAsync()
+    public Task InitializeAsync()
     {
         var sw = Stopwatch.StartNew();
 
@@ -105,6 +105,8 @@ public class PowerQueryTestsFixture : IAsyncLifetime
 
             throw; // Fail all tests in class (correct behavior - no point testing if creation failed)
         }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>

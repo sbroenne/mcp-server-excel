@@ -106,7 +106,7 @@ public partial class PivotTableCommandsTests
         Assert.True(result.Success, $"RemoveField failed: {result.ErrorMessage}");
 
         // Verify field removed
-        var infoResult = _pivotCommands.Get(batch, "TestPivot");
+        var infoResult = _pivotCommands.Read(batch, "TestPivot");
         Assert.True(infoResult.Success);
         var regionField = infoResult.Fields.FirstOrDefault(f => f.Name == "Region");
         Assert.NotNull(regionField);

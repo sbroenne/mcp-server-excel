@@ -41,7 +41,7 @@ public class TableTestsFixture : IAsyncLifetime
     /// This IS the test for Table creation - if it fails, all tests fail (correct behavior).
     /// Tests: file creation, data creation, TableCommands.Create(), persistence.
     /// </summary>
-    public async Task InitializeAsync()
+    public Task InitializeAsync()
     {
         var sw = Stopwatch.StartNew();
 
@@ -124,6 +124,8 @@ public class TableTestsFixture : IAsyncLifetime
             sw.Stop();
             throw; // Fail all tests in class (correct behavior - no point testing if creation failed)
         }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>

@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -16,7 +16,7 @@ public partial class QueryTableCommandsTests
     public async Task List_EmptyWorkbook_ReturnsSuccessWithEmptyList()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(QueryTableCommandsTests), nameof(List_EmptyWorkbook_ReturnsSuccessWithEmptyList), _tempDir);
 
         // Act
@@ -34,7 +34,7 @@ public partial class QueryTableCommandsTests
     public async Task List_WithQueryTable_ReturnsQueryTable()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(QueryTableCommandsTests), nameof(List_WithQueryTable_ReturnsQueryTable), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -42,7 +42,7 @@ public partial class QueryTableCommandsTests
         // First create a simple Power Query - need to write M code to file
         var mCodeFile = Path.Combine(_tempDir, "TestQuery.pq");
         var mCode = "let Source = #table({\"Column1\"}, {{\"Value1\"}, {\"Value2\"}}) in Source";
-        await System.IO.File.WriteAllText(mCodeFile, mCode);
+        await System.IO.File.WriteAllTextAsync(mCodeFile, mCode);
 
         var dataModelCommands = new DataModelCommands();
         var pqCommands = new PowerQueryCommands(dataModelCommands);

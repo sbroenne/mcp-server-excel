@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
@@ -24,6 +25,7 @@ public sealed class SessionManager : IDisposable
 {
     private readonly ConcurrentDictionary<string, IExcelBatch> _activeSessions = new();
     private readonly ConcurrentDictionary<string, string> _activeFilePaths = new();
+    private readonly ConcurrentDictionary<string, string> _sessionFilePaths = new(StringComparer.OrdinalIgnoreCase);
     private bool _disposed;
 
     /// <summary>
@@ -78,6 +80,14 @@ public sealed class SessionManager : IDisposable
                 _activeSessions.TryRemove(sessionId, out _);
                 batch.Dispose();
                 throw new InvalidOperationException($"Failed to track file path for session: {sessionId}");
+            }
+
+            if (!_sessionFilePaths.TryAdd(sessionId, normalizedPath))
+            {
+                _activeSessions.TryRemove(sessionId, out _);
+                _activeFilePaths.TryRemove(normalizedPath, out _);
+                batch.Dispose();
+                throw new InvalidOperationException($"Failed to record session metadata for: {sessionId}");
             }
 
             return sessionId;
@@ -159,11 +169,18 @@ public sealed class SessionManager : IDisposable
             return false;
         }
 
-        // Remove file path from tracking so it can be opened again
-        var filePathEntry = _activeFilePaths.FirstOrDefault(kvp => kvp.Value == sessionId);
-        if (!filePathEntry.Equals(default(KeyValuePair<string, string>)))
+        // Remove file path metadata so it can be opened again
+        if (_sessionFilePaths.TryRemove(sessionId, out var normalizedPath))
         {
-            _activeFilePaths.TryRemove(filePathEntry.Key, out _);
+            _activeFilePaths.TryRemove(normalizedPath, out _);
+        }
+        else
+        {
+            var filePathEntry = _activeFilePaths.FirstOrDefault(kvp => kvp.Value == sessionId);
+            if (!filePathEntry.Equals(default(KeyValuePair<string, string>)))
+            {
+                _activeFilePaths.TryRemove(filePathEntry.Key, out _);
+            }
         }
 
         try
@@ -189,6 +206,38 @@ public sealed class SessionManager : IDisposable
     public IEnumerable<string> ActiveSessionIds => _activeSessions.Keys.ToList();
 
     /// <summary>
+    /// Returns a snapshot of active sessions with associated workbook paths.
+    /// </summary>
+    public IReadOnlyList<SessionDescriptor> GetActiveSessions()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        var snapshot = new List<SessionDescriptor>(_sessionFilePaths.Count);
+        foreach (var kvp in _sessionFilePaths)
+        {
+            snapshot.Add(new SessionDescriptor(kvp.Key, kvp.Value));
+        }
+
+        return snapshot;
+    }
+
+    /// <summary>
+    /// Attempts to get the workbook path associated with a session ID.
+    /// </summary>
+    public bool TryGetFilePath(string sessionId, [NotNullWhen(true)] out string? filePath)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            filePath = null;
+            return false;
+        }
+
+        return _sessionFilePaths.TryGetValue(sessionId, out filePath);
+    }
+
+    /// <summary>
     /// Disposes all active sessions.
     /// </summary>
     /// <remarks>
@@ -209,6 +258,7 @@ public sealed class SessionManager : IDisposable
         var sessions = _activeSessions.Values.ToList();
         _activeSessions.Clear();
         _activeFilePaths.Clear();
+        _sessionFilePaths.Clear();
 
         for (int i = 0; i < sessions.Count; i++)
         {
@@ -252,4 +302,11 @@ public sealed class SessionManager : IDisposable
         }
     }
 }
+
+/// <summary>
+/// Represents a snapshot of an active Excel session managed by <see cref="SessionManager"/>.
+/// </summary>
+/// <param name="SessionId">Public session identifier shared with clients.</param>
+/// <param name="FilePath">Normalized workbook path associated with the session.</param>
+public sealed record SessionDescriptor(string SessionId, string FilePath);
 

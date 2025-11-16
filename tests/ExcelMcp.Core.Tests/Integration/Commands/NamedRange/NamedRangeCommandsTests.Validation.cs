@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -20,7 +20,7 @@ public partial class NamedRangeCommandsTests
     public async Task Create_EmptyParameterName_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(NamedRangeCommandsTests), nameof(Create_EmptyParameterName_ReturnsError), _tempDir);
 
         // Act
@@ -37,7 +37,7 @@ public partial class NamedRangeCommandsTests
     public async Task Create_WhitespaceParameterName_ReturnsError()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(NamedRangeCommandsTests), nameof(Create_WhitespaceParameterName_ReturnsError), _tempDir);
 
         // Act
@@ -55,7 +55,7 @@ public partial class NamedRangeCommandsTests
     {
         // Arrange - Create name with exactly 255 characters (Excel's limit)
         var paramName = new string('A', 255);
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(NamedRangeCommandsTests), nameof(Create_ParameterNameExactly255Characters_ReturnsSuccess), _tempDir);
 
         // Act
@@ -76,7 +76,7 @@ public partial class NamedRangeCommandsTests
     {
         // Arrange - Create name with 256 characters (exceeds Excel's limit)
         var paramName = new string('B', 256);
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(NamedRangeCommandsTests), nameof(Create_ParameterName256Characters_ReturnsError), _tempDir);
 
         // Act
@@ -95,7 +95,7 @@ public partial class NamedRangeCommandsTests
     {
         // Arrange
         var longParamName = new string('C', 300);
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(NamedRangeCommandsTests), nameof(Update_ParameterNameExceeds255Characters_ReturnsError), _tempDir);
 
         // Act
@@ -114,7 +114,7 @@ public partial class NamedRangeCommandsTests
     {
         // Arrange
         var longParamName = new string('D', 270);
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(NamedRangeCommandsTests), nameof(CreateBulk_ParameterNameExceeds255Characters_SkipsWithError), _tempDir);
 
         var parameters = new[]
@@ -145,7 +145,7 @@ public partial class NamedRangeCommandsTests
         // Arrange
         var longParamName1 = new string('E', 260);
         var longParamName2 = new string('F', 280);
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(NamedRangeCommandsTests), nameof(CreateBulk_AllParametersExceedLimit_ReturnsError), _tempDir);
 
         var parameters = new[]

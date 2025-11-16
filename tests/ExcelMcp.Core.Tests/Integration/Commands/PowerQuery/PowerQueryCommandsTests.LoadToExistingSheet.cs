@@ -1,4 +1,4 @@
-﻿using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -22,7 +22,7 @@ public partial class PowerQueryCommandsTests
     public async Task LoadTo_LoadToTableWithExistingSheet_ReturnsErrorRequiringExplicitDeletion()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PowerQueryCommandsTests),
             nameof(LoadTo_LoadToTableWithExistingSheet_ReturnsErrorRequiringExplicitDeletion),
             _tempDir);
@@ -54,7 +54,7 @@ public partial class PowerQueryCommandsTests
     public async Task LoadTo_LoadToBothWithExistingSheet_ReturnsErrorRequiringExplicitDeletion()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PowerQueryCommandsTests),
             nameof(LoadTo_LoadToBothWithExistingSheet_ReturnsErrorRequiringExplicitDeletion),
             _tempDir);
@@ -86,7 +86,7 @@ public partial class PowerQueryCommandsTests
     public async Task LoadTo_DeleteExistingSheetThenLoadTo_SucceedsAfterManualDeletion()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PowerQueryCommandsTests),
             nameof(LoadTo_DeleteExistingSheetThenLoadTo_SucceedsAfterManualDeletion),
             _tempDir);
@@ -128,7 +128,7 @@ public partial class PowerQueryCommandsTests
     public async Task LoadTo_WithExistingSheetSameName_ReturnsErrorRequiringExplicitDeletion()
     {
         // Arrange - This test verifies the actual bug scenario: query and sheet have same name
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PowerQueryCommandsTests),
             nameof(LoadTo_WithExistingSheetSameName_ReturnsErrorRequiringExplicitDeletion),
             _tempDir);
@@ -159,7 +159,7 @@ public partial class PowerQueryCommandsTests
     public async Task LoadTo_AfterManualDeletion_DataLoadedSuccessfully()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PowerQueryCommandsTests),
             nameof(LoadTo_AfterManualDeletion_DataLoadedSuccessfully),
             _tempDir);
@@ -198,7 +198,7 @@ public partial class PowerQueryCommandsTests
     public async Task LoadTo_NewSheetName_CreatesSheetSuccessfully()
     {
         // Arrange - Verify backwards compatibility: new sheet name still works
-        var testFile = await CoreTestHelper.CreateUniqueTestFile(
+        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
             nameof(PowerQueryCommandsTests),
             nameof(LoadTo_NewSheetName_CreatesSheetSuccessfully),
             _tempDir);

@@ -3,7 +3,7 @@ namespace Sbroenne.ExcelMcp.Core.Models;
 /// <summary>
 /// Base result type for all Core operations
 /// NOTE: Core commands should NOT set SuggestedNextActions (workflow guidance is MCP/CLI layer responsibility).
-/// Core CAN set OperationContext, IsRetryable, RetryGuidance for timeout handling and technical retry metadata.
+/// Core CAN set OperationContext, IsRetryable, RetryGuidance for diagnostic metadata (COM busy states, retries, etc.).
 /// </summary>
 public abstract class ResultBase
 {
