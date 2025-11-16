@@ -39,12 +39,21 @@ internal sealed class PowerQueryCommand : Command<PowerQueryCommand.Settings>
             return -1;
         }
 
+        if (!string.IsNullOrWhiteSpace(settings.TargetCellAddress) && action is not ("create" or "load-to"))
+        {
+            _console.WriteError("--target-cell is only supported for 'create' and 'load-to' actions.");
+            return -1;
+        }
+
         var batch = _sessionService.GetBatch(settings.SessionId);
 
         var exitCode = action switch
         {
             "list" => WriteResult(_powerQueryCommands.List(batch)),
             "view" => ExecuteView(batch, settings),
+            "create" => ExecuteCreate(batch, settings),
+            "update" => ExecuteUpdate(batch, settings),
+            "load-to" => ExecuteLoadTo(batch, settings),
             _ => ReportUnknown(action)
         };
 
@@ -53,13 +62,75 @@ internal sealed class PowerQueryCommand : Command<PowerQueryCommand.Settings>
 
     private int ExecuteView(IExcelBatch batch, Settings settings)
     {
-        if (string.IsNullOrWhiteSpace(settings.QueryName))
+        if (!TryGetQueryName(settings, out var queryName))
         {
-            _console.WriteError("Query name is required for 'view' action (-q|--query).");
             return -1;
         }
 
-        return WriteResult(_powerQueryCommands.View(batch, settings.QueryName));
+        return WriteResult(_powerQueryCommands.View(batch, queryName));
+    }
+
+    private int ExecuteCreate(IExcelBatch batch, Settings settings)
+    {
+        if (!TryGetQueryName(settings, out var queryName) ||
+            !TryReadMCode(settings.MCodeFile, out var mCode) ||
+            !TryParseLoadMode(settings.LoadDestination, out var loadMode))
+        {
+            return -1;
+        }
+
+        if (!RequiresWorksheet(loadMode) && !string.IsNullOrWhiteSpace(settings.TargetCellAddress))
+        {
+            _console.WriteError("--target-cell can only be used when load destination is 'worksheet' or 'both'.");
+            return -1;
+        }
+
+        return WriteResult(_powerQueryCommands.Create(
+            batch,
+            queryName,
+            mCode,
+            loadMode,
+            settings.TargetSheet,
+            settings.TargetCellAddress));
+    }
+
+    private int ExecuteUpdate(IExcelBatch batch, Settings settings)
+    {
+        if (!TryGetQueryName(settings, out var queryName) ||
+            !TryReadMCode(settings.MCodeFile, out var mCode))
+        {
+            return -1;
+        }
+
+        return WriteResult(_powerQueryCommands.Update(batch, queryName, mCode));
+    }
+
+    private int ExecuteLoadTo(IExcelBatch batch, Settings settings)
+    {
+        if (!TryGetQueryName(settings, out var queryName) ||
+            !TryParseLoadMode(settings.LoadDestination, out var loadMode))
+        {
+            return -1;
+        }
+
+        if (!RequiresWorksheet(loadMode) && !string.IsNullOrWhiteSpace(settings.TargetCellAddress))
+        {
+            _console.WriteError("--target-cell can only be used when load destination is 'worksheet' or 'both'.");
+            return -1;
+        }
+
+        string? targetSheet = settings.TargetSheet;
+        if (RequiresWorksheet(loadMode) && string.IsNullOrWhiteSpace(targetSheet))
+        {
+            targetSheet = queryName;
+        }
+
+        return WriteResult(_powerQueryCommands.LoadTo(
+            batch,
+            queryName,
+            loadMode,
+            targetSheet,
+            settings.TargetCellAddress));
     }
 
     private int WriteResult(ResultBase result)
@@ -70,8 +141,74 @@ internal sealed class PowerQueryCommand : Command<PowerQueryCommand.Settings>
 
     private int ReportUnknown(string action)
     {
-        _console.WriteError($"Unknown action '{action}'. Supported actions: list, view.");
+        _console.WriteError($"Unknown action '{action}'. Supported actions: list, view, create, update, load-to.");
         return -1;
+    }
+
+    private bool TryGetQueryName(Settings settings, out string queryName)
+    {
+        queryName = settings.QueryName?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(queryName))
+        {
+            _console.WriteError("Query name is required (-q|--query).");
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool TryReadMCode(string? path, out string mCode)
+    {
+        mCode = string.Empty;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            _console.WriteError("--m-file is required for this action.");
+            return false;
+        }
+
+        if (!System.IO.File.Exists(path))
+        {
+            _console.WriteError($"M code file '{path}' was not found.");
+            return false;
+        }
+
+        mCode = System.IO.File.ReadAllText(path);
+        return true;
+    }
+
+    private bool TryParseLoadMode(string? loadDestination, out PowerQueryLoadMode loadMode)
+    {
+        var value = loadDestination?.Trim();
+        if (string.IsNullOrEmpty(value))
+        {
+            loadMode = PowerQueryLoadMode.LoadToTable;
+            return true;
+        }
+
+        switch (value.ToLowerInvariant())
+        {
+            case "worksheet":
+                loadMode = PowerQueryLoadMode.LoadToTable;
+                return true;
+            case "data-model":
+                loadMode = PowerQueryLoadMode.LoadToDataModel;
+                return true;
+            case "both":
+                loadMode = PowerQueryLoadMode.LoadToBoth;
+                return true;
+            case "connection-only":
+                loadMode = PowerQueryLoadMode.ConnectionOnly;
+                return true;
+            default:
+                _console.WriteError("--load-destination must be one of: worksheet, data-model, both, connection-only.");
+                loadMode = PowerQueryLoadMode.LoadToTable;
+                return false;
+        }
+    }
+
+    private static bool RequiresWorksheet(PowerQueryLoadMode loadMode)
+    {
+        return loadMode == PowerQueryLoadMode.LoadToTable || loadMode == PowerQueryLoadMode.LoadToBoth;
     }
 
     internal sealed class Settings : CommandSettings
@@ -84,5 +221,17 @@ internal sealed class PowerQueryCommand : Command<PowerQueryCommand.Settings>
 
         [CommandOption("-q|--query <NAME>")]
         public string? QueryName { get; init; }
+
+        [CommandOption("--m-file <PATH>")]
+        public string? MCodeFile { get; init; }
+
+        [CommandOption("--load-destination <MODE>")]
+        public string? LoadDestination { get; init; }
+
+        [CommandOption("--target-sheet <NAME>")]
+        public string? TargetSheet { get; init; }
+
+        [CommandOption("--target-cell <ADDRESS>")]
+        public string? TargetCellAddress { get; init; }
     }
 }

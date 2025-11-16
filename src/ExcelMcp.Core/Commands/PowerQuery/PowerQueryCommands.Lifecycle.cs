@@ -482,28 +482,31 @@ public partial class PowerQueryCommands
     }
 
     /// <summary>
-    /// Creates new query from M code file with atomic import + load operation
+    /// Creates new query from inline M code with atomic import + load operation
     /// DEFAULT: loadMode = PowerQueryLoadMode.LoadToTable (validate by executing)
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name for the new query</param>
-    /// <param name="mCodeFile">Path to M code file</param>
+    /// <param name="mCode">Raw M code (inline string)</param>
     /// <param name="loadMode">Where to load the data (default: LoadToTable)</param>
-    /// <param name="targetSheet">Target worksheet name (required for LoadToTable/LoadToBoth)</param>
+    /// <param name="targetSheet">Target worksheet name (required for LoadToTable/LoadToBoth, defaults to query name when omitted)</param>
+    /// <param name="targetCellAddress">Optional target cell address (e.g., "B5") for worksheet loads; required when loading to an existing worksheet with other data.</param>
     /// <returns>Result with query creation and data load status</returns>
     public PowerQueryCreateResult Create(
         IExcelBatch batch,
         string queryName,
-        string mCodeFile,
+        string mCode,
         PowerQueryLoadMode loadMode = PowerQueryLoadMode.LoadToTable,
-        string? targetSheet = null)
+        string? targetSheet = null,
+        string? targetCellAddress = null)
     {
         var result = new PowerQueryCreateResult
         {
             FilePath = batch.WorkbookPath,
             QueryName = queryName,
             LoadDestination = loadMode,
-            WorksheetName = targetSheet
+            WorksheetName = targetSheet,
+            TargetCellAddress = targetCellAddress
         };
 
         try
@@ -516,29 +519,36 @@ public partial class PowerQueryCommands
                 return result;
             }
 
-            if (!File.Exists(mCodeFile))
+            if (string.IsNullOrWhiteSpace(mCode))
             {
                 result.Success = false;
-                result.ErrorMessage = $"M code file not found: {mCodeFile}";
+                result.ErrorMessage = "M code cannot be empty";
+                return result;
+            }
+
+            bool requiresWorksheet = loadMode == PowerQueryLoadMode.LoadToTable || loadMode == PowerQueryLoadMode.LoadToBoth;
+
+            if (!string.IsNullOrWhiteSpace(targetCellAddress) && !requiresWorksheet)
+            {
+                result.Success = false;
+                result.ErrorMessage = "targetCellAddress is only supported when loadMode is 'LoadToTable' or 'LoadToBoth'.";
                 return result;
             }
 
             // Default to query name for worksheet name (Excel's default behavior)
-            if ((loadMode == PowerQueryLoadMode.LoadToTable || loadMode == PowerQueryLoadMode.LoadToBoth)
-                && string.IsNullOrWhiteSpace(targetSheet))
+            if (requiresWorksheet && string.IsNullOrWhiteSpace(targetSheet))
             {
                 targetSheet = queryName;
-                result.WorksheetName = targetSheet;
             }
 
-            // Read M code
-            var mCode = File.ReadAllText(mCodeFile);
-            if (string.IsNullOrWhiteSpace(mCode))
+            if (!string.IsNullOrWhiteSpace(targetCellAddress) && string.IsNullOrWhiteSpace(targetSheet))
             {
                 result.Success = false;
-                result.ErrorMessage = "M code file is empty";
+                result.ErrorMessage = "targetCellAddress requires targetSheet to be specified.";
                 return result;
             }
+
+            result.WorksheetName = targetSheet;
 
             return batch.Execute((ctx, ct) =>
             {
@@ -570,34 +580,27 @@ public partial class PowerQueryCommands
                             // Connection only - no data load
                             result.DataLoaded = false;
                             result.RowsLoaded = 0;
+                            result.TargetCellAddress = null;
                             break;
 
                         case PowerQueryLoadMode.LoadToTable:
-                            // Load to worksheet table - create sheet if it doesn't exist
-                            dynamic? worksheets = null;
+                            if (!TryPrepareWorksheetDestinationForCreate(ctx.Book, queryName, targetSheet!, targetCellAddress, result, out sheet, out string anchorCell, out bool clearEntireSheet))
+                            {
+                                return result;
+                            }
+
                             try
                             {
-                                worksheets = ctx.Book.Worksheets;
-                                try
-                                {
-                                    sheet = worksheets.Item(targetSheet!);
-                                }
-                                catch (COMException)
-                                {
-                                    // Sheet doesn't exist, create it
-                                    sheet = worksheets.Add();
-                                    sheet.Name = targetSheet;
-                                }
+                                queryTable = CreateQueryTableForQuery(sheet, query, anchorCell, clearEntireSheet);
+                                queryTable.Refresh(false);  // Synchronous refresh
+                                result.TargetCellAddress = anchorCell;
+                                result.DataLoaded = true;
+                                result.RowsLoaded = queryTable.ResultRange.Rows.Count - 1;  // Exclude header
                             }
                             finally
                             {
-                                ComUtilities.Release(ref worksheets!);
+                                ComUtilities.Release(ref sheet!);
                             }
-
-                            queryTable = CreateQueryTableForQuery(sheet, query);
-                            queryTable.Refresh(false);  // Synchronous refresh
-                            result.DataLoaded = true;
-                            result.RowsLoaded = queryTable.ResultRange.Rows.Count - 1;  // Exclude header
                             break;
 
                         case PowerQueryLoadMode.LoadToDataModel:
@@ -626,6 +629,7 @@ public partial class PowerQueryCommands
                                 );
                                 result.DataLoaded = true;
                                 result.RowsLoaded = -1;  // Data Model doesn't expose row count easily
+                                result.TargetCellAddress = null;
                             }
                             finally
                             {
@@ -635,29 +639,21 @@ public partial class PowerQueryCommands
                             break;
 
                         case PowerQueryLoadMode.LoadToBoth:
-                            // Load to both worksheet and Data Model - create sheet if it doesn't exist
-                            dynamic? worksheetsBoth = null;
+                            if (!TryPrepareWorksheetDestinationForCreate(ctx.Book, queryName, targetSheet!, targetCellAddress, result, out sheet, out string anchor, out bool clearSheet))
+                            {
+                                return result;
+                            }
+
                             try
                             {
-                                worksheetsBoth = ctx.Book.Worksheets;
-                                try
-                                {
-                                    sheet = worksheetsBoth.Item(targetSheet!);
-                                }
-                                catch (COMException)
-                                {
-                                    // Sheet doesn't exist, create it
-                                    sheet = worksheetsBoth.Add();
-                                    sheet.Name = targetSheet;
-                                }
+                                queryTable = CreateQueryTableForQuery(sheet, query, anchor, clearSheet);
+                                queryTable.Refresh(false);
+                                result.TargetCellAddress = anchor;
                             }
                             finally
                             {
-                                ComUtilities.Release(ref worksheetsBoth!);
+                                ComUtilities.Release(ref sheet!);
                             }
-
-                            queryTable = CreateQueryTableForQuery(sheet, query);
-                            queryTable.Refresh(false);
 
                             // Also load to Data Model
                             dynamic? connectionsBoth = null;
@@ -729,12 +725,12 @@ public partial class PowerQueryCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query to update</param>
-    /// <param name="mCodeFile">Path to new M code file</param>
+    /// <param name="mCode">New M code (inline string)</param>
     /// <returns>Operation result</returns>
     public OperationResult Update(
         IExcelBatch batch,
         string queryName,
-        string mCodeFile)
+        string mCode)
     {
         var result = new OperationResult
         {
@@ -744,18 +740,10 @@ public partial class PowerQueryCommands
 
         try
         {
-            if (!File.Exists(mCodeFile))
-            {
-                result.Success = false;
-                result.ErrorMessage = $"M code file not found: {mCodeFile}";
-                return result;
-            }
-
-            var mCode = File.ReadAllText(mCodeFile);
             if (string.IsNullOrWhiteSpace(mCode))
             {
                 result.Success = false;
-                result.ErrorMessage = "M code file is empty";
+                result.ErrorMessage = "M code cannot be empty";
                 return result;
             }
 
@@ -824,7 +812,7 @@ public partial class PowerQueryCommands
                                             qt = null; // Prevent double-release in finally block
 
                                             // Recreate with new schema (query is still valid here)
-                                            dynamic? newQt = CreateQueryTableForQuery(sheet, query);
+                                            dynamic? newQt = CreateQueryTableForQuery(sheet, query, "A1", clearEntireSheet: true);
                                             try
                                             {
                                                 newQt.Refresh(false); // Synchronous refresh
@@ -916,25 +904,50 @@ public partial class PowerQueryCommands
         IExcelBatch batch,
         string queryName,
         PowerQueryLoadMode loadMode,
-        string? targetSheet = null)
+        string? targetSheet = null,
+        string? targetCellAddress = null)
     {
         var result = new PowerQueryLoadResult
         {
             FilePath = batch.WorkbookPath,
             QueryName = queryName,
             LoadDestination = loadMode,
-            WorksheetName = targetSheet
+            WorksheetName = targetSheet,
+            TargetCellAddress = targetCellAddress
         };
 
         try
         {
-            if ((loadMode == PowerQueryLoadMode.LoadToTable || loadMode == PowerQueryLoadMode.LoadToBoth)
-                && string.IsNullOrWhiteSpace(targetSheet))
+            bool requiresWorksheet = loadMode == PowerQueryLoadMode.LoadToTable || loadMode == PowerQueryLoadMode.LoadToBoth;
+            string? resolvedTargetSheet = targetSheet;
+
+            if (requiresWorksheet && string.IsNullOrWhiteSpace(resolvedTargetSheet))
+            {
+                resolvedTargetSheet = queryName;
+            }
+
+            if (!string.IsNullOrWhiteSpace(targetCellAddress) && !requiresWorksheet)
+            {
+                result.Success = false;
+                result.ErrorMessage = "targetCellAddress is only supported when loadMode is 'LoadToTable' or 'LoadToBoth'.";
+                return result;
+            }
+
+            if (requiresWorksheet && string.IsNullOrWhiteSpace(resolvedTargetSheet))
             {
                 result.Success = false;
                 result.ErrorMessage = "Worksheet name required for LoadToTable/LoadToBoth";
                 return result;
             }
+
+            if (!string.IsNullOrWhiteSpace(targetCellAddress) && string.IsNullOrWhiteSpace(resolvedTargetSheet))
+            {
+                result.Success = false;
+                result.ErrorMessage = "targetCellAddress requires targetSheet to be specified.";
+                return result;
+            }
+
+            result.WorksheetName = resolvedTargetSheet;
 
             return batch.Execute((ctx, ct) =>
             {
@@ -959,47 +972,11 @@ public partial class PowerQueryCommands
                     switch (loadMode)
                     {
                         case PowerQueryLoadMode.LoadToTable:
-                            // Check if sheet already exists - require explicit deletion by user
-                            // Bug fix for Issue #170: Prevent silent failures when sheet exists
-                            dynamic? worksheetsCheck = null;
-                            try
+                            if (!TryConfigureWorksheetDestination(ctx.Book, query, queryName, resolvedTargetSheet!, targetCellAddress, result, out sheet, out queryTable))
                             {
-                                worksheetsCheck = ctx.Book.Worksheets;
-                                try
-                                {
-                                    dynamic? existingSheet = worksheetsCheck.Item(targetSheet!);
-                                    if (existingSheet != null)
-                                    {
-                                        ComUtilities.Release(ref existingSheet!);
-                                        result.Success = false;
-                                        result.ErrorMessage = $"Cannot load query to sheet '{targetSheet}': worksheet already exists.";
-                                        return result;
-                                    }
-                                }
-                                catch (COMException)
-                                {
-                                    // Sheet doesn't exist - this is expected, continue
-                                }
-                            }
-                            finally
-                            {
-                                ComUtilities.Release(ref worksheetsCheck!);
+                                return result;
                             }
 
-                            // Create new sheet for query data
-                            dynamic? worksheetsLoadToTable = null;
-                            try
-                            {
-                                worksheetsLoadToTable = ctx.Book.Worksheets;
-                                sheet = worksheetsLoadToTable.Add();
-                                sheet.Name = targetSheet;
-                            }
-                            finally
-                            {
-                                ComUtilities.Release(ref worksheetsLoadToTable!);
-                            }
-
-                            queryTable = CreateQueryTableForQuery(sheet, query);
                             queryTable.Refresh(false);
                             result.ConfigurationApplied = true;
                             result.DataRefreshed = true;
@@ -1033,6 +1010,7 @@ public partial class PowerQueryCommands
                                 result.ConfigurationApplied = true;
                                 result.DataRefreshed = true;
                                 result.RowsLoaded = -1;
+                                result.TargetCellAddress = null;
                             }
                             finally
                             {
@@ -1042,47 +1020,11 @@ public partial class PowerQueryCommands
                             break;
 
                         case PowerQueryLoadMode.LoadToBoth:
-                            // Check if sheet already exists - require explicit deletion by user
-                            // Bug fix for Issue #170: Prevent silent failures when sheet exists
-                            dynamic? worksheetsCheckBoth = null;
-                            try
+                            if (!TryConfigureWorksheetDestination(ctx.Book, query, queryName, resolvedTargetSheet!, targetCellAddress, result, out sheet, out queryTable))
                             {
-                                worksheetsCheckBoth = ctx.Book.Worksheets;
-                                try
-                                {
-                                    dynamic? existingSheet = worksheetsCheckBoth.Item(targetSheet!);
-                                    if (existingSheet != null)
-                                    {
-                                        ComUtilities.Release(ref existingSheet!);
-                                        result.Success = false;
-                                        result.ErrorMessage = $"Cannot load query to sheet '{targetSheet}': worksheet already exists.";
-                                        return result;
-                                    }
-                                }
-                                catch (COMException)
-                                {
-                                    // Sheet doesn't exist - this is expected, continue
-                                }
-                            }
-                            finally
-                            {
-                                ComUtilities.Release(ref worksheetsCheckBoth!);
+                                return result;
                             }
 
-                            // Create new sheet for query data
-                            dynamic? worksheetsLoadToBoth = null;
-                            try
-                            {
-                                worksheetsLoadToBoth = ctx.Book.Worksheets;
-                                sheet = worksheetsLoadToBoth.Add();
-                                sheet.Name = targetSheet;
-                            }
-                            finally
-                            {
-                                ComUtilities.Release(ref worksheetsLoadToBoth!);
-                            }
-
-                            queryTable = CreateQueryTableForQuery(sheet, query);
                             queryTable.Refresh(false);
 
                             // Also load to Data Model
@@ -1124,6 +1066,7 @@ public partial class PowerQueryCommands
                             result.ConfigurationApplied = true;
                             result.DataRefreshed = false;
                             result.RowsLoaded = 0;
+                            result.TargetCellAddress = null;
                             break;
                     }
 
@@ -1246,46 +1189,493 @@ public partial class PowerQueryCommands
         }, cancellationToken: default);
     }
 
+    private static bool TryPrepareWorksheetDestinationForCreate(
+        dynamic workbook,
+        string queryName,
+        string sheetName,
+        string? targetCellAddress,
+        PowerQueryCreateResult result,
+        out dynamic? sheet,
+        out string anchorCell,
+        out bool clearEntireSheet)
+    {
+        sheet = null;
+        anchorCell = "A1";
+        clearEntireSheet = false;
+
+        bool sheetExists = TryGetWorksheetByName(workbook, sheetName, out sheet);
+        bool sheetCreated = false;
+
+        if (!sheetExists)
+        {
+            dynamic? worksheets = null;
+            try
+            {
+                worksheets = workbook.Worksheets;
+                sheet = worksheets.Add();
+                sheet.Name = sheetName;
+                sheetCreated = true;
+            }
+            finally
+            {
+                ComUtilities.Release(ref worksheets);
+            }
+        }
+
+        if (sheet == null)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Worksheet '{sheetName}' could not be accessed for query '{queryName}'.";
+            return false;
+        }
+
+        bool sheetIsEmpty = sheetCreated || IsWorksheetEmpty(sheet);
+        bool targetCellProvided = !string.IsNullOrWhiteSpace(targetCellAddress);
+
+        if (!sheetIsEmpty && !targetCellProvided)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Worksheet '{sheetName}' already exists. Specify targetCellAddress (e.g., \"B5\") to place the '{queryName}' table without clearing other content.";
+            return false;
+        }
+
+        string requestedCell = targetCellProvided ? targetCellAddress! : "A1";
+
+        if (!TryValidateTargetCell(sheet, requestedCell, !sheetIsEmpty, out string normalizedAddress, out string? validationError))
+        {
+            result.Success = false;
+            result.ErrorMessage = validationError ?? $"Invalid targetCellAddress '{requestedCell}' for query '{queryName}'.";
+            return false;
+        }
+
+        anchorCell = normalizedAddress;
+        clearEntireSheet = sheetIsEmpty && !targetCellProvided;
+        result.TargetCellAddress = normalizedAddress;
+        return true;
+    }
+
     /// <summary>
     /// Helper method to create QueryTable for a query
     /// </summary>
-    private static dynamic CreateQueryTableForQuery(dynamic sheet, dynamic query)
+    private static dynamic CreateQueryTableForQuery(dynamic sheet, dynamic query, string targetCellAddress, bool clearEntireSheet)
     {
         string queryName = query.Name;
         string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
 
-        // Clear worksheet to prevent column accumulation (regression test requirement)
+        if (clearEntireSheet)
+        {
+            dynamic? usedRange = null;
+            try
+            {
+                usedRange = sheet.UsedRange;
+                usedRange.Clear();
+            }
+            finally
+            {
+                ComUtilities.Release(ref usedRange);
+            }
+        }
+
+        dynamic? destination = null;
+        dynamic? queryTables = null;
+        try
+        {
+            destination = sheet.Range[targetCellAddress];
+
+            // When not clearing the entire worksheet, ensure the destination cell is empty first.
+            if (!clearEntireSheet)
+            {
+                destination.Clear();
+            }
+
+            // Use Type.Missing for 3rd parameter (working pattern from diagnostic tests)
+            queryTables = sheet.QueryTables;
+            dynamic queryTable = queryTables.Add(connectionString, destination, Type.Missing);
+
+            queryTable.Name = queryName;
+            queryTable.CommandText = $"SELECT * FROM [{queryName}]";  // Set AFTER creation (working pattern)
+            queryTable.RefreshStyle = 1;  // xlInsertDeleteCells
+            queryTable.RowNumbers = false;
+            queryTable.FillAdjacentFormulas = false;
+            queryTable.PreserveFormatting = true;
+            queryTable.RefreshOnFileOpen = false;
+            queryTable.BackgroundQuery = false;  // Synchronous refresh
+            queryTable.SavePassword = false;
+            queryTable.SaveData = true;
+            queryTable.AdjustColumnWidth = true;
+            queryTable.RefreshPeriod = 0;
+            queryTable.PreserveColumnInfo = false;  // Allow column structure changes when M code updates
+
+            return queryTable; // Caller refreshes and releases
+        }
+        finally
+        {
+            ComUtilities.Release(ref queryTables);
+            ComUtilities.Release(ref destination);
+        }
+    }
+
+    private static bool SheetHasQueryTableForQuery(dynamic sheet, string queryName)
+    {
+        dynamic? queryTables = null;
+        try
+        {
+            queryTables = sheet.QueryTables;
+            string normalizedName = queryName.Replace(" ", "_");
+
+            for (int i = 1; i <= queryTables.Count; i++)
+            {
+                dynamic? queryTable = null;
+                try
+                {
+                    queryTable = queryTables.Item(i);
+                    string qtName = queryTable.Name?.ToString() ?? string.Empty;
+                    if (qtName.Contains(normalizedName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref queryTable);
+                }
+            }
+        }
+        catch
+        {
+            // Ignore errors when checking QueryTables
+        }
+        finally
+        {
+            ComUtilities.Release(ref queryTables);
+        }
+
+        return false;
+    }
+
+    private static bool TryGetWorksheetByName(dynamic workbook, string sheetName, out dynamic? worksheet)
+    {
+        worksheet = null;
+        dynamic? worksheets = null;
+        try
+        {
+            worksheets = workbook.Worksheets;
+            for (int i = 1; i <= worksheets.Count; i++)
+            {
+                dynamic? candidate = null;
+                try
+                {
+                    candidate = worksheets.Item(i);
+                    string candidateName = candidate.Name?.ToString() ?? string.Empty;
+                    if (candidateName.Equals(sheetName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        worksheet = candidate;
+                        candidate = null;
+                        return true;
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref candidate);
+                }
+            }
+        }
+        catch
+        {
+            // Ignore worksheet lookup errors
+        }
+        finally
+        {
+            ComUtilities.Release(ref worksheets);
+        }
+
+        return false;
+    }
+
+    private static dynamic? FindQueryTableForQuery(dynamic sheet, string queryName)
+    {
+        dynamic? queryTables = null;
+        try
+        {
+            queryTables = sheet.QueryTables;
+            string normalizedName = queryName.Replace(" ", "_");
+
+            for (int i = 1; i <= queryTables.Count; i++)
+            {
+                dynamic? queryTable = null;
+                try
+                {
+                    queryTable = queryTables.Item(i);
+                    string qtName = queryTable.Name?.ToString() ?? string.Empty;
+                    if (qtName.Contains(normalizedName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var found = queryTable;
+                        queryTable = null;
+                        return found;
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref queryTable);
+                }
+            }
+        }
+        catch
+        {
+            // Ignore errors when enumerating query tables
+        }
+        finally
+        {
+            ComUtilities.Release(ref queryTables);
+        }
+
+        return null;
+    }
+
+    private static bool TryConfigureWorksheetDestination(
+        dynamic workbook,
+        dynamic query,
+        string queryName,
+        string sheetName,
+        string? targetCellAddress,
+        PowerQueryLoadResult result,
+        out dynamic? sheet,
+        out dynamic? queryTable)
+    {
+        sheet = null;
+        queryTable = null;
+
+        bool sheetExists = TryGetWorksheetByName(workbook, sheetName, out sheet);
+        bool sheetCreated = false;
+
+        if (!sheetExists)
+        {
+            dynamic? worksheets = null;
+            try
+            {
+                worksheets = workbook.Worksheets;
+                sheet = worksheets.Add();
+                sheet.Name = sheetName;
+                sheetCreated = true;
+            }
+            finally
+            {
+                ComUtilities.Release(ref worksheets);
+            }
+        }
+
+        if (sheet == null)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Worksheet '{sheetName}' could not be accessed.";
+            return false;
+        }
+
+        if (SheetHasQueryTableForQuery(sheet, queryName))
+        {
+            queryTable = FindQueryTableForQuery(sheet, queryName);
+            if (queryTable == null)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"QueryTable for '{queryName}' was not found on sheet '{sheetName}'.";
+                return false;
+            }
+
+            string? existingAnchor = GetQueryTableAnchorAddress(queryTable);
+            if (string.IsNullOrWhiteSpace(targetCellAddress))
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Worksheet '{sheetName}' already contains data from '{queryName}'. Specify targetCellAddress (e.g., \"B5\") or unload the query before loading it again.";
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(targetCellAddress) && existingAnchor != null && !AddressesMatch(existingAnchor, targetCellAddress))
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Query '{queryName}' already loads to '{sheetName}' at {existingAnchor}. Unload first to relocate it to '{targetCellAddress}'.";
+                return false;
+            }
+
+            result.TargetCellAddress ??= existingAnchor ?? targetCellAddress;
+            return true;
+        }
+
+        bool targetCellProvided = !string.IsNullOrWhiteSpace(targetCellAddress);
+        bool sheetIsEmpty = sheetCreated || IsWorksheetEmpty(sheet);
+        bool allowDefaultCell = sheetIsEmpty && !targetCellProvided;
+
+        if (!allowDefaultCell && !targetCellProvided)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Worksheet '{sheetName}' already exists. Specify targetCellAddress (e.g., \"B5\") to place the table without clearing other content.";
+            return false;
+        }
+
+        string requestedCell = targetCellProvided ? targetCellAddress! : "A1";
+
+        if (!TryValidateTargetCell(sheet, requestedCell, !sheetIsEmpty, out string normalizedAddress, out string? validationError))
+        {
+            result.Success = false;
+            result.ErrorMessage = validationError ?? $"Invalid targetCellAddress '{requestedCell}'.";
+            return false;
+        }
+
+        result.TargetCellAddress = normalizedAddress;
+        bool clearEntireSheet = sheetIsEmpty && !targetCellProvided;
+
+        queryTable = CreateQueryTableForQuery(sheet, query, normalizedAddress, clearEntireSheet);
+        return true;
+    }
+
+    private static bool TryValidateTargetCell(dynamic sheet, string targetCellAddress, bool requireEmpty, out string normalizedAddress, out string? errorMessage)
+    {
+        normalizedAddress = string.Empty;
+        errorMessage = null;
+
+        dynamic? range = null;
+        try
+        {
+            range = sheet.Range[targetCellAddress];
+            if (range == null)
+            {
+                errorMessage = $"targetCellAddress '{targetCellAddress}' is not valid.";
+                return false;
+            }
+
+            if (range.Rows.Count != 1 || range.Columns.Count != 1)
+            {
+                errorMessage = $"targetCellAddress '{targetCellAddress}' must refer to a single cell.";
+                return false;
+            }
+
+            string? resolvedAddress = null;
+            try
+            {
+                resolvedAddress = range.Address(false, false);
+            }
+            catch
+            {
+                resolvedAddress = targetCellAddress;
+            }
+
+            normalizedAddress = NormalizeAddress(resolvedAddress ?? targetCellAddress);
+
+            if (requireEmpty)
+            {
+                object? value = range.Value2;
+                bool hasContent = value switch
+                {
+                    null => false,
+                    string s => !string.IsNullOrEmpty(s),
+                    _ => true
+                };
+
+                if (hasContent)
+                {
+                    errorMessage = $"Target cell '{normalizedAddress}' already contains data. Choose an empty cell.";
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        catch (COMException ex)
+        {
+            errorMessage = $"Invalid targetCellAddress '{targetCellAddress}': {ex.Message}";
+            return false;
+        }
+        finally
+        {
+            ComUtilities.Release(ref range);
+        }
+    }
+
+    private static bool IsWorksheetEmpty(dynamic sheet)
+    {
         dynamic? usedRange = null;
         try
         {
             usedRange = sheet.UsedRange;
-            usedRange.Clear();
+            if (usedRange == null)
+            {
+                return true;
+            }
+
+            int rows = usedRange.Rows.Count;
+            int columns = usedRange.Columns.Count;
+            if (rows == 1 && columns == 1)
+            {
+                object? value = usedRange.Value2;
+                if (value == null)
+                {
+                    return true;
+                }
+
+                if (value is string s && string.IsNullOrEmpty(s))
+                {
+                    return true;
+                }
+
+                return false;
+            }
+
+            return rows == 0 || columns == 0;
+        }
+        catch
+        {
+            return false;
         }
         finally
         {
             ComUtilities.Release(ref usedRange);
         }
+    }
 
-        dynamic range = sheet.Range["A1"];
-        // Use Type.Missing for 3rd parameter (working pattern from diagnostic tests)
-        dynamic queryTable = sheet.QueryTables.Add(connectionString, range, Type.Missing);
+    private static string? GetQueryTableAnchorAddress(dynamic queryTable)
+    {
+        dynamic? resultRange = null;
+        dynamic? firstCell = null;
+        try
+        {
+            resultRange = queryTable.ResultRange;
+            if (resultRange == null)
+            {
+                return null;
+            }
 
-        queryTable.Name = queryName;
-        queryTable.CommandText = $"SELECT * FROM [{queryName}]";  // Set AFTER creation (working pattern)
-        queryTable.RefreshStyle = 1;  // xlInsertDeleteCells
-        queryTable.RowNumbers = false;
-        queryTable.FillAdjacentFormulas = false;
-        queryTable.PreserveFormatting = true;
-        queryTable.RefreshOnFileOpen = false;
-        queryTable.BackgroundQuery = false;  // Synchronous refresh
-        queryTable.SavePassword = false;
-        queryTable.SaveData = true;
-        queryTable.AdjustColumnWidth = true;
-        queryTable.RefreshPeriod = 0;
-        queryTable.PreserveColumnInfo = false;  // Allow column structure changes when M code updates
+            firstCell = resultRange.Cells.Item(1, 1);
+            if (firstCell == null)
+            {
+                return null;
+            }
 
-        // Note: Caller is responsible for calling Refresh(false) after QueryTable is returned
-        return queryTable;
+            string address = firstCell.Address(false, false);
+            return NormalizeAddress(address);
+        }
+        catch
+        {
+            return null;
+        }
+        finally
+        {
+            ComUtilities.Release(ref firstCell);
+            ComUtilities.Release(ref resultRange);
+        }
+    }
+
+    private static string NormalizeAddress(string address)
+    {
+        return address.Replace("$", string.Empty).Trim().ToUpperInvariant();
+    }
+
+    private static bool AddressesMatch(string? actualAddress, string requestedAddress)
+    {
+        if (string.IsNullOrWhiteSpace(actualAddress))
+        {
+            return false;
+        }
+
+        return NormalizeAddress(actualAddress) == NormalizeAddress(requestedAddress);
     }
 }
 

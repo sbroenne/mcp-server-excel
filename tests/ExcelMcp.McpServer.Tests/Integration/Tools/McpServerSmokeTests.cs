@@ -203,7 +203,7 @@ in
             PowerQueryAction.Create,
             sessionId,
             queryName: "CsvData",
-            sourcePath: _testQueryFile,
+            mCode: mCode,
             loadDestination: "connection-only");
         AssertSuccess(importQueryResult, "Create Power Query in batch");
 

@@ -456,6 +456,11 @@ public class PowerQueryCreateResult : OperationResult
     public string? WorksheetName { get; set; }
 
     /// <summary>
+    /// Target cell address used when loading to a worksheet (e.g., "A1")
+    /// </summary>
+    public string? TargetCellAddress { get; set; }
+
+    /// <summary>
     /// Whether the query was created successfully
     /// </summary>
     public bool QueryCreated { get; set; }
@@ -491,6 +496,11 @@ public class PowerQueryLoadResult : OperationResult
     /// Target worksheet name (if applicable)
     /// </summary>
     public string? WorksheetName { get; set; }
+
+    /// <summary>
+    /// Target cell address used for the worksheet load destination (null defaults to A1)
+    /// </summary>
+    public string? TargetCellAddress { get; set; }
 
     /// <summary>
     /// Whether load configuration was applied

@@ -75,7 +75,7 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
 
         // Act
         using var batch = ExcelSession.BeginBatch(testExcelFile);
-        var result = _powerQueryCommands.Create(batch, queryName, testQueryFile, PowerQueryLoadMode.ConnectionOnly);
+        var result = _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(testQueryFile), PowerQueryLoadMode.ConnectionOnly);
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
@@ -135,8 +135,8 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
 
         // Act
         using var batch = ExcelSession.BeginBatch(testExcelFile);
-        _powerQueryCommands.Create(batch, queryName, testQueryFile);
-        var result = _powerQueryCommands.Update(batch, queryName, updateFile);
+        _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(testQueryFile));
+        var result = _powerQueryCommands.Update(batch, queryName, ReadMCodeFile(updateFile));
 
         // Assert
         Assert.True(result.Success);
@@ -185,11 +185,11 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Step 1: Create query with original M code
-        var createResult = _powerQueryCommands.Create(batch, queryName, originalFile);
+        var createResult = _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(originalFile));
         Assert.True(createResult.Success, $"Create failed: {createResult.ErrorMessage}");
 
         // Step 2: Update with new M code
-        var updateResult = _powerQueryCommands.Update(batch, queryName, newFile);
+        var updateResult = _powerQueryCommands.Update(batch, queryName, ReadMCodeFile(newFile));
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
 
         // Step 3: View the resulting M code
@@ -245,13 +245,13 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Create with version 1
-        _powerQueryCommands.Create(batch, queryName, version1File);
+        _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(version1File));
 
         // Update to version 2
-        _powerQueryCommands.Update(batch, queryName, version2File);
+        _powerQueryCommands.Update(batch, queryName, ReadMCodeFile(version2File));
 
         // Update to version 3
-        _powerQueryCommands.Update(batch, queryName, version3File);
+        _powerQueryCommands.Update(batch, queryName, ReadMCodeFile(version3File));
 
         // View final result
         var viewResult = _powerQueryCommands.View(batch, queryName);
@@ -287,7 +287,7 @@ in
 
         // Act
         using var batch = ExcelSession.BeginBatch(testExcelFile);
-        _powerQueryCommands.Create(batch, queryName, testQueryFile);
+        _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(testQueryFile));
         var result = _powerQueryCommands.Delete(batch, queryName);
 
         // Assert
@@ -314,11 +314,11 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Act 1: Create query first time (should succeed)
-        var firstCreate = _powerQueryCommands.Create(batch, queryName, testQueryFile);
+        var firstCreate = _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(testQueryFile));
         Assert.True(firstCreate.Success, $"First create should succeed: {firstCreate.ErrorMessage}");
 
         // Act 2: Try to Create same query again (should fail)
-        var secondCreate = _powerQueryCommands.Create(batch, queryName, testQueryFile);
+        var secondCreate = _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(testQueryFile));
 
         // Assert: Second create should fail with clear error message
         Assert.False(secondCreate.Success, "Second create should fail");
@@ -385,7 +385,7 @@ in
         var sourceImportResult = _powerQueryCommands.Create(
             batch,
             "SourceQuery",
-            sourceQueryFile,
+            ReadMCodeFile(sourceQueryFile),
             loadMode: PowerQueryLoadMode.LoadToTable);
 
         Assert.True(sourceImportResult.Success,
@@ -395,7 +395,7 @@ in
         var derivedImportResult = _powerQueryCommands.Create(
             batch,
             "DerivedQuery",
-            derivedQueryFile,
+            ReadMCodeFile(derivedQueryFile),
             loadMode: PowerQueryLoadMode.LoadToTable);
 
         Assert.True(derivedImportResult.Success,
@@ -464,7 +464,7 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // STEP 1: Import query and load to worksheet
-        var importResult = _powerQueryCommands.Create(batch, queryName, initialQueryFile, PowerQueryLoadMode.LoadToTable, sheetName);
+        var importResult = _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(initialQueryFile), PowerQueryLoadMode.LoadToTable, sheetName);
         Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
 
         // Verify initial load configuration
@@ -474,7 +474,7 @@ in
         Assert.Equal(sheetName, loadConfigBefore.TargetSheet);
 
         // STEP 2: Update the query M code (now auto-refreshes)
-        var updateResult = _powerQueryCommands.Update(batch, queryName, updatedQueryFile);
+        var updateResult = _powerQueryCommands.Update(batch, queryName, ReadMCodeFile(updatedQueryFile));
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
 
         // STEP 3: Verify load configuration is PRESERVED (regression check)
@@ -526,7 +526,7 @@ in
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // STEP 1: Create query and load to worksheet
-        var createResult = _powerQueryCommands.Create(batch, queryName, initialQueryFile, PowerQueryLoadMode.LoadToTable, sheetName);
+        var createResult = _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(initialQueryFile), PowerQueryLoadMode.LoadToTable, sheetName);
         Assert.True(createResult.Success, $"Create failed: {createResult.ErrorMessage}");
 
         // STEP 2: Verify initial load configuration
@@ -536,7 +536,7 @@ in
         Assert.Equal(sheetName, loadConfigBefore.TargetSheet);
 
         // STEP 3: Update M code (now auto-refreshes - this is the simplified API)
-        var updateResult = _powerQueryCommands.Update(batch, queryName, updatedQueryFile);
+        var updateResult = _powerQueryCommands.Update(batch, queryName, ReadMCodeFile(updatedQueryFile));
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
 
         // STEP 4: THE CRITICAL CHECK - Does load config survive Update (which includes refresh)?
@@ -601,7 +601,7 @@ in
 
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
-        var createResult = _powerQueryCommands.Create(batch, queryName, oneColumnQueryFile, PowerQueryLoadMode.LoadToTable, sheetName);
+        var createResult = _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(oneColumnQueryFile), PowerQueryLoadMode.LoadToTable, sheetName);
         Assert.True(createResult.Success, $"Create failed: {createResult.ErrorMessage}");
 
         // STEP 2: Verify there is only ONE column
@@ -626,7 +626,7 @@ in
     Source");
 
         // STEP 3: Update query to ONE column (now auto-refreshes)
-        var updateResult1 = _powerQueryCommands.Update(batch, queryName, oneColumnUpdatedFile);
+        var updateResult1 = _powerQueryCommands.Update(batch, queryName, ReadMCodeFile(oneColumnUpdatedFile));
         Assert.True(updateResult1.Success, $"First update failed: {updateResult1.ErrorMessage}");
 
         // STEP 4: Check that there is still only ONE column
@@ -651,7 +651,7 @@ in
 
         // STEP 5: Update query to TWO columns (now auto-refreshes)
         // This validates the fix: PreserveColumnInfo=false allows column structure updates
-        var updateResult2 = _powerQueryCommands.Update(batch, queryName, twoColumnQueryFile);
+        var updateResult2 = _powerQueryCommands.Update(batch, queryName, ReadMCodeFile(twoColumnQueryFile));
         Assert.True(updateResult2.Success, $"Second update failed: {updateResult2.ErrorMessage}");
 
         // STEP 6: Check that there are now TWO columns
@@ -723,7 +723,7 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Import and load to worksheet
-        var createResult = _powerQueryCommands.Create(batch, queryName, oneColumnFile, PowerQueryLoadMode.LoadToTable, sheetName);
+        var createResult = _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(oneColumnFile), PowerQueryLoadMode.LoadToTable, sheetName);
         Assert.True(createResult.Success, $"Create failed: {createResult.ErrorMessage}");
 
         // Verify initial state: 1 column
@@ -747,17 +747,17 @@ in
     Source");
 
         // STEP 2: Update query to TWO columns (now auto-refreshes)
-        var updateResult = _powerQueryCommands.Update(batch, queryName, twoColumnFile);
+        var updateResult = _powerQueryCommands.Update(batch, queryName, ReadMCodeFile(twoColumnFile));
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
 
         // STEP 3: Apply the DELETE + RECREATE workflow (historically caused 3-column bug)
         var deleteResult = _powerQueryCommands.Delete(batch, queryName);
         Assert.True(deleteResult.Success, $"Delete failed: {deleteResult.ErrorMessage}");
 
-        var recreateResult = _powerQueryCommands.Create(batch, queryName, twoColumnFile, PowerQueryLoadMode.ConnectionOnly);
+        var recreateResult = _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(twoColumnFile), PowerQueryLoadMode.ConnectionOnly);
         Assert.True(recreateResult.Success, $"Re-create failed: {recreateResult.ErrorMessage}");
 
-        var loadResult = _powerQueryCommands.LoadTo(batch, queryName, PowerQueryLoadMode.LoadToTable, sheetName);
+        var loadResult = _powerQueryCommands.LoadTo(batch, queryName, PowerQueryLoadMode.LoadToTable, sheetName, "A1");
         Assert.True(loadResult.Success, $"LoadTo failed: {loadResult.ErrorMessage}");
 
         var refreshResult = _powerQueryCommands.Refresh(batch, queryName);
@@ -821,6 +821,11 @@ in
         var filePath = Path.Combine(_tempDir, fileName);
         System.IO.File.WriteAllText(filePath, mCode);
         return filePath;
+    }
+
+    private static string ReadMCodeFile(string filePath)
+    {
+        return System.IO.File.ReadAllText(filePath);
     }
 
     #endregion

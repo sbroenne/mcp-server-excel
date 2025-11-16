@@ -350,7 +350,7 @@ This means you get:
 
 **12 specialized tools for comprehensive Excel automation:**
 
-1. **excel_powerquery** (16 actions) - Power Query M code: create, view, import, export, update, delete, manage load destinations, privacy levels, errors, eval, list Excel sources
+1. **excel_powerquery** (16 actions) - Power Query M code: create, view, import, export, update, delete, manage load destinations, privacy levels, errors, eval, list Excel sources, and place QueryTables precisely with `targetCellAddress`
 2. **excel_datamodel** (15 actions) - Power Pivot (Data Model): CRUD DAX measures/relationships, discover structure (tables, columns), export to .dax files
 3. **excel_table** (26 actions) - Excel Tables: lifecycle, columns, filters, sorts, structured references, totals, number formatting, Data Model integration
 4. **excel_pivottable** (20 actions) - PivotTables: create from ranges/tables, field management (row/column/value/filter), aggregations, filters, sorting, extract data

@@ -4,7 +4,6 @@ using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Core.Security;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
 #pragma warning disable CA1861 // Avoid constant arrays as arguments - workflow hints are contextual per-call
@@ -20,22 +19,13 @@ public static class ExcelPowerQueryTool
     [McpServerTool(Name = "excel_powerquery")]
     [Description(@"Manage Power Query M code and data loading.
 
-⚠️ SHEET NAME CONFLICTS (LoadTo action):
-- If a worksheet with the target name already exists, LoadTo returns an error
-- User must delete the existing sheet first using excel_worksheet action='Delete'
-- Then retry LoadTo - this ensures explicit user control over data deletion
+    ⚠️ INLINE M CODE
+    - Provide raw M code via mCode parameter
 
-WHEN TO USE CREATE vs UPDATE:
-- Create: For NEW queries only (FAILS with 'already exists' error if query exists)
-- Update: For EXISTING queries (updates M code + refreshes data)
-- Not sure? Use List action first to check if query exists
-
-OPERATIONS GUIDANCE:
-- Create: Import M code from .pq file AND optionally load data (NEW queries only)
-- Update: Update M code AND refresh data in ONE operation (EXISTING queries only)
-- LoadTo: Apply load destination to connection-only query (make it load data to a worksheet or Data Model)
-- Unload: Convert query to connection-only (remove data, keep M code definition)
-- RefreshAll: Refresh ALL Power Queries in workbook (batch refresh)
+    ⚠️ TARGET SHEETS (Create & LoadTo actions):
+    - targetCellAddress works for BOTH create and load-to to place tables without clearing other content
+    - If targetCellAddress is omitted and sheet already contains data, server returns guidance instead of deleting it
+    - When re-using an existing QueryTable, LoadTo refreshes data in-place without recreating the table
 ")]
     public static string ExcelPowerQuery(
         [Required]
@@ -50,15 +40,18 @@ OPERATIONS GUIDANCE:
         [Description("Power Query name (required for most actions)")]
         string? queryName = null,
 
-        [FileExtensions(Extensions = "pq,txt,m")]
-        [Description("Source .pq file path (for import/update actions)")]
-        string? sourcePath = null,
+        [Description("Raw Power Query M code (inline string). Required for create and update actions.")]
+        string? mCode = null,
 
 
         [StringLength(31, MinimumLength = 1)]
         [RegularExpression(@"^[^[\]/*?\\:]+$")]
         [Description("Target worksheet name (when loadDestination is 'worksheet' or 'both')")]
         string? targetSheet = null,
+
+        [RegularExpression(@"^\$?[A-Za-z]{1,3}\$?[0-9]{1,7}$")]
+        [Description("Top-left cell for create/load-to actions when placing data on an existing worksheet (e.g., 'B5'). Only used when load destination is 'worksheet' or 'both'.")]
+        string? targetCellAddress = null,
 
         [RegularExpression("^(worksheet|data-model|both|connection-only)$")]
         [Description(@"Load destination for query (for create action). Options:
@@ -85,9 +78,9 @@ OPERATIONS GUIDANCE:
                 PowerQueryAction.ListExcelSources => ListExcelSourcesAsync(powerQueryCommands, sessionId),
 
                 // Atomic Operations
-                PowerQueryAction.Create => CreatePowerQueryAsync(powerQueryCommands, sessionId, queryName, sourcePath, loadDestination, targetSheet),
-                PowerQueryAction.Update => UpdatePowerQueryAsync(powerQueryCommands, sessionId, queryName, sourcePath),
-                PowerQueryAction.LoadTo => LoadToPowerQueryAsync(powerQueryCommands, sessionId, queryName, loadDestination, targetSheet),
+                PowerQueryAction.Create => CreatePowerQueryAsync(powerQueryCommands, sessionId, queryName, mCode, loadDestination, targetSheet, targetCellAddress),
+                PowerQueryAction.Update => UpdatePowerQueryAsync(powerQueryCommands, sessionId, queryName, mCode),
+                PowerQueryAction.LoadTo => LoadToPowerQueryAsync(powerQueryCommands, sessionId, queryName, loadDestination, targetSheet, targetCellAddress),
                 PowerQueryAction.Unload => UnloadPowerQueryAsync(powerQueryCommands, sessionId, queryName),
                 PowerQueryAction.RefreshAll => RefreshAllPowerQueriesAsync(powerQueryCommands, sessionId),
 
@@ -205,27 +198,35 @@ OPERATIONS GUIDANCE:
         PowerQueryCommands commands,
         string sessionId,
         string? queryName,
-        string? sourcePath,
+        string? mCode,
         string? loadDestination,
-        string? targetSheet)
+        string? targetSheet,
+        string? targetCellAddress)
     {
         // Validate ALL required parameters first so error message lists every missing one
-        if (string.IsNullOrEmpty(queryName) || string.IsNullOrEmpty(sourcePath))
+        if (string.IsNullOrEmpty(queryName) || string.IsNullOrWhiteSpace(mCode))
         {
             var missing = new List<string>();
             if (string.IsNullOrEmpty(queryName)) missing.Add("queryName");
-            if (string.IsNullOrEmpty(sourcePath)) missing.Add("sourcePath");
+            if (string.IsNullOrWhiteSpace(mCode)) missing.Add("mCode");
             var plural = missing.Count > 1 ? "are" : "is";
-            throw new ArgumentException($"{string.Join(" and ", missing)} {plural} required for create action (.pq file required)", string.Join(",", missing));
+            throw new ArgumentException($"{string.Join(" and ", missing)} {plural} required for create action", string.Join(",", missing));
         }
-
-        sourcePath = PathValidator.ValidateExistingFile(sourcePath, nameof(sourcePath));
 
         // Parse loadDestination to PowerQueryLoadMode enum
         var loadMode = ParseLoadMode(loadDestination ?? "worksheet");
 
+        if (!RequiresWorksheet(loadMode) && !string.IsNullOrWhiteSpace(targetCellAddress))
+        {
+            throw new ArgumentException("targetCellAddress can only be used when loadDestination is 'worksheet' or 'both'", nameof(targetCellAddress));
+        }
+
+        var resolvedTargetSheet = RequiresWorksheet(loadMode)
+            ? (string.IsNullOrWhiteSpace(targetSheet) ? queryName : targetSheet)
+            : targetSheet;
+
         var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.Create(batch, queryName, sourcePath, loadMode, targetSheet));
+            batch => commands.Create(batch, queryName, mCode, loadMode, resolvedTargetSheet, targetCellAddress));
 
         return JsonSerializer.Serialize(new
         {
@@ -241,17 +242,15 @@ OPERATIONS GUIDANCE:
         PowerQueryCommands commands,
         string sessionId,
         string? queryName,
-        string? sourcePath)
+        string? mCode)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ArgumentException("queryName is required for update action", nameof(queryName));
-        if (string.IsNullOrEmpty(sourcePath))
-            throw new ArgumentException("sourcePath is required for update action (.pq file)", nameof(sourcePath));
-
-        sourcePath = PathValidator.ValidateExistingFile(sourcePath, nameof(sourcePath));
+        if (string.IsNullOrWhiteSpace(mCode))
+            throw new ArgumentException("mCode is required for update action", nameof(mCode));
 
         var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.Update(batch, queryName, sourcePath));
+            batch => commands.Update(batch, queryName, mCode));
 
         return JsonSerializer.Serialize(new
         {
@@ -265,7 +264,8 @@ OPERATIONS GUIDANCE:
         string sessionId,
         string? queryName,
         string? loadDestination,
-        string? targetSheet)
+        string? targetSheet,
+        string? targetCellAddress)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ArgumentException("queryName is required for load-to action", nameof(queryName));
@@ -273,8 +273,17 @@ OPERATIONS GUIDANCE:
         // Parse loadDestination to PowerQueryLoadMode enum
         var loadMode = ParseLoadMode(loadDestination ?? "worksheet");
 
+        var requiresWorksheet = RequiresWorksheet(loadMode);
+
+        if (!requiresWorksheet && !string.IsNullOrWhiteSpace(targetCellAddress))
+            throw new ArgumentException("targetCellAddress can only be used when loadDestination is 'worksheet' or 'both'", nameof(targetCellAddress));
+
+        var resolvedTargetSheet = requiresWorksheet
+            ? (string.IsNullOrWhiteSpace(targetSheet) ? queryName : targetSheet)
+            : targetSheet;
+
         var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.LoadTo(batch, queryName, loadMode, targetSheet));
+            batch => commands.LoadTo(batch, queryName, loadMode, resolvedTargetSheet, targetCellAddress));
 
         // Detect sheet conflict error and provide specific guidance
         var isSheetConflict = !result.Success &&
@@ -295,11 +304,12 @@ OPERATIONS GUIDANCE:
             result.QueryName,
             result.LoadDestination,
             result.WorksheetName,
+            result.TargetCellAddress,
             result.ConfigurationApplied,
             result.DataRefreshed,
             result.RowsLoaded,
             workflowHint = isSheetConflict
-                ? $"Sheet '{targetSheet ?? queryName}' already exists. Delete it first with excel_worksheet action='Delete', then retry LoadTo."
+                ? $"Sheet '{targetSheet ?? queryName}' already contains data. Provide targetCellAddress (e.g., \"B5\") to place the table without deleting the sheet."
                 : null
         }, ExcelToolsBase.JsonOptions);
     }
@@ -349,5 +359,8 @@ OPERATIONS GUIDANCE:
             _ => throw new ArgumentException($"Invalid loadDestination: '{loadDestination}'. Valid values: worksheet, data-model, both, connection-only", nameof(loadDestination))
         };
     }
+
+    private static bool RequiresWorksheet(PowerQueryLoadMode loadMode) =>
+        loadMode == PowerQueryLoadMode.LoadToTable || loadMode == PowerQueryLoadMode.LoadToBoth;
 }
 

@@ -33,7 +33,7 @@ public partial class PowerQueryCommandsTests
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
         var createResult = _powerQueryCommands.Create(
-            batch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+            batch, queryName, ReadMCodeFile(mCodeFile), PowerQueryLoadMode.ConnectionOnly);
 
         // Assert
         Assert.True(createResult.Success, $"Create failed: {createResult.ErrorMessage}");
@@ -70,7 +70,7 @@ public partial class PowerQueryCommandsTests
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
         var createResult = _powerQueryCommands.Create(
-            batch, queryName, mCodeFile, PowerQueryLoadMode.LoadToTable, targetSheet);
+            batch, queryName, ReadMCodeFile(mCodeFile), PowerQueryLoadMode.LoadToTable, targetSheet);
 
         // Assert
         Assert.True(createResult.Success, $"Create failed: {createResult.ErrorMessage}");
@@ -100,7 +100,7 @@ public partial class PowerQueryCommandsTests
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
         var createResult = _powerQueryCommands.Create(
-            batch, queryName, mCodeFile, PowerQueryLoadMode.LoadToDataModel);
+            batch, queryName, ReadMCodeFile(mCodeFile), PowerQueryLoadMode.LoadToDataModel);
 
         // Assert
         Assert.True(createResult.Success, $"Create failed: {createResult.ErrorMessage}");
@@ -137,7 +137,7 @@ public partial class PowerQueryCommandsTests
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
         var createResult = _powerQueryCommands.Create(
-            batch, queryName, mCodeFile, PowerQueryLoadMode.LoadToBoth, targetSheet);
+            batch, queryName, ReadMCodeFile(mCodeFile), PowerQueryLoadMode.LoadToBoth, targetSheet);
 
         // Assert
         Assert.True(createResult.Success, $"Create failed: {createResult.ErrorMessage}");
@@ -181,13 +181,13 @@ in
         using (var setupBatch = ExcelSession.BeginBatch(testFile))
         {
             _powerQueryCommands.Create(
-                setupBatch, queryName, originalFile, PowerQueryLoadMode.ConnectionOnly);
+                setupBatch, queryName, ReadMCodeFile(originalFile), PowerQueryLoadMode.ConnectionOnly);
             setupBatch.Save();
         }
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
-        var updateResult = _powerQueryCommands.Update(batch, queryName, updatedFile);
+        var updateResult = _powerQueryCommands.Update(batch, queryName, ReadMCodeFile(updatedFile));
 
         // Assert
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
@@ -220,7 +220,7 @@ in
 
         // Create connection-only query first
         _powerQueryCommands.Create(
-            batch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+            batch, queryName, ReadMCodeFile(mCodeFile), PowerQueryLoadMode.ConnectionOnly);
 
         // LoadTo should create sheet and load data
         var loadResult = _powerQueryCommands.LoadTo(
@@ -232,6 +232,7 @@ in
         Assert.Equal(PowerQueryLoadMode.LoadToTable, loadResult.LoadDestination);
         Assert.True(loadResult.DataRefreshed);
         Assert.Equal(targetSheet, loadResult.WorksheetName);
+        Assert.Equal("A1", loadResult.TargetCellAddress);
     }
     /// <inheritdoc/>
 
@@ -250,7 +251,7 @@ in
         using (var setupBatch = ExcelSession.BeginBatch(testFile))
         {
             _powerQueryCommands.Create(
-                setupBatch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+                setupBatch, queryName, ReadMCodeFile(mCodeFile), PowerQueryLoadMode.ConnectionOnly);
             setupBatch.Save();
         }
 
@@ -264,6 +265,36 @@ in
         Assert.Equal(queryName, loadResult.QueryName);
         Assert.Equal(PowerQueryLoadMode.LoadToDataModel, loadResult.LoadDestination);
         Assert.True(loadResult.DataRefreshed);
+        Assert.Null(loadResult.TargetCellAddress);
+    }
+
+    [Fact]
+    public void LoadTo_ToDataModelWithTargetCell_ReturnsError()
+    {
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
+            nameof(PowerQueryCommandsTests),
+            nameof(LoadTo_ToDataModelWithTargetCell_ReturnsError),
+            _tempDir);
+        var queryName = "TargetCellModel";
+        var mCodeFile = CreateUniqueTestQueryFile(nameof(LoadTo_ToDataModelWithTargetCell_ReturnsError));
+
+        using (var setupBatch = ExcelSession.BeginBatch(testFile))
+        {
+            _powerQueryCommands.Create(
+                setupBatch, queryName, ReadMCodeFile(mCodeFile), PowerQueryLoadMode.ConnectionOnly);
+            setupBatch.Save();
+        }
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var loadResult = _powerQueryCommands.LoadTo(
+            batch,
+            queryName,
+            PowerQueryLoadMode.LoadToDataModel,
+            null,
+            "B3");
+
+        Assert.False(loadResult.Success, "LoadTo should reject targetCellAddress for Data Model loads");
+        Assert.Contains("only supported", loadResult.ErrorMessage);
     }
     /// <inheritdoc/>
 
@@ -288,7 +319,7 @@ in
         {
             _sheetCommands.Create(setupBatch, targetSheet);
             _powerQueryCommands.Create(
-                setupBatch, queryName, mCodeFile, PowerQueryLoadMode.LoadToTable, targetSheet);
+                setupBatch, queryName, ReadMCodeFile(mCodeFile), PowerQueryLoadMode.LoadToTable, targetSheet);
             setupBatch.Save();
         }
 
@@ -343,14 +374,14 @@ in
         {
             _sheetCommands.Create(setupBatch, targetSheet);
             _powerQueryCommands.Create(
-                setupBatch, queryName, originalFile, PowerQueryLoadMode.LoadToTable, targetSheet);
+                setupBatch, queryName, ReadMCodeFile(originalFile), PowerQueryLoadMode.LoadToTable, targetSheet);
             setupBatch.Save();
         }
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
         var updateResult = _powerQueryCommands.Update(
-            batch, queryName, updatedFile);
+            batch, queryName, ReadMCodeFile(updatedFile));
 
         // Assert
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
@@ -386,8 +417,8 @@ in
         {
             _sheetCommands.Create(setupBatch, sheet1);
             _sheetCommands.Create(setupBatch, sheet2);
-            _powerQueryCommands.Create(setupBatch, query1, mCodeFile1, PowerQueryLoadMode.LoadToTable, sheet1);
-            _powerQueryCommands.Create(setupBatch, query2, mCodeFile2, PowerQueryLoadMode.LoadToTable, sheet2);
+            _powerQueryCommands.Create(setupBatch, query1, ReadMCodeFile(mCodeFile1), PowerQueryLoadMode.LoadToTable, sheet1);
+            _powerQueryCommands.Create(setupBatch, query2, ReadMCodeFile(mCodeFile2), PowerQueryLoadMode.LoadToTable, sheet2);
             setupBatch.Save();
         }
 

@@ -13,7 +13,7 @@ public partial class PowerQueryCommands
     /// <inheritdoc />
     public PowerQueryRefreshResult Refresh(IExcelBatch batch, string queryName)
     {
-        return Refresh(batch, queryName);
+        return Refresh(batch, queryName, timeout: null);
     }
 
     /// <inheritdoc />

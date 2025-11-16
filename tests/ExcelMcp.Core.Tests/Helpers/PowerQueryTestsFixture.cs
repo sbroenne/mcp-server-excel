@@ -69,17 +69,17 @@ public class PowerQueryTestsFixture : IAsyncLifetime
             var dataModelCommands = new DataModelCommands();
             var powerQueryCommands = new PowerQueryCommands(dataModelCommands);
 
-            var import1 = powerQueryCommands.Create(batch, "BasicQuery", mCodeFiles[0], PowerQueryLoadMode.ConnectionOnly);
+            var import1 = powerQueryCommands.Create(batch, "BasicQuery", File.ReadAllText(mCodeFiles[0]), PowerQueryLoadMode.ConnectionOnly);
             if (!import1.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: Create(BasicQuery) failed: {import1.ErrorMessage}");
 
-            var import2 = powerQueryCommands.Create(batch, "DataQuery", mCodeFiles[1], PowerQueryLoadMode.ConnectionOnly);
+            var import2 = powerQueryCommands.Create(batch, "DataQuery", File.ReadAllText(mCodeFiles[1]), PowerQueryLoadMode.ConnectionOnly);
             if (!import2.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: Create(DataQuery) failed: {import2.ErrorMessage}");
 
-            var import3 = powerQueryCommands.Create(batch, "RefreshableQuery", mCodeFiles[2], PowerQueryLoadMode.ConnectionOnly);
+            var import3 = powerQueryCommands.Create(batch, "RefreshableQuery", File.ReadAllText(mCodeFiles[2]), PowerQueryLoadMode.ConnectionOnly);
             if (!import3.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: Create(RefreshableQuery) failed: {import3.ErrorMessage}");

@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -35,10 +36,13 @@ public partial class PowerQueryCommandsTests
 
         // Create connection-only query
         _powerQueryCommands.Create(
-            batch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+            batch, queryName, ReadMCodeFile(mCodeFile), PowerQueryLoadMode.ConnectionOnly);
 
         // Create sheet that will conflict
         _sheetCommands.Create(batch, targetSheet);
+
+        var rangeCommands = new RangeCommands();
+        rangeCommands.SetValues(batch, targetSheet, "A1", new List<List<object?>> { new() { "Keep" } });
 
         // LoadTo should detect existing sheet and return error
         var loadResult = _powerQueryCommands.LoadTo(
@@ -47,7 +51,7 @@ public partial class PowerQueryCommandsTests
         // Assert - Should fail with clear error message
         Assert.False(loadResult.Success, "LoadTo should fail when sheet already exists");
         Assert.NotNull(loadResult.ErrorMessage);
-        Assert.Contains("worksheet already exists", loadResult.ErrorMessage);
+        Assert.Contains("targetCellAddress", loadResult.ErrorMessage);
     }
 
     [Fact]
@@ -67,10 +71,13 @@ public partial class PowerQueryCommandsTests
 
         // Create connection-only query
         _powerQueryCommands.Create(
-            batch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+            batch, queryName, ReadMCodeFile(mCodeFile), PowerQueryLoadMode.ConnectionOnly);
 
         // Create sheet that will conflict
         _sheetCommands.Create(batch, targetSheet);
+
+        var rangeCommands = new RangeCommands();
+        rangeCommands.SetValues(batch, targetSheet, "A1", new List<List<object?>> { new() { "Keep" } });
 
         // LoadTo with LoadToBoth should detect existing sheet
         var loadResult = _powerQueryCommands.LoadTo(
@@ -79,7 +86,7 @@ public partial class PowerQueryCommandsTests
         // Assert - Should fail with clear error message
         Assert.False(loadResult.Success, "LoadToBoth should fail when sheet already exists");
         Assert.NotNull(loadResult.ErrorMessage);
-        Assert.Contains("worksheet already exists", loadResult.ErrorMessage);
+        Assert.Contains("targetCellAddress", loadResult.ErrorMessage);
     }
 
     [Fact]
@@ -99,7 +106,7 @@ public partial class PowerQueryCommandsTests
 
         // Create connection-only query
         _powerQueryCommands.Create(
-            batch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+            batch, queryName, ReadMCodeFile(mCodeFile), PowerQueryLoadMode.ConnectionOnly);
 
         // First LoadTo creates sheet with data
         var load1 = _powerQueryCommands.LoadTo(
@@ -110,7 +117,7 @@ public partial class PowerQueryCommandsTests
         var load2 = _powerQueryCommands.LoadTo(
             batch, queryName, PowerQueryLoadMode.LoadToTable, targetSheet);
         Assert.False(load2.Success, "Second LoadTo should fail when sheet already exists");
-        Assert.Contains("worksheet already exists", load2.ErrorMessage);
+        Assert.Contains("targetCellAddress", load2.ErrorMessage);
 
         // User deletes sheet manually
         _sheetCommands.Delete(batch, targetSheet);
@@ -141,9 +148,12 @@ public partial class PowerQueryCommandsTests
         // Create sheet with same name as query first
         _sheetCommands.Create(batch, queryName);
 
+        var rangeCommands = new RangeCommands();
+        rangeCommands.SetValues(batch, queryName, "A1", new List<List<object?>> { new() { "Keep" } });
+
         // Create connection-only query with same name
         _powerQueryCommands.Create(
-            batch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+            batch, queryName, ReadMCodeFile(mCodeFile), PowerQueryLoadMode.ConnectionOnly);
 
         // LoadTo with sheet already existing (bug report scenario)
         var loadResult = _powerQueryCommands.LoadTo(
@@ -152,7 +162,7 @@ public partial class PowerQueryCommandsTests
         // Assert - The bug was silent failure. Now we return clear error.
         Assert.False(loadResult.Success, "LoadTo should fail when target sheet already exists");
         Assert.NotNull(loadResult.ErrorMessage);
-        Assert.Contains("worksheet already exists", loadResult.ErrorMessage);
+        Assert.Contains("targetCellAddress", loadResult.ErrorMessage);
     }
 
     [Fact]
@@ -172,13 +182,17 @@ public partial class PowerQueryCommandsTests
 
         // Create query (connection-only) and existing sheet
         _powerQueryCommands.Create(
-            batch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+            batch, queryName, ReadMCodeFile(mCodeFile), PowerQueryLoadMode.ConnectionOnly);
         _sheetCommands.Create(batch, targetSheet);
+
+        var rangeCommands = new RangeCommands();
+        rangeCommands.SetValues(batch, targetSheet, "A1", new List<List<object?>> { new() { "Keep" } });
 
         // Verify LoadTo fails with existing sheet
         var failResult = _powerQueryCommands.LoadTo(
             batch, queryName, PowerQueryLoadMode.LoadToTable, targetSheet);
         Assert.False(failResult.Success, "LoadTo should fail with existing sheet");
+        Assert.Contains("targetCellAddress", failResult.ErrorMessage);
 
         // Delete sheet manually
         _sheetCommands.Delete(batch, targetSheet);
@@ -211,7 +225,7 @@ public partial class PowerQueryCommandsTests
 
         // Create connection-only query (no sheet exists)
         _powerQueryCommands.Create(
-            batch, queryName, mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+            batch, queryName, ReadMCodeFile(mCodeFile), PowerQueryLoadMode.ConnectionOnly);
 
         // LoadTo with non-existent sheet should succeed
         var loadResult = _powerQueryCommands.LoadTo(
@@ -223,6 +237,74 @@ public partial class PowerQueryCommandsTests
         // Verify sheet was created
         var listResult = _sheetCommands.List(batch);
         Assert.Contains(listResult.Worksheets, s => s.Name == targetSheet);
+    }
+
+    [Fact]
+    public void LoadTo_WithTargetCellOnExistingSheet_PreservesOtherData()
+    {
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
+            nameof(PowerQueryCommandsTests),
+            nameof(LoadTo_WithTargetCellOnExistingSheet_PreservesOtherData),
+            _tempDir);
+        var queryName = "TargetCellQuery";
+        var mCodeFile = CreateUniqueTestQueryFile(nameof(LoadTo_WithTargetCellOnExistingSheet_PreservesOtherData));
+        var targetSheet = "Dashboard";
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(mCodeFile), PowerQueryLoadMode.ConnectionOnly);
+        _sheetCommands.Create(batch, targetSheet);
+
+        var rangeCommands = new RangeCommands();
+        rangeCommands.SetValues(batch, targetSheet, "A1", new List<List<object?>> { new() { "KeepMe" } });
+
+        var loadResult = _powerQueryCommands.LoadTo(
+            batch,
+            queryName,
+            PowerQueryLoadMode.LoadToTable,
+            targetSheet,
+            "C5");
+
+        Assert.True(loadResult.Success, $"LoadTo with target cell failed: {loadResult.ErrorMessage}");
+        Assert.Equal("C5", loadResult.TargetCellAddress);
+
+        var preserved = rangeCommands.GetValues(batch, targetSheet, "A1:A1");
+        Assert.True(preserved.Success, preserved.ErrorMessage);
+        Assert.Equal("KeepMe", preserved.Values[0][0]?.ToString());
+
+        var headers = rangeCommands.GetValues(batch, targetSheet, "C5:D5");
+        Assert.True(headers.Success, headers.ErrorMessage);
+        Assert.Contains("Column1", headers.Values[0][0]?.ToString());
+    }
+
+    [Fact]
+    public void LoadTo_TargetCellOccupied_ReturnsError()
+    {
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
+            nameof(PowerQueryCommandsTests),
+            nameof(LoadTo_TargetCellOccupied_ReturnsError),
+            _tempDir);
+        var queryName = "OccupiedCellQuery";
+        var mCodeFile = CreateUniqueTestQueryFile(nameof(LoadTo_TargetCellOccupied_ReturnsError));
+        var targetSheet = "Existing";
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(mCodeFile), PowerQueryLoadMode.ConnectionOnly);
+        _sheetCommands.Create(batch, targetSheet);
+
+        var rangeCommands = new RangeCommands();
+        rangeCommands.SetValues(batch, targetSheet, "D4", new List<List<object?>> { new() { "Taken" } });
+
+        var loadResult = _powerQueryCommands.LoadTo(
+            batch,
+            queryName,
+            PowerQueryLoadMode.LoadToTable,
+            targetSheet,
+            "D4");
+
+        Assert.False(loadResult.Success, "LoadTo should fail when the target cell contains data");
+        Assert.Contains("already contains data", loadResult.ErrorMessage);
     }
 
     #endregion

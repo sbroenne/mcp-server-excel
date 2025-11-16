@@ -49,11 +49,18 @@ public interface IPowerQueryCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name for the new query</param>
-    /// <param name="mCodeFile">Path to M code file</param>
+    /// <param name="mCode">Raw M code (inline string)</param>
     /// <param name="loadMode">Load destination mode</param>
-    /// <param name="targetSheet">Target worksheet name (required for LoadToTable and LoadToBoth)</param>
+    /// <param name="targetSheet">Target worksheet name (required for LoadToTable and LoadToBoth; defaults to query name when omitted)</param>
+    /// <param name="targetCellAddress">Optional target cell address for worksheet loads (e.g., "B5"). Required when loading to an existing worksheet with other data.</param>
     /// <returns>PowerQueryCreateResult with creation and load tracking</returns>
-    PowerQueryCreateResult Create(IExcelBatch batch, string queryName, string mCodeFile, PowerQueryLoadMode loadMode = PowerQueryLoadMode.LoadToTable, string? targetSheet = null);
+    PowerQueryCreateResult Create(
+        IExcelBatch batch,
+        string queryName,
+        string mCode,
+        PowerQueryLoadMode loadMode = PowerQueryLoadMode.LoadToTable,
+        string? targetSheet = null,
+        string? targetCellAddress = null);
 
     /// <summary>
     /// Updates M code and refreshes data atomically
@@ -61,9 +68,9 @@ public interface IPowerQueryCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query to update</param>
-    /// <param name="mCodeFile">Path to M code file</param>
+    /// <param name="mCode">Raw M code (inline string)</param>
     /// <returns>OperationResult with update and refresh status</returns>
-    OperationResult Update(IExcelBatch batch, string queryName, string mCodeFile);
+    OperationResult Update(IExcelBatch batch, string queryName, string mCode);
 
     /// <summary>
     /// Atomically sets load destination and refreshes data
@@ -73,8 +80,14 @@ public interface IPowerQueryCommands
     /// <param name="queryName">Name of the query</param>
     /// <param name="loadMode">Load destination mode</param>
     /// <param name="targetSheet">Target worksheet name (required for LoadToTable and LoadToBoth)</param>
+    /// <param name="targetCellAddress">Optional target cell address (e.g., "B5"). Required when loading to an existing worksheet to avoid clearing other content.</param>
     /// <returns>PowerQueryLoadResult with configuration and refresh tracking</returns>
-    PowerQueryLoadResult LoadTo(IExcelBatch batch, string queryName, PowerQueryLoadMode loadMode, string? targetSheet = null);
+    PowerQueryLoadResult LoadTo(
+        IExcelBatch batch,
+        string queryName,
+        PowerQueryLoadMode loadMode,
+        string? targetSheet = null,
+        string? targetCellAddress = null);
 
     /// <summary>
     /// Converts a query to connection-only mode (removes all data loads)

@@ -306,12 +306,12 @@ internal sealed class ExcelBatch : IExcelBatch
         // Wait for STA thread to finish cleanup (with timeout)
         if (_staThread != null && _staThread.IsAlive)
         {
-            _logger.LogDebug("[Thread {CallingThread}] Calling Join() with 3s timeout on STA={STAThread}, file={FileName}", callingThread, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
+            _logger.LogDebug("[Thread {CallingThread}] Calling Join() with 30s timeout on STA={STAThread}, file={FileName}", callingThread, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
 
             // Give STA thread 10 seconds to cleanup gracefully
             // When multiple Excel instances are being disposed, Excel COM can deadlock
             // It's better to timeout and let Windows clean up than hang forever
-            if (!_staThread.Join(TimeSpan.FromSeconds(10)))
+            if (!_staThread.Join(TimeSpan.FromSeconds(30)))
             {
                 // CRITICAL: STA thread didn't exit - this means Excel.Quit() is hung
                 // Do NOT attempt cross-thread COM calls - that violates COM apartment rules
@@ -321,7 +321,7 @@ internal sealed class ExcelBatch : IExcelBatch
                 // Throw exception to signal disposal failure
                 throw new InvalidOperationException(
                     $"Excel COM cleanup timed out for '{Path.GetFileName(_workbookPath)}'. " +
-                    "The STA thread did not exit within 3 seconds, indicating Excel.Quit() is hung. " +
+                    "The STA thread did not exit within 30 seconds, indicating Excel.Quit() is hung. " +
                     "This typically occurs when Excel is showing a modal dialog or is in an unresponsive state. " +
                     "The Excel.exe process will leak and must be terminated manually.");
             }

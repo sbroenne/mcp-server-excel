@@ -53,7 +53,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 **11 specialized MCP tools** for comprehensive Excel automation:
 
-1. **Power Query & M Code** (14 actions) - Create, edit, optimize Power Query transformations with AI assistance
+1. **Power Query & M Code** (14 actions) - Create, edit, optimize Power Query transformations with AI assistance, and place QueryTables anywhere on a worksheet via `targetCellAddress`
 2. **Power Pivot / Data Model** (15 actions) - Build DAX measures, manage relationships, discover model structure, export to .dax files for Git workflows
 3. **Excel Tables** (23 actions) - Automate table creation, filtering, sorting, column management, structured references, number formatting
 4. **PivotTables** (18 actions) - Create and configure PivotTables for interactive data analysis
