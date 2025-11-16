@@ -308,10 +308,10 @@ internal sealed class ExcelBatch : IExcelBatch
         {
             _logger.LogDebug("[Thread {CallingThread}] Calling Join() with 3s timeout on STA={STAThread}, file={FileName}", callingThread, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
 
-            // Give STA thread 3 seconds to cleanup gracefully
+            // Give STA thread 10 seconds to cleanup gracefully
             // When multiple Excel instances are being disposed, Excel COM can deadlock
             // It's better to timeout and let Windows clean up than hang forever
-            if (!_staThread.Join(TimeSpan.FromSeconds(3)))
+            if (!_staThread.Join(TimeSpan.FromSeconds(10)))
             {
                 // CRITICAL: STA thread didn't exit - this means Excel.Quit() is hung
                 // Do NOT attempt cross-thread COM calls - that violates COM apartment rules
