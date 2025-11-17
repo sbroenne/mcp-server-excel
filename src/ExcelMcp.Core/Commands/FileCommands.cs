@@ -65,7 +65,9 @@ public class FileCommands : IFileCommands
             // Create Excel workbook using proper resource management
             bool isMacroEnabled = extension == ".xlsm";
 
-            return ExcelSession.CreateNew(filePath, isMacroEnabled, (ctx, ct) =>
+            // CRITICAL: CreateNew opens a batch but does NOT save automatically
+            // We must save the batch after making changes, then dispose
+            var result = ExcelSession.CreateNew(filePath, isMacroEnabled, (ctx, ct) =>
             {
                 // Set up a basic structure with proper COM cleanup
                 dynamic? sheet = null;
@@ -82,6 +84,9 @@ public class FileCommands : IFileCommands
                     comment = cell.AddComment($"Created by ExcelCLI on {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                     comment.Visible = false;
 
+                    // Save changes before the batch is disposed
+                    ctx.Book.Save();
+
                     return new OperationResult
                     {
                         Success = true,
@@ -96,6 +101,8 @@ public class FileCommands : IFileCommands
                     ComUtilities.Release(ref sheet);
                 }
             });
+
+            return result;
         }
         catch (Exception ex)
         {
