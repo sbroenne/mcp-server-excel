@@ -40,6 +40,41 @@ public interface ISheetCommands
     /// </summary>
     OperationResult Delete(IExcelBatch batch, string sheetName);
 
+    /// <summary>
+    /// Moves a worksheet to a new position within the workbook.
+    /// Use either beforeSheet OR afterSheet to specify position (not both).
+    /// If neither is specified, sheet moves to the end.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the sheet to move</param>
+    /// <param name="beforeSheet">Optional: Name of sheet to position before</param>
+    /// <param name="afterSheet">Optional: Name of sheet to position after</param>
+    OperationResult Move(IExcelBatch batch, string sheetName, string? beforeSheet = null, string? afterSheet = null);
+
+    /// <summary>
+    /// Copies a worksheet to another workbook.
+    /// Both workbooks must be open in the current MCP session.
+    /// </summary>
+    /// <param name="sourceBatch">Source workbook batch</param>
+    /// <param name="sourceSheet">Name of sheet to copy</param>
+    /// <param name="targetBatch">Target workbook batch</param>
+    /// <param name="targetSheetName">Optional: New name for the copied sheet in target workbook</param>
+    /// <param name="beforeSheet">Optional: Name of sheet in target workbook to position before</param>
+    /// <param name="afterSheet">Optional: Name of sheet in target workbook to position after</param>
+    OperationResult CopyToWorkbook(IExcelBatch sourceBatch, string sourceSheet, IExcelBatch targetBatch, string? targetSheetName = null, string? beforeSheet = null, string? afterSheet = null);
+
+    /// <summary>
+    /// Moves a worksheet to another workbook.
+    /// Both workbooks must be open in the current MCP session.
+    /// The sheet will be removed from the source workbook.
+    /// </summary>
+    /// <param name="sourceBatch">Source workbook batch</param>
+    /// <param name="sourceSheet">Name of sheet to move</param>
+    /// <param name="targetBatch">Target workbook batch</param>
+    /// <param name="beforeSheet">Optional: Name of sheet in target workbook to position before</param>
+    /// <param name="afterSheet">Optional: Name of sheet in target workbook to position after</param>
+    OperationResult MoveToWorkbook(IExcelBatch sourceBatch, string sourceSheet, IExcelBatch targetBatch, string? beforeSheet = null, string? afterSheet = null);
+
     // === TAB COLOR OPERATIONS ===
 
     /// <summary>

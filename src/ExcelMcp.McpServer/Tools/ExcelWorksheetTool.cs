@@ -33,6 +33,10 @@ REQUIRED WORKFLOW:
 TAB COLORS (set-tab-color):
 - RGB values: 0-255 for red, green, blue components
 - Example: red=255, green=0, blue=0 for red tab
+
+POSITIONING (move, copy-to-workbook, move-to-workbook):
+- Use beforeSheet OR afterSheet (not both) to specify relative position
+- If neither specified, sheet is positioned at the end
 ")]
     public static string ExcelWorksheet(
         [Required]
@@ -50,8 +54,21 @@ TAB COLORS (set-tab-color):
 
         [StringLength(31, MinimumLength = 1)]
         [RegularExpression(@"^[^[\]/*?\\:]+$")]
-        [Description("New sheet name (for rename) or target sheet name (for copy)")]
+        [Description("New sheet name (for rename) or target sheet name (for copy/copy-to-workbook)")]
         string? targetName = null,
+
+        [Description("Target workbook session ID (for copy-to-workbook and move-to-workbook actions)")]
+        string? targetSessionId = null,
+
+        [StringLength(31, MinimumLength = 1)]
+        [RegularExpression(@"^[^[\]/*?\\:]+$")]
+        [Description("Position sheet before this sheet (for move, copy-to-workbook, move-to-workbook)")]
+        string? beforeSheet = null,
+
+        [StringLength(31, MinimumLength = 1)]
+        [RegularExpression(@"^[^[\]/*?\\:]+$")]
+        [Description("Position sheet after this sheet (for move, copy-to-workbook, move-to-workbook)")]
+        string? afterSheet = null,
 
         [Range(0, 255)]
         [Description("Red component (0-255) for set-tab-color action")]
@@ -81,6 +98,9 @@ TAB COLORS (set-tab-color):
                 WorksheetAction.Delete => DeleteAsync(sheetCommands, sessionId, sheetName),
                 WorksheetAction.Rename => RenameAsync(sheetCommands, sessionId, sheetName, targetName),
                 WorksheetAction.Copy => CopyAsync(sheetCommands, sessionId, sheetName, targetName),
+                WorksheetAction.Move => MoveAsync(sheetCommands, sessionId, sheetName, beforeSheet, afterSheet),
+                WorksheetAction.CopyToWorkbook => CopyToWorkbookAsync(sheetCommands, sessionId, sheetName, targetSessionId, targetName, beforeSheet, afterSheet),
+                WorksheetAction.MoveToWorkbook => MoveToWorkbookAsync(sheetCommands, sessionId, sheetName, targetSessionId, beforeSheet, afterSheet),
                 WorksheetAction.SetTabColor => SetTabColorAsync(sheetCommands, sessionId, sheetName, red, green, blue),
                 WorksheetAction.GetTabColor => GetTabColorAsync(sheetCommands, sessionId, sheetName),
                 WorksheetAction.ClearTabColor => ClearTabColorAsync(sheetCommands, sessionId, sheetName),
@@ -385,6 +405,96 @@ TAB COLORS (set-tab-color):
             result.Success,
             result.ErrorMessage,
             workflowHint = result.Success ? "Sheet now very-hidden (not visible even in VBA, requires code to unhide)" : null
+        }, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string MoveAsync(
+        SheetCommands sheetCommands,
+        string sessionId,
+        string? sheetName,
+        string? beforeSheet,
+        string? afterSheet)
+    {
+        if (string.IsNullOrEmpty(sheetName))
+            throw new ArgumentException("sheetName is required for move action", nameof(sheetName));
+
+        var result = ExcelToolsBase.WithSession(
+            sessionId,
+            batch => sheetCommands.Move(batch, sheetName, beforeSheet, afterSheet));
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage
+        }, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string CopyToWorkbookAsync(
+        SheetCommands sheetCommands,
+        string sessionId,
+        string? sheetName,
+        string? targetSessionId,
+        string? targetName,
+        string? beforeSheet,
+        string? afterSheet)
+    {
+        if (string.IsNullOrEmpty(sheetName))
+            throw new ArgumentException("sheetName is required for copy-to-workbook action", nameof(sheetName));
+
+        if (string.IsNullOrEmpty(targetSessionId))
+            throw new ArgumentException("targetSessionId is required for copy-to-workbook action", nameof(targetSessionId));
+
+        // Resolve both sessions
+        var sessionManager = ExcelToolsBase.GetSessionManager();
+        var sourceBatch = sessionManager.GetSession(sessionId);
+        var targetBatch = sessionManager.GetSession(targetSessionId);
+
+        if (sourceBatch == null)
+            throw new InvalidOperationException($"Source session '{sessionId}' not found");
+
+        if (targetBatch == null)
+            throw new InvalidOperationException($"Target session '{targetSessionId}' not found");
+
+        var result = sheetCommands.CopyToWorkbook(sourceBatch, sheetName, targetBatch, targetName, beforeSheet, afterSheet);
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage
+        }, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string MoveToWorkbookAsync(
+        SheetCommands sheetCommands,
+        string sessionId,
+        string? sheetName,
+        string? targetSessionId,
+        string? beforeSheet,
+        string? afterSheet)
+    {
+        if (string.IsNullOrEmpty(sheetName))
+            throw new ArgumentException("sheetName is required for move-to-workbook action", nameof(sheetName));
+
+        if (string.IsNullOrEmpty(targetSessionId))
+            throw new ArgumentException("targetSessionId is required for move-to-workbook action", nameof(targetSessionId));
+
+        // Resolve both sessions
+        var sessionManager = ExcelToolsBase.GetSessionManager();
+        var sourceBatch = sessionManager.GetSession(sessionId);
+        var targetBatch = sessionManager.GetSession(targetSessionId);
+
+        if (sourceBatch == null)
+            throw new InvalidOperationException($"Source session '{sessionId}' not found");
+
+        if (targetBatch == null)
+            throw new InvalidOperationException($"Target session '{targetSessionId}' not found");
+
+        var result = sheetCommands.MoveToWorkbook(sourceBatch, sheetName, targetBatch, beforeSheet, afterSheet);
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 }
