@@ -1,6 +1,16 @@
 # robots.txt for Excel MCP Server documentation
 User-agent: *
 Allow: /
+Sitemap: https://sbroenne.github.io/mcp-server-excel/sitemap.xml
+
+# Prioritize important pages
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
 
 # Sitemap location
 Sitemap: https://sbroenne.github.io/mcp-server-excel/sitemap.xml
