@@ -1,6 +1,5 @@
 # Excel MCP Server - AI-Powered Excel Automation
 
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/sbroenne.excel-mcp)](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)
 [![GitHub](https://img.shields.io/badge/GitHub-sbroenne%2Fmcp--server--excel-blue)](https://github.com/sbroenne/mcp-server-excel)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -22,6 +21,14 @@ Instead of clicking through Excel menus, simply ask:
 - *"Find all cells containing 'Q1 2024' and replace with 'Q1 2025'"*
 - *"Add data validation dropdowns to Status column with options: Active, Pending, Completed"*
 
+**🛡️ 100% Safe - Uses Excel's Native API**
+
+Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), Excel MCP Server uses **Excel's official COM API**. This ensures:
+- ✅ **Zero risk of document corruption** - Excel handles all file operations safely
+- ✅ **Interactive development** - See changes in real-time as you work with live Excel files
+- ✅ **Comprehensive automation** - Currently supports 163 operations across 12 specialized tools
+
+
 **Quick Example:**
 
 ```
@@ -35,13 +42,6 @@ Copilot uses Excel MCP Server to:
 
 Result: A working Excel file with the query ready to use
 ```
-
-**🛡️ 100% Safe - Uses Excel's Native API**
-
-Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), Excel MCP Server uses **Excel's official COM API**. This ensures:
-- ✅ **Zero risk of document corruption** - Excel handles all file operations safely
-- ✅ **Interactive development** - See changes in real-time as you work with live Excel files
-- ✅ **Comprehensive automation** - Currently supports 163 operations across 12 specialized tools
 
 ## 👥 Who Should Use This?
 
