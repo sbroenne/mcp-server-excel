@@ -115,6 +115,7 @@ DATA FORMAT:
 
         // === FORMATTING PARAMETERS ===
 
+
         [Description("Built-in Excel style name (for set-style: 'Heading 1', 'Accent1', 'Good', 'Total', 'Currency', 'Percent', 'Normal', etc. - recommended for consistent formatting)")]
         string? styleName = null,
 
@@ -161,6 +162,7 @@ DATA FORMAT:
         int? orientation = null,
 
         // === VALIDATION PARAMETERS ===
+
 
         [Description("Data validation type (for validate-range: list, whole, decimal, date, time, textLength, custom)")]
         string? validationType = null,
