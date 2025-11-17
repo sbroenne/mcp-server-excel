@@ -100,7 +100,7 @@ public partial class RangeCommandsTests
         // Simulate MCP framework JSON deserialization
         // MCP receives: {"formulas": [["=SUM(A1:A3)", "=AVERAGE(A1:A3)"]]}
         // Framework deserializes to List<List<string>> where each string is JsonElement
-        string json = """[[""=SUM(A1:A3)"", ""=AVERAGE(A1:A3)""]]""";
+        string json = """[["=SUM(A1:A3)", "=AVERAGE(A1:A3)"]]""";
         var jsonDoc = System.Text.Json.JsonDocument.Parse(json);
 
         var testFormulas = new List<List<string>>();
@@ -177,10 +177,10 @@ public partial class RangeCommandsTests
         // Using IF and AVERAGE functions
         var performanceFormulas = new List<List<string>>
         {
-            new() { """=IF(AVERAGE(B2:E2)>20000,""Excellent"",IF(AVERAGE(B2:E2)>15000,""Good"",""Average""))""" },
-            new() { """=IF(AVERAGE(B3:E3)>20000,""Excellent"",IF(AVERAGE(B3:E3)>15000,""Good"",""Average""))""" },
-            new() { """=IF(AVERAGE(B4:E4)>20000,""Excellent"",IF(AVERAGE(B4:E4)>15000,""Good"",""Average""))""" },
-            new() { """=IF(AVERAGE(B5:E5)>20000,""Excellent"",IF(AVERAGE(B5:E5)>15000,""Good"",""Average""))""" }
+            new() { """=IF(AVERAGE(B2:E2)>20000,"Excellent",IF(AVERAGE(B2:E2)>15000,"Good","Average"))""" },
+            new() { """=IF(AVERAGE(B3:E3)>20000,"Excellent",IF(AVERAGE(B3:E3)>15000,"Good","Average"))""" },
+            new() { """=IF(AVERAGE(B4:E4)>20000,"Excellent",IF(AVERAGE(B4:E4)>15000,"Good","Average"))""" },
+            new() { """=IF(AVERAGE(B5:E5)>20000,"Excellent",IF(AVERAGE(B5:E5)>15000,"Good","Average"))""" }
         };
         var perfResult = _commands.SetFormulas(batch, "Sheet1", "G2:G5", performanceFormulas);
         Assert.True(perfResult.Success, $"Failed to set performance formulas: {perfResult.ErrorMessage}");
