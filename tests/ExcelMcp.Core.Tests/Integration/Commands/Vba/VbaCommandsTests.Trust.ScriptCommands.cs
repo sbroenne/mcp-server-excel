@@ -34,12 +34,11 @@ public partial class VbaCommandsTests
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(VbaCommandsTests), nameof(ScriptCommands_Import_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
 
-        string vbaFile = Path.Join(_tempDir, $"TestModule_{Guid.NewGuid():N}.vba");
-        System.IO.File.WriteAllText(vbaFile, "Sub TestImport()\nEnd Sub");
+        string vbaCode = "Sub TestImport()\nEnd Sub";
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _scriptCommands.Import(batch, "TestModule", vbaFile);
+        var result = _scriptCommands.Import(batch, "TestModule", vbaCode);
 
         // Assert - Should succeed when VBA trust is enabled (as in CI environment)
         Assert.True(result.Success, $"Import should succeed with VBA trust enabled. Error: {result.ErrorMessage}");
@@ -54,11 +53,10 @@ public partial class VbaCommandsTests
             nameof(VbaCommandsTests), nameof(ScriptCommands_Export_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
 
         // First import a module so we have something to export
-        string vbaFile = Path.Join(_tempDir, $"ImportModule_{Guid.NewGuid():N}.vba");
-        System.IO.File.WriteAllText(vbaFile, "Sub TestCode()\nEnd Sub");
+        string vbaCode = "Sub TestCode()\nEnd Sub";
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        var importResult = _scriptCommands.Import(batch, "TestModule", vbaFile);
+        var importResult = _scriptCommands.Import(batch, "TestModule", vbaCode);
         Assert.True(importResult.Success, "Import should succeed before export test");
 
         // Act - View (export) the module we just imported
@@ -79,14 +77,12 @@ public partial class VbaCommandsTests
             nameof(VbaCommandsTests), nameof(ScriptCommands_Run_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
 
         // Import a test macro first
-        string vbaFile = Path.Join(_tempDir, $"TestModule_{Guid.NewGuid():N}.vba");
         string vbaCode = @"Sub TestProcedure()
     ' Simple test procedure
 End Sub";
-        System.IO.File.WriteAllText(vbaFile, vbaCode);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        var importResult = _scriptCommands.Import(batch, "TestModule", vbaFile);
+        var importResult = _scriptCommands.Import(batch, "TestModule", vbaCode);
         Assert.True(importResult.Success);
 
         // Act - Run the macro
@@ -105,11 +101,10 @@ End Sub";
             nameof(VbaCommandsTests), nameof(ScriptCommands_Delete_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
 
         // Import a module first
-        string vbaFile = Path.Join(_tempDir, $"TestModule_{Guid.NewGuid():N}.vba");
-        System.IO.File.WriteAllText(vbaFile, "Sub TestCode()\nEnd Sub");
+        string vbaCode = "Sub TestCode()\nEnd Sub";
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        var importResult = _scriptCommands.Import(batch, "TestModule", vbaFile);
+        var importResult = _scriptCommands.Import(batch, "TestModule", vbaCode);
         Assert.True(importResult.Success);
 
         // Act - Delete the module
@@ -132,12 +127,10 @@ End Sub";
             nameof(VbaCommandsTests), nameof(ScriptCommands_View_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
 
         // Import a module with known code
-        string vbaFile = Path.Join(_tempDir, $"ViewTestModule_{Guid.NewGuid():N}.vba");
         string expectedCode = "Sub ViewTest()\n    MsgBox \"Hello\"\nEnd Sub";
-        System.IO.File.WriteAllText(vbaFile, expectedCode);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        var importResult = _scriptCommands.Import(batch, "ViewTestModule", vbaFile);
+        var importResult = _scriptCommands.Import(batch, "ViewTestModule", expectedCode);
         Assert.True(importResult.Success, "Import should succeed before view test");
 
         // Act - View the module code
@@ -159,21 +152,17 @@ End Sub";
             nameof(VbaCommandsTests), nameof(ScriptCommands_Update_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
 
         // Import initial module
-        string vbaFile = Path.Join(_tempDir, $"UpdateTestModule_{Guid.NewGuid():N}.vba");
         string initialCode = "Sub OriginalCode()\nEnd Sub";
-        System.IO.File.WriteAllText(vbaFile, initialCode);
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        var importResult = _scriptCommands.Import(batch, "UpdateTestModule", vbaFile);
+        var importResult = _scriptCommands.Import(batch, "UpdateTestModule", initialCode);
         Assert.True(importResult.Success, "Import should succeed before update test");
 
         // Prepare updated code
-        string updatedVbaFile = Path.Join(_tempDir, $"UpdatedModule_{Guid.NewGuid():N}.vba");
         string updatedCode = "Sub UpdatedCode()\n    MsgBox \"Updated\"\nEnd Sub";
-        System.IO.File.WriteAllText(updatedVbaFile, updatedCode);
 
         // Act - Update the module with new code
-        var result = _scriptCommands.Update(batch, "UpdateTestModule", updatedVbaFile);
+        var result = _scriptCommands.Update(batch, "UpdateTestModule", updatedCode);
 
         // Assert - Should succeed
         Assert.True(result.Success, $"Update should succeed with VBA trust enabled. Error: {result.ErrorMessage}");

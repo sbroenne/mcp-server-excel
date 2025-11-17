@@ -2,7 +2,6 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.DataModel;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Core.Security;
 
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -227,112 +226,6 @@ public partial class DataModelCommands
             }
 
             return result;
-        });
-    }
-
-    /// <inheritdoc />
-    public OperationResult ExportMeasure(IExcelBatch batch, string measureName, string outputFile)
-    {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "model-export-measure"
-        };
-
-        // Validate and normalize output file path
-        try
-        {
-            outputFile = PathValidator.ValidateOutputFile(outputFile, nameof(outputFile), allowOverwrite: true);
-        }
-        catch (Exception ex)
-        {
-            result.Success = false;
-            result.ErrorMessage = $"Invalid output file path: {ex.Message}";
-            return result;
-        }
-
-        return batch.Execute((ctx, ct) =>
-        {
-            dynamic? model = null;
-            dynamic? measure = null;
-            try
-            {
-                // Check if workbook has Data Model
-                if (!HasDataModelTables(ctx.Book))
-                {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
-                    return result;
-                }
-
-                model = ctx.Book.Model;
-
-                // Find the measure
-                measure = FindModelMeasure(model, measureName);
-                if (measure == null)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.MeasureNotFound(measureName);
-                    return result;
-                }
-
-                // Get measure details using safe helpers
-                string daxFormula = ComUtilities.SafeGetString(measure, "Formula");
-                string description = ComUtilities.SafeGetString(measure, "Description");
-                string tableName = GetMeasureTableName(model, measureName) ?? "";
-                string? formatString = null;
-
-                // Try to get format information
-                try
-                {
-                    dynamic? formatInfo = measure.FormatInformation;
-                    if (formatInfo != null)
-                    {
-                        try
-                        {
-                            formatString = formatInfo.FormatString?.ToString();
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref formatInfo);
-                        }
-                    }
-                }
-                catch { }
-
-                // Build DAX file content with metadata
-                var daxContent = new System.Text.StringBuilder();
-                daxContent.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"-- Measure: {measureName}");
-                daxContent.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"-- Table: {tableName}");
-                if (!string.IsNullOrEmpty(description))
-                {
-                    daxContent.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"-- Description: {description}");
-                }
-                if (!string.IsNullOrEmpty(formatString))
-                {
-                    daxContent.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"-- Format: {formatString}");
-                }
-                daxContent.AppendLine();
-                daxContent.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"{measureName} :=");
-                daxContent.AppendLine(daxFormula);
-
-                // Write to file
-                File.WriteAllText(outputFile, daxContent.ToString());
-
-                result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed("exporting measure", ex.Message);
-                return result;
-            }
-            finally
-            {
-                ComUtilities.Release(ref measure);
-                ComUtilities.Release(ref model);
-            }
         });
     }
 

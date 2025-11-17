@@ -46,7 +46,6 @@ internal sealed class DataModelCommand : Command<DataModelCommand.Settings>
             "read-info" or "info" => WriteResult(_dataModelCommands.ReadInfo(batch)),
             "list-measures" => ExecuteListMeasures(batch, settings),
             "read" or "read-measure" or "get-measure" => ExecuteReadMeasure(batch, settings),
-            "export-measure" => ExecuteExportMeasure(batch, settings),
             "create-measure" => ExecuteCreateMeasure(batch, settings),
             "update-measure" => ExecuteUpdateMeasure(batch, settings),
             "delete-measure" => ExecuteDeleteMeasure(batch, settings),
@@ -92,20 +91,6 @@ internal sealed class DataModelCommand : Command<DataModelCommand.Settings>
         }
 
         return WriteResult(_dataModelCommands.Read(batch, measure));
-    }
-
-    private int ExecuteExportMeasure(IExcelBatch batch, Settings settings)
-    {
-        if (!TryGetMeasure(settings, out var measure) || string.IsNullOrWhiteSpace(settings.OutputPath))
-        {
-            if (string.IsNullOrWhiteSpace(settings.OutputPath))
-            {
-                _console.WriteError("--output is required for export-measure.");
-            }
-            return -1;
-        }
-
-        return WriteResult(_dataModelCommands.ExportMeasure(batch, measure, settings.OutputPath!));
     }
 
     private int ExecuteCreateMeasure(IExcelBatch batch, Settings settings)

@@ -19,14 +19,14 @@ public interface IVbaCommands
     VbaViewResult View(IExcelBatch batch, string moduleName);
 
     /// <summary>
-    /// Imports VBA code from a file to create a new module
+    /// Imports VBA code to create a new module
     /// </summary>
-    OperationResult Import(IExcelBatch batch, string moduleName, string vbaFile);
+    OperationResult Import(IExcelBatch batch, string moduleName, string vbaCode);
 
     /// <summary>
     /// Updates an existing VBA module with new code
     /// </summary>
-    OperationResult Update(IExcelBatch batch, string moduleName, string vbaFile);
+    OperationResult Update(IExcelBatch batch, string moduleName, string vbaCode);
 
     /// <summary>
     /// Runs a VBA procedure with optional parameters

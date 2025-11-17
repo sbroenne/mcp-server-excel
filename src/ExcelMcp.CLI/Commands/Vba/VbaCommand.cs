@@ -138,7 +138,14 @@ internal sealed class VbaCommand : Command<VbaCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_vbaCommands.Import(batch, moduleName, settings.CodeFile));
+        if (!System.IO.File.Exists(settings.CodeFile))
+        {
+            _console.WriteError($"File not found: {settings.CodeFile}");
+            return -1;
+        }
+
+        string vbaCode = System.IO.File.ReadAllText(settings.CodeFile);
+        return WriteResult(_vbaCommands.Import(batch, moduleName, vbaCode));
     }
 
     private int ExecuteUpdate(IExcelBatch batch, Settings settings)
@@ -154,7 +161,14 @@ internal sealed class VbaCommand : Command<VbaCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_vbaCommands.Update(batch, moduleName, settings.CodeFile));
+        if (!System.IO.File.Exists(settings.CodeFile))
+        {
+            _console.WriteError($"File not found: {settings.CodeFile}");
+            return -1;
+        }
+
+        string vbaCode = System.IO.File.ReadAllText(settings.CodeFile);
+        return WriteResult(_vbaCommands.Update(batch, moduleName, vbaCode));
     }
 
     private int ExecuteDelete(IExcelBatch batch, Settings settings)

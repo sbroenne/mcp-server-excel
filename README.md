@@ -70,7 +70,7 @@ Result: A professionally optimized Power Query with documented improvements
 Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), ExcelMcp uses **Excel's official COM API**. This ensures:
 - ✅ **Zero risk of document corruption** - Excel handles all file operations safely
 - ✅ **Interactive development** - See changes in real-time, create → test → refine → iterate instantly
-- ✅ **Comprehensive automation** - Currently supports 168 operations across 12 specialized tools covering Power Query, Data Model/DAX, VBA, PivotTables, Excel Tables, ranges, conditional formatting, and more
+- ✅ **Comprehensive automation** - Currently supports 163 operations across 12 specialized tools covering Power Query, Data Model/DAX, VBA, PivotTables, Excel Tables, ranges, conditional formatting, and more
 
 **💻 For Developers:** Think of Excel as an AI-powered REPL - write code (Power Query M, DAX, VBA), execute instantly, inspect results visually in the live workbook. No more blind editing of .xlsx files.
 
@@ -95,20 +95,20 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 ## 🎯 What You Can Do
 
 **Development & Automation:**
-- 🔄 **Power Query** - 16 operations: **atomic workflows** (create, update-and-refresh, refresh-all), manage transformations, load configurations (worksheet, data model, connection only), error diagnostics, M code evaluation
-- 📊 **Power Pivot (Data Model)** - 15 operations: build DAX measures, manage relationships, discover model structure (tables, columns), export to .dax files
+- 🔄 **Power Query** - 11 operations: **atomic workflows** (create, update-and-refresh, refresh-all), manage transformations, load configurations (worksheet, data model, connection only), M code evaluation
+- 📊 **Power Pivot (Data Model)** - 14 operations: build DAX measures, manage relationships, discover model structure (tables, columns)
 - 🎨 **Excel Tables** - 26 operations: automate formatting, filtering, sorting, structured references, number formats, column management
 - 📈 **PivotTables** - 20 operations: create and configure PivotTables for interactive analysis
 - 📝 **VBA Macros** - 7 operations: export/import/run VBA code, integrate with version control
 - 📋 **Ranges & Data** - 45 operations: values, formulas, copy/paste, find/replace, formatting, validation, merge, conditional formatting, cell protection
 - 📄 **Worksheets** - 13 operations: lifecycle management, tab colors, visibility controls
-- 🔌 **Connections** - 11 operations: manage OLEDB, ODBC, Text, Web data sources
+- 🔌 **Connections** - 9 operations: manage OLEDB, ODBC, Text, Web data sources
 - 🏷️ **Named Ranges** - 7 operations: named range management and bulk operations
 
 <details>
 <summary>📚 <strong>See Complete Feature List (100+ Operations)</strong></summary>
 
-### Power Query & M Code (16 operations)
+### Power Query & M Code (11 operations)
 **✨ NEW: Atomic Operations** - Single-call workflows replace multi-step patterns:
 - **Create** - Import + load in one operation (replaces import → load workflow)
 - **Update & Refresh** - Update M code + refresh data atomically
@@ -117,20 +117,17 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 - **Unload** - Convert loaded query to connection-only
 
 **Core Operations:**
-- Create, read, update, delete Power Query transformations
-- Export/import M code for version control
+- List, view, delete Power Query transformations
 - Manage query load destinations (worksheet/data model/connection-only/both)
-- Set privacy levels for data source combinations
 - Get load configuration for existing queries
-- Error diagnostics and M code evaluation
 - List Excel workbook sources for Power Query integration
 
-### Data Model & DAX (Power Pivot) (15 operations)
+### Data Model & DAX (Power Pivot) (14 operations)
 - Create/update/delete DAX measures with format types (Currency, Percentage, Decimal, General)
 - Manage table relationships (create, toggle active/inactive, delete)
 - Discover model structure (tables, columns, measures, relationships)
-- Export measures to .dax files for Git workflows
 - Get comprehensive model information
+- Refresh data model
 - **Note:** DAX calculated columns are not supported (use Excel UI for calculated columns)
 
 ### Excel Tables (ListObjects) (26 operations)
@@ -350,20 +347,20 @@ This means you get:
 
 **12 specialized tools for comprehensive Excel automation:**
 
-1. **excel_powerquery** (16 actions) - Power Query M code: create, view, import, export, update, delete, manage load destinations, privacy levels, errors, eval, list Excel sources, and place QueryTables precisely with `targetCellAddress`
-2. **excel_datamodel** (15 actions) - Power Pivot (Data Model): CRUD DAX measures/relationships, discover structure (tables, columns), export to .dax files
+1. **excel_powerquery** (11 actions) - Power Query M code: create, view, update, delete, refresh, load configuration, list Excel sources
+2. **excel_datamodel** (14 actions) - Power Pivot (Data Model): CRUD DAX measures/relationships, discover structure (tables, columns), refresh
 3. **excel_table** (26 actions) - Excel Tables: lifecycle, columns, filters, sorts, structured references, totals, number formatting, Data Model integration
 4. **excel_pivottable** (20 actions) - PivotTables: create from ranges/tables, field management (row/column/value/filter), aggregations, filters, sorting, extract data
 5. **excel_range** (43 actions) - Ranges: get/set values/formulas, number formatting, visual formatting (font, fill, border, alignment), data validation, clear, copy, insert/delete, find/replace, sort, hyperlinks, merge, cell protection
 6. **excel_conditionalformat** (2 actions) - Conditional Formatting: add rules (cell value, expression-based), clear rules
-7. **excel_vba** (7 actions) - VBA: list, view, export, import, update, run, delete modules
-8. **excel_connection** (11 actions) - Connections: OLEDB/ODBC/Text/Web management, properties, refresh, test
+7. **excel_vba** (6 actions) - VBA: list, view, import, update, run, delete modules
+8. **excel_connection** (9 actions) - Connections: OLEDB/ODBC/Text/Web management, properties, refresh, test
 9. **excel_worksheet** (13 actions) - Worksheets: lifecycle (list, create, rename, copy, delete), tab colors (set-tab-color, get-tab-color, clear-tab-color), visibility (set-visibility, get-visibility, show, hide, very-hide)
 10. **excel_namedrange** (7 actions) - Named ranges: list, get, set, create, create-bulk, delete, update
 11. **excel_querytable** (8 actions) - QueryTables: create from connections/queries, refresh, update properties, delete
 12. **excel_file** (6 actions) - File operations: create empty, open, save, close, close-workbook, test
 
-**Total: 12 tools with 168 actions**
+**Total: 12 tools with 163 actions**
 
 > 📚 **[Complete MCP Server Guide →](src/ExcelMcp.McpServer/README.md)** - Detailed tool documentation and examples
 

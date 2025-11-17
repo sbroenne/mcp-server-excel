@@ -2,7 +2,6 @@ using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Core.Security;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -261,25 +260,13 @@ public partial class VbaCommands
     }
 
     /// <inheritdoc />
-    public OperationResult Import(IExcelBatch batch, string moduleName, string vbaFile)
+    public OperationResult Import(IExcelBatch batch, string moduleName, string vbaCode)
     {
         var result = new OperationResult
         {
             FilePath = batch.WorkbookPath,
             Action = "vba-import"
         };
-
-        // Validate and normalize the VBA file path to prevent path traversal attacks
-        try
-        {
-            vbaFile = PathValidator.ValidateExistingFile(vbaFile, nameof(vbaFile));
-        }
-        catch (Exception ex)
-        {
-            result.Success = false;
-            result.ErrorMessage = $"Invalid VBA file path: {ex.Message}";
-            return result;
-        }
 
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
@@ -294,8 +281,6 @@ public partial class VbaCommands
         {
             return CreateVbaTrustGuidance();
         }
-
-        string vbaCode = File.ReadAllText(vbaFile);
 
         return batch.Execute((ctx, ct) =>
         {
@@ -363,25 +348,13 @@ public partial class VbaCommands
     }
 
     /// <inheritdoc />
-    public OperationResult Update(IExcelBatch batch, string moduleName, string vbaFile)
+    public OperationResult Update(IExcelBatch batch, string moduleName, string vbaCode)
     {
         var result = new OperationResult
         {
             FilePath = batch.WorkbookPath,
             Action = "vba-update"
         };
-
-        // Validate and normalize the VBA file path to prevent path traversal attacks
-        try
-        {
-            vbaFile = PathValidator.ValidateExistingFile(vbaFile, nameof(vbaFile));
-        }
-        catch (Exception ex)
-        {
-            result.Success = false;
-            result.ErrorMessage = $"Invalid VBA file path: {ex.Message}";
-            return result;
-        }
 
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
@@ -396,8 +369,6 @@ public partial class VbaCommands
         {
             return CreateVbaTrustGuidance();
         }
-
-        string vbaCode = File.ReadAllText(vbaFile);
 
         return batch.Execute((ctx, ct) =>
         {

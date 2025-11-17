@@ -42,7 +42,7 @@ Requires Windows OS + Microsoft Excel 2016+
 
 <div class="features-grid">
 <div class="feature-card">
-<h3>168 Operations</h3>
+<h3>163 Operations</h3>
 <p>12 specialized tools covering Power Query, DAX, VBA, PivotTables, ranges, conditional formatting, and more</p>
 </div>
 
@@ -63,7 +63,7 @@ Requires Windows OS + Microsoft Excel 2016+
 
 <div class="feature-card">
 <h3>Comprehensive Automation</h3>
-<p>Power Query, Power Pivot, VBA, Tables, ranges, formatting</p>
+<p>163 operations covering Power Query, DAX, VBA, Tables, and more</p>
 </div>
 
 <div class="feature-card">
@@ -180,7 +180,7 @@ excel-mcp vba-export --file "macro-workbook.xlsm" --module "Module1" --output "s
 <li><strong>Natural Language Control:</strong> Describe tasks in plain English</li>
 <li><strong>Safe:</strong> Official COM API - zero corruption risk</li>
 <li><strong>Interactive:</strong> See changes in real-time in Excel</li>
-<li><strong>Comprehensive:</strong> 168 operations across 12 tools</li>
+<li><strong>Comprehensive:</strong> 163 operations across 12 tools</li>
 <li><strong>Works with:</strong> GitHub Copilot, Claude, ChatGPT, and any MCP client</li>
 </ul>
 </div>
@@ -199,7 +199,7 @@ excel-mcp vba-export --file "macro-workbook.xlsm" --module "Module1" --output "s
 
 <div class="callout">
 <strong>Both Share the Same Core</strong>
-Same 168 operations available via CLI and MCP. Consistent behavior across interfaces. Full .NET library available for custom integrations.
+Same 163 operations available via CLI and MCP. Consistent behavior across interfaces. Full .NET library available for custom integrations.
 </div>
 
 ## Related Projects

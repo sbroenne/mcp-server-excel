@@ -26,12 +26,17 @@ public static class ExcelConnectionTool
     [Description(@"Manage Excel data connections (OLEDB, ODBC, Text, Web).
 
 CONNECTION TYPES SUPPORTED:
-- OLEDB: SQL Server, Access, Oracle databases
-- ODBC: ODBC data sources
-- Text: CSV/text file imports
-- Web: Web queries and APIs
+- OLEDB: SQL Server, Access, Oracle databases (view/manage only - cannot create via COM)
+- ODBC: ODBC data sources (view/manage only - cannot create via COM)
+- Text: CSV/text file imports (full CRUD support)
+- Web: Web queries and APIs (full CRUD support)
 - DataFeed: OData and data feeds
 - Model: Data Model connections
+
+⚠️ CREATE LIMITATION:
+- OLEDB/ODBC connections CANNOT be created via COM API (Excel limitation)
+- Create these in Excel UI (Data → Get Data), then manage them with this tool
+- TEXT and WEB connections CAN be created programmatically
 
 POWER QUERY AUTO-REDIRECT:
 - Power Query connections automatically redirect to excel_powerquery tool
@@ -64,9 +69,6 @@ POWER QUERY AUTO-REDIRECT:
         [Description("Connection description (for create action, optional)")]
         string? description = null,
 
-        [Description("JSON file path for import/update")]
-        string? targetPath = null,
-
         [StringLength(31, MinimumLength = 1)]
         [Description("Sheet name for loadto action")]
         string? sheetName = null,
@@ -93,8 +95,6 @@ POWER QUERY AUTO-REDIRECT:
                 ConnectionAction.List => ListConnectionsAsync(connectionCommands, sessionId),
                 ConnectionAction.View => ViewConnectionAsync(connectionCommands, sessionId, connectionName),
                 ConnectionAction.Create => CreateConnectionAsync(connectionCommands, sessionId, connectionName, connectionString, commandText, description),
-                ConnectionAction.Import => ImportConnectionAsync(connectionCommands, sessionId, connectionName, targetPath),
-                ConnectionAction.UpdateProperties => UpdateConnectionAsync(connectionCommands, sessionId, connectionName, targetPath),
                 ConnectionAction.Refresh => RefreshConnectionAsync(connectionCommands, excelPath, sessionId, connectionName),
                 ConnectionAction.Delete => DeleteConnectionAsync(connectionCommands, sessionId, connectionName),
                 ConnectionAction.Test => TestConnectionAsync(connectionCommands, sessionId, connectionName),
@@ -150,46 +150,6 @@ POWER QUERY AUTO-REDIRECT:
             result.ConnectionString,
             result.CommandText,
             result.IsPowerQuery
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string ImportConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName, string? jsonPath)
-    {
-        if (string.IsNullOrEmpty(connectionName))
-            throw new ArgumentException("connectionName is required for import action", nameof(connectionName));
-
-        if (string.IsNullOrEmpty(jsonPath))
-            throw new ArgumentException("targetPath (JSON file path) is required for import action", nameof(jsonPath));
-
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.Import(batch, connectionName, jsonPath));
-
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        // Add workflow hints
-        return JsonSerializer.Serialize(new
-        {
-            result.Success
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string UpdateConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName, string? jsonPath)
-    {
-        if (string.IsNullOrEmpty(connectionName))
-            throw new ArgumentException("connectionName is required for update action", nameof(connectionName));
-
-        if (string.IsNullOrEmpty(jsonPath))
-            throw new ArgumentException("targetPath (JSON file path) is required for update action", nameof(jsonPath));
-
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.UpdateProperties(batch, connectionName, jsonPath));
-
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 

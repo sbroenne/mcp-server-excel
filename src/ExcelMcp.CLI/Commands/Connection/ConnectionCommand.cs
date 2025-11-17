@@ -43,8 +43,6 @@ internal sealed class ConnectionCommand : Command<ConnectionCommand.Settings>
             "list" => WriteResult(_connectionCommands.List(batch)),
             "view" => ExecuteView(batch, settings),
             "create" => ExecuteCreate(batch, settings),
-            "import" => ExecuteImport(batch, settings),
-            "update-properties" => ExecuteUpdateProperties(batch, settings),
             "refresh" => ExecuteRefresh(batch, settings),
             "delete" => ExecuteDelete(batch, settings),
             "load-to" => ExecuteLoadTo(batch, settings),
@@ -82,26 +80,6 @@ internal sealed class ConnectionCommand : Command<ConnectionCommand.Settings>
             settings.ConnectionString!,
             settings.CommandText,
             settings.Description));
-    }
-
-    private int ExecuteImport(IExcelBatch batch, Settings settings)
-    {
-        if (!TryGetName(settings, out var name) || !TryGetExistingFile(settings.JsonFile, "--json-file", out var path))
-        {
-            return -1;
-        }
-
-        return WriteResult(_connectionCommands.Import(batch, name, path));
-    }
-
-    private int ExecuteUpdateProperties(IExcelBatch batch, Settings settings)
-    {
-        if (!TryGetName(settings, out var name) || !TryGetExistingFile(settings.JsonFile, "--json-file", out var path))
-        {
-            return -1;
-        }
-
-        return WriteResult(_connectionCommands.UpdateProperties(batch, name, path));
     }
 
     private int ExecuteRefresh(IExcelBatch batch, Settings settings)
@@ -196,25 +174,6 @@ internal sealed class ConnectionCommand : Command<ConnectionCommand.Settings>
         return true;
     }
 
-    private bool TryGetExistingFile(string? path, string optionName, out string resolved)
-    {
-        resolved = string.Empty;
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            _console.WriteError($"{optionName} is required for this action.");
-            return false;
-        }
-
-        if (!System.IO.File.Exists(path))
-        {
-            _console.WriteError($"File '{path}' was not found.");
-            return false;
-        }
-
-        resolved = path;
-        return true;
-    }
-
     private int WriteResult(ResultBase result)
     {
         _console.WriteJson(result);
@@ -246,9 +205,6 @@ internal sealed class ConnectionCommand : Command<ConnectionCommand.Settings>
 
         [CommandOption("--description <TEXT>")]
         public string? Description { get; init; }
-
-        [CommandOption("--json-file <PATH>")]
-        public string? JsonFile { get; init; }
 
         [CommandOption("--sheet <SHEET>")]
         public string? SheetName { get; init; }
