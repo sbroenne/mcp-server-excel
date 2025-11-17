@@ -35,9 +35,9 @@ public class Program
         });
 
         // MCP Server architecture:
-        // - Batch session management: LLM controls workbook lifecycle via begin/commit tools
-        // - Single operations: Backward-compatible with automatic batch-of-one (when no batchId)
-        // - MCP Prompts: Educate LLMs about batch workflows via [McpServerPrompt] attributes
+        // - Session management: LLM controls workbook lifecycle via excel_file (open/save/close)
+        // - All operations: Require sessionId for context and performance
+        // - MCP Prompts: Educate LLMs about session workflows via [McpServerPrompt] attributes
         // - Completions: Available via ExcelCompletionHandler (manual JSON-RPC handling required)
 
         // Add MCP server with Excel tools (auto-discovers tools and prompts via attributes)

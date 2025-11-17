@@ -101,8 +101,9 @@
 **"What connections are available?"**
 → excel_connection(list)
 
-**"Are there any active batch sessions?"**
-→ list_excel_batches
+**"Are there any active sessions?"**
+→ Session listing not yet exposed via MCP (available in CLI: `excelcli session list`)
+→ Sessions are managed automatically: open → operate → save → close
 
 ## Edge Case Interpretations
 

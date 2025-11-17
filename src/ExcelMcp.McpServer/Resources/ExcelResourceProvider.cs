@@ -153,15 +153,15 @@ public static class ExcelResourceProvider
                 new
                 {
                     task = "Create multiple items efficiently",
-                    tool = "begin_excel_batch",
-                    action = "batch mode workflow",
-                    example = "begin_excel_batch → multiple operations → commit_excel_batch"
+                    tool = "excel_file",
+                    action = "session workflow",
+                    example = "excel_file(action: 'open') → multiple operations with sessionId → excel_file(action: 'save') → excel_file(action: 'close')"
                 }
             },
-            batchModeKeywords = new[]
+            sessionWorkflowKeywords = new[]
             {
-                "Use batch mode when you see: numbers (2+, 3+, 4+), plurals (queries, measures, worksheets), lists",
-                "Pattern: begin_excel_batch → operations with batchId → commit_excel_batch(save: true)",
+                "Use session workflow when you see: numbers (2+, 3+, 4+), plurals (queries, measures, worksheets), lists",
+                "Pattern: open → operations with sessionId → save → close",
                 "Benefit: 75-95% faster (single Excel session for all operations)"
             }
         };
