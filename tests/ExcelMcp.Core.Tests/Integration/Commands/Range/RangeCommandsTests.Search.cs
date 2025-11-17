@@ -14,20 +14,20 @@ public partial class RangeCommandsTests
     // === FIND/REPLACE OPERATIONS TESTS ===
 
     [Fact]
-    public async Task Find_FindsMatchingCells()
+    public void Find_FindsMatchingCells()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var testFile = CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1:C2",
+        _commands.SetValues(batch, "Sheet1", "A1:C2",
         [
             ["Apple", "Banana", "Apple"],
             ["Cherry", "Apple", "Banana"]
         ]);
 
         // Act
-        var result = await _commands.FindAsync(batch, "Sheet1", "A1:C2", "Apple", new FindOptions
+        var result = _commands.Find(batch, "Sheet1", "A1:C2", "Apple", new FindOptions
         {
             MatchCase = false,
             MatchEntireCell = true
@@ -40,13 +40,13 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Replace_ReplacesAllOccurrences()
+    public void Replace_ReplacesAllOccurrences()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var testFile = CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1:A3",
+        _commands.SetValues(batch, "Sheet1", "A1:A3",
         [
             ["cat"],
             ["dog"],
@@ -54,14 +54,14 @@ public partial class RangeCommandsTests
         ]);
 
         // Act
-        var result = await _commands.ReplaceAsync(batch, "Sheet1", "A1:A3", "cat", "bird", new ReplaceOptions
+        var result = _commands.Replace(batch, "Sheet1", "A1:A3", "cat", "bird", new ReplaceOptions
         {
             ReplaceAll = true
         });
         // Assert
         Assert.True(result.Success);
 
-        var readResult = await _commands.GetValuesAsync(batch, "Sheet1", "A1:A3");
+        var readResult = _commands.GetValues(batch, "Sheet1", "A1:A3");
         Assert.Equal("bird", readResult.Values[0][0]);
         Assert.Equal("dog", readResult.Values[1][0]);
         Assert.Equal("bird", readResult.Values[2][0]);
@@ -71,13 +71,13 @@ public partial class RangeCommandsTests
     // === SORT OPERATIONS TESTS ===
 
     [Fact]
-    public async Task Sort_SortsRangeByColumn()
+    public void Sort_SortsRangeByColumn()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        var testFile = CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
-        await _commands.SetValuesAsync(batch, "Sheet1", "A1:B4",
+        _commands.SetValues(batch, "Sheet1", "A1:B4",
         [
             ["Name", "Age"],
             ["Charlie", 30],
@@ -86,7 +86,7 @@ public partial class RangeCommandsTests
         ]);
 
         // Act - Sort by first column (Name) ascending
-        var result = await _commands.SortAsync(batch, "Sheet1", "A1:B4",
+        var result = _commands.Sort(batch, "Sheet1", "A1:B4",
         [
             new() { ColumnIndex = 1, Ascending = true }
         ], hasHeaders: true);
@@ -97,7 +97,7 @@ public partial class RangeCommandsTests
         }
         Assert.True(result.Success);
 
-        var readResult = await _commands.GetValuesAsync(batch, "Sheet1", "A2:A4");
+        var readResult = _commands.GetValues(batch, "Sheet1", "A2:A4");
         Assert.Equal("Alice", readResult.Values[0][0]);
         Assert.Equal("Bob", readResult.Values[1][0]);
         Assert.Equal("Charlie", readResult.Values[2][0]);

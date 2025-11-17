@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
@@ -44,7 +44,7 @@ public class PivotTableRealisticFixture : IAsyncLifetime
     /// Called ONCE before any tests in the class run.
     /// Creates realistic PivotTables from multiple source types.
     /// </summary>
-    public async Task InitializeAsync()
+    public Task InitializeAsync()
     {
         var sw = Stopwatch.StartNew();
 
@@ -54,18 +54,18 @@ public class PivotTableRealisticFixture : IAsyncLifetime
         try
         {
             var fileCommands = new FileCommands();
-            var createFileResult = await fileCommands.CreateEmptyAsync(TestFilePath);
+            var createFileResult = fileCommands.CreateEmpty(TestFilePath);
             if (!createFileResult.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: File creation failed: {createFileResult.ErrorMessage}");
 
             CreationResult.FileCreated = true;
 
-            await using var batch = await ExcelSession.BeginBatchAsync(TestFilePath);
+            using var batch = ExcelSession.BeginBatch(TestFilePath);
 
             // Create source data tables
-            await CreateSalesTableAsync(batch);
-            await CreateRegionalSalesTableAsync(batch);
+            CreateSalesTable(batch);
+            CreateRegionalSalesTable(batch);
             CreationResult.TablesCreated = 2;
 
             var sheetCommands = new SheetCommands();
@@ -74,9 +74,9 @@ public class PivotTableRealisticFixture : IAsyncLifetime
             var dataModelCommands = new DataModelCommands();
 
             // 1. Create PivotTable from Range (simple scenario)
-            await sheetCommands.CreateAsync(batch, "PivotData");
+            var createPivotData = sheetCommands.Create(batch, "PivotData");
 
-            var rangePivot = await pivotCommands.CreateFromRangeAsync(
+            var rangePivot = pivotCommands.CreateFromRange(
                 batch,
                 "SalesData",
                 "A1:D11",
@@ -89,13 +89,13 @@ public class PivotTableRealisticFixture : IAsyncLifetime
                     $"CREATION TEST FAILED: Range PivotTable creation failed: {rangePivot.ErrorMessage}");
 
             // Add fields to range pivot
-            await pivotCommands.AddRowFieldAsync(batch, "SalesByRegion", "Region", null);
-            await pivotCommands.AddValueFieldAsync(batch, "SalesByRegion", "Revenue", AggregationFunction.Sum, "Total Revenue");
+            var addRowField1 = pivotCommands.AddRowField(batch, "SalesByRegion", "Region", null);
+            var addValueField1 = pivotCommands.AddValueField(batch, "SalesByRegion", "Revenue", AggregationFunction.Sum, "Total Revenue");
 
             CreationResult.RangePivotTablesCreated = 1;
 
             // 2. Create PivotTable from Excel Table
-            var tablePivot = await pivotCommands.CreateFromTableAsync(
+            var tablePivot = pivotCommands.CreateFromTable(
                 batch,
                 "RegionalSalesTable",
                 "RegionalData",
@@ -107,21 +107,21 @@ public class PivotTableRealisticFixture : IAsyncLifetime
                     $"CREATION TEST FAILED: Table PivotTable creation failed: {tablePivot.ErrorMessage}");
 
             // Add fields to table pivot
-            await pivotCommands.AddRowFieldAsync(batch, "RegionalSummary", "Quarter", null);
-            await pivotCommands.AddColumnFieldAsync(batch, "RegionalSummary", "Region", null);
-            await pivotCommands.AddValueFieldAsync(batch, "RegionalSummary", "Sales", AggregationFunction.Sum, "Total Sales");
+            var addRowField2 = pivotCommands.AddRowField(batch, "RegionalSummary", "Quarter", null);
+            var addColField1 = pivotCommands.AddColumnField(batch, "RegionalSummary", "Region", null);
+            var addValueField2 = pivotCommands.AddValueField(batch, "RegionalSummary", "Sales", AggregationFunction.Sum, "Total Sales");
 
             CreationResult.TablePivotTablesCreated = 1;
 
             // 3. Create Data Model PivotTable
             // First add table to Data Model
-            var addToModel = await tableCommands.AddToDataModelAsync(batch, "RegionalSalesTable");
+            var addToModel = tableCommands.AddToDataModel(batch, "RegionalSalesTable");
             if (!addToModel.Success)
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: AddToDataModel failed: {addToModel.ErrorMessage}");
 
             // Create measure in Data Model
-            var measure = await dataModelCommands.CreateMeasureAsync(
+            var measure = dataModelCommands.CreateMeasure(
                 batch,
                 "RegionalSalesTable",
                 "TotalRevenue",
@@ -134,8 +134,8 @@ public class PivotTableRealisticFixture : IAsyncLifetime
                     $"CREATION TEST FAILED: Measure creation failed: {measure.ErrorMessage}");
 
             // Create PivotTable from Data Model
-            await sheetCommands.CreateAsync(batch, "ModelData");
-            var dataModelPivot = await pivotCommands.CreateFromDataModelAsync(
+            var createModelData = sheetCommands.Create(batch, "ModelData");
+            var dataModelPivot = pivotCommands.CreateFromDataModel(
                 batch,
                 "RegionalSalesTable",
                 "ModelData",
@@ -147,15 +147,15 @@ public class PivotTableRealisticFixture : IAsyncLifetime
                     $"CREATION TEST FAILED: Data Model PivotTable creation failed: {dataModelPivot.ErrorMessage}");
 
             // Add fields from Data Model
-            await pivotCommands.AddRowFieldAsync(batch, "DataModelPivot", "Region", null);
+            var addRowField3 = pivotCommands.AddRowField(batch, "DataModelPivot", "Region", null);
             // Data Model measures don't use aggregation function - they have their own DAX formula
-            await pivotCommands.AddValueFieldAsync(batch, "DataModelPivot", "[Measures].[TotalRevenue]", AggregationFunction.Sum, "Revenue");
+            var addValueField3 = pivotCommands.AddValueField(batch, "DataModelPivot", "[Measures].[TotalRevenue]", AggregationFunction.Sum, "Revenue");
 
             CreationResult.DataModelPivotTablesCreated = 1;
             CreationResult.MeasuresCreated = 1;
 
             // Save the workbook
-            await batch.SaveAsync();
+            batch.Save();
 
             sw.Stop();
             CreationResult.Success = true;
@@ -175,14 +175,16 @@ public class PivotTableRealisticFixture : IAsyncLifetime
             Console.WriteLine($"❌ PivotTable fixture creation FAILED after {sw.ElapsedMilliseconds}ms: {ex.Message}");
             throw;
         }
+
+        return Task.CompletedTask;
     }
 
-    private static async Task CreateSalesTableAsync(IExcelBatch batch)
+    private static void CreateSalesTable(IExcelBatch batch)
     {
         var sheetCommands = new SheetCommands();
         var rangeCommands = new RangeCommands();
 
-        await sheetCommands.CreateAsync(batch, "SalesData");
+        sheetCommands.Create(batch, "SalesData");
 
         // Write headers AND data together (like the working Range tests do)
         var allData = new List<List<object?>>
@@ -203,16 +205,16 @@ public class PivotTableRealisticFixture : IAsyncLifetime
         };
 
         // Specify full range like the working tests: "A1:D11" (1 header row + 10 data rows)
-        await rangeCommands.SetValuesAsync(batch, "SalesData", "A1:D11", allData);
+        rangeCommands.SetValues(batch, "SalesData", "A1:D11", allData);
     }
 
-    private static async Task CreateRegionalSalesTableAsync(IExcelBatch batch)
+    private static void CreateRegionalSalesTable(IExcelBatch batch)
     {
         var sheetCommands = new SheetCommands();
         var rangeCommands = new RangeCommands();
         var tableCommands = new TableCommands();
 
-        await sheetCommands.CreateAsync(batch, "RegionalData");
+        sheetCommands.Create(batch, "RegionalData");
 
         // Write headers AND data together with full range specification
         var allData = new List<List<object?>>
@@ -231,10 +233,10 @@ public class PivotTableRealisticFixture : IAsyncLifetime
         };
 
         // Specify full range: "A1:D9" (1 header row + 8 data rows)
-        await rangeCommands.SetValuesAsync(batch, "RegionalData", "A1:D9", allData);
+        rangeCommands.SetValues(batch, "RegionalData", "A1:D9", allData);
 
         // Create Excel Table
-        await tableCommands.CreateAsync(batch, "RegionalData", "RegionalSalesTable", "A1:D9", true);
+        tableCommands.Create(batch, "RegionalData", "RegionalSalesTable", "A1:D9", true);
     }
 
     public Task DisposeAsync()

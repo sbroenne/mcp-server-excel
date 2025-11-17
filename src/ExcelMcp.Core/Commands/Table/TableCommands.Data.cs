@@ -10,13 +10,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> AppendAsync(IExcelBatch batch, string tableName, List<List<object?>> rows)
+    public OperationResult Append(IExcelBatch batch, string tableName, List<List<object?>> rows)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "append-rows" };
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? sheet = null;
@@ -119,3 +119,4 @@ public partial class TableCommands
         });
     }
 }
+

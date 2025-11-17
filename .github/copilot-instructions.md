@@ -32,15 +32,6 @@
 3. **CLI** (`src/ExcelMcp.CLI`) - Command-line interface for scripting
 4. **MCP Server** (`src/ExcelMcp.McpServer`) - Model Context Protocol for AI assistants
 
-**Key Capabilities:**
-- **Range Operations** (Phase 1 implementation in progress) - Unified API for all range data operations (get/set values/formulas, clear variants, find/replace, sort, insert/delete, copy/paste, UsedRange, CurrentRegion, hyperlinks)
-- Power Query M code management (import, export, update, refresh)
-- VBA macro management (list, import, export, run)
-- Worksheet lifecycle management (list, create, rename, copy, delete)
-- Named range parameters (create, delete, update, list, get/set single values)
-- Data Model operations (list tables/measures/relationships, export measures, refresh, delete)
-- Connection management (list, view, import/export, update, refresh, test, properties)
-
 ---
 
 ## 🎯 Quick Reference
@@ -59,9 +50,9 @@ dotnet test --filter "RunType=OnDemand"
 // Core: Always use batch parameter
 public async Task<OperationResult> MethodAsync(IExcelBatch batch, string arg1)
 {
-    return await batch.ExecuteAsync((ctx, ct) => {
+    return await batch.Execute((ctx, ct) => {
         // Use ctx.Book for workbook access
-        return new OperationResult { Success = true };
+        return ValueTask.FromResult(new OperationResult { Success = true });
     });
 }
 

@@ -10,13 +10,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> ApplyFilterAsync(IExcelBatch batch, string tableName, string columnName, string criteria)
+    public OperationResult ApplyFilter(IExcelBatch batch, string tableName, string columnName, string criteria)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "apply-filter" };
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? autoFilter = null;
@@ -111,13 +111,13 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> ApplyFilterAsync(IExcelBatch batch, string tableName, string columnName, List<string> criteria)
+    public OperationResult ApplyFilter(IExcelBatch batch, string tableName, string columnName, List<string> criteria)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "apply-filter-values" };
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? autoFilter = null;
@@ -212,13 +212,13 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> ClearFiltersAsync(IExcelBatch batch, string tableName)
+    public OperationResult ClearFilters(IExcelBatch batch, string tableName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "clear-filters" };
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? autoFilter = null;
@@ -256,13 +256,13 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public async Task<TableFilterResult> GetFiltersAsync(IExcelBatch batch, string tableName)
+    public TableFilterResult GetFilters(IExcelBatch batch, string tableName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new TableFilterResult { FilePath = batch.WorkbookPath, TableName = tableName };
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? autoFilter = null;
@@ -361,3 +361,4 @@ public partial class TableCommands
         });
     }
 }
+

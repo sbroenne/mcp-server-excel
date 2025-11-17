@@ -16,7 +16,7 @@ public partial class RangeCommands
     /// Finds all cells matching criteria in range
     /// Excel COM: Range.Find()
     /// </summary>
-    public async Task<RangeFindResult> FindAsync(IExcelBatch batch, string sheetName, string rangeAddress, string searchValue, FindOptions options)
+    public RangeFindResult Find(IExcelBatch batch, string sheetName, string rangeAddress, string searchValue, FindOptions options)
     {
         var result = new RangeFindResult
         {
@@ -26,17 +26,17 @@ public partial class RangeCommands
             SearchValue = searchValue
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             dynamic? foundCell = null;
             try
             {
-                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress);
+                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, rangeAddress);
+                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
                     return result;
                 }
 
@@ -89,20 +89,20 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> ReplaceAsync(IExcelBatch batch, string sheetName, string rangeAddress, string findValue, string replaceValue, ReplaceOptions options)
+    public OperationResult Replace(IExcelBatch batch, string sheetName, string rangeAddress, string findValue, string replaceValue, ReplaceOptions options)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "replace" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             try
             {
-                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress);
+                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, rangeAddress);
+                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
                     return result;
                 }
 
@@ -139,11 +139,11 @@ public partial class RangeCommands
     // === SORT OPERATIONS ===
 
     /// <inheritdoc />
-    public async Task<OperationResult> SortAsync(IExcelBatch batch, string sheetName, string rangeAddress, List<SortColumn> sortColumns, bool hasHeaders = true)
+    public OperationResult Sort(IExcelBatch batch, string sheetName, string rangeAddress, List<SortColumn> sortColumns, bool hasHeaders = true)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "sort" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             dynamic? key1 = null;
@@ -151,11 +151,11 @@ public partial class RangeCommands
             dynamic? key3 = null;
             try
             {
-                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress);
+                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, rangeAddress);
+                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
                     return result;
                 }
 
@@ -222,3 +222,4 @@ public partial class RangeCommands
     // === NATIVE EXCEL COM OPERATIONS ===
 
 }
+

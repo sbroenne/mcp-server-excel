@@ -16,10 +16,10 @@ public partial class TableCommands
     // === NUMBER FORMATTING OPERATIONS ===
 
     /// <inheritdoc />
-    public async Task<RangeNumberFormatResult> GetColumnNumberFormatAsync(IExcelBatch batch, string tableName, string columnName)
+    public RangeNumberFormatResult GetColumnNumberFormat(IExcelBatch batch, string tableName, string columnName)
     {
         // First, get the table's sheet name and column range
-        var columnRange = await GetColumnRangeAsync(batch, tableName, columnName);
+        var columnRange = GetColumnRange(batch, tableName, columnName);
 
         if (!columnRange.Success)
         {
@@ -32,14 +32,14 @@ public partial class TableCommands
         }
 
         // Delegate to RangeCommands to get number formats
-        return await _rangeCommands.GetNumberFormatsAsync(batch, columnRange.SheetName, columnRange.RangeAddress);
+        return _rangeCommands.GetNumberFormats(batch, columnRange.SheetName, columnRange.RangeAddress);
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> SetColumnNumberFormatAsync(IExcelBatch batch, string tableName, string columnName, string formatCode)
+    public OperationResult SetColumnNumberFormat(IExcelBatch batch, string tableName, string columnName, string formatCode)
     {
         // First, get the table's sheet name and column data range (excludes header)
-        var columnRange = await GetColumnDataRangeAsync(batch, tableName, columnName);
+        var columnRange = GetColumnDataRange(batch, tableName, columnName);
 
         if (!columnRange.Success)
         {
@@ -53,7 +53,7 @@ public partial class TableCommands
         }
 
         // Delegate to RangeCommands to set number format
-        var result = await _rangeCommands.SetNumberFormatAsync(batch, columnRange.SheetName, columnRange.RangeAddress, formatCode);
+        var result = _rangeCommands.SetNumberFormat(batch, columnRange.SheetName, columnRange.RangeAddress, formatCode);
 
         result.Action = "set-column-number-format";
         return result;
@@ -64,14 +64,14 @@ public partial class TableCommands
     /// <summary>
     /// Gets the full column range (including header) for a table column
     /// </summary>
-    private async Task<TableColumnRangeResult> GetColumnRangeAsync(IExcelBatch batch, string tableName, string columnName)
+    private TableColumnRangeResult GetColumnRange(IExcelBatch batch, string tableName, string columnName)
     {
         var result = new TableColumnRangeResult
         {
             FilePath = batch.WorkbookPath
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? column = null;
@@ -122,14 +122,14 @@ public partial class TableCommands
     /// <summary>
     /// Gets the data range (excluding header) for a table column
     /// </summary>
-    private async Task<TableColumnRangeResult> GetColumnDataRangeAsync(IExcelBatch batch, string tableName, string columnName)
+    private TableColumnRangeResult GetColumnDataRange(IExcelBatch batch, string tableName, string columnName)
     {
         var result = new TableColumnRangeResult
         {
             FilePath = batch.WorkbookPath
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? column = null;
@@ -234,3 +234,4 @@ internal sealed class TableColumnRangeResult : ResultBase
     public string SheetName { get; set; } = string.Empty;
     public string RangeAddress { get; set; } = string.Empty;
 }
+

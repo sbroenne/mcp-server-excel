@@ -2,7 +2,7 @@
 
 **Action disambiguation**:
 - list-tables: Data model tables only (NOT worksheet tables)
-- view-table: Detailed info (columns, measures, row count, refresh date)
+- read-table: Detailed info (columns, measures, row count, refresh date)
 - list-columns: Columns in specific data model table
 - create-measure vs DAX formulas: Measures are data model calculations, not worksheet formulas
 

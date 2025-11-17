@@ -1,4 +1,5 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
@@ -20,10 +21,11 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// <item>Always close sessions promptly to free resources</item>
 /// </list>
 /// </remarks>
-public sealed class SessionManager : IAsyncDisposable
+public sealed class SessionManager : IDisposable
 {
     private readonly ConcurrentDictionary<string, IExcelBatch> _activeSessions = new();
     private readonly ConcurrentDictionary<string, string> _activeFilePaths = new();
+    private readonly ConcurrentDictionary<string, string> _sessionFilePaths = new(StringComparer.OrdinalIgnoreCase);
     private bool _disposed;
 
     /// <summary>
@@ -38,7 +40,7 @@ public sealed class SessionManager : IAsyncDisposable
     /// <para><b>Same-file prevention:</b> Throws if file is already open in another session.</para>
     /// <para><b>Concurrency:</b> You can create multiple sessions for DIFFERENT files. Operations within each session execute serially.</para>
     /// </remarks>
-    public async Task<string> CreateSessionAsync(string filePath)
+    public string CreateSession(string filePath)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -62,12 +64,12 @@ public sealed class SessionManager : IAsyncDisposable
         try
         {
             // Create batch session using Core API
-            var batch = await ExcelSession.BeginBatchAsync(filePath);
+            var batch = ExcelSession.BeginBatch(filePath);
 
             // Store in active sessions
             if (!_activeSessions.TryAdd(sessionId, batch))
             {
-                await batch.DisposeAsync();
+                batch.Dispose();
                 throw new InvalidOperationException($"Session ID collision: {sessionId}");
             }
 
@@ -76,8 +78,16 @@ public sealed class SessionManager : IAsyncDisposable
             {
                 // Cleanup if file path tracking fails
                 _activeSessions.TryRemove(sessionId, out _);
-                await batch.DisposeAsync();
+                batch.Dispose();
                 throw new InvalidOperationException($"Failed to track file path for session: {sessionId}");
+            }
+
+            if (!_sessionFilePaths.TryAdd(sessionId, normalizedPath))
+            {
+                _activeSessions.TryRemove(sessionId, out _);
+                _activeFilePaths.TryRemove(normalizedPath, out _);
+                batch.Dispose();
+                throw new InvalidOperationException($"Failed to record session metadata for: {sessionId}");
             }
 
             return sessionId;
@@ -88,10 +98,12 @@ public sealed class SessionManager : IAsyncDisposable
         }
     }
 
+
+
     /// <summary>
     /// Gets an active session by ID.
     /// </summary>
-    /// <param name="sessionId">Session ID returned from CreateSessionAsync</param>
+    /// <param name="sessionId">Session ID returned from CreateSession</param>
     /// <returns>IExcelBatch instance, or null if session not found</returns>
     public IExcelBatch? GetSession(string sessionId)
     {
@@ -112,7 +124,7 @@ public sealed class SessionManager : IAsyncDisposable
     /// <param name="sessionId">Session ID</param>
     /// <returns>True if session was found and saved, false if session not found</returns>
     /// <exception cref="InvalidOperationException">Save operation failed</exception>
-    public async Task<bool> SaveSessionAsync(string sessionId)
+    public bool SaveSession(string sessionId)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -124,7 +136,7 @@ public sealed class SessionManager : IAsyncDisposable
 
         try
         {
-            await batch.SaveAsync();
+            batch.Save();
             return true;
         }
         catch (Exception ex)
@@ -138,7 +150,12 @@ public sealed class SessionManager : IAsyncDisposable
     /// </summary>
     /// <param name="sessionId">Session ID</param>
     /// <returns>True if session was found and closed, false if session not found</returns>
-    public async Task<bool> CloseSessionAsync(string sessionId)
+    public bool CloseSession(string sessionId)
+    {
+        return CloseSessionSync(sessionId);
+    }
+
+    private bool CloseSessionSync(string sessionId)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -152,16 +169,23 @@ public sealed class SessionManager : IAsyncDisposable
             return false;
         }
 
-        // Remove file path from tracking so it can be opened again
-        var filePathEntry = _activeFilePaths.FirstOrDefault(kvp => kvp.Value == sessionId);
-        if (!filePathEntry.Equals(default(KeyValuePair<string, string>)))
+        // Remove file path metadata so it can be opened again
+        if (_sessionFilePaths.TryRemove(sessionId, out var normalizedPath))
         {
-            _activeFilePaths.TryRemove(filePathEntry.Key, out _);
+            _activeFilePaths.TryRemove(normalizedPath, out _);
+        }
+        else
+        {
+            var filePathEntry = _activeFilePaths.FirstOrDefault(kvp => kvp.Value == sessionId);
+            if (!filePathEntry.Equals(default(KeyValuePair<string, string>)))
+            {
+                _activeFilePaths.TryRemove(filePathEntry.Key, out _);
+            }
         }
 
         try
         {
-            await batch.DisposeAsync();
+            batch.Dispose();
             return true;
         }
         catch
@@ -182,13 +206,45 @@ public sealed class SessionManager : IAsyncDisposable
     public IEnumerable<string> ActiveSessionIds => _activeSessions.Keys.ToList();
 
     /// <summary>
+    /// Returns a snapshot of active sessions with associated workbook paths.
+    /// </summary>
+    public IReadOnlyList<SessionDescriptor> GetActiveSessions()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        var snapshot = new List<SessionDescriptor>(_sessionFilePaths.Count);
+        foreach (var kvp in _sessionFilePaths)
+        {
+            snapshot.Add(new SessionDescriptor(kvp.Key, kvp.Value));
+        }
+
+        return snapshot;
+    }
+
+    /// <summary>
+    /// Attempts to get the workbook path associated with a session ID.
+    /// </summary>
+    public bool TryGetFilePath(string sessionId, [NotNullWhen(true)] out string? filePath)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            filePath = null;
+            return false;
+        }
+
+        return _sessionFilePaths.TryGetValue(sessionId, out filePath);
+    }
+
+    /// <summary>
     /// Disposes all active sessions.
     /// </summary>
     /// <remarks>
     /// <para><b>CRITICAL:</b> Sessions are disposed SEQUENTIALLY to avoid COM threading issues.</para>
     /// <para>Excel COM objects must be disposed on their STA threads. Parallel disposal causes deadlocks.</para>
     /// </remarks>
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
         if (_disposed)
         {
@@ -202,24 +258,14 @@ public sealed class SessionManager : IAsyncDisposable
         var sessions = _activeSessions.Values.ToList();
         _activeSessions.Clear();
         _activeFilePaths.Clear();
+        _sessionFilePaths.Clear();
 
         for (int i = 0; i < sessions.Count; i++)
         {
             try
             {
-                // Use a timeout to detect Excel COM deadlocks
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                var disposeTask = sessions[i].DisposeAsync().AsTask();
-
-                try
-                {
-                    await disposeTask.WaitAsync(cts.Token);
-                }
-                catch (OperationCanceledException)
-                {
-                    // Excel COM deadlock detected - stop disposing further sessions to avoid cascading timeouts
-                    break;
-                }
+                // Dispose synchronously - Excel COM deadlock handled in Dispose() itself
+                sessions[i].Dispose();
 
                 // CRITICAL: Wait for Excel process to actually terminate before disposing next session
                 // Excel COM has known synchronization issues when multiple instances are disposed rapidly
@@ -240,7 +286,7 @@ public sealed class SessionManager : IAsyncDisposable
                         }
 
                         // Still have Excel processes, wait a bit
-                        await Task.Delay(200);
+                        Thread.Sleep(200);
 
                         foreach (var p in excelProcesses)
                         {
@@ -256,3 +302,11 @@ public sealed class SessionManager : IAsyncDisposable
         }
     }
 }
+
+/// <summary>
+/// Represents a snapshot of an active Excel session managed by <see cref="SessionManager"/>.
+/// </summary>
+/// <param name="SessionId">Public session identifier shared with clients.</param>
+/// <param name="FilePath">Normalized workbook path associated with the session.</param>
+public sealed record SessionDescriptor(string SessionId, string FilePath);
+

@@ -17,7 +17,7 @@ public partial class TableCommands
     /// <summary>
     /// Sorts a table by a single column
     /// </summary>
-    public async Task<OperationResult> SortAsync(
+    public OperationResult Sort(
         IExcelBatch batch,
         string tableName,
         string columnName,
@@ -27,7 +27,7 @@ public partial class TableCommands
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "sort-table" };
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? columns = null;
@@ -90,7 +90,7 @@ public partial class TableCommands
     /// <summary>
     /// Sorts a table by multiple columns (up to 3 levels)
     /// </summary>
-    public async Task<OperationResult> SortAsync(
+    public OperationResult Sort(
         IExcelBatch batch,
         string tableName,
         List<TableSortColumn> sortColumns)
@@ -99,7 +99,7 @@ public partial class TableCommands
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "sort-table-multi" };
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             if (sortColumns == null || sortColumns.Count == 0)
             {
@@ -219,3 +219,4 @@ public partial class TableCommands
         });
     }
 }
+

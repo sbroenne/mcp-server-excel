@@ -4,7 +4,9 @@
 
 ## Overview
 
-This is a reusable library providing robust COM object lifecycle management and OLE message filtering for Excel automation. It's the foundation layer for ExcelMcp projects but can be used independently in any .NET application that automates Excel via COM interop.
+This library provides Excel-specific COM object lifecycle management and OLE message filtering. It's the foundation layer for ExcelMcp projects, handling STA threading, session management, and batch operations specifically for Excel COM automation.
+
+**Note:** Despite the generic name "ComInterop", this library is Excel-specific and not intended for Word/PowerPoint/other Office applications.
 
 ## Features
 
@@ -35,7 +37,7 @@ await batch.ExecuteAsync<int>(async (ctx, ct) =>
     return 0;
 });
 
-await batch.SaveAsync();
+await batch.Save();
 ```
 
 ## Key Classes

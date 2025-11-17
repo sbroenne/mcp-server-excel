@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Sbroenne.ExcelMcp.McpServer.Models;
 using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
@@ -21,7 +21,6 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "SmokeTest")]
 [Trait("RequiresExcel", "true")]
-[Trait("RunType", "OnDemand")]
 public class McpServerSmokeTests : IDisposable
 {
     private readonly ITestOutputHelper _output;
@@ -67,7 +66,7 @@ public class McpServerSmokeTests : IDisposable
     /// This test validates the complete tool chain and demonstrates proper session usage for multiple operations.
     /// </summary>
     [Fact]
-    public async Task SmokeTest_AllTools_LlmWorkflow()
+    public void SmokeTest_AllTools_LlmWorkflow()
     {
         _output.WriteLine("=== MCP SERVER SMOKE TEST (SESSION API) ===");
         _output.WriteLine("Testing all 12 tools in optimized session workflow...\n");
@@ -78,7 +77,7 @@ public class McpServerSmokeTests : IDisposable
         _output.WriteLine("✓ Step 1: Creating workbook...");
 
         // Create empty workbook
-        var createResult = await ExcelFileTool.ExcelFile(FileAction.CreateEmpty, _testExcelFile);
+        var createResult = ExcelFileTool.ExcelFile(FileAction.CreateEmpty, _testExcelFile);
         AssertSuccess(createResult, "File creation");
         Assert.True(File.Exists(_testExcelFile), "Excel file should exist");
 
@@ -89,7 +88,7 @@ public class McpServerSmokeTests : IDisposable
         // =====================================================================
         _output.WriteLine("\n✓ Step 2: Opening session...");
 
-        var openResult = await ExcelFileTool.ExcelFile(FileAction.Open, _testExcelFile);
+        var openResult = ExcelFileTool.ExcelFile(FileAction.Open, _testExcelFile);
         AssertSuccess(openResult, "Open session");
         var openJson = JsonDocument.Parse(openResult);
         var sessionId = openJson.RootElement.GetProperty("sessionId").GetString();
@@ -103,14 +102,14 @@ public class McpServerSmokeTests : IDisposable
         _output.WriteLine("\n✓ Step 3: Running all operations in active session...");
 
         // Test file (no session required for test)
-        var testResult = await ExcelFileTool.ExcelFile(FileAction.Test, _testExcelFile);
+        var testResult = ExcelFileTool.ExcelFile(FileAction.Test, _testExcelFile);
         AssertSuccess(testResult, "File test");
 
         // Worksheet operations (with session)
-        var listSheetsResult = await ExcelWorksheetTool.ExcelWorksheet(WorksheetAction.List, sessionId);
+        var listSheetsResult = ExcelWorksheetTool.ExcelWorksheet(WorksheetAction.List, sessionId);
         AssertSuccess(listSheetsResult, "List worksheets in batch");
 
-        var createSheetResult = await ExcelWorksheetTool.ExcelWorksheet(
+        var createSheetResult = ExcelWorksheetTool.ExcelWorksheet(
             WorksheetAction.Create,
             sessionId,
             sheetName: "Data");
@@ -126,7 +125,7 @@ public class McpServerSmokeTests : IDisposable
             new List<object?> { "Item2", 200, "2024-01-02" }
         };
 
-        var setValuesResult = await ExcelRangeTool.ExcelRange(
+        var setValuesResult = ExcelRangeTool.ExcelRange(
             RangeAction.SetValues,
             _testExcelFile,
             sessionId,
@@ -135,7 +134,7 @@ public class McpServerSmokeTests : IDisposable
             values: values);
         AssertSuccess(setValuesResult, "Set values in batch");
 
-        var getValuesResult = await ExcelRangeTool.ExcelRange(
+        var getValuesResult = ExcelRangeTool.ExcelRange(
             RangeAction.GetValues,
             _testExcelFile,
             sessionId,
@@ -143,7 +142,7 @@ public class McpServerSmokeTests : IDisposable
             rangeAddress: "A1:C3");
         AssertSuccess(getValuesResult, "Get values in batch");
 
-        var usedRangeResult = await ExcelRangeTool.ExcelRange(
+        var usedRangeResult = ExcelRangeTool.ExcelRange(
             RangeAction.GetUsedRange,
             _testExcelFile,
             sessionId,
@@ -153,7 +152,7 @@ public class McpServerSmokeTests : IDisposable
         _output.WriteLine("  ✓ excel_range: SET/GET values and USED RANGE in batch");
 
         // Table operations via session API
-        var createTableResult = await TableTool.Table(
+        var createTableResult = TableTool.Table(
             TableAction.Create,
             _testExcelFile,
             sessionId,
@@ -163,7 +162,7 @@ public class McpServerSmokeTests : IDisposable
             hasHeaders: true);
         AssertSuccess(createTableResult, "Create table in batch");
 
-        var listTablesResult = await TableTool.Table(
+        var listTablesResult = TableTool.Table(
             TableAction.List,
             _testExcelFile,
             sessionId);
@@ -172,7 +171,7 @@ public class McpServerSmokeTests : IDisposable
         _output.WriteLine("  ✓ excel_table: CREATE and LIST in batch");
 
         // Named range operations via session API
-        var createParamResult = await ExcelNamedRangeTool.ExcelParameter(
+        var createParamResult = ExcelNamedRangeTool.ExcelParameter(
             NamedRangeAction.Create,
             _testExcelFile,
             sessionId,
@@ -180,14 +179,14 @@ public class McpServerSmokeTests : IDisposable
             value: "=Data!$C$2");
         AssertSuccess(createParamResult, "Create named range in batch");
 
-        var getParamResult = await ExcelNamedRangeTool.ExcelParameter(
-            NamedRangeAction.Get,
+        var getParamResult = ExcelNamedRangeTool.ExcelParameter(
+            NamedRangeAction.Read,
             _testExcelFile,
             sessionId,
             namedRangeName: "ReportDate");
-        AssertSuccess(getParamResult, "Get named range in batch");
+        AssertSuccess(getParamResult, "Read named range in batch");
 
-        _output.WriteLine("  ✓ excel_namedrange: CREATE and GET in batch");
+        _output.WriteLine("  ✓ excel_namedrange: CREATE and READ in batch");
 
         // Power Query operations via session API
         var csvContent = "Product,Quantity\nWidget,10\nGadget,20";
@@ -200,15 +199,15 @@ in
     PromotedHeaders";
         File.WriteAllText(_testQueryFile, mCode);
 
-        var importQueryResult = await ExcelPowerQueryTool.ExcelPowerQuery(
+        var importQueryResult = ExcelPowerQueryTool.ExcelPowerQuery(
             PowerQueryAction.Create,
             sessionId,
             queryName: "CsvData",
-            sourcePath: _testQueryFile,
+            mCode: mCode,
             loadDestination: "connection-only");
         AssertSuccess(importQueryResult, "Create Power Query in batch");
 
-        var listQueriesResult = await ExcelPowerQueryTool.ExcelPowerQuery(
+        var listQueriesResult = ExcelPowerQueryTool.ExcelPowerQuery(
             PowerQueryAction.List,
             sessionId);
         AssertSuccess(listQueriesResult, "List Power Queries in batch");
@@ -216,7 +215,7 @@ in
         _output.WriteLine("  ✓ excel_powerquery: IMPORT and LIST in batch");
 
         // Connection operations via session API
-        var listConnectionsResult = await ExcelConnectionTool.ExcelConnection(
+        var listConnectionsResult = ExcelConnectionTool.ExcelConnection(
             ConnectionAction.List,
             _testExcelFile,
             sessionId);
@@ -225,14 +224,14 @@ in
         _output.WriteLine("  ✓ excel_connection: LIST in batch");
 
         // Additional worksheet for session testing
-        var createBatchSheetResult = await ExcelWorksheetTool.ExcelWorksheet(
+        var createBatchSheetResult = ExcelWorksheetTool.ExcelWorksheet(
             WorksheetAction.Create,
             sessionId,
             sheetName: "BatchTest");
         AssertSuccess(createBatchSheetResult, "Create additional worksheet in batch");
 
         // PivotTable operations via session API
-        var createPivotResult = await ExcelPivotTableTool.ExcelPivotTable(
+        var createPivotResult = ExcelPivotTableTool.ExcelPivotTable(
             PivotTableAction.CreateFromTable,
             _testExcelFile,
             sessionId,
@@ -242,7 +241,7 @@ in
             pivotTableName: "SalesPivot");
         AssertSuccess(createPivotResult, "Create PivotTable in batch");
 
-        var listPivotsResult = await ExcelPivotTableTool.ExcelPivotTable(
+        var listPivotsResult = ExcelPivotTableTool.ExcelPivotTable(
             PivotTableAction.List,
             _testExcelFile,
             sessionId);
@@ -251,7 +250,7 @@ in
         _output.WriteLine("  ✓ excel_pivottable: CREATE and LIST in batch");
 
         // Data Model operations via session API
-        var listDataModelResult = await ExcelDataModelTool.ExcelDataModel(
+        var listDataModelResult = ExcelDataModelTool.ExcelDataModel(
             DataModelAction.ListTables,
             _testExcelFile,
             sessionId);
@@ -260,7 +259,7 @@ in
         _output.WriteLine("  ✓ excel_datamodel: LIST TABLES in batch");
 
         // VBA operations via session API
-        var listVbaResult = await ExcelVbaTool.ExcelVba(
+        var listVbaResult = ExcelVbaTool.ExcelVba(
             VbaAction.List,
             _testExcelFile,
             sessionId);
@@ -273,10 +272,10 @@ in
         // =====================================================================
         _output.WriteLine("\n✓ Step 4: Saving and closing session...");
 
-        var saveResult = await ExcelFileTool.ExcelFile(FileAction.Save, sessionId: sessionId);
+        var saveResult = ExcelFileTool.ExcelFile(FileAction.Save, sessionId: sessionId);
         AssertSuccess(saveResult, "Save session");
 
-        var closeResult = await ExcelFileTool.ExcelFile(FileAction.Close, sessionId: sessionId);
+        var closeResult = ExcelFileTool.ExcelFile(FileAction.Close, sessionId: sessionId);
         AssertSuccess(closeResult, "Close session");
 
         _output.WriteLine("  ✓ Session saved and closed");
@@ -287,7 +286,7 @@ in
         _output.WriteLine("\n✓ Step 5: Verifying persistence after session close...");
 
         // Verify worksheets were created and saved via a fresh session
-        var verifyOpenResult = await ExcelFileTool.ExcelFile(FileAction.Open, _testExcelFile);
+        var verifyOpenResult = ExcelFileTool.ExcelFile(FileAction.Open, _testExcelFile);
         AssertSuccess(verifyOpenResult, "Re-open session for verification");
         var verifySessionJson = JsonDocument.Parse(verifyOpenResult);
         var verifySessionId = verifySessionJson.RootElement.GetProperty("sessionId").GetString();
@@ -295,7 +294,7 @@ in
 
         try
         {
-            var finalSheetsResult = await ExcelWorksheetTool.ExcelWorksheet(WorksheetAction.List, verifySessionId!);
+            var finalSheetsResult = ExcelWorksheetTool.ExcelWorksheet(WorksheetAction.List, verifySessionId!);
             AssertSuccess(finalSheetsResult, "Final worksheet list");
             var sheetsJson = JsonDocument.Parse(finalSheetsResult);
             var worksheets = sheetsJson.RootElement.GetProperty("worksheets").EnumerateArray();
@@ -305,7 +304,7 @@ in
             Assert.Contains("BatchTest", sheetNames);
 
             // Verify data was saved
-            var finalDataResult = await ExcelRangeTool.ExcelRange(
+            var finalDataResult = ExcelRangeTool.ExcelRange(
                 RangeAction.GetValues,
                 _testExcelFile,
                 verifySessionId!,
@@ -317,7 +316,7 @@ in
         {
             if (!string.IsNullOrEmpty(verifySessionId))
             {
-                await ExcelFileTool.ExcelFile(FileAction.Close, sessionId: verifySessionId);
+                ExcelFileTool.ExcelFile(FileAction.Close, sessionId: verifySessionId);
             }
         }
 

@@ -15,7 +15,7 @@ Also includes a powerful CLI for RPA (Robotic Process Automation) and scripting 
 
 **🛡️ 100% Safe - Uses Excel's Native COM API**
 
-Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time. Currently supports **166 operations across 11 specialized tools** with active development expanding capabilities.
+Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time. Currently supports **168 operations across 12 specialized tools** with active development expanding capabilities.
 
 **Requirements:** Windows OS + Excel 2016+
 
@@ -53,7 +53,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 **11 specialized MCP tools** for comprehensive Excel automation:
 
-1. **Power Query & M Code** (14 actions) - Create, edit, optimize Power Query transformations with AI assistance
+1. **Power Query & M Code** (14 actions) - Create, edit, optimize Power Query transformations with AI assistance, and place QueryTables anywhere on a worksheet via `targetCellAddress`
 2. **Power Pivot / Data Model** (15 actions) - Build DAX measures, manage relationships, discover model structure, export to .dax files for Git workflows
 3. **Excel Tables** (23 actions) - Automate table creation, filtering, sorting, column management, structured references, number formatting
 4. **PivotTables** (18 actions) - Create and configure PivotTables for interactive data analysis

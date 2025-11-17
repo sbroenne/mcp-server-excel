@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public class FileCommands : IFileCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> CreateEmptyAsync(string filePath, bool overwriteIfExists = false)
+    public OperationResult CreateEmpty(string filePath, bool overwriteIfExists = false)
     {
         try
         {
@@ -65,7 +65,7 @@ public class FileCommands : IFileCommands
             // Create Excel workbook using proper resource management
             bool isMacroEnabled = extension == ".xlsm";
 
-            return await ExcelSession.CreateNew(filePath, isMacroEnabled, (ctx, ct) =>
+            return ExcelSession.CreateNew(filePath, isMacroEnabled, (ctx, ct) =>
             {
                 // Set up a basic structure with proper COM cleanup
                 dynamic? sheet = null;
@@ -110,7 +110,7 @@ public class FileCommands : IFileCommands
     }
 
     /// <inheritdoc />
-    public async Task<FileValidationResult> TestAsync(string filePath)
+    public FileValidationResult Test(string filePath)
     {
         try
         {
@@ -136,7 +136,7 @@ public class FileCommands : IFileCommands
                 lastModified = fileInfo.LastWriteTime;
             }
 
-            return await Task.FromResult(new FileValidationResult
+            return new FileValidationResult
             {
                 Success = exists && isValidExtension,
                 ErrorMessage = !exists ? $"File not found: {filePath}"
@@ -148,7 +148,7 @@ public class FileCommands : IFileCommands
                 Extension = extension,
                 LastModified = lastModified,
                 IsValid = exists && isValidExtension
-            });
+            };
         }
         catch (Exception ex)
         {
@@ -167,3 +167,5 @@ public class FileCommands : IFileCommands
     }
 
 }
+
+

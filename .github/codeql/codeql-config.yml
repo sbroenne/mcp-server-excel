@@ -1,5 +1,5 @@
 # CodeQL Configuration for ExcelMcp
-# Defines security scanning rules and exclusions  
+# Defines security scanning rules and exclusions
 # Version: 3.0 - Comprehensive COM interop pattern suppressions
 #
 # Summary of Intentional Exclusions:
@@ -61,14 +61,6 @@ query-filters:
   - exclude:
       id: cs/reflection
       reason: "External libraries may use reflection"
-
-  # GC.Collect is required for COM interop cleanup
-  - exclude:
-      id: cs/call-to-gc
-      reason: "Explicit GC.Collect() required for COM object cleanup in Excel automation. See COM cleanup pattern in ExcelBatch/ExcelSession."
-      paths:
-        - 'src/ExcelMcp.ComInterop/Session/**'
-        - 'tests/**/Session/**'
 
   # Test-specific exclusions (note-severity only)
   # Tests often use patterns that are acceptable in test context

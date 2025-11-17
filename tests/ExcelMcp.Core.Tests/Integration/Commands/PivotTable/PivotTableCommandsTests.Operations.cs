@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.ComInterop.Session;
+﻿using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
@@ -12,14 +12,14 @@ public partial class PivotTableCommandsTests
     /// <inheritdoc/>
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task List_EmptyWorkbook_ReturnsEmptyList()
+    public void List_EmptyWorkbook_ReturnsEmptyList()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(List_EmptyWorkbook_ReturnsEmptyList));
+        var testFile = CreateTestFileWithData(nameof(List_EmptyWorkbook_ReturnsEmptyList));
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _pivotCommands.ListAsync(batch);
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var result = _pivotCommands.List(batch);
 
         // Assert
         Assert.True(result.Success, $"List failed: {result.ErrorMessage}");
@@ -30,18 +30,18 @@ public partial class PivotTableCommandsTests
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task List_WithPivotTable_ReturnsPivotTableInfo()
+    public void List_WithPivotTable_ReturnsPivotTableInfo()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(List_WithPivotTable_ReturnsPivotTableInfo));
+        var testFile = CreateTestFileWithData(nameof(List_WithPivotTable_ReturnsPivotTableInfo));
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var createResult = await _pivotCommands.CreateFromRangeAsync(
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var createResult = _pivotCommands.CreateFromRange(
             batch, "SalesData", "A1:D6", "SalesData", "F1", "TestPivot");
         Assert.True(createResult.Success);
 
         // Act - No save needed, same batch
-        var result = await _pivotCommands.ListAsync(batch);
+        var result = _pivotCommands.List(batch);
 
         // Assert
         Assert.True(result.Success, $"List failed: {result.ErrorMessage}");
@@ -54,18 +54,18 @@ public partial class PivotTableCommandsTests
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task GetInfo_ExistingPivotTable_ReturnsCompleteInfo()
+    public void GetInfo_ExistingPivotTable_ReturnsCompleteInfo()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(GetInfo_ExistingPivotTable_ReturnsCompleteInfo));
+        var testFile = CreateTestFileWithData(nameof(GetInfo_ExistingPivotTable_ReturnsCompleteInfo));
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var createResult = await _pivotCommands.CreateFromRangeAsync(
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var createResult = _pivotCommands.CreateFromRange(
             batch, "SalesData", "A1:D6", "SalesData", "F1", "TestPivot");
         Assert.True(createResult.Success);
 
         // Act - No save needed
-        var result = await _pivotCommands.GetAsync(batch, "TestPivot");
+        var result = _pivotCommands.Read(batch, "TestPivot");
 
         // Assert
         Assert.True(result.Success, $"GetInfo failed: {result.ErrorMessage}");
@@ -77,14 +77,14 @@ public partial class PivotTableCommandsTests
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task GetInfo_NonExistentPivotTable_ReturnsError()
+    public void GetInfo_NonExistentPivotTable_ReturnsError()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(GetInfo_NonExistentPivotTable_ReturnsError));
+        var testFile = CreateTestFileWithData(nameof(GetInfo_NonExistentPivotTable_ReturnsError));
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _pivotCommands.GetAsync(batch, "NonExistent");
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var result = _pivotCommands.Read(batch, "NonExistent");
 
         // Assert
         Assert.False(result.Success);
@@ -95,24 +95,24 @@ public partial class PivotTableCommandsTests
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task Delete_ExistingPivotTable_RemovesPivotTable()
+    public void Delete_ExistingPivotTable_RemovesPivotTable()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(Delete_ExistingPivotTable_RemovesPivotTable));
+        var testFile = CreateTestFileWithData(nameof(Delete_ExistingPivotTable_RemovesPivotTable));
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var createResult = await _pivotCommands.CreateFromRangeAsync(
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var createResult = _pivotCommands.CreateFromRange(
             batch, "SalesData", "A1:D6", "SalesData", "F1", "TestPivot");
         Assert.True(createResult.Success);
 
         // Act - Delete in same batch
-        var deleteResult = await _pivotCommands.DeleteAsync(batch, "TestPivot");
+        var deleteResult = _pivotCommands.Delete(batch, "TestPivot");
 
         // Assert
         Assert.True(deleteResult.Success, $"Delete failed: {deleteResult.ErrorMessage}");
 
         // Verify pivot no longer exists
-        var listResult = await _pivotCommands.ListAsync(batch);
+        var listResult = _pivotCommands.List(batch);
         Assert.True(listResult.Success);
         Assert.Empty(listResult.PivotTables);
     }
@@ -120,14 +120,14 @@ public partial class PivotTableCommandsTests
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task Delete_NonExistentPivotTable_ReturnsError()
+    public void Delete_NonExistentPivotTable_ReturnsError()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(Delete_NonExistentPivotTable_ReturnsError));
+        var testFile = CreateTestFileWithData(nameof(Delete_NonExistentPivotTable_ReturnsError));
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _pivotCommands.DeleteAsync(batch, "NonExistent");
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var result = _pivotCommands.Delete(batch, "NonExistent");
 
         // Assert
         Assert.False(result.Success);
@@ -137,18 +137,18 @@ public partial class PivotTableCommandsTests
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task Refresh_ExistingPivotTable_UpdatesData()
+    public void Refresh_ExistingPivotTable_UpdatesData()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(Refresh_ExistingPivotTable_UpdatesData));
+        var testFile = CreateTestFileWithData(nameof(Refresh_ExistingPivotTable_UpdatesData));
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var createResult = await _pivotCommands.CreateFromRangeAsync(
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var createResult = _pivotCommands.CreateFromRange(
             batch, "SalesData", "A1:D6", "SalesData", "F1", "TestPivot");
         Assert.True(createResult.Success);
 
         // Act - Refresh in same batch
-        var result = await _pivotCommands.RefreshAsync(batch, "TestPivot");
+        var result = _pivotCommands.Refresh(batch, "TestPivot");
 
         // Assert
         Assert.True(result.Success, $"Refresh failed: {result.ErrorMessage}");
@@ -160,24 +160,24 @@ public partial class PivotTableCommandsTests
 
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task GetData_ExistingPivotTable_ReturnsData()
+    public void GetData_ExistingPivotTable_ReturnsData()
     {
         // Arrange
-        var testFile = await CreateTestFileWithDataAsync(nameof(GetData_ExistingPivotTable_ReturnsData));
+        var testFile = CreateTestFileWithData(nameof(GetData_ExistingPivotTable_ReturnsData));
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create pivot with row field to generate data
-        var createResult = await _pivotCommands.CreateFromRangeAsync(
+        var createResult = _pivotCommands.CreateFromRange(
             batch, "SalesData", "A1:D6", "SalesData", "F1", "TestPivot");
         Assert.True(createResult.Success);
 
         // Add Region to row area
-        var addRowResult = await _pivotCommands.AddRowFieldAsync(batch, "TestPivot", "Region");
+        var addRowResult = _pivotCommands.AddRowField(batch, "TestPivot", "Region");
         Assert.True(addRowResult.Success);
 
         // Act - GetData in same batch
-        var result = await _pivotCommands.GetDataAsync(batch, "TestPivot");
+        var result = _pivotCommands.GetData(batch, "TestPivot");
 
         // Assert
         Assert.True(result.Success, $"GetData failed: {result.ErrorMessage}");

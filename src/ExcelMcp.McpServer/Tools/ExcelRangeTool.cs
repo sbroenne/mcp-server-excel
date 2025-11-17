@@ -27,7 +27,7 @@ DATA FORMAT:
 - Example single cell: [[100]] or [['=SUM(A:A)']]
 - Example range: [[1,2,3], [4,5,6], [7,8,9]]
 ")]
-    public static async Task<string> ExcelRange(
+    public static string ExcelRange(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         RangeAction action,
@@ -202,21 +202,7 @@ DATA FORMAT:
         bool? showDropdown = null,
 
         [Description("Lock status for cells (for set-cell-lock: true = locked, false = unlocked)")]
-        bool? locked = null,
-
-        // === CONDITIONAL FORMATTING PARAMETERS ===
-
-        [Description("Conditional formatting rule type (for add-conditional-formatting: cellValue, expression, colorScale, dataBar, iconSet, top10, uniqueValues, duplicateValues, blanks, noBlanks, errors, noErrors)")]
-        string? ruleType = null,
-
-        [Description("First formula for conditional formatting rule (for add-conditional-formatting, required for most rule types)")]
-        string? formula1 = null,
-
-        [Description("Second formula for conditional formatting rule (for add-conditional-formatting, optional, used for 'between' rules)")]
-        string? formula2 = null,
-
-        [Description("Format style for conditional formatting (for add-conditional-formatting, optional, e.g., 'highlight', 'databar', 'colorscale')")]
-        string? formatStyle = null)
+        bool? locked = null)
     {
         try
         {
@@ -225,75 +211,73 @@ DATA FORMAT:
             // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
             return action switch
             {
-                RangeAction.GetValues => await GetValuesAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.SetValues => await SetValuesAsync(rangeCommands, sessionId, sheetName, rangeAddress, values),
-                RangeAction.GetFormulas => await GetFormulasAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.SetFormulas => await SetFormulasAsync(rangeCommands, sessionId, sheetName, rangeAddress, formulas),
-                RangeAction.GetNumberFormats => await GetNumberFormatsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.SetNumberFormat => await SetNumberFormatAsync(rangeCommands, sessionId, sheetName, rangeAddress, formatCode),
-                RangeAction.SetNumberFormats => await SetNumberFormatsAsync(rangeCommands, sessionId, sheetName, rangeAddress, formats),
-                RangeAction.ClearAll => await ClearAllAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.ClearContents => await ClearContentsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.ClearFormats => await ClearFormatsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.Copy => await CopyAsync(rangeCommands, sessionId, sourceSheet, sourceRange, targetSheet, targetRange),
-                RangeAction.CopyValues => await CopyValuesAsync(rangeCommands, sessionId, sourceSheet, sourceRange, targetSheet, targetRange),
-                RangeAction.CopyFormulas => await CopyFormulasAsync(rangeCommands, sessionId, sourceSheet, sourceRange, targetSheet, targetRange),
-                RangeAction.InsertCells => await InsertCellsAsync(rangeCommands, sessionId, sheetName, rangeAddress, shift),
-                RangeAction.DeleteCells => await DeleteCellsAsync(rangeCommands, sessionId, sheetName, rangeAddress, shift),
-                RangeAction.InsertRows => await InsertRowsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.DeleteRows => await DeleteRowsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.InsertColumns => await InsertColumnsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.DeleteColumns => await DeleteColumnsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.Find => await FindAsync(rangeCommands, sessionId, sheetName, rangeAddress, searchValue, matchCase, matchEntireCell, searchFormulas, searchValues),
-                RangeAction.Replace => await ReplaceAsync(rangeCommands, sessionId, sheetName, rangeAddress, searchValue, replaceValue, matchCase, matchEntireCell, searchFormulas, searchValues, replaceAll),
-                RangeAction.Sort => await SortAsync(rangeCommands, sessionId, sheetName, rangeAddress, sortColumns, hasHeaders),
-                RangeAction.GetUsedRange => await GetUsedRangeAsync(rangeCommands, sessionId, sheetName),
-                RangeAction.GetCurrentRegion => await GetCurrentRegionAsync(rangeCommands, sessionId, sheetName, cellAddress),
-                RangeAction.GetInfo => await GetRangeInfoAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.AddHyperlink => await AddHyperlinkAsync(rangeCommands, sessionId, sheetName, cellAddress, url, displayText, tooltip),
-                RangeAction.RemoveHyperlink => await RemoveHyperlinkAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.ListHyperlinks => await ListHyperlinksAsync(rangeCommands, sessionId, sheetName),
-                RangeAction.GetHyperlink => await GetHyperlinkAsync(rangeCommands, sessionId, sheetName, cellAddress),
-                RangeAction.GetStyle => await GetStyleAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.SetStyle => await SetStyleAsync(rangeCommands, sessionId, sheetName, rangeAddress, styleName),
-                RangeAction.FormatRange => await FormatRangeAsync(rangeCommands, sessionId, sheetName, rangeAddress, fontName, fontSize, bold, italic, underline, fontColor, fillColor, borderStyle, borderColor, borderWeight, horizontalAlignment, verticalAlignment, wrapText, orientation),
-                RangeAction.ValidateRange => await ValidateRangeAsync(rangeCommands, sessionId, sheetName, rangeAddress, validationType, validationOperator, validationFormula1, validationFormula2, showInputMessage, inputTitle, inputMessage, showErrorAlert, errorStyle, errorTitle, errorMessage, ignoreBlank, showDropdown),
-                RangeAction.GetValidation => await GetValidationAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.RemoveValidation => await RemoveValidationAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.AutoFitColumns => await AutoFitColumnsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.AutoFitRows => await AutoFitRowsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.MergeCells => await MergeCellsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.UnmergeCells => await UnmergeCellsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.GetMergeInfo => await GetMergeInfoAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.AddConditionalFormatting => await AddConditionalFormattingAsync(rangeCommands, sessionId, sheetName, rangeAddress, ruleType, formula1, formula2, formatStyle),
-                RangeAction.ClearConditionalFormatting => await ClearConditionalFormattingAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.SetCellLock => await SetCellLockAsync(rangeCommands, sessionId, sheetName, rangeAddress, locked),
-                RangeAction.GetCellLock => await GetCellLockAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action: {action} ({action.ToActionString()})")
+                RangeAction.GetValues => GetValuesAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.SetValues => SetValuesAsync(rangeCommands, sessionId, sheetName, rangeAddress, values),
+                RangeAction.GetFormulas => GetFormulasAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.SetFormulas => SetFormulasAsync(rangeCommands, sessionId, sheetName, rangeAddress, formulas),
+                RangeAction.GetNumberFormats => GetNumberFormatsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.SetNumberFormat => SetNumberFormatAsync(rangeCommands, sessionId, sheetName, rangeAddress, formatCode),
+                RangeAction.SetNumberFormats => SetNumberFormatsAsync(rangeCommands, sessionId, sheetName, rangeAddress, formats),
+                RangeAction.ClearAll => ClearAllAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.ClearContents => ClearContentsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.ClearFormats => ClearFormatsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.Copy => CopyAsync(rangeCommands, sessionId, sourceSheet, sourceRange, targetSheet, targetRange),
+                RangeAction.CopyValues => CopyValuesAsync(rangeCommands, sessionId, sourceSheet, sourceRange, targetSheet, targetRange),
+                RangeAction.CopyFormulas => CopyFormulasAsync(rangeCommands, sessionId, sourceSheet, sourceRange, targetSheet, targetRange),
+                RangeAction.InsertCells => InsertCellsAsync(rangeCommands, sessionId, sheetName, rangeAddress, shift),
+                RangeAction.DeleteCells => DeleteCellsAsync(rangeCommands, sessionId, sheetName, rangeAddress, shift),
+                RangeAction.InsertRows => InsertRowsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.DeleteRows => DeleteRowsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.InsertColumns => InsertColumnsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.DeleteColumns => DeleteColumnsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.Find => FindAsync(rangeCommands, sessionId, sheetName, rangeAddress, searchValue, matchCase, matchEntireCell, searchFormulas, searchValues),
+                RangeAction.Replace => ReplaceAsync(rangeCommands, sessionId, sheetName, rangeAddress, searchValue, replaceValue, matchCase, matchEntireCell, searchFormulas, searchValues, replaceAll),
+                RangeAction.Sort => SortAsync(rangeCommands, sessionId, sheetName, rangeAddress, sortColumns, hasHeaders),
+                RangeAction.GetUsedRange => GetUsedRangeAsync(rangeCommands, sessionId, sheetName),
+                RangeAction.GetCurrentRegion => GetCurrentRegionAsync(rangeCommands, sessionId, sheetName, cellAddress),
+                RangeAction.GetInfo => GetRangeInfoAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.AddHyperlink => AddHyperlinkAsync(rangeCommands, sessionId, sheetName, cellAddress, url, displayText, tooltip),
+                RangeAction.RemoveHyperlink => RemoveHyperlinkAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.ListHyperlinks => ListHyperlinksAsync(rangeCommands, sessionId, sheetName),
+                RangeAction.GetHyperlink => GetHyperlinkAsync(rangeCommands, sessionId, sheetName, cellAddress),
+                RangeAction.GetStyle => GetStyleAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.SetStyle => SetStyleAsync(rangeCommands, sessionId, sheetName, rangeAddress, styleName),
+                RangeAction.FormatRange => FormatRangeAsync(rangeCommands, sessionId, sheetName, rangeAddress, fontName, fontSize, bold, italic, underline, fontColor, fillColor, borderStyle, borderColor, borderWeight, horizontalAlignment, verticalAlignment, wrapText, orientation),
+                RangeAction.ValidateRange => ValidateRangeAsync(rangeCommands, sessionId, sheetName, rangeAddress, validationType, validationOperator, validationFormula1, validationFormula2, showInputMessage, inputTitle, inputMessage, showErrorAlert, errorStyle, errorTitle, errorMessage, ignoreBlank, showDropdown),
+                RangeAction.GetValidation => GetValidationAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.RemoveValidation => RemoveValidationAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.AutoFitColumns => AutoFitColumnsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.AutoFitRows => AutoFitRowsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.MergeCells => MergeCellsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.UnmergeCells => UnmergeCellsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.GetMergeInfo => GetMergeInfoAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                RangeAction.SetCellLock => SetCellLockAsync(rangeCommands, sessionId, sheetName, rangeAddress, locked),
+                RangeAction.GetCellLock => GetCellLockAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                _ => throw new ArgumentException(
+                    $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
-        }
-        catch (ModelContextProtocol.McpException)
-        {
-            throw; // Re-throw MCP exceptions as-is
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
-            throw; // Unreachable but satisfies compiler
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 
     // === VALUE OPERATIONS ===
 
-    private static async Task<string> GetValuesAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string GetValuesAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-values");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.GetValuesAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.GetValues(batch, sheetName ?? "", rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -307,16 +291,16 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetValuesAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, List<List<object?>>? values)
+    private static string SetValuesAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, List<List<object?>>? values)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-values");
         if (values == null || values.Count == 0)
             ExcelToolsBase.ThrowMissingParameter("values", "set-values");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.SetValuesAsync(batch, sheetName ?? "", rangeAddress!, values!));
+            batch => commands.SetValues(batch, sheetName ?? "", rangeAddress!, values!));
 
         var rowCount = values!.Count;
         var colCount = values.Count > 0 ? values[0].Count : 0;
@@ -330,14 +314,14 @@ DATA FORMAT:
 
     // === FORMULA OPERATIONS ===
 
-    private static async Task<string> GetFormulasAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string GetFormulasAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-formulas");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.GetFormulasAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.GetFormulas(batch, sheetName ?? "", rangeAddress!));
 
         var formulaCount = result.Formulas.SelectMany(row => row).Count(f => !string.IsNullOrEmpty(f));
 
@@ -354,16 +338,16 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetFormulasAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, List<List<string>>? formulas)
+    private static string SetFormulasAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, List<List<string>>? formulas)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-formulas");
         if (formulas == null || formulas.Count == 0)
             ExcelToolsBase.ThrowMissingParameter("formulas", "set-formulas");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.SetFormulasAsync(batch, sheetName ?? "", rangeAddress!, formulas!));
+            batch => commands.SetFormulas(batch, sheetName ?? "", rangeAddress!, formulas!));
 
         return JsonSerializer.Serialize(new
         {
@@ -374,14 +358,14 @@ DATA FORMAT:
 
     // === NUMBER FORMAT OPERATIONS ===
 
-    private static async Task<string> GetNumberFormatsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string GetNumberFormatsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-number-formats");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.GetNumberFormatsAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.GetNumberFormats(batch, sheetName ?? "", rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -395,16 +379,16 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetNumberFormatAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, string? formatCode)
+    private static string SetNumberFormatAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, string? formatCode)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-number-format");
         if (string.IsNullOrEmpty(formatCode))
             ExcelToolsBase.ThrowMissingParameter("formatCode", "set-number-format");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.SetNumberFormatAsync(batch, sheetName ?? "", rangeAddress!, formatCode!));
+            batch => commands.SetNumberFormat(batch, sheetName ?? "", rangeAddress!, formatCode!));
 
         return JsonSerializer.Serialize(new
         {
@@ -413,16 +397,16 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetNumberFormatsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, List<List<string>>? formats)
+    private static string SetNumberFormatsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, List<List<string>>? formats)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-number-formats");
         if (formats == null || formats.Count == 0)
             ExcelToolsBase.ThrowMissingParameter("formats", "set-number-formats");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.SetNumberFormatsAsync(batch, sheetName ?? "", rangeAddress!, formats!));
+            batch => commands.SetNumberFormats(batch, sheetName ?? "", rangeAddress!, formats!));
 
         return JsonSerializer.Serialize(new
         {
@@ -433,14 +417,14 @@ DATA FORMAT:
 
     // === CLEAR OPERATIONS ===
 
-    private static async Task<string> ClearAllAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string ClearAllAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "clear-all");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ClearAllAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.ClearAll(batch, sheetName ?? "", rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -449,14 +433,14 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ClearContentsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string ClearContentsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "clear-contents");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ClearContentsAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.ClearContents(batch, sheetName ?? "", rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -465,14 +449,14 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ClearFormatsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string ClearFormatsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "clear-formats");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ClearFormatsAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.ClearFormats(batch, sheetName ?? "", rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -483,16 +467,16 @@ DATA FORMAT:
 
     // === COPY OPERATIONS ===
 
-    private static async Task<string> CopyAsync(RangeCommands commands, string sessionId, string? sourceSheet, string? sourceRange, string? targetSheet, string? targetRange)
+    private static string CopyAsync(RangeCommands commands, string sessionId, string? sourceSheet, string? sourceRange, string? targetSheet, string? targetRange)
     {
         if (string.IsNullOrEmpty(sourceRange))
             ExcelToolsBase.ThrowMissingParameter("sourceRange", "copy");
         if (string.IsNullOrEmpty(targetRange))
             ExcelToolsBase.ThrowMissingParameter("targetRange", "copy");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.CopyAsync(batch, sourceSheet ?? "", sourceRange!, targetSheet ?? "", targetRange!));
+            batch => commands.Copy(batch, sourceSheet ?? "", sourceRange!, targetSheet ?? "", targetRange!));
 
         return JsonSerializer.Serialize(new
         {
@@ -501,16 +485,16 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> CopyValuesAsync(RangeCommands commands, string sessionId, string? sourceSheet, string? sourceRange, string? targetSheet, string? targetRange)
+    private static string CopyValuesAsync(RangeCommands commands, string sessionId, string? sourceSheet, string? sourceRange, string? targetSheet, string? targetRange)
     {
         if (string.IsNullOrEmpty(sourceRange))
             ExcelToolsBase.ThrowMissingParameter("sourceRange", "copy-values");
         if (string.IsNullOrEmpty(targetRange))
             ExcelToolsBase.ThrowMissingParameter("targetRange", "copy-values");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.CopyValuesAsync(batch, sourceSheet ?? "", sourceRange!, targetSheet ?? "", targetRange!));
+            batch => commands.CopyValues(batch, sourceSheet ?? "", sourceRange!, targetSheet ?? "", targetRange!));
 
         return JsonSerializer.Serialize(new
         {
@@ -519,16 +503,16 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> CopyFormulasAsync(RangeCommands commands, string sessionId, string? sourceSheet, string? sourceRange, string? targetSheet, string? targetRange)
+    private static string CopyFormulasAsync(RangeCommands commands, string sessionId, string? sourceSheet, string? sourceRange, string? targetSheet, string? targetRange)
     {
         if (string.IsNullOrEmpty(sourceRange))
             ExcelToolsBase.ThrowMissingParameter("sourceRange", "copy-formulas");
         if (string.IsNullOrEmpty(targetRange))
             ExcelToolsBase.ThrowMissingParameter("targetRange", "copy-formulas");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.CopyFormulasAsync(batch, sourceSheet ?? "", sourceRange!, targetSheet ?? "", targetRange!));
+            batch => commands.CopyFormulas(batch, sourceSheet ?? "", sourceRange!, targetSheet ?? "", targetRange!));
 
         return JsonSerializer.Serialize(new
         {
@@ -539,7 +523,7 @@ DATA FORMAT:
 
     // === INSERT/DELETE OPERATIONS ===
 
-    private static async Task<string> InsertCellsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, string? shift)
+    private static string InsertCellsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, string? shift)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "insert-cells");
@@ -548,12 +532,12 @@ DATA FORMAT:
 
         if (!Enum.TryParse<InsertShiftDirection>(shift, true, out var shiftDirection))
         {
-            throw new ModelContextProtocol.McpException($"Invalid shift direction '{shift}'. Must be 'Down' or 'Right'.");
+            throw new ArgumentException($"Invalid shift direction '{shift}'. Must be 'Down' or 'Right'.", nameof(shift));
         }
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.InsertCellsAsync(batch, sheetName ?? "", rangeAddress!, shiftDirection));
+            batch => commands.InsertCells(batch, sheetName ?? "", rangeAddress!, shiftDirection));
 
         return JsonSerializer.Serialize(new
         {
@@ -562,7 +546,7 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> DeleteCellsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, string? shift)
+    private static string DeleteCellsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, string? shift)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "delete-cells");
@@ -571,12 +555,12 @@ DATA FORMAT:
 
         if (!Enum.TryParse<DeleteShiftDirection>(shift, true, out var shiftDirection))
         {
-            throw new ModelContextProtocol.McpException($"Invalid shift direction '{shift}'. Must be 'Up' or 'Left'.");
+            throw new ArgumentException($"Invalid shift direction '{shift}'. Must be 'Up' or 'Left'.", nameof(shift));
         }
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.DeleteCellsAsync(batch, sheetName ?? "", rangeAddress!, shiftDirection));
+            batch => commands.DeleteCells(batch, sheetName ?? "", rangeAddress!, shiftDirection));
 
         return JsonSerializer.Serialize(new
         {
@@ -585,14 +569,14 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> InsertRowsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string InsertRowsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "insert-rows");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.InsertRowsAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.InsertRows(batch, sheetName ?? "", rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -601,14 +585,14 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> DeleteRowsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string DeleteRowsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "delete-rows");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.DeleteRowsAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.DeleteRows(batch, sheetName ?? "", rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -617,14 +601,14 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> InsertColumnsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string InsertColumnsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "insert-columns");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.InsertColumnsAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.InsertColumns(batch, sheetName ?? "", rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -633,14 +617,14 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> DeleteColumnsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string DeleteColumnsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "delete-columns");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.DeleteColumnsAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.DeleteColumns(batch, sheetName ?? "", rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -651,7 +635,7 @@ DATA FORMAT:
 
     // === FIND/REPLACE OPERATIONS ===
 
-    private static async Task<string> FindAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, string? searchValue, bool? matchCase, bool? matchEntireCell, bool? searchFormulas, bool? searchValues)
+    private static string FindAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, string? searchValue, bool? matchCase, bool? matchEntireCell, bool? searchFormulas, bool? searchValues)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "find");
@@ -666,9 +650,9 @@ DATA FORMAT:
             SearchValues = searchValues ?? true
         };
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.FindAsync(batch, sheetName ?? "", rangeAddress!, searchValue!, options));
+            batch => commands.Find(batch, sheetName ?? "", rangeAddress!, searchValue!, options));
 
         return JsonSerializer.Serialize(new
         {
@@ -682,7 +666,7 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ReplaceAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, string? searchValue, string? replaceValue, bool? matchCase, bool? matchEntireCell, bool? searchFormulas, bool? searchValues, bool? replaceAll)
+    private static string ReplaceAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, string? searchValue, string? replaceValue, bool? matchCase, bool? matchEntireCell, bool? searchFormulas, bool? searchValues, bool? replaceAll)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "replace");
@@ -700,9 +684,9 @@ DATA FORMAT:
             ReplaceAll = replaceAll ?? true
         };
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ReplaceAsync(batch, sheetName ?? "", rangeAddress!, searchValue!, replaceValue!, options));
+            batch => commands.Replace(batch, sheetName ?? "", rangeAddress!, searchValue!, replaceValue!, options));
 
         return JsonSerializer.Serialize(new
         {
@@ -713,16 +697,16 @@ DATA FORMAT:
 
     // === SORT OPERATIONS ===
 
-    private static async Task<string> SortAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, List<SortColumn>? sortColumns, bool? hasHeaders)
+    private static string SortAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, List<SortColumn>? sortColumns, bool? hasHeaders)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "sort");
         if (sortColumns == null || sortColumns.Count == 0)
             ExcelToolsBase.ThrowMissingParameter("sortColumns", "sort");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.SortAsync(batch, sheetName ?? "", rangeAddress!, sortColumns!, hasHeaders ?? true));
+            batch => commands.Sort(batch, sheetName ?? "", rangeAddress!, sortColumns!, hasHeaders ?? true));
 
         return JsonSerializer.Serialize(new
         {
@@ -733,14 +717,14 @@ DATA FORMAT:
 
     // === DISCOVERY OPERATIONS ===
 
-    private static async Task<string> GetUsedRangeAsync(RangeCommands commands, string sessionId, string? sheetName)
+    private static string GetUsedRangeAsync(RangeCommands commands, string sessionId, string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             ExcelToolsBase.ThrowMissingParameter("sheetName", "get-used-range");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.GetUsedRangeAsync(batch, sheetName!));
+            batch => commands.GetUsedRange(batch, sheetName!));
 
         return JsonSerializer.Serialize(new
         {
@@ -754,16 +738,16 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetCurrentRegionAsync(RangeCommands commands, string sessionId, string? sheetName, string? cellAddress)
+    private static string GetCurrentRegionAsync(RangeCommands commands, string sessionId, string? sheetName, string? cellAddress)
     {
         if (string.IsNullOrEmpty(sheetName))
             ExcelToolsBase.ThrowMissingParameter("sheetName", "get-current-region");
         if (string.IsNullOrEmpty(cellAddress))
             ExcelToolsBase.ThrowMissingParameter("cellAddress", "get-current-region");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.GetCurrentRegionAsync(batch, sheetName!, cellAddress!));
+            batch => commands.GetCurrentRegion(batch, sheetName!, cellAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -777,14 +761,14 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetRangeInfoAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string GetRangeInfoAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-range-info");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.GetInfoAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.GetInfo(batch, sheetName ?? "", rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -800,7 +784,7 @@ DATA FORMAT:
 
     // === HYPERLINK OPERATIONS ===
 
-    private static async Task<string> AddHyperlinkAsync(RangeCommands commands, string sessionId, string? sheetName, string? cellAddress, string? url, string? displayText, string? tooltip)
+    private static string AddHyperlinkAsync(RangeCommands commands, string sessionId, string? sheetName, string? cellAddress, string? url, string? displayText, string? tooltip)
     {
         if (string.IsNullOrEmpty(sheetName))
             ExcelToolsBase.ThrowMissingParameter("sheetName", "add-hyperlink");
@@ -809,9 +793,9 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(url))
             ExcelToolsBase.ThrowMissingParameter("url", "add-hyperlink");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.AddHyperlinkAsync(batch, sheetName!, cellAddress!, url!, displayText, tooltip));
+            batch => commands.AddHyperlink(batch, sheetName!, cellAddress!, url!, displayText, tooltip));
 
         return JsonSerializer.Serialize(new
         {
@@ -820,16 +804,16 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RemoveHyperlinkAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string RemoveHyperlinkAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(sheetName))
             ExcelToolsBase.ThrowMissingParameter("sheetName", "remove-hyperlink");
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "remove-hyperlink");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.RemoveHyperlinkAsync(batch, sheetName!, rangeAddress!));
+            batch => commands.RemoveHyperlink(batch, sheetName!, rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -838,14 +822,14 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ListHyperlinksAsync(RangeCommands commands, string sessionId, string? sheetName)
+    private static string ListHyperlinksAsync(RangeCommands commands, string sessionId, string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             ExcelToolsBase.ThrowMissingParameter("sheetName", "list-hyperlinks");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ListHyperlinksAsync(batch, sheetName!));
+            batch => commands.ListHyperlinks(batch, sheetName!));
 
         return JsonSerializer.Serialize(new
         {
@@ -856,16 +840,16 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetHyperlinkAsync(RangeCommands commands, string sessionId, string? sheetName, string? cellAddress)
+    private static string GetHyperlinkAsync(RangeCommands commands, string sessionId, string? sheetName, string? cellAddress)
     {
         if (string.IsNullOrEmpty(sheetName))
             ExcelToolsBase.ThrowMissingParameter("sheetName", "get-hyperlink");
         if (string.IsNullOrEmpty(cellAddress))
             ExcelToolsBase.ThrowMissingParameter("cellAddress", "get-hyperlink");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.GetHyperlinkAsync(batch, sheetName!, cellAddress!));
+            batch => commands.GetHyperlink(batch, sheetName!, cellAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -880,7 +864,7 @@ DATA FORMAT:
 
     // === FORMATTING OPERATIONS ===
 
-    private static async Task<string> SetStyleAsync(
+    private static string SetStyleAsync(
         RangeCommands commands,
         string sessionId,
         string? sheetName,
@@ -892,9 +876,9 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(styleName))
             ExcelToolsBase.ThrowMissingParameter("styleName", "set-style");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.SetStyleAsync(batch, sheetName ?? "", rangeAddress!, styleName!));
+            batch => commands.SetStyle(batch, sheetName ?? "", rangeAddress!, styleName!));
 
         return JsonSerializer.Serialize(new
         {
@@ -903,7 +887,7 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetStyleAsync(
+    private static string GetStyleAsync(
         RangeCommands commands,
         string sessionId,
         string? sheetName,
@@ -912,9 +896,9 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-style");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.GetStyleAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.GetStyle(batch, sheetName ?? "", rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -927,7 +911,7 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> FormatRangeAsync(
+    private static string FormatRangeAsync(
         RangeCommands commands,
         string sessionId,
         string? sheetName,
@@ -950,9 +934,9 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "format-range");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.FormatRangeAsync(batch, sheetName ?? "", rangeAddress!,
+            batch => commands.FormatRange(batch, sheetName ?? "", rangeAddress!,
                 fontName, fontSize, bold, italic, underline, fontColor,
                 fillColor, borderStyle, borderColor, borderWeight,
                 horizontalAlignment, verticalAlignment, wrapText, orientation));
@@ -966,7 +950,7 @@ DATA FORMAT:
 
     // === VALIDATION OPERATIONS ===
 
-    private static async Task<string> ValidateRangeAsync(
+    private static string ValidateRangeAsync(
         RangeCommands commands,
         string sessionId,
         string? sheetName,
@@ -990,9 +974,9 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(validationType))
             ExcelToolsBase.ThrowMissingParameter("validationType", "validate-range");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ValidateRangeAsync(batch, sheetName ?? "", rangeAddress!,
+            batch => commands.ValidateRange(batch, sheetName ?? "", rangeAddress!,
                 validationType!, validationOperator, validationFormula1, validationFormula2,
                 showInputMessage, inputTitle, inputMessage,
                 showErrorAlert, errorStyle, errorTitle, errorMessage,
@@ -1005,7 +989,7 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetValidationAsync(
+    private static string GetValidationAsync(
         RangeCommands commands,
         string sessionId,
         string? sheetName,
@@ -1014,9 +998,9 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-validation");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.GetValidationAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.GetValidation(batch, sheetName ?? "", rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -1036,7 +1020,7 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RemoveValidationAsync(
+    private static string RemoveValidationAsync(
         RangeCommands commands,
         string sessionId,
         string? sheetName,
@@ -1045,9 +1029,9 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "remove-validation");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.RemoveValidationAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.RemoveValidation(batch, sheetName ?? "", rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -1056,7 +1040,7 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> AutoFitColumnsAsync(
+    private static string AutoFitColumnsAsync(
         RangeCommands commands,
         string sessionId,
         string? sheetName,
@@ -1065,9 +1049,9 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "auto-fit-columns");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.AutoFitColumnsAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.AutoFitColumns(batch, sheetName ?? "", rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -1076,7 +1060,7 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> AutoFitRowsAsync(
+    private static string AutoFitRowsAsync(
         RangeCommands commands,
         string sessionId,
         string? sheetName,
@@ -1085,9 +1069,9 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "auto-fit-rows");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.AutoFitRowsAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.AutoFitRows(batch, sheetName ?? "", rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -1096,7 +1080,7 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> MergeCellsAsync(
+    private static string MergeCellsAsync(
         RangeCommands commands,
         string sessionId,
         string? sheetName,
@@ -1105,9 +1089,9 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "merge-cells");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.MergeCellsAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.MergeCells(batch, sheetName ?? "", rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -1116,7 +1100,7 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> UnmergeCellsAsync(
+    private static string UnmergeCellsAsync(
         RangeCommands commands,
         string sessionId,
         string? sheetName,
@@ -1125,9 +1109,9 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "unmerge-cells");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.UnmergeCellsAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.UnmergeCells(batch, sheetName ?? "", rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -1136,7 +1120,7 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetMergeInfoAsync(
+    private static string GetMergeInfoAsync(
         RangeCommands commands,
         string sessionId,
         string? sheetName,
@@ -1145,9 +1129,9 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-merge-info");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.GetMergeInfoAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.GetMergeInfo(batch, sheetName ?? "", rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -1158,54 +1142,7 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> AddConditionalFormattingAsync(
-        RangeCommands commands,
-        string sessionId,
-        string? sheetName,
-        string? rangeAddress,
-        string? ruleType,
-        string? formula1,
-        string? formula2,
-        string? formatStyle)
-    {
-        if (string.IsNullOrEmpty(rangeAddress))
-            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "add-conditional-formatting");
-        if (string.IsNullOrEmpty(ruleType))
-            ExcelToolsBase.ThrowMissingParameter("ruleType", "add-conditional-formatting");
-
-        var result = await ExcelToolsBase.WithSessionAsync(
-            sessionId,
-            async batch => await commands.AddConditionalFormattingAsync(batch, sheetName ?? "", rangeAddress!,
-                ruleType!, formula1, formula2, formatStyle));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> ClearConditionalFormattingAsync(
-        RangeCommands commands,
-        string sessionId,
-        string? sheetName,
-        string? rangeAddress)
-    {
-        if (string.IsNullOrEmpty(rangeAddress))
-            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "clear-conditional-formatting");
-
-        var result = await ExcelToolsBase.WithSessionAsync(
-            sessionId,
-            async batch => await commands.ClearConditionalFormattingAsync(batch, sheetName ?? "", rangeAddress!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> SetCellLockAsync(
+    private static string SetCellLockAsync(
         RangeCommands commands,
         string sessionId,
         string? sheetName,
@@ -1218,9 +1155,9 @@ DATA FORMAT:
         if (locked == null)
             ExcelToolsBase.ThrowMissingParameter("locked", "set-cell-lock");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.SetCellLockAsync(batch, sheetName ?? "", rangeAddress!, locked!.Value));
+            batch => commands.SetCellLock(batch, sheetName ?? "", rangeAddress!, locked!.Value));
 
         return JsonSerializer.Serialize(new
         {
@@ -1229,7 +1166,7 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetCellLockAsync(
+    private static string GetCellLockAsync(
         RangeCommands commands,
         string sessionId,
         string? sheetName,
@@ -1238,9 +1175,9 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-cell-lock");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.GetCellLockAsync(batch, sheetName ?? "", rangeAddress!));
+            batch => commands.GetCellLock(batch, sheetName ?? "", rangeAddress!));
 
         return JsonSerializer.Serialize(new
         {
@@ -1250,3 +1187,4 @@ DATA FORMAT:
         }, ExcelToolsBase.JsonOptions);
     }
 }
+

@@ -43,18 +43,6 @@ dynamic conn = connections.Add(
 
 **Solution:** Handle both types interchangeably:
 
-```csharp
-// Try TEXT first, fall back to WEB
-if (connType == 3 || connType == 4)  // Handle both
-{
-    dynamic? textOrWeb = null!;
-    try { textOrWeb = conn.TextConnection; }
-    catch { try { textOrWeb = conn.WebConnection; } catch { return defaultValue; } }
-    
-    if (textOrWeb != null)
-        return textOrWeb.SomeProperty ?? defaultValue;
-}
-```
 
 ## Connection String Formats
 
@@ -78,63 +66,6 @@ if (connType == 3 || connType == 4)  // Handle both
 ## Testing Strategy
 
 **Use TEXT connections for all automated tests:**
-
-```csharp
-public static async Task CreateTextFileConnectionAsync(
-    string filePath, string connectionName, string csvFilePath)
-{
-    await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-    await batch.ExecuteAsync<int>((ctx, ct) =>
-    {
-        dynamic connections = ctx.Book.Connections;
-        
-        if (!File.Exists(csvFilePath))
-            File.WriteAllText(csvFilePath, "Col1,Col2\nVal1,Val2\n");
-        
-        string connectionString = $"TEXT;{csvFilePath}";
-        dynamic conn = connections.Add(
-            Name: connectionName,
-            Description: "Test text connection",
-            ConnectionString: connectionString,
-            CommandText: ""
-        );
-        
-        return ValueTask.FromResult(0);
-    });
-    await batch.SaveAsync();
-}
-```
-
-## Security
-
-```csharp
-// ALWAYS sanitize before displaying
-string safe = ConnectionHelpers.SanitizeConnectionString(rawConnectionString);
-Console.WriteLine(safe);  // Passwords masked
-
-// NEVER save passwords by default
-oledb.SavePassword = false;
-```
-
-## Type-Specific APIs
-
-```csharp
-// Each connection type has specific COM object
-if (conn.Type == 1)  // OLEDB
-{
-    dynamic oledb = conn.OLEDBConnection;
-    oledb.BackgroundQuery = true;
-    oledb.RefreshOnFileOpen = false;
-}
-else if (conn.Type == 3 || conn.Type == 4)  // TEXT or WEB
-{
-    // Handle both due to Excel quirk
-    dynamic? textOrWeb = null!;
-    try { textOrWeb = conn.TextConnection; }
-    catch { textOrWeb = conn.WebConnection; }
-    // Use textOrWeb...
-}
-```
 
 ## Key Takeaways
 

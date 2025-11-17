@@ -10,13 +10,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> AddColumnAsync(IExcelBatch batch, string tableName, string columnName, int? position = null)
+    public OperationResult AddColumn(IExcelBatch batch, string tableName, string columnName, int? position = null)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "add-column" };
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? listColumns = null;
@@ -83,13 +83,13 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> RemoveColumnAsync(IExcelBatch batch, string tableName, string columnName)
+    public OperationResult RemoveColumn(IExcelBatch batch, string tableName, string columnName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "remove-column" };
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? listColumns = null;
@@ -156,13 +156,13 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> RenameColumnAsync(IExcelBatch batch, string tableName, string oldName, string newName)
+    public OperationResult RenameColumn(IExcelBatch batch, string tableName, string oldName, string newName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "rename-column" };
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? listColumns = null;
@@ -248,3 +248,4 @@ public partial class TableCommands
         });
     }
 }
+

@@ -16,7 +16,7 @@ public partial class RangeCommands
     /// Gets the used range (all non-empty cells) from worksheet
     /// Excel COM: Worksheet.UsedRange
     /// </summary>
-    public async Task<RangeValueResult> GetUsedRangeAsync(IExcelBatch batch, string sheetName)
+    public RangeValueResult GetUsedRange(IExcelBatch batch, string sheetName)
     {
         var result = new RangeValueResult
         {
@@ -24,7 +24,7 @@ public partial class RangeCommands
             SheetName = sheetName
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -77,7 +77,7 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<RangeValueResult> GetCurrentRegionAsync(IExcelBatch batch, string sheetName, string cellAddress)
+    public RangeValueResult GetCurrentRegion(IExcelBatch batch, string sheetName, string cellAddress)
     {
         var result = new RangeValueResult
         {
@@ -86,17 +86,17 @@ public partial class RangeCommands
             RangeAddress = cellAddress
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? cell = null;
             dynamic? region = null;
             try
             {
-                cell = RangeHelpers.ResolveRange(ctx.Book, sheetName, cellAddress);
+                cell = RangeHelpers.ResolveRange(ctx.Book, sheetName, cellAddress, out string? specificError);
                 if (cell == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, cellAddress);
+                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, cellAddress);
                     return result;
                 }
 
@@ -139,7 +139,7 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<RangeInfoResult> GetInfoAsync(IExcelBatch batch, string sheetName, string rangeAddress)
+    public RangeInfoResult GetInfo(IExcelBatch batch, string sheetName, string rangeAddress)
     {
         var result = new RangeInfoResult
         {
@@ -147,16 +147,16 @@ public partial class RangeCommands
             SheetName = sheetName
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             try
             {
-                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress);
+                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, rangeAddress);
+                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
                     return result;
                 }
 
@@ -181,3 +181,4 @@ public partial class RangeCommands
         });
     }
 }
+

@@ -59,12 +59,9 @@ public class OleMessageFilterTests
     [Fact]
     public void Revoke_WithoutRegister_DoesNotThrow()
     {
+        // Revoke without prior Register should not crash
         // Arrange & Act & Assert - Should handle gracefully
-        var thread = new Thread(() =>
-        {
-            // Revoke without prior Register should not crash
-            OleMessageFilter.Revoke();
-        });
+        var thread = new Thread(OleMessageFilter.Revoke);
 
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();

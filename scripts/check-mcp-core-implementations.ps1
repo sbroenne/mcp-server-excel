@@ -24,6 +24,25 @@ Write-Host "Checking MCP Tool actions have Core implementations..." -ForegroundC
 
 $errors = @()
 
+function Get-InterfaceMethodNames {
+    param(
+        [string] $InterfaceContent
+    )
+
+    $pattern = '(?m)^\s*(?:\[.*\]\s*)*(?:public\s+)?(?:static\s+)?(?:async\s+)?[\w<>\[\],?\.]+\s+(\w+)\s*\('
+    $methodMatches = [System.Text.RegularExpressions.Regex]::Matches($InterfaceContent, $pattern)
+    $names = @()
+
+    foreach ($match in $methodMatches) {
+        $name = $match.Groups[1].Value
+        if (-not [string]::IsNullOrWhiteSpace($name)) {
+            $names += $name
+        }
+    }
+
+    return $names
+}
+
 # Known intentional exceptions (documented in CORE-METHOD-RENAMING-SUMMARY.md)
 $knownExceptions = @{
     "FileAction" = @("CloseWorkbook", "Open", "Save", "Close")  # Session management actions (MCP-specific)
@@ -65,10 +84,15 @@ foreach ($enumName in $mappings.Keys) {
             $_.Trim() -replace '//.*$', '' | Where-Object { $_ -match '^\w+$' }
         }
 
-        # Read Core interface
+        # Read Core interface and extract method names
         $interfaceContent = Get-Content $interfaceFile -Raw
+        $methodNames = Get-InterfaceMethodNames -InterfaceContent $interfaceContent
+        $methodSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($methodName in $methodNames) {
+            [void]$methodSet.Add($methodName)
+        }
 
-        # Check each enum value has a corresponding Async method
+        # Check each enum value has a corresponding method (async or sync)
         $missingMethods = @()
         foreach ($value in $enumValues) {
             # Skip known exceptions
@@ -76,11 +100,17 @@ foreach ($enumName in $mappings.Keys) {
                 continue
             }
 
-            # Convert PascalCase enum to method name (e.g., ListExcelSources -> ListExcelSourcesAsync)
-            $methodName = "${value}Async"
+            $expectedNames = @("${value}Async", $value)
+            $methodExists = $false
 
-            # Check if method exists in interface
-            if ($interfaceContent -notmatch "\s+Task.*\b$methodName\s*\(") {
+            foreach ($candidate in $expectedNames) {
+                if ($methodSet.Contains($candidate)) {
+                    $methodExists = $true
+                    break
+                }
+            }
+
+            if (-not $methodExists) {
                 $missingMethods += $value
             }
         }

@@ -10,11 +10,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class SheetCommands
 {
     /// <inheritdoc />
-    public async Task<WorksheetListResult> ListAsync(IExcelBatch batch)
+    public WorksheetListResult List(IExcelBatch batch)
     {
         var result = new WorksheetListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheets = null;
             try
@@ -51,11 +51,11 @@ public partial class SheetCommands
 
     /// <inheritdoc />
     /// <inheritdoc />
-    public async Task<OperationResult> CreateAsync(IExcelBatch batch, string sheetName)
+    public OperationResult Create(IExcelBatch batch, string sheetName)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "create-sheet" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheets = null;
             dynamic? newSheet = null;
@@ -83,11 +83,11 @@ public partial class SheetCommands
 
     /// <inheritdoc />
     /// <inheritdoc />
-    public async Task<OperationResult> RenameAsync(IExcelBatch batch, string oldName, string newName)
+    public OperationResult Rename(IExcelBatch batch, string oldName, string newName)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "rename-sheet" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             try
@@ -118,11 +118,11 @@ public partial class SheetCommands
 
     /// <inheritdoc />
     /// <inheritdoc />
-    public async Task<OperationResult> CopyAsync(IExcelBatch batch, string sourceName, string targetName)
+    public OperationResult Copy(IExcelBatch batch, string sourceName, string targetName)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "copy-sheet" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sourceSheet = null;
             dynamic? sheets = null;
@@ -163,11 +163,11 @@ public partial class SheetCommands
 
     /// <inheritdoc />
     /// <inheritdoc />
-    public async Task<OperationResult> DeleteAsync(IExcelBatch batch, string sheetName)
+    public OperationResult Delete(IExcelBatch batch, string sheetName)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "delete-sheet" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             try
@@ -194,5 +194,117 @@ public partial class SheetCommands
                 ComUtilities.Release(ref sheet);
             }
         });
+    }
+
+    /// <inheritdoc />
+    public OperationResult Move(IExcelBatch batch, string sheetName, string? beforeSheet = null, string? afterSheet = null)
+    {
+        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "move-sheet" };
+
+        // Validate parameters
+        if (!string.IsNullOrWhiteSpace(beforeSheet) && !string.IsNullOrWhiteSpace(afterSheet))
+        {
+            result.Success = false;
+            result.ErrorMessage = "Cannot specify both beforeSheet and afterSheet";
+            return result;
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+            dynamic? targetSheet = null;
+            dynamic? sheets = null;
+            dynamic? lastSheet = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
+                if (sheet == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
+                    return result;
+                }
+
+                // If no position specified, move to end
+                if (string.IsNullOrWhiteSpace(beforeSheet) && string.IsNullOrWhiteSpace(afterSheet))
+                {
+                    sheets = ctx.Book.Worksheets;
+                    lastSheet = sheets.Item(sheets.Count);
+                    sheet.Move(After: lastSheet);
+                }
+                else
+                {
+                    // Find target sheet for positioning
+                    string targetName = beforeSheet ?? afterSheet!;
+                    targetSheet = ComUtilities.FindSheet(ctx.Book, targetName);
+                    if (targetSheet == null)
+                    {
+                        result.Success = false;
+                        result.ErrorMessage = $"Target sheet '{targetName}' not found";
+                        return result;
+                    }
+
+                    // Move using Excel COM API
+                    if (!string.IsNullOrWhiteSpace(beforeSheet))
+                    {
+                        sheet.Move(Before: targetSheet);
+                    }
+                    else
+                    {
+                        sheet.Move(After: targetSheet);
+                    }
+                }
+
+                result.Success = true;
+                return result;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
+                return result;
+            }
+            finally
+            {
+                ComUtilities.Release(ref lastSheet);
+                ComUtilities.Release(ref sheets);
+                ComUtilities.Release(ref targetSheet);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+    }
+
+    /// <inheritdoc />
+    public OperationResult CopyToWorkbook(IExcelBatch sourceBatch, string sourceSheet, IExcelBatch targetBatch, string? targetSheetName = null, string? beforeSheet = null, string? afterSheet = null)
+    {
+        // Cross-workbook operations not currently supported due to COM RCW limitations
+        // The IExcelBatch pattern isolates each batch.Execute() context, preventing COM objects
+        // from crossing batch boundaries. Supporting this requires architectural changes.
+        var result = new OperationResult
+        {
+            FilePath = sourceBatch.WorkbookPath,
+            Action = "copy-to-workbook",
+            Success = false,
+            ErrorMessage = "Cross-workbook sheet operations are not currently supported due to COM interop architecture limitations. " +
+                           "Workaround: Open both workbooks in Excel and use Copy Sheet manually, or export/import the sheet data."
+        };
+        return result;
+    }
+
+    /// <inheritdoc />
+    public OperationResult MoveToWorkbook(IExcelBatch sourceBatch, string sourceSheet, IExcelBatch targetBatch, string? beforeSheet = null, string? afterSheet = null)
+    {
+        // Cross-workbook operations not currently supported due to COM RCW limitations
+        // The IExcelBatch pattern isolates each batch.Execute() context, preventing COM objects
+        // from crossing batch boundaries. Supporting this requires architectural changes.
+        var result = new OperationResult
+        {
+            FilePath = sourceBatch.WorkbookPath,
+            Action = "move-to-workbook",
+            Success = false,
+            ErrorMessage = "Cross-workbook sheet operations are not currently supported due to COM interop architecture limitations. " +
+                           "Workaround: Open both workbooks in Excel and use Move/Copy Sheet manually, or copy data between workbooks."
+        };
+        return result;
     }
 }

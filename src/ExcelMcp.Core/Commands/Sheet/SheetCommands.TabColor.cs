@@ -10,7 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class SheetCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> SetTabColorAsync(IExcelBatch batch, string sheetName, int red, int green, int blue)
+    public OperationResult SetTabColor(IExcelBatch batch, string sheetName, int red, int green, int blue)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-tab-color" };
 
@@ -22,7 +22,7 @@ public partial class SheetCommands
             return result;
         }
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? tab = null;
@@ -62,11 +62,11 @@ public partial class SheetCommands
 
     /// <inheritdoc />
     /// <inheritdoc />
-    public async Task<TabColorResult> GetTabColorAsync(IExcelBatch batch, string sheetName)
+    public TabColorResult GetTabColor(IExcelBatch batch, string sheetName)
     {
         var result = new TabColorResult { FilePath = batch.WorkbookPath };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? tab = null;
@@ -136,11 +136,11 @@ public partial class SheetCommands
 
     /// <inheritdoc />
     /// <inheritdoc />
-    public async Task<OperationResult> ClearTabColorAsync(IExcelBatch batch, string sheetName)
+    public OperationResult ClearTabColor(IExcelBatch batch, string sheetName)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "clear-tab-color" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? tab = null;
@@ -175,3 +175,4 @@ public partial class SheetCommands
         });
     }
 }
+

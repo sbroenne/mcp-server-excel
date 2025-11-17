@@ -2,48 +2,46 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
 /// <summary>
 /// Represents a batch of Excel operations that share a single Excel instance.
-/// Implements IAsyncDisposable to ensure proper COM cleanup.
+/// Implements IDisposable to ensure proper COM cleanup.
 /// </summary>
 /// <remarks>
-/// Use this interface via ExcelSession.BeginBatchAsync() for multi-operation workflows.
+/// Use this interface via ExcelSession.BeginBatch() for multi-operation workflows.
 /// The batch keeps Excel and the workbook open until disposed, enabling efficient
 /// execution of multiple commands without repeated Excel startup/shutdown overhead.
 ///
 /// <para><b>Lifecycle:</b></para>
 /// <list type="bullet">
-/// <item>Created via ExcelSession.BeginBatchAsync(filePath)</item>
-/// <item>Operations executed via ExecuteAsync()</item>
-/// <item>Optional explicit save via SaveAsync()</item>
-/// <item>Disposed via DisposeAsync() or "await using" pattern</item>
+/// <item>Created via ExcelSession.BeginBatch(filePath)</item>
+/// <item>Operations executed via Execute()</item>
+/// <item>Optional explicit save via Save()</item>
+/// <item>Disposed via Dispose() or "using" pattern</item>
 /// </list>
 ///
 /// <para><b>Example:</b></para>
 /// <code>
-/// await using var batch = await ExcelSession.BeginBatchAsync("workbook.xlsx");
+/// using var batch = ExcelSession.BeginBatch("workbook.xlsx");
 ///
-/// // Synchronous COM operations
-/// await batch.Execute((ctx, ct) => {
+/// // Execute COM operations
+/// batch.Execute((ctx, ct) => {
 ///     ctx.Book.Worksheets.Add("Data");
 ///     return 0;
 /// });
 ///
-/// await batch.Execute((ctx, ct) => {
+/// batch.Execute((ctx, ct) => {
 ///     ctx.Book.Worksheets["Data"].Range["A1"].Value = "Header";
 ///     return 0;
 /// });
 ///
-/// // Async I/O operations
-/// await batch.ExecuteAsync(async (ctx, ct) => {
-///     string formula = ctx.Book.Range["A1"].Formula;
-///     await File.WriteAllTextAsync("output.txt", formula, ct);
-///     return 0;
+/// // Get content from Excel
+/// var content = batch.Execute((ctx, ct) => {
+///     return ctx.Book.Range["A1"].Formula;
 /// });
 ///
 /// // Explicit save
-/// await batch.SaveAsync();
+/// batch.Save();
 /// </code>
 /// </remarks>
-public interface IExcelBatch : IAsyncDisposable
+public interface IExcelBatch : IDisposable
 {
     /// <summary>
     /// Gets the path to the Excel workbook this batch operates on.
@@ -51,50 +49,31 @@ public interface IExcelBatch : IAsyncDisposable
     string WorkbookPath { get; }
 
     /// <summary>
-    /// Executes a synchronous COM operation within this batch.
+    /// Executes a COM operation within this batch.
     /// The operation receives an ExcelContext with access to the Excel app and workbook.
-    /// Use this for pure COM operations (property access, method calls).
+    /// All Excel COM operations are synchronous - file I/O should be handled outside the batch.
     /// </summary>
     /// <typeparam name="T">Return type of the operation</typeparam>
-    /// <param name="operation">Synchronous COM operation to execute</param>
-    /// <param name="timeout">Optional timeout override. If not specified, uses default (2 minutes). Maximum is 5 minutes.</param>
-    /// <param name="cancellationToken">Optional cancellation token</param>
+    /// <param name="operation">COM operation to execute</param>
+    /// <param name="cancellationToken">Optional cancellation token for caller-controlled cancellation</param>
     /// <returns>Result of the operation</returns>
     /// <exception cref="ObjectDisposedException">Batch has already been disposed</exception>
     /// <exception cref="InvalidOperationException">Excel COM error occurred</exception>
-    /// <exception cref="TimeoutException">Operation exceeded the timeout period</exception>
-    Task<T> Execute<T>(
+    /// <exception cref="OperationCanceledException">Operation was cancelled via cancellationToken</exception>
+    T Execute<T>(
         Func<ExcelContext, CancellationToken, T> operation,
-        TimeSpan? timeout = null,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Executes a genuinely async operation within this batch.
-    /// The operation receives an ExcelContext with access to the Excel app and workbook.
-    /// Use this ONLY when the operation performs async I/O (file operations, etc.).
-    /// </summary>
-    /// <typeparam name="T">Return type of the operation</typeparam>
-    /// <param name="operation">Async operation to execute</param>
-    /// <param name="timeout">Optional timeout override. If not specified, uses default (2 minutes). Maximum is 5 minutes.</param>
-    /// <param name="cancellationToken">Optional cancellation token</param>
-    /// <returns>Result of the operation</returns>
-    /// <exception cref="ObjectDisposedException">Batch has already been disposed</exception>
-    /// <exception cref="InvalidOperationException">Excel COM error occurred</exception>
-    /// <exception cref="TimeoutException">Operation exceeded the timeout period</exception>
-    Task<T> ExecuteAsync<T>(
-        Func<ExcelContext, CancellationToken, Task<T>> operation,
-        TimeSpan? timeout = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Saves changes to the workbook.
     /// This is an explicit save - changes are NOT automatically saved on dispose.
     /// </summary>
-    /// <param name="timeout">Optional timeout override. If not specified, uses default (2 minutes). Maximum is 5 minutes.</param>
-    /// <param name="cancellationToken">Optional cancellation token</param>
+    /// <param name="cancellationToken">Optional cancellation token for caller-controlled cancellation</param>
     /// <exception cref="ObjectDisposedException">Batch has already been disposed</exception>
     /// <exception cref="InvalidOperationException">Save failed (e.g., file is read-only)</exception>
-    /// <exception cref="TimeoutException">Save operation exceeded the timeout period</exception>
-    Task SaveAsync(TimeSpan? timeout = null, CancellationToken cancellationToken = default);
+    /// <exception cref="OperationCanceledException">Save operation was cancelled via cancellationToken</exception>
+    void Save(CancellationToken cancellationToken = default);
 
 }
+
+

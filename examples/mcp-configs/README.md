@@ -170,24 +170,6 @@ Create an Excel file called "test.xlsx"
 
 ## Configuration Options
 
-### Environment Variables
-
-You can add environment variables to the config:
-
-```json
-{
-  "mcpServers": {
-    "excel": {
-      "command": "dotnet",
-      "args": ["tool", "run", "mcp-excel"],
-      "env": {
-        "EXCEL_TIMEOUT": "300000"
-      }
-    }
-  }
-}
-```
-
 ### Multiple Workspaces
 
 If you work with multiple workspaces, you can:

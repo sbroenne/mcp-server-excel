@@ -37,14 +37,14 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     /// Helper to create unique test file with sales data for pivot table tests.
     /// Used when tests need unique files for specific scenarios.
     /// </summary>
-    private async Task<string> CreateTestFileWithDataAsync(string testName)
+    private string CreateTestFileWithData(string testName)
     {
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(PivotTableCommandsTests), testName, _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
-        await batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item(1);
             sheet.Name = "SalesData";
@@ -82,7 +82,7 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
             return 0;
         });
 
-        await batch.SaveAsync();
+        batch.Save();
 
         return testFile;
     }
@@ -90,9 +90,9 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     /// <summary>
     /// Explicit test that validates the fixture creation results.
     /// This makes the data preparation test visible in test results and validates:
-    /// - FileCommands.CreateEmptyAsync()
+    /// - FileCommands.CreateEmpty()
     /// - Sales data creation
-    /// - Batch.SaveAsync() persistence
+    /// - Batch.Save() persistence
     /// </summary>
     [Fact]
     [Trait("Speed", "Fast")]
@@ -107,7 +107,7 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
         Assert.True(_creationResult.CreationTimeSeconds > 0);
 
         // This test appears in test results as proof that creation was tested
-        Console.WriteLine($"✅ Data prepared successfully in {_creationResult.CreationTimeSeconds:F1}s");
+        Console.WriteLine($"? Data prepared successfully in {_creationResult.CreationTimeSeconds:F1}s");
     }
 
     /// <summary>
@@ -116,13 +116,13 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     /// </summary>
     [Fact]
     [Trait("Speed", "Medium")]
-    public async Task DataPreparation_Persists_AfterReopenFile()
+    public void DataPreparation_Persists_AfterReopenFile()
     {
         // Close and reopen to verify persistence (new batch = new session)
-        await using var batch = await ExcelSession.BeginBatchAsync(_pivotFile);
+        using var batch = ExcelSession.BeginBatch(_pivotFile);
 
         // Verify data persisted by reading range
-        await batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item("SalesData");
 

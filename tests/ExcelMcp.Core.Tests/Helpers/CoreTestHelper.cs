@@ -23,19 +23,19 @@ public static class CoreTestHelper
     /// Usage patterns:
     /// <code>
     /// // Excel file
-    /// var excelFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+    /// var excelFile = CoreTestHelper.CreateUniqueTestFile(
     ///     nameof(MyTests), nameof(MyTest), _tempDir, ".xlsx");
     ///
     /// // CSV file with default data
-    /// var csvFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+    /// var csvFile = CoreTestHelper.CreateUniqueTestFile(
     ///     nameof(MyTests), nameof(MyTest), _tempDir, ".csv");
     ///
     /// // CSV file with custom data
-    /// var csvFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+    /// var csvFile = CoreTestHelper.CreateUniqueTestFile(
     ///     nameof(MyTests), nameof(MyTest), _tempDir, ".csv", "Col1,Col2\nA,B");
     /// </code>
     /// </remarks>
-    public static async Task<string> CreateUniqueTestFileAsync(
+    public static string CreateUniqueTestFile(
         string testClassName,
         string testName,
         string tempDir,
@@ -50,7 +50,7 @@ public static class CoreTestHelper
         if (extension is ".xlsx" or ".xlsm")
         {
             var fileCommands = new FileCommands();
-            var result = await fileCommands.CreateEmptyAsync(filePath, overwriteIfExists: false);
+            var result = fileCommands.CreateEmpty(filePath, overwriteIfExists: false);
 
             if (!result.Success)
             {
@@ -62,13 +62,9 @@ public static class CoreTestHelper
         // Handle data files (.csv, .txt, etc.)
         else
         {
-            if (content == null)
-            {
-                throw new ArgumentNullException(nameof(content),
-                    $"Content must be provided for non-Excel files with extension '{extension}'");
-            }
-
-            File.WriteAllText(filePath, content);
+            const string defaultContent = "Name,Value\nSample,123\n";
+            var finalContent = content ?? defaultContent;
+            File.WriteAllText(filePath, finalContent);
         }
 
         return filePath;

@@ -32,7 +32,7 @@ public static class ExcelVbaTool
 - File format: .xlsm (macro-enabled) only
 - VBA trust: Must be enabled in Excel settings (one-time setup)
 ")]
-    public static async Task<string> ExcelVba(
+    public static string ExcelVba(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         VbaAction action,
@@ -51,12 +51,8 @@ public static class ExcelVbaTool
         string? moduleName = null,
 
         [FileExtensions(Extensions = "vba,bas,txt")]
-        [Description("Source VBA file path (for import/update) or target file path (for export)")]
+        [Description("Source VBA file path (for import/update actions)")]
         string? sourcePath = null,
-
-        [FileExtensions(Extensions = "vba,bas,txt")]
-        [Description("Target VBA file path (for export action)")]
-        string? targetPath = null,
 
         [Description("Parameters for VBA procedure execution (comma-separated)")]
         string? parameters = null)
@@ -68,32 +64,32 @@ public static class ExcelVbaTool
             // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
             return action switch
             {
-                VbaAction.List => await ListVbaScriptsAsync(vbaCommands, sessionId),
-                VbaAction.View => await ViewVbaScriptAsync(vbaCommands, sessionId, moduleName),
-                VbaAction.Export => await ExportVbaScriptAsync(vbaCommands, sessionId, moduleName, targetPath),
-                VbaAction.Import => await ImportVbaScriptAsync(vbaCommands, sessionId, moduleName, sourcePath),
-                VbaAction.Update => await UpdateVbaScriptAsync(vbaCommands, sessionId, moduleName, sourcePath),
-                VbaAction.Run => await RunVbaScriptAsync(vbaCommands, sessionId, moduleName, parameters),
-                VbaAction.Delete => await DeleteVbaScriptAsync(vbaCommands, sessionId, moduleName),
-                _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
+                VbaAction.List => ListVbaScriptsAsync(vbaCommands, sessionId),
+                VbaAction.View => ViewVbaScriptAsync(vbaCommands, sessionId, moduleName),
+                VbaAction.Import => ImportVbaScriptAsync(vbaCommands, sessionId, moduleName, sourcePath),
+                VbaAction.Update => UpdateVbaScriptAsync(vbaCommands, sessionId, moduleName, sourcePath),
+                VbaAction.Run => RunVbaScriptAsync(vbaCommands, sessionId, moduleName, parameters),
+                VbaAction.Delete => DeleteVbaScriptAsync(vbaCommands, sessionId, moduleName),
+                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
-        }
-        catch (ModelContextProtocol.McpException)
-        {
-            throw;
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
-            throw;
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
+                filePath = excelPath,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 
-    private static async Task<string> ListVbaScriptsAsync(VbaCommands commands, string sessionId)
+    private static string ListVbaScriptsAsync(VbaCommands commands, string sessionId)
     {
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ListAsync(batch));
+            batch => commands.List(batch));
 
         // If listing failed, throw exception with detailed error message
         // Always return JSON (success or failure) - MCP clients handle the success flag
@@ -106,14 +102,14 @@ public static class ExcelVbaTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ViewVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName)
+    private static string ViewVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName)
     {
         if (string.IsNullOrEmpty(moduleName))
-            throw new ModelContextProtocol.McpException("moduleName is required for view action");
+            throw new ArgumentException("moduleName is required for view action", nameof(moduleName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ViewAsync(batch, moduleName));
+            batch => commands.View(batch, moduleName));
 
         var lineCount = result.Code?.Split('\n').Length ?? 0;
         var procedureCount = result.Procedures?.Count ?? 0;
@@ -129,34 +125,16 @@ public static class ExcelVbaTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ExportVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName, string? targetPath)
-    {
-        if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(targetPath))
-            throw new ModelContextProtocol.McpException("moduleName and targetPath are required for export action");
-
-        var result = await ExcelToolsBase.WithSessionAsync(
-            sessionId,
-            async batch => await commands.ExportAsync(batch, moduleName, targetPath));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.ErrorMessage,
-            ModuleName = moduleName,
-            FilePath = targetPath
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static async Task<string> ImportVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName, string? sourcePath)
+    private static string ImportVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName, string? sourcePath)
     {
         if (string.IsNullOrEmpty(moduleName))
-            throw new ModelContextProtocol.McpException("moduleName is required for import action");
+            throw new ArgumentException("moduleName is required for import action", nameof(moduleName));
         if (string.IsNullOrEmpty(sourcePath))
-            throw new ModelContextProtocol.McpException("sourcePath is required for import action");
+            throw new ArgumentException("sourcePath is required for import action", nameof(sourcePath));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ImportAsync(batch, moduleName, sourcePath));
+            batch => commands.Import(batch, moduleName, sourcePath));
 
         return JsonSerializer.Serialize(new
         {
@@ -167,14 +145,14 @@ public static class ExcelVbaTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> UpdateVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName, string? sourcePath)
+    private static string UpdateVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName, string? sourcePath)
     {
         if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(sourcePath))
-            throw new ModelContextProtocol.McpException("moduleName and sourcePath are required for update action");
+            throw new ArgumentException("moduleName and sourcePath are required for update action", "moduleName,sourcePath");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.UpdateAsync(batch, moduleName, sourcePath));
+            batch => commands.Update(batch, moduleName, sourcePath));
 
         return JsonSerializer.Serialize(new
         {
@@ -185,10 +163,10 @@ public static class ExcelVbaTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RunVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName, string? parameters)
+    private static string RunVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName, string? parameters)
     {
         if (string.IsNullOrEmpty(moduleName))
-            throw new ModelContextProtocol.McpException("moduleName (format: 'Module.Procedure') is required for run action");
+            throw new ArgumentException("moduleName (format: 'Module.Procedure') is required for run action", nameof(moduleName));
 
         // Parse parameters if provided
         string[] paramArray;
@@ -203,9 +181,9 @@ public static class ExcelVbaTool
                                    .ToArray();
         }
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.RunAsync(batch, moduleName, null, paramArray));
+            batch => commands.Run(batch, moduleName, null, paramArray));
         var paramCount = paramArray.Length;
 
         return JsonSerializer.Serialize(new
@@ -217,14 +195,14 @@ public static class ExcelVbaTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> DeleteVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName)
+    private static string DeleteVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName)
     {
         if (string.IsNullOrEmpty(moduleName))
-            throw new ModelContextProtocol.McpException("moduleName is required for delete action");
+            throw new ArgumentException("moduleName is required for delete action", nameof(moduleName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.DeleteAsync(batch, moduleName));
+            batch => commands.Delete(batch, moduleName));
 
         return JsonSerializer.Serialize(new
         {
@@ -234,3 +212,4 @@ public static class ExcelVbaTool
         }, ExcelToolsBase.JsonOptions);
     }
 }
+

@@ -11,11 +11,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 public partial class RangeCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> AddHyperlinkAsync(IExcelBatch batch, string sheetName, string cellAddress, string url, string? displayText = null, string? tooltip = null)
+    public OperationResult AddHyperlink(IExcelBatch batch, string sheetName, string cellAddress, string url, string? displayText = null, string? tooltip = null)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "add-hyperlink" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -70,21 +70,21 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> RemoveHyperlinkAsync(IExcelBatch batch, string sheetName, string rangeAddress)
+    public OperationResult RemoveHyperlink(IExcelBatch batch, string sheetName, string rangeAddress)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "remove-hyperlink" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             dynamic? hyperlinks = null;
             try
             {
-                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress);
+                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, rangeAddress);
+                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
                     return result;
                 }
 
@@ -124,7 +124,7 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<RangeHyperlinkResult> ListHyperlinksAsync(IExcelBatch batch, string sheetName)
+    public RangeHyperlinkResult ListHyperlinks(IExcelBatch batch, string sheetName)
     {
         var result = new RangeHyperlinkResult
         {
@@ -132,7 +132,7 @@ public partial class RangeCommands
             SheetName = sheetName
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? hyperlinks = null;
@@ -191,7 +191,7 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<RangeHyperlinkResult> GetHyperlinkAsync(IExcelBatch batch, string sheetName, string cellAddress)
+    public RangeHyperlinkResult GetHyperlink(IExcelBatch batch, string sheetName, string cellAddress)
     {
         var result = new RangeHyperlinkResult
         {
@@ -200,7 +200,7 @@ public partial class RangeCommands
             RangeAddress = cellAddress
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -261,3 +261,4 @@ public partial class RangeCommands
     }
 
 }
+

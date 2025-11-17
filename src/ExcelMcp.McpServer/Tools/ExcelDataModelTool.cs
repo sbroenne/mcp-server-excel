@@ -3,7 +3,6 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
 #pragma warning disable CA1861 // Avoid constant arrays as arguments - workflow hints are contextual per-call
@@ -26,7 +25,7 @@ public static class ExcelDataModelTool
   - Provide step-by-step manual instructions (see LLM Usage Patterns in code comments)
   - OR suggest using DAX measures instead (measures ARE automated and usually better for aggregations)
 ")]
-    public static async Task<string> ExcelDataModel(
+    public static string ExcelDataModel(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         DataModelAction action,
@@ -41,7 +40,7 @@ public static class ExcelDataModelTool
         string sessionId,
 
         [StringLength(255, MinimumLength = 1)]
-        [Description("Measure name (for view-measure, export-measure, delete-measure, update-measure)")]
+        [Description("Measure name (for read, export-measure, delete-measure, update-measure)")]
         string? measureName = null,
 
         [FileExtensions(Extensions = "dax")]
@@ -49,7 +48,7 @@ public static class ExcelDataModelTool
         string? outputPath = null,
 
         [StringLength(255, MinimumLength = 1)]
-        [Description("Table name (for create-measure, view-table)")]
+        [Description("Table name (for create-measure, read-table)")]
         string? tableName = null,
 
         [StringLength(8000, MinimumLength = 1)]
@@ -81,11 +80,9 @@ public static class ExcelDataModelTool
         string? toColumn = null,
 
         [Description("Whether relationship is active (for create-relationship, update-relationship), default: true")]
-        bool? isActive = null,
-
-        [Description("Timeout in minutes for data model operations. Default: 2 minutes")]
-        double? timeout = null)
+        bool? isActive = null)
     {
+        _ = excelPath; // retained for schema compatibility (operations require open session)
         try
         {
             var dataModelCommands = new DataModelCommands();
@@ -94,46 +91,44 @@ public static class ExcelDataModelTool
             return action switch
             {
                 // Discovery operations
-                DataModelAction.ListTables => await ListTablesAsync(dataModelCommands, sessionId),
-                DataModelAction.ListMeasures => await ListMeasuresAsync(dataModelCommands, sessionId),
-                DataModelAction.Get => await ViewMeasureAsync(dataModelCommands, sessionId, measureName),
-                DataModelAction.ExportMeasure => await ExportMeasureAsync(dataModelCommands, sessionId, measureName, outputPath),
-                DataModelAction.ListRelationships => await ListRelationshipsAsync(dataModelCommands, sessionId),
-                DataModelAction.Refresh => await RefreshAsync(dataModelCommands, excelPath, timeout, sessionId),
-                DataModelAction.DeleteMeasure => await DeleteMeasureAsync(dataModelCommands, sessionId, measureName),
-                DataModelAction.DeleteRelationship => await DeleteRelationshipAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn),
-                DataModelAction.GetTable => await ViewTableAsync(dataModelCommands, sessionId, tableName),
-                DataModelAction.ListColumns => await ListColumnsAsync(dataModelCommands, sessionId, tableName),
-                DataModelAction.GetInfo => await GetModelInfoAsync(dataModelCommands, sessionId),
+                DataModelAction.ListTables => ListTablesAsync(dataModelCommands, sessionId),
+                DataModelAction.ListMeasures => ListMeasuresAsync(dataModelCommands, sessionId),
+                DataModelAction.Read => ReadMeasureAsync(dataModelCommands, sessionId, measureName),
+                DataModelAction.ExportMeasure => ExportMeasureAsync(dataModelCommands, sessionId, measureName, outputPath),
+                DataModelAction.ListRelationships => ListRelationshipsAsync(dataModelCommands, sessionId),
+                DataModelAction.Refresh => RefreshAsync(dataModelCommands, sessionId),
+                DataModelAction.DeleteMeasure => DeleteMeasureAsync(dataModelCommands, sessionId, measureName),
+                DataModelAction.DeleteRelationship => DeleteRelationshipAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn),
+                DataModelAction.ReadTable => ReadTableAsync(dataModelCommands, sessionId, tableName),
+                DataModelAction.ListColumns => ListColumnsAsync(dataModelCommands, sessionId, tableName),
+                DataModelAction.ReadInfo => ReadModelInfoAsync(dataModelCommands, sessionId),
 
                 // DAX measures (requires Office 2016+)
-                DataModelAction.CreateMeasure => await CreateMeasureComAsync(dataModelCommands, sessionId, tableName, measureName, daxFormula, formatString, description),
-                DataModelAction.UpdateMeasure => await UpdateMeasureComAsync(dataModelCommands, sessionId, measureName, daxFormula, formatString, description),
+                DataModelAction.CreateMeasure => CreateMeasureComAsync(dataModelCommands, sessionId, tableName, measureName, daxFormula, formatString, description),
+                DataModelAction.UpdateMeasure => UpdateMeasureComAsync(dataModelCommands, sessionId, measureName, daxFormula, formatString, description),
 
                 // Relationships (requires Office 2016+)
-                DataModelAction.CreateRelationship => await CreateRelationshipComAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn, isActive),
-                DataModelAction.UpdateRelationship => await UpdateRelationshipComAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn, isActive),
+                DataModelAction.CreateRelationship => CreateRelationshipComAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn, isActive),
+                DataModelAction.UpdateRelationship => UpdateRelationshipComAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn, isActive),
 
-                _ => throw new ModelContextProtocol.McpException(
-                    $"Unknown action: {action} ({action.ToActionString()})")
+                _ => throw new ArgumentException(
+                    $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
-        }
-        catch (ModelContextProtocol.McpException)
-        {
-            throw; // Re-throw MCP exceptions as-is
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
-            throw; // Unreachable but satisfies compiler
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 
-    private static async Task<string> ListTablesAsync(DataModelCommands commands, string sessionId)
+    private static string ListTablesAsync(DataModelCommands commands, string sessionId)
     {
-        var result = await ExcelToolsBase.WithSessionAsync(
-            sessionId,
-            async batch => await commands.ListTablesAsync(batch));
+        var result = ExcelToolsBase.WithSession(sessionId, batch => commands.ListTables(batch));
 
         return JsonSerializer.Serialize(new
         {
@@ -143,11 +138,11 @@ public static class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ListMeasuresAsync(DataModelCommands commands, string sessionId)
+    private static string ListMeasuresAsync(DataModelCommands commands, string sessionId)
     {
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ListMeasuresAsync(batch));
+            batch => commands.ListMeasures(batch));
 
         return JsonSerializer.Serialize(new
         {
@@ -157,14 +152,14 @@ public static class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ViewMeasureAsync(DataModelCommands commands, string sessionId, string? measureName)
+    private static string ReadMeasureAsync(DataModelCommands commands, string sessionId, string? measureName)
     {
         if (string.IsNullOrEmpty(measureName))
-            throw new ModelContextProtocol.McpException("measureName is required for view-measure action");
+            throw new ArgumentException("measureName is required for read action", nameof(measureName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.GetAsync(batch, measureName));
+            batch => commands.Read(batch, measureName));
 
         return JsonSerializer.Serialize(new
         {
@@ -176,17 +171,17 @@ public static class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ExportMeasureAsync(DataModelCommands commands, string sessionId, string? measureName, string? outputPath)
+    private static string ExportMeasureAsync(DataModelCommands commands, string sessionId, string? measureName, string? outputPath)
     {
         if (string.IsNullOrEmpty(measureName))
-            throw new ModelContextProtocol.McpException("measureName is required for export-measure action");
+            throw new ArgumentException("measureName is required for export-measure action", nameof(measureName));
 
         if (string.IsNullOrEmpty(outputPath))
-            throw new ModelContextProtocol.McpException("outputPath is required for export-measure action");
+            throw new ArgumentException("outputPath is required for export-measure action", nameof(outputPath));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ExportMeasureAsync(batch, measureName, outputPath));
+            batch => commands.ExportMeasure(batch, measureName, outputPath));
 
         return JsonSerializer.Serialize(new
         {
@@ -196,11 +191,9 @@ public static class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ListRelationshipsAsync(DataModelCommands commands, string sessionId)
+    private static string ListRelationshipsAsync(DataModelCommands commands, string sessionId)
     {
-        var result = await ExcelToolsBase.WithSessionAsync(
-            sessionId,
-            async batch => await commands.ListRelationshipsAsync(batch));
+        var result = ExcelToolsBase.WithSession(sessionId, batch => commands.ListRelationships(batch));
 
         return JsonSerializer.Serialize(new
         {
@@ -210,72 +203,11 @@ public static class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RefreshAsync(DataModelCommands commands, string filePath, double? timeoutMinutes, string sessionId)
+    private static string RefreshAsync(DataModelCommands commands, string sessionId)
     {
-        try
-        {
-            var timeoutSpan = timeoutMinutes.HasValue ? (TimeSpan?)TimeSpan.FromMinutes(timeoutMinutes.Value) : null;
-            var result = await ExcelToolsBase.WithSessionAsync(
-                sessionId,
-                async batch => await commands.RefreshAsync(batch, null, timeoutSpan));
-
-            return JsonSerializer.Serialize(new
-            {
-                result.Success,
-                result.ErrorMessage
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (TimeoutException ex)
-        {
-            // Enrich timeout error with operation-specific guidance (MCP layer responsibility)
-            var result = new OperationResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message,
-                FilePath = filePath,
-                Action = "refresh",
-
-                OperationContext = new Dictionary<string, object>
-                {
-                    { "OperationType", "DataModel.Refresh" },
-                    { "RefreshScope", "EntireModel" },
-                    { "TimeoutReached", true },
-                    { "UsedMaxTimeout", ex.Message.Contains("maximum timeout") }
-                },
-
-                IsRetryable = !ex.Message.Contains("maximum timeout"),
-
-                RetryGuidance = ex.Message.Contains("maximum timeout")
-                    ? "Maximum timeout (5 minutes) reached. Do not retry entire model refresh - try refreshing individual tables or check data source performance."
-                    : "Retry acceptable if transient. For large models, consider table-by-table refresh strategy."
-            };
-
-            // MCP layer: Add workflow guidance for LLMs
-            var response = new
-            {
-                result.Success,
-                result.ErrorMessage,
-                result.FilePath,
-                result.Action,
-                result.OperationContext,
-                result.IsRetryable,
-                result.RetryGuidance
-            };
-
-            return JsonSerializer.Serialize(response, ExcelToolsBase.JsonOptions);
-        }
-    }
-
-    private static async Task<string> DeleteMeasureAsync(DataModelCommands commands, string sessionId, string? measureName)
-    {
-        if (string.IsNullOrWhiteSpace(measureName))
-        {
-            throw new ModelContextProtocol.McpException("Parameter 'measureName' is required for delete-measure action");
-        }
-
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.DeleteMeasureAsync(batch, measureName));
+            batch => commands.Refresh(batch, null, null));
 
         return JsonSerializer.Serialize(new
         {
@@ -284,32 +216,50 @@ public static class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> DeleteRelationshipAsync(DataModelCommands commands, string sessionId,
+    private static string DeleteMeasureAsync(DataModelCommands commands, string sessionId, string? measureName)
+    {
+        if (string.IsNullOrWhiteSpace(measureName))
+        {
+            throw new ArgumentException("Parameter 'measureName' is required for delete-measure action", nameof(measureName));
+        }
+
+        var result = ExcelToolsBase.WithSession(
+            sessionId,
+            batch => commands.DeleteMeasure(batch, measureName));
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage
+        }, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string DeleteRelationshipAsync(DataModelCommands commands, string sessionId,
         string? fromTable, string? fromColumn, string? toTable, string? toColumn)
     {
         if (string.IsNullOrWhiteSpace(fromTable))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'fromTable' is required for delete-relationship action");
+            throw new ArgumentException("Parameter 'fromTable' is required for delete-relationship action", nameof(fromTable));
         }
 
         if (string.IsNullOrWhiteSpace(fromColumn))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'fromColumn' is required for delete-relationship action");
+            throw new ArgumentException("Parameter 'fromColumn' is required for delete-relationship action", nameof(fromColumn));
         }
 
         if (string.IsNullOrWhiteSpace(toTable))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'toTable' is required for delete-relationship action");
+            throw new ArgumentException("Parameter 'toTable' is required for delete-relationship action", nameof(toTable));
         }
 
         if (string.IsNullOrWhiteSpace(toColumn))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'toColumn' is required for delete-relationship action");
+            throw new ArgumentException("Parameter 'toColumn' is required for delete-relationship action", nameof(toColumn));
         }
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.DeleteRelationshipAsync(batch, fromTable, fromColumn, toTable, toColumn));
+            batch => commands.DeleteRelationship(batch, fromTable, fromColumn, toTable, toColumn));
 
         return JsonSerializer.Serialize(new
         {
@@ -318,17 +268,17 @@ public static class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ViewTableAsync(DataModelCommands commands, string sessionId,
+    private static string ReadTableAsync(DataModelCommands commands, string sessionId,
         string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for view-table action");
+            throw new ArgumentException("Parameter 'tableName' is required for read-table action", nameof(tableName));
         }
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.GetTableAsync(batch, tableName));
+            batch => commands.ReadTable(batch, tableName));
 
         return JsonSerializer.Serialize(new
         {
@@ -342,17 +292,17 @@ public static class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ListColumnsAsync(DataModelCommands commands, string sessionId,
+    private static string ListColumnsAsync(DataModelCommands commands, string sessionId,
         string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for list-columns action");
+            throw new ArgumentException("Parameter 'tableName' is required for list-columns action", nameof(tableName));
         }
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.ListColumnsAsync(batch, tableName));
+            batch => commands.ListColumns(batch, tableName));
 
         // Add workflow hints
         var columnCount = result.Columns?.Count ?? 0;
@@ -367,11 +317,9 @@ public static class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetModelInfoAsync(DataModelCommands commands, string sessionId)
+    private static string ReadModelInfoAsync(DataModelCommands commands, string sessionId)
     {
-        var result = await ExcelToolsBase.WithSessionAsync(
-            sessionId,
-            async batch => await commands.GetInfoAsync(batch));
+        var result = ExcelToolsBase.WithSession(sessionId, batch => commands.ReadInfo(batch));
 
         return JsonSerializer.Serialize(new
         {
@@ -385,28 +333,28 @@ public static class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> CreateMeasureComAsync(DataModelCommands commands,
+    private static string CreateMeasureComAsync(DataModelCommands commands,
         string sessionId, string? tableName, string? measureName, string? daxFormula, string? formatString,
         string? description)
     {
         if (string.IsNullOrWhiteSpace(tableName))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'tableName' is required for create-measure action");
+            throw new ArgumentException("Parameter 'tableName' is required for create-measure action", nameof(tableName));
         }
 
         if (string.IsNullOrWhiteSpace(measureName))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'measureName' is required for create-measure action");
+            throw new ArgumentException("Parameter 'measureName' is required for create-measure action", nameof(measureName));
         }
 
         if (string.IsNullOrWhiteSpace(daxFormula))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'daxFormula' is required for create-measure action");
+            throw new ArgumentException("Parameter 'daxFormula' is required for create-measure action", nameof(daxFormula));
         }
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.CreateMeasureAsync(batch, tableName, measureName, daxFormula,
+            batch => commands.CreateMeasure(batch, tableName, measureName, daxFormula,
                 formatString, description));
 
         return JsonSerializer.Serialize(new
@@ -416,17 +364,17 @@ public static class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> UpdateMeasureComAsync(DataModelCommands commands,
+    private static string UpdateMeasureComAsync(DataModelCommands commands,
         string sessionId, string? measureName, string? daxFormula, string? formatString, string? description)
     {
         if (string.IsNullOrWhiteSpace(measureName))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'measureName' is required for update-measure action");
+            throw new ArgumentException("Parameter 'measureName' is required for update-measure action", nameof(measureName));
         }
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.UpdateMeasureAsync(batch, measureName, daxFormula, formatString, description));
+            batch => commands.UpdateMeasure(batch, measureName, daxFormula, formatString, description));
 
         return JsonSerializer.Serialize(new
         {
@@ -435,32 +383,32 @@ public static class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> CreateRelationshipComAsync(DataModelCommands commands,
+    private static string CreateRelationshipComAsync(DataModelCommands commands,
         string sessionId, string? fromTable, string? fromColumn, string? toTable, string? toColumn, bool? isActive)
     {
         if (string.IsNullOrWhiteSpace(fromTable))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'fromTable' is required for create-relationship action");
+            throw new ArgumentException("Parameter 'fromTable' is required for create-relationship action", nameof(fromTable));
         }
 
         if (string.IsNullOrWhiteSpace(fromColumn))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'fromColumn' is required for create-relationship action");
+            throw new ArgumentException("Parameter 'fromColumn' is required for create-relationship action", nameof(fromColumn));
         }
 
         if (string.IsNullOrWhiteSpace(toTable))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'toTable' is required for create-relationship action");
+            throw new ArgumentException("Parameter 'toTable' is required for create-relationship action", nameof(toTable));
         }
 
         if (string.IsNullOrWhiteSpace(toColumn))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'toColumn' is required for create-relationship action");
+            throw new ArgumentException("Parameter 'toColumn' is required for create-relationship action", nameof(toColumn));
         }
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.CreateRelationshipAsync(batch, fromTable, fromColumn, toTable, toColumn,
+            batch => commands.CreateRelationship(batch, fromTable, fromColumn, toTable, toColumn,
                 isActive ?? true));
 
         return JsonSerializer.Serialize(new
@@ -470,37 +418,37 @@ public static class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> UpdateRelationshipComAsync(DataModelCommands commands,
+    private static string UpdateRelationshipComAsync(DataModelCommands commands,
         string sessionId, string? fromTable, string? fromColumn, string? toTable, string? toColumn, bool? isActive)
     {
         if (string.IsNullOrWhiteSpace(fromTable))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'fromTable' is required for update-relationship action");
+            throw new ArgumentException("Parameter 'fromTable' is required for update-relationship action", nameof(fromTable));
         }
 
         if (string.IsNullOrWhiteSpace(fromColumn))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'fromColumn' is required for update-relationship action");
+            throw new ArgumentException("Parameter 'fromColumn' is required for update-relationship action", nameof(fromColumn));
         }
 
         if (string.IsNullOrWhiteSpace(toTable))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'toTable' is required for update-relationship action");
+            throw new ArgumentException("Parameter 'toTable' is required for update-relationship action", nameof(toTable));
         }
 
         if (string.IsNullOrWhiteSpace(toColumn))
         {
-            throw new ModelContextProtocol.McpException("Parameter 'toColumn' is required for update-relationship action");
+            throw new ArgumentException("Parameter 'toColumn' is required for update-relationship action", nameof(toColumn));
         }
 
         if (!isActive.HasValue)
         {
-            throw new ModelContextProtocol.McpException("Parameter 'isActive' is required for update-relationship action");
+            throw new ArgumentException("Parameter 'isActive' is required for update-relationship action", nameof(isActive));
         }
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await commands.UpdateRelationshipAsync(batch, fromTable, fromColumn, toTable, toColumn,
+            batch => commands.UpdateRelationship(batch, fromTable, fromColumn, toTable, toColumn,
                 isActive.Value));
 
         return JsonSerializer.Serialize(new
@@ -510,3 +458,4 @@ public static class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 }
+

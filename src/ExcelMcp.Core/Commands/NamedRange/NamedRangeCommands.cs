@@ -31,7 +31,7 @@ public partial class NamedRangeCommands : INamedRangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> CreateBulkAsync(IExcelBatch batch, IEnumerable<NamedRangeDefinition> parameters)
+    public OperationResult CreateBulk(IExcelBatch batch, IEnumerable<NamedRangeDefinition> parameters)
     {
         var parameterList = parameters?.ToList();
 
@@ -70,7 +70,7 @@ public partial class NamedRangeCommands : INamedRangeCommands
             }
 
             // Create named range
-            var createResult = await CreateAsync(batch, param.Name, param.Reference);
+            var createResult = Create(batch, param.Name, param.Reference);
             if (!createResult.Success)
             {
                 errors.Add($"Failed to create '{param.Name}': {createResult.ErrorMessage}");
@@ -83,7 +83,7 @@ public partial class NamedRangeCommands : INamedRangeCommands
             if (param.Value != null)
             {
                 var valueStr = Convert.ToString(param.Value, System.Globalization.CultureInfo.InvariantCulture) ?? "";
-                var setResult = await SetAsync(batch, param.Name, valueStr);
+                var setResult = Write(batch, param.Name, valueStr);
                 if (!setResult.Success)
                 {
                     errors.Add($"Created '{param.Name}' but failed to set value: {setResult.ErrorMessage}");
@@ -115,3 +115,4 @@ public partial class NamedRangeCommands : INamedRangeCommands
         return result;
     }
 }
+

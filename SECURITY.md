@@ -24,7 +24,6 @@ ExcelMcp includes several security measures:
 
 - **Enhanced Security Rules**: CA2100, CA3003, CA3006, CA5389, CA5390, CA5394 enforced as errors
 - **Treat Warnings as Errors**: All code quality issues must be resolved
-- **Static Analysis**: SecurityCodeScan.VS2019 package integrated
 - **CodeQL Scanning**: Automated security scanning on every push
 
 ### COM Security

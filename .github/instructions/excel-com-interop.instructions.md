@@ -10,10 +10,8 @@ applyTo: "src/ExcelMcp.Core/**/*.cs"
 
 1. **Use Late Binding** - `dynamic` types with `Type.GetTypeFromProgID()`
 2. **1-Based Indexing** - Excel collections start at 1, not 0
-3. **Release COM Objects** - Use `Marshal.ReleaseComObject()` and `GC.Collect()`
 4. **QueryTable Refresh REQUIRED** - `.Refresh(false)` synchronous for persistence
 5. **NEVER use RefreshAll()** - Async/unreliable; use individual `connection.Refresh()` or `queryTable.Refresh(false)`
-6. **Timeout Protection** - All batch operations have 2-minute default timeout; heavy operations request 5-minute timeout
 
 ## Reference Resources
 
@@ -23,27 +21,6 @@ applyTo: "src/ExcelMcp.Core/**/*.cs"
 - NetOffice wraps Office COM APIs in strongly-typed C# - study their patterns for dynamic interop conversion
 - Search NetOffice repository BEFORE implementing any Excel COM automation
 - Particularly valuable for: PivotTables, OLAP CubeFields, Data Model operations, QueryTables, complex COM scenarios
-
-## Timeout Handling
-
-### Request Extended Timeout for Heavy Operations
-
-```csharp
-// Heavy refresh operations - request 5-minute timeout
-return await batch.Execute((ctx, ct) =>
-{
-    // Refresh operation...
-    return result;
-}, 
-cancellationToken: default,
-timeout: TimeSpan.FromMinutes(5));  // ✅ Request extended timeout
-```
-
-**Operations requiring extended timeout:**
-- Power Query refresh (large datasets)
-- Connection refresh (slow data sources)
-- Data Model refresh (millions of rows)
-- Large range operations (very large datasets)
 
 ## Resource Management
 

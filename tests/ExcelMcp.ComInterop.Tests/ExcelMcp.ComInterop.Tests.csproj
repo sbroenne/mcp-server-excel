@@ -8,6 +8,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <RunSettingsFile>ComInteropTests.runsettings</RunSettingsFile>
 
     <AssemblyName>Sbroenne.ExcelMcp.ComInterop.Tests</AssemblyName>
     <RootNamespace>Sbroenne.ExcelMcp.ComInterop.Tests</RootNamespace>
@@ -34,6 +35,15 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\ExcelMcp.ComInterop\ExcelMcp.ComInterop.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="xunit.runner.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Integration\Session\TestFiles\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

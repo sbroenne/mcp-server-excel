@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 public partial class RangeCommands
 {
     /// <inheritdoc />
-    public async Task<RangeValueResult> GetValuesAsync(IExcelBatch batch, string sheetName, string rangeAddress)
+    public RangeValueResult GetValues(IExcelBatch batch, string sheetName, string rangeAddress)
     {
         var result = new RangeValueResult
         {
@@ -20,16 +20,16 @@ public partial class RangeCommands
             RangeAddress = rangeAddress
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             try
             {
-                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress);
+                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, rangeAddress);
+                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
                     return result;
                 }
 
@@ -66,6 +66,13 @@ public partial class RangeCommands
                 result.Success = true;
                 return result;
             }
+            catch (System.Runtime.InteropServices.COMException comEx) when (comEx.HResult == unchecked((int)0x8007000E))
+            {
+                // E_OUTOFMEMORY - Excel's misleading error for sheet/range/session issues
+                result.Success = false;
+                result.ErrorMessage = $"Cannot read range '{rangeAddress}' on sheet '{sheetName}': {comEx.Message}";
+                return result;
+            }
             catch (Exception ex)
             {
                 result.Success = false;
@@ -80,20 +87,20 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> SetValuesAsync(IExcelBatch batch, string sheetName, string rangeAddress, List<List<object?>> values)
+    public OperationResult SetValues(IExcelBatch batch, string sheetName, string rangeAddress, List<List<object?>> values)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-values" };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             try
             {
-                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress);
+                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, rangeAddress);
+                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
                     return result;
                 }
 
@@ -120,6 +127,13 @@ public partial class RangeCommands
                 result.Success = true;
                 return result;
             }
+            catch (System.Runtime.InteropServices.COMException comEx) when (comEx.HResult == unchecked((int)0x8007000E))
+            {
+                // E_OUTOFMEMORY - Excel's misleading error for sheet/range/session issues
+                result.Success = false;
+                result.ErrorMessage = $"Cannot write to range '{rangeAddress}' on sheet '{sheetName}': {comEx.Message}";
+                return result;
+            }
             catch (Exception ex)
             {
                 result.Success = false;
@@ -133,3 +147,4 @@ public partial class RangeCommands
         });
     }
 }
+

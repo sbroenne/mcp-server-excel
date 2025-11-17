@@ -209,7 +209,7 @@ public partial class RangeCommands
     /// <summary>
     /// Helper for clear operations
     /// </summary>
-    private static async Task<OperationResult> ClearRangeAsync(
+    private static OperationResult ClearRange(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,
@@ -218,7 +218,7 @@ public partial class RangeCommands
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = action };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             try

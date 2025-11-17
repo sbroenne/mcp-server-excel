@@ -10,12 +10,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 public partial class RangeCommands
 {
     /// <inheritdoc />
-    public async Task<OperationResult> AutoFitColumnsAsync(
+    public OperationResult AutoFitColumns(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -60,12 +60,12 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> AutoFitRowsAsync(
+    public OperationResult AutoFitRows(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -109,3 +109,4 @@ public partial class RangeCommands
         });
     }
 }
+

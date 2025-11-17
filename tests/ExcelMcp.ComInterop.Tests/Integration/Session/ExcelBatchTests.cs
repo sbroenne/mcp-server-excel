@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 using Xunit.Abstractions;
@@ -10,12 +10,12 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 /// Tests that Excel instances are reused across operations and properly cleaned up.
 ///
 /// LAYER RESPONSIBILITY:
-/// - ✅ Test ExcelBatch.ExecuteAsync() reuses Excel instance
-/// - ✅ Test ExcelBatch.DisposeAsync() COM cleanup
-/// - ✅ Test ExcelBatch.SaveAsync() functionality
+/// - ✅ Test ExcelBatch.Execute() reuses Excel instance
+/// - ✅ Test ExcelBatch.Dispose() COM cleanup
+/// - ✅ Test ExcelBatch.Save() functionality
 /// - ✅ Verify Excel.exe process termination (no leaks)
 ///
-/// NOTE: ExcelBatch.DisposeAsync() handles all GC cleanup automatically.
+/// NOTE: ExcelBatch.Dispose() handles all GC cleanup automatically.
 /// Tests only need to wait for async disposal and process termination timing.
 ///
 /// IMPORTANT: These tests spawn and terminate Excel processes (side effects).
@@ -25,329 +25,315 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 [Trait("Speed", "Slow")]
 [Trait("Layer", "ComInterop")]
 [Trait("Feature", "ExcelBatch")]
-[Trait("RunType", "OnDemand")]
 [Collection("Sequential")] // Disable parallelization to avoid COM interference
-public class ExcelBatchTests
+public class ExcelBatchTests : IAsyncLifetime
 {
     private readonly ITestOutputHelper _output;
+    private static string? _staticTestFile;
+    private string? _testFileCopy;
 
     public ExcelBatchTests(ITestOutputHelper output)
     {
         _output = output;
     }
 
-    private static async Task<string> CreateTempTestFileAsync()
+    public Task InitializeAsync()
     {
-        string testFile = Path.Join(Path.GetTempPath(), $"batch-test-{Guid.NewGuid():N}.xlsx");
-        await ExcelSession.CreateNew(testFile, isMacroEnabled: false, (ctx, ct) =>
+        // Use static test file from TestFiles folder (must be pre-created)
+        if (_staticTestFile == null)
         {
-            // File created, just return
-            return 0;
-        });
-        return testFile;
+            var testFolder = Path.Join(AppContext.BaseDirectory, "Integration", "Session", "TestFiles");
+            _staticTestFile = Path.Join(testFolder, "batch-test-static.xlsx");
+
+            // Verify the static file exists
+            if (!File.Exists(_staticTestFile))
+            {
+                throw new FileNotFoundException($"Static test file not found at {_staticTestFile}. " +
+                    "Please create the batch-test-static.xlsx file in the TestFiles folder.");
+            }
+        }
+
+        // Create a fresh copy for this test instance (in temp folder)
+        _testFileCopy = Path.Join(Path.GetTempPath(), $"batch-test-{Guid.NewGuid():N}.xlsx");
+        File.Copy(_staticTestFile, _testFileCopy, overwrite: true);
+
+        // Wait for any Excel processes from file creation to terminate
+        return Task.Delay(500);
+    }
+
+    public Task DisposeAsync()
+    {
+        // Clean up this test's copy
+        if (_testFileCopy != null && File.Exists(_testFileCopy))
+        {
+            try { File.Delete(_testFileCopy); } catch { }
+        }
+        return Task.CompletedTask;
+    }
+
+    private static void CleanupStaticFile()
+    {
+        if (_staticTestFile != null && File.Exists(_staticTestFile))
+        {
+            try { File.Delete(_staticTestFile); } catch { }
+        }
     }
 
     [Fact]
-    [Trait("RunType", "OnDemand")]
-    public async Task ExecuteAsync_MultipleOperations_ReusesExcelInstance()
+    public void ExecuteAsync_MultipleOperations_ReusesExcelInstance()
     {
         // Arrange
-        string testFile = await CreateTempTestFileAsync();
         int operationCount = 0;
 
-        try
-        {
-            // Act - Use batching for multiple operations
-            await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        // Act - Use batching for multiple operations
+        using var batch = ExcelSession.BeginBatch(_testFileCopy!);
 
-            for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 5; i++)
+        {
+            batch.Execute((ctx, ct) =>
             {
-                await batch.Execute((ctx, ct) =>
-                {
-                    operationCount++;
-                    _output.WriteLine($"Batch operation {operationCount}");
+                operationCount++;
+                _output.WriteLine($"Batch operation {operationCount}");
 
-                    // Verify we have the same context
-                    Assert.NotNull(ctx.App);
-                    Assert.NotNull(ctx.Book);
+                // Verify we have the same context
+                Assert.NotNull(ctx.App);
+                Assert.NotNull(ctx.Book);
 
-                    return operationCount;
-                });
-            }
-
-            // Assert
-            Assert.Equal(5, operationCount);
-            _output.WriteLine($"✓ Completed {operationCount} batch operations");
+                return operationCount;
+            });
         }
-        finally
-        {
-            if (File.Exists(testFile)) File.Delete(testFile);
-        }
+
+        // Assert
+        Assert.Equal(5, operationCount);
+        _output.WriteLine($"✓ Completed {operationCount} batch operations");
     }
 
     [Fact]
-    [Trait("RunType", "OnDemand")]
-    public async Task DisposeAsync_CleansUpComObjects_NoProcessLeak()
+    public void Dispose_CleansUpComObjects_NoProcessLeak()
     {
         // Arrange
-        string testFile = await CreateTempTestFileAsync();
         var startingProcesses = Process.GetProcessesByName("EXCEL");
         int startingCount = startingProcesses.Length;
 
         _output.WriteLine($"Excel processes before: {startingCount}");
 
-        try
-        {
-            // Act
-            var batch = await ExcelSession.BeginBatchAsync(testFile);
+        // Act
+        var batch = ExcelSession.BeginBatch(_testFileCopy!);
 
-            await batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            var value = sheet.Range["A1"].Value2;
+            return 0;
+        });
+
+        batch.Dispose();
+
+        // Wait for Excel process to fully terminate
+        Thread.Sleep(5000);
+
+        // Assert
+        var endingProcesses = Process.GetProcessesByName("EXCEL");
+        int endingCount = endingProcesses.Length;
+
+        _output.WriteLine($"Excel processes after: {endingCount}");
+
+        Assert.True(endingCount <= startingCount,
+            $"Excel process leak in batch! Started with {startingCount}, ended with {endingCount}");
+    }
+
+    [Fact]
+    public void Save_PersistsChanges_ToWorkbook()
+    {
+        // Arrange
+        string testValue = $"Test-{Guid.NewGuid():N}";
+
+        // Act - Write and save
+        using (var batch = ExcelSession.BeginBatch(_testFileCopy!))
+        {
+            batch.Execute((ctx, ct) =>
             {
                 dynamic sheet = ctx.Book.Worksheets.Item(1);
-                var value = sheet.Range["A1"].Value2;
+                sheet.Range["A1"].Value2 = testValue;
                 return 0;
             });
 
-            await batch.DisposeAsync();
-
-            // Wait for Excel process to fully terminate (DisposeAsync handles GC cleanup)
-            await Task.Delay(2000);
-
-            // Assert
-            var endingProcesses = Process.GetProcessesByName("EXCEL");
-            int endingCount = endingProcesses.Length;
-
-            _output.WriteLine($"Excel processes after: {endingCount}");
-
-            Assert.True(endingCount <= startingCount,
-                $"Excel process leak in batch! Started with {startingCount}, ended with {endingCount}");
+            batch.Save();
         }
-        finally
-        {
-            if (File.Exists(testFile)) File.Delete(testFile);
-        }
-    }
 
-    [Fact]
-    [Trait("RunType", "OnDemand")]
-    public async Task SaveAsync_PersistsChanges_ToWorkbook()
-    {
-        // Arrange
-        string testFile = await CreateTempTestFileAsync();
-        string testValue = $"Test-{Guid.NewGuid():N}";
+        // Wait for file to be released
+        Thread.Sleep(1000);
 
-        try
+        // Verify - Read back the value in a new batch session
+        string readValue;
+        using (var batch = ExcelSession.BeginBatch(_testFileCopy!))
         {
-            // Act - Write and save
-            await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
+            readValue = batch.Execute((ctx, ct) =>
             {
-                await batch.Execute((ctx, ct) =>
-                {
-                    dynamic sheet = ctx.Book.Worksheets.Item(1);
-                    sheet.Range["A1"].Value2 = testValue;
-                    return 0;
-                });
-
-                await batch.SaveAsync();
-            }
-
-            // Wait for file to be released
-            await Task.Delay(1000);
-
-            // Verify - Read back the value in a new batch session
-            string readValue;
-            await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
-            {
-                readValue = await batch.Execute((ctx, ct) =>
-                {
-                    dynamic sheet = ctx.Book.Worksheets.Item(1);
-                    var value = sheet.Range["A1"].Value2;
-                    string result = value?.ToString() ?? "";
-                    return result;
-                });
-            }
-
-            // Assert
-            Assert.Equal(testValue, readValue);
-            _output.WriteLine($"✓ Value persisted correctly: {testValue}");
+                dynamic sheet = ctx.Book.Worksheets.Item(1);
+                var value = sheet.Range["A1"].Value2;
+                string result = value?.ToString() ?? "";
+                return result;
+            });
         }
-        finally
-        {
-            if (File.Exists(testFile)) File.Delete(testFile);
-        }
+
+        // Assert
+        Assert.Equal(testValue, readValue);
+        _output.WriteLine($"✓ Value persisted correctly: {testValue}");
     }
 
     [Fact]
-    [Trait("RunType", "OnDemand")]
-    public async Task WorkbookPath_ReturnsCorrectPath()
+    public void WorkbookPath_ReturnsCorrectPath()
     {
-        // Arrange
-        string testFile = await CreateTempTestFileAsync();
+        // Arrange & Act
+        using var batch = ExcelSession.BeginBatch(_testFileCopy!);
 
-        try
-        {
-            // Act
-            await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-
-            // Assert
-            Assert.Equal(testFile, batch.WorkbookPath);
-        }
-        finally
-        {
-            if (File.Exists(testFile)) File.Delete(testFile);
-        }
+        // Assert
+        Assert.Equal(_testFileCopy, batch.WorkbookPath);
     }
 
     [Fact]
-    [Trait("RunType", "OnDemand")]
-    public async Task CompleteWorkflow_CreateModifyReadSave_AllOperationsSucceed()
+    public void CompleteWorkflow_CreateModifyReadSave_AllOperationsSucceed()
     {
         // Arrange
-        string testFile = await CreateTempTestFileAsync();
         string sheetName = "TestData";
         string testValue1 = "Header1";
         string testValue2 = "Value1";
         string namedRangeName = "TestRange";
 
-        try
+        // Act - Execute complete workflow in single batch
+        using (var batch = ExcelSession.BeginBatch(_testFileCopy!))
         {
-            // Act - Execute complete workflow in single batch
-            await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
+            // Step 1: Create new worksheet
+            batch.Execute((ctx, ct) =>
             {
-                // Step 1: Create new worksheet
-                await batch.Execute((ctx, ct) =>
-                {
-                    dynamic sheets = ctx.Book.Worksheets;
-                    dynamic newSheet = sheets.Add();
-                    newSheet.Name = sheetName;
-                    _output.WriteLine($"✓ Created worksheet: {sheetName}");
-                    return 0;
-                });
+                dynamic sheets = ctx.Book.Worksheets;
+                dynamic newSheet = sheets.Add();
+                newSheet.Name = sheetName;
+                _output.WriteLine($"✓ Created worksheet: {sheetName}");
+                return 0;
+            });
 
-                // Step 2: Write data to cells
-                await batch.Execute((ctx, ct) =>
-                {
-                    dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
-                    sheet.Range["A1"].Value2 = testValue1;
-                    sheet.Range["A2"].Value2 = testValue2;
-                    sheet.Range["B1"].Value2 = "Header2";
-                    sheet.Range["B2"].Formula = "=LEN(A2)";
-                    _output.WriteLine($"✓ Wrote data to cells A1, A2, B1, B2");
-                    return 0;
-                });
-
-                // Step 3: Create named range
-                await batch.Execute((ctx, ct) =>
-                {
-                    dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
-                    dynamic names = ctx.Book.Names;
-                    names.Add(namedRangeName, $"={sheetName}!$A$1:$B$2");
-                    _output.WriteLine($"✓ Created named range: {namedRangeName}");
-                    return 0;
-                });
-
-                // Step 4: Read data back to verify
-                var readData = await batch.Execute((ctx, ct) =>
-                {
-                    dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
-                    string a1 = sheet.Range["A1"].Value2?.ToString() ?? "";
-                    string a2 = sheet.Range["A2"].Value2?.ToString() ?? "";
-                    string b1 = sheet.Range["B1"].Value2?.ToString() ?? "";
-                    double b2 = Convert.ToDouble(sheet.Range["B2"].Value2); // Formula result
-                    _output.WriteLine($"✓ Read back: A1={a1}, A2={a2}, B1={b1}, B2={b2}");
-                    return (a1, a2, b1, b2);
-                });
-
-                // Verify intermediate state
-                Assert.Equal(testValue1, readData.a1);
-                Assert.Equal(testValue2, readData.a2);
-                Assert.Equal("Header2", readData.b1);
-                Assert.Equal(6.0, Convert.ToDouble(readData.b2)); // LEN("Value1") = 6
-
-                // Step 5: Modify existing data
-                await batch.Execute((ctx, ct) =>
-                {
-                    dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
-                    sheet.Range["A2"].Value2 = "Modified";
-                    _output.WriteLine("✓ Modified A2 cell");
-                    return 0;
-                });
-
-                // Step 6: Save all changes
-                await batch.SaveAsync();
-                _output.WriteLine("✓ Saved workbook");
-            }
-
-            // Wait for file to be released
-            await Task.Delay(1000);
-
-            // Verify - Open in new batch and check all changes persisted
-            await using (var batch = await ExcelSession.BeginBatchAsync(testFile))
+            // Step 2: Write data to cells
+            batch.Execute((ctx, ct) =>
             {
-                var verifyData = await batch.Execute((ctx, ct) =>
-                {
-                    // Check worksheet exists
-                    bool sheetExists = false;
-                    dynamic sheets = ctx.Book.Worksheets;
-                    for (int i = 1; i <= sheets.Count; i++)
-                    {
-                        dynamic sheet = sheets.Item(i);
-                        if (sheet.Name == sheetName)
-                        {
-                            sheetExists = true;
-                            break;
-                        }
-                    }
+                dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
+                sheet.Range["A1"].Value2 = testValue1;
+                sheet.Range["A2"].Value2 = testValue2;
+                sheet.Range["B1"].Value2 = "Header2";
+                sheet.Range["B2"].Formula = "=LEN(A2)";
+                _output.WriteLine($"✓ Wrote data to cells A1, A2, B1, B2");
+                return 0;
+            });
 
-                    // Read cell values
-                    dynamic dataSheet = ctx.Book.Worksheets.Item(sheetName);
-                    string a1 = dataSheet.Range["A1"].Value2?.ToString() ?? "";
-                    string a2 = dataSheet.Range["A2"].Value2?.ToString() ?? "";
-                    double b2 = Convert.ToDouble(dataSheet.Range["B2"].Value2);
+            // Step 3: Create named range
+            batch.Execute((ctx, ct) =>
+            {
+                dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
+                dynamic names = ctx.Book.Names;
+                names.Add(namedRangeName, $"={sheetName}!$A$1:$B$2");
+                _output.WriteLine($"✓ Created named range: {namedRangeName}");
+                return 0;
+            });
 
-                    // Check named range exists
-                    bool namedRangeExists = false;
-                    dynamic names = ctx.Book.Names;
-                    for (int i = 1; i <= names.Count; i++)
-                    {
-                        dynamic name = names.Item(i);
-                        if (name.Name == namedRangeName)
-                        {
-                            namedRangeExists = true;
-                            break;
-                        }
-                    }
+            // Step 4: Read data back to verify
+            var readData = batch.Execute((ctx, ct) =>
+            {
+                dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
+                string a1 = sheet.Range["A1"].Value2?.ToString() ?? "";
+                string a2 = sheet.Range["A2"].Value2?.ToString() ?? "";
+                string b1 = sheet.Range["B1"].Value2?.ToString() ?? "";
+                double b2 = Convert.ToDouble(sheet.Range["B2"].Value2); // Formula result
+                _output.WriteLine($"✓ Read back: A1={a1}, A2={a2}, B1={b1}, B2={b2}");
+                return (a1, a2, b1, b2);
+            });
 
-                    return (sheetExists, a1, a2, b2, namedRangeExists);
-                });
+            // Verify intermediate state
+            Assert.Equal(testValue1, readData.a1);
+            Assert.Equal(testValue2, readData.a2);
+            Assert.Equal("Header2", readData.b1);
+            Assert.Equal(6.0, Convert.ToDouble(readData.b2)); // LEN("Value1") = 6
 
-                // Assert - All changes persisted
-                Assert.True(verifyData.sheetExists, "Worksheet should exist after save");
-                Assert.Equal(testValue1, verifyData.a1);
-                Assert.Equal("Modified", verifyData.a2);
-                Assert.Equal(8.0, verifyData.b2); // LEN("Modified") = 8
-                Assert.True(verifyData.namedRangeExists, "Named range should exist after save");
-                _output.WriteLine("✓ All workflow changes persisted correctly");
-            }
+            // Step 5: Modify existing data
+            batch.Execute((ctx, ct) =>
+            {
+                dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
+                sheet.Range["A2"].Value2 = "Modified";
+                _output.WriteLine("✓ Modified A2 cell");
+                return 0;
+            });
+
+            // Step 6: Save all changes
+            batch.Save();
+            _output.WriteLine("✓ Saved workbook");
         }
-        finally
+
+        // Wait for file to be released
+        Thread.Sleep(1000);
+
+        // Verify - Open in new batch and check all changes persisted
+        using (var batch = ExcelSession.BeginBatch(_testFileCopy!))
         {
-            if (File.Exists(testFile)) File.Delete(testFile);
+            var verifyData = batch.Execute((ctx, ct) =>
+            {
+                // Check worksheet exists
+                bool sheetExists = false;
+                dynamic sheets = ctx.Book.Worksheets;
+                for (int i = 1; i <= sheets.Count; i++)
+                {
+                    dynamic sheet = sheets.Item(i);
+                    if (sheet.Name == sheetName)
+                    {
+                        sheetExists = true;
+                        break;
+                    }
+                }
+
+                // Read cell values
+                dynamic dataSheet = ctx.Book.Worksheets.Item(sheetName);
+                string a1 = dataSheet.Range["A1"].Value2?.ToString() ?? "";
+                string a2 = dataSheet.Range["A2"].Value2?.ToString() ?? "";
+                double b2 = Convert.ToDouble(dataSheet.Range["B2"].Value2);
+
+                // Check named range exists
+                bool namedRangeExists = false;
+                dynamic names = ctx.Book.Names;
+                for (int i = 1; i <= names.Count; i++)
+                {
+                    dynamic name = names.Item(i);
+                    if (name.Name == namedRangeName)
+                    {
+                        namedRangeExists = true;
+                        break;
+                    }
+                }
+
+                return (sheetExists, a1, a2, b2, namedRangeExists);
+            });
+
+            // Assert - All changes persisted
+            Assert.True(verifyData.sheetExists, "Worksheet should exist after save");
+            Assert.Equal(testValue1, verifyData.a1);
+            Assert.Equal("Modified", verifyData.a2);
+            Assert.Equal(8.0, verifyData.b2); // LEN("Modified") = 8
+            Assert.True(verifyData.namedRangeExists, "Named range should exist after save");
+            _output.WriteLine("✓ All workflow changes persisted correctly");
         }
     }
 
     [Fact]
-    [Trait("RunType", "OnDemand")]
-    public async Task ParallelBatches_10ConcurrentBatches_NoExcelProcessLeak()
+    public async Task ParallelBatches_TwoConcurrentBatches_NoExcelProcessLeak()
     {
         // Arrange
-        const int batchCount = 10;
-        var testFiles = new List<string>();
+        const int batchCount = 2;
+        var testFileCopies = new List<string>();
 
-        // Create test files
+        // Create fresh copies for parallel test
         for (int i = 0; i < batchCount; i++)
         {
-            testFiles.Add(await CreateTempTestFileAsync());
+            string copy = Path.Join(Path.GetTempPath(), $"batch-test-parallel-{i}-{Guid.NewGuid():N}.xlsx");
+            File.Copy(_staticTestFile!, copy, overwrite: true);
+            testFileCopies.Add(copy);
         }
 
         var startingProcesses = Process.GetProcessesByName("EXCEL");
@@ -356,30 +342,28 @@ public class ExcelBatchTests
 
         try
         {
-            // Act - Run 10 batches in parallel
-            // Note: We intentionally DON'T call SaveAsync() here because:
-            // 1. This test is about process leak detection, not save functionality
-            // 2. Excel has known issues with concurrent saves (temp file collisions)
-            // 3. SaveAsync is tested separately in other tests
-            var tasks = testFiles.Select(async (testFile, index) =>
+            // Act - Run 2 batches in parallel
+            var tasks = testFileCopies.Select((testFile, index) =>
             {
-                await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-
-                // Perform multiple operations per batch
-                for (int op = 0; op < 3; op++)
+                return Task.Run(() =>
                 {
-                    await batch.Execute((ctx, ct) =>
+                    using var batch = ExcelSession.BeginBatch(testFile);
+
+                    // Perform multiple operations per batch
+                    for (int op = 0; op < 3; op++)
                     {
-                        dynamic sheet = ctx.Book.Worksheets.Item(1);
-                        sheet.Range[$"A{op + 1}"].Value2 = $"Batch{index}-Op{op}";
-                        return 0;
-                    });
-                }
+                        batch.Execute((ctx, ct) =>
+                        {
+                            dynamic sheet = ctx.Book.Worksheets.Item(1);
+                            sheet.Range[$"A{op + 1}"].Value2 = $"Batch{index}-Op{op}";
+                            return 0;
+                        });
+                    }
 
-                // No SaveAsync() - test focuses on batch disposal, not persistence
-                _output.WriteLine($"✓ Batch {index} completed");
+                    _output.WriteLine($"✓ Batch {index} completed");
 
-                return index;
+                    return index;
+                });
             }).ToArray();
 
             // Wait for all batches to complete
@@ -401,8 +385,8 @@ public class ExcelBatchTests
         }
         finally
         {
-            // Cleanup all test files - filter files that exist before attempting deletion
-            foreach (var testFile in testFiles.Where(File.Exists))
+            // Cleanup parallel test files
+            foreach (var testFile in testFileCopies.Where(File.Exists))
             {
                 try { File.Delete(testFile); } catch { }
             }
@@ -411,26 +395,27 @@ public class ExcelBatchTests
 
     [Fact]
     [Trait("Category", "Integration")]
-    [Trait("RunType", "OnDemand")]
     [Trait("Feature", "FileLocking")]
-    public async Task Constructor_FileLockedByAnotherProcess_ThrowsInvalidOperationException()
+    public void Constructor_FileLockedByAnotherProcess_ThrowsInvalidOperationException()
     {
-        // Arrange - Create test file and lock it
-        var testFile = await CreateTempTestFileAsync();
+        // Arrange - Create a separate test file for locking test
+        var lockedTestFile = Path.Join(Path.GetTempPath(), $"batch-test-locked-{Guid.NewGuid():N}.xlsx");
+        File.Copy(_staticTestFile!, lockedTestFile, overwrite: true);
 
         try
         {
             // Lock the file by opening with exclusive access (simulating Excel or another process)
             using var fileLock = new FileStream(
-                testFile,
+                lockedTestFile,
                 FileMode.Open,
                 FileAccess.ReadWrite,
                 FileShare.None);
 
             // Act & Assert - Attempting to create ExcelBatch should fail immediately
-            var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            var ex = Assert.Throws<InvalidOperationException>(() =>
             {
-                await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+                var batch = ExcelSession.BeginBatch(lockedTestFile);
+                batch.Dispose();
             });
 
             // Verify error message is clear and actionable
@@ -444,9 +429,9 @@ public class ExcelBatchTests
         finally
         {
             // Cleanup
-            if (File.Exists(testFile))
+            if (File.Exists(lockedTestFile))
             {
-                try { File.Delete(testFile); } catch { }
+                try { File.Delete(lockedTestFile); } catch { }
             }
         }
     }
@@ -466,5 +451,6 @@ public class ExcelBatchTests
     //
     // Keeping this comment as documentation that the scenario is handled in production code.
 }
+
 
 

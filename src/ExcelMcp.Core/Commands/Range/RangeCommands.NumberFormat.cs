@@ -12,7 +12,7 @@ public partial class RangeCommands
     // === NUMBER FORMAT OPERATIONS ===
 
     /// <inheritdoc />
-    public async Task<RangeNumberFormatResult> GetNumberFormatsAsync(IExcelBatch batch, string sheetName, string rangeAddress)
+    public RangeNumberFormatResult GetNumberFormats(IExcelBatch batch, string sheetName, string rangeAddress)
     {
         var result = new RangeNumberFormatResult
         {
@@ -21,16 +21,16 @@ public partial class RangeCommands
             RangeAddress = rangeAddress
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             try
             {
-                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress);
+                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, rangeAddress);
+                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
                     return result;
                 }
 
@@ -129,7 +129,7 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> SetNumberFormatAsync(IExcelBatch batch, string sheetName, string rangeAddress, string formatCode)
+    public OperationResult SetNumberFormat(IExcelBatch batch, string sheetName, string rangeAddress, string formatCode)
     {
         var result = new OperationResult
         {
@@ -137,16 +137,16 @@ public partial class RangeCommands
             Action = "set-number-format"
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             try
             {
-                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress);
+                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, rangeAddress);
+                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
                     return result;
                 }
 
@@ -170,7 +170,7 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> SetNumberFormatsAsync(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>> formats)
+    public OperationResult SetNumberFormats(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>> formats)
     {
         var result = new OperationResult
         {
@@ -178,16 +178,16 @@ public partial class RangeCommands
             Action = "set-number-formats"
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             try
             {
-                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress);
+                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
                     result.Success = false;
-                    result.ErrorMessage = RangeHelpers.GetResolveError(sheetName, rangeAddress);
+                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
                     return result;
                 }
 
@@ -264,3 +264,4 @@ public partial class RangeCommands
         });
     }
 }
+

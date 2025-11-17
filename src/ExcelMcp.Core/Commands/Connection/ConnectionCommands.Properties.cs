@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class ConnectionCommands
 {
     /// <inheritdoc />
-    public async Task<ConnectionPropertiesResult> GetPropertiesAsync(IExcelBatch batch, string connectionName)
+    public ConnectionPropertiesResult GetProperties(IExcelBatch batch, string connectionName)
     {
         var result = new ConnectionPropertiesResult
         {
@@ -19,7 +19,7 @@ public partial class ConnectionCommands
             ConnectionName = connectionName
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -50,7 +50,7 @@ public partial class ConnectionCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> SetPropertiesAsync(IExcelBatch batch, string connectionName,
+    public OperationResult SetProperties(IExcelBatch batch, string connectionName,
         bool? backgroundQuery = null, bool? refreshOnFileOpen = null,
         bool? savePassword = null, int? refreshPeriod = null)
     {
@@ -60,7 +60,7 @@ public partial class ConnectionCommands
             Action = "set-properties"
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -99,3 +99,4 @@ public partial class ConnectionCommands
         });
     }
 }
+

@@ -186,7 +186,7 @@ public async Task CreateWorksheet_ValidName_CreatesSheet()
     // Act
     await using var batch = await ExcelSession.BeginBatchAsync(testFile);
     var result = await _commands.CreateAsync(batch, "Sales");
-    await batch.SaveAsync();
+    await batch.Save();
     
     // Assert - Round-trip validation
     Assert.True(result.Success);

@@ -11,15 +11,15 @@ public partial class SheetCommandsTests
 {
     /// <inheritdoc/>
     [Fact]
-    public async Task List_DefaultWorkbook_ReturnsDefaultSheets()
+    public void List_DefaultWorkbook_ReturnsDefaultSheets()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests), nameof(List_DefaultWorkbook_ReturnsDefaultSheets), _tempDir);
 
         // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _sheetCommands.ListAsync(batch);
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var result = _sheetCommands.List(batch);
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
@@ -29,22 +29,22 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Create_UniqueName_ReturnsSuccess()
+    public void Create_UniqueName_ReturnsSuccess()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests), nameof(Create_UniqueName_ReturnsSuccess), _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+        using var batch = ExcelSession.BeginBatch(testFile);
 
         // Act
-        var result = await _sheetCommands.CreateAsync(batch, "TestSheet");
+        var result = _sheetCommands.Create(batch, "TestSheet");
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
 
         // Verify sheet actually exists
-        var listResult = await _sheetCommands.ListAsync(batch);
+        var listResult = _sheetCommands.List(batch);
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Worksheets, w => w.Name == "TestSheet");
 
@@ -53,23 +53,23 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Rename_ExistingSheet_ReturnsSuccess()
+    public void Rename_ExistingSheet_ReturnsSuccess()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests), nameof(Rename_ExistingSheet_ReturnsSuccess), _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        await _sheetCommands.CreateAsync(batch, "OldName");
+        using var batch = ExcelSession.BeginBatch(testFile);
+        _sheetCommands.Create(batch, "OldName");
 
         // Act
-        var result = await _sheetCommands.RenameAsync(batch, "OldName", "NewName");
+        var result = _sheetCommands.Rename(batch, "OldName", "NewName");
 
         // Assert
         Assert.True(result.Success, $"Rename failed: {result.ErrorMessage}");
 
         // Verify rename actually happened
-        var listResult = await _sheetCommands.ListAsync(batch);
+        var listResult = _sheetCommands.List(batch);
         Assert.True(listResult.Success);
         Assert.DoesNotContain(listResult.Worksheets, w => w.Name == "OldName");
         Assert.Contains(listResult.Worksheets, w => w.Name == "NewName");
@@ -79,23 +79,23 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Delete_NonActiveSheet_ReturnsSuccess()
+    public void Delete_NonActiveSheet_ReturnsSuccess()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests), nameof(Delete_NonActiveSheet_ReturnsSuccess), _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        await _sheetCommands.CreateAsync(batch, "ToDelete");
+        using var batch = ExcelSession.BeginBatch(testFile);
+        _sheetCommands.Create(batch, "ToDelete");
 
         // Act
-        var result = await _sheetCommands.DeleteAsync(batch, "ToDelete");
+        var result = _sheetCommands.Delete(batch, "ToDelete");
 
         // Assert
         Assert.True(result.Success, $"Delete failed: {result.ErrorMessage}");
 
         // Verify sheet is actually gone
-        var listResult = await _sheetCommands.ListAsync(batch);
+        var listResult = _sheetCommands.List(batch);
         Assert.True(listResult.Success);
         Assert.DoesNotContain(listResult.Worksheets, w => w.Name == "ToDelete");
 
@@ -104,23 +104,23 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public async Task Copy_ExistingSheet_CreatesNewSheet()
+    public void Copy_ExistingSheet_CreatesNewSheet()
     {
         // Arrange
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests), nameof(Copy_ExistingSheet_CreatesNewSheet), _tempDir);
 
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        await _sheetCommands.CreateAsync(batch, "Source");
+        using var batch = ExcelSession.BeginBatch(testFile);
+        _sheetCommands.Create(batch, "Source");
 
         // Act
-        var result = await _sheetCommands.CopyAsync(batch, "Source", "Target");
+        var result = _sheetCommands.Copy(batch, "Source", "Target");
 
         // Assert
         Assert.True(result.Success, $"Copy failed: {result.ErrorMessage}");
 
         // Verify both source and target sheets exist
-        var listResult = await _sheetCommands.ListAsync(batch);
+        var listResult = _sheetCommands.List(batch);
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Worksheets, w => w.Name == "Source");
         Assert.Contains(listResult.Worksheets, w => w.Name == "Target");

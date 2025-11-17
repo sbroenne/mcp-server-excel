@@ -55,7 +55,7 @@ public partial class FeatureCommandsTests : IClassFixture<TempDirectoryFixture>
     public async Task Operation_Scenario_ExpectedResult()
     {
         // Arrange - Each test gets unique file
-        var testFile = await CoreTestHelper.CreateUniqueTestFileAsync(
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(FeatureCommandsTests), 
             nameof(Operation_Scenario_ExpectedResult), 
             _tempDir,
@@ -72,7 +72,7 @@ public partial class FeatureCommandsTests : IClassFixture<TempDirectoryFixture>
         var verifyResult = await _commands.ListAsync(batch);
         Assert.Contains(verifyResult.Items, i => i.Name == "Expected");
         
-        // No SaveAsync unless testing persistence (see examples below)
+        // No Save unless testing persistence (see examples below)
     }
 }
 ```
@@ -80,7 +80,7 @@ public partial class FeatureCommandsTests : IClassFixture<TempDirectoryFixture>
 ## Essential Rules
 
 ### File Isolation
-- ✅ Each test creates unique file via `CoreTestHelper.CreateUniqueTestFileAsync()`
+- ✅ Each test creates unique file via `CoreTestHelper.CreateUniqueTestFile()`
 - ❌ **NEVER** share test files between tests
 - ✅ Use `.xlsm` for VBA tests, `.xlsx` otherwise
 
@@ -89,7 +89,7 @@ public partial class FeatureCommandsTests : IClassFixture<TempDirectoryFixture>
 - ❌ **NEVER** "accept both" patterns
 - ✅ **ALWAYS verify actual Excel state** after create/update operations
 
-### SaveAsync
+### Save
 - ❌ **FORBIDDEN** unless explicitly testing persistence
 - ✅ **ONLY** for round-trip tests: Create → Save → Re-open → Verify
 - ❌ **NEVER** call in middle of test (breaks subsequent operations)
@@ -98,20 +98,20 @@ public partial class FeatureCommandsTests : IClassFixture<TempDirectoryFixture>
 **Examples:**
 
 ```csharp
-// ❌ WRONG: SaveAsync in middle breaks next operation
+// ❌ WRONG: Save in middle breaks next operation
 await _commands.CreateAsync(batch, "Sheet1");
-await batch.SaveAsync();  // ❌ Breaks subsequent operations!
+await batch.Save();  // ❌ Breaks subsequent operations!
 await _commands.RenameAsync(batch, "Sheet1", "New");  // FAILS!
 
-// ✅ CORRECT: SaveAsync only at end
+// ✅ CORRECT: Save only at end
 await _commands.CreateAsync(batch, "Sheet1");
 await _commands.RenameAsync(batch, "Sheet1", "New");
-await batch.SaveAsync();  // ✅ After all operations
+await batch.Save();  // ✅ After all operations
 
 // ✅ CORRECT: Persistence test with re-open
 await using var batch1 = await ExcelSession.BeginBatchAsync(testFile);
 await _commands.CreateAsync(batch1, "Sheet1");
-await batch1.SaveAsync();  // Save for persistence
+await batch1.Save();  // Save for persistence
 
 await using var batch2 = await ExcelSession.BeginBatchAsync(testFile);
 var list = await _commands.ListAsync(batch2);
@@ -121,7 +121,7 @@ Assert.Contains(list.Items, i => i.Name == "Sheet1");  // ✅ Verify persisted
 ### Batch Pattern
 - All Core commands accept `IExcelBatch batch` as first parameter
 - Use `await using var batch` for automatic disposal
-- **NEVER** call `SaveAsync()` in middle of test
+- **NEVER** call `Save()` in middle of test
 
 ### Required Traits
 - `[Trait("Category", "Integration")]` - All tests are integration tests
@@ -254,8 +254,8 @@ Assert.DoesNotContain(file1Content, viewResult.Content);  // ✅ file1 content g
 |---------|-----|
 | Shared test file | Each test creates unique file |
 | Only test success flag | Verify actual Excel state |
-| SaveAsync before assertions | Remove SaveAsync entirely |
-| SaveAsync in middle of test | Only at end or in persistence test |
+| Save before assertions | Remove Save entirely |
+| Save in middle of test | Only at end or in persistence test |
 | Manual IDisposable | Use `IClassFixture<TempDirectoryFixture>` |
 | .xlsx for VBA tests | Use `.xlsm` |
 | "Accept both" assertions | Binary assertions only |
@@ -266,7 +266,7 @@ Assert.DoesNotContain(file1Content, viewResult.Content);  // ✅ file1 content g
 1. Run individually: `--filter "FullyQualifiedName=Namespace.Class.Method"`
 2. Check file isolation (unique files?)
 3. Check assertions (binary, not conditional?)
-4. Check SaveAsync (removed unless persistence test?)
+4. Check Save (removed unless persistence test?)
 5. Verify Excel state (not just success flag?)
 
 **Full checklist**: See CRITICAL-RULES.md Rule 12

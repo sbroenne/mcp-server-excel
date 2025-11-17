@@ -11,68 +11,64 @@ public interface IConnectionCommands
     /// <summary>
     /// Lists all connections in a workbook
     /// </summary>
-    Task<ConnectionListResult> ListAsync(IExcelBatch batch);
+    ConnectionListResult List(IExcelBatch batch);
 
     /// <summary>
     /// Views detailed connection information
     /// </summary>
-    Task<ConnectionViewResult> ViewAsync(IExcelBatch batch, string connectionName);
+    ConnectionViewResult View(IExcelBatch batch, string connectionName);
 
     /// <summary>
     /// Creates a new connection in the workbook
     /// </summary>
-    Task<OperationResult> CreateAsync(IExcelBatch batch, string connectionName,
+    OperationResult Create(IExcelBatch batch, string connectionName,
         string connectionString, string? commandText = null, string? description = null);
 
     /// <summary>
     /// Imports connection from JSON file
     /// </summary>
-    Task<OperationResult> ImportAsync(IExcelBatch batch, string connectionName, string jsonFilePath);
-
-    /// <summary>
-    /// Exports connection to JSON file
-    /// </summary>
-    Task<OperationResult> ExportAsync(IExcelBatch batch, string connectionName, string jsonFilePath);
+    OperationResult Import(IExcelBatch batch, string connectionName, string jsonFilePath);
 
     /// <summary>
     /// Updates existing connection properties from JSON file
     /// </summary>
-    Task<OperationResult> UpdatePropertiesAsync(IExcelBatch batch, string connectionName, string jsonFilePath);
+    OperationResult UpdateProperties(IExcelBatch batch, string connectionName, string jsonFilePath);
 
     /// <summary>
     /// Refreshes connection data
     /// </summary>
-    Task<OperationResult> RefreshAsync(IExcelBatch batch, string connectionName);
+    OperationResult Refresh(IExcelBatch batch, string connectionName);
 
     /// <summary>
     /// Refreshes connection data with timeout
     /// </summary>
-    Task<OperationResult> RefreshAsync(IExcelBatch batch, string connectionName, TimeSpan? timeout);
+    OperationResult Refresh(IExcelBatch batch, string connectionName, TimeSpan? timeout);
 
     /// <summary>
     /// Deletes a connection
     /// </summary>
-    Task<OperationResult> DeleteAsync(IExcelBatch batch, string connectionName);
+    OperationResult Delete(IExcelBatch batch, string connectionName);
 
     /// <summary>
     /// Loads connection data to a worksheet
     /// </summary>
-    Task<OperationResult> LoadToAsync(IExcelBatch batch, string connectionName, string sheetName);
+    OperationResult LoadTo(IExcelBatch batch, string connectionName, string sheetName);
 
     /// <summary>
     /// Gets connection properties
     /// </summary>
-    Task<ConnectionPropertiesResult> GetPropertiesAsync(IExcelBatch batch, string connectionName);
+    ConnectionPropertiesResult GetProperties(IExcelBatch batch, string connectionName);
 
     /// <summary>
     /// Sets connection properties
     /// </summary>
-    Task<OperationResult> SetPropertiesAsync(IExcelBatch batch, string connectionName,
+    OperationResult SetProperties(IExcelBatch batch, string connectionName,
         bool? backgroundQuery = null, bool? refreshOnFileOpen = null,
         bool? savePassword = null, int? refreshPeriod = null);
 
     /// <summary>
     /// Tests connection without refreshing data
     /// </summary>
-    Task<OperationResult> TestAsync(IExcelBatch batch, string connectionName);
+    OperationResult Test(IExcelBatch batch, string connectionName);
 }
+

@@ -64,7 +64,7 @@ applyTo: "**"
 | Rule | Action | Why Critical |
 |------|--------|--------------|
 | 2. Tests | Fail loudly, never silent | Silent failures waste hours |
-| 15. No SaveAsync | Remove unless testing persistence | Makes tests 50% faster |
+| 15. No Save | Remove unless testing persistence | Makes tests 50% faster |
 | 11. Test debugging | Run tests one by one | Isolates actual failure |
 | 13. Test compliance | Pass checklist before PR submission | Prevents test pollution |
 
@@ -273,7 +273,7 @@ Delete commented-out code (use git history). Exception: Documentation files only
 
 **Verify:**
 - ✅ Uses `IClassFixture<TempDirectoryFixture>` (NOT manual IDisposable)
-- ✅ Each test creates unique file via `CoreTestHelper.CreateUniqueTestFileAsync()`
+- ✅ Each test creates unique file via `CoreTestHelper.CreateUniqueTestFile()`
 - ✅ NEVER shares test files between tests
 - ✅ VBA tests use `.xlsm` extension (NOT .xlsx renamed)
 - ✅ Binary assertions only (NO "accept both" patterns)
@@ -307,16 +307,16 @@ Delete commented-out code (use git history). Exception: Documentation files only
 
 ---
 
-## Rule 14: No SaveAsync Unless Testing Persistence
+## Rule 14: No Save Unless Testing Persistence
 
-**Tests must NOT call `batch.SaveAsync()` unless explicitly testing persistence.**
+**Code must NOT call `batch.Save()` unless explicitly testing persistence.**
 
 **Quick Rules:**
 - ❌ FORBIDDEN: Tests only verifying operation success or in-memory state
 - ✅ REQUIRED: Round-trip tests verifying data persists after workbook close/reopen
-- ⚡ REASON: SaveAsync is slow (~2-5s). Removing unnecessary saves makes tests 50%+ faster
+- ⚡ REASON: Save is slow (~2-5s). Removing unnecessary saves makes tests 50%+ faster
 
-**See:** [testing-strategy.instructions.md](testing-strategy.instructions.md) for complete SaveAsync patterns, when to use, and detailed examples.
+**See:** [testing-strategy.instructions.md](testing-strategy.instructions.md) for complete Save patterns, when to use, and detailed examples.
 
 ---
 
@@ -338,7 +338,7 @@ Delete commented-out code (use git history). Exception: Documentation files only
 | 11. No test refs | Production NEVER references tests | Always |
 | 12. Test compliance | Pass checklist before PR submission | 2-3 min |
 | 13. Bug fixes | Complete 6-step process (fix, test, doc, hints, verify, summarize) | 30-60 min |
-| 14. No SaveAsync | See testing-strategy for complete patterns | Per test |
+| 14. No Save | See testing-strategy for complete patterns | Per test |
 | 15. Enum mappings | All enum values mapped in ToActionString() | Always |
 | 16. Test scope | Only run tests for code you changed | Per change |
 | 17. MCP error checks | Check result.Success before JsonSerializer.Serialize | Every method |

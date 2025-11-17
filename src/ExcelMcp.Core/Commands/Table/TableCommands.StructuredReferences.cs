@@ -12,7 +12,7 @@ public partial class TableCommands
     /// <summary>
     /// Gets structured reference information for a table region or column
     /// </summary>
-    public async Task<TableStructuredReferenceResult> GetStructuredReferenceAsync(
+    public TableStructuredReferenceResult GetStructuredReference(
         IExcelBatch batch,
         string tableName,
         TableRegion region,
@@ -22,7 +22,7 @@ public partial class TableCommands
         ValidateTableName(tableName);
 
         var result = new TableStructuredReferenceResult { FilePath = batch.WorkbookPath };
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             try
@@ -177,3 +177,4 @@ public partial class TableCommands
         return regionRange; // Return region range directly
     }
 }
+

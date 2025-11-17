@@ -12,7 +12,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class VbaCommands
 {
     /// <inheritdoc />
-    public async Task<VbaListResult> ListAsync(IExcelBatch batch)
+    public VbaListResult List(IExcelBatch batch)
     {
         var result = new VbaListResult { FilePath = batch.WorkbookPath };
 
@@ -34,7 +34,7 @@ public partial class VbaCommands
             return result;
         }
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -132,7 +132,7 @@ public partial class VbaCommands
     }
 
     /// <inheritdoc />
-    public async Task<VbaViewResult> ViewAsync(IExcelBatch batch, string moduleName)
+    public VbaViewResult View(IExcelBatch batch, string moduleName)
     {
         var result = new VbaViewResult { FilePath = batch.WorkbookPath, ModuleName = moduleName };
 
@@ -160,7 +160,7 @@ public partial class VbaCommands
             return result;
         }
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -261,122 +261,7 @@ public partial class VbaCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> ExportAsync(IExcelBatch batch, string moduleName, string outputFile)
-    {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "vba-export"
-        };
-
-        // Validate and normalize the output file path to prevent path traversal attacks
-        try
-        {
-            outputFile = PathValidator.ValidateOutputFile(outputFile, nameof(outputFile), allowOverwrite: true);
-        }
-        catch (Exception ex)
-        {
-            result.Success = false;
-            result.ErrorMessage = $"Invalid output file path: {ex.Message}";
-            return result;
-        }
-
-        var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
-        if (!isValid)
-        {
-            result.Success = false;
-            result.ErrorMessage = validationError;
-            return result;
-        }
-
-        // Check VBA trust BEFORE attempting operation
-        if (!IsVbaTrustEnabled())
-        {
-            return CreateVbaTrustGuidance();
-        }
-
-        return await batch.ExecuteAsync(async (ctx, ct) =>
-        {
-            dynamic? vbaProject = null;
-            dynamic? vbComponents = null;
-            dynamic? targetComponent = null;
-            dynamic? codeModule = null;
-            try
-            {
-                vbaProject = ctx.Book.VBProject;
-                vbComponents = vbaProject.VBComponents;
-
-                for (int i = 1; i <= vbComponents.Count; i++)
-                {
-                    dynamic? component = null;
-                    try
-                    {
-                        component = vbComponents.Item(i);
-                        if (component.Name == moduleName)
-                        {
-                            targetComponent = component;
-                            component = null; // Don't release - we're keeping it
-                            break;
-                        }
-                    }
-                    finally
-                    {
-                        if (component != null)
-                        {
-                            ComUtilities.Release(ref component);
-                        }
-                    }
-                }
-
-                if (targetComponent == null)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Script module '{moduleName}' not found";
-                    return result;
-                }
-
-                codeModule = targetComponent.CodeModule;
-                int lineCount = codeModule.CountOfLines;
-
-                if (lineCount == 0)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Module '{moduleName}' is empty";
-                    return result;
-                }
-
-                string code = codeModule.Lines[1, lineCount];
-                await File.WriteAllTextAsync(outputFile, code, ct);
-
-                result.Success = true;
-                return result;
-            }
-            catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
-                                             comEx.ErrorCode == unchecked((int)0x800A03EC))
-            {
-                // Trust was disabled during operation
-                result.Success = false;
-                result.ErrorMessage = "VBA trust access is not enabled";
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error exporting script: {ex.Message}";
-                return result;
-            }
-            finally
-            {
-                ComUtilities.Release(ref codeModule);
-                ComUtilities.Release(ref targetComponent);
-                ComUtilities.Release(ref vbComponents);
-                ComUtilities.Release(ref vbaProject);
-            }
-        });
-    }
-
-    /// <inheritdoc />
-    public async Task<OperationResult> ImportAsync(IExcelBatch batch, string moduleName, string vbaFile)
+    public OperationResult Import(IExcelBatch batch, string moduleName, string vbaFile)
     {
         var result = new OperationResult
         {
@@ -410,9 +295,9 @@ public partial class VbaCommands
             return CreateVbaTrustGuidance();
         }
 
-        string vbaCode = await File.ReadAllTextAsync(vbaFile);
+        string vbaCode = File.ReadAllText(vbaFile);
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -478,7 +363,7 @@ public partial class VbaCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> UpdateAsync(IExcelBatch batch, string moduleName, string vbaFile)
+    public OperationResult Update(IExcelBatch batch, string moduleName, string vbaFile)
     {
         var result = new OperationResult
         {
@@ -512,9 +397,9 @@ public partial class VbaCommands
             return CreateVbaTrustGuidance();
         }
 
-        string vbaCode = await File.ReadAllTextAsync(vbaFile);
+        string vbaCode = File.ReadAllText(vbaFile);
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -591,3 +476,4 @@ public partial class VbaCommands
         });
     }
 }
+

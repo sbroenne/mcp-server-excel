@@ -37,7 +37,7 @@ FILE FORMATS:
 - .xlsx:
 - .xlsm:
 ")]
-    public static async Task<string> ExcelFile(
+    public static string ExcelFile(
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         FileAction action,
 
@@ -54,24 +54,25 @@ FILE FORMATS:
             // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
             return action switch
             {
-                FileAction.Open => await OpenSessionAsync(excelPath!),
-                FileAction.Save => await SaveSessionAsync(sessionId!),
-                FileAction.Close => await CloseSessionAsync(sessionId!),
-                FileAction.CreateEmpty => await CreateEmptyFileAsync(fileCommands, excelPath!,
+                FileAction.Open => OpenSessionAsync(excelPath!),
+                FileAction.Save => SaveSessionAsync(sessionId!),
+                FileAction.Close => CloseSessionAsync(sessionId!),
+                FileAction.CreateEmpty => CreateEmptyFileAsync(fileCommands, excelPath!,
                     excelPath!.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase)),
                 FileAction.CloseWorkbook => CloseWorkbook(excelPath!),
-                FileAction.Test => await TestFileAsync(fileCommands, excelPath!),
-                _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
+                FileAction.Test => TestFileAsync(fileCommands, excelPath!),
+                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
-        }
-        catch (ModelContextProtocol.McpException)
-        {
-            throw; // Re-throw MCP exceptions as-is
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
-            throw; // Unreachable but satisfies compiler
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
+                filePath = excelPath,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 
@@ -79,11 +80,11 @@ FILE FORMATS:
     /// Opens an Excel file and creates a new session.
     /// Returns sessionId that must be used for all subsequent operations.
     /// </summary>
-    private static async Task<string> OpenSessionAsync(string excelPath)
+    private static string OpenSessionAsync(string excelPath)
     {
         if (string.IsNullOrWhiteSpace(excelPath))
         {
-            throw new ModelContextProtocol.McpException("excelPath is required for 'open' action");
+            throw new ArgumentException("excelPath is required for 'open' action", nameof(excelPath));
         }
 
         if (!File.Exists(excelPath))
@@ -97,84 +98,133 @@ FILE FORMATS:
             }, ExcelToolsBase.JsonOptions);
         }
 
-        string sessionId = await ExcelToolsBase.GetSessionManager().CreateSessionAsync(excelPath);
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            success = true,
-            sessionId,
-            filePath = excelPath,
-            workflowHint = "Use sessionId with other excel_* tools. Call 'save' to persist changes, then 'close' to release resources."
-        }, ExcelToolsBase.JsonOptions);
+            string sessionId = ExcelToolsBase.GetSessionManager().CreateSession(excelPath);
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                sessionId,
+                filePath = excelPath,
+                workflowHint = "Use sessionId with other excel_* tools. Call 'save' to persist changes, then 'close' to release resources."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("already open"))
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"Cannot open '{excelPath}': {ex.Message}",
+                filePath = excelPath,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"Cannot open '{excelPath}': {ex.Message}",
+                filePath = excelPath,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     /// <summary>
     /// Saves changes for an active session.
     /// Does not close the session - call 'close' action separately.
     /// </summary>
-    private static async Task<string> SaveSessionAsync(string sessionId)
+    private static string SaveSessionAsync(string sessionId)
     {
-        if (string.IsNullOrWhiteSpace(sessionId))
+        if (string.IsNullOrEmpty(sessionId))
         {
-            throw new ModelContextProtocol.McpException("sessionId is required for 'save' action");
+            throw new ArgumentException("sessionId is required for 'save' action", nameof(sessionId));
         }
 
-        bool success = await ExcelToolsBase.GetSessionManager().SaveSessionAsync(sessionId);
+        try
+        {
+            bool success = ExcelToolsBase.GetSessionManager().SaveSession(sessionId);
 
-        if (success)
+            if (success)
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    sessionId
+                }, ExcelToolsBase.JsonOptions);
+            }
+
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                sessionId,
+                errorMessage = $"Session '{sessionId}' not found",
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
         {
             return JsonSerializer.Serialize(new
             {
-                success = true,
-                sessionId
+                success = false,
+                sessionId,
+                errorMessage = $"Cannot save session '{sessionId}': {ex.Message}",
+                isError = true
             }, ExcelToolsBase.JsonOptions);
         }
-
-        return JsonSerializer.Serialize(new
-        {
-            success = false,
-            sessionId,
-            errorMessage = $"Session '{sessionId}' not found",
-            isError = true
-        }, ExcelToolsBase.JsonOptions);
     }
 
     /// <summary>
     /// Closes an active session without saving changes.
     /// To save before closing, call 'save' action first.
     /// </summary>
-    private static async Task<string> CloseSessionAsync(string sessionId)
+    private static string CloseSessionAsync(string sessionId)
     {
         if (string.IsNullOrWhiteSpace(sessionId))
         {
-            throw new ModelContextProtocol.McpException("sessionId is required for 'close' action");
+            throw new ArgumentException("sessionId is required for 'close' action", nameof(sessionId));
         }
 
-        bool success = await ExcelToolsBase.GetSessionManager().CloseSessionAsync(sessionId);
+        try
+        {
+            bool success = ExcelToolsBase.GetSessionManager().CloseSession(sessionId);
 
-        if (success)
+            if (success)
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    sessionId
+                }, ExcelToolsBase.JsonOptions);
+            }
+
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                sessionId,
+                errorMessage = $"Session '{sessionId}' not found",
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
         {
             return JsonSerializer.Serialize(new
             {
-                success = true,
-                sessionId
+                success = false,
+                sessionId,
+                errorMessage = $"Cannot close session '{sessionId}': {ex.Message}",
+                isError = true
             }, ExcelToolsBase.JsonOptions);
         }
-
-        return JsonSerializer.Serialize(new
-        {
-            success = false,
-            sessionId,
-            errorMessage = $"Session '{sessionId}' not found",
-            isError = true
-        }, ExcelToolsBase.JsonOptions);
     }
 
     /// <summary>
     /// Creates a new empty Excel file (.xlsx or .xlsm based on macroEnabled flag).
     /// LLM Pattern: Use this when you need a fresh Excel workbook for automation.
     /// </summary>
-    private static async Task<string> CreateEmptyFileAsync(FileCommands fileCommands, string excelPath, bool macroEnabled)
+    private static string CreateEmptyFileAsync(FileCommands fileCommands, string excelPath, bool macroEnabled)
     {
         var extension = macroEnabled ? ".xlsm" : ".xlsx";
         if (!excelPath.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
@@ -182,7 +232,7 @@ FILE FORMATS:
             excelPath = Path.ChangeExtension(excelPath, extension);
         }
 
-        var result = await fileCommands.CreateEmptyAsync(excelPath, overwriteIfExists: false);
+        var result = fileCommands.CreateEmpty(excelPath, overwriteIfExists: false);
 
         if (result.Success)
         {
@@ -220,14 +270,14 @@ FILE FORMATS:
     /// Tests if an Excel file exists and is valid without opening it via Excel COM.
     /// LLM Pattern: Use this for discovery/connectivity testing before running operations.
     /// </summary>
-    private static async Task<string> TestFileAsync(FileCommands fileCommands, string excelPath)
+    private static string TestFileAsync(FileCommands fileCommands, string excelPath)
     {
         if (string.IsNullOrWhiteSpace(excelPath))
         {
-            throw new ModelContextProtocol.McpException("excelPath is required for 'test' action");
+            throw new ArgumentException("excelPath is required for 'test' action", nameof(excelPath));
         }
 
-        var result = await fileCommands.TestAsync(excelPath);
+        var result = fileCommands.Test(excelPath);
 
         if (result.Success)
         {
@@ -257,3 +307,4 @@ FILE FORMATS:
         }, ExcelToolsBase.JsonOptions);
     }
 }
+

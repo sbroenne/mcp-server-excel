@@ -68,12 +68,13 @@ excel_powerquery({
   action: "create", 
   queryName: "Sales", 
   mCodePath: "sales.pq",
-  loadDestination: "worksheet",  // Options: worksheet | data-model | both | connection-only
-  targetSheet: "Data"
+    loadDestination: "worksheet",  // Options: worksheet | data-model | both | connection-only
+    targetSheet: "Data",
+    targetCellAddress: "B5"        // NEW: Control QueryTable anchor
 })
 ```
 
-**Complete operation**: Imports M code, creates query, configures load destination, and loads data.
+**Complete operation**: Imports M code, creates query, configures load destination, places the QueryTable at the exact cell requested, and loads data.
 
 ### Pattern 2: Update Existing Query
 
@@ -98,7 +99,8 @@ excel_powerquery({
   action: "load-to", 
   queryName: "Sales",
   loadDestination: "data-model",  // Switch from worksheet to data model
-  targetSheet: null
+    targetSheet: null,
+    targetCellAddress: null  // Worksheet-specific placement ignored for other destinations
 })
 ```
 
@@ -121,7 +123,8 @@ This specification proposes a **unified, LLM-optimized Power Query API** that el
 1. **Atomic operations** - Single call accomplishes complete workflow
 2. **Explicit intent** - Clear action names that match user goals
 3. **Predictable behavior** - No hidden state, no surprise data loads
-4. **Performance** - Eliminate redundant refresh operations
+4. **Precision placement** - Explicit cell targeting for worksheet loads
+5. **Performance** - Eliminate redundant refresh operations
 5. **Error resilience** - Handle Excel COM stress gracefully
 
 ---
@@ -137,7 +140,6 @@ ListAsync()
 ViewAsync()
 ImportAsync()           // Multi-parameter: loadDestination, worksheetName
 UpdateAsync()           // Updates M code only
-ExportAsync()
 DeleteAsync()
 
 // Refresh Operations
@@ -325,14 +327,6 @@ Task<OperationResult> UpdateMCodeAsync(
     IExcelBatch batch, 
     string queryName, 
     string mCodeFile);
-
-/// <summary>
-/// Exports M code to file
-/// </summary>
-Task<OperationResult> ExportAsync(
-    IExcelBatch batch, 
-    string queryName, 
-    string outputFile);
 
 /// <summary>
 /// Deletes query (removes both Query and QueryTable if exists)
@@ -1126,7 +1120,6 @@ Task<PowerQueryListResult> ListAsync(IExcelBatch batch);
 Task<PowerQueryViewResult> ViewAsync(IExcelBatch batch, string queryName);
 Task<OperationResult> ImportAsync(IExcelBatch batch, string queryName, string mCodeFile, string loadDestination = "worksheet", string? worksheetName = null);
 Task<OperationResult> UpdateAsync(IExcelBatch batch, string queryName, string mCodeFile);
-Task<OperationResult> ExportAsync(IExcelBatch batch, string queryName, string outputFile);
 Task<OperationResult> DeleteAsync(IExcelBatch batch, string queryName);
 
 // Refresh (2 methods)
@@ -1157,7 +1150,6 @@ Task<PowerQueryListResult> ListAsync(IExcelBatch batch);
 Task<PowerQueryViewResult> ViewAsync(IExcelBatch batch, string queryName);
 Task<PowerQueryCreateResult> CreateAsync(IExcelBatch batch, string queryName, string mCodeFile, QueryDestination loadTo = QueryDestination.Worksheet, string? worksheetName = null);
 Task<OperationResult> UpdateMCodeAsync(IExcelBatch batch, string queryName, string mCodeFile);
-Task<OperationResult> ExportAsync(IExcelBatch batch, string queryName, string outputFile);
 Task<OperationResult> DeleteAsync(IExcelBatch batch, string queryName);
 
 // Data Load (4 methods)

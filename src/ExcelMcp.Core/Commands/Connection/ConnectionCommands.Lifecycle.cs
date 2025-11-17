@@ -18,11 +18,11 @@ public partial class ConnectionCommands
     /// <summary>
     /// Lists all connections in a workbook
     /// </summary>
-    public async Task<ConnectionListResult> ListAsync(IExcelBatch batch)
+    public ConnectionListResult List(IExcelBatch batch)
     {
         var result = new ConnectionListResult { FilePath = batch.WorkbookPath };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? connections = null;
 
@@ -80,7 +80,7 @@ public partial class ConnectionCommands
     /// <summary>
     /// Views detailed connection information
     /// </summary>
-    public async Task<ConnectionViewResult> ViewAsync(IExcelBatch batch, string connectionName)
+    public ConnectionViewResult View(IExcelBatch batch, string connectionName)
     {
         var result = new ConnectionViewResult
         {
@@ -88,7 +88,7 @@ public partial class ConnectionCommands
             ConnectionName = connectionName
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -142,7 +142,7 @@ public partial class ConnectionCommands
     /// <summary>
     /// Creates a new connection in the workbook
     /// </summary>
-    public async Task<OperationResult> CreateAsync(IExcelBatch batch, string connectionName,
+    public OperationResult Create(IExcelBatch batch, string connectionName,
         string connectionString, string? commandText = null, string? description = null)
     {
         var result = new OperationResult
@@ -151,7 +151,7 @@ public partial class ConnectionCommands
             Action = "create"
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -183,7 +183,7 @@ public partial class ConnectionCommands
     /// <summary>
     /// Imports connection from JSON file
     /// </summary>
-    public async Task<OperationResult> ImportAsync(IExcelBatch batch, string connectionName, string jsonFilePath)
+    public OperationResult Import(IExcelBatch batch, string connectionName, string jsonFilePath)
     {
         // Validate file path to prevent path traversal attacks
         jsonFilePath = PathValidator.ValidateExistingFile(jsonFilePath, nameof(jsonFilePath));
@@ -214,7 +214,7 @@ public partial class ConnectionCommands
                 return result;
             }
 
-            return await batch.Execute((ctx, ct) =>
+            return batch.Execute((ctx, ct) =>
             {
                 try
                 {
@@ -250,77 +250,9 @@ public partial class ConnectionCommands
     }
 
     /// <summary>
-    /// Exports connection to JSON file
-    /// </summary>
-    public async Task<OperationResult> ExportAsync(IExcelBatch batch, string connectionName, string jsonFilePath)
-    {
-        // Validate output file path to prevent path traversal attacks
-        jsonFilePath = PathValidator.ValidateOutputFile(jsonFilePath, nameof(jsonFilePath), allowOverwrite: true);
-
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "export"
-        };
-
-        return await batch.Execute((ctx, ct) =>
-        {
-            try
-            {
-                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
-
-                if (conn == null)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Connection '{connectionName}' not found";
-                    return result;
-                }
-
-                // Check if this is a Power Query connection
-                if (PowerQueryHelpers.IsPowerQueryConnection(conn))
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Use 'pq-export' command instead.";
-                    return result;
-                }
-
-                // Build connection definition
-                var definition = new ConnectionDefinition
-                {
-                    Name = connectionName,
-                    Description = conn.Description?.ToString() ?? "",
-                    Type = ConnectionHelpers.GetConnectionTypeName(conn.Type),
-                    ConnectionString = GetConnectionString(conn) ?? "",
-                    CommandText = GetCommandText(conn),
-                    CommandType = GetCommandType(conn),
-                    BackgroundQuery = GetBackgroundQuerySetting(conn),
-                    RefreshOnFileOpen = GetRefreshOnFileOpenSetting(conn),
-                    SavePassword = false, // Never export with SavePassword = true (security)
-                    RefreshPeriod = GetRefreshPeriod(conn)
-                };
-
-                // Serialize to JSON
-                string json = JsonSerializer.Serialize(definition, s_jsonOptions);
-
-                // Write to file
-                File.WriteAllText(jsonFilePath, json);
-
-                result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error exporting connection: {ex.Message}";
-                return result;
-            }
-        });
-    }
-
-    /// <summary>
     /// Updates existing connection from JSON file
     /// </summary>
-    public async Task<OperationResult> UpdatePropertiesAsync(IExcelBatch batch, string connectionName, string jsonFilePath)
+    public OperationResult UpdateProperties(IExcelBatch batch, string connectionName, string jsonFilePath)
     {
         // Validate file path to prevent path traversal attacks
         jsonFilePath = PathValidator.ValidateExistingFile(jsonFilePath, nameof(jsonFilePath));
@@ -351,7 +283,7 @@ public partial class ConnectionCommands
                 return result;
             }
 
-            return await batch.Execute((ctx, ct) =>
+            return batch.Execute((ctx, ct) =>
             {
                 try
                 {
@@ -397,15 +329,15 @@ public partial class ConnectionCommands
     /// <summary>
     /// Refreshes connection data
     /// </summary>
-    public async Task<OperationResult> RefreshAsync(IExcelBatch batch, string connectionName)
+    public OperationResult Refresh(IExcelBatch batch, string connectionName)
     {
-        return await RefreshAsync(batch, connectionName, timeout: null);
+        return Refresh(batch, connectionName, timeout: null);
     }
 
     /// <summary>
     /// Refreshes connection data with timeout
     /// </summary>
-    public async Task<OperationResult> RefreshAsync(IExcelBatch batch, string connectionName, TimeSpan? timeout)
+    public OperationResult Refresh(IExcelBatch batch, string connectionName, TimeSpan? timeout)
     {
         var result = new OperationResult
         {
@@ -413,7 +345,7 @@ public partial class ConnectionCommands
             Action = "refresh"
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -446,13 +378,13 @@ public partial class ConnectionCommands
                 result.ErrorMessage = $"Error refreshing connection: {ex.Message}";
                 return result;
             }
-        }, timeout: timeout ?? TimeSpan.FromMinutes(2));  // Default 2 minutes for connection refresh, LLM can override
+        });  // Default 2 minutes for connection refresh, LLM can override
     }
 
     /// <summary>
     /// Deletes a connection
     /// </summary>
-    public async Task<OperationResult> DeleteAsync(IExcelBatch batch, string connectionName)
+    public OperationResult Delete(IExcelBatch batch, string connectionName)
     {
         var result = new OperationResult
         {
@@ -460,7 +392,7 @@ public partial class ConnectionCommands
             Action = "delete"
         };
 
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -499,3 +431,4 @@ public partial class ConnectionCommands
         });
     }
 }
+

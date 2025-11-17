@@ -349,13 +349,13 @@ for (int i = 1; i <= modelTables.Count; i++)
 
 ---
 
-#### 3. View Measure DAX (`model-view-measure`)
+#### 3. Read Measure DAX (`model-read-measure`)
 
 **Purpose:** Display complete measure details and DAX formula
 
 **CLI Usage:**
 ```powershell
-excelcli model-view-measure "workbook.xlsx" "Total Sales"
+excelcli model-read-measure "workbook.xlsx" "Total Sales"
 ```
 
 **Output:**
@@ -709,7 +709,7 @@ excelcli model-import-schema "workbook.xlsx" "model-schema.json"
 **Actions:**
 - `list-tables` - List all model tables
 - `list-measures` - List all DAX measures
-- `view-measure` - Display measure DAX formula
+- `read` - Display measure DAX formula
 - `export-measure` - Export measure to DAX file
 - `list-relationships` - Display table relationships
 - `refresh` - Refresh model data
@@ -718,7 +718,7 @@ excelcli model-import-schema "workbook.xlsx" "model-schema.json"
 **Input Schema:**
 ```json
 {
-  "action": "list-measures | view-measure | export-measure | ...",
+    "action": "list-measures | read | export-measure | ...",
   "excelPath": "path/to/workbook.xlsx",
   "measureName": "optional",
   "tableName": "optional",
@@ -783,7 +783,7 @@ catch
 
 ```text
 Developer: "This measure is slow: Total Sales := SUM(Sales[Amount]). Can you optimize it?"
-Copilot: [Uses excel_data_model view-measure -> analyzes DAX -> suggests optimization]
+Copilot: [Uses excel_data_model read -> analyzes DAX -> suggests optimization]
          "Your measure uses table scan. Consider this optimized version using CALCULATE:
          Total Sales := CALCULATE(SUM(Sales[Amount]), REMOVEFILTERS(Sales[Date]))"
 Developer: "Apply the optimization"
@@ -1117,7 +1117,7 @@ public class DataModelRelationshipInfo
 1. **CLI Commands:**
    - [ ] Add `model-list-tables` command to `Program.cs`
    - [ ] Add `model-list-measures` command
-   - [ ] Add `model-view-measure` command
+    - [ ] Add `model-read-measure` command
    - [ ] Add `model-export-measure` command
    - [ ] Add `model-list-relationships` command
    - [ ] Add `model-refresh` command
@@ -1587,7 +1587,7 @@ excelcli dm-validate-dax Sales.xlsx "SUM(Sales[Amount])"
 ```
 User: "Create a Total Sales measure in the Sales table using SUM of Amount column"
 Copilot: [Uses excel_datamodel with action=create-measure]
-         "Measure created successfully. Use dm-view-measure to verify."
+         "Measure created successfully. Use dm-read-measure to verify."
 
 User: "Update the Total Sales measure to include a 10% markup"
 Copilot: [Uses excel_datamodel with action=update-measure]

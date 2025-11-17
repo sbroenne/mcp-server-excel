@@ -33,8 +33,12 @@ REQUIRED WORKFLOW:
 TAB COLORS (set-tab-color):
 - RGB values: 0-255 for red, green, blue components
 - Example: red=255, green=0, blue=0 for red tab
+
+POSITIONING (move, copy-to-workbook, move-to-workbook):
+- Use beforeSheet OR afterSheet (not both) to specify relative position
+- If neither specified, sheet is positioned at the end
 ")]
-    public static async Task<string> ExcelWorksheet(
+    public static string ExcelWorksheet(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         WorksheetAction action,
@@ -50,8 +54,21 @@ TAB COLORS (set-tab-color):
 
         [StringLength(31, MinimumLength = 1)]
         [RegularExpression(@"^[^[\]/*?\\:]+$")]
-        [Description("New sheet name (for rename) or target sheet name (for copy)")]
+        [Description("New sheet name (for rename) or target sheet name (for copy/copy-to-workbook)")]
         string? targetName = null,
+
+        [Description("Target workbook session ID (for copy-to-workbook and move-to-workbook actions)")]
+        string? targetSessionId = null,
+
+        [StringLength(31, MinimumLength = 1)]
+        [RegularExpression(@"^[^[\]/*?\\:]+$")]
+        [Description("Position sheet before this sheet (for move, copy-to-workbook, move-to-workbook)")]
+        string? beforeSheet = null,
+
+        [StringLength(31, MinimumLength = 1)]
+        [RegularExpression(@"^[^[\]/*?\\:]+$")]
+        [Description("Position sheet after this sheet (for move, copy-to-workbook, move-to-workbook)")]
+        string? afterSheet = null,
 
         [Range(0, 255)]
         [Description("Red component (0-255) for set-tab-color action")]
@@ -76,62 +93,45 @@ TAB COLORS (set-tab-color):
             // Expression switch pattern for audit compliance
             return action switch
             {
-                WorksheetAction.List => await ListAsync(sheetCommands, sessionId),
-                WorksheetAction.Create => await CreateAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.Delete => await DeleteAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.Rename => await RenameAsync(sheetCommands, sessionId, sheetName, targetName),
-                WorksheetAction.Copy => await CopyAsync(sheetCommands, sessionId, sheetName, targetName),
-                WorksheetAction.SetTabColor => await SetTabColorAsync(sheetCommands, sessionId, sheetName, red, green, blue),
-                WorksheetAction.GetTabColor => await GetTabColorAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.ClearTabColor => await ClearTabColorAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.SetVisibility => await SetVisibilityAsync(sheetCommands, sessionId, sheetName, visibility),
-                WorksheetAction.GetVisibility => await GetVisibilityAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.Show => await ShowAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.Hide => await HideAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.VeryHide => await VeryHideAsync(sheetCommands, sessionId, sheetName),
-                _ => throw new ModelContextProtocol.McpException($"Unknown action: {action} ({action.ToActionString()})")
+                WorksheetAction.List => ListAsync(sheetCommands, sessionId),
+                WorksheetAction.Create => CreateAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.Delete => DeleteAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.Rename => RenameAsync(sheetCommands, sessionId, sheetName, targetName),
+                WorksheetAction.Copy => CopyAsync(sheetCommands, sessionId, sheetName, targetName),
+                WorksheetAction.Move => MoveAsync(sheetCommands, sessionId, sheetName, beforeSheet, afterSheet),
+                WorksheetAction.CopyToWorkbook => CopyToWorkbookAsync(sheetCommands, sessionId, sheetName, targetSessionId, targetName, beforeSheet, afterSheet),
+                WorksheetAction.MoveToWorkbook => MoveToWorkbookAsync(sheetCommands, sessionId, sheetName, targetSessionId, beforeSheet, afterSheet),
+                WorksheetAction.SetTabColor => SetTabColorAsync(sheetCommands, sessionId, sheetName, red, green, blue),
+                WorksheetAction.GetTabColor => GetTabColorAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.ClearTabColor => ClearTabColorAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.SetVisibility => SetVisibilityAsync(sheetCommands, sessionId, sheetName, visibility),
+                WorksheetAction.GetVisibility => GetVisibilityAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.Show => ShowAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.Hide => HideAsync(sheetCommands, sessionId, sheetName),
+                WorksheetAction.VeryHide => VeryHideAsync(sheetCommands, sessionId, sheetName),
+                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
-        }
-        catch (ModelContextProtocol.McpException)
-        {
-            throw;
-        }
-        catch (TimeoutException ex)
-        {
-            var result = new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                operationContext = new Dictionary<string, object>
-                {
-                    { "OperationType", "excel_worksheet" },
-                    { "Action", action.ToActionString() },
-                    { "TimeoutReached", true }
-                },
-                isRetryable = !ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase),
-                retryGuidance = ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase)
-                    ? "Maximum timeout reached. Check workbook state manually."
-                    : "Retry acceptable if issue is transient."
-            };
-
-            return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
         }
         catch (Exception ex)
         {
-            ExcelToolsBase.ThrowInternalError(ex, action.ToActionString());
-            throw;
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
         }
     }
 
     // === PRIVATE HELPER METHODS ===
 
-    private static async Task<string> ListAsync(
+    private static string ListAsync(
         SheetCommands sheetCommands,
         string sessionId)
     {
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            sheetCommands.ListAsync);
+            batch => sheetCommands.List(batch));
         var count = result.Worksheets?.Count ?? 0;
         var inSession = !string.IsNullOrEmpty(sessionId);
 
@@ -142,17 +142,17 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> CreateAsync(
+    private static string CreateAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for create action");
+            throw new ArgumentException("sheetName is required for create action", nameof(sheetName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.CreateAsync(batch, sheetName));
+            batch => sheetCommands.Create(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -160,18 +160,18 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> RenameAsync(
+    private static string RenameAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName,
         string? targetName)
     {
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
-            throw new ModelContextProtocol.McpException("sheetName and targetName are required for rename action");
+            throw new ArgumentException("sheetName and targetName are required for rename action", "sheetName,targetName");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.RenameAsync(batch, sheetName, targetName));
+            batch => sheetCommands.Rename(batch, sheetName, targetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -180,18 +180,18 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> CopyAsync(
+    private static string CopyAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName,
         string? targetName)
     {
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
-            throw new ModelContextProtocol.McpException("sheetName and targetName are required for copy action");
+            throw new ArgumentException("sheetName and targetName are required for copy action", "sheetName,targetName");
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.CopyAsync(batch, sheetName, targetName));
+            batch => sheetCommands.Copy(batch, sheetName, targetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -200,17 +200,17 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> DeleteAsync(
+    private static string DeleteAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for delete action");
+            throw new ArgumentException("sheetName is required for delete action", nameof(sheetName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.DeleteAsync(batch, sheetName));
+            batch => sheetCommands.Delete(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -219,7 +219,7 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetTabColorAsync(
+    private static string SetTabColorAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName,
@@ -228,23 +228,23 @@ TAB COLORS (set-tab-color):
         int? blue)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for set-tab-color action");
+            throw new ArgumentException("sheetName is required for set-tab-color action", nameof(sheetName));
 
         if (!red.HasValue)
-            throw new ModelContextProtocol.McpException("red value (0-255) is required for set-tab-color action");
+            throw new ArgumentException("red value (0-255) is required for set-tab-color action", nameof(red));
         if (!green.HasValue)
-            throw new ModelContextProtocol.McpException("green value (0-255) is required for set-tab-color action");
+            throw new ArgumentException("green value (0-255) is required for set-tab-color action", nameof(green));
         if (!blue.HasValue)
-            throw new ModelContextProtocol.McpException("blue value (0-255) is required for set-tab-color action");
+            throw new ArgumentException("blue value (0-255) is required for set-tab-color action", nameof(blue));
 
         // Extract values after validation (null checks above guarantee non-null)
         int redValue = red.Value;
         int greenValue = green.Value;
         int blueValue = blue.Value;
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.SetTabColorAsync(batch, sheetName, redValue, greenValue, blueValue));
+            batch => sheetCommands.SetTabColor(batch, sheetName, redValue, greenValue, blueValue));
         string hexColor = $"#{redValue:X2}{greenValue:X2}{blueValue:X2}";
 
         return JsonSerializer.Serialize(new
@@ -254,17 +254,17 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetTabColorAsync(
+    private static string GetTabColorAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for get-tab-color action");
+            throw new ArgumentException("sheetName is required for get-tab-color action", nameof(sheetName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.GetTabColorAsync(batch, sheetName));
+            batch => sheetCommands.GetTabColor(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -278,17 +278,17 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ClearTabColorAsync(
+    private static string ClearTabColorAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for clear-tab-color action");
+            throw new ArgumentException("sheetName is required for clear-tab-color action", nameof(sheetName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.ClearTabColorAsync(batch, sheetName));
+            batch => sheetCommands.ClearTabColor(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -297,29 +297,29 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> SetVisibilityAsync(
+    private static string SetVisibilityAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName,
         string? visibility)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for set-visibility action");
+            throw new ArgumentException("sheetName is required for set-visibility action", nameof(sheetName));
 
         if (string.IsNullOrEmpty(visibility))
-            throw new ModelContextProtocol.McpException("visibility (visible|hidden|veryhidden) is required for set-visibility action");
+            throw new ArgumentException("visibility (visible|hidden|veryhidden) is required for set-visibility action", nameof(visibility));
 
         SheetVisibility visibilityLevel = visibility.ToLowerInvariant() switch
         {
             "visible" => SheetVisibility.Visible,
             "hidden" => SheetVisibility.Hidden,
             "veryhidden" => SheetVisibility.VeryHidden,
-            _ => throw new ModelContextProtocol.McpException($"Invalid visibility value '{visibility}'. Use: visible, hidden, or veryhidden")
+            _ => throw new ArgumentException($"Invalid visibility value '{visibility}'. Use: visible, hidden, or veryhidden", nameof(visibility))
         };
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.SetVisibilityAsync(batch, sheetName, visibilityLevel));
+            batch => sheetCommands.SetVisibility(batch, sheetName, visibilityLevel));
 
         return JsonSerializer.Serialize(new
         {
@@ -328,17 +328,17 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> GetVisibilityAsync(
+    private static string GetVisibilityAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for get-visibility action");
+            throw new ArgumentException("sheetName is required for get-visibility action", nameof(sheetName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.GetVisibilityAsync(batch, sheetName));
+            batch => sheetCommands.GetVisibility(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -349,17 +349,17 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> ShowAsync(
+    private static string ShowAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for show action");
+            throw new ArgumentException("sheetName is required for show action", nameof(sheetName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.ShowAsync(batch, sheetName));
+            batch => sheetCommands.Show(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -368,17 +368,17 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> HideAsync(
+    private static string HideAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for hide action");
+            throw new ArgumentException("sheetName is required for hide action", nameof(sheetName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.HideAsync(batch, sheetName));
+            batch => sheetCommands.Hide(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -388,17 +388,17 @@ TAB COLORS (set-tab-color):
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static async Task<string> VeryHideAsync(
+    private static string VeryHideAsync(
         SheetCommands sheetCommands,
         string sessionId,
         string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
-            throw new ModelContextProtocol.McpException("sheetName is required for very-hide action");
+            throw new ArgumentException("sheetName is required for very-hide action", nameof(sheetName));
 
-        var result = await ExcelToolsBase.WithSessionAsync(
+        var result = ExcelToolsBase.WithSession(
             sessionId,
-            async batch => await sheetCommands.VeryHideAsync(batch, sheetName));
+            batch => sheetCommands.VeryHide(batch, sheetName));
 
         return JsonSerializer.Serialize(new
         {
@@ -407,4 +407,95 @@ TAB COLORS (set-tab-color):
             workflowHint = result.Success ? "Sheet now very-hidden (not visible even in VBA, requires code to unhide)" : null
         }, ExcelToolsBase.JsonOptions);
     }
+
+    private static string MoveAsync(
+        SheetCommands sheetCommands,
+        string sessionId,
+        string? sheetName,
+        string? beforeSheet,
+        string? afterSheet)
+    {
+        if (string.IsNullOrEmpty(sheetName))
+            throw new ArgumentException("sheetName is required for move action", nameof(sheetName));
+
+        var result = ExcelToolsBase.WithSession(
+            sessionId,
+            batch => sheetCommands.Move(batch, sheetName, beforeSheet, afterSheet));
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage
+        }, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string CopyToWorkbookAsync(
+        SheetCommands sheetCommands,
+        string sessionId,
+        string? sheetName,
+        string? targetSessionId,
+        string? targetName,
+        string? beforeSheet,
+        string? afterSheet)
+    {
+        if (string.IsNullOrEmpty(sheetName))
+            throw new ArgumentException("sheetName is required for copy-to-workbook action", nameof(sheetName));
+
+        if (string.IsNullOrEmpty(targetSessionId))
+            throw new ArgumentException("targetSessionId is required for copy-to-workbook action", nameof(targetSessionId));
+
+        // Resolve both sessions
+        var sessionManager = ExcelToolsBase.GetSessionManager();
+        var sourceBatch = sessionManager.GetSession(sessionId);
+        var targetBatch = sessionManager.GetSession(targetSessionId);
+
+        if (sourceBatch == null)
+            throw new InvalidOperationException($"Source session '{sessionId}' not found");
+
+        if (targetBatch == null)
+            throw new InvalidOperationException($"Target session '{targetSessionId}' not found");
+
+        var result = sheetCommands.CopyToWorkbook(sourceBatch, sheetName, targetBatch, targetName, beforeSheet, afterSheet);
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage
+        }, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string MoveToWorkbookAsync(
+        SheetCommands sheetCommands,
+        string sessionId,
+        string? sheetName,
+        string? targetSessionId,
+        string? beforeSheet,
+        string? afterSheet)
+    {
+        if (string.IsNullOrEmpty(sheetName))
+            throw new ArgumentException("sheetName is required for move-to-workbook action", nameof(sheetName));
+
+        if (string.IsNullOrEmpty(targetSessionId))
+            throw new ArgumentException("targetSessionId is required for move-to-workbook action", nameof(targetSessionId));
+
+        // Resolve both sessions
+        var sessionManager = ExcelToolsBase.GetSessionManager();
+        var sourceBatch = sessionManager.GetSession(sessionId);
+        var targetBatch = sessionManager.GetSession(targetSessionId);
+
+        if (sourceBatch == null)
+            throw new InvalidOperationException($"Source session '{sessionId}' not found");
+
+        if (targetBatch == null)
+            throw new InvalidOperationException($"Target session '{targetSessionId}' not found");
+
+        var result = sheetCommands.MoveToWorkbook(sourceBatch, sheetName, targetBatch, beforeSheet, afterSheet);
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage
+        }, ExcelToolsBase.JsonOptions);
+    }
 }
+

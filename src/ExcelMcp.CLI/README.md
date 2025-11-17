@@ -27,6 +27,8 @@ excelcli --version
 excelcli --help
 ```
 
+> 🔁 **Session Workflow:** Always start with `excelcli session open <file>` (captures the session id), pass `--session <id>` to other commands, then `excelcli session save <id>` (optional) and `excelcli session close <id>` when finished. The CLI reuses the same Excel instance through that lifecycle.
+
 ### Update to Latest Version
 
 ```bash
@@ -39,6 +41,14 @@ dotnet tool update --global Sbroenne.ExcelMcp.CLI
 dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 ```
 
+## 🆘 Built-in Help
+
+- `excelcli --help` – lists every command category plus the new descriptions from `Program.cs`
+- `excelcli <command> --help` – shows verb-specific arguments (for example `excelcli sheet --help`)
+- `excelcli session --help` – displays nested verbs such as `open`, `save`, `close`, and `list`
+
+Descriptions are kept in sync with the CLI source so the help output always reflects the latest capabilities.
+
 ---
 
 ## ✨ Key Features
@@ -48,6 +58,7 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 - **VBA Development** - Manage VBA modules, run macros, automated testing
 - **Data Model & DAX** - Create measures, manage relationships, Power Pivot operations
 - **PivotTable Automation** - Create, configure, and manage PivotTables programmatically
+- **Conditional Formatting** - Add rules (cell value, expression-based), clear formatting
 
 ### 📊 Data Operations
 - **Worksheet Management** - Create, rename, copy, delete sheets with tab colors and visibility
@@ -65,14 +76,15 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **166 operations** across 11 categories:
+ExcelMcp.CLI provides **168 operations** across 12 categories:
 
 | Category | Operations | Examples |
 |----------|-----------|----------|
-| **File Operations** | 6 | `create-empty`, `open`, `save`, `close`, `test` |
+| **File & Session** | 5 | `create-empty`, `session open`, `session save`, `session close`, `session list` |
 | **Worksheets** | 13 | `sheet-list`, `sheet-create`, `sheet-rename`, `sheet-set-tab-color` |
 | **Power Query** | 12 | `pq-list`, `pq-create`, `pq-export`, `pq-refresh`, `pq-update-mcode` |
-| **Ranges** | 44 | `range-get-values`, `range-set-values`, `range-copy`, `range-find`, `range-merge-cells`, `range-add-hyperlink` |
+| **Ranges** | 43 | `range-get-values`, `range-set-values`, `range-copy`, `range-find`, `range-merge-cells`, `range-add-hyperlink` |
+| **Conditional Formatting** | 2 | `cf-add-rule`, `cf-clear-rules` |
 | **Excel Tables** | 23 | `table-create`, `table-filter`, `table-sort`, `table-add-column`, `table-get-column-format` |
 | **PivotTables** | 19 | `pivot-create-from-range`, `pivot-add-row-field`, `pivot-refresh`, `pivot-delete` |
 | **QueryTables** | 8 | `querytable-list`, `querytable-get`, `querytable-refresh`, `querytable-create-from-connection` |
@@ -85,28 +97,31 @@ ExcelMcp.CLI provides **166 operations** across 11 categories:
 
 ## SESSION LIFECYCLE (Open/Save/Close)
 
-The CLI uses an explicit session-based workflow where you open a file, perform operations, and save:
+The CLI uses an explicit session-based workflow where you open a file, perform operations, and save or close:
 
 ```bash
 # 1. Open a session
 excelcli open data.xlsx
 # Output: Session ID: 550e8400-e29b-41d4-a716-446655440000
 
-# 2. Use the session ID with any commands
+# 2. List active sessions anytime
+excelcli list
+
+# 3. Use the session ID with any commands (optional - can operate without session)
 excelcli sheet-create data.xlsx NewSheet --session-id 550e8400-e29b-41d4-a716-446655440000
 excelcli pq-list data.xlsx --session-id 550e8400-e29b-41d4-a716-446655440000
 
-# 3. Save changes explicitly (optional - can discard)
+# 4. Save changes and keep session open
 excelcli save 550e8400-e29b-41d4-a716-446655440000
 
-# 4. Close session when done
+# 5. Close session and discard changes
 excelcli close 550e8400-e29b-41d4-a716-446655440000
 ```
 
 ### Session Lifecycle Benefits
 
 - **Explicit control** - Know exactly when changes are persisted
-- **Batch efficiency** - Keep single Excel instance open for multiple operations
+- **Batch efficiency** - Keep single Excel instance open for multiple operations (75-90% faster)
 - **Flexibility** - Save strategically or discard changes entirely
 - **Clean resource management** - Automatic Excel cleanup when session closes
 
@@ -226,7 +241,7 @@ excelcli pq-create report.xlsx "CleanSales" "clean-sales.pq" --session-id $SESSI
 # 5. Create PivotTable
 excelcli pivot-create-from-range report.xlsx Sales A1:E1000 Summary A1 SalesPivot --session-id $SESSION_ID
 
-# 6. Save all changes
+# 6. Save changes
 excelcli save $SESSION_ID
 
 # 7. Close session
@@ -284,6 +299,19 @@ excelcli range-set-number-format data.xlsx Sheet1 E2:E100 "0.00%"      # Percent
 
 # Add data validation
 excelcli range-validate data.xlsx Sheet1 F2:F100 List "Active,Inactive,Pending"
+```
+
+### Conditional Formatting
+
+```bash
+# Add conditional formatting rule (highlight cells > 100)
+excelcli cf-add-rule data.xlsx Sheet1 A1:A10 cell-value greater 100 "" "#FFFF00" solid
+
+# Add expression-based rule
+excelcli cf-add-rule data.xlsx Sheet1 B1:B10 expression "" "=B1>AVERAGE($B$1:$B$10)" "" "#90EE90" solid
+
+# Clear conditional formatting
+excelcli cf-clear-rules data.xlsx Sheet1 A1:A10
 ```
 
 ---
@@ -397,6 +425,16 @@ foreach ($file in $files) {
 # Process multiple files
 for %f in (*.xlsx) do excelcli sheet-read "%f" "Sheet1" >> output.csv
 ```
+
+## ✅ Tested Scenarios
+
+The CLI ships with real Excel-backed integration tests that exercise the session lifecycle plus worksheet creation/listing flows through the same commands you run locally. Execute them with:
+
+```bash
+dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj --filter "Layer=CLI"
+```
+
+These tests open actual workbooks, issue `session open/list/close`, and call `excelcli sheet` actions to ensure the command pipeline stays healthy.
 
 ---
 

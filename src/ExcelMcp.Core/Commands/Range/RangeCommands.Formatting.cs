@@ -12,13 +12,13 @@ public partial class RangeCommands
     private static readonly int[] BorderEdges = [7, 8, 9, 10];
 
     /// <inheritdoc />
-    public async Task<OperationResult> SetStyleAsync(
+    public OperationResult SetStyle(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,
         string styleName)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -60,12 +60,12 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<RangeStyleResult> GetStyleAsync(
+    public RangeStyleResult GetStyle(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -152,7 +152,7 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> FormatRangeAsync(
+    public OperationResult FormatRange(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,
@@ -171,7 +171,7 @@ public partial class RangeCommands
         bool? wrapText,
         int? orientation)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -348,3 +348,4 @@ public partial class RangeCommands
         };
     }
 }
+

@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.ComInterop.Session;
+﻿using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -41,8 +41,8 @@ public class PivotTableDataModelTests : IClassFixture<DataModelTestsFixture>
         Assert.True(_creationResult.Success, "Data Model fixture must be created successfully");
 
         // Act - Create PivotTable from Data Model table
-        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
-        var result = await _pivotCommands.CreateFromDataModelAsync(
+        using var batch = ExcelSession.BeginBatch(_dataModelFile);
+        var result = await _pivotCommands.CreateFromDataModel(
             batch,
             "SalesTable",  // Data Model table name from fixture
             "Sales",       // Destination sheet
@@ -74,8 +74,8 @@ public class PivotTableDataModelTests : IClassFixture<DataModelTestsFixture>
         Assert.True(_creationResult.Success, "Data Model fixture must be created successfully");
 
         // Act - Try to create PivotTable from non-existent table
-        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
-        var result = await _pivotCommands.CreateFromDataModelAsync(
+        using var batch = ExcelSession.BeginBatch(_dataModelFile);
+        var result = await _pivotCommands.CreateFromDataModel(
             batch,
             "NonExistentTable",
             "Sales",
@@ -97,8 +97,8 @@ public class PivotTableDataModelTests : IClassFixture<DataModelTestsFixture>
         Assert.True(_creationResult.Success, "Data Model fixture must be created successfully");
 
         // Act - Create PivotTable and verify all fields are discovered
-        await using var batch = await ExcelSession.BeginBatchAsync(_dataModelFile);
-        var result = await _pivotCommands.CreateFromDataModelAsync(
+        using var batch = ExcelSession.BeginBatch(_dataModelFile);
+        var result = await _pivotCommands.CreateFromDataModel(
             batch,
             "CustomersTable",  // Has 4 columns: CustomerID, Name, Region, Country
             "Customers",

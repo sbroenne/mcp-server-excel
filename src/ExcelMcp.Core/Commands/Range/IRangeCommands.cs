@@ -17,7 +17,7 @@ public interface IRangeCommands
     /// Single cell "A1" returns [[value]], range "A1:B2" returns [[v1,v2],[v3,v4]]
     /// Named ranges: Use empty sheetName and rangeAddress="NamedRange"
     /// </summary>
-    Task<RangeValueResult> GetValuesAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    RangeValueResult GetValues(IExcelBatch batch, string sheetName, string rangeAddress);
 
     /// <summary>
     /// Sets values in a range from 2D array
@@ -30,7 +30,7 @@ public interface IRangeCommands
     /// IMPORTANT: Passing "A1" with multi-cell array may not auto-expand reliably.
     /// Always specify the exact range address.
     /// </param>
-    Task<OperationResult> SetValuesAsync(IExcelBatch batch, string sheetName, string rangeAddress, List<List<object?>> values);
+    OperationResult SetValues(IExcelBatch batch, string sheetName, string rangeAddress, List<List<object?>> values);
 
     // === FORMULA OPERATIONS ===
 
@@ -38,12 +38,12 @@ public interface IRangeCommands
     /// Gets formulas from a range as 2D array (empty string if no formula)
     /// Single cell "A1" returns [["=SUM(B:B)"]], range "A1:B2" returns [[f1,f2],[f3,f4]]
     /// </summary>
-    Task<RangeFormulaResult> GetFormulasAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    RangeFormulaResult GetFormulas(IExcelBatch batch, string sheetName, string rangeAddress);
 
     /// <summary>
     /// Sets formulas in a range from 2D array
     /// </summary>
-    Task<OperationResult> SetFormulasAsync(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>> formulas);
+    OperationResult SetFormulas(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>> formulas);
 
     // === CLEAR OPERATIONS ===
 
@@ -51,19 +51,19 @@ public interface IRangeCommands
     /// Clears all content (values, formulas, formats) from range
     /// Excel COM: Range.Clear()
     /// </summary>
-    Task<OperationResult> ClearAllAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    OperationResult ClearAll(IExcelBatch batch, string sheetName, string rangeAddress);
 
     /// <summary>
     /// Clears only values and formulas (preserves formatting)
     /// Excel COM: Range.ClearContents()
     /// </summary>
-    Task<OperationResult> ClearContentsAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    OperationResult ClearContents(IExcelBatch batch, string sheetName, string rangeAddress);
 
     /// <summary>
     /// Clears only formatting (preserves values and formulas)
     /// Excel COM: Range.ClearFormats()
     /// </summary>
-    Task<OperationResult> ClearFormatsAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    OperationResult ClearFormats(IExcelBatch batch, string sheetName, string rangeAddress);
 
     // === COPY OPERATIONS ===
 
@@ -71,19 +71,19 @@ public interface IRangeCommands
     /// Copies range to another location (all content)
     /// Excel COM: Range.Copy()
     /// </summary>
-    Task<OperationResult> CopyAsync(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange);
+    OperationResult Copy(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange);
 
     /// <summary>
     /// Copies only values (no formulas or formatting)
     /// Excel COM: Range.PasteSpecial(xlPasteValues)
     /// </summary>
-    Task<OperationResult> CopyValuesAsync(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange);
+    OperationResult CopyValues(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange);
 
     /// <summary>
     /// Copies only formulas (no values or formatting)
     /// Excel COM: Range.PasteSpecial(xlPasteFormulas)
     /// </summary>
-    Task<OperationResult> CopyFormulasAsync(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange);
+    OperationResult CopyFormulas(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange);
 
     // === INSERT/DELETE OPERATIONS ===
 
@@ -91,37 +91,37 @@ public interface IRangeCommands
     /// Inserts blank cells, shifting existing cells down or right
     /// Excel COM: Range.Insert(shift)
     /// </summary>
-    Task<OperationResult> InsertCellsAsync(IExcelBatch batch, string sheetName, string rangeAddress, InsertShiftDirection shift);
+    OperationResult InsertCells(IExcelBatch batch, string sheetName, string rangeAddress, InsertShiftDirection shift);
 
     /// <summary>
     /// Deletes cells, shifting remaining cells up or left
     /// Excel COM: Range.Delete(shift)
     /// </summary>
-    Task<OperationResult> DeleteCellsAsync(IExcelBatch batch, string sheetName, string rangeAddress, DeleteShiftDirection shift);
+    OperationResult DeleteCells(IExcelBatch batch, string sheetName, string rangeAddress, DeleteShiftDirection shift);
 
     /// <summary>
     /// Inserts entire rows above the range
     /// Excel COM: Range.EntireRow.Insert()
     /// </summary>
-    Task<OperationResult> InsertRowsAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    OperationResult InsertRows(IExcelBatch batch, string sheetName, string rangeAddress);
 
     /// <summary>
     /// Deletes entire rows in the range
     /// Excel COM: Range.EntireRow.Delete()
     /// </summary>
-    Task<OperationResult> DeleteRowsAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    OperationResult DeleteRows(IExcelBatch batch, string sheetName, string rangeAddress);
 
     /// <summary>
     /// Inserts entire columns to the left of the range
     /// Excel COM: Range.EntireColumn.Insert()
     /// </summary>
-    Task<OperationResult> InsertColumnsAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    OperationResult InsertColumns(IExcelBatch batch, string sheetName, string rangeAddress);
 
     /// <summary>
     /// Deletes entire columns in the range
     /// Excel COM: Range.EntireColumn.Delete()
     /// </summary>
-    Task<OperationResult> DeleteColumnsAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    OperationResult DeleteColumns(IExcelBatch batch, string sheetName, string rangeAddress);
 
     // === FIND/REPLACE OPERATIONS ===
 
@@ -129,13 +129,13 @@ public interface IRangeCommands
     /// Finds all cells matching criteria in range
     /// Excel COM: Range.Find()
     /// </summary>
-    Task<RangeFindResult> FindAsync(IExcelBatch batch, string sheetName, string rangeAddress, string searchValue, FindOptions options);
+    RangeFindResult Find(IExcelBatch batch, string sheetName, string rangeAddress, string searchValue, FindOptions options);
 
     /// <summary>
     /// Replaces text/values in range
     /// Excel COM: Range.Replace()
     /// </summary>
-    Task<OperationResult> ReplaceAsync(IExcelBatch batch, string sheetName, string rangeAddress, string findValue, string replaceValue, ReplaceOptions options);
+    OperationResult Replace(IExcelBatch batch, string sheetName, string rangeAddress, string findValue, string replaceValue, ReplaceOptions options);
 
     // === SORT OPERATIONS ===
 
@@ -143,7 +143,7 @@ public interface IRangeCommands
     /// Sorts range by one or more columns
     /// Excel COM: Range.Sort()
     /// </summary>
-    Task<OperationResult> SortAsync(IExcelBatch batch, string sheetName, string rangeAddress, List<SortColumn> sortColumns, bool hasHeaders = true);
+    OperationResult Sort(IExcelBatch batch, string sheetName, string rangeAddress, List<SortColumn> sortColumns, bool hasHeaders = true);
 
     // === NATIVE EXCEL COM OPERATIONS (AI/LLM ESSENTIAL) ===
 
@@ -151,19 +151,19 @@ public interface IRangeCommands
     /// Gets the used range (all non-empty cells) from worksheet
     /// Excel COM: Worksheet.UsedRange
     /// </summary>
-    Task<RangeValueResult> GetUsedRangeAsync(IExcelBatch batch, string sheetName);
+    RangeValueResult GetUsedRange(IExcelBatch batch, string sheetName);
 
     /// <summary>
     /// Gets the current region (contiguous data block) around a cell
     /// Excel COM: Range.CurrentRegion
     /// </summary>
-    Task<RangeValueResult> GetCurrentRegionAsync(IExcelBatch batch, string sheetName, string cellAddress);
+    RangeValueResult GetCurrentRegion(IExcelBatch batch, string sheetName, string cellAddress);
 
     /// <summary>
     /// Gets range information (address, dimensions, number formats)
     /// Excel COM: Range.Address, Range.Rows.Count, Range.Columns.Count, Range.NumberFormat
     /// </summary>
-    Task<RangeInfoResult> GetInfoAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    RangeInfoResult GetInfo(IExcelBatch batch, string sheetName, string rangeAddress);
 
     // === HYPERLINK OPERATIONS ===
 
@@ -171,25 +171,25 @@ public interface IRangeCommands
     /// Adds hyperlink to a single cell
     /// Excel COM: Worksheet.Hyperlinks.Add()
     /// </summary>
-    Task<OperationResult> AddHyperlinkAsync(IExcelBatch batch, string sheetName, string cellAddress, string url, string? displayText = null, string? tooltip = null);
+    OperationResult AddHyperlink(IExcelBatch batch, string sheetName, string cellAddress, string url, string? displayText = null, string? tooltip = null);
 
     /// <summary>
     /// Removes hyperlink from a single cell or all hyperlinks from a range
     /// Excel COM: Range.Hyperlinks.Delete()
     /// </summary>
-    Task<OperationResult> RemoveHyperlinkAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    OperationResult RemoveHyperlink(IExcelBatch batch, string sheetName, string rangeAddress);
 
     /// <summary>
     /// Lists all hyperlinks in a worksheet
     /// Excel COM: Worksheet.Hyperlinks collection
     /// </summary>
-    Task<RangeHyperlinkResult> ListHyperlinksAsync(IExcelBatch batch, string sheetName);
+    RangeHyperlinkResult ListHyperlinks(IExcelBatch batch, string sheetName);
 
     /// <summary>
     /// Gets hyperlink from a specific cell
     /// Excel COM: Range.Hyperlink
     /// </summary>
-    Task<RangeHyperlinkResult> GetHyperlinkAsync(IExcelBatch batch, string sheetName, string cellAddress);
+    RangeHyperlinkResult GetHyperlink(IExcelBatch batch, string sheetName, string cellAddress);
 
     // === NUMBER FORMAT OPERATIONS ===
 
@@ -201,7 +201,7 @@ public interface IRangeCommands
     /// <param name="sheetName">Worksheet name</param>
     /// <param name="rangeAddress">Range address (e.g., "A1:D10")</param>
     /// <returns>2D array of format codes (e.g., [["$#,##0.00", "0.00%"], ["m/d/yyyy", "General"]])</returns>
-    Task<RangeNumberFormatResult> GetNumberFormatsAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    RangeNumberFormatResult GetNumberFormats(IExcelBatch batch, string sheetName, string rangeAddress);
 
     /// <summary>
     /// Sets uniform number format for entire range
@@ -214,7 +214,7 @@ public interface IRangeCommands
     /// Excel format code (e.g., "$#,##0.00", "0.00%", "m/d/yyyy", "General", "@")
     /// See NumberFormatPresets class for common patterns
     /// </param>
-    Task<OperationResult> SetNumberFormatAsync(IExcelBatch batch, string sheetName, string rangeAddress, string formatCode);
+    OperationResult SetNumberFormat(IExcelBatch batch, string sheetName, string rangeAddress, string formatCode);
 
     /// <summary>
     /// Sets number formats cell-by-cell from 2D array
@@ -224,7 +224,7 @@ public interface IRangeCommands
     /// <param name="sheetName">Worksheet name</param>
     /// <param name="rangeAddress">Range address (e.g., "A1:D10")</param>
     /// <param name="formats">2D array of format codes matching range dimensions</param>
-    Task<OperationResult> SetNumberFormatsAsync(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>> formats);
+    OperationResult SetNumberFormats(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>> formats);
 
     // === FORMATTING OPERATIONS ===
 
@@ -244,7 +244,7 @@ public interface IRangeCommands
     /// Common styles: Heading 1-4, Title, Total, Input, Output, Calculation,
     /// Good/Bad/Neutral, Accent1-6, Note, Warning, Currency, Percent, Comma
     /// </remarks>
-    Task<OperationResult> SetStyleAsync(IExcelBatch batch, string sheetName, string rangeAddress, string styleName);
+    OperationResult SetStyle(IExcelBatch batch, string sheetName, string rangeAddress, string styleName);
 
     /// <summary>
     /// Gets the current built-in style name applied to a range
@@ -258,7 +258,7 @@ public interface IRangeCommands
     /// Returns the style name of the first cell in the range.
     /// Use this to inspect current formatting before applying changes.
     /// </remarks>
-    Task<RangeStyleResult> GetStyleAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    RangeStyleResult GetStyle(IExcelBatch batch, string sheetName, string rangeAddress);
 
     /// <summary>
     /// Applies visual formatting to range (font, fill, border, alignment)
@@ -268,7 +268,7 @@ public interface IRangeCommands
     /// For consistent, professional formatting, prefer SetStyleAsync() with built-in styles.
     /// Use FormatRangeAsync() only when built-in styles don't meet your needs.
     /// </remarks>
-    Task<OperationResult> FormatRangeAsync(
+    OperationResult FormatRange(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,
@@ -293,7 +293,7 @@ public interface IRangeCommands
     /// Adds data validation rules to range
     /// Excel COM: Range.Validation.Add()
     /// </summary>
-    Task<OperationResult> ValidateRangeAsync(
+    OperationResult ValidateRange(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,
@@ -315,13 +315,13 @@ public interface IRangeCommands
     /// Gets data validation settings from first cell in range
     /// Excel COM: Range.Validation
     /// </summary>
-    Task<RangeValidationResult> GetValidationAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    RangeValidationResult GetValidation(IExcelBatch batch, string sheetName, string rangeAddress);
 
     /// <summary>
     /// Removes data validation from range
     /// Excel COM: Range.Validation.Delete()
     /// </summary>
-    Task<OperationResult> RemoveValidationAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    OperationResult RemoveValidation(IExcelBatch batch, string sheetName, string rangeAddress);
 
     // === AUTO-FIT OPERATIONS ===
 
@@ -329,13 +329,13 @@ public interface IRangeCommands
     /// Auto-fits column widths to content
     /// Excel COM: Range.Columns.AutoFit()
     /// </summary>
-    Task<OperationResult> AutoFitColumnsAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    OperationResult AutoFitColumns(IExcelBatch batch, string sheetName, string rangeAddress);
 
     /// <summary>
     /// Auto-fits row heights to content
     /// Excel COM: Range.Rows.AutoFit()
     /// </summary>
-    Task<OperationResult> AutoFitRowsAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    OperationResult AutoFitRows(IExcelBatch batch, string sheetName, string rangeAddress);
 
     // === MERGE OPERATIONS ===
 
@@ -343,40 +343,19 @@ public interface IRangeCommands
     /// Merges cells in range into a single cell
     /// Excel COM: Range.Merge()
     /// </summary>
-    Task<OperationResult> MergeCellsAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    OperationResult MergeCells(IExcelBatch batch, string sheetName, string rangeAddress);
 
     /// <summary>
     /// Unmerges previously merged cells
     /// Excel COM: Range.UnMerge()
     /// </summary>
-    Task<OperationResult> UnmergeCellsAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    OperationResult UnmergeCells(IExcelBatch batch, string sheetName, string rangeAddress);
 
     /// <summary>
     /// Checks if range contains merged cells
     /// Excel COM: Range.MergeCells
     /// </summary>
-    Task<RangeMergeInfoResult> GetMergeInfoAsync(IExcelBatch batch, string sheetName, string rangeAddress);
-
-    // === CONDITIONAL FORMATTING OPERATIONS ===
-
-    /// <summary>
-    /// Adds conditional formatting rule to range
-    /// Excel COM: Range.FormatConditions.Add()
-    /// </summary>
-    Task<OperationResult> AddConditionalFormattingAsync(
-        IExcelBatch batch,
-        string sheetName,
-        string rangeAddress,
-        string ruleType,
-        string? formula1,
-        string? formula2,
-        string? formatStyle);
-
-    /// <summary>
-    /// Removes all conditional formatting from range
-    /// Excel COM: Range.FormatConditions.Delete()
-    /// </summary>
-    Task<OperationResult> ClearConditionalFormattingAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    RangeMergeInfoResult GetMergeInfo(IExcelBatch batch, string sheetName, string rangeAddress);
 
     // === CELL PROTECTION OPERATIONS ===
 
@@ -384,13 +363,13 @@ public interface IRangeCommands
     /// Locks or unlocks cells (requires worksheet protection to take effect)
     /// Excel COM: Range.Locked
     /// </summary>
-    Task<OperationResult> SetCellLockAsync(IExcelBatch batch, string sheetName, string rangeAddress, bool locked);
+    OperationResult SetCellLock(IExcelBatch batch, string sheetName, string rangeAddress, bool locked);
 
     /// <summary>
     /// Gets lock status of first cell in range
     /// Excel COM: Range.Locked
     /// </summary>
-    Task<RangeLockInfoResult> GetCellLockAsync(IExcelBatch batch, string sheetName, string rangeAddress);
+    RangeLockInfoResult GetCellLock(IExcelBatch batch, string sheetName, string rangeAddress);
 }
 
 // === SUPPORTING TYPES ===
@@ -458,3 +437,4 @@ public class SortColumn
     /// <summary>Sort direction (true = ascending, false = descending)</summary>
     public bool Ascending { get; set; } = true;
 }
+

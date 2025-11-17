@@ -13,9 +13,9 @@ public partial class PivotTableCommands
     /// <summary>
     /// Lists all PivotTables in workbook
     /// </summary>
-    public async Task<PivotTableListResult> ListAsync(IExcelBatch batch)
+    public PivotTableListResult List(IExcelBatch batch)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             var pivotTables = new List<PivotTableInfo>();
             dynamic? sheets = null;
@@ -173,9 +173,9 @@ public partial class PivotTableCommands
     /// <summary>
     /// Gets detailed information about a PivotTable
     /// </summary>
-    public async Task<PivotTableInfoResult> GetAsync(IExcelBatch batch, string pivotTableName)
+    public PivotTableInfoResult Read(IExcelBatch batch, string pivotTableName)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? pivotCache = null;
@@ -434,9 +434,9 @@ public partial class PivotTableCommands
     /// <summary>
     /// Deletes a PivotTable
     /// </summary>
-    public async Task<OperationResult> DeleteAsync(IExcelBatch batch, string pivotTableName)
+    public OperationResult Delete(IExcelBatch batch, string pivotTableName)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? tableRange = null;
@@ -477,9 +477,9 @@ public partial class PivotTableCommands
     /// <summary>
     /// Refreshes a PivotTable
     /// </summary>
-    public async Task<PivotTableRefreshResult> RefreshAsync(IExcelBatch batch, string pivotTableName, TimeSpan? timeout = null)
+    public PivotTableRefreshResult Refresh(IExcelBatch batch, string pivotTableName, TimeSpan? timeout = null)
     {
-        return await batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
             dynamic? pivotCache = null;
@@ -521,7 +521,7 @@ public partial class PivotTableCommands
                 ComUtilities.Release(ref pivotCache);
                 ComUtilities.Release(ref pivot);
             }
-        }, timeout: timeout);
+        });
     }
 
     /// <summary>
@@ -541,4 +541,5 @@ public partial class PivotTableCommands
         return null;
     }
 }
+
 

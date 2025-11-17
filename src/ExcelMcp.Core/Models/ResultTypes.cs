@@ -3,7 +3,7 @@ namespace Sbroenne.ExcelMcp.Core.Models;
 /// <summary>
 /// Base result type for all Core operations
 /// NOTE: Core commands should NOT set SuggestedNextActions (workflow guidance is MCP/CLI layer responsibility).
-/// Core CAN set OperationContext, IsRetryable, RetryGuidance for timeout handling and technical retry metadata.
+/// Core CAN set OperationContext, IsRetryable, RetryGuidance for diagnostic metadata (COM busy states, retries, etc.).
 /// </summary>
 public abstract class ResultBase
 {
@@ -456,6 +456,11 @@ public class PowerQueryCreateResult : OperationResult
     public string? WorksheetName { get; set; }
 
     /// <summary>
+    /// Target cell address used when loading to a worksheet (e.g., "A1")
+    /// </summary>
+    public string? TargetCellAddress { get; set; }
+
+    /// <summary>
     /// Whether the query was created successfully
     /// </summary>
     public bool QueryCreated { get; set; }
@@ -491,6 +496,11 @@ public class PowerQueryLoadResult : OperationResult
     /// Target worksheet name (if applicable)
     /// </summary>
     public string? WorksheetName { get; set; }
+
+    /// <summary>
+    /// Target cell address used for the worksheet load destination (null defaults to A1)
+    /// </summary>
+    public string? TargetCellAddress { get; set; }
 
     /// <summary>
     /// Whether load configuration was applied
