@@ -24,9 +24,7 @@ public partial class QueryTableCommandsTests
         var dataModelCommands = new Core.Commands.DataModelCommands();
         var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"Name\", \"Value\"}, {{\"A\", 1}, {\"B\", 2}}) in Source";
-        var mCodeFile = Path.Combine(_tempDir, "DataQuery.pq");
-        System.IO.File.WriteAllText(mCodeFile, mCode);
-        var importResult = pqCommands.Create(batch, "DataQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+        var importResult = pqCommands.Create(batch, "DataQuery", mCode, PowerQueryLoadMode.ConnectionOnly);
         Assert.True(importResult.Success);
 
         // Create worksheet
@@ -84,9 +82,7 @@ public partial class QueryTableCommandsTests
         var dataModelCommands = new Core.Commands.DataModelCommands();
         var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"Col1\"}, {{\"Val1\"}}) in Source";
-        var mCodeFile = Path.Combine(_tempDir, "TestQuery.pq");
-        System.IO.File.WriteAllText(mCodeFile, mCode);
-        pqCommands.Create(batch, "TestQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+        pqCommands.Create(batch, "TestQuery", mCode, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Core.Commands.SheetCommands();
         sheetCommands.Create(batch, "Sheet1");
@@ -126,9 +122,7 @@ public partial class QueryTableCommandsTests
         var dataModelCommands = new Core.Commands.DataModelCommands();
         var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"A\"}, {{1}}) in Source";
-        var mCodeFile = Path.Combine(_tempDir, "Q1.pq");
-        System.IO.File.WriteAllText(mCodeFile, mCode);
-        pqCommands.Create(batch, "Q1", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+        pqCommands.Create(batch, "Q1", mCode, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Core.Commands.SheetCommands();
         sheetCommands.Create(batch, "S1");

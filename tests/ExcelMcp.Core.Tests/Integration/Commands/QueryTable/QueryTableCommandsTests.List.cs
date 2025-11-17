@@ -39,14 +39,12 @@ public partial class QueryTableCommandsTests
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        // First create a simple Power Query - need to write M code to file
-        var mCodeFile = Path.Combine(_tempDir, "TestQuery.pq");
+        // First create a simple Power Query
         var mCode = "let Source = #table({\"Column1\"}, {{\"Value1\"}, {\"Value2\"}}) in Source";
-        System.IO.File.WriteAllText(mCodeFile, mCode);
 
         var dataModelCommands = new DataModelCommands();
         var pqCommands = new PowerQueryCommands(dataModelCommands);
-        var importResult = pqCommands.Create(batch, "TestQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+        var importResult = pqCommands.Create(batch, "TestQuery", mCode, PowerQueryLoadMode.ConnectionOnly);
         Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
 
         // Create a worksheet for the QueryTable

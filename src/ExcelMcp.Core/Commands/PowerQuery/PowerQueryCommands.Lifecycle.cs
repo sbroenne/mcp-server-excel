@@ -799,6 +799,7 @@ public partial class PowerQueryCommands
                                 for (int q = queryTables.Count; q >= 1; q--)
                                 {
                                     dynamic? qt = null;
+                                    string? targetCell = null;
                                     try
                                     {
                                         qt = queryTables.Item(q);
@@ -806,13 +807,33 @@ public partial class PowerQueryCommands
                                         // Use Contains like DeleteAsync does (Excel may modify QueryTable names)
                                         if (qtName.Contains(queryName, StringComparison.OrdinalIgnoreCase))
                                         {
+                                            // Capture the original destination cell and result range before deletion
+                                            dynamic? destination = null;
+                                            dynamic? resultRange = null;
+                                            try
+                                            {
+                                                destination = qt.Destination;
+                                                targetCell = destination.Address;
+
+                                                // Clear the old QueryTable's data before recreating
+                                                // This prevents leftover columns when column structure changes
+                                                resultRange = qt.ResultRange;
+                                                resultRange.Clear();
+                                            }
+                                            finally
+                                            {
+                                                ComUtilities.Release(ref resultRange);
+                                                ComUtilities.Release(ref destination);
+                                            }
+
                                             // Delete old QueryTable
                                             qt.Delete();
                                             ComUtilities.Release(ref qt);
                                             qt = null; // Prevent double-release in finally block
 
-                                            // Recreate with new schema (query is still valid here)
-                                            dynamic? newQt = CreateQueryTableForQuery(sheet, query, "A1", clearEntireSheet: true);
+                                            // Recreate at same location WITHOUT clearing entire sheet
+                                            // QueryTable.RefreshStyle=xlInsertDeleteCells + PreserveColumnInfo=false handles column changes
+                                            dynamic? newQt = CreateQueryTableForQuery(sheet, query, targetCell ?? "A1", clearEntireSheet: false);
                                             try
                                             {
                                                 newQt.Refresh(false); // Synchronous refresh

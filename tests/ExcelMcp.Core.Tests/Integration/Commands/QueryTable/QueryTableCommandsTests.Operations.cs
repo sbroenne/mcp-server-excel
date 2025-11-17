@@ -24,9 +24,7 @@ public partial class QueryTableCommandsTests
         var dataModelCommands = new Core.Commands.DataModelCommands();
         var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"Column1\"}, {{\"Data1\"}}) in Source";
-        var mCodeFile = Path.Combine(_tempDir, "MyQuery.pq");
-        System.IO.File.WriteAllText(mCodeFile, mCode);
-        pqCommands.Create(batch, "MyQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+        pqCommands.Create(batch, "MyQuery", mCode, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Core.Commands.SheetCommands();
         sheetCommands.Create(batch, "Sheet1");
@@ -76,9 +74,7 @@ public partial class QueryTableCommandsTests
         var dataModelCommands = new Core.Commands.DataModelCommands();
         var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"Name\"}, {{\"Test\"}}) in Source";
-        var mCodeFile = Path.Combine(_tempDir, "RefreshQuery.pq");
-        System.IO.File.WriteAllText(mCodeFile, mCode);
-        pqCommands.Create(batch, "RefreshQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+        pqCommands.Create(batch, "RefreshQuery", mCode, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Core.Commands.SheetCommands();
         sheetCommands.Create(batch, "RefreshSheet");
@@ -125,12 +121,8 @@ public partial class QueryTableCommandsTests
         var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode1 = "let Source = #table({\"A\"}, {{1}}) in Source";
         var mCode2 = "let Source = #table({\"B\"}, {{2}}) in Source";
-        var mCodeFile1 = Path.Combine(_tempDir, "Q1.pq");
-        var mCodeFile2 = Path.Combine(_tempDir, "Q2.pq");
-        System.IO.File.WriteAllText(mCodeFile1, mCode1);
-        System.IO.File.WriteAllText(mCodeFile2, mCode2);
-        pqCommands.Create(batch, "Q1", mCodeFile1, PowerQueryLoadMode.ConnectionOnly);
-        pqCommands.Create(batch, "Q2", mCodeFile2, PowerQueryLoadMode.ConnectionOnly);
+        pqCommands.Create(batch, "Q1", mCode1, PowerQueryLoadMode.ConnectionOnly);
+        pqCommands.Create(batch, "Q2", mCode2, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Core.Commands.SheetCommands();
         sheetCommands.Create(batch, "S1");
@@ -177,9 +169,7 @@ public partial class QueryTableCommandsTests
         var dataModelCommands = new Core.Commands.DataModelCommands();
         var pqCommands = new Core.Commands.PowerQueryCommands(dataModelCommands);
         var mCode = "let Source = #table({\"X\"}, {{\"Y\"}}) in Source";
-        var mCodeFile = Path.Combine(_tempDir, "UpdateQuery.pq");
-        System.IO.File.WriteAllText(mCodeFile, mCode);
-        pqCommands.Create(batch, "UpdateQuery", mCodeFile, PowerQueryLoadMode.ConnectionOnly);
+        pqCommands.Create(batch, "UpdateQuery", mCode, PowerQueryLoadMode.ConnectionOnly);
 
         var sheetCommands = new Core.Commands.SheetCommands();
         sheetCommands.Create(batch, "UpdateSheet");
