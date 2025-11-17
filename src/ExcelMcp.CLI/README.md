@@ -76,22 +76,22 @@ Descriptions are kept in sync with the CLI source so the help output always refl
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **168 operations** across 12 categories:
+ExcelMcp.CLI provides **163 operations** across 12 categories:
 
 | Category | Operations | Examples |
 |----------|-----------|----------|
 | **File & Session** | 5 | `create-empty`, `session open`, `session save`, `session close`, `session list` |
 | **Worksheets** | 13 | `sheet-list`, `sheet-create`, `sheet-rename`, `sheet-set-tab-color` |
-| **Power Query** | 12 | `pq-list`, `pq-create`, `pq-export`, `pq-refresh`, `pq-update-mcode` |
+| **Power Query** | 11 | `pq-list`, `pq-create`, `pq-refresh`, `pq-update` |
 | **Ranges** | 43 | `range-get-values`, `range-set-values`, `range-copy`, `range-find`, `range-merge-cells`, `range-add-hyperlink` |
 | **Conditional Formatting** | 2 | `cf-add-rule`, `cf-clear-rules` |
 | **Excel Tables** | 23 | `table-create`, `table-filter`, `table-sort`, `table-add-column`, `table-get-column-format` |
 | **PivotTables** | 19 | `pivot-create-from-range`, `pivot-add-row-field`, `pivot-refresh`, `pivot-delete` |
 | **QueryTables** | 8 | `querytable-list`, `querytable-get`, `querytable-refresh`, `querytable-create-from-connection` |
-| **Data Model** | 15 | `dm-create-measure`, `dm-create-relationship`, `dm-refresh` |
-| **Connections** | 12 | `conn-list`, `conn-import`, `conn-refresh`, `conn-test` |
+| **Data Model** | 14 | `dm-create-measure`, `dm-create-relationship`, `dm-refresh` |
+| **Connections** | 9 | `conn-list`, `conn-refresh`, `conn-test` |
 | **Named Ranges** | 7 | `namedrange-create`, `namedrange-get`, `namedrange-set`, `namedrange-create-bulk` |
-| **VBA** | 7 | `vba-list`, `vba-import`, `vba-run`, `vba-export`
+| **VBA** | 6 | `vba-list`, `vba-import`, `vba-run`, `vba-update`
 
 ---
 

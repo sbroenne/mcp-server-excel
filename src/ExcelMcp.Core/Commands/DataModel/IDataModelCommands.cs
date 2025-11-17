@@ -56,15 +56,6 @@ public interface IDataModelCommands
     DataModelMeasureViewResult Read(IExcelBatch batch, string measureName);
 
     /// <summary>
-    /// Exports measure DAX formula to file with metadata
-    /// </summary>
-    /// <param name="batch">Excel batch context for accessing workbook</param>
-    /// <param name="measureName">Name of the measure to export</param>
-    /// <param name="outputFile">Path to output DAX file</param>
-    /// <returns>Result indicating success or failure</returns>
-    OperationResult ExportMeasure(IExcelBatch batch, string measureName, string outputFile);
-
-    /// <summary>
     /// Lists all table relationships in the model
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>

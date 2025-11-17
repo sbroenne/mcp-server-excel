@@ -50,9 +50,8 @@ public static class ExcelVbaTool
         [Description("VBA module name or procedure name (format: 'Module.Procedure' for run)")]
         string? moduleName = null,
 
-        [FileExtensions(Extensions = "vba,bas,txt")]
-        [Description("Source VBA file path (for import/update actions)")]
-        string? sourcePath = null,
+        [Description("VBA code content as string (for import/update actions)")]
+        string? vbaCode = null,
 
         [Description("Parameters for VBA procedure execution (comma-separated)")]
         string? parameters = null)
@@ -66,8 +65,8 @@ public static class ExcelVbaTool
             {
                 VbaAction.List => ListVbaScriptsAsync(vbaCommands, sessionId),
                 VbaAction.View => ViewVbaScriptAsync(vbaCommands, sessionId, moduleName),
-                VbaAction.Import => ImportVbaScriptAsync(vbaCommands, sessionId, moduleName, sourcePath),
-                VbaAction.Update => UpdateVbaScriptAsync(vbaCommands, sessionId, moduleName, sourcePath),
+                VbaAction.Import => ImportVbaScriptAsync(vbaCommands, sessionId, moduleName, vbaCode),
+                VbaAction.Update => UpdateVbaScriptAsync(vbaCommands, sessionId, moduleName, vbaCode),
                 VbaAction.Run => RunVbaScriptAsync(vbaCommands, sessionId, moduleName, parameters),
                 VbaAction.Delete => DeleteVbaScriptAsync(vbaCommands, sessionId, moduleName),
                 _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
@@ -125,41 +124,39 @@ public static class ExcelVbaTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ImportVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName, string? sourcePath)
+    private static string ImportVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName, string? vbaCode)
     {
         if (string.IsNullOrEmpty(moduleName))
             throw new ArgumentException("moduleName is required for import action", nameof(moduleName));
-        if (string.IsNullOrEmpty(sourcePath))
-            throw new ArgumentException("sourcePath is required for import action", nameof(sourcePath));
+        if (string.IsNullOrEmpty(vbaCode))
+            throw new ArgumentException("vbaCode is required for import action", nameof(vbaCode));
 
         var result = ExcelToolsBase.WithSession(
             sessionId,
-            batch => commands.Import(batch, moduleName, sourcePath));
+            batch => commands.Import(batch, moduleName, vbaCode));
 
         return JsonSerializer.Serialize(new
         {
             result.Success,
             result.ErrorMessage,
-            ModuleName = moduleName,
-            SourcePath = sourcePath
+            ModuleName = moduleName
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string UpdateVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName, string? sourcePath)
+    private static string UpdateVbaScriptAsync(VbaCommands commands, string sessionId, string? moduleName, string? vbaCode)
     {
-        if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(sourcePath))
-            throw new ArgumentException("moduleName and sourcePath are required for update action", "moduleName,sourcePath");
+        if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(vbaCode))
+            throw new ArgumentException("moduleName and vbaCode are required for update action", "moduleName,vbaCode");
 
         var result = ExcelToolsBase.WithSession(
             sessionId,
-            batch => commands.Update(batch, moduleName, sourcePath));
+            batch => commands.Update(batch, moduleName, vbaCode));
 
         return JsonSerializer.Serialize(new
         {
             result.Success,
             result.ErrorMessage,
-            ModuleName = moduleName,
-            SourcePath = sourcePath
+            ModuleName = moduleName
         }, ExcelToolsBase.JsonOptions);
     }
 

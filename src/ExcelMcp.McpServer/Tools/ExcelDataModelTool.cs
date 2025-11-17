@@ -43,10 +43,6 @@ public static class ExcelDataModelTool
         [Description("Measure name (for read, export-measure, delete-measure, update-measure)")]
         string? measureName = null,
 
-        [FileExtensions(Extensions = "dax")]
-        [Description("Output file path for DAX export (for export-measure)")]
-        string? outputPath = null,
-
         [StringLength(255, MinimumLength = 1)]
         [Description("Table name (for create-measure, read-table)")]
         string? tableName = null,
@@ -94,7 +90,6 @@ public static class ExcelDataModelTool
                 DataModelAction.ListTables => ListTablesAsync(dataModelCommands, sessionId),
                 DataModelAction.ListMeasures => ListMeasuresAsync(dataModelCommands, sessionId),
                 DataModelAction.Read => ReadMeasureAsync(dataModelCommands, sessionId, measureName),
-                DataModelAction.ExportMeasure => ExportMeasureAsync(dataModelCommands, sessionId, measureName, outputPath),
                 DataModelAction.ListRelationships => ListRelationshipsAsync(dataModelCommands, sessionId),
                 DataModelAction.Refresh => RefreshAsync(dataModelCommands, sessionId),
                 DataModelAction.DeleteMeasure => DeleteMeasureAsync(dataModelCommands, sessionId, measureName),
@@ -167,26 +162,6 @@ public static class ExcelDataModelTool
             result.MeasureName,
             result.DaxFormula,
             result.TableName,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string ExportMeasureAsync(DataModelCommands commands, string sessionId, string? measureName, string? outputPath)
-    {
-        if (string.IsNullOrEmpty(measureName))
-            throw new ArgumentException("measureName is required for export-measure action", nameof(measureName));
-
-        if (string.IsNullOrEmpty(outputPath))
-            throw new ArgumentException("outputPath is required for export-measure action", nameof(outputPath));
-
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.ExportMeasure(batch, measureName, outputPath));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.FilePath,
             result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }

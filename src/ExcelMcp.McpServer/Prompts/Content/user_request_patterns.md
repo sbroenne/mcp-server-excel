@@ -24,7 +24,7 @@
 → NOT excel_table (that's for existing data)
 
 **"Import data from SQL Server"**
-→ User must create connection in Excel UI first (OLEDB limitation)
+→ excel_connection(create) with OLEDB connection string
 → Then excel_querytable(create-from-connection) for simple import
 → Or excel_powerquery for complex transformations
 

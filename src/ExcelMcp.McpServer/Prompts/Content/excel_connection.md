@@ -7,15 +7,15 @@
 **Actions**: list, view, import, export, update-properties, test, refresh, delete, load-to, get-properties, set-properties
 
 **When to use excel_connection**:
-- Manage existing Excel connections (OLEDB, ODBC, TEXT, WEB)
+- Create and manage Excel connections (OLEDB, ODBC, TEXT, WEB)
 - Refresh data from connection sources
 - Import/export connection (.odc) files
-- Use excel_powerquery for new data source connections
-- Cannot create OLEDB/ODBC via COM API (Excel limitation)
+- Use excel_powerquery for M query-based data connections
 
 **Server-specific behavior**:
-- OLEDB/ODBC connections: Cannot create via COM, only manage existing
-- TEXT connections: Can create programmatically
+- All connection types: Can create programmatically using valid connection strings
+- OLEDB/ODBC: Requires installed providers and valid connection strings
+- TEXT connections: Requires valid file paths
 - Connection types 3 and 4 (TEXT/WEB) may report inconsistently
 - Passwords NOT exported by default (security)
 

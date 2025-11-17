@@ -15,7 +15,7 @@ Also includes a powerful CLI for RPA (Robotic Process Automation) and scripting 
 
 **🛡️ 100% Safe - Uses Excel's Native COM API**
 
-Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time. Currently supports **168 operations across 12 specialized tools** with active development expanding capabilities.
+Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time. Currently supports **163 operations across 12 specialized tools** with active development expanding capabilities.
 
 **Requirements:** Windows OS + Excel 2016+
 
@@ -51,21 +51,22 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 ## 🛠️ What You Can Do
 
-**11 specialized MCP tools** for comprehensive Excel automation:
+**12 specialized MCP tools** for comprehensive Excel automation:
 
-1. **Power Query & M Code** (14 actions) - Create, edit, optimize Power Query transformations with AI assistance, and place QueryTables anywhere on a worksheet via `targetCellAddress`
-2. **Power Pivot / Data Model** (15 actions) - Build DAX measures, manage relationships, discover model structure, export to .dax files for Git workflows
+1. **Power Query & M Code** (11 actions) - Create, edit, optimize Power Query transformations with AI assistance
+2. **Power Pivot / Data Model** (14 actions) - Build DAX measures, manage relationships, discover model structure, refresh data model
 3. **Excel Tables** (23 actions) - Automate table creation, filtering, sorting, column management, structured references, number formatting
 4. **PivotTables** (18 actions) - Create and configure PivotTables for interactive data analysis
-5. **Ranges & Data** (45 actions) - Get/set values/formulas, number formatting, visual formatting (font, fill, border, alignment), data validation, find/replace, sort, insert/delete, hyperlinks, merge, conditional formatting, cell protection
-6. **VBA Macros** (7 actions) - Export, import, run VBA code with version control integration
-7. **Data Connections** (12 actions) - Manage OLEDB, ODBC, Text, Web connections and properties
-8. **Worksheets** (13 actions) - Lifecycle management, tab colors, visibility controls
+5. **Ranges & Data** (43 actions) - Get/set values/formulas, number formatting, visual formatting (font, fill, border, alignment), data validation, find/replace, sort, insert/delete, hyperlinks, merge, conditional formatting, cell protection
+6. **VBA Macros** (6 actions) - Import, update, run VBA code with version control integration
+7. **Data Connections** (9 actions) - Manage OLEDB, ODBC, Text, Web connections and properties
+8. **Worksheets** (16 actions) - Lifecycle management, tab colors, visibility controls
 9. **Named Ranges** (7 actions) - Manage parameters and configuration through named ranges
 10. **File Operations** (6 actions) - Create Excel workbooks (.xlsx/.xlsm), open/close workbook, save, test
 11. **QueryTables** (8 actions) - Manage data refresh connections for reliable persistence
+12. **Conditional Formatting** (2 actions) - Add and clear conditional formatting rules
 
-**Total: 11 tools with 166 operations**
+**Total: 12 tools with 163 operations**
 
 **AI-Powered Workflows:**
 - 💬 Natural language Excel commands through GitHub Copilot or Claude

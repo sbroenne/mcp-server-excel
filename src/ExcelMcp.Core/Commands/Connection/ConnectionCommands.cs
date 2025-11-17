@@ -367,22 +367,19 @@ public partial class ConnectionCommands : IConnectionCommands
         {
             connections = workbook.Connections;
 
-            // Create connection using Connections.Add() method
-            // Per Microsoft documentation: https://learn.microsoft.com/en-us/office/vba/api/excel.connections.add
-            // Parameters: Name (Required), Description (Required), ConnectionString (Required),
-            //             CommandText (Required), lCmdtype (Optional), CreateModelConnection (Optional), ImportRelationships (Optional)
-            newConnection = connections.Add(
+            // Use Add2() method (Add() is deprecated per Microsoft docs)
+            // https://learn.microsoft.com/en-us/dotnet/api/microsoft.office.interop.excel.connections.add2
+            newConnection = connections.Add2(
                 Name: connectionName,
                 Description: definition.Description ?? "",
                 ConnectionString: definition.ConnectionString,
-                CommandText: definition.CommandText ?? ""
-            // Note: Omitting optional parameters (lCmdtype, CreateModelConnection, ImportRelationships)
-            // to let Excel use defaults
+                CommandText: definition.CommandText ?? "",
+                lCmdtype: Type.Missing,              // Let Excel determine command type
+                CreateModelConnection: false,         // Don't create PowerPivot model connection
+                ImportRelationships: false            // Don't import relationships
             );
 
             // Connection created successfully
-            // Note: Setting additional properties after creation can cause COM errors
-            // If needed in the future, handle carefully based on connection type
         }
         catch (Exception ex)
         {

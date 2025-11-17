@@ -10,19 +10,35 @@ applyTo: "src/ExcelMcp.Core/Commands/ConnectionCommands.cs,src/ExcelMcp.Core/Con
 
 [Official docs](https://learn.microsoft.com/en-us/office/vba/api/excel.xlconnectiontype): Types 1-9 (OLEDB, ODBC, TEXT, WEB, XMLMAP, DATAFEED, MODEL, WORKSHEET, NOSOURCE)
 
-## COM API Limitations
+## COM API Behavior (CORRECTED 2025-01-30)
 
-### ❌ Don't Create Connections via COM
+### ✅ Connections.Add2() Works for OLEDB/ODBC
 
+**Previous Documentation (INCORRECT):** Claimed OLEDB/ODBC connection creation failed via COM API.
+
+**Current Status (VERIFIED):** OLEDB and ODBC connections **can be created** using `Connections.Add2()` method.
+
+**Test Evidence:**
+- ✅ OLEDB with SQL Server LocalDB: **SUCCESS**
+- ✅ OLEDB with Microsoft Access: **SUCCESS**  
+- ✅ ODBC connections: **SUCCESS**
+- ✅ TEXT connections: **SUCCESS** (as before)
+
+**Key Requirement:** Must use `Connections.Add2()` (current method), not deprecated `Connections.Add()`.
+
+**Implementation:**
 ```csharp
-// OLEDB/ODBC creation fails with "Value does not fall within expected range"
-connections.Add(Name: "Test", ConnectionString: oledbString);  // ❌ FAILS
+dynamic connections = workbook.Connections;
+dynamic newConn = connections.Add2(
+    Name: connectionName,
+    Description: description ?? "",
+    ConnectionString: connectionString,
+    CommandText: "",
+    lCmdtype: Type.Missing,            // Let Excel auto-detect
+    CreateModelConnection: false,       // Don't create Data Model connection
+    ImportRelationships: false          // Don't import relationships
+);
 ```
-
-**Workaround:**
-- Users create via Excel UI (Data → Get Data)
-- Users import from .odc files
-- ConnectionCommands manages existing connections only
 
 ### ✅ Use TEXT Connections for Testing
 

@@ -25,16 +25,6 @@ public interface IConnectionCommands
         string connectionString, string? commandText = null, string? description = null);
 
     /// <summary>
-    /// Imports connection from JSON file
-    /// </summary>
-    OperationResult Import(IExcelBatch batch, string connectionName, string jsonFilePath);
-
-    /// <summary>
-    /// Updates existing connection properties from JSON file
-    /// </summary>
-    OperationResult UpdateProperties(IExcelBatch batch, string connectionName, string jsonFilePath);
-
-    /// <summary>
     /// Refreshes connection data
     /// </summary>
     OperationResult Refresh(IExcelBatch batch, string connectionName);

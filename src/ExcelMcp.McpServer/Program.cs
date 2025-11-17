@@ -7,20 +7,7 @@ namespace Sbroenne.ExcelMcp.McpServer;
 /// <summary>
 /// ExcelCLI Model Context Protocol (MCP) Server
 /// Provides resource-based tools for AI assistants to automate Excel operations:
-/// - excel_file: Create, validate Excel files
-/// - excel_powerquery: Manage Power Query M code and connections
-/// - excel_worksheet: Worksheet lifecycle (list, create, rename, copy, delete)
-/// - excel_range: Unified range operations (values, formulas, clear, copy, insert/delete, find, sort, hyperlinks)
-/// - excel_parameter: Manage named ranges as parameters
-/// - excel_vba: VBA script management and execution
-/// - excel_connection: Manage Excel connections (OLEDB, ODBC, Text, Web)
-/// - excel_data_model: Manage Data Model (tables, measures, relationships)
-/// - excel_table: Manage Excel Tables (ListObjects)
 ///
-/// Performance Optimization:
-/// Uses ExcelInstancePool for conversational workflows - reuses Excel instances
-/// across multiple operations on the same workbook, reducing startup overhead
-/// from ~2-5 seconds per operation to near-instantaneous for cached instances.
 /// </summary>
 public class Program
 {
@@ -36,9 +23,6 @@ public class Program
 
         // MCP Server architecture:
         // - Batch session management: LLM controls workbook lifecycle via begin/commit tools
-        // - Single operations: Backward-compatible with automatic batch-of-one (when no batchId)
-        // - MCP Prompts: Educate LLMs about batch workflows via [McpServerPrompt] attributes
-        // - Completions: Available via ExcelCompletionHandler (manual JSON-RPC handling required)
 
         // Add MCP server with Excel tools (auto-discovers tools and prompts via attributes)
         builder.Services
