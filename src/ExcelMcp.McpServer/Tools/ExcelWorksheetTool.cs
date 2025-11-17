@@ -138,7 +138,8 @@ POSITIONING (move, copy-to-workbook, move-to-workbook):
         return JsonSerializer.Serialize(new
         {
             success = result.Success,
-            worksheets = result.Worksheets
+            worksheets = result.Worksheets,
+            errorMessage = result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -156,7 +157,8 @@ POSITIONING (move, copy-to-workbook, move-to-workbook):
 
         return JsonSerializer.Serialize(new
         {
-            result.Success
+            result.Success,
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 

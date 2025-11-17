@@ -161,11 +161,49 @@ internal sealed class ExcelBatch : IExcelBatch
                 // Cleanup COM objects on STA thread exit (children -> parents)
                 _logger.LogDebug("STA thread cleanup starting for {FileName}", Path.GetFileName(_workbookPath));
 
-                _workbook?.Close(false); // Don't save - Save must be called explicitly
-                _workbook = null;
+                try
+                {
+                    // Don't save - Save must be called explicitly
+                    _workbook?.Close(false);
+                }
+                catch (COMException ex)
+                {
+                    _logger.LogWarning(ex,
+                        "Failed to close workbook COM object during STA cleanup for {FileName}",
+                        Path.GetFileName(_workbookPath));
+                }
+                catch (MissingMemberException ex)
+                {
+                    // COM proxy already disconnected (RPC_E_DISCONNECTED / 0x80010108) - best-effort cleanup only
+                    _logger.LogWarning(ex,
+                        "Workbook COM proxy was disconnected while calling Close during STA cleanup for {FileName}",
+                        Path.GetFileName(_workbookPath));
+                }
+                finally
+                {
+                    _workbook = null;
+                }
 
-                _excel?.Quit();
-                _excel = null;
+                try
+                {
+                    _excel?.Quit();
+                }
+                catch (COMException ex)
+                {
+                    _logger.LogWarning(ex,
+                        "Failed to quit Excel COM application during STA cleanup for {FileName}",
+                        Path.GetFileName(_workbookPath));
+                }
+                catch (MissingMemberException ex)
+                {
+                    _logger.LogWarning(ex,
+                        "Excel COM proxy was disconnected while calling Quit during STA cleanup for {FileName}",
+                        Path.GetFileName(_workbookPath));
+                }
+                finally
+                {
+                    _excel = null;
+                }
 
                 _context = null;
 
