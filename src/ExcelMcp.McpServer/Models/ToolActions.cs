@@ -40,12 +40,10 @@ public enum PowerQueryAction
     Refresh,
     Delete,
     GetLoadConfig,
-    ListExcelSources,
 
     // Atomic Operations
     Create,
     Update,       // Renamed from UpdateMCode, now auto-refreshes
-    Unload,
     RefreshAll,
     LoadTo
 }

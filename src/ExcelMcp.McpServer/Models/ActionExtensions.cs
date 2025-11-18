@@ -24,12 +24,10 @@ public static class ActionExtensions
         PowerQueryAction.Delete => "delete",
         PowerQueryAction.GetLoadConfig => "get-load-config",
         PowerQueryAction.LoadTo => "load-to",
-        PowerQueryAction.ListExcelSources => "list-excel-sources",
 
         // Atomic Operations
         PowerQueryAction.Create => "create",
         PowerQueryAction.Update => "update",  // Renamed from update-mcode
-        PowerQueryAction.Unload => "unload",
         PowerQueryAction.RefreshAll => "refresh-all",
 
         _ => throw new ArgumentException($"Unknown PowerQueryAction: {action}")
