@@ -9,7 +9,6 @@
 | Need | Use | NOT |
 |------|-----|-----|
 | External data (databases, APIs, CSV) | `excel_powerquery` + `loadDestination` | `excel_table` (data already in Excel) |
-| Simple data import (no transformation) | `excel_querytable` | `excel_powerquery` (overkill) |
 | Connection management | `excel_connection` | - |
 | DAX measures / Data Model | `excel_datamodel` | `excel_range` (worksheet formulas) |
 | Data in worksheets (values, formulas, format) | `excel_range` | - |
@@ -18,7 +17,6 @@
 | Named ranges (parameters) | `excel_namedrange` (use `create-bulk` for 2+) | - |
 | VBA macros (.xlsm only) | `excel_vba` | - |
 | PivotTables | `excel_pivottable` | - |
-| QueryTables | `excel_querytable` | - |
 
 ## Common Mistakes
 

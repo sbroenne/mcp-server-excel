@@ -326,7 +326,6 @@ string? batchId = null
 - `ExcelNamedRangeTool.cs`
 - `ExcelPivotTableTool.cs`
 - `ExcelPowerQueryTool.cs`
-- `ExcelQueryTableTool.cs`
 - `ExcelRangeTool.cs`
 - `ExcelTableTool.cs`
 - `ExcelVbaTool.cs`
