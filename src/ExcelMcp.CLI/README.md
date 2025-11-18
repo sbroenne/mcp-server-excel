@@ -87,7 +87,6 @@ ExcelMcp.CLI provides **163 operations** across 12 categories:
 | **Conditional Formatting** | 2 | `cf-add-rule`, `cf-clear-rules` |
 | **Excel Tables** | 23 | `table-create`, `table-filter`, `table-sort`, `table-add-column`, `table-get-column-format` |
 | **PivotTables** | 19 | `pivot-create-from-range`, `pivot-add-row-field`, `pivot-refresh`, `pivot-delete` |
-| **QueryTables** | 8 | `querytable-list`, `querytable-get`, `querytable-refresh`, `querytable-create-from-connection` |
 | **Data Model** | 14 | `dm-create-measure`, `dm-create-relationship`, `dm-refresh` |
 | **Connections** | 9 | `conn-list`, `conn-refresh`, `conn-test` |
 | **Named Ranges** | 7 | `namedrange-create`, `namedrange-get`, `namedrange-set`, `namedrange-create-bulk` |
@@ -246,23 +245,6 @@ excelcli save $SESSION_ID
 
 # 7. Close session
 excelcli close $SESSION_ID
-```
-
-### QueryTable Operations
-
-```bash
-# List all QueryTables in workbook
-excelcli querytable-list data.xlsx
-
-# Get QueryTable details
-excelcli querytable-get data.xlsx "WebData"
-
-# Refresh QueryTables
-excelcli querytable-refresh data.xlsx "WebData"
-excelcli querytable-refresh-all data.xlsx
-
-# Delete QueryTable
-excelcli querytable-delete data.xlsx "WebData"
 ```
 
 ### Worksheet Management

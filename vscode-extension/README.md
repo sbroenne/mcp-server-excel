@@ -91,9 +91,8 @@ The Excel MCP Server provides **12 specialized tools** for comprehensive Excel a
 | **excel_connection** | 9 actions | Connections: OLEDB/ODBC/Text/Web management, properties, refresh, test |
 | **excel_worksheet** | 13 actions | Worksheets: lifecycle, tab colors, visibility (list, create, rename, copy, delete, show/hide, very-hide) |
 | **excel_namedrange** | 7 actions | Named ranges: list, get, set, create, delete, update, bulk create |
-| **excel_querytable** | 8 actions | QueryTables: create from connections/queries, refresh, update properties, delete |
 | **excel_file** | 6 actions | File operations: create empty, open, save, close, close-workbook, test |
-| **Total** | **163 actions**
+| **Total** | **155 actions**
 
 ## Troubleshooting
 

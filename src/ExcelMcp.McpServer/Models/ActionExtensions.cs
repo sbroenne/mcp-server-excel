@@ -215,19 +215,6 @@ public static class ActionExtensions
         PivotTableAction.GetData => "get-data",
         _ => throw new ArgumentException($"Unknown PivotTableAction: {action}")
     };
-
-    public static string ToActionString(this QueryTableAction action) => action switch
-    {
-        QueryTableAction.List => "list",
-        QueryTableAction.Read => "read",
-        QueryTableAction.CreateFromConnection => "create-from-connection",
-        QueryTableAction.CreateFromQuery => "create-from-query",
-        QueryTableAction.Refresh => "refresh",
-        QueryTableAction.RefreshAll => "refresh-all",
-        QueryTableAction.UpdateProperties => "update-properties",
-        QueryTableAction.Delete => "delete",
-        _ => throw new ArgumentException($"Unknown QueryTableAction: {action}")
-    };
 }
 
 

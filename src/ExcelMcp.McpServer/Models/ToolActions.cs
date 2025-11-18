@@ -300,19 +300,4 @@ public enum PivotTableAction
     GetData
 }
 
-/// <summary>
-/// Actions available for excel_querytable tool
-/// </summary>
-public enum QueryTableAction
-{
-    List,
-    Read,
-    CreateFromConnection,
-    CreateFromQuery,
-    Refresh,
-    RefreshAll,
-    UpdateProperties,
-    Delete
-}
-
 
