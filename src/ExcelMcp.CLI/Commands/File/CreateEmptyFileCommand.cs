@@ -1,7 +1,6 @@
-using Spectre.Console.Cli;
-
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Spectre.Console.Cli;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands.File;
 

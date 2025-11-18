@@ -18,6 +18,6 @@ public static class ResultAwaiterExtensions
     public static TaskAwaiter<T?> GetAwaiter<T>(this T? result)
         where T : ResultBase
     {
-        return System.Threading.Tasks.Task.FromResult(result).GetAwaiter();
+        return Task.FromResult(result).GetAwaiter();
     }
 }

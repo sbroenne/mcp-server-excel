@@ -75,13 +75,11 @@ public static class ExcelPowerQueryTool
                 PowerQueryAction.Refresh => RefreshPowerQueryAsync(powerQueryCommands, sessionId, queryName),
                 PowerQueryAction.Delete => DeletePowerQueryAsync(powerQueryCommands, sessionId, queryName),
                 PowerQueryAction.GetLoadConfig => GetLoadConfigAsync(powerQueryCommands, sessionId, queryName),
-                PowerQueryAction.ListExcelSources => ListExcelSourcesAsync(powerQueryCommands, sessionId),
 
                 // Atomic Operations
                 PowerQueryAction.Create => CreatePowerQueryAsync(powerQueryCommands, sessionId, queryName, mCode, loadDestination, targetSheet, targetCellAddress),
                 PowerQueryAction.Update => UpdatePowerQueryAsync(powerQueryCommands, sessionId, queryName, mCode),
                 PowerQueryAction.LoadTo => LoadToPowerQueryAsync(powerQueryCommands, sessionId, queryName, loadDestination, targetSheet, targetCellAddress),
-                PowerQueryAction.Unload => UnloadPowerQueryAsync(powerQueryCommands, sessionId, queryName),
                 PowerQueryAction.RefreshAll => RefreshAllPowerQueriesAsync(powerQueryCommands, sessionId),
 
                 _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
@@ -174,19 +172,6 @@ public static class ExcelPowerQueryTool
             workflowHint = result.Success && result.LoadMode == PowerQueryLoadMode.ConnectionOnly
                 ? "Query is connection-only (M code defined but data not loaded)."
                 : null
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string ListExcelSourcesAsync(PowerQueryCommands commands, string sessionId)
-    {
-        // list-excel-sources action lists all available sources (doesn't require queryName)
-        var result = ExcelToolsBase.WithSession(sessionId, batch => commands.ListExcelSources(batch));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.Worksheets,
-            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -310,27 +295,6 @@ public static class ExcelPowerQueryTool
             result.RowsLoaded,
             workflowHint = isSheetConflict
                 ? $"Sheet '{targetSheet ?? queryName}' already contains data. Provide targetCellAddress (e.g., \"B5\") to place the table without deleting the sheet."
-                : null
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string UnloadPowerQueryAsync(
-        PowerQueryCommands commands,
-        string sessionId,
-        string? queryName)
-    {
-        if (string.IsNullOrEmpty(queryName))
-            throw new ArgumentException("queryName is required for unload action", nameof(queryName));
-
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.Unload(batch, queryName));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? "Query converted to connection-only (M code preserved, data removed)."
                 : null
         }, ExcelToolsBase.JsonOptions);
     }

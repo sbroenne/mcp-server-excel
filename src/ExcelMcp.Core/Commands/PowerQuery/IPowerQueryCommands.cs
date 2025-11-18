@@ -39,11 +39,6 @@ public interface IPowerQueryCommands
     OperationResult Delete(IExcelBatch batch, string queryName);
 
     /// <summary>
-    /// Lists available data sources (Excel.CurrentWorkbook() sources: tables and named ranges)
-    /// </summary>
-    WorksheetListResult ListExcelSources(IExcelBatch batch);
-
-    /// <summary>
     /// Creates a new Power Query by importing M code and loading data atomically
     /// Replaces multi-step workflow (import + configure + refresh in ONE operation)
     /// </summary>
@@ -88,15 +83,6 @@ public interface IPowerQueryCommands
         PowerQueryLoadMode loadMode,
         string? targetSheet = null,
         string? targetCellAddress = null);
-
-    /// <summary>
-    /// Converts a query to connection-only mode (removes all data loads)
-    /// Explicit unload operation (inverse of LoadToAsync)
-    /// </summary>
-    /// <param name="batch">Excel batch session</param>
-    /// <param name="queryName">Name of the query</param>
-    /// <returns>OperationResult with unload status</returns>
-    OperationResult Unload(IExcelBatch batch, string queryName);
 
     // ValidateSyntaxAsync removed - Excel doesn't validate M code syntax at query creation time.
     // Validation only happens during refresh, making syntax-only validation unreliable.

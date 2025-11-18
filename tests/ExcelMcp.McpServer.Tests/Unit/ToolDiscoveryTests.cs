@@ -51,7 +51,6 @@ public class ToolDiscoveryTests
     [InlineData(typeof(ExcelNamedRangeTool), "ExcelParameter", "excel_namedrange")]
     [InlineData(typeof(ExcelPivotTableTool), "ExcelPivotTable", "excel_pivottable")]
     [InlineData(typeof(ExcelPowerQueryTool), "ExcelPowerQuery", "excel_powerquery")]
-    [InlineData(typeof(ExcelQueryTableTool), "ExcelQueryTable", "excel_querytable")]
     [InlineData(typeof(ExcelRangeTool), "ExcelRange", "excel_range")]
     [InlineData(typeof(TableTool), "Table", "excel_table")]
     [InlineData(typeof(ExcelVbaTool), "ExcelVba", "excel_vba")]
@@ -77,7 +76,6 @@ public class ToolDiscoveryTests
     [InlineData(typeof(ExcelNamedRangeTool))]
     [InlineData(typeof(ExcelPivotTableTool))]
     [InlineData(typeof(ExcelPowerQueryTool))]
-    [InlineData(typeof(ExcelQueryTableTool))]
     [InlineData(typeof(ExcelRangeTool))]
     [InlineData(typeof(TableTool))]
     [InlineData(typeof(ExcelVbaTool))]
@@ -109,7 +107,6 @@ public class ToolDiscoveryTests
             "excel_namedrange",
             "excel_pivottable",
             "excel_powerquery",
-            "excel_querytable",
             "excel_range",
             "excel_table",
             "excel_vba",

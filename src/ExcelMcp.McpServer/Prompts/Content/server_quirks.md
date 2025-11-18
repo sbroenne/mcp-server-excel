@@ -74,9 +74,9 @@
 - Or: Invalid range address
 - Or: Operation not supported by Excel COM
 
-**"QueryTable not found after refresh"**
-- Using RefreshAll() instead of queryTable.Refresh(false)
-- Solution: Server uses synchronous refresh (already handled)
+**"Refresh failed or data not updated"**
+- RefreshAll() is async and unreliable
+- Solution: Use individual query/connection refresh (synchronous)
 
 **"Parameter name missing ="**
 - Named ranges must be: =Sheet1!$A$1

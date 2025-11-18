@@ -3,8 +3,8 @@
 **Action disambiguation**:
 - create: Import NEW query using inline `mCode` (FAILS if query already exists - use update instead)
 - update: Update EXISTING query M code + refresh data (use this if query exists)
-- load-to: Loads to worksheet  + QueryTable or data model or both (not just config change) - CHECKS for sheet conflicts
-- unload: Removes data from worksheet/QueryTables but keeps query definition (inverse of load-to)
+- load-to: Loads to worksheet or data model or both (not just config change) - CHECKS for sheet conflicts
+- unload: Removes data from worksheet but keeps query definition (inverse of load-to)
 
 **When to use create vs update**:
 - Query doesn't exist? → Use create
@@ -16,10 +16,10 @@
 - Keep `.pq` files only for GIT workflows
 
 **Create/LoadTo with existing sheets**:
-- Use `targetCellAddress` to place the QueryTable on an existing worksheet without deleting other content
+- Use `targetCellAddress` to place the table on an existing worksheet without deleting other content
 - Applies to BOTH create and load-to
 - If the worksheet already has data and you omit `targetCellAddress`, the tool returns guidance telling you to provide one
-- Existing QueryTables are refreshed in-place; specifying a different `targetCellAddress` requires unload + reload
+- Existing tables are refreshed in-place; specifying a different `targetCellAddress` requires unload + reload
 - Worksheets that exist but are empty behave like new sheets (default destination = A1)
 
 **Common mistakes**:

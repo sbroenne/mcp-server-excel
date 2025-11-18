@@ -63,10 +63,9 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 8. **Worksheets** (16 actions) - Lifecycle management, tab colors, visibility controls
 9. **Named Ranges** (7 actions) - Manage parameters and configuration through named ranges
 10. **File Operations** (6 actions) - Create Excel workbooks (.xlsx/.xlsm), open/close workbook, save, test
-11. **QueryTables** (8 actions) - Manage data refresh connections for reliable persistence
-12. **Conditional Formatting** (2 actions) - Add and clear conditional formatting rules
+11. **Conditional Formatting** (2 actions) - Add and clear conditional formatting rules
 
-**Total: 12 tools with 163 operations**
+**Total: 11 tools with 155 operations**
 
 **AI-Powered Workflows:**
 - 💬 Natural language Excel commands through GitHub Copilot or Claude

@@ -40,12 +40,10 @@ public enum PowerQueryAction
     Refresh,
     Delete,
     GetLoadConfig,
-    ListExcelSources,
 
     // Atomic Operations
     Create,
     Update,       // Renamed from UpdateMCode, now auto-refreshes
-    Unload,
     RefreshAll,
     LoadTo
 }
@@ -300,21 +298,6 @@ public enum PivotTableAction
 
     // Data Operations
     GetData
-}
-
-/// <summary>
-/// Actions available for excel_querytable tool
-/// </summary>
-public enum QueryTableAction
-{
-    List,
-    Read,
-    CreateFromConnection,
-    CreateFromQuery,
-    Refresh,
-    RefreshAll,
-    UpdateProperties,
-    Delete
 }
 
 

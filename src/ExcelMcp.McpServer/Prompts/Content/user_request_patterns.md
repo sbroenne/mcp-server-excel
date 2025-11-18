@@ -20,25 +20,22 @@
 
 **"Load this CSV file"**
 → excel_powerquery(create, sourcePath='file.csv', loadDestination='worksheet')
-→ excel_querytable(create-from-connection) for simple imports (no M code)
 → NOT excel_table (that's for existing data)
 
 **"Import data from SQL Server"**
 → excel_connection(create) with OLEDB connection string
-→ Then excel_querytable(create-from-connection) for simple import
-→ Or excel_powerquery for complex transformations
+→ Then excel_powerquery for transformations
 
 **"Load Power Query results to worksheet"**
-→ excel_querytable(create-from-query) - simpler than excel_powerquery load-to
-→ OR excel_powerquery(create, loadDestination='worksheet')
+→ excel_powerquery(create, loadDestination='worksheet')
 
 **"Put data in Data Model for DAX"**
 → excel_powerquery(create, loadDestination='data-model')
 → NOT 'worksheet' (that won't work for DAX)
 
 **"Refresh data from external source"**
-→ excel_querytable(refresh) - synchronous, guaranteed persistence
-→ excel_querytable(refresh-all) - all QueryTables in workbook
+→ excel_powerquery(refresh) - synchronous, guaranteed persistence
+→ excel_connection(refresh) - for connection-based data
 
 ## Formatting Requests
 
@@ -88,9 +85,6 @@
 
 **"What Power Queries are in this file?"**
 → excel_powerquery(list)
-
-**"What QueryTables exist?"**
-→ excel_querytable(list)
 
 **"Show me all DAX measures"**
 → excel_datamodel(list-measures)

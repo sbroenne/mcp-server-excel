@@ -2,7 +2,6 @@
 
 **Related tools**:
 - excel_powerquery - For creating new data connections (recommended)
-- excel_querytable - QueryTables use connections for data loading
 
 **Actions**: list, view, import, export, update-properties, test, refresh, delete, load-to, get-properties, set-properties
 

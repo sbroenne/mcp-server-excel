@@ -77,7 +77,6 @@ return args[0] switch
 9. `excel_table` - Excel Tables (ListObjects)
 10. `excel_vba` - VBA macros
 11. `excel_worksheet` - Worksheet lifecycle management
-12. `excel_querytable` - QueryTable operations
 
 ### Action-Based Routing
 ```csharp

@@ -24,12 +24,10 @@ public static class ActionExtensions
         PowerQueryAction.Delete => "delete",
         PowerQueryAction.GetLoadConfig => "get-load-config",
         PowerQueryAction.LoadTo => "load-to",
-        PowerQueryAction.ListExcelSources => "list-excel-sources",
 
         // Atomic Operations
         PowerQueryAction.Create => "create",
         PowerQueryAction.Update => "update",  // Renamed from update-mcode
-        PowerQueryAction.Unload => "unload",
         PowerQueryAction.RefreshAll => "refresh-all",
 
         _ => throw new ArgumentException($"Unknown PowerQueryAction: {action}")
@@ -216,19 +214,6 @@ public static class ActionExtensions
         PivotTableAction.SortField => "sort-field",
         PivotTableAction.GetData => "get-data",
         _ => throw new ArgumentException($"Unknown PivotTableAction: {action}")
-    };
-
-    public static string ToActionString(this QueryTableAction action) => action switch
-    {
-        QueryTableAction.List => "list",
-        QueryTableAction.Read => "read",
-        QueryTableAction.CreateFromConnection => "create-from-connection",
-        QueryTableAction.CreateFromQuery => "create-from-query",
-        QueryTableAction.Refresh => "refresh",
-        QueryTableAction.RefreshAll => "refresh-all",
-        QueryTableAction.UpdateProperties => "update-properties",
-        QueryTableAction.Delete => "delete",
-        _ => throw new ArgumentException($"Unknown QueryTableAction: {action}")
     };
 }
 

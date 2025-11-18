@@ -71,11 +71,21 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
             nameof(Import_ValidMCode_ReturnsSuccess),
             _tempDir);
         var queryName = "TestQuery";
-        var testQueryFile = CreateUniqueTestQueryFile(nameof(Import_ValidMCode_ReturnsSuccess));
+        var mCode = @"let
+    Source = #table(
+        {""Column1"", ""Column2"", ""Column3""},
+        {
+            {""Value1"", ""Value2"", ""Value3""},
+            {""A"", ""B"", ""C""},
+            {""X"", ""Y"", ""Z""}
+        }
+    )
+in
+    Source";
 
         // Act
         using var batch = ExcelSession.BeginBatch(testExcelFile);
-        var result = _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(testQueryFile), PowerQueryLoadMode.ConnectionOnly);
+        var result = _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.ConnectionOnly);
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
@@ -129,14 +139,26 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
             _tempDir);
 
         var queryName = "PQ_Update_" + Guid.NewGuid().ToString("N")[..8];
-        var testQueryFile = CreateUniqueTestQueryFile(nameof(Update_ExistingQuery_ReturnsSuccess));
-        var updateFile = Path.Join(_tempDir, $"updated_{Guid.NewGuid():N}.pq");
-        System.IO.File.WriteAllText(updateFile, "let\n    UpdatedSource = 1\nin\n    UpdatedSource");
+        var originalMCode = @"let
+    Source = #table(
+        {""Column1"", ""Column2"", ""Column3""},
+        {
+            {""Value1"", ""Value2"", ""Value3""},
+            {""A"", ""B"", ""C""},
+            {""X"", ""Y"", ""Z""}
+        }
+    )
+in
+    Source";
+        var updatedMCode = @"let
+    UpdatedSource = 1
+in
+    UpdatedSource";
 
         // Act
         using var batch = ExcelSession.BeginBatch(testExcelFile);
-        _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(testQueryFile));
-        var result = _powerQueryCommands.Update(batch, queryName, ReadMCodeFile(updateFile));
+        _powerQueryCommands.Create(batch, queryName, originalMCode);
+        var result = _powerQueryCommands.Update(batch, queryName, updatedMCode);
 
         // Assert
         Assert.True(result.Success);
@@ -164,32 +186,28 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
         var queryName = "PQ_ReplaceTest_" + Guid.NewGuid().ToString("N")[..8];
 
         // Original M code with distinctive markers
-        var originalFile = Path.Join(_tempDir, $"original_{Guid.NewGuid():N}.pq");
         var originalMCode = @"let
     OriginalSource = ""ORIGINAL_MARKER"",
     OriginalStep = ""Should be completely removed""
 in
     OriginalSource";
-        System.IO.File.WriteAllText(originalFile, originalMCode);
 
         // New M code that should completely replace original
-        var newFile = Path.Join(_tempDir, $"new_{Guid.NewGuid():N}.pq");
         var newMCode = @"let
     NewSource = ""NEW_MARKER"",
     NewStep = ""Should be the only content""
 in
     NewSource";
-        System.IO.File.WriteAllText(newFile, newMCode);
 
         // Act
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Step 1: Create query with original M code
-        var createResult = _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(originalFile));
+        var createResult = _powerQueryCommands.Create(batch, queryName, originalMCode);
         Assert.True(createResult.Success, $"Create failed: {createResult.ErrorMessage}");
 
         // Step 2: Update with new M code
-        var updateResult = _powerQueryCommands.Update(batch, queryName, ReadMCodeFile(newFile));
+        var updateResult = _powerQueryCommands.Update(batch, queryName, newMCode);
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
 
         // Step 3: View the resulting M code
@@ -232,26 +250,32 @@ in
         var queryName = "PQ_MultiUpdate_" + Guid.NewGuid().ToString("N")[..8];
 
         // Create three different M code versions
-        var version1File = Path.Join(_tempDir, $"v1_{Guid.NewGuid():N}.pq");
-        System.IO.File.WriteAllText(version1File, "let\n    V1 = \"VERSION_1\"\nin\n    V1");
+        var version1MCode = @"let
+    V1 = ""VERSION_1""
+in
+    V1";
 
-        var version2File = Path.Join(_tempDir, $"v2_{Guid.NewGuid():N}.pq");
-        System.IO.File.WriteAllText(version2File, "let\n    V2 = \"VERSION_2\"\nin\n    V2");
+        var version2MCode = @"let
+    V2 = ""VERSION_2""
+in
+    V2";
 
-        var version3File = Path.Join(_tempDir, $"v3_{Guid.NewGuid():N}.pq");
-        System.IO.File.WriteAllText(version3File, "let\n    V3 = \"VERSION_3\"\nin\n    V3");
+        var version3MCode = @"let
+    V3 = ""VERSION_3""
+in
+    V3";
 
         // Act
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Create with version 1
-        _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(version1File));
+        _powerQueryCommands.Create(batch, queryName, version1MCode);
 
         // Update to version 2
-        _powerQueryCommands.Update(batch, queryName, ReadMCodeFile(version2File));
+        _powerQueryCommands.Update(batch, queryName, version2MCode);
 
         // Update to version 3
-        _powerQueryCommands.Update(batch, queryName, ReadMCodeFile(version3File));
+        _powerQueryCommands.Update(batch, queryName, version3MCode);
 
         // View final result
         var viewResult = _powerQueryCommands.View(batch, queryName);
@@ -283,11 +307,21 @@ in
             _tempDir);
 
         var queryName = "PQ_Delete_" + Guid.NewGuid().ToString("N")[..8];
-        var testQueryFile = CreateUniqueTestQueryFile(nameof(Delete_ExistingQuery_ReturnsSuccess));
+        var mCode = @"let
+    Source = #table(
+        {""Column1"", ""Column2"", ""Column3""},
+        {
+            {""Value1"", ""Value2"", ""Value3""},
+            {""A"", ""B"", ""C""},
+            {""X"", ""Y"", ""Z""}
+        }
+    )
+in
+    Source";
 
         // Act
         using var batch = ExcelSession.BeginBatch(testExcelFile);
-        _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(testQueryFile));
+        _powerQueryCommands.Create(batch, queryName, mCode);
         var result = _powerQueryCommands.Delete(batch, queryName);
 
         // Assert
@@ -309,16 +343,26 @@ in
             _tempDir);
 
         var queryName = "TestQuery";
-        var testQueryFile = CreateUniqueTestQueryFile(nameof(Create_DuplicateQueryName_ReturnsError));
+        var mCode = @"let
+    Source = #table(
+        {""Column1"", ""Column2"", ""Column3""},
+        {
+            {""Value1"", ""Value2"", ""Value3""},
+            {""A"", ""B"", ""C""},
+            {""X"", ""Y"", ""Z""}
+        }
+    )
+in
+    Source";
 
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Act 1: Create query first time (should succeed)
-        var firstCreate = _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(testQueryFile));
+        var firstCreate = _powerQueryCommands.Create(batch, queryName, mCode);
         Assert.True(firstCreate.Success, $"First create should succeed: {firstCreate.ErrorMessage}");
 
         // Act 2: Try to Create same query again (should fail)
-        var secondCreate = _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(testQueryFile));
+        var secondCreate = _powerQueryCommands.Create(batch, queryName, mCode);
 
         // Assert: Second create should fail with clear error message
         Assert.False(secondCreate.Success, "Second create should fail");
@@ -365,18 +409,12 @@ in
 in
     Source";
 
-        var sourceQueryFile = Path.Join(_tempDir, $"SourceQuery_{Guid.NewGuid():N}.pq");
-        System.IO.File.WriteAllText(sourceQueryFile, sourceQueryMCode);
-
         // Create M code for the derived query (references the source query)
         string derivedQueryMCode = @"let
     Source = SourceQuery,
     FilteredRows = Table.SelectRows(Source, each [Price] > 15)
 in
     FilteredRows";
-
-        var derivedQueryFile = Path.Join(_tempDir, $"DerivedQuery_{Guid.NewGuid():N}.pq");
-        System.IO.File.WriteAllText(derivedQueryFile, derivedQueryMCode);
 
         // Act & Assert
         using var batch = ExcelSession.BeginBatch(testExcelFile);
@@ -385,7 +423,7 @@ in
         var sourceImportResult = _powerQueryCommands.Create(
             batch,
             "SourceQuery",
-            ReadMCodeFile(sourceQueryFile),
+            sourceQueryMCode,
             loadMode: PowerQueryLoadMode.LoadToTable);
 
         Assert.True(sourceImportResult.Success,
@@ -395,7 +433,7 @@ in
         var derivedImportResult = _powerQueryCommands.Create(
             batch,
             "DerivedQuery",
-            ReadMCodeFile(derivedQueryFile),
+            derivedQueryMCode,
             loadMode: PowerQueryLoadMode.LoadToTable);
 
         Assert.True(derivedImportResult.Success,
@@ -447,10 +485,22 @@ in
 
         var queryName = "LoadedQuery_" + Guid.NewGuid().ToString("N")[..8];
         var sheetName = "DataSheet";
-        var initialQueryFile = CreateUniqueTestQueryFile("Initial");
-        var updatedQueryFile = Path.Join(_tempDir, $"updated_{Guid.NewGuid():N}.pq");
-        System.IO.File.WriteAllText(updatedQueryFile,
-            @"let
+
+        // Initial M code for the query
+        string initialMCode = @"let
+    Source = #table(
+        {""Column1"", ""Column2"", ""Column3""},
+        {
+            {""Value1"", ""Value2"", ""Value3""},
+            {""A"", ""B"", ""C""},
+            {""X"", ""Y"", ""Z""}
+        }
+    )
+in
+    Source";
+
+        // Updated M code for the query
+        string updatedMCode = @"let
     UpdatedSource = #table(
         {""NewCol1"", ""NewCol2""},
         {
@@ -459,12 +509,12 @@ in
         }
     )
 in
-    UpdatedSource");
+    UpdatedSource";
 
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // STEP 1: Import query and load to worksheet
-        var importResult = _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(initialQueryFile), PowerQueryLoadMode.LoadToTable, sheetName);
+        var importResult = _powerQueryCommands.Create(batch, queryName, initialMCode, PowerQueryLoadMode.LoadToTable, sheetName);
         Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
 
         // Verify initial load configuration
@@ -474,7 +524,7 @@ in
         Assert.Equal(sheetName, loadConfigBefore.TargetSheet);
 
         // STEP 2: Update the query M code (now auto-refreshes)
-        var updateResult = _powerQueryCommands.Update(batch, queryName, ReadMCodeFile(updatedQueryFile));
+        var updateResult = _powerQueryCommands.Update(batch, queryName, updatedMCode);
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
 
         // STEP 3: Verify load configuration is PRESERVED (regression check)
@@ -509,10 +559,22 @@ in
 
         var queryName = "LoadedQuery_" + Guid.NewGuid().ToString("N")[..8];
         var sheetName = "DataSheet";
-        var initialQueryFile = CreateUniqueTestQueryFile("Initial");
-        var updatedQueryFile = Path.Join(_tempDir, $"updated_{Guid.NewGuid():N}.pq");
-        System.IO.File.WriteAllText(updatedQueryFile,
-            @"let
+
+        // Initial M code for the query
+        string initialMCode = @"let
+    Source = #table(
+        {""Column1"", ""Column2"", ""Column3""},
+        {
+            {""Value1"", ""Value2"", ""Value3""},
+            {""A"", ""B"", ""C""},
+            {""X"", ""Y"", ""Z""}
+        }
+    )
+in
+    Source";
+
+        // Updated M code for the query
+        string updatedMCode = @"let
     UpdatedSource = #table(
         {""NewCol1"", ""NewCol2""},
         {
@@ -521,12 +583,12 @@ in
         }
     )
 in
-    UpdatedSource");
+    UpdatedSource";
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // STEP 1: Create query and load to worksheet
-        var createResult = _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(initialQueryFile), PowerQueryLoadMode.LoadToTable, sheetName);
+        var createResult = _powerQueryCommands.Create(batch, queryName, initialMCode, PowerQueryLoadMode.LoadToTable, sheetName);
         Assert.True(createResult.Success, $"Create failed: {createResult.ErrorMessage}");
 
         // STEP 2: Verify initial load configuration
@@ -536,7 +598,7 @@ in
         Assert.Equal(sheetName, loadConfigBefore.TargetSheet);
 
         // STEP 3: Update M code (now auto-refreshes - this is the simplified API)
-        var updateResult = _powerQueryCommands.Update(batch, queryName, ReadMCodeFile(updatedQueryFile));
+        var updateResult = _powerQueryCommands.Update(batch, queryName, updatedMCode);
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
 
         // STEP 4: THE CRITICAL CHECK - Does load config survive Update (which includes refresh)?
@@ -585,10 +647,8 @@ in
         var queryName = "ColumnStructureQuery_" + Guid.NewGuid().ToString("N")[..8];
         var sheetName = "DataSheet";
 
-        // STEP 1: Create query with ONE column
-        var oneColumnQueryFile = Path.Join(_tempDir, $"onecolumn_{Guid.NewGuid():N}.pq");
-        System.IO.File.WriteAllText(oneColumnQueryFile,
-            @"let
+        // STEP 1: M code for query with ONE column
+        string oneColumnMCode = @"let
     Source = #table(
         {""Column1""},
         {
@@ -597,11 +657,11 @@ in
         }
     )
 in
-    Source");
+    Source";
 
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
-        var createResult = _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(oneColumnQueryFile), PowerQueryLoadMode.LoadToTable, sheetName);
+        var createResult = _powerQueryCommands.Create(batch, queryName, oneColumnMCode, PowerQueryLoadMode.LoadToTable, sheetName);
         Assert.True(createResult.Success, $"Create failed: {createResult.ErrorMessage}");
 
         // STEP 2: Verify there is only ONE column
@@ -610,10 +670,8 @@ in
         Assert.True(usedRange1.Success, $"GetUsedRange failed: {usedRange1.ErrorMessage}");
         Assert.Equal(1, usedRange1.ColumnCount);
 
-        // STEP 3: Update query (still one column, different data)
-        var oneColumnUpdatedFile = Path.Join(_tempDir, $"onecolumn_updated_{Guid.NewGuid():N}.pq");
-        System.IO.File.WriteAllText(oneColumnUpdatedFile,
-            @"let
+        // STEP 3: Updated M code (still one column, different data)
+        string oneColumnUpdatedMCode = @"let
     Source = #table(
         {""Column1""},
         {
@@ -623,10 +681,10 @@ in
         }
     )
 in
-    Source");
+    Source";
 
         // STEP 3: Update query to ONE column (now auto-refreshes)
-        var updateResult1 = _powerQueryCommands.Update(batch, queryName, ReadMCodeFile(oneColumnUpdatedFile));
+        var updateResult1 = _powerQueryCommands.Update(batch, queryName, oneColumnUpdatedMCode);
         Assert.True(updateResult1.Success, $"First update failed: {updateResult1.ErrorMessage}");
 
         // STEP 4: Check that there is still only ONE column
@@ -634,10 +692,8 @@ in
         Assert.True(usedRange2.Success, $"GetUsedRange after first update failed: {usedRange2.ErrorMessage}");
         Assert.Equal(1, usedRange2.ColumnCount);
 
-        // STEP 5: Update the query to create TWO columns
-        var twoColumnQueryFile = Path.Join(_tempDir, $"twocolumn_{Guid.NewGuid():N}.pq");
-        System.IO.File.WriteAllText(twoColumnQueryFile,
-            @"let
+        // STEP 5: M code for TWO columns
+        string twoColumnMCode = @"let
     Source = #table(
         {""Column1"", ""Column2""},
         {
@@ -647,11 +703,11 @@ in
         }
     )
 in
-    Source");
+    Source";
 
         // STEP 5: Update query to TWO columns (now auto-refreshes)
         // This validates the fix: PreserveColumnInfo=false allows column structure updates
-        var updateResult2 = _powerQueryCommands.Update(batch, queryName, ReadMCodeFile(twoColumnQueryFile));
+        var updateResult2 = _powerQueryCommands.Update(batch, queryName, twoColumnMCode);
         Assert.True(updateResult2.Success, $"Second update failed: {updateResult2.ErrorMessage}");
 
         // STEP 6: Check that there are now TWO columns
@@ -706,10 +762,8 @@ in
         var queryName = "AccumulationBug_" + Guid.NewGuid().ToString("N")[..8];
         var sheetName = "TestSheet";
 
-        // STEP 1: Create query with 1 column
-        var oneColumnFile = Path.Join(_tempDir, $"initial_{Guid.NewGuid():N}.pq");
-        System.IO.File.WriteAllText(oneColumnFile,
-            @"let
+        // STEP 1: M code for query with 1 column
+        string oneColumnMCode = @"let
     Source = #table(
         {""Column1""},
         {
@@ -718,12 +772,12 @@ in
         }
     )
 in
-    Source");
+    Source";
 
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Import and load to worksheet
-        var createResult = _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(oneColumnFile), PowerQueryLoadMode.LoadToTable, sheetName);
+        var createResult = _powerQueryCommands.Create(batch, queryName, oneColumnMCode, PowerQueryLoadMode.LoadToTable, sheetName);
         Assert.True(createResult.Success, $"Create failed: {createResult.ErrorMessage}");
 
         // Verify initial state: 1 column
@@ -732,10 +786,8 @@ in
         Assert.True(usedRange1.Success);
         Assert.Equal(1, usedRange1.ColumnCount);
 
-        // STEP 2: Update M code to 2 columns
-        var twoColumnFile = Path.Join(_tempDir, $"updated_{Guid.NewGuid():N}.pq");
-        System.IO.File.WriteAllText(twoColumnFile,
-            @"let
+        // STEP 2: M code for query with 2 columns
+        string twoColumnMCode = @"let
     Source = #table(
         {""Column1"", ""Column2""},
         {
@@ -744,17 +796,17 @@ in
         }
     )
 in
-    Source");
+    Source";
 
         // STEP 2: Update query to TWO columns (now auto-refreshes)
-        var updateResult = _powerQueryCommands.Update(batch, queryName, ReadMCodeFile(twoColumnFile));
+        var updateResult = _powerQueryCommands.Update(batch, queryName, twoColumnMCode);
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
 
         // STEP 3: Apply the DELETE + RECREATE workflow (historically caused 3-column bug)
         var deleteResult = _powerQueryCommands.Delete(batch, queryName);
         Assert.True(deleteResult.Success, $"Delete failed: {deleteResult.ErrorMessage}");
 
-        var recreateResult = _powerQueryCommands.Create(batch, queryName, ReadMCodeFile(twoColumnFile), PowerQueryLoadMode.ConnectionOnly);
+        var recreateResult = _powerQueryCommands.Create(batch, queryName, twoColumnMCode, PowerQueryLoadMode.ConnectionOnly);
         Assert.True(recreateResult.Success, $"Re-create failed: {recreateResult.ErrorMessage}");
 
         var loadResult = _powerQueryCommands.LoadTo(batch, queryName, PowerQueryLoadMode.LoadToTable, sheetName, "A1");
@@ -787,46 +839,6 @@ in
     #endregion
 
     #region Helper Methods
-
-    /// <summary>
-    /// Creates a unique test Power Query M code file.
-    /// Used by tests that need to create new queries.
-    /// </summary>
-    private string CreateUniqueTestQueryFile(string testName)
-    {
-        var uniqueFile = Path.Join(_tempDir, $"{testName}_{Guid.NewGuid():N}.pq");
-        string mCode = @"let
-    Source = #table(
-        {""Column1"", ""Column2"", ""Column3""},
-        {
-            {""Value1"", ""Value2"", ""Value3""},
-            {""A"", ""B"", ""C""},
-            {""X"", ""Y"", ""Z""}
-        }
-    )
-in
-    Source";
-
-        System.IO.File.WriteAllText(uniqueFile, mCode);
-        return uniqueFile;
-    }
-
-    /// <summary>
-    /// Creates a test query file with custom M code content.
-    /// Returns absolute path to .pq file.
-    /// </summary>
-    private string CreateTestQueryFileWithContent(string uniqueName, string mCode)
-    {
-        var fileName = $"{uniqueName}_{Guid.NewGuid():N}.pq";
-        var filePath = Path.Combine(_tempDir, fileName);
-        System.IO.File.WriteAllText(filePath, mCode);
-        return filePath;
-    }
-
-    private static string ReadMCodeFile(string filePath)
-    {
-        return System.IO.File.ReadAllText(filePath);
-    }
 
     #endregion
 }

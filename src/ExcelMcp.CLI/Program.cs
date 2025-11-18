@@ -1,27 +1,25 @@
 using Microsoft.Extensions.DependencyInjection;
-using Spectre.Console;
-using Spectre.Console.Cli;
 using Sbroenne.ExcelMcp.CLI.Commands;
-using Sbroenne.ExcelMcp.CLI.Commands.File;
-using Sbroenne.ExcelMcp.CLI.Commands.PowerQuery;
-using Sbroenne.ExcelMcp.CLI.Commands.NamedRange;
-using Sbroenne.ExcelMcp.CLI.Commands.Sheet;
-using Sbroenne.ExcelMcp.CLI.Commands.Range;
-using Sbroenne.ExcelMcp.CLI.Commands.QueryTable;
-using Sbroenne.ExcelMcp.CLI.Commands.PivotTable;
-using Sbroenne.ExcelMcp.CLI.Commands.Table;
+using Sbroenne.ExcelMcp.CLI.Commands.ConditionalFormatting;
 using Sbroenne.ExcelMcp.CLI.Commands.Connection;
 using Sbroenne.ExcelMcp.CLI.Commands.DataModel;
+using Sbroenne.ExcelMcp.CLI.Commands.File;
+using Sbroenne.ExcelMcp.CLI.Commands.NamedRange;
+using Sbroenne.ExcelMcp.CLI.Commands.PivotTable;
+using Sbroenne.ExcelMcp.CLI.Commands.PowerQuery;
+using Sbroenne.ExcelMcp.CLI.Commands.Range;
 using Sbroenne.ExcelMcp.CLI.Commands.Session;
+using Sbroenne.ExcelMcp.CLI.Commands.Sheet;
+using Sbroenne.ExcelMcp.CLI.Commands.Table;
 using Sbroenne.ExcelMcp.CLI.Commands.Vba;
-using Sbroenne.ExcelMcp.CLI.Commands.ConditionalFormatting;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Infrastructure.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Commands.Range;
-using Sbroenne.ExcelMcp.Core.Commands.QueryTable;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
+using Spectre.Console;
+using Spectre.Console.Cli;
 
 namespace Sbroenne.ExcelMcp.CLI;
 
@@ -88,8 +86,6 @@ internal sealed class Program
                 .WithDescription("Add or clear conditional formatting rules on ranges.");
             config.AddCommand<TableCommand>("table")
                 .WithDescription("Automate Excel Tables: create, resize, filter, sort, and manage totals.");
-            config.AddCommand<QueryTableCommand>("querytable")
-                .WithDescription("Manage QueryTables backed by connections or Power Query outputs.");
             config.AddCommand<PivotTableCommand>("pivottable")
                 .WithDescription("Create and configure PivotTables, fields, and refresh behavior.");
             config.AddCommand<ConnectionCommand>("connection")
@@ -132,7 +128,6 @@ internal sealed class Program
         services.AddSingleton<ISheetCommands, SheetCommands>();
         services.AddSingleton<INamedRangeCommands, NamedRangeCommands>();
         services.AddSingleton<ITableCommands, TableCommands>();
-        services.AddSingleton<IQueryTableCommands, QueryTableCommands>();
         services.AddSingleton<IPivotTableCommands, PivotTableCommands>();
         services.AddSingleton<IConditionalFormattingCommands, ConditionalFormattingCommands>();
         services.AddSingleton<IConnectionCommands, ConnectionCommands>();
