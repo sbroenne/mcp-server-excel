@@ -429,6 +429,11 @@ public partial class PowerQueryCommands
                     return result;
                 }
 
+                // First, remove any QueryTables associated with this query from all worksheets
+                // This prevents orphaned QueryTables and column accumulation in delete+recreate workflows
+                PowerQuery.PowerQueryHelpers.RemoveQueryTables(ctx.Book, queryName);
+
+                // Then, delete the query definition
                 queriesCollection = ctx.Book.Queries;
                 queriesCollection.Item(queryName).Delete();
 
