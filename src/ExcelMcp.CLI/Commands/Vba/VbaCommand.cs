@@ -1,14 +1,12 @@
-using Spectre.Console.Cli;
-
-using IOFile = System.IO.File;
-using IODirectory = System.IO.Directory;
-using IOPath = System.IO.Path;
-
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Infrastructure.Session;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
+using Spectre.Console.Cli;
+using IODirectory = System.IO.Directory;
+using IOFile = System.IO.File;
+using IOPath = System.IO.Path;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands.Vba;
 
@@ -138,13 +136,13 @@ internal sealed class VbaCommand : Command<VbaCommand.Settings>
             return -1;
         }
 
-        if (!System.IO.File.Exists(settings.CodeFile))
+        if (!IOFile.Exists(settings.CodeFile))
         {
             _console.WriteError($"File not found: {settings.CodeFile}");
             return -1;
         }
 
-        string vbaCode = System.IO.File.ReadAllText(settings.CodeFile);
+        string vbaCode = IOFile.ReadAllText(settings.CodeFile);
         return WriteResult(_vbaCommands.Import(batch, moduleName, vbaCode));
     }
 
@@ -161,13 +159,13 @@ internal sealed class VbaCommand : Command<VbaCommand.Settings>
             return -1;
         }
 
-        if (!System.IO.File.Exists(settings.CodeFile))
+        if (!IOFile.Exists(settings.CodeFile))
         {
             _console.WriteError($"File not found: {settings.CodeFile}");
             return -1;
         }
 
-        string vbaCode = System.IO.File.ReadAllText(settings.CodeFile);
+        string vbaCode = IOFile.ReadAllText(settings.CodeFile);
         return WriteResult(_vbaCommands.Update(batch, moduleName, vbaCode));
     }
 

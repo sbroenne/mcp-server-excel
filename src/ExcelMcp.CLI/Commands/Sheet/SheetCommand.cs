@@ -1,10 +1,9 @@
-using Spectre.Console.Cli;
-
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Infrastructure.Session;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
+using Spectre.Console.Cli;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands.Sheet;
 

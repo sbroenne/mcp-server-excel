@@ -1,4 +1,4 @@
-﻿// Suppress IDE0005 (unnecessary using) – explicit usings kept for clarity in test reflection code
+// Suppress IDE0005 (unnecessary using) – explicit usings kept for clarity in test reflection code
 #pragma warning disable IDE0005
 using System;
 using System.Linq;
