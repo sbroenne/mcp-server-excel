@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 using Xunit.Abstractions;

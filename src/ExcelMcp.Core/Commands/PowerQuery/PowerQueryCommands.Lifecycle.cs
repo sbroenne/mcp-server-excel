@@ -1,7 +1,7 @@
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
-using System.Runtime.InteropServices;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 

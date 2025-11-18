@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Sbroenne.ExcelMcp.McpServer.Models;
 using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
