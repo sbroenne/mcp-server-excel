@@ -399,7 +399,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         });
 
         // Create table from range A1:D5
-        var createResult = _tableCommands.Create(batch, "Sales", "SalesTable", "A1:D5", true, "TableStyleMedium2");
+        var createResult = _tableCommands.Create(batch, "Sales", "SalesTable", "A1:D5", true, TableStylePresets.Medium2);
         if (!createResult.Success)
         {
             throw new InvalidOperationException($"Failed to create test table: {createResult.ErrorMessage}");

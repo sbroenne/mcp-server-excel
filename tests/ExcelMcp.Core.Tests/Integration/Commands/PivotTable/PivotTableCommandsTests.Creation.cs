@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
+using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
@@ -43,7 +44,7 @@ public partial class PivotTableCommandsTests
 
         // Create table first
         var tableCommands = new TableCommands();
-        var tableResult = tableCommands.Create(batch, "SalesData", "SalesTable", "A1:D6", true, "TableStyleMedium2");
+        var tableResult = tableCommands.Create(batch, "SalesData", "SalesTable", "A1:D6", true, TableStylePresets.Medium2);
         Assert.True(tableResult.Success, $"Table creation failed: {tableResult.ErrorMessage}");
 
         // Create pivot from table

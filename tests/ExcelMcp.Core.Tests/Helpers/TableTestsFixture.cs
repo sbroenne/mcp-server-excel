@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
+using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -102,7 +103,7 @@ public class TableTestsFixture : IAsyncLifetime
             // Create Table using TableCommands
             var tableCommands = new TableCommands();
             var createTableResult = tableCommands.Create(
-                batch, "Sales", "SalesTable", "A1:D5", hasHeaders: true, tableStyle: "TableStyleMedium2");
+                batch, "Sales", "SalesTable", "A1:D5", hasHeaders: true, tableStyle: TableStylePresets.Medium2);
 
             if (!createTableResult.Success)
                 throw new InvalidOperationException(
