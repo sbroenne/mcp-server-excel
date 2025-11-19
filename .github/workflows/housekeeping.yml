@@ -7,7 +7,7 @@ on:
   workflow_dispatch:  # Allow manual triggering
 
 permissions:
-  contents: write  # Required to delete tags
+  contents: write  # Required to delete tags and releases
   
 jobs:
   cleanup-releases:
@@ -33,6 +33,10 @@ jobs:
           echo ""
           
           KEEP_COUNT=3
+          DELETED_RELEASES=0
+          DELETED_TAGS=0
+          FAILED_RELEASES=0
+          FAILED_TAGS=0
           
           # Function to get releases from GitHub API
           get_github_releases() {
@@ -50,19 +54,31 @@ jobs:
               --jq "[.[] | select(.name | test(\"^${pattern}\")) | {tag: .name, commit: .commit.sha}]"
           }
           
-          # Function to delete release
+          # Function to delete release with error handling
           delete_release() {
             local tag=$1
             local release_id=$2
             echo "  🗑️  Deleting release: $tag (ID: $release_id)"
-            gh api -X DELETE repos/${{ github.repository }}/releases/$release_id
+            if gh api -X DELETE repos/${{ github.repository }}/releases/$release_id 2>&1; then
+              echo "  ✅  Successfully deleted release: $tag"
+              return 0
+            else
+              echo "  ❌  Failed to delete release: $tag"
+              return 1
+            fi
           }
           
-          # Function to delete tag
+          # Function to delete tag with error handling
           delete_tag() {
             local tag=$1
             echo "  🗑️  Deleting tag: $tag"
-            gh api -X DELETE repos/${{ github.repository }}/git/refs/tags/$tag
+            if gh api -X DELETE repos/${{ github.repository }}/git/refs/tags/$tag 2>&1; then
+              echo "  ✅  Successfully deleted tag: $tag"
+              return 0
+            else
+              echo "  ❌  Failed to delete tag: $tag"
+              return 1
+            fi
           }
           
           # Process VSCode Extension releases and tags
@@ -91,8 +107,16 @@ jobs:
                   tag=$(echo "$release_json" | jq -r '.tag')
                   id=$(echo "$release_json" | jq -r '.id')
                   echo "     - $tag"
-                  delete_release "$tag" "$id"
-                  delete_tag "$tag"
+                  if delete_release "$tag" "$id"; then
+                    DELETED_RELEASES=$((DELETED_RELEASES + 1))
+                  else
+                    FAILED_RELEASES=$((FAILED_RELEASES + 1))
+                  fi
+                  if delete_tag "$tag"; then
+                    DELETED_TAGS=$((DELETED_TAGS + 1))
+                  else
+                    FAILED_TAGS=$((FAILED_TAGS + 1))
+                  fi
                 fi
               done <<< "$delete_releases"
             else
@@ -133,8 +157,16 @@ jobs:
                   tag=$(echo "$release_json" | jq -r '.tag')
                   id=$(echo "$release_json" | jq -r '.id')
                   echo "     - $tag"
-                  delete_release "$tag" "$id"
-                  delete_tag "$tag"
+                  if delete_release "$tag" "$id"; then
+                    DELETED_RELEASES=$((DELETED_RELEASES + 1))
+                  else
+                    FAILED_RELEASES=$((FAILED_RELEASES + 1))
+                  fi
+                  if delete_tag "$tag"; then
+                    DELETED_TAGS=$((DELETED_TAGS + 1))
+                  else
+                    FAILED_TAGS=$((FAILED_TAGS + 1))
+                  fi
                 fi
               done <<< "$delete_releases"
             else
@@ -175,7 +207,11 @@ jobs:
                 for ((i=KEEP_COUNT; i<vscode_orphaned_count; i++)); do
                   tag="${vscode_orphaned_array[$i]}"
                   echo "     - $tag"
-                  delete_tag "$tag"
+                  if delete_tag "$tag"; then
+                    DELETED_TAGS=$((DELETED_TAGS + 1))
+                  else
+                    FAILED_TAGS=$((FAILED_TAGS + 1))
+                  fi
                 done
               fi
             fi
@@ -192,7 +228,11 @@ jobs:
                 for ((i=KEEP_COUNT; i<mcp_orphaned_count; i++)); do
                   tag="${mcp_orphaned_array[$i]}"
                   echo "     - $tag"
-                  delete_tag "$tag"
+                  if delete_tag "$tag"; then
+                    DELETED_TAGS=$((DELETED_TAGS + 1))
+                  else
+                    FAILED_TAGS=$((FAILED_TAGS + 1))
+                  fi
                 done
               fi
             fi
@@ -206,15 +246,34 @@ jobs:
           
           echo ""
           echo "✅ Housekeeping complete!"
+          echo ""
+          echo "📊 Summary Statistics:"
+          echo "  ✅ Releases deleted: $DELETED_RELEASES"
+          echo "  ✅ Tags deleted: $DELETED_TAGS"
+          if [ "$FAILED_RELEASES" -gt 0 ] || [ "$FAILED_TAGS" -gt 0 ]; then
+            echo "  ⚠️  Failed release deletions: $FAILED_RELEASES"
+            echo "  ⚠️  Failed tag deletions: $FAILED_TAGS"
+            exit 1
+          fi
       
       - name: Summary
         if: always()
         run: |
-          echo "## Housekeeping Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 🧹 Housekeeping Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Cleaned up old tags and releases" >> $GITHUB_STEP_SUMMARY
-          echo "- Kept last 3 vscode-v* releases" >> $GITHUB_STEP_SUMMARY
-          echo "- Kept last 3 v* releases (MCP/CLI)" >> $GITHUB_STEP_SUMMARY
-          echo "- Removed orphaned tags" >> $GITHUB_STEP_SUMMARY
+          echo "### Actions Performed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Kept last 3 vscode-v* releases" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Kept last 3 v* releases (MCP/CLI)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Cleaned up outdated GitHub releases" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Cleaned up outdated tags" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Removed orphaned tags (tags without releases)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📅 Next run: Every Sunday at 2 AM UTC" >> $GITHUB_STEP_SUMMARY
+          echo "### What Gets Deleted" >> $GITHUB_STEP_SUMMARY
+          echo "This workflow automatically removes:" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Old Releases**: GitHub releases older than the 3 most recent (for both vscode-v* and v* patterns)" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Associated Tags**: Git tags for deleted releases" >> $GITHUB_STEP_SUMMARY
+          echo "3. **Orphaned Tags**: Tags that exist without corresponding GitHub releases" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📅 **Next scheduled run**: Every Sunday at 2 AM UTC" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "💡 **Tip**: You can also run this workflow manually using the 'Run workflow' button" >> $GITHUB_STEP_SUMMARY
