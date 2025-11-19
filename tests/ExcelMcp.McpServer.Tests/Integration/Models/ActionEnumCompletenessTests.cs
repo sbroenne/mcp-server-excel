@@ -1,8 +1,5 @@
 // Explicit usings retained; pragma used to suppress IDE0005 for clarity in reflection-heavy test
 #pragma warning disable IDE0005
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 #pragma warning restore IDE0005
 using Sbroenne.ExcelMcp.McpServer.Models;
