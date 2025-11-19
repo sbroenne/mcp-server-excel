@@ -61,15 +61,15 @@ public sealed class SessionManager : IDisposable
         // Generate unique session ID
         string sessionId = Guid.NewGuid().ToString("N");
 
+        IExcelBatch? batch = null;
         try
         {
             // Create batch session using Core API
-            var batch = ExcelSession.BeginBatch(filePath);
+            batch = ExcelSession.BeginBatch(filePath);
 
             // Store in active sessions
             if (!_activeSessions.TryAdd(sessionId, batch))
             {
-                batch.Dispose();
                 throw new InvalidOperationException($"Session ID collision: {sessionId}");
             }
 
@@ -78,7 +78,6 @@ public sealed class SessionManager : IDisposable
             {
                 // Cleanup if file path tracking fails
                 _activeSessions.TryRemove(sessionId, out _);
-                batch.Dispose();
                 throw new InvalidOperationException($"Failed to track file path for session: {sessionId}");
             }
 
@@ -86,15 +85,22 @@ public sealed class SessionManager : IDisposable
             {
                 _activeSessions.TryRemove(sessionId, out _);
                 _activeFilePaths.TryRemove(normalizedPath, out _);
-                batch.Dispose();
                 throw new InvalidOperationException($"Failed to record session metadata for: {sessionId}");
             }
 
-            return sessionId;
+            // Success - transfer ownership to dictionary
+            var result = sessionId;
+            batch = null;  // Prevent disposal in finally
+            return result;
         }
         catch (Exception ex)
         {
             throw new InvalidOperationException($"Failed to create session for '{filePath}': {ex.Message}", ex);
+        }
+        finally
+        {
+            // Dispose batch only if we didn't successfully add it to dictionary
+            batch?.Dispose();
         }
     }
 
