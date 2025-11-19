@@ -99,6 +99,11 @@ public static class ExcelCompletionHandler
         {
             suggestions = MarkdownLoader.LoadCompletionValues("border_weights.md");
         }
+        // Table style completions
+        else if (argumentName == "tableStyle")
+        {
+            suggestions = MarkdownLoader.LoadCompletionValues("table_styles.md");
+        }
 
         return FilterSuggestions(suggestions, currentValue);
     }
