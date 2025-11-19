@@ -59,11 +59,15 @@ jobs:
             local tag=$1
             local release_id=$2
             echo "  🗑️  Deleting release: $tag (ID: $release_id)"
-            if gh api -X DELETE repos/${{ github.repository }}/releases/$release_id 2>&1; then
+            local output
+            output=$(gh api -X DELETE repos/${{ github.repository }}/releases/$release_id 2>&1)
+            local exit_code=$?
+            if [ $exit_code -eq 0 ]; then
               echo "  ✅  Successfully deleted release: $tag"
               return 0
             else
               echo "  ❌  Failed to delete release: $tag"
+              echo "     Error: $output"
               return 1
             fi
           }
@@ -72,11 +76,15 @@ jobs:
           delete_tag() {
             local tag=$1
             echo "  🗑️  Deleting tag: $tag"
-            if gh api -X DELETE repos/${{ github.repository }}/git/refs/tags/$tag 2>&1; then
+            local output
+            output=$(gh api -X DELETE repos/${{ github.repository }}/git/refs/tags/$tag 2>&1)
+            local exit_code=$?
+            if [ $exit_code -eq 0 ]; then
               echo "  ✅  Successfully deleted tag: $tag"
               return 0
             else
               echo "  ❌  Failed to delete tag: $tag"
+              echo "     Error: $output"
               return 1
             fi
           }
