@@ -1,5 +1,4 @@
 using Sbroenne.ExcelMcp.ComInterop;
-using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 
 
@@ -62,47 +61,10 @@ public class FileCommands : IFileCommands
                 }
             }
 
-            // Create Excel workbook using proper resource management
+            // Create Excel workbook directly on STA thread - no batch session needed
             bool isMacroEnabled = extension == ".xlsm";
 
-            // CRITICAL: CreateNew opens a batch but does NOT save automatically
-            // We must save the batch after making changes, then dispose
-            var result = ExcelSession.CreateNew(filePath, isMacroEnabled, (ctx, ct) =>
-            {
-                // Set up a basic structure with proper COM cleanup
-                dynamic? sheet = null;
-                dynamic? cell = null;
-                dynamic? comment = null;
-
-                try
-                {
-                    sheet = ctx.Book.Worksheets.Item(1);
-                    sheet.Name = "Sheet1";
-
-                    // Add a comment to indicate this was created by ExcelCLI
-                    cell = sheet.Range["A1"];
-                    comment = cell.AddComment($"Created by ExcelCLI on {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                    comment.Visible = false;
-
-                    // Save changes before the batch is disposed
-                    ctx.Book.Save();
-
-                    return new OperationResult
-                    {
-                        Success = true,
-                        FilePath = filePath,
-                        Action = "create-empty"
-                    };
-                }
-                finally
-                {
-                    ComUtilities.Release(ref comment);
-                    ComUtilities.Release(ref cell);
-                    ComUtilities.Release(ref sheet);
-                }
-            });
-
-            return result;
+            return CreateNewWorkbookOnStaThread(filePath, isMacroEnabled);
         }
         catch (Exception ex)
         {
@@ -114,6 +76,97 @@ public class FileCommands : IFileCommands
                 Action = "create-empty"
             };
         }
+    }
+
+    /// <summary>
+    /// Creates a new Excel workbook directly on an STA thread without using batch API.
+    /// This is faster and avoids session disposal overhead for simple file creation.
+    /// </summary>
+    private static OperationResult CreateNewWorkbookOnStaThread(string filePath, bool isMacroEnabled)
+    {
+        var completion = new TaskCompletionSource<OperationResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var thread = new Thread(() =>
+        {
+            dynamic? excel = null;
+            dynamic? workbook = null;
+
+            try
+            {
+                OleMessageFilter.Register();
+
+                var excelType = Type.GetTypeFromProgID("Excel.Application");
+                if (excelType == null)
+                {
+                    throw new InvalidOperationException("Excel is not installed or not properly registered.");
+                }
+
+#pragma warning disable IL2072
+                excel = Activator.CreateInstance(excelType);
+#pragma warning restore IL2072
+
+                excel.Visible = false;
+                excel.DisplayAlerts = false;
+
+                workbook = excel.Workbooks.Add();
+
+                // Save the workbook (Excel automatically creates Sheet1)
+                if (isMacroEnabled)
+                {
+                    workbook.SaveAs(filePath, 52); // xlOpenXMLWorkbookMacroEnabled
+                }
+                else
+                {
+                    workbook.SaveAs(filePath, 51); // xlOpenXMLWorkbook
+                }
+
+                completion.SetResult(new OperationResult
+                {
+                    Success = true,
+                    FilePath = filePath,
+                    Action = "create-empty"
+                });
+            }
+            catch (Exception ex)
+            {
+                completion.SetResult(new OperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Failed to create Excel file: {ex.Message}",
+                    FilePath = filePath,
+                    Action = "create-empty"
+                });
+            }
+            finally
+            {
+                // Clean up COM objects in reverse order
+                if (workbook != null)
+                {
+                    try { workbook.Close(false); }
+                    catch { }
+                    ComUtilities.Release(ref workbook);
+                }
+
+                if (excel != null)
+                {
+                    try { excel.Quit(); }
+                    catch { }
+                    ComUtilities.Release(ref excel);
+                }
+
+                OleMessageFilter.Revoke();
+            }
+        })
+        {
+            IsBackground = true,
+            Name = $"ExcelCreate-{Path.GetFileName(filePath)}"
+        };
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join(); // Wait for thread to complete
+
+        return completion.Task.Result;
     }
 
     /// <inheritdoc />
