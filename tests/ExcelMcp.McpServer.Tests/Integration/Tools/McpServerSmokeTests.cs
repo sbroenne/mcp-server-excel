@@ -268,15 +268,12 @@ in
         _output.WriteLine("  ✓ excel_vba: LIST in session");
 
         // =====================================================================
-        // STEP 4: SAVE AND CLOSE SESSION (persist all changes)
+        // STEP 4: CLOSE SESSION (saves by default, persisting all changes)
         // =====================================================================
-        _output.WriteLine("\n✓ Step 4: Saving and closing session...");
+        _output.WriteLine("\n✓ Step 4: Closing session (saving changes)...");
 
-        var saveResult = ExcelFileTool.ExcelFile(FileAction.Save, sessionId: sessionId);
-        AssertSuccess(saveResult, "Save session");
-
-        var closeResult = ExcelFileTool.ExcelFile(FileAction.Close, sessionId: sessionId);
-        AssertSuccess(closeResult, "Close session");
+        var closeResult = ExcelFileTool.ExcelFile(FileAction.Close, sessionId: sessionId, save: true);
+        AssertSuccess(closeResult, "Close session with save");
 
         _output.WriteLine("  ✓ Session saved and closed");
 

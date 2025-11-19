@@ -25,27 +25,29 @@ public static class ExcelFileTool
 ⚠️ SESSION LIFECYCLE REQUIRED:
 1. OPEN - Start session, get sessionId
 2. OPERATE - Use sessionId with other tools
-3. SAVE - Explicitly save changes (optional)
-4. CLOSE - End session, release resources
+3. CLOSE - End session (set save: true to persist changes)
 
 WORKFLOWS:
-- Default: open → operations(sessionId) → save → close
-- Read-only: open → read(sessionId) → close (no save)
-- Discard changes: open → modify(sessionId) → close (no save)
+- Persist changes: open → operations(sessionId) → close(save: true)
+- Discard changes: open → operations(sessionId) → close(save: false)
+- Read-only: open → read(sessionId) → close(save: false)
 
 FILE FORMATS:
-- .xlsx:
-- .xlsm:
+- .xlsx: Standard Excel workbook
+- .xlsm: Macro-enabled workbook
 ")]
     public static string ExcelFile(
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         FileAction action,
 
-        [Description("Excel file path (.xlsx or .xlsm extension) - required for open/create-empty, not used for save/close")]
+        [Description("Excel file path (.xlsx or .xlsm extension) - required for open/create-empty, not used for close")]
         string? excelPath = null,
 
-        [Description("Session ID from 'open' action - required for save/close, not used for open/create-empty/test")]
-        string? sessionId = null)
+        [Description("Session ID from 'open' action - required for close, not used for open/create-empty/test")]
+        string? sessionId = null,
+
+        [Description("Save changes before closing (for close action, default: false - use true to persist changes)")]
+        bool save = false)
     {
         try
         {
@@ -55,8 +57,7 @@ FILE FORMATS:
             return action switch
             {
                 FileAction.Open => OpenSessionAsync(excelPath!),
-                FileAction.Save => SaveSessionAsync(sessionId!),
-                FileAction.Close => CloseSessionAsync(sessionId!),
+                FileAction.Close => CloseSessionAsync(sessionId!, save),
                 FileAction.CreateEmpty => CreateEmptyFileAsync(fileCommands, excelPath!,
                     excelPath!.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase)),
                 FileAction.CloseWorkbook => CloseWorkbook(excelPath!),
@@ -107,7 +108,7 @@ FILE FORMATS:
                 success = true,
                 sessionId,
                 filePath = excelPath,
-                workflowHint = "Use sessionId with other excel_* tools. Call 'save' to persist changes, then 'close' to release resources."
+                workflowHint = "Use sessionId with other excel_* tools. Call 'close' with save:true to persist changes, or save:false to discard."
             }, ExcelToolsBase.JsonOptions);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("already open"))
@@ -133,54 +134,11 @@ FILE FORMATS:
     }
 
     /// <summary>
-    /// Saves changes for an active session.
-    /// Does not close the session - call 'close' action separately.
+    /// Closes an active session with optional save.
+    /// By default, saves changes before closing to prevent data loss.
+    /// Set save=false to discard changes.
     /// </summary>
-    private static string SaveSessionAsync(string sessionId)
-    {
-        if (string.IsNullOrEmpty(sessionId))
-        {
-            throw new ArgumentException("sessionId is required for 'save' action", nameof(sessionId));
-        }
-
-        try
-        {
-            bool success = ExcelToolsBase.GetSessionManager().SaveSession(sessionId);
-
-            if (success)
-            {
-                return JsonSerializer.Serialize(new
-                {
-                    success = true,
-                    sessionId
-                }, ExcelToolsBase.JsonOptions);
-            }
-
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                sessionId,
-                errorMessage = $"Session '{sessionId}' not found",
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                sessionId,
-                errorMessage = $"Cannot save session '{sessionId}': {ex.Message}",
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
-    }
-
-    /// <summary>
-    /// Closes an active session without saving changes.
-    /// To save before closing, call 'save' action first.
-    /// </summary>
-    private static string CloseSessionAsync(string sessionId)
+    private static string CloseSessionAsync(string sessionId, bool save)
     {
         if (string.IsNullOrWhiteSpace(sessionId))
         {
@@ -189,14 +147,15 @@ FILE FORMATS:
 
         try
         {
-            bool success = ExcelToolsBase.GetSessionManager().CloseSession(sessionId);
+            bool success = ExcelToolsBase.GetSessionManager().CloseSession(sessionId, save);
 
             if (success)
             {
                 return JsonSerializer.Serialize(new
                 {
                     success = true,
-                    sessionId
+                    sessionId,
+                    saved = save
                 }, ExcelToolsBase.JsonOptions);
             }
 

@@ -8,7 +8,6 @@ public static class ActionExtensions
     public static string ToActionString(this FileAction action) => action switch
     {
         FileAction.Open => "open",
-        FileAction.Save => "save",
         FileAction.Close => "close",
         FileAction.CreateEmpty => "create-empty",
         FileAction.CloseWorkbook => "close-workbook",
