@@ -104,20 +104,23 @@ public partial class RangeCommands
                     return result;
                 }
 
-                // Convert List<List<object?>> to 2D array (0-based for Excel COM)
+                // Convert List<List<object?>> to 2D array
+                // Excel COM requires 1-based arrays for multi-cell ranges
                 int rows = values.Count;
                 int cols = values.Count > 0 ? values[0].Count : 0;
 
                 if (rows > 0 && cols > 0)
                 {
-                    object[,] arrayValues = new object[rows, cols]; // 0-based array
-                    for (int r = 0; r < rows; r++)
+                    // Create 1-based array for Excel COM compatibility
+                    object[,] arrayValues = (object[,])Array.CreateInstance(typeof(object), [rows, cols], [1, 1]);
+
+                    for (int r = 1; r <= rows; r++)
                     {
-                        for (int c = 0; c < cols; c++)
+                        for (int c = 1; c <= cols; c++)
                         {
                             // Convert JsonElement to proper C# type for COM interop
                             // MCP framework deserializes JSON to JsonElement, not primitives
-                            arrayValues[r, c] = RangeHelpers.ConvertToCellValue(values[r][c]);
+                            arrayValues[r, c] = RangeHelpers.ConvertToCellValue(values[r - 1][c - 1]);
                         }
                     }
 

@@ -502,4 +502,59 @@ public partial class RangeCommandsTests
         Assert.True(duration.TotalSeconds < 5,
             $"Bulk formula read took too long: {duration.TotalSeconds:F2} seconds (expected < 5s)");
     }
+
+    [Fact]
+    public void SetFormulas_WideHorizontalRange_NoOutOfMemoryError()
+    {
+        // Regression test for bug where 0-based arrays caused "out of memory" error
+        // User reported: Setting formulas to A2:P2 (16 columns) failed with E_OUTOFMEMORY
+        // Root cause: Excel COM requires 1-based arrays, we were passing 0-based C# arrays
+
+        // Arrange
+        string testFile = CoreTestHelper.CreateUniqueTestFile(
+            nameof(RangeCommandsTests),
+            nameof(SetFormulas_WideHorizontalRange_NoOutOfMemoryError),
+            _tempDir);
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Set up source data in row 1
+        _commands.SetValues(batch, "Sheet1", "A1:P1",
+        [
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+        ]);
+
+        // Create 16 formulas referencing the cells above (simulating user's table header formulas)
+        var formulas = new List<List<string>>
+        {
+            new()
+            {
+                "=A1*2", "=B1*2", "=C1*2", "=D1*2",
+                "=E1*2", "=F1*2", "=G1*2", "=H1*2",
+                "=I1*2", "=J1*2", "=K1*2", "=L1*2",
+                "=M1*2", "=N1*2", "=O1*2", "=P1*2"
+            }
+        };
+
+        // Act - Write 16 formulas to A2:P2 (single row, 16 columns)
+        var result = _commands.SetFormulas(batch, "Sheet1", "A2:P2", formulas);
+
+        // Assert - Should succeed without "out of memory" error
+        Assert.True(result.Success, $"SetFormulas failed: {result.ErrorMessage}");
+
+        // Verify formulas were written correctly
+        var readResult = _commands.GetFormulas(batch, "Sheet1", "A2:P2");
+        Assert.True(readResult.Success);
+        Assert.Single(readResult.Formulas); // One row
+        Assert.Equal(16, readResult.Formulas[0].Count); // 16 columns
+
+        // Verify first, middle, and last formulas
+        Assert.Equal("=A1*2", readResult.Formulas[0][0]);
+        Assert.Equal("=H1*2", readResult.Formulas[0][7]);
+        Assert.Equal("=P1*2", readResult.Formulas[0][15]);
+
+        // Verify calculated values
+        Assert.Equal(2.0, Convert.ToDouble(readResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(16.0, Convert.ToDouble(readResult.Values[0][7], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(32.0, Convert.ToDouble(readResult.Values[0][15], System.Globalization.CultureInfo.InvariantCulture));
+    }
 }
