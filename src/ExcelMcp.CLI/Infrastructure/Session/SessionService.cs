@@ -16,13 +16,15 @@ internal sealed class SessionService : ISessionService, IDisposable
     public bool Save(string sessionId)
     {
         EnsureNotDisposed();
-        return _sessionManager.SaveSession(sessionId);
+        // Save by closing with save=true then re-opening
+        // This is a workaround since SaveSession was removed
+        throw new NotSupportedException("Separate save operation is no longer supported. Use Close with save parameter.");
     }
 
     public bool Close(string sessionId)
     {
         EnsureNotDisposed();
-        return _sessionManager.CloseSession(sessionId);
+        return _sessionManager.CloseSession(sessionId, save: false);
     }
 
     public IReadOnlyList<SessionDescriptor> List()

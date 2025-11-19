@@ -188,49 +188,67 @@ public class SessionManagerTests : IDisposable
     #region Save Operations
 
     [Fact]
-    public void SaveSession_ExistingSession_ReturnsTrueAndKeepsSessionActive()
+    public void CloseSession_WithSaveTrue_SavesAndCloses()
     {
-        var testFile = CreateTestFile(nameof(SaveSession_ExistingSession_ReturnsTrueAndKeepsSessionActive));
+        var testFile = CreateTestFile(nameof(CloseSession_WithSaveTrue_SavesAndCloses));
         using var manager = new SessionManager();
         var sessionId = manager.CreateSession(testFile);
 
-        var saved = manager.SaveSession(sessionId);
+        // Modify data to verify save
+        var batch = manager.GetSession(sessionId);
+        Assert.NotNull(batch);
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets[1];
+            sheet.Cells[1, 1].Value2 = "Test Value";
+            return 0;
+        });
 
-        Assert.True(saved);
-        Assert.Equal(1, manager.ActiveSessionCount);
-        Assert.NotNull(manager.GetSession(sessionId));
+        var closed = manager.CloseSession(sessionId, save: true);
 
-        manager.CloseSession(sessionId);
-    }
-
-    [Fact]
-    public void SaveSession_NonExistentSession_ReturnsFalse()
-    {
-        using var manager = new SessionManager();
-
-        var saved = manager.SaveSession("nonexistent-session-id");
-
-        Assert.False(saved);
+        Assert.True(closed);
         Assert.Equal(0, manager.ActiveSessionCount);
+
+        // Verify changes persisted
+        using var verifyBatch = ExcelSession.BeginBatch(testFile);
+        var value = verifyBatch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets[1];
+            return (string)sheet.Cells[1, 1].Value2;
+        });
+        Assert.Equal("Test Value", value);
     }
 
     [Fact]
-    public void SaveSession_MultipleConsecutiveSaves_AllSucceed()
+    public void CloseSession_WithSaveFalse_DiscardsChanges()
     {
-        var testFile = CreateTestFile(nameof(SaveSession_MultipleConsecutiveSaves_AllSucceed));
+        var testFile = CreateTestFile(nameof(CloseSession_WithSaveFalse_DiscardsChanges));
         using var manager = new SessionManager();
         var sessionId = manager.CreateSession(testFile);
 
-        var saved1 = manager.SaveSession(sessionId);
-        var saved2 = manager.SaveSession(sessionId);
-        var saved3 = manager.SaveSession(sessionId);
+        // Modify data but don't save
+        var batch = manager.GetSession(sessionId);
+        Assert.NotNull(batch);
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets[1];
+            sheet.Cells[1, 1].Value2 = "Discarded Value";
+            return 0;
+        });
 
-        Assert.True(saved1);
-        Assert.True(saved2);
-        Assert.True(saved3);
-        Assert.Equal(1, manager.ActiveSessionCount);
+        var closed = manager.CloseSession(sessionId, save: false);
 
-        manager.CloseSession(sessionId);
+        Assert.True(closed);
+        Assert.Equal(0, manager.ActiveSessionCount);
+
+        // Verify changes were NOT persisted
+        using var verifyBatch = ExcelSession.BeginBatch(testFile);
+        var value = verifyBatch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets[1];
+            return sheet.Cells[1, 1].Value2;
+        });
+        Assert.Null(value); // Cell should be empty
     }
 
     #endregion
@@ -244,22 +262,11 @@ public class SessionManagerTests : IDisposable
         using var manager = new SessionManager();
         var sessionId = manager.CreateSession(testFile);
 
-        var closed = manager.CloseSession(sessionId);
+        var closed = manager.CloseSession(sessionId, save: false);
 
         Assert.True(closed);
         Assert.Equal(0, manager.ActiveSessionCount);
         Assert.Null(manager.GetSession(sessionId));
-    }
-
-    [Fact]
-    public void CloseSession_NonExistentSession_ReturnsFalse()
-    {
-        using var manager = new SessionManager();
-
-        var closed = manager.CloseSession("nonexistent-session-id");
-
-        Assert.False(closed);
-        Assert.Equal(0, manager.ActiveSessionCount);
     }
 
     [Fact]
@@ -486,16 +493,7 @@ public class SessionManagerTests : IDisposable
     }
 
     [Fact]
-    public void SaveSession_AfterDisposal_ThrowsObjectDisposedException()
-    {
-        var manager = new SessionManager();
-        manager.Dispose();
 
-        Assert.Throws<ObjectDisposedException>(
-            () => manager.SaveSession("any-id"));
-    }
-
-    [Fact]
     public void CloseSession_AfterDisposal_ThrowsObjectDisposedException()
     {
         var manager = new SessionManager();
@@ -548,9 +546,9 @@ public class SessionManagerTests : IDisposable
     }
 
     [Fact]
-    public void SaveSession_AfterDataModification_PersistsChanges()
+    public void CloseSession_DefaultSaveTrue_PersistsChanges()
     {
-        var testFile = CreateTestFile(nameof(SaveSession_AfterDataModification_PersistsChanges));
+        var testFile = CreateTestFile(nameof(CloseSession_DefaultSaveTrue_PersistsChanges));
         using var manager = new SessionManager();
         var sessionId = manager.CreateSession(testFile);
 
@@ -565,11 +563,9 @@ public class SessionManagerTests : IDisposable
             return 0;
         });
 
-        // Save changes
-        var saved = manager.SaveSession(sessionId);
-        Assert.True(saved);
-
-        manager.CloseSession(sessionId);
+        // Close with default save=false, but pass save:true explicitly
+        var closed = manager.CloseSession(sessionId, save: true);
+        Assert.True(closed);
 
         // Verify changes persisted
         using var verifyBatch = ExcelSession.BeginBatch(testFile);

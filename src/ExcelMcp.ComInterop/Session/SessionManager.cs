@@ -119,46 +119,45 @@ public sealed class SessionManager : IDisposable
     }
 
     /// <summary>
-    /// Saves changes for the specified session.
+    /// Closes the specified session with optional save.
+    /// If save is true, saves changes before closing to ensure atomic operation.
     /// </summary>
     /// <param name="sessionId">Session ID</param>
-    /// <returns>True if session was found and saved, false if session not found</returns>
+    /// <param name="save">Whether to save changes before closing (default: false)</param>
+    /// <returns>True if session was found and closed, false if session not found</returns>
     /// <exception cref="InvalidOperationException">Save operation failed</exception>
-    public bool SaveSession(string sessionId)
+    public bool CloseSession(string sessionId, bool save = false)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        var batch = GetSession(sessionId);
-        if (batch == null)
+        if (string.IsNullOrWhiteSpace(sessionId))
         {
             return false;
         }
 
-        try
+        // Save first if requested (blocks until complete)
+        if (save)
         {
-            batch.Save();
-            return true;
+            var batch = GetSession(sessionId);
+            if (batch != null)
+            {
+                try
+                {
+                    batch.Save();
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException($"Failed to save session '{sessionId}' before closing: {ex.Message}", ex);
+                }
+            }
         }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException($"Failed to save session '{sessionId}': {ex.Message}", ex);
-        }
-    }
 
-    /// <summary>
-    /// Closes the specified session without saving changes.
-    /// </summary>
-    /// <param name="sessionId">Session ID</param>
-    /// <returns>True if session was found and closed, false if session not found</returns>
-    public bool CloseSession(string sessionId)
-    {
+        // Then close
         return CloseSessionSync(sessionId);
     }
 
     private bool CloseSessionSync(string sessionId)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-
         if (string.IsNullOrWhiteSpace(sessionId))
         {
             return false;
