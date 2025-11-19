@@ -176,4 +176,41 @@ public partial class RangeCommandsTests
         Assert.True(readResult.Values[0][3] == null || readResult.Values[0][3]?.ToString() == string.Empty);
     }
 
+    [Fact]
+    public void SetValues_WideHorizontalRange_NoOutOfMemoryError()
+    {
+        // Regression test for bug where 0-based arrays caused "out of memory" error
+        // Root cause: Excel COM requires 1-based arrays, we were passing 0-based C# arrays
+
+        // Arrange
+        string testFile = CoreTestHelper.CreateUniqueTestFile(
+            nameof(RangeCommandsTests),
+            nameof(SetValues_WideHorizontalRange_NoOutOfMemoryError),
+            _tempDir);
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create test data with 16 columns (matching user's A2:P2 scenario)
+        var testData = new List<List<object?>>
+        {
+            new object?[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }.ToList()
+        };
+
+        // Act - Write 16 values to A1:P1 (single row, 16 columns)
+        var result = _commands.SetValues(batch, "Sheet1", "A1:P1", testData);
+
+        // Assert - Should succeed without "out of memory" error
+        Assert.True(result.Success, $"SetValues failed: {result.ErrorMessage}");
+
+        // Verify values were written correctly
+        var readResult = _commands.GetValues(batch, "Sheet1", "A1:P1");
+        Assert.True(readResult.Success);
+        Assert.Single(readResult.Values); // One row
+        Assert.Equal(16, readResult.Values[0].Count); // 16 columns
+
+        // Verify first, middle, and last values
+        Assert.Equal(1.0, Convert.ToDouble(readResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(8.0, Convert.ToDouble(readResult.Values[0][7], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(16.0, Convert.ToDouble(readResult.Values[0][15], System.Globalization.CultureInfo.InvariantCulture));
+    }
+
 }
