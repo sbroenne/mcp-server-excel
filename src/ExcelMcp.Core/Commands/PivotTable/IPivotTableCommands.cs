@@ -274,4 +274,39 @@ public interface IPivotTableCommands
     /// </remarks>
     PivotFieldResult CreateCalculatedField(IExcelBatch batch, string pivotTableName,
         string fieldName, string formula);
+
+    /// <summary>
+    /// Sets the row layout form for a PivotTable.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <param name="layoutType">Layout form: 0=Compact, 1=Tabular, 2=Outline</param>
+    /// <returns>Result indicating success or failure</returns>
+    /// <remarks>
+    /// LAYOUT FORMS:
+    /// - Compact (0): All row fields in single column with indentation (Excel default)
+    /// - Tabular (1): Each field in separate column, subtotals at bottom
+    /// - Outline (2): Each field in separate column, subtotals at top
+    /// 
+    /// Supported by both regular and OLAP PivotTables.
+    /// </remarks>
+    OperationResult SetLayout(IExcelBatch batch, string pivotTableName, int layoutType);
+
+    /// <summary>
+    /// Shows or hides subtotals for a specific row field.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <param name="fieldName">Name of the row field</param>
+    /// <param name="showSubtotals">True to show automatic subtotals, false to hide</param>
+    /// <returns>Result with updated field configuration</returns>
+    /// <remarks>
+    /// SUBTOTALS:
+    /// - Enabled: Shows automatic subtotals (Sum for numbers, Count for text)
+    /// - Disabled: Hides all subtotals, shows only detail rows
+    /// 
+    /// OLAP PivotTables only support Automatic subtotals.
+    /// </remarks>
+    PivotFieldResult SetSubtotals(IExcelBatch batch, string pivotTableName,
+        string fieldName, bool showSubtotals);
 }

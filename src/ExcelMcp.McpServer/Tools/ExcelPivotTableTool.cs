@@ -86,7 +86,13 @@ public static class ExcelPivotTableTool
         double? numericGroupingInterval = null,
 
         [Description("Formula for calculated field (e.g., '=Revenue-Cost', '=Profit/Revenue')")]
-        string? formula = null)
+        string? formula = null,
+
+        [Description("Layout form: 0=Compact (all fields in one column), 1=Tabular (separate columns, subtotals bottom), 2=Outline (separate columns, subtotals top)")]
+        int? layout = null,
+
+        [Description("Show/hide subtotals for field: true=show automatic subtotals, false=hide")]
+        bool? subtotalsVisible = null)
     {
         var commands = new PivotTableCommands();
 
@@ -116,6 +122,8 @@ public static class ExcelPivotTableTool
                 PivotTableAction.GroupByDate => GroupByDate(commands, sessionId, pivotTableName, fieldName, dateGroupingInterval),
                 PivotTableAction.GroupByNumeric => GroupByNumeric(commands, sessionId, pivotTableName, fieldName, numericGroupingStart, numericGroupingEnd, numericGroupingInterval),
                 PivotTableAction.CreateCalculatedField => CreateCalculatedField(commands, sessionId, pivotTableName, fieldName, formula),
+                PivotTableAction.SetLayout => SetLayout(commands, sessionId, pivotTableName, layout),
+                PivotTableAction.SetSubtotals => SetSubtotals(commands, sessionId, pivotTableName, fieldName, subtotalsVisible),
                 _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
         }
@@ -796,6 +804,56 @@ public static class ExcelPivotTableTool
             result.CustomName,
             result.Area,
             result.Formula,
+            result.ErrorMessage,
+            result.WorkflowHint
+        }, JsonOptions);
+    }
+
+    private static string SetLayout(
+        PivotTableCommands commands,
+        string sessionId,
+        string? pivotTableName,
+        int? layout)
+    {
+        if (string.IsNullOrEmpty(pivotTableName))
+            throw new ArgumentException("pivotTableName is required for set-layout action", nameof(pivotTableName));
+
+        if (!layout.HasValue)
+            throw new ArgumentException("layout is required for set-layout action (0=Compact, 1=Tabular, 2=Outline)", nameof(layout));
+
+        var result = ExcelToolsBase.WithSession(sessionId,
+            batch => commands.SetLayout(batch, pivotTableName!, layout.Value));
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage
+        }, JsonOptions);
+    }
+
+    private static string SetSubtotals(
+        PivotTableCommands commands,
+        string sessionId,
+        string? pivotTableName,
+        string? fieldName,
+        bool? subtotalsVisible)
+    {
+        if (string.IsNullOrEmpty(pivotTableName))
+            throw new ArgumentException("pivotTableName is required for set-subtotals action", nameof(pivotTableName));
+
+        if (string.IsNullOrEmpty(fieldName))
+            throw new ArgumentException("fieldName is required for set-subtotals action", nameof(fieldName));
+
+        if (!subtotalsVisible.HasValue)
+            throw new ArgumentException("subtotalsVisible is required for set-subtotals action", nameof(subtotalsVisible));
+
+        var result = ExcelToolsBase.WithSession(sessionId,
+            batch => commands.SetSubtotals(batch, pivotTableName!, fieldName!, subtotalsVisible.Value));
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.FieldName,
             result.ErrorMessage,
             result.WorkflowHint
         }, JsonOptions);

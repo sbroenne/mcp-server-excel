@@ -302,6 +302,10 @@ public enum PivotTableAction
     // Calculated Fields
     CreateCalculatedField,
 
+    // Layout and Formatting
+    SetLayout,
+    SetSubtotals,
+
     // Data Operations
     GetData
 }

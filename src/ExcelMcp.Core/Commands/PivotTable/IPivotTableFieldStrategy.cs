@@ -136,4 +136,44 @@ public interface IPivotTableFieldStrategy
     /// - Ratios: Cost/Unit, Revenue/Customer
     /// </remarks>
     PivotFieldResult CreateCalculatedField(dynamic pivot, string fieldName, string formula, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
+
+    /// <summary>
+    /// Sets the row layout form for the PivotTable.
+    /// </summary>
+    /// <param name="pivot">The PivotTable object</param>
+    /// <param name="layoutType">Layout form: 0=Compact, 1=Tabular, 2=Outline</param>
+    /// <param name="workbookPath">Path to workbook for error reporting</param>
+    /// <param name="logger">Optional logger for diagnostics</param>
+    /// <returns>Result indicating success or failure</returns>
+    /// <remarks>
+    /// LAYOUT FORMS:
+    /// - Compact (0): All row fields in single column with indentation (Excel default)
+    /// - Tabular (1): Each field in separate column, subtotals at bottom
+    /// - Outline (2): Each field in separate column, subtotals at top
+    ///
+    /// SUPPORT:
+    /// - Regular PivotTables: Full support for all three forms
+    /// - OLAP PivotTables: Full support for all three forms
+    /// </remarks>
+    OperationResult SetLayout(dynamic pivot, int layoutType, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
+
+    /// <summary>
+    /// Shows or hides subtotals for a specific row field.
+    /// </summary>
+    /// <param name="pivot">The PivotTable object</param>
+    /// <param name="fieldName">Name of the row field</param>
+    /// <param name="showSubtotals">True to show automatic subtotals, false to hide</param>
+    /// <param name="workbookPath">Path to workbook for error reporting</param>
+    /// <param name="logger">Optional logger for diagnostics</param>
+    /// <returns>Result with updated field configuration</returns>
+    /// <remarks>
+    /// SUBTOTALS BEHAVIOR:
+    /// - When enabled: Shows Automatic subtotals (uses appropriate function based on data)
+    /// - When disabled: Hides all subtotals for the field
+    ///
+    /// OLAP LIMITATION:
+    /// - OLAP PivotTables only support Automatic subtotals
+    /// - Regular PivotTables can choose Sum, Count, Average, etc. (future enhancement)
+    /// </remarks>
+    PivotFieldResult SetSubtotals(dynamic pivot, string fieldName, bool showSubtotals, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
 }

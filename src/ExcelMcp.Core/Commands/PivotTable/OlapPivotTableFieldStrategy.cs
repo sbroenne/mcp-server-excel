@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
@@ -938,6 +939,92 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                           "Example DAX: Profit = SUM('Sales'[Revenue]) - SUM('Sales'[Cost])"
         };
     }
+
+#pragma warning disable CA1848 // Keep logging for diagnostics
+    /// <inheritdoc/>
+    public OperationResult SetLayout(dynamic pivot, int layoutType, string workbookPath, ILogger? logger = null)
+    {
+        try
+        {
+            // OLAP PivotTables support all three layout forms
+            // xlCompactRow=0, xlTabularRow=1, xlOutlineRow=2
+            pivot.RowAxisLayout(layoutType);
+            pivot.RefreshTable();
+
+            logger?.LogInformation("Set OLAP PivotTable layout to {LayoutType}", layoutType);
+
+            return new OperationResult
+            {
+                Success = true,
+                FilePath = workbookPath
+            };
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "SetLayout failed for OLAP PivotTable");
+            return new OperationResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to set OLAP layout: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+    }
+#pragma warning restore CA1848
+
+#pragma warning disable CA1848 // Keep logging for diagnostics
+    /// <inheritdoc/>
+    public PivotFieldResult SetSubtotals(
+        dynamic pivot,
+        string fieldName,
+        bool showSubtotals,
+        string workbookPath,
+        ILogger? logger = null)
+    {
+        dynamic? field = null;
+        try
+        {
+            pivot.RefreshTable();
+
+            // Get the field - for OLAP, use PivotFields (not CubeFields)
+            dynamic pivotFields = pivot.PivotFields;
+            field = pivotFields.Item(fieldName);
+
+            // OLAP PivotTables only support Automatic subtotals (index 1)
+            // Other subtotal types not available for OLAP data sources
+            field.Subtotals[1] = showSubtotals;
+
+            pivot.RefreshTable();
+
+            logger?.LogInformation("Set OLAP subtotals for field {FieldName} to {ShowSubtotals}", fieldName, showSubtotals);
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                FilePath = workbookPath,
+                WorkflowHint = showSubtotals
+                    ? "Subtotals enabled for OLAP field. Only Automatic function supported (OLAP limitation)."
+                    : "Subtotals disabled for OLAP field."
+            };
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "SetSubtotals failed for OLAP field {FieldName}", fieldName);
+            return new PivotFieldResult
+            {
+                Success = false,
+                FieldName = fieldName,
+                ErrorMessage = $"Failed to set OLAP subtotals: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref field);
+        }
+    }
+#pragma warning restore CA1848
 
     #region Helper Methods
 

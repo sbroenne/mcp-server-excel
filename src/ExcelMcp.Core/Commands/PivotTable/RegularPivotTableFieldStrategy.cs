@@ -1066,4 +1066,90 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             ComUtilities.Release(ref calculatedFields);
         }
     }
+
+#pragma warning disable CA1848 // Keep logging for diagnostics
+    /// <inheritdoc/>
+    public OperationResult SetLayout(dynamic pivot, int layoutType, string workbookPath, ILogger? logger = null)
+    {
+        try
+        {
+            // xlCompactRow=0, xlTabularRow=1, xlOutlineRow=2
+            pivot.RowAxisLayout(layoutType);
+            pivot.RefreshTable();
+
+            logger?.LogInformation("Set PivotTable layout to {LayoutType}", layoutType);
+
+            return new OperationResult
+            {
+                Success = true,
+                FilePath = workbookPath
+            };
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "SetLayout failed for PivotTable");
+            return new OperationResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to set layout: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+    }
+#pragma warning restore CA1848
+
+#pragma warning disable CA1848 // Keep logging for diagnostics
+    /// <inheritdoc/>
+    public PivotFieldResult SetSubtotals(
+        dynamic pivot,
+        string fieldName,
+        bool showSubtotals,
+        string workbookPath,
+        ILogger? logger = null)
+    {
+        dynamic? field = null;
+        try
+        {
+            pivot.RefreshTable();
+
+            // Get the field from row fields
+            dynamic pivotFields = pivot.PivotFields;
+            field = pivotFields.Item(fieldName);
+
+            // Set subtotals: index 1 = Automatic
+            // If showSubtotals=true, enable Automatic (which sets all others to false)
+            // If showSubtotals=false, disable all subtotals
+            field.Subtotals[1] = showSubtotals;
+
+            pivot.RefreshTable();
+
+            logger?.LogInformation("Set subtotals for field {FieldName} to {ShowSubtotals}", fieldName, showSubtotals);
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                FilePath = workbookPath,
+                WorkflowHint = showSubtotals
+                    ? "Subtotals enabled for field. Automatic function selected based on data type."
+                    : "Subtotals disabled for field. Only detail rows visible."
+            };
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "SetSubtotals failed for field {FieldName}", fieldName);
+            return new PivotFieldResult
+            {
+                Success = false,
+                FieldName = fieldName,
+                ErrorMessage = $"Failed to set subtotals: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref field);
+        }
+    }
+#pragma warning restore CA1848
 }
