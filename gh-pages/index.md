@@ -18,29 +18,17 @@ canonical_url: "https://sbroenne.github.io/mcp-server-excel/"
 </div>
 
 <div class="container content-section" markdown="1">
-
-**Automate Excel with AI - A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.**
-
 ## 🤔 What is This?
 
-**Use natural language OR command-line to automate complex Excel tasks - your choice.**
+Stop manually clicking through Excel menus for repetitive tasks. Instead, describe what you want in plain English and let the coding agent and the MCP Server handle the task:
 
-Stop manually clicking through Excel menus for repetitive tasks. Instead, describe what you want in plain English:
-
-**Data Transformation & Analysis:**
-- *"Optimize all my Power Queries in this workbook for better performance"*
+- *"Load this sales data CSV file into Excel. Only keep the columns that I need to compare sales numbers month over month. Load them to a data model and create the necessary DAX measures. Add pivot tables.*
 - *"Create a PivotTable from SalesData table showing top 10 products by region with sum and average"*
-- *"Build a DAX measure calculating year-over-year growth with proper time intelligence"*
-
-**Formatting & Styling (No Programming Required):**
-- *"Format the revenue columns as currency, make headers bold with blue background, and add borders to the table"*
 - *"Apply conditional formatting to highlight values above $10,000 in red and below $5,000 in yellow"*
 - *"Convert this data range to an Excel Table with style TableStyleMedium2, add auto-filters, and create a totals row"*
-
-**Workflow Automation:**
-- *"Find all cells containing 'Q1 2024' and replace with 'Q1 2025', then sort the table by Date descending"*
 - *"Add data validation dropdowns to the Status column with options: Active, Pending, Completed"*
 - *"Merge the header cells, center-align them, and auto-fit all column widths to content"*
+- "Extract all PowerQueries, DAX measures and VBA code so I can use version control in GIT".
 
 The AI assistant analyzes your request, generates the proper Excel automation commands, and executes them **directly in your Excel application** - no formulas or programming knowledge required.
 

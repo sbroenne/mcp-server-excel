@@ -34,7 +34,7 @@ body {
 
 .content-section {
   background: var(--background);
-  padding: 24px 24px 48px;
+  padding: 16px 24px 48px;
   min-height: 400px;
 }
 
@@ -42,9 +42,9 @@ body {
 .hero {
   background: var(--hero-gradient);
   color: white;
-  padding: 48px 24px 40px;
+  padding: 32px 24px 24px;
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 16px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
@@ -54,37 +54,37 @@ body {
 }
 
 .hero-icon {
-  width: 80px;
-  height: 80px;
-  margin: 0 auto 16px;
-  border-radius: 16px;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 12px;
+  border-radius: 14px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.3);
   background: white;
-  padding: 10px;
+  padding: 8px;
   animation: fadeInScale 0.6s ease-out;
   border: 3px solid rgba(255,255,255,0.2);
   display: block;
 }
 
 .hero-title {
-  font-size: 2.5rem;
+  font-size: 2.2rem;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   line-height: 1.2;
   color: #ffffff;
   margin-top: 0 !important;
 }
 
 .hero-subtitle {
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   font-weight: 400;
   color: #ffffff;
   opacity: 0.95;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .hero-description {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 300;
   color: #ffffff;
   opacity: 0.9;
