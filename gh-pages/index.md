@@ -19,6 +19,36 @@ canonical_url: "https://sbroenne.github.io/mcp-server-excel/"
 
 <div class="container content-section" markdown="1">
 
+**Automate Excel with AI - A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.**
+
+## 🤔 What is This?
+
+**Use natural language OR command-line to automate complex Excel tasks - your choice.**
+
+Stop manually clicking through Excel menus for repetitive tasks. Instead, describe what you want in plain English:
+
+**Data Transformation & Analysis:**
+- *"Optimize all my Power Queries in this workbook for better performance"*
+- *"Create a PivotTable from SalesData table showing top 10 products by region with sum and average"*
+- *"Build a DAX measure calculating year-over-year growth with proper time intelligence"*
+
+**Formatting & Styling (No Programming Required):**
+- *"Format the revenue columns as currency, make headers bold with blue background, and add borders to the table"*
+- *"Apply conditional formatting to highlight values above $10,000 in red and below $5,000 in yellow"*
+- *"Convert this data range to an Excel Table with style TableStyleMedium2, add auto-filters, and create a totals row"*
+
+**Workflow Automation:**
+- *"Find all cells containing 'Q1 2024' and replace with 'Q1 2025', then sort the table by Date descending"*
+- *"Add data validation dropdowns to the Status column with options: Active, Pending, Completed"*
+- *"Merge the header cells, center-align them, and auto-fit all column widths to content"*
+
+The AI assistant analyzes your request, generates the proper Excel automation commands, and executes them **directly in your Excel application** - no formulas or programming knowledge required.
+
+## 🚀 Visual Studio Code Quick Start (1 Minute)
+
+<p>One-click setup with GitHub Copilot integration</p>
+<p><a href="https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp" class="button-link">Install from Marketplace</a></p>
+
 ## What is This Project?
 
 **ExcelMcp** is a comprehensive Excel automation toolkit with two interfaces:
@@ -28,15 +58,14 @@ canonical_url: "https://sbroenne.github.io/mcp-server-excel/"
 
 Both share the same core functionality: automate Power Query, DAX measures, VBA macros, PivotTables, formatting, and data transformations. Choose MCP for AI-powered conversations or CLI for programmatic control.
 
-**💡 Interactive Development:** Unlike file-based tools, ExcelMcp lets you see results instantly in Excel - create a query, run it, inspect the output, refine and repeat. Excel becomes your interactive workspace for rapid development and testing.
+**🛡️ 100% Safe - Uses Excel's Native COM API**
 
-Requires Windows OS + Microsoft Excel 2016+
+Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), ExcelMcp uses **Excel's official COM API**. This ensures:
+- ✅ **Zero risk of document corruption** - Excel handles all file operations safely
+- ✅ **Interactive development** - See changes in real-time, create → test → refine → iterate instantly
+- ✅ **Comprehensive automation** - Currently supports 163 operations across 12 specialized tools covering Power Query, Data Model/DAX, VBA, PivotTables, Excel Tables, ranges, conditional formatting, and more
 
-## 🚀 Visual Studio Code Quick Start (1 Minute)
-
-   - Open VS Code → Extensions (`Ctrl+Shift+X`)
-   - Search for **"ExcelMcp"**
-   - Click **Install**
+**💻 For Developers:** Think of Excel as an AI-powered REPL - write code (Power Query M, DAX, VBA), execute instantly, inspect results visually in the live workbook. No more blind editing of .xlsx files.
 
 ## Key Features
 

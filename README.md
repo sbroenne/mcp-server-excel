@@ -8,8 +8,6 @@
 [![MCP Registry](https://img.shields.io/badge/MCP_Registry-io.github.sbroenne%2Fmcp--server--excel-blue?logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTggMEw5LjUgMy41TDEzIDVMOS41IDYuNUw4IDEwTDYuNSA2LjVMMyA1TDYuNSAzLjVMOCAwWiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTEyIDhMMTMuNSAxMS41TDE2IDEzTDEzLjUgMTQuNUwxMiAxOEwxMC41IDE0LjVMOCAxM0wxMC41IDExLjVMMTIgOFoiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=)](https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel)
 [![NuGet MCP Server](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.McpServer.svg?label=MCP%20Server)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
 [![NuGet CLI](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.CLI.svg?label=CLI)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)
-[![NuGet Core](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.Core.svg?label=Core)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.Core)
-[![NuGet ComInterop](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.ComInterop.svg?label=ComInterop)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.ComInterop)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-8.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)

@@ -28,19 +28,18 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 - ✅ **Interactive development** - See changes in real-time as you work with live Excel files
 - ✅ **Comprehensive automation** - Currently supports 163 operations across 12 specialized tools
 
-
 **Quick Example:**
 
 ```
-You: "Create a Power Query named 'SalesData' that loads from data.csv"
+You: "Create a Power Query named 'SalesData' that loads from data.csv into a worksheet and data model and creates matching pivot tables. Format it professionally."
 
 Copilot uses Excel MCP Server to:
 1. Create/open an Excel workbook
-2. Add the Power Query with proper M code
-3. Load the data to a worksheet
-4. Save and return confirmation
+2. Add the Power Query with proper M code based on its analysis of the CSV file
+3. Load the data to a worksheet and a data model
+4. Create profesionally formatted pivot tables
 
-Result: A working Excel file with the query ready to use
+Result: Just what you requested - without touching Excel once.
 ```
 
 ## 👥 Who Should Use This?
@@ -61,7 +60,7 @@ Result: A working Excel file with the query ready to use
 2. **Ask Copilot** in the chat panel:
    - "List all Power Query queries in workbook.xlsx"
    - "Create a DAX measure for year-over-year revenue growth"
-   - "Export all VBA modules to .vba files for version control"
+   - "Export all Powere Queires and VBA modules to .vba files for version control"
 
 **That's it!** The extension automatically installs .NET 8 runtime and includes a bundled MCP server.
 
