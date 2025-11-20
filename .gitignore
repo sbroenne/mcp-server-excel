@@ -221,3 +221,4 @@ sample_files/
 gh-pages/vendor
 gh-pages/_site/*
 
+codeql-db/*

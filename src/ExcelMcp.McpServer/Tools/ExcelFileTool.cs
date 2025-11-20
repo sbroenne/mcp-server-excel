@@ -25,7 +25,9 @@ public static class ExcelFileTool
 ⚠️ SESSION LIFECYCLE REQUIRED:
 1. OPEN - Start session, get sessionId
 2. OPERATE - Use sessionId with other tools
-3. CLOSE - End session (set save: true to persist changes)
+3. CLOSE - End session (use save:true parameter to persist changes)
+
+⚠️ NO 'SAVE' ACTION - Use action='close' with save:true to persist changes
 
 WORKFLOWS:
 - Persist changes: open → operations(sessionId) → close(save: true)
@@ -64,6 +66,19 @@ FILE FORMATS:
                 FileAction.Test => TestFileAsync(fileCommands, excelPath!),
                 _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
+        }
+        catch (ArgumentException ex) when (ex.Message.Contains("action") || ex.Message.Contains("Action"))
+        {
+            // Invalid action value provided
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"Invalid action value. Valid actions: open, close, create-empty, close-workbook, test. {ex.Message}",
+                validActions = new[] { "open", "close", "create-empty", "close-workbook", "test" },
+                providedAction = action.ToString(),
+                workflowHint = "For persisting changes, use action='close' with save=true parameter (not action='save')",
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
         }
         catch (Exception ex)
         {
