@@ -74,7 +74,16 @@ public static class ExcelPivotTableTool
         string? sortDirection = null,
 
         [Description("Date grouping interval: Days, Months, Quarters, Years")]
-        string? dateGroupingInterval = null)
+        string? dateGroupingInterval = null,
+
+        [Description("Numeric grouping start value (null = use field minimum)")]
+        double? numericGroupingStart = null,
+
+        [Description("Numeric grouping end value (null = use field maximum)")]
+        double? numericGroupingEnd = null,
+
+        [Description("Numeric grouping interval size (e.g., 100 for 0-100, 100-200, ...)")]
+        double? numericGroupingInterval = null)
     {
         var commands = new PivotTableCommands();
 
@@ -82,26 +91,27 @@ public static class ExcelPivotTableTool
         {
             return action switch
             {
-                PivotTableAction.List => ListAsync(commands, sessionId),
-                PivotTableAction.Read => ReadAsync(commands, sessionId, pivotTableName),
-                PivotTableAction.CreateFromRange => CreateFromRangeAsync(commands, sessionId, sheetName, range, destinationSheet, destinationCell, pivotTableName),
-                PivotTableAction.CreateFromTable => CreateFromTableAsync(commands, sessionId, tableName, destinationSheet, destinationCell, pivotTableName),
-                PivotTableAction.CreateFromDataModel => CreateFromDataModelAsync(commands, sessionId, dataModelTableName, destinationSheet, destinationCell, pivotTableName),
-                PivotTableAction.Delete => DeleteAsync(commands, sessionId, pivotTableName),
-                PivotTableAction.Refresh => RefreshAsync(commands, sessionId, pivotTableName),
-                PivotTableAction.ListFields => ListFieldsAsync(commands, sessionId, pivotTableName),
-                PivotTableAction.AddRowField => AddRowFieldAsync(commands, sessionId, pivotTableName, fieldName, position),
-                PivotTableAction.AddColumnField => AddColumnFieldAsync(commands, sessionId, pivotTableName, fieldName, position),
-                PivotTableAction.AddValueField => AddValueFieldAsync(commands, sessionId, pivotTableName, fieldName, aggregationFunction, customName),
-                PivotTableAction.AddFilterField => AddFilterFieldAsync(commands, sessionId, pivotTableName, fieldName),
-                PivotTableAction.RemoveField => RemoveFieldAsync(commands, sessionId, pivotTableName, fieldName),
-                PivotTableAction.SetFieldFunction => SetFieldFunctionAsync(commands, sessionId, pivotTableName, fieldName, aggregationFunction),
-                PivotTableAction.SetFieldName => SetFieldNameAsync(commands, sessionId, pivotTableName, fieldName, customName),
-                PivotTableAction.SetFieldFormat => SetFieldFormatAsync(commands, sessionId, pivotTableName, fieldName, numberFormat),
-                PivotTableAction.GetData => GetDataAsync(commands, sessionId, pivotTableName),
-                PivotTableAction.SetFieldFilter => SetFieldFilterAsync(commands, sessionId, pivotTableName, fieldName, filterValues),
-                PivotTableAction.SortField => SortFieldAsync(commands, sessionId, pivotTableName, fieldName, sortDirection),
-                PivotTableAction.GroupByDate => GroupByDateAsync(commands, sessionId, pivotTableName, fieldName, dateGroupingInterval),
+                PivotTableAction.List => List(commands, sessionId),
+                PivotTableAction.Read => Read(commands, sessionId, pivotTableName),
+                PivotTableAction.CreateFromRange => CreateFromRange(commands, sessionId, sheetName, range, destinationSheet, destinationCell, pivotTableName),
+                PivotTableAction.CreateFromTable => CreateFromTable(commands, sessionId, tableName, destinationSheet, destinationCell, pivotTableName),
+                PivotTableAction.CreateFromDataModel => CreateFromDataModel(commands, sessionId, dataModelTableName, destinationSheet, destinationCell, pivotTableName),
+                PivotTableAction.Delete => Delete(commands, sessionId, pivotTableName),
+                PivotTableAction.Refresh => Refresh(commands, sessionId, pivotTableName),
+                PivotTableAction.ListFields => ListFields(commands, sessionId, pivotTableName),
+                PivotTableAction.AddRowField => AddRowField(commands, sessionId, pivotTableName, fieldName, position),
+                PivotTableAction.AddColumnField => AddColumnField(commands, sessionId, pivotTableName, fieldName, position),
+                PivotTableAction.AddValueField => AddValueField(commands, sessionId, pivotTableName, fieldName, aggregationFunction, customName),
+                PivotTableAction.AddFilterField => AddFilterField(commands, sessionId, pivotTableName, fieldName),
+                PivotTableAction.RemoveField => RemoveField(commands, sessionId, pivotTableName, fieldName),
+                PivotTableAction.SetFieldFunction => SetFieldFunction(commands, sessionId, pivotTableName, fieldName, aggregationFunction),
+                PivotTableAction.SetFieldName => SetFieldName(commands, sessionId, pivotTableName, fieldName, customName),
+                PivotTableAction.SetFieldFormat => SetFieldFormat(commands, sessionId, pivotTableName, fieldName, numberFormat),
+                PivotTableAction.GetData => GetData(commands, sessionId, pivotTableName),
+                PivotTableAction.SetFieldFilter => SetFieldFilter(commands, sessionId, pivotTableName, fieldName, filterValues),
+                PivotTableAction.SortField => SortField(commands, sessionId, pivotTableName, fieldName, sortDirection),
+                PivotTableAction.GroupByDate => GroupByDate(commands, sessionId, pivotTableName, fieldName, dateGroupingInterval),
+                PivotTableAction.GroupByNumeric => GroupByNumeric(commands, sessionId, pivotTableName, fieldName, numericGroupingStart, numericGroupingEnd, numericGroupingInterval),
                 _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
         }
@@ -116,7 +126,7 @@ public static class ExcelPivotTableTool
         }
     }
 
-    private static string ListAsync(
+    private static string List(
         PivotTableCommands commands,
         string sessionId)
     {
@@ -130,7 +140,7 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string ReadAsync(
+    private static string Read(
         PivotTableCommands commands,
         string sessionId,
         string? pivotTableName)
@@ -150,7 +160,7 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string CreateFromRangeAsync(
+    private static string CreateFromRange(
         PivotTableCommands commands,
         string sessionId,
         string? sheetName,
@@ -187,7 +197,7 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string CreateFromTableAsync(
+    private static string CreateFromTable(
         PivotTableCommands commands,
         string sessionId,
         string? tableName,
@@ -221,7 +231,7 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string CreateFromDataModelAsync(
+    private static string CreateFromDataModel(
         PivotTableCommands commands,
         string sessionId,
         string? dataModelTableName,
@@ -255,7 +265,7 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string DeleteAsync(
+    private static string Delete(
         PivotTableCommands commands,
         string sessionId,
         string? pivotTableName)
@@ -273,7 +283,7 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string RefreshAsync(
+    private static string Refresh(
         PivotTableCommands commands,
         string sessionId,
         string? pivotTableName)
@@ -298,7 +308,7 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string ListFieldsAsync(
+    private static string ListFields(
         PivotTableCommands commands,
         string sessionId,
         string? pivotTableName)
@@ -317,7 +327,7 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string AddRowFieldAsync(
+    private static string AddRowField(
         PivotTableCommands commands,
         string sessionId,
         string? pivotTableName,
@@ -348,7 +358,7 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string AddColumnFieldAsync(
+    private static string AddColumnField(
         PivotTableCommands commands,
         string sessionId,
         string? pivotTableName,
@@ -379,7 +389,7 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string AddValueFieldAsync(
+    private static string AddValueField(
         PivotTableCommands commands,
         string sessionId,
         string? pivotTableName,
@@ -420,7 +430,7 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string AddFilterFieldAsync(
+    private static string AddFilterField(
         PivotTableCommands commands,
         string sessionId,
         string? pivotTableName,
@@ -450,7 +460,7 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string RemoveFieldAsync(
+    private static string RemoveField(
         PivotTableCommands commands,
         string sessionId,
         string? pivotTableName,
@@ -480,7 +490,7 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string SetFieldFunctionAsync(
+    private static string SetFieldFunction(
         PivotTableCommands commands,
         string sessionId,
         string? pivotTableName,
@@ -519,7 +529,7 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string SetFieldNameAsync(
+    private static string SetFieldName(
         PivotTableCommands commands,
         string sessionId,
         string? pivotTableName,
@@ -552,7 +562,7 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string SetFieldFormatAsync(
+    private static string SetFieldFormat(
         PivotTableCommands commands,
         string sessionId,
         string? pivotTableName,
@@ -585,7 +595,7 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string GetDataAsync(
+    private static string GetData(
         PivotTableCommands commands,
         string sessionId,
         string? pivotTableName)
@@ -610,7 +620,7 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string SetFieldFilterAsync(
+    private static string SetFieldFilter(
         PivotTableCommands commands,
         string sessionId,
         string? pivotTableName,
@@ -651,7 +661,7 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string SortFieldAsync(
+    private static string SortField(
         PivotTableCommands commands,
         string sessionId,
         string? pivotTableName,
@@ -691,7 +701,7 @@ public static class ExcelPivotTableTool
         }, JsonOptions);
     }
 
-    private static string GroupByDateAsync(
+    private static string GroupByDate(
         PivotTableCommands commands,
         string sessionId,
         string? pivotTableName,
@@ -728,5 +738,36 @@ public static class ExcelPivotTableTool
             result.WorkflowHint
         }, JsonOptions);
     }
-}
 
+    private static string GroupByNumeric(
+        PivotTableCommands commands,
+        string sessionId,
+        string? pivotTableName,
+        string? fieldName,
+        double? numericGroupingStart,
+        double? numericGroupingEnd,
+        double? numericGroupingInterval)
+    {
+        if (string.IsNullOrEmpty(pivotTableName))
+            throw new ArgumentException("pivotTableName is required for group-by-numeric action", nameof(pivotTableName));
+
+        if (string.IsNullOrEmpty(fieldName))
+            throw new ArgumentException("fieldName is required for group-by-numeric action", nameof(fieldName));
+
+        if (!numericGroupingInterval.HasValue || numericGroupingInterval.Value <= 0)
+            throw new ArgumentException("numericGroupingInterval is required and must be > 0 for group-by-numeric action", nameof(numericGroupingInterval));
+
+        var result = ExcelToolsBase.WithSession(sessionId,
+            batch => commands.GroupByNumeric(batch, pivotTableName!, fieldName!, numericGroupingStart, numericGroupingEnd, numericGroupingInterval.Value));
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.FieldName,
+            result.CustomName,
+            result.Area,
+            result.ErrorMessage,
+            result.WorkflowHint
+        }, JsonOptions);
+    }
+}

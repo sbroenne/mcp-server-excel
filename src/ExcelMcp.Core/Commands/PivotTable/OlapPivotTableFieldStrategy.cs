@@ -876,6 +876,43 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
     }
 
+    /// <inheritdoc/>
+    public PivotFieldResult GroupByNumeric(dynamic pivot, string fieldName, double? start, double? endValue, double intervalSize, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null)
+    {
+        dynamic? cubeField = null;
+        try
+        {
+            cubeField = GetFieldForManipulation(pivot, fieldName);
+
+            // OLAP PivotTables do not support manual numeric grouping via LabelRange.Group()
+            // Numeric grouping must be done in the source data or Data Model
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Manual numeric grouping is not supported for OLAP PivotTables. " +
+                              $"Numeric grouping must be defined in the Data Model. " +
+                              $"Use Power Pivot to create calculated columns with range logic on the '{fieldName}' column.",
+                FieldName = fieldName,
+                FilePath = workbookPath,
+                WorkflowHint = "For OLAP PivotTables: 1) Open Power Pivot, 2) Create calculated column with range logic " +
+                               "(e.g., IF([Sales]<100, \"0-100\", IF([Sales]<200, \"100-200\", ...))), 3) Use that calculated column in PivotTable."
+            };
+        }
+        catch (Exception ex)
+        {
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to access OLAP field '{fieldName}': {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref cubeField);
+        }
+    }
+
     #region Helper Methods
 
     /// <summary>

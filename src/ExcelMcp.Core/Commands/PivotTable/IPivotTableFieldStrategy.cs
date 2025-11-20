@@ -89,4 +89,22 @@ public interface IPivotTableFieldStrategy
     /// </code>
     /// </remarks>
     PivotFieldResult GroupByDate(dynamic pivot, string fieldName, DateGroupingInterval interval, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
+
+    /// <summary>
+    /// Groups a numeric field by specified interval (e.g., 0-10, 10-20, 20-30).
+    /// </summary>
+    /// <param name="pivot">The PivotTable object</param>
+    /// <param name="fieldName">Field to group</param>
+    /// <param name="start">Starting value (null = use field minimum)</param>
+    /// <param name="endValue">Ending value (null = use field maximum)</param>
+    /// <param name="intervalSize">Size of each group (e.g., 10 for groups of 10)</param>
+    /// <param name="workbookPath">Path to workbook for error reporting</param>
+    /// <param name="logger">Optional logger for diagnostics</param>
+    /// <returns>Result indicating success or failure</returns>
+    /// <remarks>
+    /// Use cases: Age groups (0-20, 20-40), price ranges (0-100, 100-200), score bands (0-50, 50-100).
+    /// Source data should be formatted with numeric NumberFormat for reliable grouping.
+    /// If start/end are null, Excel automatically uses the field's minimum/maximum values.
+    /// </remarks>
+    PivotFieldResult GroupByNumeric(dynamic pivot, string fieldName, double? start, double? endValue, double intervalSize, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
 }

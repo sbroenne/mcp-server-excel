@@ -937,4 +937,75 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             ComUtilities.Release(ref field);
         }
     }
+
+    /// <inheritdoc/>
+    public PivotFieldResult GroupByNumeric(dynamic pivot, string fieldName, double? start, double? endValue, double intervalSize, string workbookPath, ILogger? logger = null)
+    {
+        dynamic? field = null;
+        dynamic? singleCell = null;
+        try
+        {
+            // CRITICAL: Refresh PivotTable FIRST to populate field with actual numeric values
+            // Excel needs populated items before grouping can work (same as date grouping)
+            pivot.RefreshTable();
+
+            field = GetFieldForManipulation(pivot, fieldName);
+
+            // CRITICAL: Microsoft documentation states:
+            // "The Range object must be a single cell in the PivotTable field's data range"
+            // Same requirement as date grouping - use first cell from field.DataRange
+            //
+            // Source: https://learn.microsoft.com/en-us/dotnet/api/microsoft.office.interop.excel.range.group?view=excel-pia
+            //
+            // For numeric grouping:
+            // - By parameter specifies interval size (e.g., 10 for groups of 10)
+            // - Start/End parameters define range (null = use field min/max)
+            // - Periods parameter is IGNORED (only used for date grouping)
+
+            // Get first cell from field.DataRange (items in the field)
+            singleCell = field.DataRange.Cells[1, 1];
+
+            // Convert nullable to object
+            // If start/end are null, use true to let Excel auto-detect min/max
+            object startValue = start.HasValue ? (object)start.Value : true;
+            object endValueObj = endValue.HasValue ? (object)endValue.Value : true;
+
+            // Call Group on single cell
+            // For numeric fields, By specifies the interval size
+            // Periods is ignored (only used for date grouping)
+            singleCell.Group(
+                Start: startValue,
+                End: endValueObj,
+                By: intervalSize,
+                Periods: Type.Missing
+            );
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                CustomName = field.Caption?.ToString() ?? fieldName,
+                Area = (PivotFieldArea)field.Orientation,
+                FilePath = workbookPath,
+                WorkflowHint = $"Field '{fieldName}' grouped by intervals of {intervalSize}. Excel created numeric range groups."
+            };
+        }
+        catch (Exception ex)
+        {
+#pragma warning disable CA1848 // Keep error logging for diagnostics
+            logger?.LogError(ex, "GroupByNumeric failed for field '{FieldName}'", fieldName);
+#pragma warning restore CA1848
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to group field numerically: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref singleCell);
+            ComUtilities.Release(ref field);
+        }
+    }
 }

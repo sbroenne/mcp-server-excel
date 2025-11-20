@@ -235,5 +235,23 @@ public interface IPivotTableCommands
     /// </remarks>
     PivotFieldResult GroupByDate(IExcelBatch batch, string pivotTableName,
         string fieldName, DateGroupingInterval interval);
-}
 
+    /// <summary>
+    /// Groups a numeric field by specified interval (e.g., 0-100, 100-200, 200-300).
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of PivotTable</param>
+    /// <param name="fieldName">Field to group</param>
+    /// <param name="start">Starting value (null = use field minimum)</param>
+    /// <param name="endValue">Ending value (null = use field maximum)</param>
+    /// <param name="intervalSize">Size of each group (e.g., 100 for groups of 100)</param>
+    /// <returns>Grouping result with created groups</returns>
+    /// <remarks>
+    /// Creates numeric range groups in PivotTable for analysis.
+    /// Use cases: Age groups (0-20, 20-40), price ranges (0-100, 100-200), score bands (0-50, 50-100).
+    /// Works for regular PivotTables. OLAP PivotTables require grouping in Data Model.
+    /// Example: Group "Sales" by 100 to analyze sales distribution across price ranges.
+    /// </remarks>
+    PivotFieldResult GroupByNumeric(IExcelBatch batch, string pivotTableName,
+        string fieldName, double? start, double? endValue, double intervalSize);
+}

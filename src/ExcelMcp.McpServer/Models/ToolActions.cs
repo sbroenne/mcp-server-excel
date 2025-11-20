@@ -297,6 +297,7 @@ public enum PivotTableAction
 
     // Grouping Operations
     GroupByDate,
+    GroupByNumeric,
 
     // Data Operations
     GetData
