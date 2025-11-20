@@ -1,7 +1,10 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
+using Microsoft.Extensions.Logging;
 using Xunit;
+using Xunit.Abstractions;
+using MartinCostello.Logging.XUnit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 
@@ -21,16 +24,22 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     private readonly string _pivotFile;
     private readonly PivotTableCreationResult _creationResult;
     private readonly string _tempDir;
+    private readonly ITestOutputHelper _output;
+    private readonly ILoggerFactory _loggerFactory;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PivotTableCommandsTests"/> class.
     /// </summary>
-    public PivotTableCommandsTests(PivotTableTestsFixture fixture)
+    public PivotTableCommandsTests(PivotTableTestsFixture fixture, ITestOutputHelper output)
     {
         _pivotCommands = new PivotTableCommands();
         _pivotFile = fixture.TestFilePath;
         _creationResult = fixture.CreationResult;
         _tempDir = Path.GetDirectoryName(fixture.TestFilePath)!;
+        _output = output;
+        _loggerFactory = LoggerFactory.Create(builder => builder
+            .AddXUnit(output)
+            .SetMinimumLevel(LogLevel.Trace));
     }
 
     /// <summary>
@@ -78,6 +87,10 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
             sheet.Range["B6"].Value2 = "Widget";
             sheet.Range["C6"].Value2 = 125;
             sheet.Range["D6"].Value2 = new DateTime(2025, 3, 5);
+
+            // CRITICAL: Format Date column with date format so PivotTable recognizes dates
+            // Without this, dates are stored as serial numbers (45672) and Excel won't group them
+            sheet.Range["D2:D6"].NumberFormat = "m/d/yyyy";
 
             return 0;
         });
@@ -141,5 +154,63 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
         });
 
         // This proves data creation + save worked correctly
+    }
+}
+
+/// <summary>
+/// Custom logger provider that writes to xUnit output
+/// </summary>
+internal sealed class TestLoggerProvider : ILoggerProvider
+{
+    private readonly ITestOutputHelper _output;
+
+    public TestLoggerProvider(ITestOutputHelper output)
+    {
+        _output = output;
+    }
+
+    public ILogger CreateLogger(string categoryName)
+    {
+        return new TestLogger(_output, categoryName);
+    }
+
+    public void Dispose()
+    {
+    }
+}
+
+/// <summary>
+/// Custom logger that writes to xUnit output
+/// </summary>
+internal sealed class TestLogger : ILogger
+{
+    private readonly ITestOutputHelper _output;
+    private readonly string _categoryName;
+
+    public TestLogger(ITestOutputHelper output, string categoryName)
+    {
+        _output = output;
+        _categoryName = categoryName;
+    }
+
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+    {
+        return null;
+    }
+
+    public bool IsEnabled(LogLevel logLevel)
+    {
+        return true;
+    }
+
+    public void Log<TState>(
+        LogLevel logLevel,
+        EventId eventId,
+        TState state,
+        Exception? exception,
+        Func<TState, Exception?, string> formatter)
+    {
+        var message = formatter(state, exception);
+        _output.WriteLine($"[{logLevel}] {_categoryName}: {message}");
     }
 }

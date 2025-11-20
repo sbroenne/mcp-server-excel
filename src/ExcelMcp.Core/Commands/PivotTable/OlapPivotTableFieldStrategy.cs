@@ -835,6 +835,47 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
     }
 
+    /// <summary>
+    /// Group a date/time field by the specified interval (Month, Quarter, Year).
+    /// OLAP CubeFields automatically create date hierarchies from Data Model columns.
+    /// Manual grouping via Group() is NOT supported for OLAP PivotTables.
+    /// </summary>
+    public PivotFieldResult GroupByDate(dynamic pivot, string fieldName, DateGroupingInterval interval, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null)
+    {
+        dynamic? cubeField = null;
+        try
+        {
+            cubeField = GetFieldForManipulation(pivot, fieldName);
+
+            // OLAP PivotTables do not support manual date grouping via LabelRange.Group()
+            // Date hierarchies are defined in the Data Model and automatically available
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Manual date grouping is not supported for OLAP PivotTables. " +
+                              $"Date hierarchies must be defined in the Data Model. " +
+                              $"Use Power Pivot to create date hierarchies (Year > Quarter > Month > Day) on the '{fieldName}' column.",
+                FieldName = fieldName,
+                FilePath = workbookPath,
+                WorkflowHint = "For OLAP PivotTables: 1) Open Power Pivot, 2) Create date hierarchy on date column, " +
+                               "3) Use RemoveField/AddField to place hierarchy levels in PivotTable areas."
+            };
+        }
+        catch (Exception ex)
+        {
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to access OLAP field '{fieldName}': {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref cubeField);
+        }
+    }
+
     #region Helper Methods
 
     /// <summary>

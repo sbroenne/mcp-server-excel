@@ -295,6 +295,9 @@ public enum PivotTableAction
     SetFieldFilter,
     SortField,
 
+    // Grouping Operations
+    GroupByDate,
+
     // Data Operations
     GetData
 }

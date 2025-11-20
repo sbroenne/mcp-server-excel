@@ -73,4 +73,20 @@ public interface IPivotTableFieldStrategy
     /// Sorts a field
     /// </summary>
     PivotFieldResult SortField(dynamic pivot, string fieldName, SortDirection direction, string workbookPath);
+
+    /// <summary>
+    /// Groups a date/time field by specified interval (Days, Months, Quarters, Years).
+    /// </summary>
+    /// <remarks>
+    /// CRITICAL REQUIREMENT: Source data MUST be formatted with date NumberFormat BEFORE creating the PivotTable.
+    /// Excel stores dates as serial numbers (e.g., 45672 = 2025-01-15). Without proper date formatting,
+    /// Excel treats these as plain numbers and grouping silently fails.
+    ///
+    /// Example:
+    /// <code>
+    /// // Format source data BEFORE creating PivotTable
+    /// sheet.Range["D2:D6"].NumberFormat = "m/d/yyyy";
+    /// </code>
+    /// </remarks>
+    PivotFieldResult GroupByDate(dynamic pivot, string fieldName, DateGroupingInterval interval, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
 }

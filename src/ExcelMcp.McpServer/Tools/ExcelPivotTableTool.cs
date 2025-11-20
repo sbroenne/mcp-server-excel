@@ -71,7 +71,10 @@ public static class ExcelPivotTableTool
         string? filterValues = null,
 
         [Description("Sort direction: Ascending, Descending")]
-        string? sortDirection = null)
+        string? sortDirection = null,
+
+        [Description("Date grouping interval: Days, Months, Quarters, Years")]
+        string? dateGroupingInterval = null)
     {
         var commands = new PivotTableCommands();
 
@@ -98,6 +101,7 @@ public static class ExcelPivotTableTool
                 PivotTableAction.GetData => GetDataAsync(commands, sessionId, pivotTableName),
                 PivotTableAction.SetFieldFilter => SetFieldFilterAsync(commands, sessionId, pivotTableName, fieldName, filterValues),
                 PivotTableAction.SortField => SortFieldAsync(commands, sessionId, pivotTableName, fieldName, sortDirection),
+                PivotTableAction.GroupByDate => GroupByDateAsync(commands, sessionId, pivotTableName, fieldName, dateGroupingInterval),
                 _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
         }
@@ -684,6 +688,44 @@ public static class ExcelPivotTableTool
             result.SampleValue,
             result.DataType,
             result.ErrorMessage
+        }, JsonOptions);
+    }
+
+    private static string GroupByDateAsync(
+        PivotTableCommands commands,
+        string sessionId,
+        string? pivotTableName,
+        string? fieldName,
+        string? dateGroupingInterval)
+    {
+        if (string.IsNullOrEmpty(pivotTableName))
+            throw new ArgumentException("pivotTableName is required for group-by-date action", nameof(pivotTableName));
+
+        if (string.IsNullOrEmpty(fieldName))
+            throw new ArgumentException("fieldName is required for group-by-date action", nameof(fieldName));
+
+        if (string.IsNullOrEmpty(dateGroupingInterval))
+            throw new ArgumentException("dateGroupingInterval is required for group-by-date action", nameof(dateGroupingInterval));
+
+        // Parse date grouping interval
+        if (!Enum.TryParse<DateGroupingInterval>(dateGroupingInterval, true, out var interval))
+        {
+            throw new ArgumentException(
+                $"Invalid date grouping interval '{dateGroupingInterval}'. Valid values: Days, Months, Quarters, Years",
+                nameof(dateGroupingInterval));
+        }
+
+        var result = ExcelToolsBase.WithSession(sessionId,
+            batch => commands.GroupByDate(batch, pivotTableName!, fieldName!, interval));
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.FieldName,
+            result.CustomName,
+            result.Area,
+            result.ErrorMessage,
+            result.WorkflowHint
         }, JsonOptions);
     }
 }

@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
@@ -829,4 +830,111 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     #endregion
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// CRITICAL REQUIREMENT: Source data MUST be formatted with date NumberFormat BEFORE creating the PivotTable.
+    /// Without proper date formatting, Excel stores dates as serial numbers (e.g., 45672) with "Standard" format,
+    /// which prevents date grouping from working.
+    ///
+    /// Example:
+    /// <code>
+    /// // Apply date format to source data BEFORE creating PivotTable
+    /// sheet.Range["D2:D6"].NumberFormat = "m/d/yyyy";
+    /// </code>
+    ///
+    /// This method groups date fields by Days, Months, Quarters, or Years. Excel automatically creates
+    /// hierarchical groupings (e.g., Months + Years) for proper time-based analysis.
+    /// </remarks>
+    public PivotFieldResult GroupByDate(dynamic pivot, string fieldName, DateGroupingInterval interval, string workbookPath, ILogger? logger = null)
+    {
+        dynamic? field = null;
+        dynamic? singleCell = null;
+        try
+        {
+            // CRITICAL: Refresh PivotTable FIRST to populate field with actual date values
+            // Excel needs populated items before grouping can work
+            pivot.RefreshTable();
+
+            field = GetFieldForManipulation(pivot, fieldName);
+
+            // CRITICAL: Microsoft documentation states:
+            // "The Range object must be a single cell in the PivotTable field's data range"
+            // This means a cell from the actual PivotTable BODY (items in the field),
+            // NOT the field button area.
+            //
+            // Source: https://learn.microsoft.com/en-us/dotnet/api/microsoft.office.interop.excel.range.group?view=excel-pia
+            //
+            // PivotField.DataRange returns:
+            // - For Row/Column/Page fields: "Items in the field" (what we need!)
+            // - For Data fields: "Data contained in the field"
+            //
+            // Use the first cell from field.DataRange - this is where the actual date values appear
+
+            // Get first cell from field.DataRange (items in the field)
+            singleCell = field.DataRange.Cells[1, 1];
+
+            // CRITICAL: Periods is a boolean array with 7 elements (Seconds, Minutes, Hours, Days, Months, Quarters, Years)
+            // See: https://learn.microsoft.com/en-us/office/vba/api/excel.range.group
+            // Element indexes: 1=Seconds, 2=Minutes, 3=Hours, 4=Days, 5=Months, 6=Quarters, 7=Years
+            // Excel uses 1-based indexing, C# arrays are 0-based, so index 3 = element 4 = Days
+            var periods = new object[] { false, false, false, false, false, false, false };
+
+            switch (interval)
+            {
+                case DateGroupingInterval.Days:
+                    periods[3] = true;      // Element 4 (index 3) = Days
+                    break;
+                case DateGroupingInterval.Months:
+                    periods[4] = true;      // Element 5 (index 4) = Months
+                    periods[6] = true;      // Element 7 (index 6) = Years (required for month grouping)
+                    break;
+                case DateGroupingInterval.Quarters:
+                    periods[5] = true;      // Element 6 (index 5) = Quarters
+                    periods[6] = true;      // Element 7 (index 6) = Years (required for quarter grouping)
+                    break;
+                case DateGroupingInterval.Years:
+                    periods[6] = true;      // Element 7 (index 6) = Years
+                    break;
+                default:
+                    throw new ArgumentException($"Unknown grouping interval: {interval}");
+            }
+
+            // Call Group on single cell, not entire range
+            // VBA examples use Start:=True and End:=True to use auto-detected min/max date range
+            singleCell.Group(
+                Start: true,
+                End: true,
+                By: Type.Missing,
+                Periods: periods
+            );
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                CustomName = field.Caption?.ToString() ?? fieldName,
+                Area = (PivotFieldArea)field.Orientation,
+                FilePath = workbookPath,
+                WorkflowHint = $"Field '{fieldName}' grouped by {interval}. Excel created automatic date hierarchy."
+            };
+        }
+        catch (Exception ex)
+        {
+#pragma warning disable CA1848 // Keep error logging for diagnostics
+            logger?.LogError(ex, "GroupByDate failed for field '{FieldName}'", fieldName);
+#pragma warning restore CA1848
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to group field by date: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref singleCell);
+            ComUtilities.Release(ref field);
+        }
+    }
 }

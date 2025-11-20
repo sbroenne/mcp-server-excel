@@ -217,5 +217,23 @@ public interface IPivotTableCommands
     /// <returns>Applied sort configuration and preview of changes</returns>
     PivotFieldResult SortField(IExcelBatch batch, string pivotTableName,
         string fieldName, SortDirection direction = SortDirection.Ascending);
+
+    // === GROUPING OPERATIONS (DATE AND NUMERIC) ===
+
+    /// <summary>
+    /// Groups date/time field by specified interval (Month, Quarter, Year)
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <param name="fieldName">Name of the date/time field to group</param>
+    /// <param name="interval">Grouping interval (Months, Quarters, Years)</param>
+    /// <returns>Applied grouping configuration and resulting group count</returns>
+    /// <remarks>
+    /// Creates automatic date hierarchy in PivotTable (e.g., Years > Quarters > Months).
+    /// Works for both regular and OLAP PivotTables.
+    /// Example: Group "OrderDate" by Months to see monthly sales trends.
+    /// </remarks>
+    PivotFieldResult GroupByDate(IExcelBatch batch, string pivotTableName,
+        string fieldName, DateGroupingInterval interval);
 }
 

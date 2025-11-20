@@ -89,6 +89,15 @@ public partial class FeatureCommandsTests : IClassFixture<TempDirectoryFixture>
 - ❌ **NEVER** "accept both" patterns
 - ✅ **ALWAYS verify actual Excel state** after create/update operations
 
+### Diagnostic Output
+- ✅ Use `ILogger` with `ITestOutputHelper` for diagnostic messages
+- ✅ Pattern: Test constructor receives `ITestOutputHelper`, creates logger via `MartinCostello.Logging.XUnit`
+- ✅ Pass logger to `ExcelBatch` constructor (requires `InternalsVisibleTo` for accessing internal ExcelBatch)
+- ✅ Logger messages appear in test output automatically (success or failure)
+- ❌ **NEVER** use `Console.WriteLine()` - output is suppressed by test runner
+- ❌ **NEVER** use `Debug.WriteLine()` - only visible with debugger attached, not in test output
+- ❌ **NEVER** write to files for diagnostics - use proper logging infrastructure
+
 ### Save
 - ❌ **FORBIDDEN** unless explicitly testing persistence
 - ✅ **ONLY** for round-trip tests: Create → Save → Re-open → Verify
