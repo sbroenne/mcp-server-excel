@@ -6,13 +6,14 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// <summary>
 /// Strategy for OLAP (Online Analytical Processing) PivotTable field operations.
 /// Uses CubeFields API for Data Model-based PivotTables.
-/// 
-/// CRITICAL: In OLAP PivotTables, PivotFields do not exist until the corresponding 
+///
+/// CRITICAL: In OLAP PivotTables, PivotFields do not exist until the corresponding
 /// CubeField is added to the PivotTable. Must call CreatePivotFields() first.
 /// Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.cubefield.createpivotfields
 /// </summary>
 public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 {
+    private static readonly char[] FieldNameSeparators = ['[', ']', '.'];
     /// <inheritdoc/>
     public bool CanHandle(dynamic pivot)
     {
@@ -278,14 +279,142 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     public PivotFieldResult AddValueField(dynamic pivot, string fieldName, AggregationFunction aggregationFunction, string? customName, string workbookPath)
     {
         dynamic? cubeField = null;
+        dynamic? workbook = null;
+        dynamic? model = null;
+        dynamic? modelTables = null;
+        dynamic? table = null;
+        dynamic? measures = null;
+        dynamic? newMeasure = null;
+        dynamic? formatObject;
+
         try
         {
-            // OLAP limitation: Cannot add value fields via COM API
-            throw new InvalidOperationException(
-                $"Cannot add value field '{fieldName}' to OLAP PivotTable. " +
-                "OLAP measures must be pre-defined in the Excel Data Model. " +
-                "To add measures: (1) Open Data Model in Excel, (2) Create or modify measures, (3) Add to PivotTable manually, (4) Refresh the PivotTable. " +
-                "Reference: https://learn.microsoft.com/en-us/excel/vba/api/excel.cubefield");
+            // Auto-create DAX measure strategy:
+            // 1. Determine table and column from CubeFields
+            // 2. Generate DAX formula from aggregation function
+            // 3. Create measure in Data Model using COM API
+            // 4. Add measure CubeField to PivotTable values area
+
+            // Get workbook and model
+            workbook = pivot.Parent.Parent; // PivotTable -> Worksheet -> Workbook
+            model = workbook.Model;
+
+            if (model == null)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot add value field '{fieldName}' to OLAP PivotTable - workbook has no Data Model");
+            }
+
+            // Find the source table and column for this field
+            var tableAndColumn = FindTableAndColumn(pivot, fieldName);
+            string tableName = tableAndColumn.Item1;
+            string columnName = tableAndColumn.Item2;
+
+            if (string.IsNullOrEmpty(tableName) || string.IsNullOrEmpty(columnName))
+            {
+                throw new InvalidOperationException(
+                    $"Cannot determine table and column for field '{fieldName}'. " +
+                    "Field must reference a Data Model table column (e.g., 'Sales' from 'SalesTable[Sales]')");
+            }
+
+            // Generate DAX formula and measure name
+            string daxFormula = GenerateDaxFormula(tableName, columnName, aggregationFunction);
+            string measureName = customName ?? $"{columnName} {GetFunctionName(aggregationFunction)}";
+
+            // Find the table in the Data Model
+            modelTables = model.ModelTables;
+            for (int i = 1; i <= modelTables.Count; i++)
+            {
+                dynamic? t = null;
+                try
+                {
+                    t = modelTables.Item(i);
+                    string tName = t.Name?.ToString() ?? "";
+                    if (tName.Equals(tableName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        table = t;
+                        t = null; // Transfer ownership
+                        break;
+                    }
+                }
+                finally
+                {
+                    if (t != null)
+                        ComUtilities.Release(ref t);
+                }
+            }
+
+            if (table == null)
+            {
+                throw new InvalidOperationException($"Table '{tableName}' not found in Data Model");
+            }
+
+            // Get ModelMeasures collection and create the measure
+            measures = model.ModelMeasures;
+            formatObject = GetDefaultFormatObject(model);
+
+            newMeasure = measures.Add(
+                measureName,
+                table,
+                daxFormula,
+                formatObject,
+                Type.Missing  // description
+            );
+
+            // Refresh the PivotTable connection to make the measure available in CubeFields
+            pivot.RefreshTable();
+
+            // Find the measure in CubeFields - measures appear with [Measures]. prefix or just by name
+            dynamic? cubeFields = null;
+            try
+            {
+                cubeFields = pivot.CubeFields;
+                for (int i = 1; i <= cubeFields.Count; i++)
+                {
+                    dynamic? cf = null;
+                    try
+                    {
+                        cf = cubeFields.Item(i);
+                        string cfName = cf.Name?.ToString() ?? "";
+
+                        // Check if this is our measure (might be "[Measures].[Name]" or just "Name")
+                        if (cfName.Contains(measureName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            cubeField = cf;
+                            cf = null; // Transfer ownership
+                            break;
+                        }
+                    }
+                    finally
+                    {
+                        if (cf != null)
+                            ComUtilities.Release(ref cf);
+                    }
+                }
+            }
+            finally
+            {
+                ComUtilities.Release(ref cubeFields);
+            }
+
+            if (cubeField == null)
+            {
+                throw new InvalidOperationException($"Measure '{measureName}' created but not found in PivotTable CubeFields after refresh");
+            }
+
+            // Add to values area
+            cubeField.Orientation = XlPivotFieldOrientation.xlDataField;
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = measureName,
+                CustomName = customName ?? measureName,
+                Area = PivotFieldArea.Value,
+                Function = aggregationFunction,
+                DataType = "Cube",
+                FilePath = workbookPath
+            };
         }
         catch (Exception ex)
         {
@@ -298,6 +427,13 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
         finally
         {
+            // Don't release formatObject - it's owned by the model
+            ComUtilities.Release(ref newMeasure);
+            ComUtilities.Release(ref measures);
+            ComUtilities.Release(ref table);
+            ComUtilities.Release(ref modelTables);
+            ComUtilities.Release(ref model);
+            ComUtilities.Release(ref workbook);
             ComUtilities.Release(ref cubeField);
         }
     }
@@ -426,15 +562,78 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// <inheritdoc/>
     public PivotFieldResult SetFieldFunction(dynamic pivot, string fieldName, AggregationFunction aggregationFunction, string workbookPath)
     {
-        dynamic? cubeField = null;
+        dynamic? workbook = null;
+        dynamic? model = null;
+        dynamic? measures = null;
+        dynamic? measure = null;
         try
         {
-            // OLAP limitation: Cannot change aggregation function via COM
-            throw new InvalidOperationException(
-                $"Cannot change aggregation function for OLAP measure '{fieldName}'. " +
-                "OLAP measures have aggregation pre-defined in the Data Model. " +
-                "To change aggregation: (1) Open Data Model in Excel, (2) Modify the measure definition, (3) Refresh the PivotTable. " +
-                "Reference: https://learn.microsoft.com/en-us/excel/vba/api/excel.cubefield.function");
+            // For OLAP PivotTables, we need to update the DAX measure in the Data Model
+            // Get workbook and model
+            workbook = pivot.Parent.Parent;
+            model = workbook.Model;
+
+            if (model == null)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot update measure '{fieldName}' - workbook has no Data Model");
+            }
+
+            // Find the measure by name
+            measures = model.ModelMeasures;
+            for (int i = 1; i <= measures.Count; i++)
+            {
+                dynamic? m = null;
+                try
+                {
+                    m = measures.Item(i);
+                    string mName = m.Name?.ToString() ?? "";
+                    if (mName.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        measure = m;
+                        m = null; // Transfer ownership
+                        break;
+                    }
+                }
+                finally
+                {
+                    if (m != null)
+                        ComUtilities.Release(ref m);
+                }
+            }
+
+            if (measure == null)
+            {
+                throw new InvalidOperationException($"Measure '{fieldName}' not found in Data Model");
+            }
+
+            // Parse the current formula to extract table and column
+            string currentFormula = measure.Formula?.ToString() ?? "";
+            var parsedFormula = ParseDaxFormula(currentFormula);
+
+            if (string.IsNullOrEmpty(parsedFormula.tableName) || string.IsNullOrEmpty(parsedFormula.columnName))
+            {
+                throw new InvalidOperationException(
+                    $"Cannot update measure '{fieldName}' - unable to parse current formula: {currentFormula}");
+            }
+
+            // Generate new DAX formula with the new aggregation function
+            string newFormula = GenerateDaxFormula(parsedFormula.tableName, parsedFormula.columnName, aggregationFunction);
+
+            // Update the measure's formula
+            measure.Formula = newFormula;
+
+            // Refresh the PivotTable to reflect the change
+            pivot.RefreshTable();
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                Function = aggregationFunction,
+                DataType = "Cube",
+                FilePath = workbookPath
+            };
         }
         catch (Exception ex)
         {
@@ -447,7 +646,10 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
         finally
         {
-            ComUtilities.Release(ref cubeField);
+            ComUtilities.Release(ref measure);
+            ComUtilities.Release(ref measures);
+            ComUtilities.Release(ref model);
+            ComUtilities.Release(ref workbook);
         }
     }
     /// <inheritdoc/>
@@ -455,15 +657,76 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// <inheritdoc/>
     public PivotFieldResult SetFieldFormat(dynamic pivot, string fieldName, string numberFormat, string workbookPath)
     {
-        dynamic? cubeField = null;
+        dynamic? workbook = null;
+        dynamic? model = null;
+        dynamic? measures = null;
+        dynamic? measure = null;
+        dynamic? formatObject = null;
         try
         {
-            // OLAP limitation: Cannot set NumberFormat on DataFields via COM
-            throw new InvalidOperationException(
-                $"Cannot set number format for OLAP field '{fieldName}'. " +
-                "Number formatting in OLAP PivotTables is controlled by the Data Model definition, not via PivotTable properties. " +
-                "To change formatting: (1) Open Data Model in Excel, (2) Modify format settings in the Data Model, (3) Refresh the PivotTable. " +
-                "Reference: https://learn.microsoft.com/en-us/excel/vba/api/excel.datafield.numberformat");
+            // For OLAP PivotTables, we need to update the measure format in the Data Model
+            // Get workbook and model
+            workbook = pivot.Parent.Parent;
+            model = workbook.Model;
+
+            if (model == null)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot update format for measure '{fieldName}' - workbook has no Data Model");
+            }
+
+            // Find the measure by name
+            measures = model.ModelMeasures;
+            for (int i = 1; i <= measures.Count; i++)
+            {
+                dynamic? m = null;
+                try
+                {
+                    m = measures.Item(i);
+                    string mName = m.Name?.ToString() ?? "";
+                    if (mName.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        measure = m;
+                        m = null; // Transfer ownership
+                        break;
+                    }
+                }
+                finally
+                {
+                    if (m != null)
+                        ComUtilities.Release(ref m);
+                }
+            }
+
+            if (measure == null)
+            {
+                throw new InvalidOperationException($"Measure '{fieldName}' not found in Data Model");
+            }
+
+            // Get the CURRENT format object from the measure
+            // FormatInformation property returns the current format object which we can modify
+            formatObject = measure.FormatInformation;
+
+            if (formatObject == null)
+            {
+                throw new InvalidOperationException($"Measure '{fieldName}' has no format information");
+            }
+
+            // Modify the format object based on the requested format string
+            // The format object type varies (Currency, Percentage, Decimal, etc.)
+            ModifyFormatObject(formatObject, numberFormat);
+
+            // Refresh the PivotTable to reflect the change
+            pivot.RefreshTable();
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                NumberFormat = numberFormat,
+                DataType = "Cube",
+                FilePath = workbookPath
+            };
         }
         catch (Exception ex)
         {
@@ -476,7 +739,11 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
         finally
         {
-            ComUtilities.Release(ref cubeField);
+            ComUtilities.Release(ref formatObject);
+            ComUtilities.Release(ref measure);
+            ComUtilities.Release(ref measures);
+            ComUtilities.Release(ref model);
+            ComUtilities.Release(ref workbook);
         }
     }
     /// <inheritdoc/>
@@ -569,6 +836,414 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     #region Helper Methods
+
+    /// <summary>
+    /// Find the source table and column for a CubeField in the Data Model.
+    /// OLAP CubeFields reference Data Model columns in format: [TableName].[ColumnName]
+    /// </summary>
+    private (string tableName, string columnName) FindTableAndColumn(dynamic pivot, string fieldName)
+    {
+        dynamic? cubeFields = null;
+        try
+        {
+            cubeFields = pivot.CubeFields;
+
+            // Try to find the CubeField matching fieldName
+            for (int i = 1; i <= cubeFields.Count; i++)
+            {
+                dynamic? cf = null;
+                try
+                {
+                    cf = cubeFields.Item(i);
+                    string cfName = cf.Name?.ToString() ?? "";
+
+                    // Check if this is the field we're looking for
+                    if (cfName.Equals(fieldName, StringComparison.OrdinalIgnoreCase) ||
+                        cfName.Contains(fieldName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Parse hierarchical name format: [TableName].[ColumnName]
+                        // Example: "[RegionalSalesTable].[Sales]" -> table="RegionalSalesTable", column="Sales"
+                        if (cfName.Contains('[') && cfName.Contains(']'))
+                        {
+                            var parts = cfName.Split(FieldNameSeparators, StringSplitOptions.RemoveEmptyEntries);
+                            if (parts.Length >= 2)
+                            {
+                                return (parts[0], parts[1]);
+                            }
+                        }
+
+                        // Fallback: If no hierarchical format, assume fieldName is the column
+                        // and try to infer table from the CubeField's SourceName property
+                        try
+                        {
+                            string sourceName = cf.SourceName?.ToString() ?? "";
+                            if (!string.IsNullOrEmpty(sourceName) && sourceName.Contains('['))
+                            {
+                                var sourceParts = sourceName.Split(FieldNameSeparators, StringSplitOptions.RemoveEmptyEntries);
+                                if (sourceParts.Length >= 2)
+                                {
+                                    return (sourceParts[0], sourceParts[1]);
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            // SourceName might not be available, continue with fallback
+                        }
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref cf);
+                }
+            }
+
+            return (string.Empty, string.Empty);
+        }
+        finally
+        {
+            ComUtilities.Release(ref cubeFields);
+        }
+    }
+
+    /// <summary>
+    /// Generate DAX formula for a measure based on aggregation function.
+    /// Examples:
+    /// - SUM: SUM('TableName'[ColumnName])
+    /// - COUNT: COUNT('TableName'[ColumnName])
+    /// - AVERAGE: AVERAGE('TableName'[ColumnName])
+    /// </summary>
+    private static string GenerateDaxFormula(string tableName, string columnName, AggregationFunction function)
+    {
+        string daxFunction = function switch
+        {
+            AggregationFunction.Sum => "SUM",
+            AggregationFunction.Count => "COUNT",
+            AggregationFunction.Average => "AVERAGE",
+            AggregationFunction.Max => "MAX",
+            AggregationFunction.Min => "MIN",
+            AggregationFunction.CountNumbers => "COUNT",
+            AggregationFunction.StdDev => "STDEV.S",
+            AggregationFunction.StdDevP => "STDEV.P",
+            AggregationFunction.Var => "VAR.S",
+            AggregationFunction.VarP => "VAR.P",
+            _ => throw new InvalidOperationException($"Unsupported aggregation function for DAX: {function}")
+        };
+
+        // DAX syntax: FUNCTION('TableName'[ColumnName])
+        return $"{daxFunction}('{tableName}'[{columnName}])";
+    }
+
+    /// <summary>
+    /// Get friendly function name for measure naming.
+    /// </summary>
+    private static string GetFunctionName(AggregationFunction function)
+    {
+        return function switch
+        {
+            AggregationFunction.Sum => "Sum",
+            AggregationFunction.Count => "Count",
+            AggregationFunction.Average => "Average",
+            AggregationFunction.Max => "Max",
+            AggregationFunction.Min => "Min",
+            AggregationFunction.CountNumbers => "Count",
+            AggregationFunction.StdDev => "StdDev",
+            AggregationFunction.StdDevP => "StdDevP",
+            AggregationFunction.Var => "Var",
+            AggregationFunction.VarP => "VarP",
+            _ => function.ToString()
+        };
+    }
+
+    /// <summary>
+    /// Get default format object from Data Model.
+    /// Returns ModelFormatGeneral for standard numeric display.
+    /// </summary>
+    private static dynamic GetDefaultFormatObject(dynamic model)
+    {
+        // Get default format - ModelFormatGeneral is always available
+        dynamic formats = model.ModelFormatGeneral;
+        return formats;
+    }
+
+    /// <summary>
+    /// Parse DAX formula to extract table and column names.
+    /// Handles formats like: SUM('TableName'[ColumnName]), COUNT('Table'[Column]), etc.
+    /// </summary>
+    private static (string tableName, string columnName) ParseDaxFormula(string daxFormula)
+    {
+        // Expected format: FUNCTION('TableName'[ColumnName])
+        // Extract table name from single quotes
+        int tableStart = daxFormula.IndexOf('\'');
+        int tableEnd = daxFormula.IndexOf('\'', tableStart + 1);
+
+        if (tableStart == -1 || tableEnd == -1)
+        {
+            return (string.Empty, string.Empty);
+        }
+
+        string tableName = daxFormula.Substring(tableStart + 1, tableEnd - tableStart - 1);
+
+        // Extract column name from square brackets
+        int columnStart = daxFormula.IndexOf('[', tableEnd);
+        int columnEnd = daxFormula.IndexOf(']', columnStart + 1);
+
+        if (columnStart == -1 || columnEnd == -1)
+        {
+            return (string.Empty, string.Empty);
+        }
+
+        string columnName = daxFormula.Substring(columnStart + 1, columnEnd - columnStart - 1);
+
+        return (tableName, columnName);
+    }
+
+    /// <summary>
+    /// Parse number format string and create appropriate ModelFormat object.
+    /// Supports: currency, percentage, decimal, whole number, general.
+    /// </summary>
+    private static dynamic? GetModelFormatObject(dynamic model, string numberFormat)
+    {
+        // Currency formats: $#,##0.00, $#,##0, etc.
+        if (numberFormat.Contains('$'))
+        {
+            dynamic? currencyFormat = null;
+            try
+            {
+                currencyFormat = model.ModelFormatCurrency;
+
+                // Parse decimal places from format string
+                int decimalIndex = numberFormat.IndexOf('.');
+                if (decimalIndex >= 0)
+                {
+                    // Count zeros after decimal point
+                    int decimalPlaces = 0;
+                    for (int i = decimalIndex + 1; i < numberFormat.Length && numberFormat[i] == '0'; i++)
+                    {
+                        decimalPlaces++;
+                    }
+                    currencyFormat.DecimalPlaces = decimalPlaces;
+                }
+                else
+                {
+                    currencyFormat.DecimalPlaces = 0;
+                }
+
+                currencyFormat.Symbol = "$";
+                return currencyFormat;
+            }
+            catch
+            {
+                if (currencyFormat != null)
+                    ComUtilities.Release(ref currencyFormat);
+                throw;
+            }
+        }
+
+        // Percentage formats: 0.00%, 0%, etc.
+        if (numberFormat.Contains('%'))
+        {
+            dynamic? percentFormat = null;
+            try
+            {
+                percentFormat = model.ModelFormatPercentageNumber;
+
+                // Parse decimal places
+                int decimalIndex = numberFormat.IndexOf('.');
+                if (decimalIndex >= 0)
+                {
+                    int decimalPlaces = 0;
+                    for (int i = decimalIndex + 1; i < numberFormat.Length && numberFormat[i] == '0'; i++)
+                    {
+                        decimalPlaces++;
+                    }
+                    percentFormat.DecimalPlaces = decimalPlaces;
+                }
+                else
+                {
+                    percentFormat.DecimalPlaces = 0;
+                }
+
+                return percentFormat;
+            }
+            catch
+            {
+                if (percentFormat != null)
+                    ComUtilities.Release(ref percentFormat);
+                throw;
+            }
+        }
+
+        // Decimal number formats: 0.00, #,##0.00, etc.
+        if (numberFormat.Contains('.'))
+        {
+            dynamic? decimalFormat = null;
+            try
+            {
+                decimalFormat = model.ModelFormatDecimalNumber;
+
+                // Parse decimal places
+                int decimalIndex = numberFormat.IndexOf('.');
+                int decimalPlaces = 0;
+                for (int i = decimalIndex + 1; i < numberFormat.Length && (numberFormat[i] == '0' || numberFormat[i] == '#'); i++)
+                {
+                    decimalPlaces++;
+                }
+                decimalFormat.DecimalPlaces = decimalPlaces;
+
+                // Check for thousand separator
+                if (numberFormat.Contains(','))
+                {
+                    decimalFormat.UseThousandSeparator = true;
+                }
+
+                return decimalFormat;
+            }
+            catch
+            {
+                if (decimalFormat != null)
+                    ComUtilities.Release(ref decimalFormat);
+                throw;
+            }
+        }
+
+        // Whole number formats: 0, #,##0, etc.
+        if (numberFormat.Contains('0') || numberFormat.Contains('#'))
+        {
+            dynamic? wholeFormat = null;
+            try
+            {
+                wholeFormat = model.ModelFormatWholeNumber;
+
+                // Check for thousand separator
+                if (numberFormat.Contains(','))
+                {
+                    wholeFormat.UseThousandSeparator = true;
+                }
+
+                return wholeFormat;
+            }
+            catch
+            {
+                if (wholeFormat != null)
+                    ComUtilities.Release(ref wholeFormat);
+                throw;
+            }
+        }
+
+        // Default: General format
+        return model.ModelFormatGeneral;
+    }
+
+    /// <summary>
+    /// Modify an existing format object's properties based on the format string.
+    /// The format object is already attached to a measure and we modify it in place.
+    /// </summary>
+    private static void ModifyFormatObject(dynamic formatObject, string numberFormat)
+    {
+        // Try to determine the format type and modify accordingly
+        // Currency format
+        if (numberFormat.Contains('$'))
+        {
+            try
+            {
+                // Parse decimal places
+                int decimalIndex = numberFormat.IndexOf('.');
+                if (decimalIndex >= 0)
+                {
+                    int decimalPlaces = 0;
+                    for (int i = decimalIndex + 1; i < numberFormat.Length && numberFormat[i] == '0'; i++)
+                    {
+                        decimalPlaces++;
+                    }
+                    formatObject.DecimalPlaces = decimalPlaces;
+                }
+                else
+                {
+                    formatObject.DecimalPlaces = 0;
+                }
+
+                formatObject.Symbol = "$";
+                return;
+            }
+            catch
+            {
+                // If format object doesn't support these properties, it's not a currency format
+                // Fall through to try other format types
+            }
+        }
+
+        // Percentage format
+        if (numberFormat.Contains('%'))
+        {
+            try
+            {
+                int decimalIndex = numberFormat.IndexOf('.');
+                if (decimalIndex >= 0)
+                {
+                    int decimalPlaces = 0;
+                    for (int i = decimalIndex + 1; i < numberFormat.Length && numberFormat[i] == '0'; i++)
+                    {
+                        decimalPlaces++;
+                    }
+                    formatObject.DecimalPlaces = decimalPlaces;
+                }
+                else
+                {
+                    formatObject.DecimalPlaces = 0;
+                }
+                return;
+            }
+            catch
+            {
+                // Not a percentage format
+            }
+        }
+
+        // Decimal number format
+        if (numberFormat.Contains('.'))
+        {
+            try
+            {
+                int decimalIndex = numberFormat.IndexOf('.');
+                int decimalPlaces = 0;
+                for (int i = decimalIndex + 1; i < numberFormat.Length && (numberFormat[i] == '0' || numberFormat[i] == '#'); i++)
+                {
+                    decimalPlaces++;
+                }
+                formatObject.DecimalPlaces = decimalPlaces;
+
+                if (numberFormat.Contains(','))
+                {
+                    formatObject.UseThousandSeparator = true;
+                }
+                return;
+            }
+            catch
+            {
+                // Not a decimal format
+            }
+        }
+
+        // Whole number format
+        if (numberFormat.Contains('0') || numberFormat.Contains('#'))
+        {
+            try
+            {
+                if (numberFormat.Contains(','))
+                {
+                    formatObject.UseThousandSeparator = true;
+                }
+                return;
+            }
+            catch
+            {
+                // Not a whole number format
+            }
+        }
+
+        // If we get here, it's probably ModelFormatGeneral which has no configurable properties
+    }
 
     private static int GetComAggregationFunction(AggregationFunction function)
     {
