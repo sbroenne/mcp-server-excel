@@ -1,7 +1,5 @@
 // Suppress IDE0005 (unnecessary using) – explicit usings kept for clarity in test reflection code
 #pragma warning disable IDE0005
-using System;
-using System.Linq;
 using System.Reflection;
 #pragma warning restore IDE0005
 using Sbroenne.ExcelMcp.Core.Commands;
