@@ -92,7 +92,13 @@ public static class ExcelPivotTableTool
         int? layout = null,
 
         [Description("Show/hide subtotals for field: true=show automatic subtotals, false=hide")]
-        bool? subtotalsVisible = null)
+        bool? subtotalsVisible = null,
+
+        [Description("Show/hide row grand totals: true=show bottom summary row, false=hide")]
+        bool? showRowGrandTotals = null,
+
+        [Description("Show/hide column grand totals: true=show right summary column, false=hide")]
+        bool? showColumnGrandTotals = null)
     {
         var commands = new PivotTableCommands();
 
@@ -124,6 +130,7 @@ public static class ExcelPivotTableTool
                 PivotTableAction.CreateCalculatedField => CreateCalculatedField(commands, sessionId, pivotTableName, fieldName, formula),
                 PivotTableAction.SetLayout => SetLayout(commands, sessionId, pivotTableName, layout),
                 PivotTableAction.SetSubtotals => SetSubtotals(commands, sessionId, pivotTableName, fieldName, subtotalsVisible),
+                PivotTableAction.SetGrandTotals => SetGrandTotals(commands, sessionId, pivotTableName, showRowGrandTotals, showColumnGrandTotals),
                 _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
         }
@@ -857,5 +864,27 @@ public static class ExcelPivotTableTool
             result.ErrorMessage,
             result.WorkflowHint
         }, JsonOptions);
+    }
+
+    private static string SetGrandTotals(
+        PivotTableCommands commands,
+        string sessionId,
+        string? pivotTableName,
+        bool? showRowGrandTotals,
+        bool? showColumnGrandTotals)
+    {
+        if (string.IsNullOrEmpty(pivotTableName))
+            throw new ArgumentException("pivotTableName is required for set-grand-totals action", nameof(pivotTableName));
+
+        if (!showRowGrandTotals.HasValue)
+            throw new ArgumentException("showRowGrandTotals is required for set-grand-totals action", nameof(showRowGrandTotals));
+
+        if (!showColumnGrandTotals.HasValue)
+            throw new ArgumentException("showColumnGrandTotals is required for set-grand-totals action", nameof(showColumnGrandTotals));
+
+        var result = ExcelToolsBase.WithSession(sessionId,
+            batch => commands.SetGrandTotals(batch, pivotTableName!, showRowGrandTotals.Value, showColumnGrandTotals.Value));
+
+        return JsonSerializer.Serialize(result, JsonOptions);
     }
 }

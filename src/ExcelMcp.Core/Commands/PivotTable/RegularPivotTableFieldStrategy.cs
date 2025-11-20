@@ -1152,4 +1152,38 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
     }
 #pragma warning restore CA1848
+
+#pragma warning disable CA1848
+    /// <inheritdoc/>
+    public OperationResult SetGrandTotals(dynamic pivot, bool showRowGrandTotals, bool showColumnGrandTotals, string workbookPath, ILogger? logger = null)
+    {
+        try
+        {
+            // Set row and column grand totals using COM properties
+            pivot.RowGrand = showRowGrandTotals;
+            pivot.ColumnGrand = showColumnGrandTotals;
+
+            // Refresh to apply changes
+            pivot.RefreshTable();
+
+            logger?.LogInformation("Set grand totals: Row={RowGrand}, Column={ColumnGrand}", showRowGrandTotals, showColumnGrandTotals);
+
+            return new OperationResult
+            {
+                Success = true,
+                FilePath = workbookPath
+            };
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "SetGrandTotals failed");
+            return new OperationResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to set grand totals: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+    }
+#pragma warning restore CA1848
 }

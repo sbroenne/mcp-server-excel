@@ -1,8 +1,8 @@
+using Microsoft.Extensions.Logging;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
-using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;

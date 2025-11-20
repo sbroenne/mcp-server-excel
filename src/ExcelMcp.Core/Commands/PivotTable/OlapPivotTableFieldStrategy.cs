@@ -1026,6 +1026,37 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 #pragma warning restore CA1848
 
+    /// <inheritdoc/>
+#pragma warning disable CA1848
+    public OperationResult SetGrandTotals(dynamic pivot, bool showRowGrandTotals, bool showColumnGrandTotals, string workbookPath, ILogger? logger = null)
+    {
+        try
+        {
+            pivot.RowGrand = showRowGrandTotals;
+            pivot.ColumnGrand = showColumnGrandTotals;
+            pivot.RefreshTable();
+
+            logger?.LogInformation("Set OLAP grand totals: Row={RowGrand}, Column={ColumnGrand}", showRowGrandTotals, showColumnGrandTotals);
+
+            return new OperationResult
+            {
+                Success = true,
+                FilePath = workbookPath
+            };
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "SetGrandTotals failed for OLAP PivotTable");
+            return new OperationResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to set OLAP grand totals: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+    }
+#pragma warning restore CA1848
+
     #region Helper Methods
 
     /// <summary>

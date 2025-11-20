@@ -1,10 +1,10 @@
+using MartinCostello.Logging.XUnit;
+using Microsoft.Extensions.Logging;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
-using Microsoft.Extensions.Logging;
 using Xunit;
 using Xunit.Abstractions;
-using MartinCostello.Logging.XUnit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 

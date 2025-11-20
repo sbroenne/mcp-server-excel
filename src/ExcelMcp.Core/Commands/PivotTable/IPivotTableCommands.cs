@@ -309,4 +309,25 @@ public interface IPivotTableCommands
     /// </remarks>
     PivotFieldResult SetSubtotals(IExcelBatch batch, string pivotTableName,
         string fieldName, bool showSubtotals);
+
+    /// <summary>
+    /// Shows or hides grand totals for rows and/or columns in the PivotTable.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable to configure</param>
+    /// <param name="showRowGrandTotals">Show row grand totals (bottom summary row)</param>
+    /// <param name="showColumnGrandTotals">Show column grand totals (right summary column)</param>
+    /// <returns>Operation result indicating success or failure</returns>
+    /// <remarks>
+    /// GRAND TOTALS:
+    /// - Row Grand Totals: Summary row at bottom of PivotTable
+    /// - Column Grand Totals: Summary column at right of PivotTable
+    /// - Independent control: Can show/hide row and column separately
+    /// 
+    /// SUPPORT:
+    /// - Regular PivotTables: Full support
+    /// - OLAP PivotTables: Full support
+    /// </remarks>
+    OperationResult SetGrandTotals(IExcelBatch batch, string pivotTableName,
+        bool showRowGrandTotals, bool showColumnGrandTotals);
 }

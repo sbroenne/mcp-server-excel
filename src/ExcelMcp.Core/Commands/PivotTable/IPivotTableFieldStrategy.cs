@@ -176,4 +176,25 @@ public interface IPivotTableFieldStrategy
     /// - Regular PivotTables can choose Sum, Count, Average, etc. (future enhancement)
     /// </remarks>
     PivotFieldResult SetSubtotals(dynamic pivot, string fieldName, bool showSubtotals, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
+
+    /// <summary>
+    /// Shows or hides grand totals for rows and/or columns in the PivotTable.
+    /// </summary>
+    /// <param name="pivot">The PivotTable object</param>
+    /// <param name="showRowGrandTotals">True to show row grand totals, false to hide</param>
+    /// <param name="showColumnGrandTotals">True to show column grand totals, false to hide</param>
+    /// <param name="workbookPath">Path to workbook for error reporting</param>
+    /// <param name="logger">Optional logger for diagnostics</param>
+    /// <returns>Result indicating success or failure</returns>
+    /// <remarks>
+    /// GRAND TOTALS:
+    /// - Row Grand Totals: Summary row at the bottom showing totals across all rows
+    /// - Column Grand Totals: Summary column at the right showing totals across all columns
+    /// - Independent control: Can show/hide row and column totals separately
+    ///
+    /// SUPPORT:
+    /// - Regular PivotTables: Full support
+    /// - OLAP PivotTables: Full support
+    /// </remarks>
+    OperationResult SetGrandTotals(dynamic pivot, bool showRowGrandTotals, bool showColumnGrandTotals, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
 }

@@ -305,6 +305,7 @@ public enum PivotTableAction
     // Layout and Formatting
     SetLayout,
     SetSubtotals,
+    SetGrandTotals,
 
     // Data Operations
     GetData
