@@ -411,6 +411,11 @@ public class PivotFieldInfo
     /// Data type of the field
     /// </summary>
     public string DataType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Formula for calculated fields (e.g., "=Revenue-Cost")
+    /// </summary>
+    public string? Formula { get; set; }
 }
 
 /// <summary>
@@ -473,6 +478,11 @@ public class PivotFieldResult : ResultBase
     /// Data type of the field
     /// </summary>
     public string DataType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Formula for calculated fields (e.g., "=Revenue-Cost")
+    /// </summary>
+    public string? Formula { get; set; }
 
     /// <summary>
     /// Workflow hint describing what happened and suggested next steps

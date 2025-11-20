@@ -913,6 +913,32 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
     }
 
+    /// <inheritdoc/>
+    public PivotFieldResult CreateCalculatedField(dynamic pivot, string fieldName, string formula, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null)
+    {
+        // CRITICAL: OLAP PivotTables do NOT support CalculatedFields collection
+        // The CalculatedFields collection returns Nothing for OLAP PivotTables
+        // OLAP uses CalculatedMembers with MDX/DAX formulas instead
+        //
+        // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.pivottable.calculatedfields
+        // "For OLAP data sources, you cannot set this collection, and it always returns Nothing"
+        return new PivotFieldResult
+        {
+            Success = false,
+            FieldName = fieldName,
+            Formula = formula,
+            ErrorMessage = "Calculated fields are not supported for OLAP PivotTables. " +
+                          "OLAP PivotTables use CalculatedMembers with MDX/DAX formulas instead. " +
+                          "For Data Model PivotTables, use DAX measures via excel_datamodel tool.",
+            FilePath = workbookPath,
+            WorkflowHint = "For OLAP/Data Model PivotTables: " +
+                          "1) Use excel_datamodel tool to create DAX measures with formulas, " +
+                          "2) Refresh PivotTable to see new measures in field list, " +
+                          "3) Add measure to Values area with AddValueField. " +
+                          "Example DAX: Profit = SUM('Sales'[Revenue]) - SUM('Sales'[Cost])"
+        };
+    }
+
     #region Helper Methods
 
     /// <summary>

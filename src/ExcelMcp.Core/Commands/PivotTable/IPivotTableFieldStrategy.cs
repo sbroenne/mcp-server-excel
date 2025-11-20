@@ -107,4 +107,33 @@ public interface IPivotTableFieldStrategy
     /// If start/end are null, Excel automatically uses the field's minimum/maximum values.
     /// </remarks>
     PivotFieldResult GroupByNumeric(dynamic pivot, string fieldName, double? start, double? endValue, double intervalSize, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
+
+    /// <summary>
+    /// Creates a calculated field with a custom formula.
+    /// </summary>
+    /// <param name="pivot">The PivotTable object</param>
+    /// <param name="fieldName">Name for the calculated field</param>
+    /// <param name="formula">Formula using field references (e.g., "=Revenue-Cost" or "=Profit/Revenue")</param>
+    /// <param name="workbookPath">Path to workbook for error reporting</param>
+    /// <param name="logger">Optional logger for diagnostics</param>
+    /// <returns>Result indicating success or failure</returns>
+    /// <remarks>
+    /// FORMULA SYNTAX:
+    /// - Use field names in formulas: =Revenue-Cost, =Profit/Revenue*100
+    /// - Operators: + - * / ^ () for basic arithmetic
+    /// - Excel will auto-convert field names to proper references
+    /// - Example: "Profit" field formula "=Revenue-Cost"
+    /// - Example: "Margin%" field formula "=Profit/Revenue"
+    ///
+    /// IMPORTANT LIMITATIONS:
+    /// - Regular PivotTables: Full support via CalculatedFields collection
+    /// - OLAP PivotTables: NOT SUPPORTED (use CalculatedMembers with MDX/DAX instead)
+    /// - For OLAP, use Data Model DAX measures via excel_datamodel tool
+    ///
+    /// COMMON USE CASES:
+    /// - Financial: Profit = Revenue - Cost, Margin% = Profit/Revenue
+    /// - Variance: Actual - Budget, (Actual-Budget)/Budget
+    /// - Ratios: Cost/Unit, Revenue/Customer
+    /// </remarks>
+    PivotFieldResult CreateCalculatedField(dynamic pivot, string fieldName, string formula, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
 }

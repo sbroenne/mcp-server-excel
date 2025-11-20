@@ -1008,4 +1008,62 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             ComUtilities.Release(ref field);
         }
     }
+
+    /// <inheritdoc/>
+    public PivotFieldResult CreateCalculatedField(dynamic pivot, string fieldName, string formula, string workbookPath, ILogger? logger = null)
+    {
+        dynamic? calculatedFields = null;
+        dynamic? newField = null;
+
+        try
+        {
+            // CRITICAL: Refresh PivotTable FIRST to ensure field collection is current
+            pivot.RefreshTable();
+
+            // Access CalculatedFields collection
+            // For regular PivotTables, this collection allows creating custom fields with formulas
+            // Formula syntax: Use field names directly (e.g., "=Revenue-Cost")
+            // Excel auto-converts field references to proper format
+            calculatedFields = pivot.CalculatedFields();
+
+            // Add calculated field with formula
+            // UseStandardFormula = true ensures field names are interpreted in US English format
+            // regardless of user's locale settings
+            newField = calculatedFields.Add(fieldName, formula, true);
+
+            // Refresh again to populate the new calculated field
+            pivot.RefreshTable();
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                CustomName = newField.Caption?.ToString() ?? fieldName,
+                Area = PivotFieldArea.Hidden, // Calculated fields start hidden until added to values
+                Formula = formula,
+                FilePath = workbookPath,
+                WorkflowHint = $"Calculated field '{fieldName}' created with formula: {formula}. " +
+                              "Add to Values area with AddValueField to see results in PivotTable."
+            };
+        }
+        catch (Exception ex)
+        {
+#pragma warning disable CA1848 // Keep error logging for diagnostics
+            logger?.LogError(ex, "CreateCalculatedField failed for field '{FieldName}' with formula '{Formula}'", fieldName, formula);
+#pragma warning restore CA1848
+            return new PivotFieldResult
+            {
+                Success = false,
+                FieldName = fieldName,
+                Formula = formula,
+                ErrorMessage = $"Failed to create calculated field: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref newField);
+            ComUtilities.Release(ref calculatedFields);
+        }
+    }
 }

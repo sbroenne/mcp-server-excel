@@ -254,4 +254,24 @@ public interface IPivotTableCommands
     /// </remarks>
     PivotFieldResult GroupByNumeric(IExcelBatch batch, string pivotTableName,
         string fieldName, double? start, double? endValue, double intervalSize);
+
+    /// <summary>
+    /// Creates a calculated field with a custom formula.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <param name="fieldName">Name for the calculated field</param>
+    /// <param name="formula">Formula using field references (e.g., "=Revenue-Cost")</param>
+    /// <returns>Result with calculated field details</returns>
+    /// <remarks>
+    /// Formula examples:
+    /// - "=Revenue-Cost" creates Profit field
+    /// - "=Profit/Revenue" creates Margin field
+    /// - "=(Actual-Budget)/Budget" creates Variance% field
+    ///
+    /// NOTE: OLAP PivotTables do not support CalculatedFields.
+    /// For OLAP, use Data Model DAX measures instead.
+    /// </remarks>
+    PivotFieldResult CreateCalculatedField(IExcelBatch batch, string pivotTableName,
+        string fieldName, string formula);
 }

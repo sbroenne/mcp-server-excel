@@ -299,6 +299,9 @@ public enum PivotTableAction
     GroupByDate,
     GroupByNumeric,
 
+    // Calculated Fields
+    CreateCalculatedField,
+
     // Data Operations
     GetData
 }

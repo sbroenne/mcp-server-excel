@@ -83,7 +83,10 @@ public static class ExcelPivotTableTool
         double? numericGroupingEnd = null,
 
         [Description("Numeric grouping interval size (e.g., 100 for 0-100, 100-200, ...)")]
-        double? numericGroupingInterval = null)
+        double? numericGroupingInterval = null,
+
+        [Description("Formula for calculated field (e.g., '=Revenue-Cost', '=Profit/Revenue')")]
+        string? formula = null)
     {
         var commands = new PivotTableCommands();
 
@@ -112,6 +115,7 @@ public static class ExcelPivotTableTool
                 PivotTableAction.SortField => SortField(commands, sessionId, pivotTableName, fieldName, sortDirection),
                 PivotTableAction.GroupByDate => GroupByDate(commands, sessionId, pivotTableName, fieldName, dateGroupingInterval),
                 PivotTableAction.GroupByNumeric => GroupByNumeric(commands, sessionId, pivotTableName, fieldName, numericGroupingStart, numericGroupingEnd, numericGroupingInterval),
+                PivotTableAction.CreateCalculatedField => CreateCalculatedField(commands, sessionId, pivotTableName, fieldName, formula),
                 _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
         }
@@ -766,6 +770,32 @@ public static class ExcelPivotTableTool
             result.FieldName,
             result.CustomName,
             result.Area,
+            result.ErrorMessage,
+            result.WorkflowHint
+        }, JsonOptions);
+    }
+
+    private static string CreateCalculatedField(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, string? formula)
+    {
+        if (string.IsNullOrEmpty(pivotTableName))
+            throw new ArgumentException("pivotTableName is required for create-calculated-field action", nameof(pivotTableName));
+
+        if (string.IsNullOrEmpty(fieldName))
+            throw new ArgumentException("fieldName is required for create-calculated-field action", nameof(fieldName));
+
+        if (string.IsNullOrEmpty(formula))
+            throw new ArgumentException("formula is required for create-calculated-field action", nameof(formula));
+
+        var result = ExcelToolsBase.WithSession(sessionId,
+            batch => commands.CreateCalculatedField(batch, pivotTableName!, fieldName!, formula!));
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.FieldName,
+            result.CustomName,
+            result.Area,
+            result.Formula,
             result.ErrorMessage,
             result.WorkflowHint
         }, JsonOptions);
