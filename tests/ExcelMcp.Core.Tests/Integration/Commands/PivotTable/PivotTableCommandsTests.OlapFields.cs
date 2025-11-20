@@ -164,6 +164,93 @@ public partial class PivotTableCommandsTests
     }
 
     /// <summary>
+    /// Test adding a pre-existing measure to PivotTable values area.
+    /// This is the core scenario from the issue: user has a measure in Data Model and wants to add it to PivotTable.
+    /// Measure formats: "[Measures].[Name]", "Name", or CubeField name
+    /// </summary>
+    [Fact]
+    [Trait("Speed", "Medium")]
+    [Trait("Category", "OLAP")]
+    public void AddValueField_OlapPivot_AddsPreExistingMeasure()
+    {
+        // Arrange - Create OLAP test file and add a measure first
+        var olapTestFile = CreateOlapTestFile(nameof(AddValueField_OlapPivot_AddsPreExistingMeasure));
+        using var batch = ExcelSession.BeginBatch(olapTestFile);
+
+        // First, create a measure in the Data Model (not in PivotTable yet)
+        var dataModelCommands = new DataModelCommands();
+        var createMeasureResult = dataModelCommands.CreateMeasure(
+            batch,
+            "RegionalSalesTable",
+            "Total ACR",
+            "SUM('RegionalSalesTable'[Sales])",
+            null);
+        Assert.True(createMeasureResult.Success, $"Failed to create measure: {createMeasureResult.ErrorMessage}");
+
+        // Refresh PivotTable to pick up the new measure in CubeFields
+        _pivotCommands.Refresh(batch, "DataModelPivot", null);
+
+        // Act - Add the pre-existing measure to PivotTable values area
+        // Should detect it's an existing measure and just set Orientation = xlDataField
+        var result = _pivotCommands.AddValueField(
+            batch,
+            "DataModelPivot",
+            "Total ACR", // Can use measure name directly
+            AggregationFunction.Sum, // Ignored for pre-existing measures
+            null);
+
+        // Assert - Should succeed without creating a new measure
+        Assert.True(result.Success, $"AddValueField should add existing measure but failed: {result.ErrorMessage}");
+        Assert.Equal("Total ACR", result.FieldName);
+        Assert.Equal(PivotFieldArea.Value, result.Area);
+
+        // Verify only ONE measure with this name exists (not duplicated)
+        var measuresResult = dataModelCommands.ListMeasures(batch, "RegionalSalesTable");
+        Assert.True(measuresResult.Success, $"Failed to list measures: {measuresResult.ErrorMessage}");
+        var measureCount = measuresResult.Measures.Count(m => m.Name == "Total ACR");
+        Assert.Equal(1, measureCount); // Should still be 1, not 2
+    }
+
+    /// <summary>
+    /// Test adding pre-existing measure using [Measures].[Name] format.
+    /// This format is commonly used in OLAP/MDX contexts and should be supported.
+    /// </summary>
+    [Fact]
+    [Trait("Speed", "Medium")]
+    [Trait("Category", "OLAP")]
+    public void AddValueField_OlapPivot_AddsPreExistingMeasureWithMeasuresPrefix()
+    {
+        // Arrange - Create measure first
+        var olapTestFile = CreateOlapTestFile(nameof(AddValueField_OlapPivot_AddsPreExistingMeasureWithMeasuresPrefix));
+        using var batch = ExcelSession.BeginBatch(olapTestFile);
+
+        var dataModelCommands = new DataModelCommands();
+        var createResult = dataModelCommands.CreateMeasure(
+            batch,
+            "RegionalSalesTable",
+            "Revenue Total",
+            "SUM('RegionalSalesTable'[Sales])",
+            null);
+        Assert.True(createResult.Success, $"Setup failed: {createResult.ErrorMessage}");
+
+        _pivotCommands.Refresh(batch, "DataModelPivot", null);
+
+        // Act - Use [Measures].[Name] format (common in OLAP contexts)
+        var result = _pivotCommands.AddValueField(
+            batch,
+            "DataModelPivot",
+            "[Measures].[Revenue Total]", // MDX-style format
+            AggregationFunction.Sum,
+            null);
+
+        // Assert
+        Assert.True(result.Success, $"Should handle [Measures].[Name] format but failed: {result.ErrorMessage}");
+        Assert.Equal("Revenue Total", result.FieldName);
+        Assert.Equal(PivotFieldArea.Value, result.Area);
+    }
+
+
+    /// <summary>
     /// Helper to create OLAP test file with Data Model PivotTable.
     /// Uses PivotTableRealisticFixture internally.
     /// </summary>

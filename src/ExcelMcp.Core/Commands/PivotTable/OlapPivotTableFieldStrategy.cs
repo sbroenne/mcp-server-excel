@@ -289,11 +289,9 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
         try
         {
-            // Auto-create DAX measure strategy:
-            // 1. Determine table and column from CubeFields
-            // 2. Generate DAX formula from aggregation function
-            // 3. Create measure in Data Model using COM API
-            // 4. Add measure CubeField to PivotTable values area
+            // TWO MODES:
+            // MODE 1: Add pre-existing measure (fieldName starts with [Measures]. or already exists in Data Model)
+            // MODE 2: Auto-create DAX measure from column (legacy behavior)
 
             // Get workbook and model
             workbook = pivot.Parent.Parent; // PivotTable -> Worksheet -> Workbook
@@ -305,6 +303,81 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                     $"Cannot add value field '{fieldName}' to OLAP PivotTable - workbook has no Data Model");
             }
 
+            // MODE 1: Check if this is a pre-existing measure
+            if (IsExistingMeasure(model, fieldName, out string? existingMeasureName))
+            {
+                // Find the measure's CubeField and add it to values area
+                dynamic? cubeFields = null;
+                try
+                {
+                    cubeFields = pivot.CubeFields;
+                    for (int i = 1; i <= cubeFields.Count; i++)
+                    {
+                        dynamic? cf = null;
+                        try
+                        {
+                            cf = cubeFields.Item(i);
+                            string cfName = cf.Name?.ToString() ?? "";
+
+                            // Match by exact name or by measure name (might be [Measures].[Name] format)
+                            if (cfName.Equals(fieldName, StringComparison.OrdinalIgnoreCase) ||
+                                cfName.Equals(existingMeasureName, StringComparison.OrdinalIgnoreCase) ||
+                                cfName.Contains(existingMeasureName!, StringComparison.OrdinalIgnoreCase))
+                            {
+                                cubeField = cf;
+                                cf = null; // Transfer ownership
+                                break;
+                            }
+                        }
+                        finally
+                        {
+                            if (cf != null)
+                                ComUtilities.Release(ref cf);
+                        }
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref cubeFields);
+                }
+
+                if (cubeField == null)
+                {
+                    throw new InvalidOperationException(
+                        $"Measure '{existingMeasureName}' exists in Data Model but not found in PivotTable CubeFields. Try refreshing the PivotTable.");
+                }
+
+                // Check if measure is already in values area
+                int currentOrientation = Convert.ToInt32(cubeField.Orientation);
+                if (currentOrientation == XlPivotFieldOrientation.xlDataField)
+                {
+                    return new PivotFieldResult
+                    {
+                        Success = true,
+                        FieldName = existingMeasureName!,
+                        CustomName = cubeField.Caption?.ToString() ?? existingMeasureName!,
+                        Area = PivotFieldArea.Value,
+                        DataType = "Cube",
+                        FilePath = workbookPath
+                    };
+                }
+
+                // Add to values area
+                cubeField.Orientation = XlPivotFieldOrientation.xlDataField;
+
+                return new PivotFieldResult
+                {
+                    Success = true,
+                    FieldName = existingMeasureName!,
+                    CustomName = customName ?? cubeField.Caption?.ToString() ?? existingMeasureName!,
+                    Area = PivotFieldArea.Value,
+                    Function = aggregationFunction,
+                    DataType = "Cube",
+                    FilePath = workbookPath
+                };
+            }
+
+            // MODE 2: Create new measure from column (legacy auto-create behavior)
             // Find the source table and column for this field
             var tableAndColumn = FindTableAndColumn(pivot, fieldName);
             string tableName = tableAndColumn.Item1;
@@ -314,7 +387,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             {
                 throw new InvalidOperationException(
                     $"Cannot determine table and column for field '{fieldName}'. " +
-                    "Field must reference a Data Model table column (e.g., 'Sales' from 'SalesTable[Sales]')");
+                    "Field must reference a Data Model table column (e.g., 'Sales' from 'SalesTable[Sales]') " +
+                    "OR an existing measure (e.g., '[Measures].[Total Sales]')");
             }
 
             // Generate DAX formula and measure name
@@ -365,16 +439,16 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             pivot.RefreshTable();
 
             // Find the measure in CubeFields - measures appear with [Measures]. prefix or just by name
-            dynamic? cubeFields = null;
+            dynamic? cubeFieldsForNewMeasure = null;
             try
             {
-                cubeFields = pivot.CubeFields;
-                for (int i = 1; i <= cubeFields.Count; i++)
+                cubeFieldsForNewMeasure = pivot.CubeFields;
+                for (int i = 1; i <= cubeFieldsForNewMeasure.Count; i++)
                 {
                     dynamic? cf = null;
                     try
                     {
-                        cf = cubeFields.Item(i);
+                        cf = cubeFieldsForNewMeasure.Item(i);
                         string cfName = cf.Name?.ToString() ?? "";
 
                         // Check if this is our measure (might be "[Measures].[Name]" or just "Name")
@@ -394,7 +468,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             }
             finally
             {
-                ComUtilities.Release(ref cubeFields);
+                ComUtilities.Release(ref cubeFieldsForNewMeasure);
             }
 
             if (cubeField == null)
@@ -1276,6 +1350,73 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             XlPivotFieldOrientation.xlDataField => "Value",
             _ => $"Unknown({orientationValue})"
         };
+    }
+
+    /// <summary>
+    /// Check if fieldName refers to an existing measure in the Data Model.
+    /// Returns true if the measure exists, and outputs the measure name.
+    /// Handles formats: "[Measures].[Name]", "Name", or partial match.
+    /// </summary>
+    private static bool IsExistingMeasure(dynamic model, string fieldName, out string? measureName)
+    {
+        measureName = null;
+        dynamic? measures = null;
+        try
+        {
+            measures = model.ModelMeasures;
+            if (measures == null || measures.Count == 0)
+            {
+                return false;
+            }
+
+            // Extract measure name from [Measures].[Name] format if present
+            string searchName = fieldName;
+            if (fieldName.StartsWith("[Measures].", StringComparison.OrdinalIgnoreCase))
+            {
+                // Remove [Measures]. prefix and extract name from brackets
+                var parts = fieldName.Split(FieldNameSeparators, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2)
+                {
+                    searchName = parts[1]; // "Total ACR" from "[Measures].[Total ACR]"
+                }
+            }
+
+            // Search for measure by name (exact or partial match)
+            for (int i = 1; i <= measures.Count; i++)
+            {
+                dynamic? measure = null;
+                try
+                {
+                    measure = measures.Item(i);
+                    string mName = measure.Name?.ToString() ?? "";
+
+                    // Try exact match first
+                    if (mName.Equals(searchName, StringComparison.OrdinalIgnoreCase) ||
+                        mName.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        measureName = mName;
+                        return true;
+                    }
+
+                    // Try partial match (handle "Total ACR" matching "Total ACR Sum")
+                    if (mName.Contains(searchName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        measureName = mName;
+                        return true;
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref measure);
+                }
+            }
+
+            return false;
+        }
+        finally
+        {
+            ComUtilities.Release(ref measures);
+        }
     }
 
     #endregion
