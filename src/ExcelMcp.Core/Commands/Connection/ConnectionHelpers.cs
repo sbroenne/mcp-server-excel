@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Sbroenne.ExcelMcp.ComInterop;
 
 namespace Sbroenne.ExcelMcp.Core.Connections;
@@ -12,6 +13,8 @@ public static class ConnectionHelpers
     /// </summary>
     /// <param name="workbook">Excel workbook COM object</param>
     /// <returns>List of connection names</returns>
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types",
+        Justification = "COM interop helper returns empty list on any error - safe fallback for list operations")]
     public static List<string> GetConnectionNames(dynamic workbook)
     {
         var names = new List<string>();
@@ -80,6 +83,8 @@ public static class ConnectionHelpers
     /// </summary>
     /// <param name="workbook">Excel workbook COM object</param>
     /// <param name="name">Name of the query or connection</param>
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types",
+        Justification = "COM interop cleanup operation - errors are safely ignored as connections may not exist")]
     public static void RemoveConnections(dynamic workbook, string name)
     {
         dynamic connections = null!;
