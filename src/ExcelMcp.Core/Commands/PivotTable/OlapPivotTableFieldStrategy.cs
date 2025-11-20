@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
@@ -908,6 +909,227 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             ComUtilities.Release(ref cubeField);
         }
     }
+
+    /// <summary>
+    /// Group a date/time field by the specified interval (Month, Quarter, Year).
+    /// OLAP CubeFields automatically create date hierarchies from Data Model columns.
+    /// Manual grouping via Group() is NOT supported for OLAP PivotTables.
+    /// </summary>
+    public PivotFieldResult GroupByDate(dynamic pivot, string fieldName, DateGroupingInterval interval, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null)
+    {
+        dynamic? cubeField = null;
+        try
+        {
+            cubeField = GetFieldForManipulation(pivot, fieldName);
+
+            // OLAP PivotTables do not support manual date grouping via LabelRange.Group()
+            // Date hierarchies are defined in the Data Model and automatically available
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Manual date grouping is not supported for OLAP PivotTables. " +
+                              $"Date hierarchies must be defined in the Data Model. " +
+                              $"Use Power Pivot to create date hierarchies (Year > Quarter > Month > Day) on the '{fieldName}' column.",
+                FieldName = fieldName,
+                FilePath = workbookPath,
+                WorkflowHint = "For OLAP PivotTables: 1) Open Power Pivot, 2) Create date hierarchy on date column, " +
+                               "3) Use RemoveField/AddField to place hierarchy levels in PivotTable areas."
+            };
+        }
+        catch (Exception ex)
+        {
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to access OLAP field '{fieldName}': {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref cubeField);
+        }
+    }
+
+    /// <inheritdoc/>
+    public PivotFieldResult GroupByNumeric(dynamic pivot, string fieldName, double? start, double? endValue, double intervalSize, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null)
+    {
+        dynamic? cubeField = null;
+        try
+        {
+            cubeField = GetFieldForManipulation(pivot, fieldName);
+
+            // OLAP PivotTables do not support manual numeric grouping via LabelRange.Group()
+            // Numeric grouping must be done in the source data or Data Model
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Manual numeric grouping is not supported for OLAP PivotTables. " +
+                              $"Numeric grouping must be defined in the Data Model. " +
+                              $"Use Power Pivot to create calculated columns with range logic on the '{fieldName}' column.",
+                FieldName = fieldName,
+                FilePath = workbookPath,
+                WorkflowHint = "For OLAP PivotTables: 1) Open Power Pivot, 2) Create calculated column with range logic " +
+                               "(e.g., IF([Sales]<100, \"0-100\", IF([Sales]<200, \"100-200\", ...))), 3) Use that calculated column in PivotTable."
+            };
+        }
+        catch (Exception ex)
+        {
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to access OLAP field '{fieldName}': {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref cubeField);
+        }
+    }
+
+    /// <inheritdoc/>
+    public PivotFieldResult CreateCalculatedField(dynamic pivot, string fieldName, string formula, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null)
+    {
+        // CRITICAL: OLAP PivotTables do NOT support CalculatedFields collection
+        // The CalculatedFields collection returns Nothing for OLAP PivotTables
+        // OLAP uses CalculatedMembers with MDX/DAX formulas instead
+        //
+        // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.pivottable.calculatedfields
+        // "For OLAP data sources, you cannot set this collection, and it always returns Nothing"
+        return new PivotFieldResult
+        {
+            Success = false,
+            FieldName = fieldName,
+            Formula = formula,
+            ErrorMessage = "Calculated fields are not supported for OLAP PivotTables. " +
+                          "OLAP PivotTables use CalculatedMembers with MDX/DAX formulas instead. " +
+                          "For Data Model PivotTables, use DAX measures via excel_datamodel tool.",
+            FilePath = workbookPath,
+            WorkflowHint = "For OLAP/Data Model PivotTables: " +
+                          "1) Use excel_datamodel tool to create DAX measures with formulas, " +
+                          "2) Refresh PivotTable to see new measures in field list, " +
+                          "3) Add measure to Values area with AddValueField. " +
+                          "Example DAX: Profit = SUM('Sales'[Revenue]) - SUM('Sales'[Cost])"
+        };
+    }
+
+#pragma warning disable CA1848 // Keep logging for diagnostics
+    /// <inheritdoc/>
+    public OperationResult SetLayout(dynamic pivot, int layoutType, string workbookPath, ILogger? logger = null)
+    {
+        try
+        {
+            // OLAP PivotTables support all three layout forms
+            // xlCompactRow=0, xlTabularRow=1, xlOutlineRow=2
+            pivot.RowAxisLayout(layoutType);
+            pivot.RefreshTable();
+
+            logger?.LogInformation("Set OLAP PivotTable layout to {LayoutType}", layoutType);
+
+            return new OperationResult
+            {
+                Success = true,
+                FilePath = workbookPath
+            };
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "SetLayout failed for OLAP PivotTable");
+            return new OperationResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to set OLAP layout: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+    }
+#pragma warning restore CA1848
+
+#pragma warning disable CA1848 // Keep logging for diagnostics
+    /// <inheritdoc/>
+    public PivotFieldResult SetSubtotals(
+        dynamic pivot,
+        string fieldName,
+        bool showSubtotals,
+        string workbookPath,
+        ILogger? logger = null)
+    {
+        dynamic? field = null;
+        try
+        {
+            pivot.RefreshTable();
+
+            // Get the field - for OLAP, use PivotFields (not CubeFields)
+            dynamic pivotFields = pivot.PivotFields;
+            field = pivotFields.Item(fieldName);
+
+            // OLAP PivotTables only support Automatic subtotals (index 1)
+            // Other subtotal types not available for OLAP data sources
+            field.Subtotals[1] = showSubtotals;
+
+            pivot.RefreshTable();
+
+            logger?.LogInformation("Set OLAP subtotals for field {FieldName} to {ShowSubtotals}", fieldName, showSubtotals);
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                FilePath = workbookPath,
+                WorkflowHint = showSubtotals
+                    ? "Subtotals enabled for OLAP field. Only Automatic function supported (OLAP limitation)."
+                    : "Subtotals disabled for OLAP field."
+            };
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "SetSubtotals failed for OLAP field {FieldName}", fieldName);
+            return new PivotFieldResult
+            {
+                Success = false,
+                FieldName = fieldName,
+                ErrorMessage = $"Failed to set OLAP subtotals: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref field);
+        }
+    }
+#pragma warning restore CA1848
+
+    /// <inheritdoc/>
+#pragma warning disable CA1848
+    public OperationResult SetGrandTotals(dynamic pivot, bool showRowGrandTotals, bool showColumnGrandTotals, string workbookPath, ILogger? logger = null)
+    {
+        try
+        {
+            pivot.RowGrand = showRowGrandTotals;
+            pivot.ColumnGrand = showColumnGrandTotals;
+            pivot.RefreshTable();
+
+            logger?.LogInformation("Set OLAP grand totals: Row={RowGrand}, Column={ColumnGrand}", showRowGrandTotals, showColumnGrandTotals);
+
+            return new OperationResult
+            {
+                Success = true,
+                FilePath = workbookPath
+            };
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "SetGrandTotals failed for OLAP PivotTable");
+            return new OperationResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to set OLAP grand totals: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+    }
+#pragma warning restore CA1848
 
     #region Helper Methods
 

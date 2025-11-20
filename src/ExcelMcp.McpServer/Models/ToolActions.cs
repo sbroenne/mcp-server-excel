@@ -295,6 +295,18 @@ public enum PivotTableAction
     SetFieldFilter,
     SortField,
 
+    // Grouping Operations
+    GroupByDate,
+    GroupByNumeric,
+
+    // Calculated Fields
+    CreateCalculatedField,
+
+    // Layout and Formatting
+    SetLayout,
+    SetSubtotals,
+    SetGrandTotals,
+
     // Data Operations
     GetData
 }

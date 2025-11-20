@@ -49,6 +49,12 @@ public interface IExcelBatch : IDisposable
     string WorkbookPath { get; }
 
     /// <summary>
+    /// Gets the logger instance for diagnostic output.
+    /// Returns NullLogger if no logger was provided during construction.
+    /// </summary>
+    Microsoft.Extensions.Logging.ILogger Logger { get; }
+
+    /// <summary>
     /// Executes a COM operation within this batch.
     /// The operation receives an ExcelContext with access to the Excel app and workbook.
     /// All Excel COM operations are synchronous - file I/O should be handled outside the batch.

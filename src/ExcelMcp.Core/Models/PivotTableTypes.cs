@@ -217,6 +217,53 @@ public static class XlSortOrder
 }
 
 /// <summary>
+/// Excel PivotField data type constants
+/// </summary>
+public static class XlPivotFieldDataType
+{
+    /// <summary>
+    /// Date field type
+    /// </summary>
+    public const int xlDate = 2;
+
+    /// <summary>
+    /// Number field type
+    /// </summary>
+    public const int xlNumber = -4145;
+
+    /// <summary>
+    /// Text field type
+    /// </summary>
+    public const int xlText = -4158;
+}
+
+/// <summary>
+/// Excel time unit constants for date grouping
+/// </summary>
+public static class XlTimeUnit
+{
+    /// <summary>
+    /// Days grouping
+    /// </summary>
+    public const int xlDays = 4;
+
+    /// <summary>
+    /// Months grouping
+    /// </summary>
+    public const int xlMonths = 5;
+
+    /// <summary>
+    /// Quarters grouping
+    /// </summary>
+    public const int xlQuarters = 6;
+
+    /// <summary>
+    /// Years grouping
+    /// </summary>
+    public const int xlYears = 7;
+}
+
+/// <summary>
 /// Result for PivotTable creation operations
 /// </summary>
 public class PivotTableCreateResult : ResultBase
@@ -364,6 +411,11 @@ public class PivotFieldInfo
     /// Data type of the field
     /// </summary>
     public string DataType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Formula for calculated fields (e.g., "=Revenue-Cost")
+    /// </summary>
+    public string? Formula { get; set; }
 }
 
 /// <summary>
@@ -426,6 +478,16 @@ public class PivotFieldResult : ResultBase
     /// Data type of the field
     /// </summary>
     public string DataType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Formula for calculated fields (e.g., "=Revenue-Cost")
+    /// </summary>
+    public string? Formula { get; set; }
+
+    /// <summary>
+    /// Workflow hint describing what happened and suggested next steps
+    /// </summary>
+    public string? WorkflowHint { get; set; }
 }
 
 /// <summary>

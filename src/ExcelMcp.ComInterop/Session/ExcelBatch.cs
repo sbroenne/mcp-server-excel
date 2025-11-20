@@ -226,6 +226,8 @@ internal sealed class ExcelBatch : IExcelBatch
 
     public string WorkbookPath => _workbookPath;
 
+    public ILogger Logger => _logger;
+
     /// <summary>
     /// Executes a COM operation on the STA thread.
     /// All Excel COM operations are synchronous.

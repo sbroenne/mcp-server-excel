@@ -227,5 +227,117 @@ public interface IPivotTableCommands
     /// <returns>Applied sort configuration and preview of changes</returns>
     PivotFieldResult SortField(IExcelBatch batch, string pivotTableName,
         string fieldName, SortDirection direction = SortDirection.Ascending);
-}
 
+    // === GROUPING OPERATIONS (DATE AND NUMERIC) ===
+
+    /// <summary>
+    /// Groups date/time field by specified interval (Month, Quarter, Year)
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <param name="fieldName">Name of the date/time field to group</param>
+    /// <param name="interval">Grouping interval (Months, Quarters, Years)</param>
+    /// <returns>Applied grouping configuration and resulting group count</returns>
+    /// <remarks>
+    /// Creates automatic date hierarchy in PivotTable (e.g., Years > Quarters > Months).
+    /// Works for both regular and OLAP PivotTables.
+    /// Example: Group "OrderDate" by Months to see monthly sales trends.
+    /// </remarks>
+    PivotFieldResult GroupByDate(IExcelBatch batch, string pivotTableName,
+        string fieldName, DateGroupingInterval interval);
+
+    /// <summary>
+    /// Groups a numeric field by specified interval (e.g., 0-100, 100-200, 200-300).
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of PivotTable</param>
+    /// <param name="fieldName">Field to group</param>
+    /// <param name="start">Starting value (null = use field minimum)</param>
+    /// <param name="endValue">Ending value (null = use field maximum)</param>
+    /// <param name="intervalSize">Size of each group (e.g., 100 for groups of 100)</param>
+    /// <returns>Grouping result with created groups</returns>
+    /// <remarks>
+    /// Creates numeric range groups in PivotTable for analysis.
+    /// Use cases: Age groups (0-20, 20-40), price ranges (0-100, 100-200), score bands (0-50, 50-100).
+    /// Works for regular PivotTables. OLAP PivotTables require grouping in Data Model.
+    /// Example: Group "Sales" by 100 to analyze sales distribution across price ranges.
+    /// </remarks>
+    PivotFieldResult GroupByNumeric(IExcelBatch batch, string pivotTableName,
+        string fieldName, double? start, double? endValue, double intervalSize);
+
+    /// <summary>
+    /// Creates a calculated field with a custom formula.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <param name="fieldName">Name for the calculated field</param>
+    /// <param name="formula">Formula using field references (e.g., "=Revenue-Cost")</param>
+    /// <returns>Result with calculated field details</returns>
+    /// <remarks>
+    /// Formula examples:
+    /// - "=Revenue-Cost" creates Profit field
+    /// - "=Profit/Revenue" creates Margin field
+    /// - "=(Actual-Budget)/Budget" creates Variance% field
+    ///
+    /// NOTE: OLAP PivotTables do not support CalculatedFields.
+    /// For OLAP, use Data Model DAX measures instead.
+    /// </remarks>
+    PivotFieldResult CreateCalculatedField(IExcelBatch batch, string pivotTableName,
+        string fieldName, string formula);
+
+    /// <summary>
+    /// Sets the row layout form for a PivotTable.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <param name="layoutType">Layout form: 0=Compact, 1=Tabular, 2=Outline</param>
+    /// <returns>Result indicating success or failure</returns>
+    /// <remarks>
+    /// LAYOUT FORMS:
+    /// - Compact (0): All row fields in single column with indentation (Excel default)
+    /// - Tabular (1): Each field in separate column, subtotals at bottom
+    /// - Outline (2): Each field in separate column, subtotals at top
+    ///
+    /// Supported by both regular and OLAP PivotTables.
+    /// </remarks>
+    OperationResult SetLayout(IExcelBatch batch, string pivotTableName, int layoutType);
+
+    /// <summary>
+    /// Shows or hides subtotals for a specific row field.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <param name="fieldName">Name of the row field</param>
+    /// <param name="showSubtotals">True to show automatic subtotals, false to hide</param>
+    /// <returns>Result with updated field configuration</returns>
+    /// <remarks>
+    /// SUBTOTALS:
+    /// - Enabled: Shows automatic subtotals (Sum for numbers, Count for text)
+    /// - Disabled: Hides all subtotals, shows only detail rows
+    ///
+    /// OLAP PivotTables only support Automatic subtotals.
+    /// </remarks>
+    PivotFieldResult SetSubtotals(IExcelBatch batch, string pivotTableName,
+        string fieldName, bool showSubtotals);
+
+    /// <summary>
+    /// Shows or hides grand totals for rows and/or columns in the PivotTable.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable to configure</param>
+    /// <param name="showRowGrandTotals">Show row grand totals (bottom summary row)</param>
+    /// <param name="showColumnGrandTotals">Show column grand totals (right summary column)</param>
+    /// <returns>Operation result indicating success or failure</returns>
+    /// <remarks>
+    /// GRAND TOTALS:
+    /// - Row Grand Totals: Summary row at bottom of PivotTable
+    /// - Column Grand Totals: Summary column at right of PivotTable
+    /// - Independent control: Can show/hide row and column separately
+    ///
+    /// SUPPORT:
+    /// - Regular PivotTables: Full support
+    /// - OLAP PivotTables: Full support
+    /// </remarks>
+    OperationResult SetGrandTotals(IExcelBatch batch, string pivotTableName,
+        bool showRowGrandTotals, bool showColumnGrandTotals);
+}

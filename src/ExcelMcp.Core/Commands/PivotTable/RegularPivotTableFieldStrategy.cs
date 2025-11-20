@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
@@ -829,4 +830,360 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     #endregion
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// CRITICAL REQUIREMENT: Source data MUST be formatted with date NumberFormat BEFORE creating the PivotTable.
+    /// Without proper date formatting, Excel stores dates as serial numbers (e.g., 45672) with "Standard" format,
+    /// which prevents date grouping from working.
+    ///
+    /// Example:
+    /// <code>
+    /// // Apply date format to source data BEFORE creating PivotTable
+    /// sheet.Range["D2:D6"].NumberFormat = "m/d/yyyy";
+    /// </code>
+    ///
+    /// This method groups date fields by Days, Months, Quarters, or Years. Excel automatically creates
+    /// hierarchical groupings (e.g., Months + Years) for proper time-based analysis.
+    /// </remarks>
+    public PivotFieldResult GroupByDate(dynamic pivot, string fieldName, DateGroupingInterval interval, string workbookPath, ILogger? logger = null)
+    {
+        dynamic? field = null;
+        dynamic? singleCell = null;
+        try
+        {
+            // CRITICAL: Refresh PivotTable FIRST to populate field with actual date values
+            // Excel needs populated items before grouping can work
+            pivot.RefreshTable();
+
+            field = GetFieldForManipulation(pivot, fieldName);
+
+            // CRITICAL: Microsoft documentation states:
+            // "The Range object must be a single cell in the PivotTable field's data range"
+            // This means a cell from the actual PivotTable BODY (items in the field),
+            // NOT the field button area.
+            //
+            // Source: https://learn.microsoft.com/en-us/dotnet/api/microsoft.office.interop.excel.range.group?view=excel-pia
+            //
+            // PivotField.DataRange returns:
+            // - For Row/Column/Page fields: "Items in the field" (what we need!)
+            // - For Data fields: "Data contained in the field"
+            //
+            // Use the first cell from field.DataRange - this is where the actual date values appear
+
+            // Get first cell from field.DataRange (items in the field)
+            singleCell = field.DataRange.Cells[1, 1];
+
+            // CRITICAL: Periods is a boolean array with 7 elements (Seconds, Minutes, Hours, Days, Months, Quarters, Years)
+            // See: https://learn.microsoft.com/en-us/office/vba/api/excel.range.group
+            // Element indexes: 1=Seconds, 2=Minutes, 3=Hours, 4=Days, 5=Months, 6=Quarters, 7=Years
+            // Excel uses 1-based indexing, C# arrays are 0-based, so index 3 = element 4 = Days
+            var periods = new object[] { false, false, false, false, false, false, false };
+
+            switch (interval)
+            {
+                case DateGroupingInterval.Days:
+                    periods[3] = true;      // Element 4 (index 3) = Days
+                    break;
+                case DateGroupingInterval.Months:
+                    periods[4] = true;      // Element 5 (index 4) = Months
+                    periods[6] = true;      // Element 7 (index 6) = Years (required for month grouping)
+                    break;
+                case DateGroupingInterval.Quarters:
+                    periods[5] = true;      // Element 6 (index 5) = Quarters
+                    periods[6] = true;      // Element 7 (index 6) = Years (required for quarter grouping)
+                    break;
+                case DateGroupingInterval.Years:
+                    periods[6] = true;      // Element 7 (index 6) = Years
+                    break;
+                default:
+                    throw new ArgumentException($"Unknown grouping interval: {interval}");
+            }
+
+            // Call Group on single cell, not entire range
+            // VBA examples use Start:=True and End:=True to use auto-detected min/max date range
+            singleCell.Group(
+                Start: true,
+                End: true,
+                By: Type.Missing,
+                Periods: periods
+            );
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                CustomName = field.Caption?.ToString() ?? fieldName,
+                Area = (PivotFieldArea)field.Orientation,
+                FilePath = workbookPath,
+                WorkflowHint = $"Field '{fieldName}' grouped by {interval}. Excel created automatic date hierarchy."
+            };
+        }
+        catch (Exception ex)
+        {
+#pragma warning disable CA1848 // Keep error logging for diagnostics
+            logger?.LogError(ex, "GroupByDate failed for field '{FieldName}'", fieldName);
+#pragma warning restore CA1848
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to group field by date: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref singleCell);
+            ComUtilities.Release(ref field);
+        }
+    }
+
+    /// <inheritdoc/>
+    public PivotFieldResult GroupByNumeric(dynamic pivot, string fieldName, double? start, double? endValue, double intervalSize, string workbookPath, ILogger? logger = null)
+    {
+        dynamic? field = null;
+        dynamic? singleCell = null;
+        try
+        {
+            // CRITICAL: Refresh PivotTable FIRST to populate field with actual numeric values
+            // Excel needs populated items before grouping can work (same as date grouping)
+            pivot.RefreshTable();
+
+            field = GetFieldForManipulation(pivot, fieldName);
+
+            // CRITICAL: Microsoft documentation states:
+            // "The Range object must be a single cell in the PivotTable field's data range"
+            // Same requirement as date grouping - use first cell from field.DataRange
+            //
+            // Source: https://learn.microsoft.com/en-us/dotnet/api/microsoft.office.interop.excel.range.group?view=excel-pia
+            //
+            // For numeric grouping:
+            // - By parameter specifies interval size (e.g., 10 for groups of 10)
+            // - Start/End parameters define range (null = use field min/max)
+            // - Periods parameter is IGNORED (only used for date grouping)
+
+            // Get first cell from field.DataRange (items in the field)
+            singleCell = field.DataRange.Cells[1, 1];
+
+            // Convert nullable to object
+            // If start/end are null, use true to let Excel auto-detect min/max
+            object startValue = start.HasValue ? (object)start.Value : true;
+            object endValueObj = endValue.HasValue ? (object)endValue.Value : true;
+
+            // Call Group on single cell
+            // For numeric fields, By specifies the interval size
+            // Periods is ignored (only used for date grouping)
+            singleCell.Group(
+                Start: startValue,
+                End: endValueObj,
+                By: intervalSize,
+                Periods: Type.Missing
+            );
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                CustomName = field.Caption?.ToString() ?? fieldName,
+                Area = (PivotFieldArea)field.Orientation,
+                FilePath = workbookPath,
+                WorkflowHint = $"Field '{fieldName}' grouped by intervals of {intervalSize}. Excel created numeric range groups."
+            };
+        }
+        catch (Exception ex)
+        {
+#pragma warning disable CA1848 // Keep error logging for diagnostics
+            logger?.LogError(ex, "GroupByNumeric failed for field '{FieldName}'", fieldName);
+#pragma warning restore CA1848
+            return new PivotFieldResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to group field numerically: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref singleCell);
+            ComUtilities.Release(ref field);
+        }
+    }
+
+    /// <inheritdoc/>
+    public PivotFieldResult CreateCalculatedField(dynamic pivot, string fieldName, string formula, string workbookPath, ILogger? logger = null)
+    {
+        dynamic? calculatedFields = null;
+        dynamic? newField = null;
+
+        try
+        {
+            // CRITICAL: Refresh PivotTable FIRST to ensure field collection is current
+            pivot.RefreshTable();
+
+            // Access CalculatedFields collection
+            // For regular PivotTables, this collection allows creating custom fields with formulas
+            // Formula syntax: Use field names directly (e.g., "=Revenue-Cost")
+            // Excel auto-converts field references to proper format
+            calculatedFields = pivot.CalculatedFields();
+
+            // Add calculated field with formula
+            // UseStandardFormula = true ensures field names are interpreted in US English format
+            // regardless of user's locale settings
+            newField = calculatedFields.Add(fieldName, formula, true);
+
+            // Refresh again to populate the new calculated field
+            pivot.RefreshTable();
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                CustomName = newField.Caption?.ToString() ?? fieldName,
+                Area = PivotFieldArea.Hidden, // Calculated fields start hidden until added to values
+                Formula = formula,
+                FilePath = workbookPath,
+                WorkflowHint = $"Calculated field '{fieldName}' created with formula: {formula}. " +
+                              "Add to Values area with AddValueField to see results in PivotTable."
+            };
+        }
+        catch (Exception ex)
+        {
+#pragma warning disable CA1848 // Keep error logging for diagnostics
+            logger?.LogError(ex, "CreateCalculatedField failed for field '{FieldName}' with formula '{Formula}'", fieldName, formula);
+#pragma warning restore CA1848
+            return new PivotFieldResult
+            {
+                Success = false,
+                FieldName = fieldName,
+                Formula = formula,
+                ErrorMessage = $"Failed to create calculated field: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref newField);
+            ComUtilities.Release(ref calculatedFields);
+        }
+    }
+
+#pragma warning disable CA1848 // Keep logging for diagnostics
+    /// <inheritdoc/>
+    public OperationResult SetLayout(dynamic pivot, int layoutType, string workbookPath, ILogger? logger = null)
+    {
+        try
+        {
+            // xlCompactRow=0, xlTabularRow=1, xlOutlineRow=2
+            pivot.RowAxisLayout(layoutType);
+            pivot.RefreshTable();
+
+            logger?.LogInformation("Set PivotTable layout to {LayoutType}", layoutType);
+
+            return new OperationResult
+            {
+                Success = true,
+                FilePath = workbookPath
+            };
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "SetLayout failed for PivotTable");
+            return new OperationResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to set layout: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+    }
+#pragma warning restore CA1848
+
+#pragma warning disable CA1848 // Keep logging for diagnostics
+    /// <inheritdoc/>
+    public PivotFieldResult SetSubtotals(
+        dynamic pivot,
+        string fieldName,
+        bool showSubtotals,
+        string workbookPath,
+        ILogger? logger = null)
+    {
+        dynamic? field = null;
+        try
+        {
+            pivot.RefreshTable();
+
+            // Get the field from row fields
+            dynamic pivotFields = pivot.PivotFields;
+            field = pivotFields.Item(fieldName);
+
+            // Set subtotals: index 1 = Automatic
+            // If showSubtotals=true, enable Automatic (which sets all others to false)
+            // If showSubtotals=false, disable all subtotals
+            field.Subtotals[1] = showSubtotals;
+
+            pivot.RefreshTable();
+
+            logger?.LogInformation("Set subtotals for field {FieldName} to {ShowSubtotals}", fieldName, showSubtotals);
+
+            return new PivotFieldResult
+            {
+                Success = true,
+                FieldName = fieldName,
+                FilePath = workbookPath,
+                WorkflowHint = showSubtotals
+                    ? "Subtotals enabled for field. Automatic function selected based on data type."
+                    : "Subtotals disabled for field. Only detail rows visible."
+            };
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "SetSubtotals failed for field {FieldName}", fieldName);
+            return new PivotFieldResult
+            {
+                Success = false,
+                FieldName = fieldName,
+                ErrorMessage = $"Failed to set subtotals: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref field);
+        }
+    }
+#pragma warning restore CA1848
+
+#pragma warning disable CA1848
+    /// <inheritdoc/>
+    public OperationResult SetGrandTotals(dynamic pivot, bool showRowGrandTotals, bool showColumnGrandTotals, string workbookPath, ILogger? logger = null)
+    {
+        try
+        {
+            // Set row and column grand totals using COM properties
+            pivot.RowGrand = showRowGrandTotals;
+            pivot.ColumnGrand = showColumnGrandTotals;
+
+            // Refresh to apply changes
+            pivot.RefreshTable();
+
+            logger?.LogInformation("Set grand totals: Row={RowGrand}, Column={ColumnGrand}", showRowGrandTotals, showColumnGrandTotals);
+
+            return new OperationResult
+            {
+                Success = true,
+                FilePath = workbookPath
+            };
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "SetGrandTotals failed");
+            return new OperationResult
+            {
+                Success = false,
+                ErrorMessage = $"Failed to set grand totals: {ex.Message}",
+                FilePath = workbookPath
+            };
+        }
+    }
+#pragma warning restore CA1848
 }
