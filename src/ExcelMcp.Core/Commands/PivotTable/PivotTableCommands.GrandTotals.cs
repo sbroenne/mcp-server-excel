@@ -23,7 +23,7 @@ public partial class PivotTableCommands
     /// - Row Grand Totals: Summary row displayed at the bottom of the PivotTable
     /// - Column Grand Totals: Summary column displayed at the right of the PivotTable
     /// - Independent control: Can show/hide row and column totals separately
-    /// 
+    ///
     /// SUPPORT:
     /// - Regular PivotTables: Full support
     /// - OLAP PivotTables: Full support (same COM properties)

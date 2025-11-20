@@ -68,7 +68,7 @@ Result: A professionally optimized Power Query with documented improvements
 Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), ExcelMcp uses **Excel's official COM API**. This ensures:
 - ✅ **Zero risk of document corruption** - Excel handles all file operations safely
 - ✅ **Interactive development** - See changes in real-time, create → test → refine → iterate instantly
-- ✅ **Comprehensive automation** - Currently supports 163 operations across 12 specialized tools covering Power Query, Data Model/DAX, VBA, PivotTables, Excel Tables, ranges, conditional formatting, and more
+- ✅ **Comprehensive automation** - Currently supports 164 operations across 12 specialized tools covering Power Query, Data Model/DAX, VBA, PivotTables, Excel Tables, ranges, conditional formatting, and more
 
 **💻 For Developers:** Think of Excel as an AI-powered REPL - write code (Power Query M, DAX, VBA), execute instantly, inspect results visually in the live workbook. No more blind editing of .xlsx files.
 
@@ -96,7 +96,7 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 - 🔄 **Power Query** - 11 operations: **atomic workflows** (create, update-and-refresh, refresh-all), manage transformations, load configurations (worksheet, data model, connection only), M code evaluation
 - 📊 **Power Pivot (Data Model)** - 14 operations: build DAX measures, manage relationships, discover model structure (tables, columns)
 - 🎨 **Excel Tables** - 26 operations: automate formatting, filtering, sorting, structured references, number formats, column management
-- 📈 **PivotTables** - 20 operations: create and configure PivotTables for interactive analysis
+- 📈 **PivotTables** - 21 operations: create and configure PivotTables for interactive analysis, control grand totals
 - 📝 **VBA Macros** - 7 operations: export/import/run VBA code, integrate with version control
 - 📋 **Ranges & Data** - 45 operations: values, formulas, copy/paste, find/replace, formatting, validation, merge, conditional formatting, cell protection
 - 📄 **Worksheets** - 13 operations: lifecycle management, tab colors, visibility controls
@@ -208,7 +208,7 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
    - ✅ Shows quick start guide
 
 3. **Start Using It**
-   
+
    The extension opens automatically after installation with a quick start guide!
 
 ---

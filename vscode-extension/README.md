@@ -26,7 +26,7 @@ Instead of clicking through Excel menus, simply ask:
 Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), Excel MCP Server uses **Excel's official COM API**. This ensures:
 - ✅ **Zero risk of document corruption** - Excel handles all file operations safely
 - ✅ **Interactive development** - See changes in real-time as you work with live Excel files
-- ✅ **Comprehensive automation** - Currently supports 163 operations across 12 specialized tools
+- ✅ **Comprehensive automation** - Currently supports 164 operations across 12 specialized tools
 
 **Quick Example:**
 
@@ -83,7 +83,7 @@ The Excel MCP Server provides **12 specialized tools** for comprehensive Excel a
 | **excel_powerquery** | 11 actions | Power Query M code: create, view, update, delete, load configuration, list sources |
 | **excel_datamodel** | 14 actions | Power Pivot (Data Model): DAX measures, relationships, discover structure (tables, columns), refresh |
 | **excel_table** | 26 actions | Excel Tables: lifecycle, columns, filters, sorts, structured references, number formatting |
-| **excel_pivottable** | 20 actions | PivotTables: create, field management, aggregations, filters, sorting, extract data |
+| **excel_pivottable** | 21 actions | PivotTables: create, field management, aggregations, filters, sorting, grand totals control, extract data |
 | **excel_range** | 43 actions | Ranges: get/set values/formulas, formatting, validation, clear, copy, insert/delete, find/replace, merge, cell protection |
 | **excel_conditionalformat** | 2 actions | Conditional Formatting: add rules (cell value, expression-based), clear rules |
 | **excel_vba** | 7 actions | VBA: list, view, export, import, update, run, delete modules |
@@ -91,7 +91,7 @@ The Excel MCP Server provides **12 specialized tools** for comprehensive Excel a
 | **excel_worksheet** | 13 actions | Worksheets: lifecycle, tab colors, visibility (list, create, rename, copy, delete, show/hide, very-hide) |
 | **excel_namedrange** | 7 actions | Named ranges: list, get, set, create, delete, update, bulk create |
 | **excel_file** | 6 actions | File operations: create empty, open, save, close, close-workbook, test |
-| **Total** | **155 actions**
+| **Total** | **156 actions**
 
 ## Troubleshooting
 

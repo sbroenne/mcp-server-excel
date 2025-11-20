@@ -287,7 +287,7 @@ public interface IPivotTableCommands
     /// - Compact (0): All row fields in single column with indentation (Excel default)
     /// - Tabular (1): Each field in separate column, subtotals at bottom
     /// - Outline (2): Each field in separate column, subtotals at top
-    /// 
+    ///
     /// Supported by both regular and OLAP PivotTables.
     /// </remarks>
     OperationResult SetLayout(IExcelBatch batch, string pivotTableName, int layoutType);
@@ -304,7 +304,7 @@ public interface IPivotTableCommands
     /// SUBTOTALS:
     /// - Enabled: Shows automatic subtotals (Sum for numbers, Count for text)
     /// - Disabled: Hides all subtotals, shows only detail rows
-    /// 
+    ///
     /// OLAP PivotTables only support Automatic subtotals.
     /// </remarks>
     PivotFieldResult SetSubtotals(IExcelBatch batch, string pivotTableName,
@@ -323,7 +323,7 @@ public interface IPivotTableCommands
     /// - Row Grand Totals: Summary row at bottom of PivotTable
     /// - Column Grand Totals: Summary column at right of PivotTable
     /// - Independent control: Can show/hide row and column separately
-    /// 
+    ///
     /// SUPPORT:
     /// - Regular PivotTables: Full support
     /// - OLAP PivotTables: Full support
