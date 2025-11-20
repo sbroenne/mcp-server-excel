@@ -119,13 +119,23 @@ public interface IPivotTableCommands
         string fieldName, int? position = null);
 
     /// <summary>
-    /// Adds field to Values area with aggregation function
+    /// Adds field to Values area with aggregation function.
+    /// 
+    /// For OLAP PivotTables, supports TWO modes:
+    /// 1. Pre-existing measure: fieldName = "Total Sales" or "[Measures].[Total Sales]"
+    ///    - Adds existing DAX measure without creating duplicate
+    ///    - aggregationFunction ignored (measure formula defines aggregation)
+    /// 2. Auto-create measure: fieldName = "Sales" (column name)
+    ///    - Creates new DAX measure with specified aggregation function
+    ///    - customName becomes the measure name
+    /// 
+    /// For Regular PivotTables: Adds column with aggregation function
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>
-    /// <param name="fieldName">Name of the field to add</param>
-    /// <param name="aggregationFunction">Aggregation function to apply</param>
-    /// <param name="customName">Optional custom name for the field</param>
+    /// <param name="fieldName">Field/column name OR existing measure name (OLAP)</param>
+    /// <param name="aggregationFunction">Aggregation function (for Regular and OLAP auto-create mode)</param>
+    /// <param name="customName">Optional custom name for the field/measure</param>
     /// <returns>Field configuration with applied function and custom name</returns>
     PivotFieldResult AddValueField(IExcelBatch batch, string pivotTableName,
         string fieldName, AggregationFunction aggregationFunction = AggregationFunction.Sum,
