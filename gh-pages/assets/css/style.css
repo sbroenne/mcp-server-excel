@@ -92,6 +92,38 @@ body {
   margin: 0 auto;
 }
 
+/* Badges Section */
+.badges-section {
+  background: #f8f9fa;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.badges-section .container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hero-badges {
+  margin: 0;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.hero-badges img {
+  height: 20px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.hero-badges a:hover img {
+  transform: translateY(-2px);
+  opacity: 0.8;
+}
+
 @keyframes fadeInScale {
   from {
     opacity: 0;

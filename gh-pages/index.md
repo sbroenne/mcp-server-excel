@@ -17,6 +17,15 @@ canonical_url: "https://sbroenne.github.io/mcp-server-excel/"
   </div>
 </div>
 
+<div class="badges-section">
+  <div class="container">
+    <div class="hero-badges">
+      <a href="https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer"><img src="https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.McpServer.svg?label=NuGet%20MCP%20Installs" alt="NuGet MCP Server Installs"></a>
+      <a href="https://github.com/sbroenne/mcp-server-excel/releases"><img src="https://img.shields.io/github/downloads/sbroenne/mcp-server-excel/total?label=GitHub%20Downloads" alt="GitHub Downloads"></a>
+    </div>
+  </div>
+</div>
+
 <div class="container content-section" markdown="1">
 ## 🤔 What is This?
 
