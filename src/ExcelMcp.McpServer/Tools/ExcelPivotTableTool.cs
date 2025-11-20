@@ -19,7 +19,11 @@ public static class ExcelPivotTableTool
     private static readonly JsonSerializerOptions JsonOptions = ExcelToolsBase.JsonOptions;
 
     [McpServerTool(Name = "excel_pivottable")]
-    [Description(@"Excel PivotTable operations - interactive data analysis and summarization.")]
+    [Description(@"Excel PivotTable operations - interactive data analysis and summarization.
+
+⚡ OLAP add-value-field supports TWO modes:
+  1. Pre-existing measure: fieldName='Total Sales' or '[Measures].[Total Sales]' (adds existing measure)
+  2. Auto-create measure: fieldName='Sales' (column name, creates DAX measure with aggregationFunction)")]
     public static string ExcelPivotTable(
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         PivotTableAction action,
@@ -52,7 +56,7 @@ public static class ExcelPivotTableTool
         [Description("Destination cell for new PivotTable")]
         string? destinationCell = null,
 
-        [Description("Field name for field operations")]
+        [Description("Field name for field operations (for OLAP add-value-field: use measure name like 'Total Sales' for existing measure OR column name like 'Sales' to create new measure)")]
         string? fieldName = null,
 
         [Description("Aggregation function: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP")]
