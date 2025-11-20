@@ -344,22 +344,22 @@ internal sealed class ExcelBatch : IExcelBatch
         // Wait for STA thread to finish cleanup (with timeout)
         if (_staThread != null && _staThread.IsAlive)
         {
-            _logger.LogDebug("[Thread {CallingThread}] Calling Join() with 30s timeout on STA={STAThread}, file={FileName}", callingThread, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
+            _logger.LogDebug("[Thread {CallingThread}] Calling Join() with 60s timeout on STA={STAThread}, file={FileName}", callingThread, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
 
-            // Give STA thread 10 seconds to cleanup gracefully
+            // Give STA thread time to cleanup gracefully
             // When multiple Excel instances are being disposed, Excel COM can deadlock
             // It's better to timeout and let Windows clean up than hang forever
-            if (!_staThread.Join(TimeSpan.FromSeconds(30)))
+            if (!_staThread.Join(TimeSpan.FromSeconds(60)))
             {
                 // CRITICAL: STA thread didn't exit - this means Excel.Quit() is hung
                 // Do NOT attempt cross-thread COM calls - that violates COM apartment rules
                 // Instead, fail cleanly and let the OS clean up the process leak
-                _logger.LogError("[Thread {CallingThread}] Join() TIMED OUT after 3s waiting for STA={STAThread}, file={FileName} - Excel COM is hung. Process will leak.", callingThread, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
+                _logger.LogError("[Thread {CallingThread}] Join() TIMED OUT after 60s waiting for STA={STAThread}, file={FileName} - Excel COM is hung. Process will leak.", callingThread, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
 
                 // Throw exception to signal disposal failure
                 throw new InvalidOperationException(
                     $"Excel COM cleanup timed out for '{Path.GetFileName(_workbookPath)}'. " +
-                    "The STA thread did not exit within 30 seconds, indicating Excel.Quit() is hung. " +
+                    "The STA thread did not exit within 60 seconds, indicating Excel.Quit() is hung. " +
                     "This typically occurs when Excel is showing a modal dialog or is in an unresponsive state. " +
                     "The Excel.exe process will leak and must be terminated manually.");
             }
