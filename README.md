@@ -4,8 +4,8 @@
 [![Build CLI](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-cli.yml/badge.svg)](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-cli.yml)
 [![Release](https://img.shields.io/github/v/release/sbroenne/mcp-server-excel)](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/sbroenne/mcp-server-excel/total)](https://github.com/sbroenne/mcp-server-excel/releases)
+[![NuGet Downloads - MCP Server](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.McpServer.svg?label=MCP%20Installs)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
 
-[![MCP Registry](https://img.shields.io/badge/MCP_Registry-io.github.sbroenne%2Fmcp--server--excel-blue?logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTggMEw5LjUgMy41TDEzIDVMOS41IDYuNUw4IDEwTDYuNSA2LjVMMyA1TDYuNSAzLjVMOCAwWiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTEyIDhMMTMuNSAxMS41TDE2IDEzTDEzLjUgMTQuNUwxMiAxOEwxMC41IDE0LjVMOCAxM0wxMC41IDExLjVMMTIgOFoiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=)](https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel)
 [![NuGet MCP Server](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.McpServer.svg?label=MCP%20Server)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
 [![NuGet CLI](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.CLI.svg?label=CLI)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)
 
