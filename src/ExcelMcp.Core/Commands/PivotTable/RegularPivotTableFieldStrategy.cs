@@ -1,6 +1,6 @@
+using Microsoft.Extensions.Logging;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
-using Microsoft.Extensions.Logging;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 

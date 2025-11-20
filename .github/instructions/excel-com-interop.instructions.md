@@ -24,23 +24,57 @@ applyTo: "src/ExcelMcp.Core/**/*.cs"
 
 ## Resource Management
 
-### ✅ ALWAYS use ExcelHelper.WithExcel()
+### ✅ Unified Shutdown Pattern (Current Standard)
+
+**All workbook close and Excel quit operations use `ExcelShutdownService` with resilient retry:**
 
 ```csharp
-return ExcelHelper.WithExcel(filePath, save: false, (excel, workbook) =>
-{
-    dynamic? query = null;
-    try {
-        query = workbook.Queries.Item(1);
-        // Use query...
-    } finally {
-        ExcelHelper.ReleaseComObject(ref query);
-    }
-    return 0;
-});
+// In ExcelBatch, ExcelSession, FileCommands:
+ExcelShutdownService.CloseAndQuit(workbook, excel, save: false, filePath, logger);
 ```
 
-**Handles:** Excel.Application creation, Workbook open/close, Excel.Quit(), COM cleanup, GC collection
+**Shutdown Order:**
+1. **Optional Save** - If `save=true`, calls `workbook.Save()` explicitly before close
+2. **Close Workbook** - Calls `workbook.Close(save)` (save param controls Excel's prompt behavior)
+3. **Release Workbook** - Releases COM reference via `ComUtilities.Release()`
+4. **Quit Excel** - Calls `excel.Quit()` with exponential backoff retry (6 attempts, 200ms base delay)
+5. **Release Excel** - Releases COM reference via `ComUtilities.Release()`
+6. **Automatic GC** - RCW finalizers handle final cleanup automatically (no forced GC needed per Microsoft guidance)
+
+**Resilience Features:**
+- Uses `Microsoft.Extensions.Resilience` retry pipeline
+- **Outer timeout (30s)**: Overall cancellation for Excel.Quit() - catches hung Excel (modal dialogs, deadlocks)
+- **Inner retry**: Exponential backoff (200ms base, 2x factor, 6 attempts) for transient COM busy errors
+- Retries on: `RPC_E_SERVERCALL_RETRYLATER` (-2147417851), `RPC_E_CALL_REJECTED` (-2147418111)
+- Structured logging for diagnostics (attempt number, HResult, elapsed time)
+- Continues with COM cleanup even if Quit fails/times out
+- **STA thread join (10s)**: Short verification timeout after quit succeeds/fails
+
+**Save Semantics:**
+```csharp
+// Discard changes (default for disposal paths)
+ExcelShutdownService.CloseAndQuit(workbook, excel, save: false, filePath, logger);
+
+// Save before close (for explicit save operations)
+ExcelShutdownService.CloseAndQuit(workbook, excel, save: true, filePath, logger);
+```
+
+**Why Unified Service:**
+- Eliminates duplicated try/catch blocks across `ExcelBatch`, `ExcelSession`, `FileCommands`
+- Consistent retry behavior for all Excel quit operations
+- Centralized logging and diagnostics
+- Handles edge cases: disconnected COM proxies, hung Excel, modal dialogs
+
+**Timeout Architecture (Proper Layering):**
+```
+Overall Quit Timeout: 30 seconds (outer)
+  └─> Resilient Retry: 6 attempts with exponential backoff (inner, ~6s max)
+      └─> Individual Quit() calls
+  └─> STA Thread Join: 10 seconds (verification only)
+```
+- **30s quit timeout**: Catches truly hung Excel (modal dialogs, deadlocks) via CancellationToken
+- **6-attempt retry**: Handles transient COM busy states within the 30s window
+- **10s thread join**: Quick verification that cleanup finished (not a primary timeout mechanism)
 
 ## Critical COM Issues
 

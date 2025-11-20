@@ -538,10 +538,15 @@ public class SessionManagerTests : IDisposable
             // Expected on some systems - skip test
             _output.WriteLine("Path too long - test skipped");
         }
-        catch (AggregateException ex) when (ex.InnerException is System.Runtime.InteropServices.COMException)
+        catch (AggregateException ex) when (ex.InnerException is PathTooLongException)
         {
-            // Excel COM may reject very long paths - expected behavior
-            _output.WriteLine($"Excel COM rejected long path - test skipped: {ex.InnerException.Message}");
+            // Excel COM may reject very long paths - expected behavior (converted from COMException)
+            _output.WriteLine($"Excel rejected long path - test skipped: {ex.InnerException.Message}");
+        }
+        catch (AggregateException ex) when (ex.InnerException is AggregateException inner && inner.InnerException is PathTooLongException)
+        {
+            // Nested AggregateException from async task wrapping (STA thread -> Task.Wait -> Task.Wait)
+            _output.WriteLine($"Excel rejected long path (nested) - test skipped: {((AggregateException)ex.InnerException).InnerException!.Message}");
         }
     }
 

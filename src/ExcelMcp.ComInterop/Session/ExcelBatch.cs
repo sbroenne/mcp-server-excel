@@ -158,53 +158,15 @@ internal sealed class ExcelBatch : IExcelBatch
             }
             finally
             {
-                // Cleanup COM objects on STA thread exit (children -> parents)
+                // Cleanup COM objects on STA thread exit using unified shutdown service
                 _logger.LogDebug("STA thread cleanup starting for {FileName}", Path.GetFileName(_workbookPath));
 
-                try
-                {
-                    // Don't save - Save must be called explicitly
-                    _workbook?.Close(false);
-                }
-                catch (COMException ex)
-                {
-                    _logger.LogWarning(ex,
-                        "Failed to close workbook COM object during STA cleanup for {FileName}",
-                        Path.GetFileName(_workbookPath));
-                }
-                catch (MissingMemberException ex)
-                {
-                    // COM proxy already disconnected (RPC_E_DISCONNECTED / 0x80010108) - best-effort cleanup only
-                    _logger.LogWarning(ex,
-                        "Workbook COM proxy was disconnected while calling Close during STA cleanup for {FileName}",
-                        Path.GetFileName(_workbookPath));
-                }
-                finally
-                {
-                    _workbook = null;
-                }
+                // Use ExcelShutdownService for resilient close and quit
+                // save=false: Save must be called explicitly via batch.Save()
+                ExcelShutdownService.CloseAndQuit(_workbook, _excel, false, _workbookPath, _logger);
 
-                try
-                {
-                    _excel?.Quit();
-                }
-                catch (COMException ex)
-                {
-                    _logger.LogWarning(ex,
-                        "Failed to quit Excel COM application during STA cleanup for {FileName}",
-                        Path.GetFileName(_workbookPath));
-                }
-                catch (MissingMemberException ex)
-                {
-                    _logger.LogWarning(ex,
-                        "Excel COM proxy was disconnected while calling Quit during STA cleanup for {FileName}",
-                        Path.GetFileName(_workbookPath));
-                }
-                finally
-                {
-                    _excel = null;
-                }
-
+                _workbook = null;
+                _excel = null;
                 _context = null;
 
                 OleMessageFilter.Revoke();
@@ -287,31 +249,12 @@ internal sealed class ExcelBatch : IExcelBatch
     {
         Execute((ctx, ct) =>
         {
-            try
-            {
-                _workbook!.Save();
-                return 0;
-            }
-            catch (COMException ex)
-            {
-                string errorMessage = ex.HResult switch
-                {
-                    unchecked((int)0x800A03EC) =>
-                        $"Cannot save '{Path.GetFileName(_workbookPath)}'. " +
-                        "The file may be read-only, locked by another process, or the path may not exist.",
-                    unchecked((int)0x800AC472) =>
-                        $"Cannot save '{Path.GetFileName(_workbookPath)}'. " +
-                        "The file is locked for editing by another user or process.",
-                    _ => $"Failed to save workbook '{Path.GetFileName(_workbookPath)}': {ex.Message}"
-                };
-
-                throw new InvalidOperationException(errorMessage, ex);
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException(
-                    $"Unexpected error saving workbook '{Path.GetFileName(_workbookPath)}': {ex.Message}", ex);
-            }
+            ExcelShutdownService.SaveWorkbookWithTimeout(
+                _workbook!,
+                Path.GetFileName(_workbookPath),
+                _logger,
+                ct);
+            return 0;
         }, cancellationToken);
     }
 
@@ -346,24 +289,22 @@ internal sealed class ExcelBatch : IExcelBatch
         // Wait for STA thread to finish cleanup (with timeout)
         if (_staThread != null && _staThread.IsAlive)
         {
-            _logger.LogDebug("[Thread {CallingThread}] Calling Join() with 60s timeout on STA={STAThread}, file={FileName}", callingThread, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
+            _logger.LogDebug("[Thread {CallingThread}] Calling Join() with 10s timeout on STA={STAThread}, file={FileName}", callingThread, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
 
-            // Give STA thread time to cleanup gracefully
-            // When multiple Excel instances are being disposed, Excel COM can deadlock
-            // It's better to timeout and let Windows clean up than hang forever
-            if (!_staThread.Join(TimeSpan.FromSeconds(60)))
+            // Short timeout (10s) since ExcelShutdownService already handles Excel.Quit() timeout (30s)
+            // If we get here and thread doesn't exit, something is badly wrong, but we've done our best
+            if (!_staThread.Join(TimeSpan.FromSeconds(10)))
             {
-                // CRITICAL: STA thread didn't exit - this means Excel.Quit() is hung
-                // Do NOT attempt cross-thread COM calls - that violates COM apartment rules
-                // Instead, fail cleanly and let the OS clean up the process leak
-                _logger.LogError("[Thread {CallingThread}] Join() TIMED OUT after 60s waiting for STA={STAThread}, file={FileName} - Excel COM is hung. Process will leak.", callingThread, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
+                // STA thread didn't exit - log error but don't throw
+                // The 30s quit timeout in ExcelShutdownService already tried to handle hung Excel
+                _logger.LogError(
+                    "[Thread {CallingThread}] STA thread (Id={STAThread}) did NOT exit within 10 seconds for {FileName}. " +
+                    "This indicates Excel cleanup is severely stuck. Process will leak. " +
+                    "Note: ExcelShutdownService already attempted 30s quit timeout + retries.",
+                    callingThread, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
 
-                // Throw exception to signal disposal failure
-                throw new InvalidOperationException(
-                    $"Excel COM cleanup timed out for '{Path.GetFileName(_workbookPath)}'. " +
-                    "The STA thread did not exit within 60 seconds, indicating Excel.Quit() is hung. " +
-                    "This typically occurs when Excel is showing a modal dialog or is in an unresponsive state. " +
-                    "The Excel.exe process will leak and must be terminated manually.");
+                // Don't throw - disposal should not fail. Log the leak and continue.
+                // OS will clean up when process exits.
             }
         }
         else
