@@ -35,9 +35,7 @@ public partial class RangeCommands
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
-                    return result;
+                    throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
                 // Excel COM constants
@@ -74,12 +72,6 @@ public partial class RangeCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref foundCell);
@@ -101,9 +93,7 @@ public partial class RangeCommands
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
-                    return result;
+                    throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
                 // Excel COM constants
@@ -121,12 +111,6 @@ public partial class RangeCommands
                 );
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -154,24 +138,18 @@ public partial class RangeCommands
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
-                    return result;
+                    throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
                 if (sortColumns.Count == 0)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = "At least one sort column must be specified";
-                    return result;
+                    throw new ArgumentException("At least one sort column must be specified", nameof(sortColumns));
                 }
 
                 // Excel COM supports up to 3 sort keys
                 if (sortColumns.Count > 3)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = "Excel COM API supports maximum 3 sort columns";
-                    return result;
+                    throw new ArgumentException("Excel COM API supports maximum 3 sort columns", nameof(sortColumns));
                 }
 
                 // Get sort key ranges
@@ -201,12 +179,6 @@ public partial class RangeCommands
                 );
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally

@@ -26,9 +26,7 @@ public partial class RangeCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
                 }
 
                 range = sheet.Range[cellAddress];
@@ -51,12 +49,6 @@ public partial class RangeCommands
                 );
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -83,9 +75,7 @@ public partial class RangeCommands
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
-                    return result;
+                    throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
                 hyperlinks = range.Hyperlinks;
@@ -107,12 +97,6 @@ public partial class RangeCommands
                 }
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -141,9 +125,7 @@ public partial class RangeCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
                 }
 
                 hyperlinks = sheet.Hyperlinks;
@@ -176,12 +158,6 @@ public partial class RangeCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref hyperlinks);
@@ -210,9 +186,7 @@ public partial class RangeCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
                 }
 
                 range = sheet.Range[cellAddress];
@@ -243,12 +217,6 @@ public partial class RangeCommands
                 }
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally

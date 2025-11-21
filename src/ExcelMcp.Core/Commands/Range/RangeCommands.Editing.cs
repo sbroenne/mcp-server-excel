@@ -49,27 +49,17 @@ public partial class RangeCommands
                 srcRange = RangeHelpers.ResolveRange(ctx.Book, sourceSheet, sourceRange, out string? srcError);
                 if (srcRange == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = srcError ?? RangeHelpers.GetResolveError(sourceSheet, sourceRange);
-                    return result;
+                    throw new InvalidOperationException(srcError ?? RangeHelpers.GetResolveError(sourceSheet, sourceRange));
                 }
 
                 tgtRange = RangeHelpers.ResolveRange(ctx.Book, targetSheet, targetRange, out string? tgtError);
                 if (tgtRange == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = tgtError ?? RangeHelpers.GetResolveError(targetSheet, targetRange);
-                    return result;
+                    throw new InvalidOperationException(tgtError ?? RangeHelpers.GetResolveError(targetSheet, targetRange));
                 }
 
                 srcRange.Copy(tgtRange);
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -94,28 +84,18 @@ public partial class RangeCommands
                 srcRange = RangeHelpers.ResolveRange(ctx.Book, sourceSheet, sourceRange, out string? srcError);
                 if (srcRange == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = srcError ?? RangeHelpers.GetResolveError(sourceSheet, sourceRange);
-                    return result;
+                    throw new InvalidOperationException(srcError ?? RangeHelpers.GetResolveError(sourceSheet, sourceRange));
                 }
 
                 tgtRange = RangeHelpers.ResolveRange(ctx.Book, targetSheet, targetRange, out string? tgtError);
                 if (tgtRange == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = tgtError ?? RangeHelpers.GetResolveError(targetSheet, targetRange);
-                    return result;
+                    throw new InvalidOperationException(tgtError ?? RangeHelpers.GetResolveError(targetSheet, targetRange));
                 }
 
                 srcRange.Copy();
                 tgtRange.PasteSpecial(-4163); // xlPasteValues
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -140,28 +120,18 @@ public partial class RangeCommands
                 srcRange = RangeHelpers.ResolveRange(ctx.Book, sourceSheet, sourceRange, out string? srcError);
                 if (srcRange == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = srcError ?? RangeHelpers.GetResolveError(sourceSheet, sourceRange);
-                    return result;
+                    throw new InvalidOperationException(srcError ?? RangeHelpers.GetResolveError(sourceSheet, sourceRange));
                 }
 
                 tgtRange = RangeHelpers.ResolveRange(ctx.Book, targetSheet, targetRange, out string? tgtError);
                 if (tgtRange == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = tgtError ?? RangeHelpers.GetResolveError(targetSheet, targetRange);
-                    return result;
+                    throw new InvalidOperationException(tgtError ?? RangeHelpers.GetResolveError(targetSheet, targetRange));
                 }
 
                 srcRange.Copy();
                 tgtRange.PasteSpecial(-4123); // xlPasteFormulas
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -187,20 +157,12 @@ public partial class RangeCommands
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
-                    return result;
+                    throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
                 int shiftConst = shift == InsertShiftDirection.Down ? -4121 : -4161; // xlShiftDown : xlShiftToRight
                 range.Insert(shiftConst);
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -223,20 +185,12 @@ public partial class RangeCommands
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
-                    return result;
+                    throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
                 int shiftConst = shift == DeleteShiftDirection.Up ? -4162 : -4159; // xlShiftUp : xlShiftToLeft
                 range.Delete(shiftConst);
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -260,20 +214,12 @@ public partial class RangeCommands
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
-                    return result;
+                    throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
                 rows = range.EntireRow;
                 rows.Insert();
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -298,20 +244,12 @@ public partial class RangeCommands
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
-                    return result;
+                    throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
                 rows = range.EntireRow;
                 rows.Delete();
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -336,20 +274,12 @@ public partial class RangeCommands
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
-                    return result;
+                    throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
                 columns = range.EntireColumn;
                 columns.Insert();
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -374,20 +304,12 @@ public partial class RangeCommands
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
-                    return result;
+                    throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
                 columns = range.EntireColumn;
                 columns.Delete();
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally

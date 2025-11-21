@@ -33,9 +33,7 @@ public partial class RangeCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
                 }
 
                 range = sheet.UsedRange;
@@ -60,12 +58,6 @@ public partial class RangeCommands
                 }
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -95,9 +87,7 @@ public partial class RangeCommands
                 cell = RangeHelpers.ResolveRange(ctx.Book, sheetName, cellAddress, out string? specificError);
                 if (cell == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, cellAddress);
-                    return result;
+                    throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, cellAddress));
                 }
 
                 region = cell.CurrentRegion;
@@ -122,12 +112,6 @@ public partial class RangeCommands
                 }
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -155,9 +139,7 @@ public partial class RangeCommands
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
-                    return result;
+                    throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
                 result.Address = range.Address;
@@ -166,12 +148,6 @@ public partial class RangeCommands
                 result.NumberFormat = range.NumberFormat?.ToString();
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
