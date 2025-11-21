@@ -63,11 +63,6 @@ public partial class DataModelCommands
 
                 result.Success = true;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed("deleting measure", ex.Message);
-            }
             finally
             {
                 ComUtilities.Release(ref measure);
@@ -164,11 +159,6 @@ public partial class DataModelCommands
 
                 result.Success = true;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed("deleting relationship", ex.Message);
-            }
             finally
             {
                 ComUtilities.Release(ref relationship);
@@ -250,11 +240,6 @@ public partial class DataModelCommands
                 );
 
                 result.Success = true;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed($"creating measure '{measureName}'", ex.Message);
             }
             finally
             {
@@ -344,11 +329,6 @@ public partial class DataModelCommands
                 }
 
                 result.Success = true;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed($"updating measure '{measureName}'", ex.Message);
             }
             finally
             {
@@ -452,11 +432,6 @@ public partial class DataModelCommands
 
                 result.Success = true;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed("creating relationship", ex.Message);
-            }
             finally
             {
                 ComUtilities.Release(ref newRelationship);
@@ -520,11 +495,6 @@ public partial class DataModelCommands
                     : $"changed from {(wasActive ? "active" : "inactive")} to {(active ? "active" : "inactive")}";
 
                 result.Success = true;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed("updating relationship", ex.Message);
             }
             finally
             {

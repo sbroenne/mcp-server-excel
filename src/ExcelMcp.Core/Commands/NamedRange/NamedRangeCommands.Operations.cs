@@ -73,12 +73,6 @@ public partial class NamedRangeCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref namesCollection);
@@ -124,12 +118,6 @@ public partial class NamedRangeCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref refersToRange);
@@ -162,12 +150,6 @@ public partial class NamedRangeCommands
                 result.Value = refersToRange?.Value2;
                 result.ValueType = result.Value?.GetType().Name ?? "null";
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -224,12 +206,6 @@ public partial class NamedRangeCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref namesCollection);
@@ -282,12 +258,6 @@ public partial class NamedRangeCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error updating parameter: {ex.Message}";
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref nameObj);
@@ -315,12 +285,6 @@ public partial class NamedRangeCommands
 
                 nameObj.Delete();
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally

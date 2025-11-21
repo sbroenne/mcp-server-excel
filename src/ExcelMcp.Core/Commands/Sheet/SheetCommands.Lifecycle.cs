@@ -36,12 +36,6 @@ public partial class SheetCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref sheets);
@@ -65,12 +59,6 @@ public partial class SheetCommands
                 newSheet = sheets.Add();
                 newSheet.Name = sheetName;
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -101,12 +89,6 @@ public partial class SheetCommands
                 }
                 sheet.Name = newName;
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -145,12 +127,6 @@ public partial class SheetCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref copiedSheet);
@@ -181,12 +157,6 @@ public partial class SheetCommands
                 }
                 sheet.Delete();
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -256,12 +226,6 @@ public partial class SheetCommands
                 }
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally

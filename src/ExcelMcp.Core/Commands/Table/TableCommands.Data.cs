@@ -104,12 +104,6 @@ public partial class TableCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref dataBodyRange);

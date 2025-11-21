@@ -37,15 +37,6 @@ public partial class PivotTableCommands
                 var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
                 return strategy.SetLayout(pivot, layoutType, batch.WorkbookPath, batch.Logger);
             }
-            catch (Exception ex)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to set layout: {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
-            }
             finally
             {
                 ComUtilities.Release(ref pivot);

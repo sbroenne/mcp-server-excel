@@ -73,12 +73,6 @@ public partial class RangeCommands
                 result.ErrorMessage = $"Cannot read range '{rangeAddress}' on sheet '{sheetName}': {comEx.Message}";
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref range);
@@ -135,12 +129,6 @@ public partial class RangeCommands
                 // E_OUTOFMEMORY - Excel's misleading error for sheet/range/session issues
                 result.Success = false;
                 result.ErrorMessage = $"Cannot write to range '{rangeAddress}' on sheet '{sheetName}': {comEx.Message}";
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally

@@ -79,11 +79,6 @@ public partial class DataModelCommands
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed("refreshing Data Model", ex.Message);
-            }
             finally
             {
                 ComUtilities.Release(ref model);

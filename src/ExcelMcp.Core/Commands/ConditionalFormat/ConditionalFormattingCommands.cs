@@ -111,15 +111,6 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                     FilePath = batch.WorkbookPath
                 };
             }
-            catch (Exception ex)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to add conditional formatting to range '{rangeAddress}': {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
-            }
             finally
             {
                 ComUtilities.Release(ref borders!);
@@ -162,15 +153,6 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 return new OperationResult
                 {
                     Success = true,
-                    FilePath = batch.WorkbookPath
-                };
-            }
-            catch (Exception ex)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to clear conditional formatting from range '{rangeAddress}': {ex.Message}",
                     FilePath = batch.WorkbookPath
                 };
             }

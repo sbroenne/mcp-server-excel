@@ -89,12 +89,6 @@ public partial class ConnectionCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error loading connection to sheet: {ex.Message}";
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref targetSheet);
@@ -118,48 +112,39 @@ public partial class ConnectionCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            try
+            dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
+
+            if (conn == null)
             {
-                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
+                result.Success = false;
+                result.ErrorMessage = $"Connection '{connectionName}' not found";
+                return result;
+            }
 
-                if (conn == null)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Connection '{connectionName}' not found";
-                    return result;
-                }
+            // Get connection type
+            int connType = conn.Type;
 
-                // Get connection type
-                int connType = conn.Type;
-
-                // For Text (4) and Web (5) connections, connection string might not be accessible
-                // until a QueryTable is created. Just verify the connection object exists.
-                if (connType is 4 or 5)
-                {
-                    result.Success = true;
-                    return result;
-                }
-
-                // For other connection types (OLEDB, ODBC), validate connection string
-                string? connectionString = GetConnectionString(conn);
-
-                if (string.IsNullOrWhiteSpace(connectionString))
-                {
-                    result.Success = false;
-                    result.ErrorMessage = "Connection has no connection string configured";
-                    return result;
-                }
-
-                // Connection exists and is accessible
+            // For Text (4) and Web (5) connections, connection string might not be accessible
+            // until a QueryTable is created. Just verify the connection object exists.
+            if (connType is 4 or 5)
+            {
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
+
+            // For other connection types (OLEDB, ODBC), validate connection string
+            string? connectionString = GetConnectionString(conn);
+
+            if (string.IsNullOrWhiteSpace(connectionString))
             {
                 result.Success = false;
-                result.ErrorMessage = $"Connection test failed: {ex.Message}";
+                result.ErrorMessage = "Connection has no connection string configured";
                 return result;
             }
+
+            // Connection exists and is accessible
+            result.Success = true;
+            return result;
         });
     }
 }

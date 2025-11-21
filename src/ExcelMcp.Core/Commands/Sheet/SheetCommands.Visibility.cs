@@ -34,12 +34,6 @@ public partial class SheetCommands
 
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref sheet);
@@ -71,12 +65,6 @@ public partial class SheetCommands
                 result.VisibilityName = result.Visibility.ToString();
                 result.Success = true;
 
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally

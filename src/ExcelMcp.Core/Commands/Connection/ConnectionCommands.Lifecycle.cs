@@ -63,12 +63,6 @@ public partial class ConnectionCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error listing connections: {ex.Message}";
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref connections);
@@ -89,52 +83,43 @@ public partial class ConnectionCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            try
-            {
-                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
+            dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
-                if (conn == null)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Connection '{connectionName}' not found";
-                    return result;
-                }
-
-                result.Type = ConnectionHelpers.GetConnectionTypeName(conn.Type);
-                result.IsPowerQuery = PowerQueryHelpers.IsPowerQueryConnection(conn);
-
-                // Get connection string (raw for LLM usage - sanitization removed)
-                string? rawConnectionString = GetConnectionString(conn);
-                result.ConnectionString = rawConnectionString ?? "";
-
-                // Get command text and type
-                result.CommandText = GetCommandText(conn);
-                result.CommandType = GetCommandType(conn);
-
-                // Build comprehensive JSON definition
-                var definition = new
-                {
-                    Name = connectionName,
-                    Type = result.Type,
-                    Description = conn.Description?.ToString() ?? "",
-                    IsPowerQuery = result.IsPowerQuery,
-                    ConnectionString = result.ConnectionString,
-                    CommandText = result.CommandText,
-                    CommandType = result.CommandType,
-                    Properties = GetConnectionProperties(conn)
-                };
-
-                result.DefinitionJson = JsonSerializer.Serialize(definition, s_jsonOptions);
-
-                result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
+            if (conn == null)
             {
                 result.Success = false;
-                result.ErrorMessage = $"Error viewing connection: {ex.Message}";
+                result.ErrorMessage = $"Connection '{connectionName}' not found";
                 return result;
             }
+
+            result.Type = ConnectionHelpers.GetConnectionTypeName(conn.Type);
+            result.IsPowerQuery = PowerQueryHelpers.IsPowerQueryConnection(conn);
+
+            // Get connection string (raw for LLM usage - sanitization removed)
+            string? rawConnectionString = GetConnectionString(conn);
+            result.ConnectionString = rawConnectionString ?? "";
+
+            // Get command text and type
+            result.CommandText = GetCommandText(conn);
+            result.CommandType = GetCommandType(conn);
+
+            // Build comprehensive JSON definition
+            var definition = new
+            {
+                Name = connectionName,
+                Type = result.Type,
+                Description = conn.Description?.ToString() ?? "",
+                IsPowerQuery = result.IsPowerQuery,
+                ConnectionString = result.ConnectionString,
+                CommandText = result.CommandText,
+                CommandType = result.CommandType,
+                Properties = GetConnectionProperties(conn)
+            };
+
+            result.DefinitionJson = JsonSerializer.Serialize(definition, s_jsonOptions);
+
+            result.Success = true;
+            return result;
         });
     }
 
@@ -152,30 +137,21 @@ public partial class ConnectionCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            try
+            // Create connection definition
+            var definition = new ConnectionDefinition
             {
-                // Create connection definition
-                var definition = new ConnectionDefinition
-                {
-                    Name = connectionName,
-                    Description = description ?? "",
-                    ConnectionString = connectionString,
-                    CommandText = commandText ?? "",
-                    SavePassword = false // Default to secure setting
-                };
+                Name = connectionName,
+                Description = description ?? "",
+                ConnectionString = connectionString,
+                CommandText = commandText ?? "",
+                SavePassword = false // Default to secure setting
+            };
 
-                // Create the connection using existing helper method
-                CreateConnection(ctx.Book, connectionName, definition);
+            // Create the connection using existing helper method
+            CreateConnection(ctx.Book, connectionName, definition);
 
-                result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error creating connection: {ex.Message}";
-                return result;
-            }
+            result.Success = true;
+            return result;
         });
     }
 
@@ -200,37 +176,28 @@ public partial class ConnectionCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            try
-            {
-                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
+            dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
-                if (conn == null)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Connection '{connectionName}' not found";
-                    return result;
-                }
-
-                // Check if this is a Power Query connection (handle separately)
-                if (PowerQueryHelpers.IsPowerQueryConnection(conn))
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Use excel_powerquery 'refresh' instead.";
-                    return result;
-                }
-
-                // Pure COM passthrough - just refresh the connection
-                conn.Refresh();
-
-                result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
+            if (conn == null)
             {
                 result.Success = false;
-                result.ErrorMessage = $"Error refreshing connection: {ex.Message}";
+                result.ErrorMessage = $"Connection '{connectionName}' not found";
                 return result;
             }
+
+            // Check if this is a Power Query connection (handle separately)
+            if (PowerQueryHelpers.IsPowerQueryConnection(conn))
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Use excel_powerquery 'refresh' instead.";
+                return result;
+            }
+
+            // Pure COM passthrough - just refresh the connection
+            conn.Refresh();
+
+            result.Success = true;
+            return result;
         });  // Default 2 minutes for connection refresh, LLM can override
     }
 
@@ -247,40 +214,31 @@ public partial class ConnectionCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            try
-            {
-                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
+            dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
-                if (conn == null)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Connection '{connectionName}' not found";
-                    return result;
-                }
-
-                // Check if this is a Power Query connection
-                if (PowerQueryHelpers.IsPowerQueryConnection(conn))
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Use 'pq-delete' command instead.";
-                    return result;
-                }
-
-                // Remove associated QueryTables first
-                PowerQueryHelpers.RemoveQueryTables(ctx.Book, connectionName);
-
-                // Delete the connection
-                conn.Delete();
-
-                result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
+            if (conn == null)
             {
                 result.Success = false;
-                result.ErrorMessage = $"Error deleting connection: {ex.Message}";
+                result.ErrorMessage = $"Connection '{connectionName}' not found";
                 return result;
             }
+
+            // Check if this is a Power Query connection
+            if (PowerQueryHelpers.IsPowerQueryConnection(conn))
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Use 'pq-delete' command instead.";
+                return result;
+            }
+
+            // Remove associated QueryTables first
+            PowerQueryHelpers.RemoveQueryTables(ctx.Book, connectionName);
+
+            // Delete the connection
+            conn.Delete();
+
+            result.Success = true;
+            return result;
         });
     }
 }

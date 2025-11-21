@@ -111,12 +111,6 @@ public partial class VbaCommands
                 result.ErrorMessage = "VBA trust access is not enabled";
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error listing scripts: {ex.Message}";
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref vbComponents);
@@ -238,12 +232,6 @@ public partial class VbaCommands
                 result.ErrorMessage = "VBA trust access is not enabled";
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error viewing script: {ex.Message}";
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref codeModule);
@@ -324,12 +312,6 @@ public partial class VbaCommands
                 // Trust was disabled during operation
                 result = CreateVbaTrustGuidance();
                 result.FilePath = batch.WorkbookPath;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error importing script: {ex.Message}";
                 return result;
             }
             finally
@@ -424,12 +406,6 @@ public partial class VbaCommands
                 // Trust was disabled during operation
                 result = CreateVbaTrustGuidance();
                 result.FilePath = batch.WorkbookPath;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error updating script: {ex.Message}";
                 return result;
             }
             finally

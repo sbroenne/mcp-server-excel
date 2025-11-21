@@ -58,12 +58,6 @@ public partial class VbaCommands
                 result.FilePath = batch.WorkbookPath;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error running procedure '{procedureName}': {ex.Message}";
-                return result;
-            }
         });
     }
 
@@ -140,12 +134,6 @@ public partial class VbaCommands
                 // Trust was disabled during operation
                 result = CreateVbaTrustGuidance();
                 result.FilePath = batch.WorkbookPath;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error deleting module: {ex.Message}";
                 return result;
             }
             finally

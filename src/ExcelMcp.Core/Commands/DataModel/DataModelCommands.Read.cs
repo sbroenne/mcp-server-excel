@@ -46,11 +46,6 @@ public partial class DataModelCommands
 
                 result.Success = true;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed("List tables", ex.Message);
-            }
             finally
             {
                 ComUtilities.Release(ref model);
@@ -125,11 +120,6 @@ public partial class DataModelCommands
                 }
 
                 result.Success = true;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed("listing measures", ex.Message);
             }
             finally
             {
@@ -214,11 +204,6 @@ public partial class DataModelCommands
 
                 result.Success = true;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed("viewing measure", ex.Message);
-            }
             finally
             {
                 ComUtilities.Release(ref measure);
@@ -264,11 +249,6 @@ public partial class DataModelCommands
                 }));
 
                 result.Success = true;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed("listing relationships", ex.Message);
             }
             finally
             {
@@ -340,11 +320,6 @@ public partial class DataModelCommands
                 }));
 
                 result.Success = true;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed($"listing columns for table '{tableName}'", ex.Message);
             }
             finally
             {
@@ -433,11 +408,6 @@ public partial class DataModelCommands
 
                 result.Success = true;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed($"viewing table '{tableName}'", ex.Message);
-            }
             finally
             {
                 ComUtilities.Release(ref table);
@@ -491,11 +461,6 @@ public partial class DataModelCommands
                 }));
 
                 result.Success = true;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed("getting model info", ex.Message);
             }
             finally
             {
