@@ -28,9 +28,7 @@ public partial class VbaCommands
         if (!IsVbaTrustEnabled())
         {
             var trustGuidance = CreateVbaTrustGuidance();
-            result.Success = false;
-            result.ErrorMessage = trustGuidance.ErrorMessage;
-            return result;
+            throw new InvalidOperationException(trustGuidance.ErrorMessage);
         }
 
         return batch.Execute((ctx, ct) =>
@@ -370,9 +368,7 @@ public partial class VbaCommands
 
                 if (targetComponent == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Module '{moduleName}' not found. Use script-import to create it.";
-                    return result;
+                    throw new InvalidOperationException($"Module '{moduleName}' not found. Use script-import to create it.");
                 }
 
                 codeModule = targetComponent.CodeModule;
