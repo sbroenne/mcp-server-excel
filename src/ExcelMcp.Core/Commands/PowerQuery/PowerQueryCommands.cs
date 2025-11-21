@@ -132,29 +132,6 @@ public partial class PowerQueryCommands : IPowerQueryCommands
     }
 
     /// <summary>
-    /// Categorize error type from COM exception
-    /// </summary>
-    private static string CategorizeError(COMException comEx)
-    {
-        var message = comEx.Message.ToLower(System.Globalization.CultureInfo.InvariantCulture);
-        if (message.Contains("authentication", StringComparison.OrdinalIgnoreCase))
-            return "Authentication";
-        if (message.Contains("connection", StringComparison.OrdinalIgnoreCase) ||
-            message.Contains("reach", StringComparison.OrdinalIgnoreCase) ||
-            message.Contains("connect", StringComparison.OrdinalIgnoreCase))
-            return "Connectivity";
-        if (message.Contains("privacy", StringComparison.OrdinalIgnoreCase) ||
-            message.Contains("combine data", StringComparison.OrdinalIgnoreCase))
-            return "Privacy";
-        if (message.Contains("syntax", StringComparison.OrdinalIgnoreCase))
-            return "Syntax";
-        if (message.Contains("permission", StringComparison.OrdinalIgnoreCase) ||
-            message.Contains("access", StringComparison.OrdinalIgnoreCase))
-            return "Permissions";
-        return "Unknown";
-    }
-
-    /// <summary>
     /// Determine which worksheet a query is loaded to (if any)
     /// </summary>
     private static string? DetermineLoadedSheet(dynamic workbook, string queryName)

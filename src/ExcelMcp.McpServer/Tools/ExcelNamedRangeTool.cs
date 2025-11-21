@@ -80,9 +80,6 @@ public static class ExcelNamedRangeTool
 
         // If operation failed, throw exception with detailed error message
         // Always return JSON (success or failure) - MCP clients handle the success flag
-        // Add workflow hints
-        var count = result.NamedRanges?.Count ?? 0;
-
         return JsonSerializer.Serialize(new
         {
             result.Success,

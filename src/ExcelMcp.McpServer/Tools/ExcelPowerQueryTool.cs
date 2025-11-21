@@ -274,14 +274,6 @@ public static class ExcelPowerQueryTool
         var isSheetConflict = !result.Success &&
                              result.ErrorMessage?.Contains("worksheet already exists", StringComparison.OrdinalIgnoreCase) == true;
 
-        var destinationName = loadMode switch
-        {
-            PowerQueryLoadMode.LoadToTable => "worksheet",
-            PowerQueryLoadMode.LoadToDataModel => "Data Model",
-            PowerQueryLoadMode.LoadToBoth => "worksheet and Data Model",
-            _ => "connection-only"
-        };
-
         return JsonSerializer.Serialize(new
         {
             result.Success,

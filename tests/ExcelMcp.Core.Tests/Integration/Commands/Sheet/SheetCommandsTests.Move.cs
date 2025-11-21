@@ -26,8 +26,7 @@ public partial class SheetCommandsTests
         _sheetCommands.Create(batch, "Target");
 
         // Get initial position of MoveMe
-        var beforeList = _sheetCommands.List(batch);
-        var beforeIndex = beforeList.Worksheets.ToList().FindIndex(s => s.Name == "MoveMe");
+        _sheetCommands.List(batch);
 
         // Act - Move MoveMe before Sheet1
         var result = _sheetCommands.Move(batch, "MoveMe", beforeSheet: "Sheet1");
@@ -58,8 +57,7 @@ public partial class SheetCommandsTests
         _sheetCommands.Create(batch, "Target");
 
         // Get initial position
-        var beforeList = _sheetCommands.List(batch);
-        var beforeIndex = beforeList.Worksheets.ToList().FindIndex(s => s.Name == "MoveMe");
+        _sheetCommands.List(batch);
 
         // Act - Move MoveMe after Target
         var result = _sheetCommands.Move(batch, "MoveMe", afterSheet: "Target");

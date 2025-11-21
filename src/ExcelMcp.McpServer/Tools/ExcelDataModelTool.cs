@@ -279,10 +279,6 @@ public static class ExcelDataModelTool
             sessionId,
             batch => commands.ListColumns(batch, tableName));
 
-        // Add workflow hints
-        var columnCount = result.Columns?.Count ?? 0;
-        var calculatedCount = result.Columns?.Count(c => c.IsCalculated) ?? 0;
-
         return JsonSerializer.Serialize(new
         {
             result.Success,

@@ -123,7 +123,7 @@ public class ExcelBatchTests : IAsyncLifetime
         batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item(1);
-            var value = sheet.Range["A1"].Value2;
+            _ = sheet.Range["A1"].Value2;
             return 0;
         });
 
@@ -230,8 +230,7 @@ public class ExcelBatchTests : IAsyncLifetime
             batch.Execute((ctx, ct) =>
             {
                 dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
-                dynamic names = ctx.Book.Names;
-                names.Add(namedRangeName, $"={sheetName}!$A$1:$B$2");
+                ctx.Book.Names.Add(namedRangeName, $"={sheetName}!$A$1:$B$2");
                 _output.WriteLine($"✓ Created named range: {namedRangeName}");
                 return 0;
             });

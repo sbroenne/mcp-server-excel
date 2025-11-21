@@ -82,7 +82,6 @@ public partial class PowerQueryCommands
                     // STEP 2: Find existing QueryTable (preferred) or ListObject bound to this query
                     // Pattern 1: QueryTable created by LoadTo/Create (uses QueryTables.Add)
                     // Pattern 2: ListObject created by previous Update (uses ListObjects.Add)
-                    string? targetSheetName = null;
                     bool foundQueryTable = false;
 
                     worksheets = ctx.Book.Worksheets;
@@ -118,7 +117,6 @@ public partial class PowerQueryCommands
 
                                         if (isMashup && locationMatches)
                                         {
-                                            targetSheetName = worksheet.Name?.ToString();
                                             existingQueryTable = qTable;
                                             qTable = null; // Don't release - keeping reference
                                             targetWorksheet = worksheet;
@@ -171,7 +169,6 @@ public partial class PowerQueryCommands
 
                                         if (isMashup && locationMatches)
                                         {
-                                            targetSheetName = worksheet.Name?.ToString();
                                             existingQueryTable = queryTable;
                                             queryTable = null; // Don't release - keeping reference
                                             targetWorksheet = worksheet;

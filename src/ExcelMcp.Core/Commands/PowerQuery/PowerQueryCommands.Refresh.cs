@@ -78,8 +78,6 @@ public partial class PowerQueryCommands
                     result.HasErrors = true;
                     result.ErrorMessages.Add(ParsePowerQueryError(comEx));
                     result.ErrorMessage = string.Join("; ", result.ErrorMessages);
-
-                    var errorCategory = CategorizeError(comEx);
                 }
 
                 // If no connection found, check if query is loaded to worksheet or data model

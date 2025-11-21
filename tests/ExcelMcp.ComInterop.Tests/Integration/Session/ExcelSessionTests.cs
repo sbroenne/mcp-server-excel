@@ -86,7 +86,7 @@ public class ExcelSessionTests : IDisposable
         string nonExistentFile = Path.Join(Path.GetTempPath(), $"does-not-exist-{Guid.NewGuid():N}.xlsx");
 
         // Act & Assert
-        var exception = Assert.Throws<FileNotFoundException>(() =>
+        Assert.Throws<FileNotFoundException>(() =>
         {
             using var batch = ExcelSession.BeginBatch(nonExistentFile);
         });

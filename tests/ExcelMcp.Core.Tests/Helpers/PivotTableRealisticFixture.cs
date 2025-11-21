@@ -74,7 +74,7 @@ public class PivotTableRealisticFixture : IAsyncLifetime
             var dataModelCommands = new DataModelCommands();
 
             // 1. Create PivotTable from Range (simple scenario)
-            var createPivotData = sheetCommands.Create(batch, "PivotData");
+            sheetCommands.Create(batch, "PivotData");
 
             var rangePivot = pivotCommands.CreateFromRange(
                 batch,
@@ -89,8 +89,8 @@ public class PivotTableRealisticFixture : IAsyncLifetime
                     $"CREATION TEST FAILED: Range PivotTable creation failed: {rangePivot.ErrorMessage}");
 
             // Add fields to range pivot
-            var addRowField1 = pivotCommands.AddRowField(batch, "SalesByRegion", "Region", null);
-            var addValueField1 = pivotCommands.AddValueField(batch, "SalesByRegion", "Revenue", AggregationFunction.Sum, "Total Revenue");
+            pivotCommands.AddRowField(batch, "SalesByRegion", "Region", null);
+            pivotCommands.AddValueField(batch, "SalesByRegion", "Revenue", AggregationFunction.Sum, "Total Revenue");
 
             CreationResult.RangePivotTablesCreated = 1;
 
@@ -107,9 +107,9 @@ public class PivotTableRealisticFixture : IAsyncLifetime
                     $"CREATION TEST FAILED: Table PivotTable creation failed: {tablePivot.ErrorMessage}");
 
             // Add fields to table pivot
-            var addRowField2 = pivotCommands.AddRowField(batch, "RegionalSummary", "Quarter", null);
-            var addColField1 = pivotCommands.AddColumnField(batch, "RegionalSummary", "Region", null);
-            var addValueField2 = pivotCommands.AddValueField(batch, "RegionalSummary", "Sales", AggregationFunction.Sum, "Total Sales");
+            pivotCommands.AddRowField(batch, "RegionalSummary", "Quarter", null);
+            pivotCommands.AddColumnField(batch, "RegionalSummary", "Region", null);
+            pivotCommands.AddValueField(batch, "RegionalSummary", "Sales", AggregationFunction.Sum, "Total Sales");
 
             CreationResult.TablePivotTablesCreated = 1;
 
@@ -134,7 +134,7 @@ public class PivotTableRealisticFixture : IAsyncLifetime
                     $"CREATION TEST FAILED: Measure creation failed: {measure.ErrorMessage}");
 
             // Create PivotTable from Data Model
-            var createModelData = sheetCommands.Create(batch, "ModelData");
+            sheetCommands.Create(batch, "ModelData");
             var dataModelPivot = pivotCommands.CreateFromDataModel(
                 batch,
                 "RegionalSalesTable",
@@ -147,9 +147,9 @@ public class PivotTableRealisticFixture : IAsyncLifetime
                     $"CREATION TEST FAILED: Data Model PivotTable creation failed: {dataModelPivot.ErrorMessage}");
 
             // Add fields from Data Model
-            var addRowField3 = pivotCommands.AddRowField(batch, "DataModelPivot", "Region", null);
+            pivotCommands.AddRowField(batch, "DataModelPivot", "Region", null);
             // Data Model measures don't use aggregation function - they have their own DAX formula
-            var addValueField3 = pivotCommands.AddValueField(batch, "DataModelPivot", "[Measures].[TotalRevenue]", AggregationFunction.Sum, "Revenue");
+            pivotCommands.AddValueField(batch, "DataModelPivot", "[Measures].[TotalRevenue]", AggregationFunction.Sum, "Revenue");
 
             CreationResult.DataModelPivotTablesCreated = 1;
             CreationResult.MeasuresCreated = 1;

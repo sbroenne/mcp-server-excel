@@ -90,7 +90,7 @@ public class ExcelComSmokeTests : IAsyncLifetime
         // Act - Write and read cell
         using var batch = ExcelSession.BeginBatch(_testFile);
 
-        var writeResult = batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item(1);
             dynamic range = sheet.Range["A1"];

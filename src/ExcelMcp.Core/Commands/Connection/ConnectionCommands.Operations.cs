@@ -1,6 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Connections;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
 
@@ -132,7 +131,6 @@ public partial class ConnectionCommands
 
                 // Get connection type
                 int connType = conn.Type;
-                string typeName = ConnectionHelpers.GetConnectionTypeName(connType);
 
                 // For Text (4) and Web (5) connections, connection string might not be accessible
                 // until a QueryTable is created. Just verify the connection object exists.

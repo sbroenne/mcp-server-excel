@@ -89,7 +89,6 @@ public partial class PowerQueryCommands
                     // STEP 3: Detect load configuration (QueryTable or ListObject pattern)
                     // Same detection logic as Update() - check BOTH patterns
                     bool isLoadedToWorksheet = false;
-                    string? targetSheetName = null;
 
                     worksheets = ctx.Book.Worksheets;
                     for (int ws = 1; ws <= worksheets.Count; ws++)
@@ -125,7 +124,6 @@ public partial class PowerQueryCommands
                                         if (isMashup && locationMatches)
                                         {
                                             isLoadedToWorksheet = true;
-                                            targetSheetName = worksheet.Name?.ToString();
                                             break;
                                         }
                                     }
@@ -174,7 +172,6 @@ public partial class PowerQueryCommands
                                         if (isMashup && locationMatches)
                                         {
                                             isLoadedToWorksheet = true;
-                                            targetSheetName = worksheet.Name?.ToString();
                                             break;
                                         }
                                     }

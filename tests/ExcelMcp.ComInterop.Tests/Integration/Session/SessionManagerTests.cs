@@ -423,8 +423,8 @@ public class SessionManagerTests : IDisposable
         var testFile2 = CreateTestFile($"{nameof(Dispose_TwoSessions_ClosesAllSessions)}_2");
         var manager = new SessionManager();
 
-        var sessionId1 = manager.CreateSession(testFile1);
-        var sessionId2 = manager.CreateSession(testFile2);
+        manager.CreateSession(testFile1);
+        manager.CreateSession(testFile2);
 
         Assert.Equal(2, manager.ActiveSessionCount);
 
@@ -438,7 +438,7 @@ public class SessionManagerTests : IDisposable
     [Fact]
     public void Dispose_EmptyManager_CompletesImmediately()
     {
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
 
         manager.Dispose();
 

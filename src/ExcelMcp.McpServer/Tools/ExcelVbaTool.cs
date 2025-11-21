@@ -110,9 +110,6 @@ public static class ExcelVbaTool
             sessionId,
             batch => commands.View(batch, moduleName));
 
-        var lineCount = result.Code?.Split('\n').Length ?? 0;
-        var procedureCount = result.Procedures?.Count ?? 0;
-
         return JsonSerializer.Serialize(new
         {
             result.Success,
