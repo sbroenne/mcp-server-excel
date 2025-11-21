@@ -35,9 +35,7 @@ public partial class PowerQueryCommands
 
         if (!ValidateQueryName(queryName, out string? validationError))
         {
-            result.Success = false;
-            result.ErrorMessage = validationError;
-            return result;
+            throw new ArgumentException(validationError, nameof(queryName));
         }
 
         return batch.Execute((ctx, ct) =>
@@ -73,9 +71,7 @@ public partial class PowerQueryCommands
 
                 if (query == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Query '{queryName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Query '{queryName}' not found");
                 }
 
                 // STEP 2: Read WorkbookQuery properties (per Microsoft docs)

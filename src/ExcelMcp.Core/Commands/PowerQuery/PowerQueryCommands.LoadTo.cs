@@ -51,9 +51,7 @@ public partial class PowerQueryCommands
 
         if (!string.IsNullOrWhiteSpace(targetCellAddress) && !requiresWorksheet)
         {
-            result.Success = false;
-            result.ErrorMessage = "targetCellAddress is only supported when loadMode is 'LoadToTable' or 'LoadToBoth'.";
-            return result;
+            throw new ArgumentException("targetCellAddress is only supported when loadMode is 'LoadToTable' or 'LoadToBoth'.", nameof(targetCellAddress));
         }
 
         targetCellAddress ??= "A1"; // Default cell address
@@ -90,9 +88,7 @@ public partial class PowerQueryCommands
 
                 if (query == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Query '{queryName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Query '{queryName}' not found");
                 }
 
                 // STEP 2: Apply load destination based on mode
@@ -210,9 +206,7 @@ public partial class PowerQueryCommands
 
             if (sheet == null)
             {
-                result.Success = false;
-                result.ErrorMessage = $"Cannot access worksheet '{sheetName}'";
-                return false;
+                throw new InvalidOperationException($"Cannot access worksheet '{sheetName}'");
             }
 
             // Get destination range
@@ -254,9 +248,7 @@ public partial class PowerQueryCommands
                                 if (destRow >= tableStartRow && destRow <= tableEndRow &&
                                     destCol >= tableStartCol && destCol <= tableEndCol)
                                 {
-                                    result.Success = false;
-                                    result.ErrorMessage = $"Cell {targetCellAddress} on sheet '{sheetName}' overlaps with existing table.";
-                                    return false;
+                                    throw new InvalidOperationException($"Cell {targetCellAddress} on sheet '{sheetName}' overlaps with existing table.");
                                 }
                             }
                             finally
@@ -279,9 +271,7 @@ public partial class PowerQueryCommands
 
                 if (cellHasData)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Target cell '{targetCellAddress}' on worksheet '{sheetName}' already contains data. Choose a different targetCellAddress or clear the existing data first.";
-                    return false;
+                    throw new InvalidOperationException($"Target cell '{targetCellAddress}' on worksheet '{sheetName}' already contains data. Choose a different targetCellAddress or clear the existing data first.");
                 }
             }
 
@@ -368,12 +358,6 @@ public partial class PowerQueryCommands
             result.TargetCellAddress = null;
             result.Success = true;
             return true;
-        }
-        catch (Exception ex)
-        {
-            result.Success = false;
-            result.ErrorMessage = $"Error loading to Data Model: {ex.Message}";
-            return false;
         }
         finally
         {

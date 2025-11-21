@@ -318,7 +318,7 @@ public partial class PivotTableCommands
                 // Check if Data Model has any tables
                 if (modelTables == null || modelTables.Count == 0)
                 {
-                    throw new InvalidOperationException("Workbook does not contain a Power Pivot Data Model");
+                    throw new InvalidOperationException("Data Model does not contain any tables");
                 }
 
                 for (int i = 1; i <= modelTables.Count; i++)

@@ -10,6 +10,7 @@ applyTo: "src/ExcelMcp.Core/**/*.cs"
 
 1. **Use Late Binding** - `dynamic` types with `Type.GetTypeFromProgID()`
 2. **1-Based Indexing** - Excel collections start at 1, not 0
+3. **Exception Propagation** - Never wrap in try-catch, let batch.Execute() handle exceptions (see Exception Propagation section)
 4. **QueryTable Refresh REQUIRED** - `.Refresh(false)` synchronous for persistence
 5. **NEVER use RefreshAll()** - Async/unreliable; use individual `connection.Refresh()` or `queryTable.Refresh(false)`
 
@@ -21,6 +22,87 @@ applyTo: "src/ExcelMcp.Core/**/*.cs"
 - NetOffice wraps Office COM APIs in strongly-typed C# - study their patterns for dynamic interop conversion
 - Search NetOffice repository BEFORE implementing any Excel COM automation
 - Particularly valuable for: PivotTables, OLAP CubeFields, Data Model operations, QueryTables, complex COM scenarios
+
+## Exception Propagation Pattern (CRITICAL)
+
+**Core Commands: NEVER wrap operations in try-catch blocks that return error results. Let exceptions propagate naturally.**
+
+```csharp
+// ❌ WRONG: Catching and wrapping exceptions
+public async Task<OperationResult> CreateAsync(IExcelBatch batch, string name)
+{
+    try
+    {
+        return await batch.Execute((ctx, ct) => {
+            var item = ctx.Create(name);
+            return ValueTask.FromResult(new OperationResult { Success = true });
+        });
+    }
+    catch (Exception ex)
+    {
+        // ❌ WRONG: Double-wrapping suppresses the exception
+        return new OperationResult { Success = false, ErrorMessage = ex.Message };
+    }
+}
+
+// ✅ CORRECT: Let batch.Execute() handle exceptions via TaskCompletionSource
+public async Task<OperationResult> CreateAsync(IExcelBatch batch, string name)
+{
+    return await batch.Execute((ctx, ct) => {
+        var item = ctx.Create(name);
+        return ValueTask.FromResult(new OperationResult { Success = true });
+    });
+    // Exception flows to batch.Execute() → caught via TaskCompletionSource
+    // → Returns OperationResult { Success = false, ErrorMessage }
+}
+
+// ✅ CORRECT: Finally blocks are the right place for COM resource cleanup
+public async Task<OperationResult> ComplexAsync(IExcelBatch batch, string name)
+{
+    dynamic? temp = null;
+    try
+    {
+        return await batch.Execute((ctx, ct) => {
+            temp = ctx.CreateTemp(name);
+            // ... operation ...
+            return ValueTask.FromResult(new OperationResult { Success = true });
+        });
+    }
+    finally
+    {
+        // ✅ Finally for resource cleanup, NOT catch for error handling
+        if (temp != null)
+        {
+            ComUtilities.Release(ref temp!);
+        }
+    }
+}
+```
+
+**Why This Pattern:**
+- `batch.Execute()` ALREADY captures exceptions via `TaskCompletionSource` 
+- Inner try-catch suppresses exceptions, causing double-wrapping and lost stack context
+- Finally blocks work perfectly for COM resource cleanup (which must happen regardless of exception)
+- Exception occurs at correct layer (batch), not suppressed at method level
+
+**Safe Exception Handling (Keep these):**
+- ✅ Loop continuations: `catch { continue; }` (safe, recovers loop)
+- ✅ Optional property access: `catch { value = null; }` (safe, uses fallback)
+- ✅ Specific error routing: `catch (COMException ex) when (ex.HResult == code) { ... }` (specific, not general)
+- ✅ Finally blocks: Resource cleanup for COM objects (always needed)
+
+**Pattern to Remove:**
+- ❌ `catch (Exception ex) { return new Result { Success = false, ErrorMessage = ex.Message }; }`
+
+**Architecture:**
+```
+Core Command (NO try-catch wrapping)
+  └─> await batch.Execute()
+      └─> TaskCompletionSource captures exception
+          └─> Returns OperationResult { Success = false, ErrorMessage }
+```
+
+---
 
 ## Resource Management
 

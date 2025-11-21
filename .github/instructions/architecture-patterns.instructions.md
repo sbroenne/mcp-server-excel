@@ -63,6 +63,75 @@ return args[0] switch
 
 ---
 
+## Exception Propagation Pattern (CRITICAL)
+
+**Core Commands: Let exceptions propagate naturally** - Do NOT suppress with catch blocks that return error results.
+
+```csharp
+// ❌ WRONG: Suppressing exception with catch block
+public async Task<OperationResult> SomeAsync(IExcelBatch batch, string param)
+{
+    try
+    {
+        return await batch.Execute((ctx, ct) => {
+            // ... operation ...
+            return ValueTask.FromResult(new OperationResult { Success = true });
+        });
+    }
+    catch (Exception ex)
+    {
+        // ❌ WRONG: Catches exception and returns error result
+        return new OperationResult 
+        { 
+            Success = false, 
+            ErrorMessage = ex.Message 
+        };
+    }
+}
+
+// ✅ CORRECT: Let exception propagate through batch.Execute()
+public async Task<OperationResult> SomeAsync(IExcelBatch batch, string param)
+{
+    return await batch.Execute((ctx, ct) => {
+        // ... operation ...
+        return ValueTask.FromResult(new OperationResult { Success = true });
+    });
+    // Exception automatically caught by batch.Execute() via TaskCompletionSource
+    // Returns OperationResult { Success = false, ErrorMessage } from batch layer
+}
+
+// ✅ CORRECT: Finally blocks still allowed for COM resource cleanup
+public async Task<OperationResult> ComplexAsync(IExcelBatch batch, string param)
+{
+    dynamic? connection = null;
+    try
+    {
+        return await batch.Execute((ctx, ct) => {
+            connection = ctx.Book.Connections.Add(...);
+            // ... operation ...
+            return ValueTask.FromResult(new OperationResult { Success = true });
+        });
+    }
+    finally
+    {
+        if (connection != null)
+        {
+            ComUtilities.Release(ref connection!);  // ✅ Cleanup in finally
+        }
+    }
+}
+```
+
+**Why This Pattern:**
+- `batch.Execute()` already captures exceptions via `TaskCompletionSource`
+- Exceptions in lambda automatically become `OperationResult { Success = false }`
+- Double-wrapping (try-catch returning error result) loses stack context and originates from wrong layer
+- Finally blocks are the correct place for resource cleanup, NOT catch blocks for error suppression
+
+**See:** CRITICAL-RULES.md Rule 1 for Success flag requirements
+
+---
+
 ## MCP Server Resource-Based Tools
 
 **12 Focused Tools:**

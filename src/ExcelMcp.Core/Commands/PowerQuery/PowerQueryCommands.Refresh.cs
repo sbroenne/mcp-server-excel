@@ -23,9 +23,7 @@ public partial class PowerQueryCommands
         // Validate query name
         if (!ValidateQueryName(queryName, out string? validationError))
         {
-            result.Success = false;
-            result.ErrorMessage = validationError;
-            return result;
+            throw new ArgumentException(validationError, nameof(queryName));
         }
 
         if (timeout <= TimeSpan.Zero)
@@ -46,13 +44,12 @@ public partial class PowerQueryCommands
                     var queryNames = GetQueryNames(ctx.Book);
                     string? suggestion = FindClosestMatch(queryName, queryNames);
 
-                    result.Success = false;
-                    result.ErrorMessage = $"Query '{queryName}' not found";
+                    string errorMsg = $"Query '{queryName}' not found";
                     if (suggestion != null)
                     {
-                        result.ErrorMessage += $". Did you mean '{suggestion}'?";
+                        errorMsg += $". Did you mean '{suggestion}'?";
                     }
-                    return result;
+                    throw new InvalidOperationException(errorMsg);
                 }
 
                 try

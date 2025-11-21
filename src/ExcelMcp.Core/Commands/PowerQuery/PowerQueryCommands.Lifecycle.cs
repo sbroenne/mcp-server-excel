@@ -150,9 +150,7 @@ public partial class PowerQueryCommands
         // Validate query name
         if (!ValidateQueryName(queryName, out string? validationError))
         {
-            result.Success = false;
-            result.ErrorMessage = validationError;
-            return result;
+            throw new ArgumentException(validationError, nameof(queryName));
         }
 
         return batch.Execute((ctx, ct) =>
@@ -166,9 +164,7 @@ public partial class PowerQueryCommands
                 query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Query '{queryName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Query '{queryName}' not found");
                 }
 
                 // Check for ListObjects first (Power Query loaded to table creates a ListObject)
@@ -370,9 +366,7 @@ public partial class PowerQueryCommands
         // Validate query name
         if (!ValidateQueryName(queryName, out string? validationError))
         {
-            result.Success = false;
-            result.ErrorMessage = validationError;
-            return result;
+            throw new ArgumentException(validationError, nameof(queryName));
         }
 
         return batch.Execute((ctx, ct) =>
@@ -386,9 +380,7 @@ public partial class PowerQueryCommands
                 query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Query '{queryName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Query '{queryName}' not found");
                 }
 
                 // STEP 1: Clean up any ListObjects (tables) that reference this query

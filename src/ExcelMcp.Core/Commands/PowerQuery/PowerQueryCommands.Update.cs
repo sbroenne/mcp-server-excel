@@ -25,16 +25,12 @@ public partial class PowerQueryCommands
 
         if (!ValidateQueryName(queryName, out string? validationError))
         {
-            result.Success = false;
-            result.ErrorMessage = validationError;
-            return result;
+            throw new ArgumentException(validationError, nameof(queryName));
         }
 
         if (string.IsNullOrWhiteSpace(mCode))
         {
-            result.Success = false;
-            result.ErrorMessage = "M code cannot be empty";
-            return result;
+            throw new ArgumentException("M code cannot be empty", nameof(mCode));
         }
 
         return batch.Execute((ctx, ct) =>
@@ -72,9 +68,7 @@ public partial class PowerQueryCommands
 
                 if (query == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Query '{queryName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Query '{queryName}' not found");
                 }
 
                 // STEP 2: Find existing QueryTable (preferred) or ListObject bound to this query
@@ -202,18 +196,10 @@ public partial class PowerQueryCommands
                 // STEP 4: Refresh existing QueryTable if it exists
                 if (existingQueryTable != null)
                 {
-                    try
-                    {
-                        // Just refresh - PreserveColumnInfo=false allows schema changes
-                        existingQueryTable.Refresh(false);  // Synchronous
-                        result.Success = true;
-                        result.Action = "updated and refreshed";
-                    }
-                    catch (Exception ex)
-                    {
-                        result.Success = false;
-                        result.ErrorMessage = $"Failed to refresh after update: {ex.Message}";
-                    }
+                    // Just refresh - PreserveColumnInfo=false allows schema changes
+                    existingQueryTable.Refresh(false);  // Synchronous
+                    result.Success = true;
+                    result.Action = "updated and refreshed";
                 }
                 else
                 {
