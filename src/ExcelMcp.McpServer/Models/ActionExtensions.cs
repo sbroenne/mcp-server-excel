@@ -211,6 +211,12 @@ public static class ActionExtensions
         PivotTableAction.SetFieldFormat => "set-field-format",
         PivotTableAction.SetFieldFilter => "set-field-filter",
         PivotTableAction.SortField => "sort-field",
+        PivotTableAction.GroupByDate => "group-by-date",
+        PivotTableAction.GroupByNumeric => "group-by-numeric",
+        PivotTableAction.CreateCalculatedField => "create-calculated-field",
+        PivotTableAction.SetLayout => "set-layout",
+        PivotTableAction.SetSubtotals => "set-subtotals",
+        PivotTableAction.SetGrandTotals => "set-grand-totals",
         PivotTableAction.GetData => "get-data",
         _ => throw new ArgumentException($"Unknown PivotTableAction: {action}")
     };
