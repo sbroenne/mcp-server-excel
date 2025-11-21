@@ -58,106 +58,97 @@ public partial class PowerQueryCommands
 
         targetCellAddress ??= "A1"; // Default cell address
 
-        try
+        return batch.Execute((ctx, ct) =>
         {
-            return batch.Execute((ctx, ct) =>
+            dynamic? queries = null;
+            dynamic? query = null;
+
+            try
             {
-                dynamic? queries = null;
-                dynamic? query = null;
-
-                try
+                // STEP 1: Find the Power Query
+                queries = ctx.Book.Queries;
+                query = null;
+                for (int i = 1; i <= queries.Count; i++)
                 {
-                    // STEP 1: Find the Power Query
-                    queries = ctx.Book.Queries;
-                    query = null;
-                    for (int i = 1; i <= queries.Count; i++)
+                    dynamic? q = null;
+                    try
                     {
-                        dynamic? q = null;
-                        try
+                        q = queries.Item(i);
+                        string qName = q.Name?.ToString() ?? "";
+                        if (qName.Equals(queryName, StringComparison.OrdinalIgnoreCase))
                         {
-                            q = queries.Item(i);
-                            string qName = q.Name?.ToString() ?? "";
-                            if (qName.Equals(queryName, StringComparison.OrdinalIgnoreCase))
-                            {
-                                query = q;
-                                q = null; // Don't release - keeping reference
-                                break;
-                            }
-                        }
-                        finally
-                        {
-                            if (q != null) ComUtilities.Release(ref q!);
+                            query = q;
+                            q = null; // Don't release - keeping reference
+                            break;
                         }
                     }
-
-                    if (query == null)
+                    finally
                     {
-                        result.Success = false;
-                        result.ErrorMessage = $"Query '{queryName}' not found";
-                        return result;
+                        if (q != null) ComUtilities.Release(ref q!);
                     }
+                }
 
-                    // STEP 2: Apply load destination based on mode
-                    switch (loadMode)
-                    {
-                        case PowerQueryLoadMode.LoadToTable:
-                            LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, result);
-                            break;
-
-                        case PowerQueryLoadMode.LoadToDataModel:
-                            LoadQueryToDataModel(ctx.Book, queryName, result);
-                            break;
-
-                        case PowerQueryLoadMode.LoadToBoth:
-                            // Load to worksheet first
-                            if (LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, result))
-                            {
-                                // Preserve worksheet properties before loading to Data Model
-                                int worksheetRows = result.RowsLoaded;
-                                string? worksheetCell = result.TargetCellAddress;
-
-                                // Then also load to Data Model
-                                if (LoadQueryToDataModel(ctx.Book, queryName, result))
-                                {
-                                    // Restore worksheet properties (Data Model sets them to null/-1)
-                                    result.RowsLoaded = worksheetRows;
-                                    result.TargetCellAddress = worksheetCell;
-                                }
-                            }
-                            break;
-
-                        case PowerQueryLoadMode.ConnectionOnly:
-                            // No loading needed - query already exists as connection-only
-                            result.ConfigurationApplied = true;
-                            result.DataRefreshed = false;
-                            result.RowsLoaded = 0;
-                            result.TargetCellAddress = null;
-                            result.Success = true;
-                            break;
-                    }
-
-                    // Set additional result properties
-                    if (result.Success)
-                    {
-                        result.ConfigurationApplied = true;
-                        result.DataRefreshed = (loadMode != PowerQueryLoadMode.ConnectionOnly);
-                    }
-
+                if (query == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Query '{queryName}' not found";
                     return result;
                 }
-                finally
+
+                // STEP 2: Apply load destination based on mode
+                switch (loadMode)
                 {
-                    if (query != null) ComUtilities.Release(ref query!);
-                    if (queries != null) ComUtilities.Release(ref queries!);
+                    case PowerQueryLoadMode.LoadToTable:
+                        LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, result);
+                        break;
+
+                    case PowerQueryLoadMode.LoadToDataModel:
+                        LoadQueryToDataModel(ctx.Book, queryName, result);
+                        break;
+
+                    case PowerQueryLoadMode.LoadToBoth:
+                        // Load to worksheet first
+                        if (LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, result))
+                        {
+                            // Preserve worksheet properties before loading to Data Model
+                            int worksheetRows = result.RowsLoaded;
+                            string? worksheetCell = result.TargetCellAddress;
+
+                            // Then also load to Data Model
+                            if (LoadQueryToDataModel(ctx.Book, queryName, result))
+                            {
+                                // Restore worksheet properties (Data Model sets them to null/-1)
+                                result.RowsLoaded = worksheetRows;
+                                result.TargetCellAddress = worksheetCell;
+                            }
+                        }
+                        break;
+
+                    case PowerQueryLoadMode.ConnectionOnly:
+                        // No loading needed - query already exists as connection-only
+                        result.ConfigurationApplied = true;
+                        result.DataRefreshed = false;
+                        result.RowsLoaded = 0;
+                        result.TargetCellAddress = null;
+                        result.Success = true;
+                        break;
                 }
-            });
-        }
-        catch (Exception ex)
-        {
-            result.Success = false;
-            result.ErrorMessage = $"Unexpected error: {ex.Message}";
-            return result;
-        }
+
+                // Set additional result properties
+                if (result.Success)
+                {
+                    result.ConfigurationApplied = true;
+                    result.DataRefreshed = (loadMode != PowerQueryLoadMode.ConnectionOnly);
+                }
+
+                return result;
+            }
+            finally
+            {
+                if (query != null) ComUtilities.Release(ref query!);
+                if (queries != null) ComUtilities.Release(ref queries!);
+            }
+        });
     }
 
     /// <summary>
@@ -331,12 +322,6 @@ public partial class PowerQueryCommands
             ComUtilities.Release(ref listObjectRange!);
             return true;
         }
-        catch (Exception ex)
-        {
-            result.Success = false;
-            result.ErrorMessage = $"Error loading to worksheet: {ex.Message}";
-            return false;
-        }
         finally
         {
             ComUtilities.Release(ref queryTable);
@@ -403,49 +388,37 @@ public partial class PowerQueryCommands
     /// </summary>
     private static dynamic? GetOrCreateWorksheet(dynamic worksheets, string sheetName)
     {
-        dynamic? sheet = null;
 
-        try
+        // Try to find existing worksheet
+        int count = worksheets.Count;
+        dynamic? sheet;
+        for (int i = 1; i <= count; i++)
         {
-            // Try to find existing worksheet
-            int count = worksheets.Count;
-            for (int i = 1; i <= count; i++)
+            dynamic? candidate = null;
+            try
             {
-                dynamic? candidate = null;
-                try
-                {
-                    candidate = worksheets.Item(i);
-                    string name = candidate.Name ?? "";
+                candidate = worksheets.Item(i);
+                string name = candidate.Name ?? "";
 
-                    if (name.Equals(sheetName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        sheet = candidate;
-                        candidate = null; // Prevent release in finally
-                        return sheet;
-                    }
-                }
-                finally
+                if (name.Equals(sheetName, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (candidate != null)
-                    {
-                        ComUtilities.Release(ref candidate);
-                    }
+                    sheet = candidate;
+                    candidate = null; // Prevent release in finally
+                    return sheet;
                 }
             }
-
-            // Sheet not found, create new one
-            sheet = worksheets.Add();
-            sheet.Name = sheetName;
-            return sheet;
-        }
-        catch
-        {
-            // Error accessing or creating worksheet
-            if (sheet != null)
+            finally
             {
-                ComUtilities.Release(ref sheet);
+                if (candidate != null)
+                {
+                    ComUtilities.Release(ref candidate);
+                }
             }
-            return null;
         }
+
+        // Sheet not found, create new one
+        sheet = worksheets.Add();
+        sheet.Name = sheetName;
+        return sheet;
     }
 }

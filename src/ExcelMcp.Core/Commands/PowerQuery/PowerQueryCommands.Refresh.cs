@@ -35,94 +35,73 @@ public partial class PowerQueryCommands
 
         using var timeoutCts = new CancellationTokenSource(timeout);
 
-        try
+        return batch.Execute((ctx, ct) =>
         {
-            return batch.Execute((ctx, ct) =>
+            dynamic? query = null;
+            try
             {
-                dynamic? query = null;
+                query = ComUtilities.FindQuery(ctx.Book, queryName);
+                if (query == null)
+                {
+                    var queryNames = GetQueryNames(ctx.Book);
+                    string? suggestion = FindClosestMatch(queryName, queryNames);
+
+                    result.Success = false;
+                    result.ErrorMessage = $"Query '{queryName}' not found";
+                    if (suggestion != null)
+                    {
+                        result.ErrorMessage += $". Did you mean '{suggestion}'?";
+                    }
+                    return result;
+                }
+
                 try
                 {
-                    query = ComUtilities.FindQuery(ctx.Book, queryName);
-                    if (query == null)
-                    {
-                        var queryNames = GetQueryNames(ctx.Book);
-                        string? suggestion = FindClosestMatch(queryName, queryNames);
+                    RefreshConnectionByQueryName(ctx.Book, queryName);
 
-                        result.Success = false;
-                        result.ErrorMessage = $"Query '{queryName}' not found";
-                        if (suggestion != null)
-                        {
-                            result.ErrorMessage += $". Did you mean '{suggestion}'?";
-                        }
-                        return result;
-                    }
+                    result.HasErrors = false;
+                    result.Success = true;
+                    result.LoadedToSheet = DetermineLoadedSheet(ctx.Book, queryName);
 
-                    try
-                    {
-                        RefreshConnectionByQueryName(ctx.Book, queryName);
-
-                        result.HasErrors = false;
-                        result.Success = true;
-                        result.LoadedToSheet = DetermineLoadedSheet(ctx.Book, queryName);
-
-                        bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
-                        result.IsConnectionOnly = string.IsNullOrEmpty(result.LoadedToSheet) && !isLoadedToDataModel;
-                    }
-                    catch (COMException comEx)
-                    {
-                        result.Success = false;
-                        result.HasErrors = true;
-                        result.ErrorMessages.Add(ParsePowerQueryError(comEx));
-                        result.ErrorMessage = string.Join("; ", result.ErrorMessages);
-                    }
-
-                    if (!result.Success && result.ErrorMessages.Count == 0)
-                    {
-                        ComUtilities.Release(ref query);
-                        query = null;
-
-                        string? loadedSheet = DetermineLoadedSheet(ctx.Book, queryName);
-                        bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
-
-                        if (loadedSheet != null || isLoadedToDataModel)
-                        {
-                            result.Success = true;
-                            result.IsConnectionOnly = false;
-                            result.LoadedToSheet = loadedSheet;
-                        }
-                        else
-                        {
-                            result.Success = true;
-                            result.IsConnectionOnly = true;
-                        }
-                    }
-
-                    return result;
+                    bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
+                    result.IsConnectionOnly = string.IsNullOrEmpty(result.LoadedToSheet) && !isLoadedToDataModel;
                 }
-                catch (Exception ex)
+                catch (COMException comEx)
                 {
                     result.Success = false;
-                    result.ErrorMessage = $"Error refreshing query: {ex.Message}";
-                    return result;
+                    result.HasErrors = true;
+                    result.ErrorMessages.Add(ParsePowerQueryError(comEx));
+                    result.ErrorMessage = string.Join("; ", result.ErrorMessages);
                 }
-                finally
+
+                if (!result.Success && result.ErrorMessages.Count == 0)
                 {
                     ComUtilities.Release(ref query);
+                    query = null;
+
+                    string? loadedSheet = DetermineLoadedSheet(ctx.Book, queryName);
+                    bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
+
+                    if (loadedSheet != null || isLoadedToDataModel)
+                    {
+                        result.Success = true;
+                        result.IsConnectionOnly = false;
+                        result.LoadedToSheet = loadedSheet;
+                    }
+                    else
+                    {
+                        result.Success = true;
+                        result.IsConnectionOnly = true;
+                    }
                 }
-            }, timeoutCts.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            result.Success = false;
-            result.ErrorMessage = $"Power Query refresh exceeded {timeout.TotalMinutes:0.#} minutes. Check Excel for prompts or long-running refreshes.";
-            result.IsRetryable = false;
-            result.OperationContext = new Dictionary<string, object>
+
+                return result;
+            }
+            finally
             {
-                { "QueryName", queryName },
-                { "TimeoutMinutes", timeout.TotalMinutes }
-            };
-            return result;
-        }
+                ComUtilities.Release(ref query);
+            }
+        }, timeoutCts.Token);
     }
 
     /// <summary>
@@ -188,13 +167,6 @@ public partial class PowerQueryCommands
                     result.Success = true;
                 }
 
-                return result;
-            }
-            catch (COMException ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Excel COM error refreshing queries: {ex.Message}";
-                result.IsRetryable = ex.HResult == -2147417851;
                 return result;
             }
             finally

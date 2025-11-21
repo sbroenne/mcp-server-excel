@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -125,20 +124,7 @@ public partial class PowerQueryCommands
                         break;
                 }
 
-                return result;
-            }
-            catch (COMException ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Excel COM error: {ex.Message}";
-                result.IsRetryable = ex.HResult == -2147417851; // RPC_E_SERVERCALL_RETRYLATER
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error creating query: {ex.Message}";
-                result.IsRetryable = false;
+                result.Success = true;
                 return result;
             }
             finally

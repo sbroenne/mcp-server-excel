@@ -129,19 +129,6 @@ public partial class PowerQueryCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error accessing Power Queries: {ex.Message}";
-
-                string extension = Path.GetExtension(batch.WorkbookPath).ToLowerInvariant();
-                if (extension == ".xls")
-                {
-                    result.ErrorMessage += " (.xls files don't support Power Query)";
-                }
-
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref queriesCollection);
@@ -361,12 +348,6 @@ public partial class PowerQueryCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error getting load config: {ex.Message}";
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref names);
@@ -484,12 +465,6 @@ public partial class PowerQueryCommands
                 queriesCollection.Item(queryName).Delete();
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error deleting query: {ex.Message}";
                 return result;
             }
             finally
@@ -639,13 +614,6 @@ public partial class PowerQueryCommands
                 }
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error removing data load: {ex.Message}";
-                result.IsRetryable = ex is System.Runtime.InteropServices.COMException comEx && comEx.HResult == -2147417851;
                 return result;
             }
             finally
