@@ -46,7 +46,7 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
         return action switch
         {
             "list" => WriteResult(_tableCommands.List(batch)),
-            "get" => ExecuteGet(batch, settings),
+            "read" or "get" => ExecuteGet(batch, settings),
             "create" => ExecuteCreate(batch, settings),
             "rename" => ExecuteRename(batch, settings),
             "delete" => ExecuteDelete(batch, settings),
@@ -66,8 +66,8 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             "get-structured-reference" => ExecuteGetStructuredReference(batch, settings),
             "sort" => ExecuteSort(batch, settings),
             "sort-multi" => ExecuteSortMulti(batch, settings),
-            "get-column-format" => ExecuteGetColumnFormat(batch, settings),
-            "set-column-format" => ExecuteSetColumnFormat(batch, settings),
+            "get-column-number-format" or "get-column-format" => ExecuteGetColumnFormat(batch, settings),
+            "set-column-number-format" or "set-column-format" => ExecuteSetColumnFormat(batch, settings),
             _ => ReportUnknown(action)
         };
     }
