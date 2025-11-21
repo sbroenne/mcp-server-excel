@@ -81,18 +81,14 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 // Find the column
                 column = FindColumn(table, columnName);
                 if (column == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Column '{columnName}' not found in table '{tableName}'";
-                    return result;
+                    throw new InvalidOperationException($"Column '{columnName}' not found in table '{tableName}'");
                 }
 
                 // Get the entire column range (including header)
@@ -102,12 +98,6 @@ public partial class TableCommands
                 result.RangeAddress = columnRange.Address;
                 result.Success = true;
 
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Failed to get column range: {ex.Message}";
                 return result;
             }
             finally
@@ -139,18 +129,14 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 // Find the column
                 column = FindColumn(table, columnName);
                 if (column == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Column '{columnName}' not found in table '{tableName}'";
-                    return result;
+                    throw new InvalidOperationException($"Column '{columnName}' not found in table '{tableName}'");
                 }
 
                 // Get the data body range (excludes header and totals)
@@ -158,21 +144,13 @@ public partial class TableCommands
 
                 if (dataBodyRange == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' has no data rows";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' has no data rows");
                 }
 
                 result.SheetName = dataBodyRange.Worksheet.Name;
                 result.RangeAddress = dataBodyRange.Address;
                 result.Success = true;
 
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Failed to get column data range: {ex.Message}";
                 return result;
             }
             finally

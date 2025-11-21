@@ -40,9 +40,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 // Find column
@@ -50,9 +48,7 @@ public partial class TableCommands
                 column = columns.Item(columnName);
                 if (column == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Column '{columnName}' not found in table '{tableName}'";
-                    return result;
+                    throw new InvalidOperationException($"Column '{columnName}' not found in table '{tableName}'");
                 }
 
                 // Get ranges for sorting
@@ -68,12 +64,6 @@ public partial class TableCommands
 
                 result.Success = true;
 
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -103,16 +93,12 @@ public partial class TableCommands
         {
             if (sortColumns == null || sortColumns.Count == 0)
             {
-                result.Success = false;
-                result.ErrorMessage = "At least one sort column must be specified";
-                return result;
+                throw new ArgumentException("At least one sort column must be specified", nameof(sortColumns));
             }
 
             if (sortColumns.Count > 3)
             {
-                result.Success = false;
-                result.ErrorMessage = "Excel supports a maximum of 3 sort levels";
-                return result;
+                throw new ArgumentException("Excel supports a maximum of 3 sort levels", nameof(sortColumns));
             }
 
             dynamic? table = null;
@@ -124,9 +110,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 sortRange = table.Range;
@@ -144,9 +128,7 @@ public partial class TableCommands
                             col = columns.Item(sortColumns[i].ColumnName);
                             if (col == null)
                             {
-                                result.Success = false;
-                                result.ErrorMessage = $"Column '{sortColumns[i].ColumnName}' not found in table '{tableName}'";
-                                return result;
+                                throw new InvalidOperationException($"Column '{sortColumns[i].ColumnName}' not found in table '{tableName}'");
                             }
 
                             if (i == 0) key1 = col.Range;
@@ -200,12 +182,6 @@ public partial class TableCommands
                 var sortDesc = string.Join(", ", sortColumns.Select(sc => $"{sc.ColumnName} ({(sc.Ascending ? "asc" : "desc")})"));
                 result.Success = true;
 
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
