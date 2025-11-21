@@ -68,30 +68,16 @@ public class SessionManagerTests : IDisposable
         // Delete test files
         foreach (var file in _testFiles)
         {
-            try
+            if (File.Exists(file))
             {
-                if (File.Exists(file))
-                {
-                    File.Delete(file);
-                }
-            }
-            catch
-            {
-                // Best effort
+                File.Delete(file);
             }
         }
 
         // Delete temp directory
-        try
+        if (Directory.Exists(_tempDir))
         {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, recursive: true);
-            }
-        }
-        catch
-        {
-            // Best effort
+            Directory.Delete(_tempDir, recursive: true);
         }
 
         // Give Excel time to fully terminate

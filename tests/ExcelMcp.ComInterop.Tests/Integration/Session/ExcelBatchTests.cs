@@ -66,7 +66,7 @@ public class ExcelBatchTests : IAsyncLifetime
         // Clean up this test's copy
         if (_testFileCopy != null && File.Exists(_testFileCopy))
         {
-            try { File.Delete(_testFileCopy); } catch { }
+            File.Delete(_testFileCopy);
         }
         return Task.CompletedTask;
     }
@@ -75,7 +75,7 @@ public class ExcelBatchTests : IAsyncLifetime
     {
         if (_staticTestFile != null && File.Exists(_staticTestFile))
         {
-            try { File.Delete(_staticTestFile); } catch { }
+            File.Delete(_staticTestFile);
         }
     }
 
@@ -388,7 +388,7 @@ public class ExcelBatchTests : IAsyncLifetime
             // Cleanup parallel test files
             foreach (var testFile in testFileCopies.Where(File.Exists))
             {
-                try { File.Delete(testFile); } catch { }
+                try { File.Delete(testFile); } catch { /* Best effort cleanup */ }
             }
         }
     }
@@ -431,7 +431,7 @@ public class ExcelBatchTests : IAsyncLifetime
             // Cleanup
             if (File.Exists(lockedTestFile))
             {
-                try { File.Delete(lockedTestFile); } catch { }
+                try { File.Delete(lockedTestFile); } catch { /* Best effort - file may be locked */ }
             }
         }
     }

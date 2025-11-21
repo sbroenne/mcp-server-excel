@@ -204,7 +204,6 @@ public partial class PowerQueryCommands : IPowerQueryCommands
                 }
             }
         }
-        catch { }
         finally
         {
             ComUtilities.Release(ref worksheets);

@@ -60,7 +60,7 @@ public class ExcelComSmokeTests : IAsyncLifetime
     {
         if (File.Exists(_testFile))
         {
-            try { File.Delete(_testFile); } catch { }
+            File.Delete(_testFile);
         }
         return Task.CompletedTask;
     }

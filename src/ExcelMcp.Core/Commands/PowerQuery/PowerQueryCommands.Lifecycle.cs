@@ -97,7 +97,6 @@ public partial class PowerQueryCommands
                                 if (!isConnectionOnly) break;
                             }
                         }
-                        catch { }
                         finally
                         {
                             ComUtilities.Release(ref worksheets!);
@@ -526,7 +525,6 @@ public partial class PowerQueryCommands
                 }
             }
         }
-        catch { }
         finally
         {
             ComUtilities.Release(ref queriesCollection);

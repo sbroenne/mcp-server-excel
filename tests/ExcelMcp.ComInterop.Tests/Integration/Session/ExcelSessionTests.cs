@@ -42,13 +42,16 @@ public class ExcelSessionTests : IDisposable
                 _output.WriteLine($"Cleaning up {existingProcesses.Length} existing Excel processes...");
                 foreach (var p in existingProcesses)
                 {
-                    try { p.Kill(); p.WaitForExit(2000); } catch { }
+                    p.Kill(); p.WaitForExit(2000);
                 }
                 Thread.Sleep(2000); // Wait for cleanup
                 _output.WriteLine("Excel processes cleaned up");
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            _output.WriteLine($"Warning: Failed to clean Excel processes: {ex.Message}");
+        }
     }
 
     /// <summary>

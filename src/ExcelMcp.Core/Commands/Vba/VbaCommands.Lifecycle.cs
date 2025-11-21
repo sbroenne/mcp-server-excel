@@ -62,33 +62,28 @@ public partial class VbaCommands
                         };
 
                         var procedures = new List<string>();
-                        int moduleLineCount = 0;
-                        try
-                        {
-                            codeModule = component.CodeModule;
-                            moduleLineCount = codeModule.CountOfLines;
+                        codeModule = component.CodeModule;
+                        int moduleLineCount = codeModule.CountOfLines;
 
-                            // Parse procedures from code
-                            for (int line = 1; line <= moduleLineCount; line++)
+                        // Parse procedures from code
+                        for (int line = 1; line <= moduleLineCount; line++)
+                        {
+                            string codeLine = codeModule.Lines[line, 1];
+                            string trimmedLine = codeLine.TrimStart();
+                            if (trimmedLine.StartsWith("Sub ", StringComparison.Ordinal) ||
+                                trimmedLine.StartsWith("Function ", StringComparison.Ordinal) ||
+                                trimmedLine.StartsWith("Public Sub ", StringComparison.Ordinal) ||
+                                trimmedLine.StartsWith("Public Function ", StringComparison.Ordinal) ||
+                                trimmedLine.StartsWith("Private Sub ", StringComparison.Ordinal) ||
+                                trimmedLine.StartsWith("Private Function ", StringComparison.Ordinal))
                             {
-                                string codeLine = codeModule.Lines[line, 1];
-                                string trimmedLine = codeLine.TrimStart();
-                                if (trimmedLine.StartsWith("Sub ", StringComparison.Ordinal) ||
-                                    trimmedLine.StartsWith("Function ", StringComparison.Ordinal) ||
-                                    trimmedLine.StartsWith("Public Sub ", StringComparison.Ordinal) ||
-                                    trimmedLine.StartsWith("Public Function ", StringComparison.Ordinal) ||
-                                    trimmedLine.StartsWith("Private Sub ", StringComparison.Ordinal) ||
-                                    trimmedLine.StartsWith("Private Function ", StringComparison.Ordinal))
+                                string procName = ExtractProcedureName(codeLine);
+                                if (!string.IsNullOrEmpty(procName))
                                 {
-                                    string procName = ExtractProcedureName(codeLine);
-                                    if (!string.IsNullOrEmpty(procName))
-                                    {
-                                        procedures.Add(procName);
-                                    }
+                                    procedures.Add(procName);
                                 }
                             }
                         }
-                        catch { }
 
                         result.Scripts.Add(new ScriptInfo
                         {
