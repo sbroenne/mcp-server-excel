@@ -29,9 +29,7 @@ public partial class DataModelCommands
                 // Check if workbook has Data Model
                 if (!HasDataModelTables(ctx.Book))
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.NoDataModelTables());
                 }
 
                 model = ctx.Book.Model;
@@ -40,22 +38,7 @@ public partial class DataModelCommands
                 measure = FindModelMeasure(model, measureName);
                 if (measure == null)
                 {
-                    var measureNames = GetModelMeasureNames(model);
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.MeasureNotFound(measureName);
-
-                    // Suggest similar measure names
-                    var suggestions = new List<string>();
-                    foreach (var m in measureNames)
-                    {
-                        if (m.Contains(measureName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            suggestions.Add($"Try measure: {m}");
-                            if (suggestions.Count >= 3) break;
-                        }
-                    }
-
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.MeasureNotFound(measureName));
                 }
 
                 // Delete the measure
@@ -92,9 +75,7 @@ public partial class DataModelCommands
                 // Check if workbook has Data Model
                 if (!HasDataModelTables(ctx.Book))
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.NoDataModelTables());
                 }
 
                 model = ctx.Book.Model;
@@ -152,9 +133,7 @@ public partial class DataModelCommands
 
                 if (!found)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.RelationshipNotFound(fromTable, fromColumn, toTable, toColumn);
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.RelationshipNotFound(fromTable, fromColumn, toTable, toColumn));
                 }
 
                 result.Success = true;
@@ -193,9 +172,7 @@ public partial class DataModelCommands
                 // Check if workbook has Data Model
                 if (!HasDataModelTables(ctx.Book))
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.NoDataModelTables());
                 }
 
                 model = ctx.Book.Model;
@@ -204,9 +181,7 @@ public partial class DataModelCommands
                 table = FindModelTable(model, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.TableNotFound(tableName);
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.TableNotFound(tableName));
                 }
 
                 // Check if measure already exists
@@ -214,9 +189,7 @@ public partial class DataModelCommands
                 if (existingMeasure != null)
                 {
                     ComUtilities.Release(ref existingMeasure);
-                    result.Success = false;
-                    result.ErrorMessage = $"Measure '{measureName}' already exists in the Data Model";
-                    return result;
+                    throw new InvalidOperationException($"Measure '{measureName}' already exists in the Data Model");
                 }
 
                 // Get ModelMeasures collection from MODEL (not from table!)
@@ -276,9 +249,7 @@ public partial class DataModelCommands
                 // Check if workbook has Data Model
                 if (!HasDataModelTables(ctx.Book))
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.NoDataModelTables());
                 }
 
                 model = ctx.Book.Model;
@@ -287,9 +258,7 @@ public partial class DataModelCommands
                 measure = FindModelMeasure(model, measureName);
                 if (measure == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.MeasureNotFound(measureName);
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.MeasureNotFound(measureName));
                 }
 
                 var updates = new List<string>();
@@ -323,9 +292,7 @@ public partial class DataModelCommands
 
                 if (updates.Count == 0)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = "No updates provided. Specify at least one of: daxFormula, formatType, or description";
-                    return result;
+                    throw new ArgumentException("No updates provided. Specify at least one of: daxFormula, formatType, or description");
                 }
 
                 result.Success = true;
@@ -367,9 +334,7 @@ public partial class DataModelCommands
                 // Check if workbook has Data Model
                 if (!HasDataModelTables(ctx.Book))
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.NoDataModelTables());
                 }
 
                 model = ctx.Book.Model;
@@ -378,34 +343,26 @@ public partial class DataModelCommands
                 fromTableObj = FindModelTable(model, fromTable);
                 if (fromTableObj == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.TableNotFound(fromTable);
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.TableNotFound(fromTable));
                 }
 
                 fromColumnObj = FindModelTableColumn(fromTableObj, fromColumn);
                 if (fromColumnObj == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Column '{fromColumn}' not found in table '{fromTable}'";
-                    return result;
+                    throw new InvalidOperationException($"Column '{fromColumn}' not found in table '{fromTable}'");
                 }
 
                 // Find target table and column
                 toTableObj = FindModelTable(model, toTable);
                 if (toTableObj == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.TableNotFound(toTable);
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.TableNotFound(toTable));
                 }
 
                 toColumnObj = FindModelTableColumn(toTableObj, toColumn);
                 if (toColumnObj == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Column '{toColumn}' not found in table '{toTable}'";
-                    return result;
+                    throw new InvalidOperationException($"Column '{toColumn}' not found in table '{toTable}'");
                 }
 
                 // Check if relationship already exists
@@ -413,9 +370,7 @@ public partial class DataModelCommands
                 if (existingRel != null)
                 {
                     ComUtilities.Release(ref existingRel);
-                    result.Success = false;
-                    result.ErrorMessage = $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} already exists";
-                    return result;
+                    throw new InvalidOperationException($"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} already exists");
                 }
 
                 // Create the relationship using Excel COM API (Office 2016+)
@@ -467,9 +422,7 @@ public partial class DataModelCommands
                 // Check if workbook has Data Model
                 if (!HasDataModelTables(ctx.Book))
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.NoDataModelTables());
                 }
 
                 model = ctx.Book.Model;
@@ -478,9 +431,7 @@ public partial class DataModelCommands
                 relationship = FindRelationship(model, fromTable, fromColumn, toTable, toColumn);
                 if (relationship == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.RelationshipNotFound(fromTable, fromColumn, toTable, toColumn);
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.RelationshipNotFound(fromTable, fromColumn, toTable, toColumn));
                 }
 
                 // Get current state

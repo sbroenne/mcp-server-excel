@@ -34,9 +34,7 @@ public partial class DataModelCommands
                 // Check if workbook has Data Model
                 if (!HasDataModelTables(ctx.Book))
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.NoDataModelTables());
                 }
 
                 model = ctx.Book.Model;
@@ -47,9 +45,7 @@ public partial class DataModelCommands
                     dynamic? table = FindModelTable(model, tableName);
                     if (table == null)
                     {
-                        result.Success = false;
-                        result.ErrorMessage = DataModelErrorMessages.TableNotFound(tableName);
-                        return result;
+                        throw new InvalidOperationException(DataModelErrorMessages.TableNotFound(tableName));
                     }
 
                     try
