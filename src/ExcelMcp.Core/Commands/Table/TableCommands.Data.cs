@@ -26,9 +26,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 sheet = table.Parent;
@@ -36,9 +34,7 @@ public partial class TableCommands
                 // Validate data
                 if (rows == null || rows.Count == 0)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = "No data to append";
-                    return result;
+                    throw new ArgumentException("No data to append", nameof(rows));
                 }
 
                 // Get current table size
