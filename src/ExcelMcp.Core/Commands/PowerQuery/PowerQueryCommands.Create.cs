@@ -106,9 +106,7 @@ public partial class PowerQueryCommands
 
                     case PowerQueryLoadMode.LoadToBoth:
                         // Load to worksheet first
-                        LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress!, result);
-
-                        if (result.Success)
+                        if (LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress!, result))
                         {
                             // Preserve worksheet properties before loading to Data Model
                             int worksheetRows = result.RowsLoaded;
@@ -116,11 +114,9 @@ public partial class PowerQueryCommands
                             string? worksheetName = result.WorksheetName;
 
                             // Then also load to Data Model
-                            LoadQueryToDataModel(ctx.Book, queryName, result);
-
-                            // Restore worksheet properties (Data Model sets them to null/-1)
-                            if (result.Success)
+                            if (LoadQueryToDataModel(ctx.Book, queryName, result))
                             {
+                                // Restore worksheet properties (Data Model sets them to null/-1)
                                 result.RowsLoaded = worksheetRows;
                                 result.TargetCellAddress = worksheetCell;
                                 result.WorksheetName = worksheetName;

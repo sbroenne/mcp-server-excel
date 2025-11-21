@@ -110,20 +110,16 @@ public partial class PowerQueryCommands
 
                         case PowerQueryLoadMode.LoadToBoth:
                             // Load to worksheet first
-                            LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, result);
-
-                            if (result.Success)
+                            if (LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, result))
                             {
                                 // Preserve worksheet properties before loading to Data Model
                                 int worksheetRows = result.RowsLoaded;
                                 string? worksheetCell = result.TargetCellAddress;
 
                                 // Then also load to Data Model
-                                LoadQueryToDataModel(ctx.Book, queryName, result);
-
-                                // Restore worksheet properties (Data Model sets them to null/-1)
-                                if (result.Success)
+                                if (LoadQueryToDataModel(ctx.Book, queryName, result))
                                 {
+                                    // Restore worksheet properties (Data Model sets them to null/-1)
                                     result.RowsLoaded = worksheetRows;
                                     result.TargetCellAddress = worksheetCell;
                                 }
@@ -173,7 +169,7 @@ public partial class PowerQueryCommands
     /// the same ListObjects.Add() pattern for consistency.
     /// Matches Excel UI behavior: Creates worksheet if it doesn't exist, or loads to existing worksheet.
     /// </remarks>
-    private static void LoadQueryToWorksheet(
+    private static bool LoadQueryToWorksheet(
         dynamic workbook,
         string queryName,
         string sheetName,
@@ -225,7 +221,7 @@ public partial class PowerQueryCommands
             {
                 result.Success = false;
                 result.ErrorMessage = $"Cannot access worksheet '{sheetName}'";
-                return;
+                return false;
             }
 
             // Get destination range
@@ -269,7 +265,7 @@ public partial class PowerQueryCommands
                                 {
                                     result.Success = false;
                                     result.ErrorMessage = $"Cell {targetCellAddress} on sheet '{sheetName}' overlaps with existing table.";
-                                    return;
+                                    return false;
                                 }
                             }
                             finally
@@ -294,7 +290,7 @@ public partial class PowerQueryCommands
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Target cell '{targetCellAddress}' on worksheet '{sheetName}' already contains data. Choose a different targetCellAddress or clear the existing data first.";
-                    return;
+                    return false;
                 }
             }
 
@@ -333,11 +329,13 @@ public partial class PowerQueryCommands
             result.Success = true;
 
             ComUtilities.Release(ref listObjectRange!);
+            return true;
         }
         catch (Exception ex)
         {
             result.Success = false;
             result.ErrorMessage = $"Error loading to worksheet: {ex.Message}";
+            return false;
         }
         finally
         {
@@ -354,7 +352,7 @@ public partial class PowerQueryCommands
     /// Loads query data to the Data Model using Connections.Add2.
     /// SHARED IMPLEMENTATION - Used by both Create and LoadTo.
     /// </summary>
-    private static void LoadQueryToDataModel(
+    private static bool LoadQueryToDataModel(
         dynamic workbook,
         string queryName,
         dynamic result)
@@ -384,11 +382,13 @@ public partial class PowerQueryCommands
             result.RowsLoaded = -1; // Data Model doesn't expose row count
             result.TargetCellAddress = null;
             result.Success = true;
+            return true;
         }
         catch (Exception ex)
         {
             result.Success = false;
             result.ErrorMessage = $"Error loading to Data Model: {ex.Message}";
+            return false;
         }
         finally
         {
