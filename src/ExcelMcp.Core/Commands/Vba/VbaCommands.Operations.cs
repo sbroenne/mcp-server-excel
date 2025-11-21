@@ -73,15 +73,14 @@ public partial class VbaCommands
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
-            result.Success = false;
-            result.ErrorMessage = validationError;
-            return result;
+            throw new InvalidOperationException(validationError);
         }
 
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
         {
-            return CreateVbaTrustGuidance();
+            var trustGuidance = CreateVbaTrustGuidance();
+            throw new InvalidOperationException(trustGuidance.ErrorMessage);
         }
 
         return batch.Execute((ctx, ct) =>
@@ -118,9 +117,7 @@ public partial class VbaCommands
 
                 if (targetComponent == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Module '{moduleName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Module '{moduleName}' not found");
                 }
 
                 vbComponents.Remove(targetComponent);

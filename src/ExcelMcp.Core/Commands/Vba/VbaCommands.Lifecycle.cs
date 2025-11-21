@@ -127,25 +127,19 @@ public partial class VbaCommands
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
-            result.Success = false;
-            result.ErrorMessage = validationError;
-            return result;
+            throw new InvalidOperationException(validationError);
         }
 
         if (string.IsNullOrWhiteSpace(moduleName))
         {
-            result.Success = false;
-            result.ErrorMessage = "Module name cannot be empty";
-            return result;
+            throw new ArgumentException("Module name cannot be empty", nameof(moduleName));
         }
 
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
         {
             var trustGuidance = CreateVbaTrustGuidance();
-            result.Success = false;
-            result.ErrorMessage = trustGuidance.ErrorMessage;
-            return result;
+            throw new InvalidOperationException(trustGuidance.ErrorMessage);
         }
 
         return batch.Execute((ctx, ct) =>
@@ -217,9 +211,7 @@ public partial class VbaCommands
 
                 if (!found)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Module '{moduleName}' not found in workbook";
-                    return result;
+                    throw new InvalidOperationException($"Module '{moduleName}' not found in workbook");
                 }
 
                 result.Success = true;
@@ -254,15 +246,14 @@ public partial class VbaCommands
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
-            result.Success = false;
-            result.ErrorMessage = validationError;
-            return result;
+            throw new InvalidOperationException(validationError);
         }
 
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
         {
-            return CreateVbaTrustGuidance();
+            var trustGuidance = CreateVbaTrustGuidance();
+            throw new InvalidOperationException(trustGuidance.ErrorMessage);
         }
 
         return batch.Execute((ctx, ct) =>
@@ -285,9 +276,7 @@ public partial class VbaCommands
                         component = vbComponents.Item(i);
                         if (component.Name == moduleName)
                         {
-                            result.Success = false;
-                            result.ErrorMessage = $"Module '{moduleName}' already exists. Use script-update to modify it.";
-                            return result;
+                            throw new InvalidOperationException($"Module '{moduleName}' already exists. Use script-update to modify it.");
                         }
                     }
                     finally
@@ -336,15 +325,14 @@ public partial class VbaCommands
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
-            result.Success = false;
-            result.ErrorMessage = validationError;
-            return result;
+            throw new InvalidOperationException(validationError);
         }
 
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
         {
-            return CreateVbaTrustGuidance();
+            var trustGuidance = CreateVbaTrustGuidance();
+            throw new InvalidOperationException(trustGuidance.ErrorMessage);
         }
 
         return batch.Execute((ctx, ct) =>
