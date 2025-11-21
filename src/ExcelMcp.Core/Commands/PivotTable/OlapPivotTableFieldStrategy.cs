@@ -147,15 +147,6 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FilePath = workbookPath
             };
         }
-        catch (Exception ex)
-        {
-            return new PivotFieldListResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to list OLAP fields: {ex.Message}",
-                FilePath = workbookPath
-            };
-        }
         finally
         {
             ComUtilities.Release(ref cubeFields);
