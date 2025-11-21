@@ -18,7 +18,7 @@ TYPE-SPECIFIC INFO:
 FOR LIST VALIDATION (creates dropdown):
 ☐ List values (e.g., ['Active', 'Inactive', 'Pending'])
 ☐ Show dropdown? (true recommended)
-⚠️ WORKFLOW: 
+**WORKFLOW:** 
   1. First write values to a worksheet range (e.g., Sheet1!$Z$1:$Z$10)
   2. Then set formula1 to reference that range (e.g., '=$Z$1:$Z$10')
   3. This creates a proper dropdown that users can select from

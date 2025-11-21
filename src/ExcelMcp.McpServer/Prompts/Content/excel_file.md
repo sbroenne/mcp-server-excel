@@ -2,9 +2,15 @@
 
 **Actions**: open, close, create-empty, close-workbook, test
 
-**⚠️ CRITICAL: NO 'save' ACTION**
+**IMPORTANT: NO 'save' ACTION**
 - To persist changes, use: `action='close'` with `save=true` parameter
 - Common mistake: `action='save'` (WRONG) → use `action='close', save=true` (CORRECT)
+
+**CRITICAL: DO NOT CLOSE SESSION PREMATURELY**
+- **ONLY close when ALL operations are complete** - closing mid-workflow loses the session
+- If user requests multiple operations, keep session open until explicitly told to close
+- Ask user "Should I close the session now?" if workflow completion is unclear
+- Premature close causes: lost session, file locks, failed subsequent operations
 
 **Session lifecycle** (REQUIRED for all operations):
 1. `action='open'` → returns sessionId

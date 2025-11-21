@@ -21,7 +21,7 @@ public static class ExcelDataModelTool
     [McpServerTool(Name = "excel_datamodel")]
     [Description(@"Manage Excel Power Pivot (Data Model) - DAX measures, relationships, analytical model.
 
-⚠️ CALCULATED COLUMNS: NOT supported via automation. When user asks to create calculated columns:
+**CALCULATED COLUMNS:** NOT supported via automation. When user asks to create calculated columns:
   - Provide step-by-step manual instructions (see LLM Usage Patterns in code comments)
   - OR suggest using DAX measures instead (measures ARE automated and usually better for aggregations)
 ")]
