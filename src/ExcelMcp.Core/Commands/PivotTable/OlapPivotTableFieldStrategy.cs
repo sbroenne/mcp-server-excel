@@ -1634,3 +1634,4 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
     #endregion
 }
+
