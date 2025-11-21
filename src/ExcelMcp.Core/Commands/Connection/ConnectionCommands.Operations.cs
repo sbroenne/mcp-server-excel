@@ -33,17 +33,13 @@ public partial class ConnectionCommands
 
                 if (conn == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Connection '{connectionName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Connection '{connectionName}' not found");
                 }
 
                 // Check if this is a Power Query connection
                 if (PowerQueryHelpers.IsPowerQueryConnection(conn))
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Use 'pq-loadto' command instead.";
-                    return result;
+                    throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Use 'pq-loadto' command instead.");
                 }
 
                 // Find or create target sheet
@@ -116,9 +112,7 @@ public partial class ConnectionCommands
 
             if (conn == null)
             {
-                result.Success = false;
-                result.ErrorMessage = $"Connection '{connectionName}' not found";
-                return result;
+                throw new InvalidOperationException($"Connection '{connectionName}' not found");
             }
 
             // Get connection type
@@ -137,9 +131,7 @@ public partial class ConnectionCommands
 
             if (string.IsNullOrWhiteSpace(connectionString))
             {
-                result.Success = false;
-                result.ErrorMessage = "Connection has no connection string configured";
-                return result;
+                throw new InvalidOperationException("Connection has no connection string configured");
             }
 
             // Connection exists and is accessible

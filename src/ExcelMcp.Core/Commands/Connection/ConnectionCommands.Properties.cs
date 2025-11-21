@@ -21,31 +21,20 @@ public partial class ConnectionCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            try
+            dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
+
+            if (conn == null)
             {
-                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
-
-                if (conn == null)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Connection '{connectionName}' not found";
-                    return result;
-                }
-
-                result.BackgroundQuery = GetBackgroundQuerySetting(conn);
-                result.RefreshOnFileOpen = GetRefreshOnFileOpenSetting(conn);
-                result.SavePassword = GetSavePasswordSetting(conn);
-                result.RefreshPeriod = GetRefreshPeriod(conn);
-
-                result.Success = true;
-                return result;
+                throw new InvalidOperationException($"Connection '{connectionName}' not found");
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error getting connection properties: {ex.Message}";
-                return result;
-            }
+
+            result.BackgroundQuery = GetBackgroundQuerySetting(conn);
+            result.RefreshOnFileOpen = GetRefreshOnFileOpenSetting(conn);
+            result.SavePassword = GetSavePasswordSetting(conn);
+            result.RefreshPeriod = GetRefreshPeriod(conn);
+
+            result.Success = true;
+            return result;
         });
     }
 
@@ -62,40 +51,27 @@ public partial class ConnectionCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            try
+            dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
+
+            if (conn == null)
             {
-                dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
-
-                if (conn == null)
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Connection '{connectionName}' not found";
-                    return result;
-                }
-
-                // Check if this is a Power Query connection
-                if (PowerQueryHelpers.IsPowerQueryConnection(conn))
-                {
-                    result.Success = false;
-                    result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Power Query properties cannot be modified directly.";
-                    return result;
-                }
-
-                // Update properties if specified
-                SetConnectionProperty(conn, "BackgroundQuery", backgroundQuery);
-                SetConnectionProperty(conn, "RefreshOnFileOpen", refreshOnFileOpen);
-                SetConnectionProperty(conn, "SavePassword", savePassword);
-                SetConnectionProperty(conn, "RefreshPeriod", refreshPeriod);
-
-                result.Success = true;
-                return result;
+                throw new InvalidOperationException($"Connection '{connectionName}' not found");
             }
-            catch (Exception ex)
+
+            // Check if this is a Power Query connection
+            if (PowerQueryHelpers.IsPowerQueryConnection(conn))
             {
-                result.Success = false;
-                result.ErrorMessage = $"Error setting connection properties: {ex.Message}";
-                return result;
+                throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Power Query properties cannot be modified directly.");
             }
+
+            // Update properties if specified
+            SetConnectionProperty(conn, "BackgroundQuery", backgroundQuery);
+            SetConnectionProperty(conn, "RefreshOnFileOpen", refreshOnFileOpen);
+            SetConnectionProperty(conn, "SavePassword", savePassword);
+            SetConnectionProperty(conn, "RefreshPeriod", refreshPeriod);
+
+            result.Success = true;
+            return result;
         });
     }
 }
