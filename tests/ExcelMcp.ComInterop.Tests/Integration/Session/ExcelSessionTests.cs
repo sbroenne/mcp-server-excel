@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using System.ComponentModel;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -35,32 +34,18 @@ public class ExcelSessionTests : IDisposable
         _output = output;
 
         // Kill any existing Excel processes to ensure clean state
-        try
+        var existingProcesses = Process.GetProcessesByName("EXCEL");
+        if (existingProcesses.Length > 0)
         {
-            var existingProcesses = Process.GetProcessesByName("EXCEL");
-            if (existingProcesses.Length > 0)
+            _output.WriteLine($"Cleaning up {existingProcesses.Length} existing Excel processes...");
+            foreach (var p in existingProcesses)
             {
-                _output.WriteLine($"Cleaning up {existingProcesses.Length} existing Excel processes...");
-                foreach (var p in existingProcesses)
-                {
-                    p.Kill(); p.WaitForExit(2000);
-                }
-                Thread.Sleep(2000); // Wait for cleanup
-                _output.WriteLine("Excel processes cleaned up");
+                p.Kill(); p.WaitForExit(2000);
             }
+            Thread.Sleep(2000); // Wait for cleanup
+            _output.WriteLine("Excel processes cleaned up");
         }
-        catch (InvalidOperationException ex)
-        {
-            _output.WriteLine($"Warning: Failed to clean Excel processes (invalid operation): {ex.Message}");
-        }
-        catch (System.ComponentModel.Win32Exception ex)
-        {
-            _output.WriteLine($"Warning: Failed to clean Excel processes (win32): {ex.Message}");
-        }
-        catch (NotSupportedException ex)
-        {
-            _output.WriteLine($"Warning: Failed to clean Excel processes (not supported): {ex.Message}");
-        }
+
     }
 
     /// <summary>
