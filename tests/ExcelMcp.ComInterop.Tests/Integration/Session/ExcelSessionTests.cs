@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using System.ComponentModel;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -48,9 +49,17 @@ public class ExcelSessionTests : IDisposable
                 _output.WriteLine("Excel processes cleaned up");
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            _output.WriteLine($"Warning: Failed to clean Excel processes: {ex.Message}");
+            _output.WriteLine($"Warning: Failed to clean Excel processes (invalid operation): {ex.Message}");
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            _output.WriteLine($"Warning: Failed to clean Excel processes (win32): {ex.Message}");
+        }
+        catch (NotSupportedException ex)
+        {
+            _output.WriteLine($"Warning: Failed to clean Excel processes (not supported): {ex.Message}");
         }
     }
 
