@@ -453,11 +453,11 @@ in
         Assert.Contains("Table.SelectRows", derivedViewResult.MCode);
 
         // Refresh both queries to ensure they execute successfully
-        var sourceRefreshResult = _powerQueryCommands.Refresh(batch, "SourceQuery");
+        var sourceRefreshResult = _powerQueryCommands.Refresh(batch, "SourceQuery", TimeSpan.FromMinutes(5));
         Assert.True(sourceRefreshResult.Success,
             $"Source query refresh failed: {sourceRefreshResult.ErrorMessage}");
 
-        var derivedRefreshResult = _powerQueryCommands.Refresh(batch, "DerivedQuery");
+        var derivedRefreshResult = _powerQueryCommands.Refresh(batch, "DerivedQuery", TimeSpan.FromMinutes(5));
         Assert.True(derivedRefreshResult.Success,
             $"Derived query refresh failed: {derivedRefreshResult.ErrorMessage}");
     }
@@ -812,7 +812,7 @@ in
         var loadResult = _powerQueryCommands.LoadTo(batch, queryName, PowerQueryLoadMode.LoadToTable, sheetName, "A1");
         Assert.True(loadResult.Success, $"LoadTo failed: {loadResult.ErrorMessage}");
 
-        var refreshResult = _powerQueryCommands.Refresh(batch, queryName);
+        var refreshResult = _powerQueryCommands.Refresh(batch, queryName, TimeSpan.FromMinutes(5));
         Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
 
         // STEP 4: Verify NO column accumulation (fix validation)

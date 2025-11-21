@@ -11,13 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class PowerQueryCommands
 {
     /// <inheritdoc />
-    public PowerQueryRefreshResult Refresh(IExcelBatch batch, string queryName)
-    {
-        return Refresh(batch, queryName, timeout: null);
-    }
-
-    /// <inheritdoc />
-    public PowerQueryRefreshResult Refresh(IExcelBatch batch, string queryName, TimeSpan? timeout)
+    public PowerQueryRefreshResult Refresh(IExcelBatch batch, string queryName, TimeSpan timeout)
     {
         var result = new PowerQueryRefreshResult
         {
@@ -34,85 +28,101 @@ public partial class PowerQueryCommands
             return result;
         }
 
-        return batch.Execute((ctx, ct) =>
+        if (timeout <= TimeSpan.Zero)
         {
-            dynamic? query = null;
-            try
+            throw new ArgumentOutOfRangeException(nameof(timeout), "Timeout must be greater than zero.");
+        }
+
+        using var timeoutCts = new CancellationTokenSource(timeout);
+
+        try
+        {
+            return batch.Execute((ctx, ct) =>
             {
-                query = ComUtilities.FindQuery(ctx.Book, queryName);
-                if (query == null)
-                {
-                    var queryNames = GetQueryNames(ctx.Book);
-                    string? suggestion = FindClosestMatch(queryName, queryNames);
-
-                    result.Success = false;
-                    result.ErrorMessage = $"Query '{queryName}' not found";
-                    if (suggestion != null)
-                    {
-                        result.ErrorMessage += $". Did you mean '{suggestion}'?";
-                    }
-                    return result;
-                }
-
-                // Check if query has a connection to refresh
+                dynamic? query = null;
                 try
                 {
-                    // Use RefreshConnectionByQueryName helper to avoid code duplication
-                    RefreshConnectionByQueryName(ctx.Book, queryName);
+                    query = ComUtilities.FindQuery(ctx.Book, queryName);
+                    if (query == null)
+                    {
+                        var queryNames = GetQueryNames(ctx.Book);
+                        string? suggestion = FindClosestMatch(queryName, queryNames);
 
-                    // Check for errors after refresh
-                    result.HasErrors = false;
-                    result.Success = true;
-                    result.LoadedToSheet = DetermineLoadedSheet(ctx.Book, queryName);
+                        result.Success = false;
+                        result.ErrorMessage = $"Query '{queryName}' not found";
+                        if (suggestion != null)
+                        {
+                            result.ErrorMessage += $". Did you mean '{suggestion}'?";
+                        }
+                        return result;
+                    }
 
-                    // Determine if connection-only based on whether it's loaded to a sheet OR Data Model
-                    bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
-                    result.IsConnectionOnly = string.IsNullOrEmpty(result.LoadedToSheet) && !isLoadedToDataModel;
+                    try
+                    {
+                        RefreshConnectionByQueryName(ctx.Book, queryName);
 
-                    // Add workflow guidance
+                        result.HasErrors = false;
+                        result.Success = true;
+                        result.LoadedToSheet = DetermineLoadedSheet(ctx.Book, queryName);
+
+                        bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
+                        result.IsConnectionOnly = string.IsNullOrEmpty(result.LoadedToSheet) && !isLoadedToDataModel;
+                    }
+                    catch (COMException comEx)
+                    {
+                        result.Success = false;
+                        result.HasErrors = true;
+                        result.ErrorMessages.Add(ParsePowerQueryError(comEx));
+                        result.ErrorMessage = string.Join("; ", result.ErrorMessages);
+                    }
+
+                    if (!result.Success && result.ErrorMessages.Count == 0)
+                    {
+                        ComUtilities.Release(ref query);
+                        query = null;
+
+                        string? loadedSheet = DetermineLoadedSheet(ctx.Book, queryName);
+                        bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
+
+                        if (loadedSheet != null || isLoadedToDataModel)
+                        {
+                            result.Success = true;
+                            result.IsConnectionOnly = false;
+                            result.LoadedToSheet = loadedSheet;
+                        }
+                        else
+                        {
+                            result.Success = true;
+                            result.IsConnectionOnly = true;
+                        }
+                    }
+
+                    return result;
                 }
-                catch (COMException comEx)
+                catch (Exception ex)
                 {
-                    // Capture detailed error information
                     result.Success = false;
-                    result.HasErrors = true;
-                    result.ErrorMessages.Add(ParsePowerQueryError(comEx));
-                    result.ErrorMessage = string.Join("; ", result.ErrorMessages);
+                    result.ErrorMessage = $"Error refreshing query: {ex.Message}";
+                    return result;
                 }
-
-                // If no connection found, check if query is loaded to worksheet or data model
-                if (!result.Success && result.ErrorMessages.Count == 0)
+                finally
                 {
                     ComUtilities.Release(ref query);
-
-                    // Check if there are QueryTables that reference this query OR if it's in Data Model
-                    string? loadedSheet = DetermineLoadedSheet(ctx.Book, queryName);
-                    bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
-
-                    if (loadedSheet != null || isLoadedToDataModel)
-                    {
-                        // Query is loaded to a worksheet via QueryTable or Data Model
-                        result.Success = true;
-                        result.IsConnectionOnly = false;
-                        result.LoadedToSheet = loadedSheet;
-                    }
-                    else
-                    {
-                        // Truly connection-only (no connection, no QueryTables)
-                        result.Success = true;
-                        result.IsConnectionOnly = true;
-                    }
                 }
-
-                return result;
-            }
-            catch (Exception ex)
+            }, timeoutCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            result.Success = false;
+            result.ErrorMessage = $"Power Query refresh exceeded {timeout.TotalMinutes:0.#} minutes. Check Excel for prompts or long-running refreshes.";
+            result.IsRetryable = false;
+            result.OperationContext = new Dictionary<string, object>
             {
-                result.Success = false;
-                result.ErrorMessage = $"Error refreshing query: {ex.Message}";
-                return result;
-            }
-        });  // Default 5 minutes for Power Query refresh, LLM can override
+                { "QueryName", queryName },
+                { "TimeoutMinutes", timeout.TotalMinutes }
+            };
+            return result;
+        }
     }
 
     /// <summary>

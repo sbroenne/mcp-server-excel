@@ -32,3 +32,4 @@
 - connection-only queries: NOT validated until first execution
 - refresh with loadDestination: Applies load config + refreshes (2-in-1)
 - Single cell returns [[value]] not scalar
+- refresh action REQUIRES `refreshTimeoutSeconds` between 60-600 seconds (1-10 minutes). If refresh needs more than 10 minutes, ask the user to run it manually in Excel—the server refuses longer windows and will not pick a default for you.
