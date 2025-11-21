@@ -14,11 +14,9 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 /// - ✅ Test ExcelSession.CreateNew() file creation
 /// - ✅ Verify Excel.exe process termination (no leaks)
 ///
-/// NOTE: ExcelSession methods handle all GC cleanup automatically.
-/// Tests only need to wait for async disposal and process termination timing.
-///
-/// IMPORTANT: These tests spawn and terminate Excel processes (side effects).
-/// They run OnDemand only to avoid interference with normal test runs.
+/// NOTE: ExcelSession methods use ExcelShutdownService for resilient cleanup.
+/// Automatic RCW finalizers handle COM reference cleanup (no forced GC needed).
+/// Process cleanup errors are logged but don't fail tests.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Slow")]
