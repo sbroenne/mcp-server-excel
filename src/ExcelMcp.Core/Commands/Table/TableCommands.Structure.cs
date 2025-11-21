@@ -26,9 +26,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 sheet = table.Parent;
@@ -38,12 +36,6 @@ public partial class TableCommands
                 table.Resize(newRangeObj);
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -70,20 +62,12 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 table.ShowTotals = showTotals;
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -110,9 +94,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 // Ensure totals row is shown
@@ -147,9 +129,7 @@ public partial class TableCommands
 
                 if (column == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Column '{columnName}' not found in table '{tableName}'";
-                    return result;
+                    throw new InvalidOperationException($"Column '{columnName}' not found in table '{tableName}'");
                 }
 
                 // Map function name to Excel constant
@@ -173,12 +153,6 @@ public partial class TableCommands
                 column.TotalsCalculation = xlFunction;
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -205,20 +179,12 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 table.TableStyle = tableStyle;
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
